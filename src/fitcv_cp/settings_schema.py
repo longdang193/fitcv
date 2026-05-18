@@ -39,22 +39,30 @@ _RULE_FILTER_SELECTABLE_OPTIONS = [
     "must_have_skill_missing",
     "domain_not_preferred",
 ]
-_RESPONSIBILITY_ALIGNMENT_WEIGHT_KEYS = {
+_RESPONSIBILITY_ALIGNMENT_WEIGHT_KEYS: frozenset[str] = frozenset(
+    {
     "cv_analysis.semantic_alignment.responsibility_lexical_weight",
     "cv_analysis.semantic_alignment.responsibility_semantic_weight",
-}
-_DOMAIN_ALIGNMENT_WEIGHT_KEYS = {
+    }
+)
+_DOMAIN_ALIGNMENT_WEIGHT_KEYS: frozenset[str] = frozenset(
+    {
     "cv_analysis.semantic_alignment.domain_lexical_weight",
     "cv_analysis.semantic_alignment.domain_semantic_weight",
-}
-_REQUIRED_SKILL_ALIGNMENT_WEIGHT_KEYS = {
+    }
+)
+_REQUIRED_SKILL_ALIGNMENT_WEIGHT_KEYS: frozenset[str] = frozenset(
+    {
     "cv_analysis.semantic_alignment.required_skill_lexical_weight",
     "cv_analysis.semantic_alignment.required_skill_semantic_weight",
-}
-_ROLE_ALIGNMENT_WEIGHT_KEYS = {
+    }
+)
+_ROLE_ALIGNMENT_WEIGHT_KEYS: frozenset[str] = frozenset(
+    {
     "cv_analysis.semantic_alignment.role_lexical_weight",
     "cv_analysis.semantic_alignment.role_semantic_weight",
-}
+    }
+)
 _UI_SURFACE_EDITABLE = "editable"
 _UI_SURFACE_METADATA_ONLY = "metadata_only"
 _UI_DEPRECATION_ACTIVE = "active"
@@ -652,7 +660,37 @@ def _hydrate_schema_defaults_from_config() -> None:
         entry["default"] = resolved_default
 
 
-_hydrate_schema_defaults_from_config()
+def _copy_schema_entries(schema: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    copied: list[dict[str, Any]] = []
+    for entry in schema:
+        cloned = dict(entry)
+        if isinstance(cloned.get("default"), list):
+            cloned["default"] = list(cloned["default"])
+        copied.append(cloned)
+    return copied
+
+def settings_schema_with_runtime_defaults(
+    baseline_config: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    schema = _copy_schema_entries(SETTINGS_SCHEMA)
+    if baseline_config is None:
+        try:
+            baseline_config = load_config()
+        except Exception:
+            baseline_config = {}
+
+    for entry in schema:
+        config_path = entry.get("config_path")
+        if not isinstance(config_path, list) or not config_path:
+            continue
+        resolved_default = _resolve_config_path_default(baseline_config, config_path)
+        if resolved_default is None:
+            continue
+        if isinstance(entry.get("default"), list) and isinstance(resolved_default, list):
+            entry["default"] = [str(value) for value in resolved_default]
+            continue
+        entry["default"] = resolved_default
+    return schema
 
 # ── Ranking group registry ────────────────────────────────────────────────────
 # Maps URL group slug → ordered list of schema keys in that group.
@@ -779,6 +817,8 @@ _HIDDEN_DEPRECATED_KEYS: frozenset[str] = frozenset(
     for entry in SETTINGS_SCHEMA
     if entry.get("ui_deprecation_state") == _UI_DEPRECATION_HIDDEN
 )
+# Transitional overlap contract: hidden-deprecated keys must not remain editable unless explicitly allowlisted.
+_EDITABLE_HIDDEN_DEPRECATED_ALLOWLIST: frozenset[str] = frozenset({"cv_generation_model"})
 _AGENTIC_KEYS: frozenset[str] = frozenset(
     entry["key"]
     for entry in SETTINGS_SCHEMA
@@ -795,6 +835,39 @@ _WEIGHT_KEYS: frozenset[str] = frozenset(
 )
 _PREFERENCE_WEIGHT_KEYS: frozenset[str] = frozenset(
     s["key"] for s in SETTINGS_SCHEMA if s["key"].startswith("preference_fit_weights.")
+)
+
+# Declarative constraint registry (Task 4 Step 1): behavior still enforced by legacy checks below.
+_RELATIONAL_ORDER_CONSTRAINTS: tuple[tuple[str, str, str], ...] = (
+    (
+        "pipeline.vector_search_top_n",
+        "pipeline.ai_score_top_n",
+        "pipeline.ai_score_top_n ({rhs}) must be <= pipeline.vector_search_top_n ({lhs})",
+    ),
+    (
+        "pipeline.ai_score_top_n",
+        "pipeline.final_top_n",
+        "pipeline.final_top_n ({rhs}) must be <= pipeline.ai_score_top_n ({lhs})",
+    ),
+    (
+        "fit_label_thresholds.strong",
+        "fit_label_thresholds.stretch",
+        "fit_label_thresholds.strong ({lhs}) must be > stretch ({rhs})",
+    ),
+    (
+        "gap_thresholds.strong_min_matched_ratio",
+        "gap_thresholds.stretch_min_matched_ratio",
+        "gap_thresholds.strong_min_matched_ratio ({lhs}) must be > stretch ({rhs})",
+    ),
+)
+
+_WEIGHT_SUM_CONSTRAINTS: tuple[tuple[frozenset[str], str], ...] = (
+    (_WEIGHT_KEYS, "ranking_weights"),
+    (_PREFERENCE_WEIGHT_KEYS, "preference_fit_weights"),
+    (_RESPONSIBILITY_ALIGNMENT_WEIGHT_KEYS, "cv_analysis responsibility semantic alignment weights"),
+    (_REQUIRED_SKILL_ALIGNMENT_WEIGHT_KEYS, "cv_analysis required-skill semantic alignment weights"),
+    (_ROLE_ALIGNMENT_WEIGHT_KEYS, "cv_analysis role semantic alignment weights"),
+    (_DOMAIN_ALIGNMENT_WEIGHT_KEYS, "cv_analysis domain semantic alignment weights"),
 )
 
 
@@ -923,16 +996,6 @@ _GROUP_TO_APPLIES_WHEN: dict[str, str] = {
 }
 
 _STAGE_CROSS_STAGE = "cross_stage"
-_ALL_STAGE_IDS: tuple[str, ...] = (
-    _WORKFLOW_STAGE_NORMALIZE,
-    _WORKFLOW_STAGE_ENRICH,
-    _WORKFLOW_STAGE_RULE_FILTER,
-    _WORKFLOW_STAGE_SHORTLIST,
-    _WORKFLOW_STAGE_RANKING,
-    _WORKFLOW_STAGE_CV_ANALYSIS,
-    _WORKFLOW_STAGE_CV_GENERATION,
-    _STAGE_CROSS_STAGE,
-)
 
 _KEY_TO_STAGE_ID: dict[str, str] = {
     # shortlist
@@ -1056,6 +1119,16 @@ def _default_stage_id(entry: dict[str, Any]) -> str:
     key = str(entry.get("key") or "")
     return _KEY_TO_STAGE_ID.get(key, _STAGE_CROSS_STAGE)
 
+
+def _default_workflow_stages(entry: dict[str, Any], stage_id: str) -> list[str]:
+    group = str(entry.get("group") or "")
+    group_stages = list(_GROUP_TO_WORKFLOW_STAGES.get(group, ()))
+    if not group_stages:
+        return [stage_id]
+    if stage_id not in group_stages:
+        group_stages.append(stage_id)
+    return group_stages
+
 def _default_control_surface(entry: dict[str, Any]) -> str:
     key = str(entry.get("key") or "")
     if key.startswith("cv_analysis.semantic_alignment."):
@@ -1109,8 +1182,8 @@ def _build_settings_ia_metadata() -> dict[str, dict[str, Any]]:
             "stage": stage_id,
             "control_surface": _default_control_surface(entry),
             "decision_area": _default_decision_area(entry),
-            # Keep workflow-stage metadata aligned with canonical per-key stage ownership.
-            "workflow_stages": [stage_id],
+            # Keep per-key canonical stage and workflow participation explicitly separated.
+            "workflow_stages": _default_workflow_stages(entry, stage_id),
             "risk": risk,
             "runtime_used": key not in _METADATA_ONLY_KEYS,
             "metadata_only": key in _METADATA_ONLY_KEYS,
@@ -1142,7 +1215,15 @@ def _validate_settings_ia_metadata_coverage() -> None:
     if extra:
         raise RuntimeError(f"SETTINGS_IA_METADATA_BY_KEY has unknown keys: {sorted(extra)!r}")
 
+def _validate_settings_surface_contract() -> None:
+    overlap = (_EDITABLE_KEYS & _HIDDEN_DEPRECATED_KEYS) - _EDITABLE_HIDDEN_DEPRECATED_ALLOWLIST
+    if overlap:
+        raise RuntimeError(
+            f"Editable hidden-deprecated overlap keys must be explicitly allowlisted: {sorted(overlap)!r}"
+        )
+
 _validate_settings_ia_metadata_coverage()
+_validate_settings_surface_contract()
 
 def settings_ia_metadata_by_key() -> dict[str, dict[str, Any]]:
     return {key: dict(value) for key, value in SETTINGS_IA_METADATA_BY_KEY.items()}
@@ -1355,70 +1436,20 @@ def validate_settings(settings: dict[str, Any]) -> None:
                     )
 
     # ── relational constraints ────────────────────────────────────────────────
-    vs = settings.get("pipeline.vector_search_top_n")
-    ai = settings.get("pipeline.ai_score_top_n")
-    fn = settings.get("pipeline.final_top_n")
-    if isinstance(vs, int) and isinstance(ai, int) and ai > vs:
-        raise ValidationError(
-            f"pipeline.ai_score_top_n ({ai}) must be <= pipeline.vector_search_top_n ({vs})"
-        )
-    if isinstance(ai, int) and isinstance(fn, int) and fn > ai:
-        raise ValidationError(
-            f"pipeline.final_top_n ({fn}) must be <= pipeline.ai_score_top_n ({ai})"
-        )
+    for lhs_key, rhs_key, message_template in _RELATIONAL_ORDER_CONSTRAINTS:
+        lhs = settings.get(lhs_key)
+        rhs = settings.get(rhs_key)
+        if isinstance(lhs, (int, float)) and isinstance(rhs, (int, float)) and rhs > lhs:
+            raise ValidationError(message_template.format(lhs=lhs, rhs=rhs))
 
-    strong = settings.get("fit_label_thresholds.strong")
-    stretch = settings.get("fit_label_thresholds.stretch")
-    if isinstance(strong, float) and isinstance(stretch, float) and strong <= stretch:
-        raise ValidationError(
-            f"fit_label_thresholds.strong ({strong}) must be > stretch ({stretch})"
-        )
-
-    g_strong = settings.get("gap_thresholds.strong_min_matched_ratio")
-    g_stretch = settings.get("gap_thresholds.stretch_min_matched_ratio")
-    if isinstance(g_strong, float) and isinstance(g_stretch, float) and g_strong <= g_stretch:
-        raise ValidationError(
-            f"gap_thresholds.strong_min_matched_ratio ({g_strong}) must be > stretch ({g_stretch})"
-        )
-
-    # Ranking weights sum-to-1 only checked when all 6 are present
-    if _WEIGHT_KEYS <= set(settings.keys()):
-        total = sum(float(settings[k]) for k in _WEIGHT_KEYS)
-        if abs(total - 1.0) > 0.01:
-            raise ValidationError(
-                f"ranking_weights must sum to 1.0 (± 0.01), got {total:.4f}"
-            )
-    if _PREFERENCE_WEIGHT_KEYS <= set(settings.keys()):
-        total = sum(float(settings[k]) for k in _PREFERENCE_WEIGHT_KEYS)
-        if abs(total - 1.0) > 0.01:
-            raise ValidationError(
-                f"preference_fit_weights must sum to 1.0 (± 0.01), got {total:.4f}"
-            )
-    if _RESPONSIBILITY_ALIGNMENT_WEIGHT_KEYS <= set(settings.keys()):
-        total = sum(float(settings[key]) for key in _RESPONSIBILITY_ALIGNMENT_WEIGHT_KEYS)
-        if abs(total - 1.0) > 0.01:
-            raise ValidationError(
-                f"cv_analysis responsibility semantic alignment weights must sum to 1.0 (± 0.01), got {total:.4f}"
-            )
-    if _REQUIRED_SKILL_ALIGNMENT_WEIGHT_KEYS <= set(settings.keys()):
-        total = sum(float(settings[key]) for key in _REQUIRED_SKILL_ALIGNMENT_WEIGHT_KEYS)
-        if abs(total - 1.0) > 0.01:
-            raise ValidationError(
-                f"cv_analysis required-skill semantic alignment weights must sum to 1.0 (± 0.01), got {total:.4f}"
-            )
-    if _ROLE_ALIGNMENT_WEIGHT_KEYS <= set(settings.keys()):
-        total = sum(float(settings[key]) for key in _ROLE_ALIGNMENT_WEIGHT_KEYS)
-        if abs(total - 1.0) > 0.01:
-            raise ValidationError(
-                f"cv_analysis role semantic alignment weights must sum to 1.0 (± 0.01), got {total:.4f}"
-            )
-    if _DOMAIN_ALIGNMENT_WEIGHT_KEYS <= set(settings.keys()):
-        total = sum(float(settings[key]) for key in _DOMAIN_ALIGNMENT_WEIGHT_KEYS)
-        if abs(total - 1.0) > 0.01:
-            raise ValidationError(
-                f"cv_analysis domain semantic alignment weights must sum to 1.0 (± 0.01), got {total:.4f}"
-            )
-
+    # Weight-family sum-to-1 checks only run when each full family is present.
+    for keys, label in _WEIGHT_SUM_CONSTRAINTS:
+        if keys <= set(settings.keys()):
+            total = sum(float(settings[key]) for key in keys)
+            if abs(total - 1.0) > 0.01:
+                raise ValidationError(
+                    f"{label} must sum to 1.0 (± 0.01), got {total:.4f}"
+                )
 
 # ── config application ────────────────────────────────────────────────────────
 
@@ -1434,3 +1465,6 @@ def apply_settings_to_config(config: dict[str, Any], settings: dict[str, Any]) -
         for part in path[:-1]:
             target = target.setdefault(part, {})
         target[path[-1]] = value
+
+
+

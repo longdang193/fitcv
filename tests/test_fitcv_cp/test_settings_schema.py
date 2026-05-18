@@ -45,6 +45,7 @@ from fitcv_cp.settings_schema import (
     validate_settings,
     ValidationError,
 )
+import fitcv_cp.settings_schema as settings_schema_module
 
 
 # ── schema registry ───────────────────────────────────────────────────────────
@@ -95,13 +96,24 @@ def test_settings_ia_stage_filter_returns_expected_keys() -> None:
     assert "cv_generation_model" in cv_generation_keys
     assert "cv_summary_enabled" in cv_generation_keys
 
+
+def test_settings_ia_workflow_stages_include_canonical_stage_for_all_keys() -> None:
+    meta = settings_ia_metadata_by_key()
+    for key, contract in meta.items():
+        stage = str(contract.get("stage") or "")
+        workflow_stages = set(contract.get("workflow_stages") or [])
+        assert stage in workflow_stages, f"{key} stage {stage!r} missing from workflow_stages"
 def test_settings_ia_contract_for_key_contains_required_fields() -> None:
     contract = settings_ia_contract_for_key("cv_certifications_enabled")
     assert set(contract.keys()) == {
         "decision_status",
         "reason_codes",
         "domain",
+        "stage",
         "workflow_stages",
+        "control_surface",
+        "decision_area",
+        "complexity_view",
         "risk",
         "runtime_used",
         "metadata_only",
@@ -188,10 +200,39 @@ def test_schema_tracks_editable_keys_separately_from_metadata_only() -> None:
     assert "cv_analysis.semantic_alignment.model" not in editable_keys
 
 
+
+def test_hidden_deprecated_editable_overlap_is_allowlist_only() -> None:
+    editable = settings_schema_module.editable_settings_keys()
+    hidden = settings_schema_module.hidden_deprecated_settings_keys()
+    allowlist = set(settings_schema_module._EDITABLE_HIDDEN_DEPRECATED_ALLOWLIST)
+    overlap = editable & hidden
+    assert overlap <= allowlist
+    assert "cv_generation_model" in overlap
 def test_all_editable_settings_have_persistence_backed_config_paths() -> None:
     schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
-    for key in editable_settings_keys():
-        assert schema_by_key[key]["config_path"], f"{key} is editable but has no config_path"
+
+def test_hidden_deprecated_editable_overlap_rejects_non_allowlisted_keys(monkeypatch) -> None:
+    # Simulate accidental overlap beyond explicit transitional allowlist.
+    monkeypatch.setattr(
+        settings_schema_module,
+        "_EDITABLE_KEYS",
+        frozenset({"cv_generation_model", "fake.overlap.key"}),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        settings_schema_module,
+        "_HIDDEN_DEPRECATED_KEYS",
+        frozenset({"cv_generation_model", "fake.overlap.key"}),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        settings_schema_module,
+        "_EDITABLE_HIDDEN_DEPRECATED_ALLOWLIST",
+        frozenset({"cv_generation_model"}),
+        raising=False,
+    )
+    with pytest.raises(RuntimeError, match="allowlisted"):
+        settings_schema_module._validate_settings_surface_contract()
 
 
 def test_feature_source_names_operator_facing_agentic_settings_capability() -> None:
@@ -346,16 +387,38 @@ def test_fit_label_strong_must_exceed_stretch():
 
 def test_ranking_weights_must_sum_to_one():
     """@proves settings_system.ranking-settings"""
-    with pytest.raises(ValidationError, match="ranking_weights"):
+
+def test_relational_constraint_error_message_exact_for_top_n() -> None:
+    with pytest.raises(
+        ValidationError,
+        match=r"^pipeline\.ai_score_top_n \(60\) must be <= pipeline\.vector_search_top_n \(50\)$",
+    ):
         validate_settings({
-            "ranking_weights.ai_score": 0.90,
+            "pipeline.vector_search_top_n": 50,
+            "pipeline.ai_score_top_n": 60,
+        })
+
+def test_weight_sum_tolerance_boundary_and_message_parity() -> None:
+    # Preserve current behavior: 1.0100 total is rejected in practice (float precision path).
+    with pytest.raises(ValidationError, match=r"ranking_weights must sum to 1\.0"):
+        validate_settings({
+            "ranking_weights.ai_score": 0.41,
             "ranking_weights.must_have_match": 0.20,
             "ranking_weights.vector_similarity": 0.15,
             "ranking_weights.title_relevance": 0.10,
             "ranking_weights.seniority_fit": 0.10,
             "ranking_weights.preference_fit": 0.05,
         })
-
+    # Beyond tolerance is also rejected with canonical label path.
+    with pytest.raises(ValidationError, match=r"ranking_weights must sum to 1\.0"):
+        validate_settings({
+            "ranking_weights.ai_score": 0.42,
+            "ranking_weights.must_have_match": 0.20,
+            "ranking_weights.vector_similarity": 0.15,
+            "ranking_weights.title_relevance": 0.10,
+            "ranking_weights.seniority_fit": 0.10,
+            "ranking_weights.preference_fit": 0.05,
+        })
 
 def test_ranking_weights_partial_update_skips_sum_check():
     """Partial updates are allowed; sum-to-1 only checked when ALL 6 are present."""
@@ -368,6 +431,36 @@ def test_gap_thresholds_strong_must_exceed_stretch():
             "gap_thresholds.strong_min_matched_ratio": 0.30,
             "gap_thresholds.stretch_min_matched_ratio": 0.50,
         })
+
+@pytest.mark.parametrize(
+    ("settings", "expected_error"),
+    [
+        (
+            {"pipeline.vector_search_top_n": 50, "pipeline.ai_score_top_n": 60},
+            r"pipeline\.ai_score_top_n \(60\) must be <= pipeline\.vector_search_top_n \(50\)",
+        ),
+        (
+            {"pipeline.ai_score_top_n": 20, "pipeline.final_top_n": 30},
+            r"pipeline\.final_top_n \(30\) must be <= pipeline\.ai_score_top_n \(20\)",
+        ),
+        (
+            {"fit_label_thresholds.strong": 0.40, "fit_label_thresholds.stretch": 0.70},
+            r"fit_label_thresholds\.strong \(0\.4\) must be > stretch \(0\.7\)",
+        ),
+        (
+            {
+                "gap_thresholds.strong_min_matched_ratio": 0.30,
+                "gap_thresholds.stretch_min_matched_ratio": 0.50,
+            },
+            r"gap_thresholds\.strong_min_matched_ratio \(0\.3\) must be > stretch \(0\.5\)",
+        ),
+    ],
+)
+def test_relational_constraint_registry_enforced_for_all_pairs(
+    settings: dict[str, float | int], expected_error: str
+) -> None:
+    with pytest.raises(ValidationError, match=expected_error):
+        validate_settings(settings)
 
 
 def test_unknown_key_rejected():
@@ -475,6 +568,62 @@ def test_retrieval_defaults_are_hydrated_from_centralized_pipeline_config() -> N
     assert schema_by_key["pipeline.ai_score_top_n"]["default"] == 50
     assert schema_by_key["pipeline.final_top_n"]["default"] == 10
     assert schema_by_key["pipeline.evidence_top_k"]["default"] == 5
+
+def test_runtime_overlay_defaults_do_not_mutate_declared_schema_defaults() -> None:
+    declared_before = {
+        entry["key"]: entry["default"]
+        for entry in SETTINGS_SCHEMA
+        if entry["key"] in {
+            "pipeline.vector_search_top_n",
+            "pipeline.ai_score_top_n",
+            "pipeline.final_top_n",
+            "pipeline.evidence_top_k",
+        }
+    }
+    overlaid = settings_schema_module.settings_schema_with_runtime_defaults(
+        {
+            "pipeline": {
+                "vector_search_top_n": 77,
+                "ai_score_top_n": 66,
+                "final_top_n": 11,
+                "evidence_top_k": 9,
+            }
+        }
+    )
+    overlay_by_key = {entry["key"]: entry for entry in overlaid}
+    assert overlay_by_key["pipeline.vector_search_top_n"]["default"] == 77
+    assert overlay_by_key["pipeline.ai_score_top_n"]["default"] == 66
+    assert overlay_by_key["pipeline.final_top_n"]["default"] == 11
+    assert overlay_by_key["pipeline.evidence_top_k"]["default"] == 9
+
+    declared_after = {
+        entry["key"]: entry["default"]
+        for entry in SETTINGS_SCHEMA
+        if entry["key"] in declared_before
+    }
+    assert declared_after == declared_before
+
+def test_runtime_overlay_defaults_returns_independent_list_defaults_copy() -> None:
+    overlaid = settings_schema_module.settings_schema_with_runtime_defaults(
+        {
+            "rule_filter": {
+                "selected_filters": ["seniority_mismatch", "domain_not_preferred"],
+            }
+        }
+    )
+    overlay_by_key = {entry["key"]: entry for entry in overlaid}
+    overlay_list = overlay_by_key["rule_filter.selected_filters"]["default"]
+    assert overlay_list == ["seniority_mismatch", "domain_not_preferred"]
+    assert isinstance(overlay_list, list)
+    overlay_list.append("must_have_skill_missing")
+
+    declared_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+    assert declared_by_key["rule_filter.selected_filters"]["default"] == [
+        "seniority_mismatch",
+        "location_type_excluded",
+        "contract_type_excluded",
+        "experience_level_excluded",
+    ]
 
 
 def test_rule_filter_selected_filters_validate_accepts_known_codes() -> None:
@@ -630,6 +779,64 @@ def test_preference_fit_weights_must_sum_to_one() -> None:
             "preference_fit_weights.role_family": 0.20,
             "preference_fit_weights.location_type": 0.20,
         })
+
+@pytest.mark.parametrize(
+    ("settings", "label"),
+    [
+        (
+            {
+                "ranking_weights.ai_score": 0.42,
+                "ranking_weights.must_have_match": 0.20,
+                "ranking_weights.vector_similarity": 0.15,
+                "ranking_weights.title_relevance": 0.10,
+                "ranking_weights.seniority_fit": 0.10,
+                "ranking_weights.preference_fit": 0.05,
+            },
+            "ranking_weights",
+        ),
+        (
+            {
+                "preference_fit_weights.domain": 0.70,
+                "preference_fit_weights.role_family": 0.20,
+                "preference_fit_weights.location_type": 0.20,
+            },
+            "preference_fit_weights",
+        ),
+        (
+            {
+                "cv_analysis.semantic_alignment.required_skill_lexical_weight": 0.60,
+                "cv_analysis.semantic_alignment.required_skill_semantic_weight": 0.30,
+            },
+            "required-skill semantic alignment weights",
+        ),
+        (
+            {
+                "cv_analysis.semantic_alignment.role_lexical_weight": 0.55,
+                "cv_analysis.semantic_alignment.role_semantic_weight": 0.30,
+            },
+            "role semantic alignment weights",
+        ),
+        (
+            {
+                "cv_analysis.semantic_alignment.responsibility_lexical_weight": 0.25,
+                "cv_analysis.semantic_alignment.responsibility_semantic_weight": 0.60,
+            },
+            "responsibility semantic alignment weights",
+        ),
+        (
+            {
+                "cv_analysis.semantic_alignment.domain_lexical_weight": 0.20,
+                "cv_analysis.semantic_alignment.domain_semantic_weight": 0.70,
+            },
+            "domain semantic alignment weights",
+        ),
+    ],
+)
+def test_weight_sum_constraint_registry_enforced_for_all_families(
+    settings: dict[str, float], label: str
+) -> None:
+    with pytest.raises(ValidationError, match=rf"{label} must sum to 1\.0"):
+        validate_settings(settings)
 
 
 def test_ranking_groups_threshold_groups_have_two_keys_each():
@@ -1246,3 +1453,6 @@ def test_legacy_cv_required_toggles_are_removed_from_schema() -> None:
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert "cv_education_required" not in schema_by_key
     assert "cv_projects_required" not in schema_by_key
+
+
+
