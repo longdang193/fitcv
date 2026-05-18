@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: active
 template_id: implementation-plan
 name: pipeline-refactor-ssot-symmetry-implementation-plan
 author: codex
@@ -67,12 +67,12 @@ Every extraction/rename step guarded by GitNexus impact/context checks and final
 - GitNexus freshness confirms index matches HEAD
 
 **Steps:**
-- [ ] Step 1: capture baseline fixtures for full run and checkpointed run outputs (run result, stage artifacts, event stream)
-- [ ] Step 2: add parity tests asserting unchanged stage order, resume behavior, and output payload key contracts
-- [ ] Step 3: add table-driven baseline for status transition expectations across cv_analysis/cv_generation terminals
+- [x] Step 1: capture baseline fixtures for full run and checkpointed run outputs (run result, stage artifacts, event stream)
+- [x] Step 2: add parity tests asserting unchanged stage order, resume behavior, and output payload key contracts
+- [x] Step 3: add table-driven baseline for status transition expectations across cv_analysis/cv_generation terminals
 
 **Verification:**
-- [ ] `uvx pytest tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_status_registry.py -q`
+- [x] `uvx pytest tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_status_registry.py -q`
 
 **Exit Criteria:**
 - baseline parity harness exists and fails on contract drift
@@ -93,7 +93,7 @@ Every extraction/rename step guarded by GitNexus impact/context checks and final
 - GitNexus safety checks executed for extraction targets
 
 **Steps:**
-- [ ] Step 1: run `gitnexus_context({name: "run_pipeline"})` and `gitnexus_impact({target:"run_pipeline", direction:"upstream"})`
+- [x] Step 1: run `gitnexus_context({name: "run_pipeline"})` and `gitnexus_impact({target:"run_pipeline", direction:"upstream"})`
 - [ ] Step 2: introduce `PipelineContext` and `PipelineState` dataclasses; migrate repeated state dictionaries to typed access
 - [ ] Step 3: introduce canonical stage-boundary helper handling progress callback + `stop_after_stage` + checkpoint summary
 - [ ] Step 4: rewire existing stage blocks to use boundary helper while preserving existing return/pause outputs
@@ -231,3 +231,4 @@ Every extraction/rename step guarded by GitNexus impact/context checks and final
 Canonical source-of-truth:
 - `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
+
