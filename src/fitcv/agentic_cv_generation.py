@@ -37,7 +37,7 @@ from fitcv.agentic_cv_analysis import (
     extract_job_title,
     extract_job_url,
 )
-from fitcv.config import get_cv_generation_model
+from fitcv.config import get_cv_generation_model, resolve_model_routing_part
 from fitcv.cv_generator import (
     _normalize_structured_cv,
     _resolve_template_path,
@@ -158,9 +158,27 @@ def _discover_fitcv_langgraph_repo_root() -> Path | None:
 
 def _build_fitcv_langgraph_env_values(repo_root: Path | None) -> dict[str, str]:
     del repo_root
-    # Keep runtime routing deterministic: process env is source-of-truth.
-    # Do not merge external .env files from neighboring repos.
-    return dict(os.environ)
+    env_values = dict(os.environ)
+    # Keep runtime routing deterministic from control-plane SSOT.
+    # Unify provider routing across AI stages by inheriting enrich provider path.
+    try:
+        enrich_route = resolve_model_routing_part("enrich_extraction")
+        cv_route = resolve_model_routing_part("cv_generation_structured_write")
+    except Exception:
+        return env_values
+    provider = str(enrich_route.get("provider") or "").strip()
+    base_url = str(enrich_route.get("base_url") or "").strip()
+    wire_api = str(enrich_route.get("wire_api") or "").strip()
+    model = str(cv_route.get("model") or "").strip()
+    if provider:
+        env_values["FITCV_LANGGRAPH_PROVIDER"] = provider
+    if base_url:
+        env_values["FITCV_LANGGRAPH_OPENAI_BASE_URL"] = base_url
+    if wire_api:
+        env_values["FITCV_LANGGRAPH_WIRE_API"] = wire_api
+    if model:
+        env_values["FITCV_LANGGRAPH_MODEL"] = model
+    return env_values
 
 @contextmanager
 def _temporary_environ(values: dict[str, str]) -> Iterator[None]:

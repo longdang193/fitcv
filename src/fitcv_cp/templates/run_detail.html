@@ -28,7 +28,7 @@
 </div>
 
 <!-- ── Run Overview (canonical single summary block) ─────────────────────── -->
-<div class="card" id="run-overview">
+<div class="card" id="run-overview-core">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
     <h3 style="margin:0">Run Overview</h3>
     <span class="meta">Summary for next decision.</span>
@@ -63,16 +63,6 @@
     {% if run.started_at and run.finished_at %}
     <span class="k">Duration</span><span class="v">{{ ((run.finished_at - run.started_at).total_seconds() | int) }}s</span>
     {% endif %}
-    <span class="k">Orchestration Backend</span><span class="v"><code>{{ orchestration_diagnostics.backend }}</code></span>
-    <span class="k">Backend Run ID</span><span class="v"><code>{{ orchestration_diagnostics.backend_run_id or '—' }}</code></span>
-    <span class="k">Backend Status</span><span class="v"><code>{{ orchestration_diagnostics.status }}</code>{% if not orchestration_diagnostics.status_checked %} <span class="meta">(not polled)</span>{% endif %}</span>
-    <span class="k">Replay Mode</span><span class="v"><code>{{ replay_context_summary.replay_mode or 'strict' }}</code></span>
-    <span class="k">Replay Source Run</span><span class="v"><code>{{ replay_context_summary.replay_source_run_id or run.run_id }}</code></span>
-    <span class="k">Policy Registry</span><span class="v"><code>{{ replay_context_summary.policy_registry_version or 'policy_registry.v1' }}</code></span>
-    <span class="k">Runtime Mode</span><span class="v"><code>{{ data_plane_summary.runtime_mode or 'full' }}</code></span>
-    <span class="k">State Backend</span><span class="v"><code>{{ data_plane_summary.state_backend or 'unknown' }}</code></span>
-    <span class="k">Artifact Backend</span><span class="v"><code>{{ data_plane_summary.artifact_backend or 'unknown' }}</code></span>
-    <span class="k">Telemetry Backend</span><span class="v"><code>{{ data_plane_summary.telemetry_backend or 'otel_json' }}</code></span>
     <span class="k">Total Jobs</span><span class="v">{{ run.total_jobs if run.total_jobs is not none else '—' }}</span>
     <span class="k">Passed Filter</span><span class="v">{{ run.passed_filter if run.passed_filter is not none else '—' }}</span>
     <span class="k">Ranked</span><span class="v">{{ run.ranked if run.ranked is not none else '—' }}</span>
@@ -80,177 +70,6 @@
   {% if run.run_mode == 'manual_staged' %}
   <div class="meta" style="margin-top:1rem">Stage by Stage pauses for operator review. Manual wait time is also governed by the Maximum Run Duration safety guard.</div>
   {% endif %}
-</div>
-
-<!-- ── Outputs Action (persistent) ───────────────────────────────────────── -->
-<div class="card" id="outputs-action">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Outputs</h3>
-    <span class="badge badge-{{ 'success' if output_availability.state == 'available' else ('warning' if output_availability.state == 'mismatch' else 'neutral') }}">
-      {{ output_availability.state }}
-    </span>
-  </div>
-  <div class="meta">
-    generated={{ output_availability.generated_count }}, version_rows={{ output_availability.version_row_count }}, downloadables={{ output_availability.downloadable_count }}
-  </div>
-  <div style="margin-top:0.75rem;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center">
-    {% if output_availability.downloadable_count > 0 %}
-      <a class="btn-secondary" href="#generated-outputs">⬇ Download Outputs</a>
-    {% else %}
-      <span class="meta">
-        {% if output_availability.state == 'not_ready' %}
-          Outputs not available until run succeeds.
-        {% elif output_availability.state == 'mismatch' %}
-          Outputs were generated but no downloadable rows are currently visible.
-        {% else %}
-          No outputs available.
-        {% endif %}
-      </span>
-      <button class="btn-secondary" disabled aria-disabled="true" title="No downloadable outputs">⬇ Download Outputs</button>
-    {% endif %}
-  </div>
-</div>
-
-{% if stage_result_summary_rows %}
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Stage Result Policy + Trace Summary</h3>
-    <span class="badge badge-info">{{ stage_result_summary_rows|length }} stage(s)</span>
-  </div>
-  <div class="meta" style="margin-bottom:0.75rem">
-    Run-level summary of stage-owned decision policy and trace continuity from the canonical StageResult envelope.
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Stage</th>
-        <th>Status</th>
-        <th>Policy Version</th>
-        <th>Trace ID</th>
-        <th>Span ID</th>
-        <th>Parent Span ID</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in stage_result_summary_rows %}
-      <tr>
-        <td><code>{{ row.stage_id or '—' }}</code></td>
-        <td><code>{{ row.status or '—' }}</code></td>
-        <td><code>{{ row.policy_version or '—' }}</code></td>
-        <td><code>{{ row.trace_id or '—' }}</code></td>
-        <td><code>{{ row.span_id or '—' }}</code></td>
-        <td><code>{{ row.parent_span_id or '—' }}</code></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
-
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Event Delivery Health</h3>
-    {% if event_delivery_health.status == 'degraded' %}
-      <span class="badge badge-warning">degraded</span>
-    {% elif event_delivery_health.status == 'unknown' %}
-      <span class="badge badge-info">unknown</span>
-    {% else %}
-      <span class="badge badge-success">healthy</span>
-    {% endif %}
-  </div>
-  <div class="kv">
-    <span class="k">Dead-lettered Events</span><span class="v">{{ event_delivery_health.count }}</span>
-    <span class="k">Last Dead-letter Timestamp</span><span class="v">{{ event_delivery_health.last_failed_at or '—' }}</span>
-    <span class="k">Degradation Reason</span><span class="v"><code>{{ event_delivery_health.last_degradation_reason or '—' }}</code></span>
-    <span class="k">Max Retry Attempts</span><span class="v">{{ event_delivery_health.max_retry_attempts or 0 }}</span>
-    <span class="k">Dead-letter Path</span><span class="v"><code>{{ event_delivery_health.dead_letter_path }}</code></span>
-  </div>
-  {% if event_delivery_health.status == 'degraded' %}
-  <div class="meta" style="margin-top:0.85rem">
-    Some pipeline events for this run were dead-lettered after retry exhaustion. Inspect the dead-letter file and replay those rows to restore full event lineage.
-  </div>
-  <div style="margin-top:0.65rem">
-    <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'replay-dead-letter-events', this)">Replay Dead-letter Events</button>
-  </div>
-  {% endif %}
-</div>
-
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Telemetry Export Health</h3>
-    {% if telemetry_export_health.status == 'degraded' %}
-      <span class="badge badge-warning">degraded</span>
-    {% else %}
-      <span class="badge badge-success">healthy</span>
-    {% endif %}
-  </div>
-  <div class="kv">
-    <span class="k">Degraded Telemetry Events</span><span class="v">{{ telemetry_export_health.degraded_count }}</span>
-    <span class="k">Last Degraded Stage</span><span class="v">{{ telemetry_export_health.last_degraded_stage or '—' }}</span>
-  </div>
-  <div class="meta" style="margin-top:0.85rem">
-    Stage artifacts remain the evidence source of truth even when telemetry export is degraded.
-  </div>
-</div>
-
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Langfuse Trace-Link Health</h3>
-    {% if langfuse_link_health.status == 'degraded' %}
-      <span class="badge badge-warning">degraded</span>
-    {% elif langfuse_link_health.status == 'unverified' %}
-      <span class="badge badge-info">unverified</span>
-    {% else %}
-      <span class="badge badge-neutral">disabled</span>
-    {% endif %}
-  </div>
-  <div class="kv">
-    <span class="k">Unverified Link Events</span><span class="v">{{ langfuse_link_health.unverified_count }}</span>
-    <span class="k">Degraded Link Events</span><span class="v">{{ langfuse_link_health.degraded_count }}</span>
-    <span class="k">Last Degraded Stage</span><span class="v">{{ langfuse_link_health.last_degraded_stage or '—' }}</span>
-    <span class="k">Latest Trace URL</span><span class="v">{% if langfuse_link_health.last_trace_url %}<code>{{ langfuse_link_health.last_trace_url }}</code>{% else %}—{% endif %}</span>
-  </div>
-  <div class="meta" style="margin-top:0.85rem">
-    Trace URLs are navigation links only and do not confirm ingestion. Stage artifacts remain authoritative for runtime decisions.
-  </div>
-</div>
-
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Dead-letter Replay Summary</h3>
-    {% if dead_letter_replay_summary.replay_candidates > 0 %}
-      <span class="badge badge-info">available</span>
-    {% else %}
-      <span class="badge badge-neutral">none</span>
-    {% endif %}
-  </div>
-  <div class="kv">
-    <span class="k">Last Replay Timestamp</span><span class="v">{{ dead_letter_replay_summary.occurred_at or '—' }}</span>
-    <span class="k">Replay Success Ratio</span><span class="v">{{ '%.2f'|format(dead_letter_replay_summary.replay_success_ratio) }}</span>
-    <span class="k">Replayed / Candidates</span><span class="v">{{ dead_letter_replay_summary.replayed }} / {{ dead_letter_replay_summary.replay_candidates }}</span>
-    <span class="k">Failed Replays</span><span class="v">{{ dead_letter_replay_summary.failed }}</span>
-    <span class="k">Remaining Dead-letter Total</span><span class="v">{{ dead_letter_replay_summary.remaining_dead_letter_total }}</span>
-  </div>
-</div>
-
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Agentic Runtime Alignment</h3>
-    {% if agentic_runtime_drift.status == 'aligned' %}
-      <span class="badge badge-success">aligned</span>
-    {% elif agentic_runtime_drift.status == 'drifted' %}
-      <span class="badge badge-warning">drifted</span>
-    {% else %}
-      <span class="badge badge-info">not_applicable</span>
-    {% endif %}
-  </div>
-  <div class="meta" style="margin-bottom:0.75rem">{{ agentic_runtime_drift.message }}</div>
-  <div class="kv">
-    <span class="k">Expected Provider</span><span class="v"><code>{{ agentic_runtime_drift.expected_provider or '—' }}</code></span>
-    <span class="k">Actual Provider</span><span class="v"><code>{{ agentic_runtime_drift.actual_provider or '—' }}</code></span>
-    <span class="k">Expected Model</span><span class="v"><code>{{ agentic_runtime_drift.expected_model or '—' }}</code></span>
-    <span class="k">Actual Model</span><span class="v"><code>{{ agentic_runtime_drift.actual_model or '—' }}</code></span>
-  </div>
 </div>
 
 {% if hitl_review_queue.total_review_required and hitl_review_queue.total_review_required > 0 %}
@@ -341,99 +160,7 @@
 </div>
 {% endif %}
 
-{% if markdown_quality_summary.attempted_total and markdown_quality_summary.attempted_total > 0 %}
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
-    <div>
-      <h3 style="margin:0 0 0.35rem">Markdown Quality</h3>
-      <div class="meta">
-        {{ markdown_quality_summary.review_required_total }} review-required and {{ markdown_quality_summary.blocking_total }} blocking markdown-quality outcome(s) across {{ markdown_quality_summary.attempted_total }} attempted generation job(s).
-      </div>
-    </div>
-    <span class="badge badge-info">cv_generation quality</span>
-  </div>
-  {% if markdown_quality_summary.review_reasons_sample %}
-  <div class="meta" style="margin-bottom:0.35rem;font-weight:600">Review-required reasons</div>
-  <ul style="margin:0 0 0.75rem 1.15rem;padding:0">
-    {% for item in markdown_quality_summary.review_reasons_sample %}
-    <li class="meta">{{ item }}</li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-  {% if markdown_quality_summary.blocking_reasons_sample %}
-  <div class="meta" style="margin-bottom:0.35rem;font-weight:600">Blocking reasons</div>
-  <ul style="margin:0 0 0 1.15rem;padding:0">
-    {% for item in markdown_quality_summary.blocking_reasons_sample %}
-    <li class="meta">{{ item }}</li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-</div>
-{% endif %}
-
-{% if synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay %}
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
-    <div>
-      <h3 style="margin:0 0 0.35rem">Synonym Overlay</h3>
-      <div class="meta">
-        {% if synonym_overlay_info.has_run_overlay %}
-          Run-scoped synonym mappings are active for skills, domain, and role family.
-        {% elif can_upload_synonym_overlay %}
-          No run-specific overlay is active yet. You can replace default skill/domain/role-family synonym config before continuing into <code>rule_filter</code>.
-        {% endif %}
-      </div>
-    </div>
-    {% if synonym_overlay_info.has_run_overlay %}
-    <span class="badge badge-info">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
-    {% endif %}
-  </div>
-
-  <div class="kv">
-    <span class="k">Status</span>
-    <span class="v">{% if synonym_overlay_info.has_run_overlay %}<span class="badge badge-info">run-specific overlay active</span>{% else %}default config only{% endif %}</span>
-    {% if synonym_overlay_info.has_run_overlay %}
-    <span class="k">Source</span><span class="v">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
-    <span class="k">Overlay File</span><span class="v"><code>{{ synonym_overlay_info.filename or '—' }}</code></span>
-    <span class="k">Skill Entries</span><span class="v">{{ synonym_overlay_info.entry_count }}</span>
-    <span class="k">Domain Entries</span><span class="v">{{ synonym_overlay_info.section_counts.domain_alias_map or 0 }}</span>
-    <span class="k">Role Family Entries</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_alias_map or 0 }}</span>
-    <span class="k">Domain Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.domain_neighbors or 0 }}</span>
-    <span class="k">Role Family Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_neighbors or 0 }}</span>
-    <span class="k">Uploaded</span><span class="v">{{ synonym_overlay_info.uploaded_at or '—' }}</span>
-    {% endif %}
-    <span class="k">Effective Entries</span><span class="v">{{ synonym_overlay_info.effective_entry_count or '—' }}</span>
-  </div>
-
-  {% if synonym_overlay_info.snapshot_yaml %}
-  <details style="margin-top:1rem">
-    <summary class="meta" style="cursor:pointer;user-select:none">
-      ▾ {{ synonym_overlay_info.snapshot_label or 'Synonym' }} YAML Snapshot
-    </summary>
-    <pre class="code-area" style="overflow-x:auto;max-height:320px;overflow-y:auto;margin-top:0.75rem">{{ synonym_overlay_info.snapshot_yaml }}</pre>
-  </details>
-  {% endif %}
-
-  {% if can_upload_synonym_overlay %}
-  <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">
-    <div class="meta" style="margin-bottom:0.65rem">Stage by Stage runs can replace the current run overlay after <code>enrich</code> and before <code>rule_filter</code>. This override does not change the shared default config.</div>
-    <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
-      <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem">
-      <select name="overlay_upload_scope" style="min-width:11rem">
-        <option value="combined">Combined Upload</option>
-        <option value="skill">Skills Upload</option>
-        <option value="domain">Domain Upload</option>
-        <option value="role_family">Role Family Upload</option>
-      </select>
-      <button type="submit" class="btn-secondary">Replace Run Overlay YAML</button>
-    </form>
-    <div class="meta" style="margin-top:0.4rem">Field-specific scopes reject mixed sections to avoid accidental cross-field updates.</div>
-  </div>
-  {% elif run.run_mode == 'run_all' and synonym_overlay_info.has_run_overlay %}
-  <div class="meta" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">Run All uses trigger-time synonym uploads only.</div>
-  {% endif %}
-</div>
-{% endif %}
+<!-- ── Run Metadata Card ─────────────────────────────────────────────────── -->
 
 {% if request.query_params.get("synonym_regenerated_total") is not none %}
 <div class="card">
@@ -446,61 +173,56 @@
 </div>
 {% endif %}
 
-{% if (synonym_proposal_review_queue.total_count and synonym_proposal_review_queue.total_count > 0)
-   or can_regenerate_synonym_proposals
-   or synonym_proposal_decision_ledger %}
+{% if request.query_params.get("synonym_workspace_status") == "unavailable" %}
+<div class="card">
+  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Synonym review workspace is unavailable for this run right now. Continue pipeline, or regenerate proposals when new synonym candidates exist.
+  </div>
+</div>
+{% endif %}
+
+{% if synonym_review_section_state != "hidden" %}
+{% set manual_synonym_workspace_active = false %}
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
     <div>
-      <h3 style="margin:0 0 0.35rem">Synonym Proposal Review</h3>
-      <div class="meta">
-        {{ synonym_proposal_review_queue.pending_count }} pending of {{ synonym_proposal_review_queue.total_count }} proposal(s).
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
-      <span class="badge badge-info">run-scoped HITL</span>
-      <span class="badge badge-info">
-        mode:
-        {% if not synonym_management_mode.auto_triage_recommendation_enabled %}
-          auto_off
-        {% elif not synonym_management_mode.triage_recommendation_reuse_enabled %}
-          fresh_only
-        {% else %}
-          reuse_smart
-        {% endif %}
-      </span>
-      <span class="badge badge-{{ 'success' if synonym_proposal_review_queue.triage_status == 'fresh' else ('warning' if synonym_proposal_review_queue.triage_status in ('partial', 'stale') else 'neutral') }}">
-        triage: {{ synonym_proposal_review_queue.triage_status }}
-      </span>
+      <h3 style="margin:0">Synonyms (List Entities)</h3>
     </div>
   </div>
-  {% set triage_summary = synonym_proposal_review_queue.get("triage_summary", {}) %}
-  <div class="meta" style="margin-bottom:0.65rem">
-    triage summary:
-    generated={{ triage_summary.get("generated_total", 0) }},
-    fresh={{ triage_summary.get("fresh_total", 0) }},
-    reused={{ triage_summary.get("reused_total", 0) }},
-    suppressed={{ triage_summary.get("suppressed_total", 0) }},
-    reason={{ triage_summary.get("reuse_reason", "n/a") }}.
+  {% if request.query_params.get("synonym_fast_path_applied") is not none %}
+  <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    <strong>AI Fast-Path Result</strong>:
+    applied={{ request.query_params.get("synonym_fast_path_applied") or "0" }},
+    skipped={{ request.query_params.get("synonym_fast_path_skipped") or "0" }},
+    failed={{ request.query_params.get("synonym_fast_path_failed") or "0" }},
+    promoted={{ request.query_params.get("synonym_fast_path_promote_applied") or "0" }},
+    promote_skipped={{ request.query_params.get("synonym_fast_path_promote_skipped") or "0" }},
+    promote_failed={{ request.query_params.get("synonym_fast_path_promote_failed") or "0" }}.
   </div>
-  {% if synonym_proposal_review_queue.get("field_lanes") %}
-  <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin-bottom:0.85rem">
-    {% for lane in synonym_proposal_review_queue.get("field_lanes", []) %}
-    <div class="sub-card" style="padding:0.55rem 0.7rem;min-width:12rem">
-      <div style="font-weight:700">{{ lane.label }}</div>
-      <div class="meta">
-        total={{ lane.total }}, pending={{ lane.pending }}, approved={{ lane.approved }}, suppressed={{ lane.suppressed }}
-      </div>
-      {% if lane.zero_state_reason %}
-      <div class="meta">reason: {{ lane.zero_state_reason }}</div>
-      {% endif %}
+  {% endif %}
+  {% if synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay %}
+  <div style="margin:0 0 0.85rem 0;padding:0.75rem;border:1px solid var(--accent);border-radius:6px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;flex-wrap:wrap;margin-bottom:0.6rem">
+      <div style="font-weight:700">Synonym Overlay</div>
+      <span class="badge badge-info">{% if synonym_overlay_info.has_run_overlay %}run-specific overlay active{% else %}using global default synonyms (no run overlay){% endif %}</span>
     </div>
-    {% endfor %}
+    {% if can_upload_synonym_overlay %}
+    <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
+      <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem">
+      <select name="overlay_upload_scope" style="min-width:11rem">
+        <option value="combined">Combined Upload</option>
+        <option value="skill">Skills Upload</option>
+        <option value="domain">Domain Upload</option>
+        <option value="role_family">Role Family Upload</option>
+      </select>
+      <button type="submit" class="btn-secondary">Replace Run Overlay YAML</button>
+    </form>
+    {% endif %}
   </div>
   {% endif %}
   {% if synonym_proposal_decision_ledger %}
   <div style="margin:0.2rem 0 0.85rem 0">
-    <div class="meta" style="margin-bottom:0.35rem">Proposal Decision Ledger</div>
+    <div class="meta" style="margin-bottom:0.35rem"><strong>Proposal Decision Ledger</strong></div>
     <div style="overflow:auto;max-height:14rem;border:1px solid var(--accent);border-radius:6px">
       <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
         <thead>
@@ -508,6 +230,8 @@
             <th style="text-align:left;padding:0.35rem 0.5rem">Alias</th>
             <th style="text-align:left;padding:0.35rem 0.5rem">Canonical</th>
             <th style="text-align:left;padding:0.35rem 0.5rem">Source</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Recommendation</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Decision</th>
             <th style="text-align:left;padding:0.35rem 0.5rem">Reason</th>
           </tr>
         </thead>
@@ -517,6 +241,8 @@
             <td style="padding:0.3rem 0.5rem"><code>{{ row.alias }}</code></td>
             <td style="padding:0.3rem 0.5rem"><code>{{ row.canonical }}</code></td>
             <td style="padding:0.3rem 0.5rem">{{ row.decision_source }}</td>
+            <td style="padding:0.3rem 0.5rem">{{ row.recommendation or '—' }}</td>
+            <td style="padding:0.3rem 0.5rem">{{ row.decision or '—' }}</td>
             <td style="padding:0.3rem 0.5rem">{{ row.decision_reason }}</td>
           </tr>
           {% endfor %}
@@ -529,198 +255,21 @@
     Proposal Decision Ledger: no rows yet (all suppressed or none generated).
   </div>
   {% endif %}
-  <div class="meta" style="margin-bottom:0.85rem">
-    fingerprints:
-    pre_run_global={{ synonym_fingerprints.pre_run_global_map_fingerprint or 'n/a' }},
-    overlay={{ synonym_fingerprints.run_overlay_fingerprint or 'n/a' }},
-    suggestions={{ synonym_fingerprints.mapping_suggestions_fingerprint or 'n/a' }},
-    proposal_input={{ synonym_fingerprints.proposal_input_bundle_fingerprint or 'n/a' }}.
+  <div style="margin:0 0 0.35rem 0;display:flex;gap:0.6rem;flex-wrap:wrap">
+    <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/ai-fast-path-execute" style="display:inline" onsubmit="return confirm('Confirm AI fast-path execute? This will apply AI recommendations and promote approved mappings to global.');">
+      <input type="hidden" name="acted_by" value="admin">
+      <input type="hidden" name="note" value="ai_fast_path">
+      <button class="btn-secondary" type="submit">AI-Assisted Decide + Promote</button>
+    </form>
+    <a class="btn-secondary" href="/admin/runs/{{ run.run_id }}/synonym-review">Manual Decide + Promote</a>
   </div>
-  <form id="synonym-triage-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/triage-refresh" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
-    <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
-    <input type="hidden" name="note" value="ui:triage-refresh">
-    <button class="btn-secondary" type="submit">Refresh Triage Recommendations</button>
-    <span class="meta">Advisory-only refresh for pending proposals.</span>
-  </form>
-  <form id="synonym-batch-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/batch-action" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
-    <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
-    <input type="hidden" name="note" value="ui:batch-action">
-    <button class="btn-secondary" type="submit">Submit Selected Decisions</button>
-    <button class="btn-secondary" type="button" id="apply-recommendations-btn">Apply Recommendations</button>
-    <span class="meta">Fills recommended actions for pending rows only.</span>
-    <span class="meta" id="apply-recommendations-status" aria-live="polite"></span>
-  </form>
-  {% if request.query_params.get("synonym_batch_applied") is not none %}
-  <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
-    Batch summary:
-    applied={{ request.query_params.get("synonym_batch_applied") }},
-    skipped={{ request.query_params.get("synonym_batch_skipped") or "0" }},
-    failed={{ request.query_params.get("synonym_batch_failed") or "0" }}.
-  </div>
-  {% endif %}
-  {% if request.query_params.get("synonym_triage_triaged") is not none %}
-  <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
-    Triage summary:
-    triaged={{ request.query_params.get("synonym_triage_triaged") }},
-    reused={{ request.query_params.get("synonym_triage_reused") or "0" }},
-    fallback={{ request.query_params.get("synonym_triage_fallback") or "0" }},
-    skipped={{ request.query_params.get("synonym_triage_skipped") or "0" }},
-    failed={{ request.query_params.get("synonym_triage_failed") or "0" }}.
-  </div>
-  {% endif %}
-  {% if request.query_params.get("synonym_promote_applied") is not none %}
-  <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
-    Promote-to-global summary:
-    applied={{ request.query_params.get("synonym_promote_applied") }},
-    skipped={{ request.query_params.get("synonym_promote_skipped") or "0" }},
-    failed={{ request.query_params.get("synonym_promote_failed") or "0" }},
-    new={{ request.query_params.get("synonym_promote_new_aliases") or "0" }},
-    unchanged={{ request.query_params.get("synonym_promote_unchanged_aliases") or "0" }},
-    overridden={{ request.query_params.get("synonym_promote_overridden_aliases") or "0" }}.
-    <a href="/admin/synonyms/global.yaml" style="margin-left:0.65rem">Download Global Synonyms YAML</a>
-  </div>
-  {% endif %}
-  {% if request.query_params.get("synonym_apply_to_run_applied") is not none %}
-  <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
-    Apply-approved-to-run summary:
-    applied={{ request.query_params.get("synonym_apply_to_run_applied") }},
-    skipped={{ request.query_params.get("synonym_apply_to_run_skipped") or "0" }},
-    failed={{ request.query_params.get("synonym_apply_to_run_failed") or "0" }}.
-  </div>
-  {% endif %}
-  {% if can_regenerate_synonym_proposals %}
-  <form id="synonym-regenerate-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/regenerate" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
-    <button class="btn-secondary" type="submit">Regenerate Proposals</button>
-    <span class="meta">Use after overlay upload to refresh review list against current synonym state.</span>
-  </form>
-  {% endif %}
-  {% if synonym_proposal_review_queue.get("approved_count", 0) > 0 %}
-  <form id="synonym-apply-approved-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/apply-approved-to-run" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
-    <input type="hidden" name="acted_by" value="admin">
-    <input type="hidden" name="note" value="ui:apply-approved-to-run">
-    <button class="btn-secondary" type="submit">Re-apply Approved to This Run</button>
-    <span class="meta">Idempotent re-apply of approved pairs for this run’s downstream stages.</span>
-  </form>
-  {% else %}
-  <div class="meta" style="margin-bottom:0.85rem">No approved rows to apply.</div>
-  {% endif %}
-  <form id="synonym-promote-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-preview" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
-    <div id="promote-controls" style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
-      <button class="btn-secondary" type="submit">Preview Promote to Global</button>
-      <button class="btn-secondary" type="button" id="promote-select-all-btn">Select All</button>
-      <button class="btn-secondary" type="button" id="promote-clear-all-btn">Clear Selection</button>
-      <span class="meta" id="promote-selected-count" aria-live="polite">Selected: 0</span>
-      <span class="meta">Select approved rows below, preview the global diff, then confirm.</span>
-    </div>
-    <span class="meta" id="promote-empty-note" style="display:none">No approved rows available for promotion yet.</span>
-  </form>
-  <div style="display:flex;flex-direction:column;gap:1rem">
-    {% set synonym_field_groups = [
-      ("skill", "Skills"),
-      ("domain", "Domain"),
-      ("role_family", "Role Family"),
-    ] %}
-    {% for field_key, field_label in synonym_field_groups %}
-    {% set field_items = synonym_proposal_review_queue.get("items_by_field", {}).get(field_key, []) %}
-    <div class="sub-card" style="padding:0.7rem">
-      <div style="font-weight:700;margin-bottom:0.45rem">{{ field_label }}</div>
-      {% if field_items %}
-      <div style="display:flex;flex-direction:column;gap:0.85rem">
-    {% for item in field_items %}
-    <div class="sub-card" style="padding:0.8rem">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
-        <div>
-          {% if item.status == "approved_for_run_overlay" and not item.globally_promoted %}
-          <div style="margin-bottom:0.4rem">
-            <label class="meta" style="display:flex;align-items:center;gap:0.45rem">
-              <input type="checkbox" name="promote_proposal_id" value="{{ item.proposal_id }}" form="synonym-promote-form" data-promote-selectable="true">
-              Include in Promote-to-Global preview
-            </label>
-          </div>
-          {% endif %}
-          <div style="font-weight:700"><code>{{ item.alias }}</code> → <code>{{ item.canonical }}</code></div>
-          <div class="meta">confidence: {{ '%.2f'|format(item.confidence) }}</div>
-          {% if item.recommended_action %}
-          <div class="meta" style="margin-top:0.35rem">
-            Recommendation: <strong>{{ item.recommended_action }}</strong>
-            {% if item.recommendation_confidence %}
-            (confidence {{ '%.2f'|format(item.recommendation_confidence) }})
-            {% endif %}
-          </div>
-          {% if item.recommendation_rationale %}
-          <div class="meta" style="margin-top:0.2rem">{{ item.recommendation_rationale }}</div>
-          {% endif %}
-          {% if item.recommendation_risk_flags %}
-          <div class="meta" style="margin-top:0.2rem">Risk flags: {{ item.recommendation_risk_flags | join(', ') }}</div>
-          {% endif %}
-          {% endif %}
-          {% if item.latest_action %}
-          <div class="meta" style="margin-top:0.35rem">
-            Last action: <strong>{{ item.latest_action }}</strong>{% if item.latest_action_by %} by {{ item.latest_action_by }}{% endif %}{% if item.latest_action_at %} at {{ item.latest_action_at }}{% endif %}
-          </div>
-          {% endif %}
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
-          <span class="badge badge-{{ 'warning' if item.pending else 'success' }}">{{ item.status }}</span>
-        </div>
-      </div>
-      {% if item.pending %}
-      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.65rem">
-        <label class="meta" for="proposal-action-{{ item.proposal_id }}">Batch Action</label>
-        <select
-          id="proposal-action-{{ item.proposal_id }}"
-          name="proposal_action__{{ item.proposal_id }}"
-          form="synonym-batch-form"
-          data-recommended-action="{{ item.recommended_action or '' }}"
-        >
-          <option value="">Keep Pending</option>
-          <option value="approve">Approve</option>
-          <option value="defer">Defer</option>
-          <option value="reject">Reject</option>
-        </select>
-      </div>
-      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">
-        <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline">
-          <input type="hidden" name="action" value="approve">
-          <button class="btn-secondary" type="submit">Approve</button>
-        </form>
-        <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline">
-          <input type="hidden" name="action" value="defer">
-          <button class="btn-secondary" type="submit">Defer</button>
-        </form>
-        <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline">
-          <input type="hidden" name="action" value="reject">
-          <button class="btn-secondary" type="submit">Reject</button>
-        </form>
-      </div>
-      {% endif %}
-    </div>
-    {% endfor %}
-      </div>
-      {% else %}
-      <div class="meta">No {{ field_label|lower }} proposals pending review for this run.</div>
-      {% endif %}
-    </div>
-    {% endfor %}
+  <div style="margin:0 0 0.85rem 0">
+    <a class="btn-secondary" href="/admin/runs/{{ run.run_id }}/synonym-review">Open Synonym Workspace</a>
   </div>
 </div>
 {% endif %}
 
-{% if run_export_links %}
-<div class="card">
-  <h3 style="margin:0 0 0.85rem">Run Exports</h3>
-  <div class="run-export-grid">
-    {% for export_link in run_export_links %}
-    <div class="run-export-item">
-      <a href="{{ export_link.href }}" class="run-export-link">⬇ {{ export_link.label }}</a>
-      {% if export_link.helper_text %}
-      <div class="meta" style="margin-top:0.35rem">{{ export_link.helper_text }}</div>
-      {% endif %}
-    </div>
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
+
 
 {% if run_health_rows %}
 <div class="card">
@@ -770,9 +319,12 @@
 <!-- ── CV Results Banner ─────────────────────────────────────────────────── -->
 <div class="results-card" id="generated-outputs">
   <h3>Pipeline Results</h3>
+  <div class="meta" style="margin-bottom:0.55rem">
+    Compatibility note: outputs/download actions moved to <strong>Artifacts</strong>.
+  </div>
   {% if output_availability.state == 'available' %}
     <p style="font-size:0.9rem;color:var(--badge-success-fg)">
-      <strong>{{ output_availability.downloadable_count }}</strong> downloadable CV(s) available.
+      CV generation succeeded. Download/export files from <strong>Artifacts</strong>.
     </p>
     {% if cv_versions %}
       <div style="margin-top:1rem;border-top:1px solid var(--accent);padding-top:1rem">
@@ -794,7 +346,7 @@
     {% endif %}
   {% elif output_availability.state == 'mismatch' %}
     <p style="font-size:0.9rem;color:var(--badge-warning-fg)">
-      <strong>{{ output_availability.generated_count }}</strong> CV(s) were generated, but no downloadable rows are currently visible.
+      CV generation completed with visibility mismatch. Use <strong>Artifacts</strong> for export/download evidence.
     </p>
     <div class="meta">State: <code>mismatch</code>. Refresh later; if persists, inspect persistence/logs for `cv_versions` write delay or query mismatch.</div>
   {% elif output_availability.state == 'not_ready' %}
@@ -812,6 +364,13 @@
         review-required={{ ranked_cv_outcome_summary.ranked_review_required_count }},
         generation-failed={{ ranked_cv_outcome_summary.ranked_generation_failed_count }},
         other={{ ranked_cv_outcome_summary.ranked_other_no_cv_count }}.
+        {% if cv_generation_failure_reason_summary.reason_rows %}
+        <br>
+        Failure reasons:
+        {% for row in cv_generation_failure_reason_summary.reason_rows[:3] %}
+        [{{ row.count }}] {{ row.reason }}{% if not loop.last %}; {% endif %}
+        {% endfor %}
+        {% endif %}
       {% else %}
         No candidates passed the final AI ranking threshold.
       {% endif %}
@@ -886,7 +445,276 @@
 </div>
 {% endif %}
 
-<script>
+{% if run_export_links %}
+<div class="card" id="artifacts">
+  <h3 style="margin:0 0 0.85rem">Artifacts</h3>
+  <div class="run-export-grid">
+    {% for export_link in run_export_links %}
+    <div class="run-export-item">
+      <a href="{{ export_link.href }}" class="run-export-link">⬇ {{ export_link.label }}</a>
+      {% if export_link.helper_text %}
+      <div class="meta" style="margin-top:0.35rem">{{ export_link.helper_text }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+
+<details class="card" id="advanced-diagnostics">
+  <summary style="cursor:pointer;user-select:none;font-weight:700">Advanced &amp; Diagnostics</summary>
+  <div style="margin-top:0.85rem">
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Runtime and Backend Details</h3>
+    <span class="badge badge-info">technical</span>
+  </div>
+  <div class="kv">
+    <span class="k">Orchestration Backend</span><span class="v"><code>{{ orchestration_diagnostics.backend }}</code></span>
+    <span class="k">Backend Run ID</span><span class="v"><code>{{ orchestration_diagnostics.backend_run_id or '—' }}</code></span>
+    <span class="k">Backend Status</span><span class="v"><code>{{ orchestration_diagnostics.status }}</code>{% if not orchestration_diagnostics.status_checked %} <span class="meta">(not polled)</span>{% endif %}</span>
+    <span class="k">Replay Mode</span><span class="v"><code>{{ replay_context_summary.replay_mode or 'strict' }}</code></span>
+    <span class="k">Replay Source Run</span><span class="v"><code>{{ replay_context_summary.replay_source_run_id or run.run_id }}</code></span>
+    <span class="k">Policy Registry</span><span class="v"><code>{{ replay_context_summary.policy_registry_version or 'policy_registry.v1' }}</code></span>
+    <span class="k">Runtime Mode</span><span class="v"><code>{{ data_plane_summary.runtime_mode or 'full' }}</code></span>
+    <span class="k">State Backend</span><span class="v"><code>{{ data_plane_summary.state_backend or 'unknown' }}</code></span>
+    <span class="k">Artifact Backend</span><span class="v"><code>{{ data_plane_summary.artifact_backend or 'unknown' }}</code></span>
+    <span class="k">Telemetry Backend</span><span class="v"><code>{{ data_plane_summary.telemetry_backend or 'otel_json' }}</code></span>
+  </div>
+</div>
+
+{% if stage_result_summary_rows %}
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Stage Result Policy + Trace Summary</h3>
+    <span class="badge badge-info">{{ stage_result_summary_rows|length }} stage(s)</span>
+  </div>
+  <div class="meta" style="margin-bottom:0.75rem">
+    Run-level summary of stage-owned decision policy and trace continuity from the canonical StageResult envelope.
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Stage</th>
+        <th>Status</th>
+        <th>Policy Version</th>
+        <th>Trace ID</th>
+        <th>Span ID</th>
+        <th>Parent Span ID</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in stage_result_summary_rows %}
+      <tr>
+        <td><code>{{ row.stage_id or '—' }}</code></td>
+        <td><code>{{ row.status or '—' }}</code></td>
+        <td><code>{{ row.policy_version or '—' }}</code></td>
+        <td><code>{{ row.trace_id or '—' }}</code></td>
+        <td><code>{{ row.span_id or '—' }}</code></td>
+        <td><code>{{ row.parent_span_id or '—' }}</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Event Delivery Health</h3>
+    {% if event_delivery_health.status == 'degraded' %}
+      <span class="badge badge-warning">degraded</span>
+    {% elif event_delivery_health.status == 'unknown' %}
+      <span class="badge badge-info">unknown</span>
+    {% else %}
+      <span class="badge badge-success">healthy</span>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Dead-lettered Events</span><span class="v">{{ event_delivery_health.count }}</span>
+    <span class="k">Last Dead-letter Timestamp</span><span class="v">{{ event_delivery_health.last_failed_at or '—' }}</span>
+    <span class="k">Degradation Reason</span><span class="v"><code>{{ event_delivery_health.last_degradation_reason or '—' }}</code></span>
+    <span class="k">Max Retry Attempts</span><span class="v">{{ event_delivery_health.max_retry_attempts or 0 }}</span>
+    <span class="k">Dead-letter Path</span><span class="v"><code>{{ event_delivery_health.dead_letter_path }}</code></span>
+  </div>
+  {% if event_delivery_health.status == 'degraded' %}
+  <div class="meta" style="margin-top:0.85rem">
+    Some pipeline events for this run were dead-lettered after retry exhaustion. Inspect the dead-letter file and replay those rows to restore full event lineage.
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Telemetry Export Health</h3>
+    {% if telemetry_export_health.status == 'degraded' %}
+      <span class="badge badge-warning">degraded</span>
+    {% else %}
+      <span class="badge badge-success">healthy</span>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Degraded Telemetry Events</span><span class="v">{{ telemetry_export_health.degraded_count }}</span>
+    <span class="k">Last Degraded Stage</span><span class="v">{{ telemetry_export_health.last_degraded_stage or '—' }}</span>
+  </div>
+  <div class="meta" style="margin-top:0.85rem">
+    Stage artifacts remain the evidence source of truth even when telemetry export is degraded.
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Langfuse Trace-Link Health</h3>
+    {% if langfuse_link_health.status == 'degraded' %}
+      <span class="badge badge-warning">degraded</span>
+    {% elif langfuse_link_health.status == 'unverified' %}
+      <span class="badge badge-info">unverified</span>
+    {% else %}
+      <span class="badge badge-neutral">disabled</span>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Unverified Link Events</span><span class="v">{{ langfuse_link_health.unverified_count }}</span>
+    <span class="k">Degraded Link Events</span><span class="v">{{ langfuse_link_health.degraded_count }}</span>
+    <span class="k">Last Degraded Stage</span><span class="v">{{ langfuse_link_health.last_degraded_stage or '—' }}</span>
+    <span class="k">Latest Trace URL</span><span class="v">{% if langfuse_link_health.last_trace_url %}<code>{{ langfuse_link_health.last_trace_url }}</code>{% else %}—{% endif %}</span>
+  </div>
+  <div class="meta" style="margin-top:0.85rem">
+    Trace URLs are navigation links only and do not confirm ingestion. Stage artifacts remain authoritative for runtime decisions.
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Dead-letter Replay Summary</h3>
+    {% if dead_letter_replay_summary.replay_candidates > 0 %}
+      <span class="badge badge-info">available</span>
+    {% else %}
+      <span class="badge badge-neutral">none</span>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Last Replay Timestamp</span><span class="v">{{ dead_letter_replay_summary.occurred_at or '—' }}</span>
+    <span class="k">Replay Success Ratio</span><span class="v">{{ '%.2f'|format(dead_letter_replay_summary.replay_success_ratio) }}</span>
+    <span class="k">Replayed / Candidates</span><span class="v">{{ dead_letter_replay_summary.replayed }} / {{ dead_letter_replay_summary.replay_candidates }}</span>
+    <span class="k">Failed Replays</span><span class="v">{{ dead_letter_replay_summary.failed }}</span>
+    <span class="k">Remaining Dead-letter Total</span><span class="v">{{ dead_letter_replay_summary.remaining_dead_letter_total }}</span>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Agentic Runtime Alignment</h3>
+    {% if agentic_runtime_drift.status == 'aligned' %}
+      <span class="badge badge-success">aligned</span>
+    {% elif agentic_runtime_drift.status == 'drifted' %}
+      <span class="badge badge-warning">drifted</span>
+    {% else %}
+      <span class="badge badge-info">not_applicable</span>
+    {% endif %}
+  </div>
+  <div class="meta" style="margin-bottom:0.75rem">{{ agentic_runtime_drift.message }}</div>
+  <div class="kv">
+    <span class="k">Expected Provider</span><span class="v"><code>{{ agentic_runtime_drift.expected_provider or '—' }}</code></span>
+    <span class="k">Actual Provider</span><span class="v"><code>{{ agentic_runtime_drift.actual_provider or '—' }}</code></span>
+    <span class="k">Expected Model</span><span class="v"><code>{{ agentic_runtime_drift.expected_model or '—' }}</code></span>
+    <span class="k">Actual Model</span><span class="v"><code>{{ agentic_runtime_drift.actual_model or '—' }}</code></span>
+  </div>
+</div>
+
+{% if markdown_quality_summary.attempted_total and markdown_quality_summary.attempted_total > 0 %}
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
+    <div>
+      <h3 style="margin:0 0 0.35rem">Markdown Quality</h3>
+      <div class="meta">
+        {{ markdown_quality_summary.review_required_total }} review-required and {{ markdown_quality_summary.blocking_total }} blocking markdown-quality outcome(s) across {{ markdown_quality_summary.attempted_total }} attempted generation job(s).
+      </div>
+    </div>
+    <span class="badge badge-info">cv_generation quality</span>
+  </div>
+  {% if markdown_quality_summary.review_reasons_sample %}
+  <div class="meta" style="margin-bottom:0.35rem;font-weight:600">Review-required reasons</div>
+  <ul style="margin:0 0 0.75rem 1.15rem;padding:0">
+    {% for item in markdown_quality_summary.review_reasons_sample %}
+    <li class="meta">{{ item }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if markdown_quality_summary.blocking_reasons_sample %}
+  <div class="meta" style="margin-bottom:0.35rem;font-weight:600">Blocking reasons</div>
+  <ul style="margin:0 0 0 1.15rem;padding:0">
+    {% for item in markdown_quality_summary.blocking_reasons_sample %}
+    <li class="meta">{{ item }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if (synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay) and synonym_review_section_state == "hidden" %}
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <div>
+      <h3 style="margin:0 0 0.35rem">Synonym Overlay</h3>
+      <div class="meta">
+        {% if synonym_overlay_info.has_run_overlay %}
+          Run-scoped synonym mappings are active for skills, domain, and role family.
+        {% elif can_upload_synonym_overlay %}
+          No run-specific overlay is active yet. You can replace default skill/domain/role-family synonym config before continuing into <code>rule_filter</code>.
+        {% endif %}
+      </div>
+    </div>
+    {% if synonym_overlay_info.has_run_overlay %}
+    <span class="badge badge-info">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
+    {% endif %}
+  </div>
+
+  <div class="kv">
+    <span class="k">Status</span>
+    <span class="v">{% if synonym_overlay_info.has_run_overlay %}<span class="badge badge-info">run-specific overlay active</span>{% else %}default config only{% endif %}</span>
+    {% if synonym_overlay_info.has_run_overlay %}
+    <span class="k">Source</span><span class="v">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
+    <span class="k">Overlay File</span><span class="v"><code>{{ synonym_overlay_info.filename or '—' }}</code></span>
+    <span class="k">Skill Entries</span><span class="v">{{ synonym_overlay_info.entry_count }}</span>
+    <span class="k">Domain Entries</span><span class="v">{{ synonym_overlay_info.section_counts.domain_alias_map or 0 }}</span>
+    <span class="k">Role Family Entries</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_alias_map or 0 }}</span>
+    <span class="k">Domain Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.domain_neighbors or 0 }}</span>
+    <span class="k">Role Family Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_neighbors or 0 }}</span>
+    <span class="k">Uploaded</span><span class="v">{{ synonym_overlay_info.uploaded_at or '—' }}</span>
+    {% endif %}
+    <span class="k">Effective Entries</span><span class="v">{{ synonym_overlay_info.effective_entry_count or '—' }}</span>
+  </div>
+
+  {% if synonym_overlay_info.snapshot_yaml %}
+  <details style="margin-top:1rem">
+    <summary class="meta" style="cursor:pointer;user-select:none">
+      ▾ {{ synonym_overlay_info.snapshot_label or 'Synonym' }} YAML Snapshot
+    </summary>
+    <pre class="code-area" style="overflow-x:auto;max-height:320px;overflow-y:auto;margin-top:0.75rem">{{ synonym_overlay_info.snapshot_yaml }}</pre>
+  </details>
+  {% endif %}
+
+  {% if can_upload_synonym_overlay %}
+  <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">
+    <div class="meta" style="margin-bottom:0.65rem">Stage by Stage runs can replace the current run overlay after <code>enrich</code> and before <code>rule_filter</code>. This override does not change the shared default config.</div>
+    <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
+      <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem">
+      <select name="overlay_upload_scope" style="min-width:11rem">
+        <option value="combined">Combined Upload</option>
+        <option value="skill">Skills Upload</option>
+        <option value="domain">Domain Upload</option>
+        <option value="role_family">Role Family Upload</option>
+      </select>
+      <button type="submit" class="btn-secondary">Replace Run Overlay YAML</button>
+    </form>
+    <div class="meta" style="margin-top:0.4rem">Field-specific scopes reject mixed sections to avoid accidental cross-field updates.</div>
+  </div>
+  {% elif run.run_mode == 'run_all' and synonym_overlay_info.has_run_overlay %}
+  <div class="meta" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">Run All uses trigger-time synonym uploads only.</div>
+  {% endif %}
+</div>{% endif %}  </div></details><script>
 function showTab(id) {
   document.querySelectorAll('.tab-pane').forEach(p => {
     p.style.display = 'none';
@@ -1137,8 +965,6 @@ async function lifecycleAction(runId, action, btn) {
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   window.setTimeout(() => ensureTabLoaded('enriched'), 50);
-  const applyRecommendationsBtn = document.getElementById('apply-recommendations-btn');
-  const applyRecommendationsStatus = document.getElementById('apply-recommendations-status');
   const promoteSelectAllBtn = document.getElementById('promote-select-all-btn');
   const promoteClearAllBtn = document.getElementById('promote-clear-all-btn');
   const promoteSelectedCount = document.getElementById('promote-selected-count');
@@ -1188,39 +1014,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (applyRecommendationsBtn) {
-    applyRecommendationsBtn.addEventListener('click', () => {
-      const selects = document.querySelectorAll('select[form="synonym-batch-form"][data-recommended-action]');
-      let appliedCount = 0;
-      selects.forEach((selectEl) => {
-        if (!selectEl || selectEl.value) {
-          return;
-        }
-        const recommended = (selectEl.getAttribute('data-recommended-action') || '').trim();
-        if (!recommended) {
-          return;
-        }
-        if (recommended === 'approve' || recommended === 'defer' || recommended === 'reject') {
-          selectEl.value = recommended;
-          // Ensure UI listeners/paint update immediately in all browsers.
-          selectEl.dispatchEvent(new Event('input', { bubbles: true }));
-          selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-          appliedCount += 1;
-        }
-      });
-      if (applyRecommendationsStatus) {
-        if (appliedCount > 0) {
-          applyRecommendationsStatus.textContent = `Filled ${appliedCount} recommended action(s).`;
-        } else {
-          applyRecommendationsStatus.textContent = "No pending rows needed auto-fill.";
-        }
-      }
-    });
-  }
 });
 if (document.readyState !== 'loading') {
   window.setTimeout(() => ensureTabLoaded('enriched'), 50);
 }
 </script>
 {% endblock %}
+
+
+
+
+
+
 
