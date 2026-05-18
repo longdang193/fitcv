@@ -44,15 +44,15 @@ def test_get_cv_acceptance_policy_defaults_when_missing() -> None:
 def test_load_config_returns_dict() -> None:
     cfg = load_config(Path(__file__).parent.parent / "config" / "env.yaml")
     assert isinstance(cfg, dict)
-    assert "gcp_project" in cfg
-    assert "bigquery_dataset" in cfg
+    assert "control_plane" not in cfg
+    assert "pipeline" in cfg
 
 
 def test_load_config_has_required_keys() -> None:
     cfg = load_config(Path(__file__).parent.parent / "config" / "env.yaml")
-    assert cfg["gcp_project"] == "fitcv-491123"
-    assert cfg["bigquery_dataset"] == "fitcv"
-    assert "service_account_key" in cfg
+    assert "gcp_project" not in cfg
+    assert "bigquery_dataset" not in cfg
+    assert "service_account_key" not in cfg
 
 
 def test_load_config_raises_for_missing_file() -> None:
@@ -182,9 +182,9 @@ def test_load_config_prefers_standard_env_vars_for_infra_keys(
 
     cfg = load_config(env_yaml)
 
-    assert cfg["gcp_project"] == "env-project"
-    assert cfg["bigquery_dataset"] == "env-dataset"
-    assert cfg["service_account_key"] == "/tmp/env-key.json"
+    assert "gcp_project" not in cfg
+    assert "bigquery_dataset" not in cfg
+    assert "service_account_key" not in cfg
 
 
 def test_get_vertex_location_prefers_vertex_location() -> None:
@@ -199,7 +199,6 @@ def test_get_vertex_location_defaults_to_us_central1() -> None:
 
 def test_load_config_defaults_to_repo_config_shape() -> None:
     cfg = load_config()
-    assert cfg["gcp_project"] == "fitcv-491123"
     assert cfg["gemini_model"] == "gemini-2.5-flash"
     assert cfg["vertex_location"] == "us-central1"
     assert cfg["paths"]["candidate_profile"] == "data/candidate_profile.yaml"
@@ -301,6 +300,27 @@ def test_resolve_data_backend_env_override_is_invariant(monkeypatch: pytest.Monk
     cfg_b = {"control_plane": {"data_backend": {"type": "bigquery"}}}
     assert resolve_data_backend(cfg_a) == "sqlite"
     assert resolve_data_backend(cfg_b) == "sqlite"
+
+def test_resolve_data_backend_prefers_control_plane_over_legacy_bridge_keys(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "config" / "runtime").mkdir(parents=True)
+    (tmp_path / "config" / "runtime" / "control_plane.yaml").write_text(
+        "control_plane:\n"
+        "  data_backend:\n"
+        "    type: sqlite\n"
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("FITCV_CP_DATA_BACKEND", raising=False)
+
+    cfg = {
+        "gcp_project": "legacy-project",
+        "bigquery_dataset": "legacy-dataset",
+        "service_account_key": "sa_key.json",
+    }
+
+    assert resolve_data_backend(cfg) == "sqlite"
 
 
 def test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_files(tmp_path: Path) -> None:

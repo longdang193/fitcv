@@ -118,6 +118,53 @@ class OutputAvailability(TypedDict):
     state: Literal["available", "not_ready", "none_generated", "mismatch"]
 
 
+def _count_dict_leaf_differences(baseline: dict[str, Any], effective: dict[str, Any]) -> int:
+    """Count leaf-value differences between two nested dict payloads."""
+    count = 0
+    keys = set(baseline.keys()) | set(effective.keys())
+    for key in keys:
+        left = baseline.get(key)
+        right = effective.get(key)
+        if isinstance(left, dict) and isinstance(right, dict):
+            count += _count_dict_leaf_differences(left, right)
+            continue
+        if left != right:
+            count += 1
+    return count
+
+
+def _run_detail_visibility_registry() -> dict[str, list[dict[str, str]]]:
+    """Visibility contract for run-detail sections."""
+    return {
+        "core": [
+            {"name": "status", "owner": "run_overview"},
+            {"name": "run_mode", "owner": "run_overview"},
+            {"name": "next_stage", "owner": "run_overview"},
+        ],
+        "advanced": [
+            {"name": "stage_result_policy_trace_summary", "owner": "advanced_diagnostics"},
+        ],
+        "diagnostic": [
+            {"name": "synonym_fingerprints", "owner": "advanced_diagnostics"},
+            {"name": "event_delivery_health", "owner": "advanced_diagnostics"},
+        ],
+    }
+
+
+def _run_overview_consistency_summary(
+    run: PipelineRun,
+    *,
+    stage_result_summary_rows: list[dict[str, Any]] | None,
+    event_delivery_health: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Core consistency projection used by run overview contract tests."""
+    return {
+        "status": run.status.value,
+        "stage_count": len(stage_result_summary_rows or []),
+        "dead_letter_events": int((event_delivery_health or {}).get("count") or 0),
+    }
+
+
 def _build_output_availability(
     run: PipelineRun,
     cv_versions: list[dict[str, Any]],
@@ -2011,6 +2058,39 @@ def _build_ranked_cv_outcome_summary(rows: list[dict[str, Any]]) -> dict[str, in
             summary["ranked_other_no_cv_count"] += 1
     return summary
 
+
+def _build_cv_generation_failure_reason_summary(run: PipelineRun) -> dict[str, Any]:
+    payload = _load_run_cv_generation_debug_payload(run)
+    if not isinstance(payload, dict):
+        return {"total_failed": 0, "reason_rows": []}
+    records = [
+        item
+        for item in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or [])
+        if isinstance(item, dict)
+    ]
+    reason_counts: dict[str, int] = {}
+    for record in records:
+        status = str(record.get("status") or "").strip()
+        if status not in {"generation_failed", "persistence_failed", "validation_failed"}:
+            continue
+        error_payload = record.get("error") if isinstance(record.get("error"), dict) else {}
+        error_stage = str(error_payload.get("stage") or "").strip()
+        error_message = str(error_payload.get("message") or "").strip()
+        if error_stage or error_message:
+            reason_label = f"{error_stage}: {error_message}".strip(": ").strip()
+        else:
+            reason_label = status
+        reason_counts[reason_label] = int(reason_counts.get(reason_label, 0)) + 1
+    reason_rows = [
+        {"reason": reason, "count": count}
+        for reason, count in reason_counts.items()
+    ]
+    reason_rows.sort(key=lambda row: (-int(row["count"]), str(row["reason"])))
+    return {
+        "total_failed": int(sum(reason_counts.values())),
+        "reason_rows": reason_rows,
+    }
+
 _HITL_TERMINAL_RESOLUTION_STATUSES = {
     "approved_as_is",
     "rejected",
@@ -2571,16 +2651,31 @@ def _synonym_observability_fingerprints(run: PipelineRun) -> dict[str, str | Non
     }
 
 def _build_synonym_proposal_decision_ledger(run: PipelineRun) -> list[dict[str, Any]]:
+    def _decision_from_status(status: str) -> str:
+        value = str(status or "").strip()
+        if value in {"proposed_unreviewed", "in_review"}:
+            return "pending"
+        if value == "deferred":
+            return "defer"
+        if value == "rejected":
+            return "reject"
+        if value == "approved_for_run_overlay":
+            return "approve"
+        return value or "pending"
+
     payload = _load_run_synonym_proposals_payload(run) or {}
     proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
     rows: list[dict[str, Any]] = []
     for proposal in proposals:
+        status = str(proposal.get("proposal_status") or "").strip()
         rows.append(
             {
                 "alias": str(proposal.get("alias") or "").strip(),
                 "canonical": str(proposal.get("canonical") or "").strip(),
                 "decision_source": "generated_for_review",
                 "decision_reason": str((proposal.get("rationale") or {}).get("kind") or "generated"),
+                "recommendation": str(proposal.get("recommended_action") or "").strip() or "—",
+                "decision": _decision_from_status(status),
                 "confidence": float(proposal.get("confidence") or 0.0),
                 "conflict": bool((proposal.get("conflict_summary") or {}).get("has_conflict")),
             }
@@ -2595,6 +2690,8 @@ def _build_synonym_proposal_decision_ledger(run: PipelineRun) -> list[dict[str, 
                 "canonical": str(example.get("canonical") or "").strip(),
                 "decision_source": "suppressed_as_already_global",
                 "decision_reason": "already_global_exact_match",
+                "recommendation": "—",
+                "decision": "suppressed",
                 "confidence": None,
                 "conflict": False,
             }
@@ -2925,6 +3022,24 @@ def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
         "auto_promote_global_enabled": bool(block.get("auto_promote_global_enabled", False)),
         "auto_accept_ai_action_enabled": bool(block.get("auto_accept_ai_action_enabled", True)),
     }
+
+def _synonym_review_section_state(
+    *,
+    queue: dict[str, Any],
+    decision_ledger: list[dict[str, Any]],
+    can_regenerate: bool,
+) -> str:
+    pending_count = int((queue or {}).get("pending_count") or 0)
+    total_count = int((queue or {}).get("total_count") or 0)
+    approved_count = int((queue or {}).get("approved_count") or 0)
+    has_ledger = bool(decision_ledger)
+    if pending_count > 0:
+        return "decision_active"
+    if approved_count > 0 or bool(can_regenerate) or has_ledger:
+        return "decision_active"
+    if total_count > 0:
+        return "summary"
+    return "hidden"
 
 def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:
     target = str(proposal_id or "").strip()
@@ -6371,13 +6486,53 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             completed_stages=run.completed_stages,
             checkpoint_payload_json=run.checkpoint_payload_json,
         )
-        _, queue_job_id = continue_run_with_job_id(
-            run_id=run.run_id,
-            jobs_path=run.jobs_path,
-            config_path=run.config_path,
-            triggered_by="admin",
-            redis_url=redis_url,
-        )
+        try:
+            _, queue_job_id = continue_run_with_job_id(
+                run_id=run.run_id,
+                jobs_path=run.jobs_path,
+                config_path=run.config_path,
+                triggered_by="admin",
+                redis_url=redis_url,
+            )
+        except Exception as exc:
+            # Keep manual-staged runs recoverable when queue submission fails.
+            update_run_status(run.run_id, RunStatus.AWAITING_CONTINUE, bq, project=project, dataset=dataset)
+            update_run_checkpoint(
+                run.run_id,
+                bq,
+                project=project,
+                dataset=dataset,
+                checkpoint_status=run.checkpoint_status,
+                next_stage=canonical_next_stage,
+                last_completed_stage=run.last_completed_stage,
+                completed_stages=run.completed_stages,
+                checkpoint_payload_json=run.checkpoint_payload_json,
+            )
+            append_event(
+                RunEvent(
+                    run_id=run.run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="manual_continue_enqueue_failed",
+                    level="error",
+                    message="Manual continue enqueue failed; run restored to awaiting_continue",
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                    payload_json=_json.dumps(
+                        {
+                            "error": str(exc),
+                            "replay_mode": replay_mode,
+                            "requested_by": "admin",
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail="Continue enqueue failed; run restored to awaiting_continue. Check queue/redis connectivity and retry.",
+            ) from exc
         submission = _resolve_submission_binding(run.run_id, queue_job_id)
         update_run_orchestration_binding(
             run.run_id,
@@ -6638,6 +6793,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         output_availability = _build_output_availability(run, cv_versions)
         results_rows = _results_export_rows(run)
         ranked_cv_outcome_summary = _build_ranked_cv_outcome_summary(results_rows)
+        cv_generation_failure_reason_summary = _build_cv_generation_failure_reason_summary(run)
         reranker_blocked_ranked_count = sum(
             1
             for row in results_rows
@@ -6651,6 +6807,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         synonym_proposal_decision_ledger = _build_synonym_proposal_decision_ledger(run)
         synonym_fingerprints = _synonym_observability_fingerprints(run)
         synonym_management_mode = _synonym_management_mode(run)
+        synonym_review_section_state = _synonym_review_section_state(
+            queue=synonym_proposal_review_queue,
+            decision_ledger=synonym_proposal_decision_ledger,
+            can_regenerate=_can_regenerate_synonym_proposals(run),
+        )
         markdown_quality_summary = _build_markdown_quality_summary(run)
         event_delivery_health = _run_event_delivery_health(run_id)
         telemetry_export_health = _run_telemetry_export_health(events)
@@ -6681,6 +6842,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "job_title_by_url": job_title_by_url,
                 "reranker_blocked_ranked_count": reranker_blocked_ranked_count,
                 "ranked_cv_outcome_summary": ranked_cv_outcome_summary,
+                "cv_generation_failure_reason_summary": cv_generation_failure_reason_summary,
                 "is_stale_cancelling": _is_stale_cancelling,
                 "can_continue_manual_run": (
                     run.run_mode == "manual_staged"
@@ -6697,6 +6859,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_proposal_review_queue": synonym_proposal_review_queue,
                 "synonym_proposal_decision_ledger": synonym_proposal_decision_ledger,
                 "synonym_fingerprints": synonym_fingerprints,
+                "synonym_review_section_state": synonym_review_section_state,
                 "markdown_quality_summary": markdown_quality_summary,
                 "event_delivery_health": event_delivery_health,
                 "telemetry_export_health": telemetry_export_health,
@@ -7789,6 +7952,110 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         )
         return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
 
+    @app.post("/admin/runs/{run_id}/synonym-proposals/ai-fast-path-execute")
+    async def admin_run_synonym_proposals_ai_fast_path_execute(
+        request: Request,
+        run_id: str,
+    ) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        payload = _load_run_synonym_proposals_payload(run)
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
+
+        form = await request.form()
+        acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
+        note = str(form.get("note") or "").strip() or "ai_fast_path"
+        mode = _synonym_management_mode(run)
+
+        auto_apply_counts = _auto_apply_synonym_recommendations(
+            run=run,
+            payload=payload,
+            acted_by=acted_by,
+            note=note,
+        )
+        _persist_synonym_proposal_payload(
+            run=run,
+            payload=payload,
+            acted_by=acted_by,
+            note=note,
+            event_stage="synonym_proposal_ai_fast_path_applied",
+            event_message=(
+                "AI fast-path decision apply completed: "
+                f"applied={int(auto_apply_counts.get('applied') or 0)}, "
+                f"skipped={int(auto_apply_counts.get('skipped') or 0)}, "
+                f"failed={int(auto_apply_counts.get('failed') or 0)}"
+            ),
+            event_payload={
+                "decision_source": "ai_fast_path",
+                "applied_count": int(auto_apply_counts.get("applied") or 0),
+                "skipped_count": int(auto_apply_counts.get("skipped") or 0),
+                "failed_count": int(auto_apply_counts.get("failed") or 0),
+                "reason_counts": dict(auto_apply_counts.get("reason_counts") or {}),
+                "acted_by": acted_by,
+                "note": note,
+            },
+        )
+        if int(auto_apply_counts.get("applied") or 0) > 0:
+            _sync_run_overlay_from_approved_synonym_proposals(
+                run=run,
+                payload=payload,
+                bq=bq,
+                project=project,
+                dataset=dataset,
+            )
+
+        promote_counts = {
+            "applied": 0,
+            "skipped": 0,
+            "failed": 0,
+            "new_aliases": 0,
+            "unchanged_aliases": 0,
+            "overridden_aliases": 0,
+        }
+        if bool(mode.get("promote_global_enabled")) and _is_validation_eligible_for_auto_promote(run):
+            selected_ids = [
+                str(item.get("proposal_id") or "").strip()
+                for item in list(payload.get("proposals") or [])
+                if isinstance(item, dict)
+                and str(item.get("proposal_status") or "").strip() == "approved_for_run_overlay"
+                and str(item.get("proposal_id") or "").strip()
+            ]
+            if selected_ids:
+                preview = _build_promote_global_preview(
+                    run=run,
+                    payload=payload,
+                    selected_proposal_ids=selected_ids,
+                )
+                if int((preview.get("counts") or {}).get("conflict") or 0) > 0:
+                    promote_counts["failed"] = int((preview.get("counts") or {}).get("conflict") or 0)
+                    promote_counts["skipped"] = int((preview.get("counts") or {}).get("skip") or 0)
+                else:
+                    promote_counts = _commit_synonym_global_promotion(
+                        run=run,
+                        payload=payload,
+                        preview=preview,
+                        selected_ids=selected_ids,
+                        acted_by=acted_by,
+                        note=note,
+                        bq=bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+
+        query = urlencode(
+            {
+                "synonym_fast_path_applied": int(auto_apply_counts.get("applied") or 0),
+                "synonym_fast_path_skipped": int(auto_apply_counts.get("skipped") or 0),
+                "synonym_fast_path_failed": int(auto_apply_counts.get("failed") or 0),
+                "synonym_fast_path_promote_applied": int(promote_counts.get("applied") or 0),
+                "synonym_fast_path_promote_skipped": int(promote_counts.get("skipped") or 0),
+                "synonym_fast_path_promote_failed": int(promote_counts.get("failed") or 0),
+            }
+        )
+        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+
     @app.get("/admin/runs/{run_id}/approved-synonym-proposals.yaml")
     def download_run_approved_synonym_overlay_yaml(run_id: str) -> Response:
         run = get_run(run_id, bq, project=project, dataset=dataset)
@@ -7878,6 +8145,29 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             context={
                 "run": run,
                 "candidate_profile_pretty": candidate_profile_pretty,
+            },
+        )
+
+    @app.get("/admin/runs/{run_id}/synonym-review", response_class=HTMLResponse)
+    def admin_run_synonym_review_workspace(request: Request, run_id: str) -> HTMLResponse:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        return templates.TemplateResponse(
+            request=request,
+            name="synonym_review.html",
+            context={
+                "run": run,
+                "synonym_proposal_review_queue": _build_synonym_proposal_review_queue(run),
+                "synonym_proposal_decision_ledger": _build_synonym_proposal_decision_ledger(run),
+                "synonym_management_mode": _synonym_management_mode(run),
+                "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
+                "can_upload_synonym_overlay": _can_upload_synonym_overlay(run),
+            },
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
             },
         )
 

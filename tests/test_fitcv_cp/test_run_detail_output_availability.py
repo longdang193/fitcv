@@ -49,30 +49,46 @@ def test_output_availability_not_ready_when_run_not_succeeded() -> None:
 def test_run_detail_template_mentions_output_availability_contract() -> None:
     template_path = "src/fitcv_cp/templates/run_detail.html"
     content = open(template_path, encoding="utf-8").read()
-    assert 'id="outputs-action"' in content
+    assert 'id="outputs-action"' not in content
     assert 'id="run-overview-core"' in content
-    assert 'id="advanced-diagnostics"' in content
-    assert 'href="/admin/runs/{{ run.run_id }}/synonym-review"' in content
-    assert 'href="/admin/runs/{{ run.run_id }}/artifacts"' in content
-    assert 'href="#diag-synonym-fingerprints"' in content
-    assert 'id="synonym-review-workspace"' in content
-    assert 'id="synonym-review-overview"' in content
-    assert 'id="artifacts-overview"' in content
-    assert 'id="run-exports-workspace"' in content
-    assert 'id="diag-synonym-fingerprints"' in content
-    assert 'id="diag-event-delivery-health"' in content
-    assert 'id="diag-telemetry-export-health"' in content
-    assert 'id="diag-langfuse-trace-link-health"' in content
-    assert 'id="diag-dead-letter-replay-summary"' in content
-    assert 'id="diag-agentic-runtime-alignment"' in content
-    assert "overview_consistency_summary.dead_letter_events" in content
-    assert "Run-scoped overlay: synonym overrides applied only to this run." in content
-    assert "Triage mode: strategy for recommendation freshness and reuse behavior." in content
-    assert "Suppressed: proposals hidden by suppression policy or duplicate resolution." in content
-    assert "Alias conflict: alias currently maps to another canonical term and needs explicit decision." in content
-    assert "Confidence score: model certainty for proposed mapping." in content
+    assert "<h3 style=\"margin:0 0 0.35rem\">Synonym Proposal Review</h3>" in content
+    assert "<h3>Pipeline Results</h3>" in content
+    assert "<h2>Event Timeline</h2>" in content
+    assert "<h3 style=\"margin:0 0 0.85rem\">Artifacts</h3>" in content
+    assert "Compatibility note: outputs/download actions moved to <strong>Artifacts</strong>." in content
     assert "output_availability." in content
 
+
+
+
+def test_run_detail_template_enforces_canonical_section_order_and_no_overview_duplication() -> None:
+    template_path = "src/fitcv_cp/templates/run_detail.html"
+    content = open(template_path, encoding="utf-8").read()
+    assert content.count(">Run Overview</h3>") == 1
+    overview_pos = content.index(">Run Overview</h3>")
+    synonym_pos = content.index(">Synonym Proposal Review</h3>")
+    pipeline_pos = content.index(">Pipeline Results</h3>")
+    timeline_pos = content.index(">Event Timeline</h2>")
+    artifacts_pos = content.index('id="artifacts"')
+    advanced_pos = content.index('id="advanced-diagnostics"')
+    assert overview_pos < synonym_pos < pipeline_pos < timeline_pos < artifacts_pos < advanced_pos
+    assert 'id="outputs-action"' not in content
+
+def test_advanced_diagnostics_collapsed_container_preserves_evidence_sections() -> None:
+    template_path = "src/fitcv_cp/templates/run_detail.html"
+    content = open(template_path, encoding="utf-8").read()
+    assert '<details class="card" id="advanced-diagnostics">' in content
+    assert "Advanced &amp; Diagnostics" in content
+    assert "<h3 style=\"margin:0\">Stage Result Policy + Trace Summary</h3>" in content
+    assert "<h3 style=\"margin:0\">Event Delivery Health</h3>" in content
+    assert "<h3 style=\"margin:0\">Telemetry Export Health</h3>" in content
+    assert "<h3 style=\"margin:0\">Langfuse Trace-Link Health</h3>" in content
+    assert "<h3 style=\"margin:0\">Dead-letter Replay Summary</h3>" in content
+    assert "<h3 style=\"margin:0\">Agentic Runtime Alignment</h3>" in content
+    assert content.index('id="artifacts"') < content.index('id="advanced-diagnostics"')
+    assert "Replay Dead-letter Events" not in content
+    assert "Synonym Fingerprints" not in content
+    assert "Trace Links" not in content
 
 def test_overview_core_excludes_diagnostic_only_snippets() -> None:
     template_path = "src/fitcv_cp/templates/run_detail.html"
@@ -84,7 +100,7 @@ def test_overview_core_excludes_diagnostic_only_snippets() -> None:
     assert "overlay={{ synonym_fingerprints.run_overlay_fingerprint" not in overview_block
     assert "suggestions={{ synonym_fingerprints.mapping_suggestions_fingerprint" not in overview_block
     assert '/admin/cvs/{{ cv.version_id }}/download' in content
-    assert 'href="#generated-outputs"' in content
+    assert 'href="#generated-outputs"' not in content
 
 
 def test_run_detail_visibility_registry_has_expected_tiers() -> None:
@@ -110,3 +126,5 @@ def test_overview_consistency_summary_matches_diagnostics_sources() -> None:
     assert summary["status"] == RunStatus.SUCCEEDED.value
     assert summary["stage_count"] == 2
     assert summary["dead_letter_events"] == 3
+
+

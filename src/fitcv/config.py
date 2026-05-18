@@ -28,7 +28,7 @@ from fitcv.prompts import get_prompt_definition
 
 logger = logging.getLogger(__name__)
 
-_REQUIRED_KEYS = [
+_REQUIRED_BIGQUERY_BRIDGE_KEYS = [
     "gcp_project",
     "bigquery_dataset",
     "service_account_key",
@@ -88,9 +88,6 @@ _CONTROL_PLANE_ENV_OVERRIDES = {
     "FITCV_CP_DATA_BACKEND": ("data_backend", "type"),
 }
 _CANONICAL_INFRA_KEYS = {
-    "gcp_project",
-    "bigquery_dataset",
-    "service_account_key",
     "location",
     "vertex_location",
 }
@@ -234,9 +231,8 @@ def resolve_data_backend(config: dict[str, Any] | None = None) -> str:
     1. explicit FITCV_CP_DATA_BACKEND env override
     2. passed config["control_plane"]["data_backend"]["type"]
     3. passed config["data_backend"]["type"]
-    4. compatibility fallback: explicit BigQuery connection fields on passed config
-    5. load_control_plane_config() when available
-    6. default to bigquery for backward compatibility
+    4. load_control_plane_config() when available
+    5. default to bigquery for backward compatibility
     """
     env_backend = str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower()
     if env_backend:
@@ -258,14 +254,19 @@ def resolve_data_backend(config: dict[str, Any] | None = None) -> str:
             raise ValueError("data_backend.type must be one of: bigquery, sqlite")
         return backend
 
-    if cfg.get("gcp_project") and cfg.get("bigquery_dataset"):
-        return "bigquery"
-
     try:
         control_plane_cfg = load_control_plane_config()
     except FileNotFoundError:
-        return "bigquery"
-    return str((control_plane_cfg.get("data_backend") or {}).get("type") or "bigquery").strip().lower() or "bigquery"
+        control_plane_cfg = {}
+    backend_from_control_plane = str(
+        (control_plane_cfg.get("data_backend") or {}).get("type") or ""
+    ).strip().lower()
+    if backend_from_control_plane:
+        if backend_from_control_plane not in {"bigquery", "sqlite"}:
+            raise ValueError("control_plane.data_backend.type must be one of: bigquery, sqlite")
+        return backend_from_control_plane
+
+    return "bigquery"
 
 
 
@@ -932,6 +933,12 @@ def _apply_infra_env_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
             cfg[cfg_key] = env_value
     return cfg
 
+def _strip_legacy_bigquery_bridge_keys_for_sqlite(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Remove deprecated bridge keys from active sqlite runtime config."""
+    for key in _REQUIRED_BIGQUERY_BRIDGE_KEYS:
+        cfg.pop(key, None)
+    return cfg
+
 
 def load_config(path: str | Path | None = None) -> dict[str, Any]:
     """Load and validate config from .env.yaml, then merge policy YAML files.
@@ -1012,7 +1019,10 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg = _apply_legacy_env_compatibility_projection(cfg)
 
     backend = resolve_data_backend(cfg)
-    required_keys = _REQUIRED_KEYS if backend == "bigquery" else []
+    if backend == "sqlite":
+        cfg = _strip_legacy_bigquery_bridge_keys_for_sqlite(cfg)
+
+    required_keys = _REQUIRED_BIGQUERY_BRIDGE_KEYS if backend == "bigquery" else []
     missing = [k for k in required_keys if k not in cfg]
     if missing:
         raise ValueError(
