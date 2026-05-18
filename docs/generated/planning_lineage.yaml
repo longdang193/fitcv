@@ -148,7 +148,7 @@ workstreams:
   status: active
   path: docs/intent/workstreams/workstream-bounded-agentic-cv-quality.md
   thread_count: 6
-  completed_thread_count: 3
+  completed_thread_count: 2
   derived_completion: in_progress
   threads:
   - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-analysis-grounding
@@ -168,9 +168,11 @@ workstreams:
     path: docs/intent/workstreams/threads/workstream-bounded-agentic-cv-quality/02-agentic-cv-quality-generation-repair.md
     specs:
     - docs/superpowers/specs/2026-05-15-15-26-cv-generation-selected-evidence-grounding-spec.md
+    - docs/superpowers/specs/2026-05-18-15-03-fitcv-cv-generation-refactor-drift-spec.md
     plans:
     - docs/superpowers/plans/2026-05-15-15-43-cv-generation-selected-evidence-grounding-plan.md
-    derived_completion: completed
+    - docs/superpowers/plans/2026-05-18-15-06-fitcv-cv-generation-refactor-drift-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-provider-bridge
     status: proposed
     path: docs/intent/workstreams/threads/workstream-bounded-agentic-cv-quality/03-agentic-cv-quality-provider-bridge.md
@@ -321,6 +323,7 @@ workstreams:
     - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
     - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-05-18-15-52-config-ssot-refactor-drift-spec.md
     plans:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-16-15-10-option-b-shared-structural-principles-plan.md
@@ -334,6 +337,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
     - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
+    - docs/superpowers/plans/2026-05-18-15-56-config-ssot-refactor-drift-plan.md
     derived_completion: completed
 - workstream_id: workstream-operator-control-plane
   status: active
@@ -426,9 +430,11 @@ workstreams:
     path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/01-efficiency-reuse-exact-match-contract.md
     specs:
     - docs/superpowers/specs/2026-05-03-pipeline-efficiency-exact-match-contract-bootstrap-spec.md
+    - docs/superpowers/specs/2026-05-18-14-36-evidence-refactor-ssot-spec.md
     - docs/superpowers/specs/2026-05-18-14-45-enrich-refactor-drift-remediation-spec.md
     plans:
     - docs/superpowers/plans/2026-05-03-pipeline-efficiency-exact-match-bootstrap-plan.md
+    - docs/superpowers/plans/2026-05-18-14-40-evidence-refactor-ssot-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-15-05-enrich-refactor-drift-remediation-plan.md
     derived_completion: in_progress
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
