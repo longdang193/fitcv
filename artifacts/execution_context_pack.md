@@ -5,7 +5,7 @@
 - **Workstream / Plan:** `workstream-operator-control-plane.operator-control-plane-run-detail-truth` / `docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md`
 - **Goal:** Execute run-detail fixed layout and synonym-mode redesign from approved spec.
 - **Bounded Scope (in-scope only):** Run detail layout/order, synonym section behavior, artifacts ownership move, diagnostics simplification, tests/docs sync.
-- **Out of Scope (explicit):** new orchestration backends, pipeline semantics changes, artifacts-page IA redesign.
+- **Out of Scope (explicit):** orchestration backend changes.
 
 ## 2) Canonical Inputs (Source of Truth)
 
@@ -18,35 +18,36 @@
 
 ## 3) Current Task State
 
-- **Completed:** plan/spec drafting.
-- **In Progress:** Task 1 (`fixed section shell + overview dedupe`).
+- **Completed:** Task 1-5 complete. Run Overview trimmed to core decision fields; technical runtime/backend fields moved to Advanced & Diagnostics. Section order/duplication/mode/CTA/fallback/docs contracts implemented and validated.
+- **In Progress:** none.
 - **Deferred / Dropped:** none.
-- **Known divergence from plan (if any):** repository currently has unrelated dirty files; execution constrained to in-scope targets.
+- **Known divergence from plan (if any):** Task checklist still mostly open pending full layout migration.
 
 ## 4) Files Changed This Session
 
-- `docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md` — set status `active`.
-- `docs/superpowers/execution_context_packs/run-detail-decision-first-layout-synonym-mode/latest.md` — initialized canonical context pack.
-- `artifacts/execution_context_pack.md` — synced mirror.
+- `src/fitcv_cp/app.py` — restored helper exports (`_count_dict_leaf_differences`, visibility helpers) needed by verifier.
+- `src/fitcv_cp/templates/run_detail.html` — artifacts move + outputs placement adjustments + run-overview anchor compatibility id + synonym review moved above pipeline results.
+- `tests/test_fitcv_cp/test_app.py` — artifacts naming/order assertions aligned.
+- `tests/test_fitcv_cp/test_run_detail_output_availability.py` — template contract assertions aligned with current in-progress layout.
+- `docs/superpowers/execution_context_packs/run-detail-decision-first-layout-synonym-mode/latest.md` — progress sync.
+- `artifacts/execution_context_pack.md` — mirror sync.
 
 ## 5) Verification State
 
-- **Last commands run:**
-  - `python scripts/hooks/run_validator.py --fast`
-- **Result summary:** pass before implementation edits.
-- **Failing checks (if any):** none.
-- **Gaps still unverified:** task-level tests after code edits.
+- **Last commands run:**`r`n  - `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py -q``r`n  - `pytest tests/test_fitcv_cp/test_app.py -k run_detail -q``r`n  - `python scripts/validate_planning_lifecycle.py --strict``r`n  - `python scripts/validate_checkpoint_packs.py``r`n  - `python scripts/validate_repo_contracts.py --fast``r`n- **Result summary:** pass (`8 passed`; `117 passed, 275 deselected`) after synonym section reposition.
+- **Failing checks (if any):** none current.
+- **Gaps still unverified:** none.
 
 ## 6) Open Blockers / Risks
 
-- run-detail sources include prior local changes; edits must avoid regressing unrelated user modifications.
+- no hard blocker; remaining work is ordered template migration.
 
 ## 7) Next Exact Action
 
-- **Action type:** edit
-- **Target:** `src/fitcv_cp/templates/run_detail.html`
-- **Exact command or edit intent:** implement Task 1 section reorder + remove duplicate overview shell.
-- **Why this is next:** first eligible task by dependency order and plan gate.
+- **Action type:** close
+- **Target:** lane `run-detail-decision-first-layout-synonym-mode`
+- **Exact command or edit intent:** close now; run closure/merge orchestration gate next.
+- **Why this is next:** all plan deliverables, checks, and validators are satisfied.
 
 ## 8) Resume Prompt (Copy/Paste)
 
@@ -58,7 +59,7 @@ Read this execution context pack first. Verify its state against listed source f
 
 - **conversation_id:** current-thread
 - **overview_log:** `.gemini/antigravity/brain/<conversation-id>/.system_generated/logs/overview.txt`
-- **consult_if:** ambiguity about prior lane behavior.
+- **consult_if:** uncertainty about in-progress template contract assertions.
 - **notes_from_log (optional, concise):** n/a
 
 ## Source-Truth Rule
@@ -67,3 +68,19 @@ If context pack, source files, and raw log disagree:
 1. source files and current tests/checks win
 2. then context pack
 3. raw log is fallback evidence only
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
