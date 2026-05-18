@@ -1,0 +1,44 @@
+{
+  "run_id": "1764fd52-b7a0-43eb-987a-8cb13dee1235",
+  "status": "succeeded",
+  "checkpoint_status": "completed",
+  "next_stage": null,
+  "last_completed_stage": "cv_generation",
+  "completed_stages": [
+    "normalize",
+    "enrich",
+    "rule_filter",
+    "shortlist",
+    "ranking",
+    "cv_analysis",
+    "cv_generation"
+  ],
+  "summary_keys": [
+    "cvs_generated",
+    "passed_filter",
+    "ranked",
+    "total_jobs"
+  ],
+  "stage_artifacts_schema_version": "stage_transition_artifacts_v6",
+  "event_count": 46,
+  "event_stages_head": [
+    "pipeline_start",
+    "layer1_normalize",
+    "stage_checkpoint",
+    "manual_continue_requested",
+    "pipeline_start",
+    "layer1b_pre_filter",
+    "layer1_jobs",
+    "stage_checkpoint"
+  ],
+  "event_stages_tail": [
+    "manual_continue_requested",
+    "pipeline_start",
+    "layer4_cv_generation_result",
+    "layer4_cv_generation_result",
+    "layer4_cv_generation_result",
+    "layer4_cv_generation_result",
+    "pipeline_complete",
+    "synonym_proposal_triage_completed"
+  ]
+}

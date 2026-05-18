@@ -134,6 +134,23 @@ from fitcv.telemetry import (
 )
 from fitcv.vector_search import run_vector_search
 from fitcv.vector_search import store_shortlist
+from fitcv.pipeline_observability import build_cv_analysis_item_observation_attributes as _build_cv_analysis_item_observation_attributes_observability
+from fitcv.pipeline_observability import build_cv_generation_item_observation_attributes as _build_cv_generation_item_observation_attributes_observability
+from fitcv.pipeline_observability import render_cv_analysis_item_output as _render_cv_analysis_item_output_observability
+from fitcv.pipeline_observability import render_cv_generation_item_output as _render_cv_generation_item_output_observability
+from fitcv.pipeline_stage_artifacts import build_stage_block as _build_stage_block_artifacts
+from fitcv.pipeline_stage_artifacts import build_stage_block_not_reached as _build_stage_block_not_reached_artifacts
+from fitcv.pipeline_stage_artifacts import build_normalize_stage_block as _build_normalize_stage_block_artifacts
+from fitcv.pipeline_stage_artifacts import build_enrich_stage_block as _build_enrich_stage_block_artifacts
+from fitcv.pipeline_stage_artifacts import build_rule_filter_stage_block as _build_rule_filter_stage_block_artifacts
+from fitcv.pipeline_stage_artifacts import build_shortlist_stage_block as _build_shortlist_stage_block_artifacts
+from fitcv.pipeline_stage_artifacts import build_ranking_stage_block as _build_ranking_stage_block_artifacts
+from fitcv.pipeline_stage_artifacts import build_cv_analysis_stage_block as _build_cv_analysis_stage_block_artifacts
+from fitcv.pipeline_stage_artifacts import build_cv_generation_stage_block as _build_cv_generation_stage_block_artifacts
+from fitcv.pipeline_stage_artifacts import sample_rows as _sample_rows_artifacts
+from fitcv.pipeline_stage_artifacts import sample_strings as _sample_strings_artifacts
+from fitcv.pipeline_stage_artifacts import truncate_stage_text as _truncate_stage_text_artifacts
+from fitcv.pipeline_stage_artifacts import truncate_stage_value as _truncate_stage_value_artifacts
 from fitcv.pipeline_store import PipelineStore
 from fitcv.pipeline_stage_context import (
     PipelineState,
@@ -205,6 +222,9 @@ PIPELINE_STAGE_SEQUENCE = (
 )
 _PIPELINE_STAGE_SET = set(PIPELINE_STAGE_SEQUENCE)
 
+def _build_stage_dispatch_map() -> dict[str, str]:
+    """Build canonical stage-dispatch scaffold keyed by pipeline stage order."""
+    return {stage_name: stage_name for stage_name in PIPELINE_STAGE_SEQUENCE}
 
 def _extract_job_url(job: dict[str, Any]) -> str:
     return str(job.get("job_url") or job.get("jobUrl") or "")
@@ -1648,41 +1668,12 @@ def _render_cv_analysis_item_input(*, profile: dict[str, Any], job: dict[str, An
 
 
 def _render_cv_analysis_item_output(analysis_record: dict[str, Any]) -> str:
-    fit_decision = str(analysis_record.get("fit_classification") or "unknown")
-    matched = bound_langfuse_list(
-        list((analysis_record.get("gap_summary") or {}).get("matched") or []),
-        max_items=8,
-        max_item_chars=240,
+    return _render_cv_analysis_item_output_observability(
+        analysis_record,
+        bound_langfuse_list=bound_langfuse_list,
+        bound_langfuse_excerpt=bound_langfuse_excerpt,
+        render_langfuse_markdown_sections=render_langfuse_markdown_sections,
     )
-    risks = bound_langfuse_list(
-        list((analysis_record.get("gap_summary") or {}).get("missing") or []),
-        max_items=8,
-        max_item_chars=240,
-    )
-    status = str(analysis_record.get("status") or "unknown")
-    error_payload = analysis_record.get("outcome_reason") or analysis_record.get("error")
-    if isinstance(error_payload, dict):
-        error_summary = bound_langfuse_excerpt(
-            str(error_payload.get("message") or error_payload.get("stage") or ""),
-            max_chars=1000,
-        )
-    else:
-        error_summary = bound_langfuse_excerpt(str(error_payload or ""), max_chars=1000)
-    reasoning_summary = bound_langfuse_excerpt(status, max_chars=1000) or "unknown"
-    sections = [
-        ("## Fit Decision", [fit_decision]),
-        ("## Fit Score", [str(analysis_record.get("fit_score") or "n/a")]),
-        ("## Reasoning Summary", [reasoning_summary]),
-        ("## Evidence", [f"- {item}" for item in matched] or ["- No bounded evidence available"]),
-        ("## Risks", [f"- {item}" for item in risks]),
-        (
-            "## Generation Readiness",
-            ["true" if status == "ready_for_generation" else "false"],
-        ),
-    ]
-    if error_summary:
-        sections.append(("## Failure Summary", [error_summary]))
-    return render_langfuse_markdown_sections(sections)
 
 
 def _build_cv_analysis_item_observation_attributes(
@@ -1692,104 +1683,19 @@ def _build_cv_analysis_item_observation_attributes(
     job: dict[str, Any],
     analysis_record: dict[str, Any],
 ) -> dict[str, Any]:
-    status = str(analysis_record.get("status") or "")
-    fit_decision = str(analysis_record.get("fit_classification") or "unknown")
-    generation_readiness = status == "ready_for_generation"
-    error_payload = analysis_record.get("outcome_reason") or analysis_record.get("error")
-    if isinstance(error_payload, dict):
-        error_summary = bound_langfuse_excerpt(
-            str(error_payload.get("message") or error_payload.get("stage") or ""),
-            max_chars=1000,
-        )
-    else:
-        error_summary = bound_langfuse_excerpt(str(error_payload or ""), max_chars=1000)
-    candidate_skills = bound_langfuse_list(
-        flatten_skills(profile),
-        max_items=20,
-        max_item_chars=80,
-    )
-    experience_highlights = bound_langfuse_list(
-        list(profile.get("experience_highlights") or []),
-        max_items=8,
-        max_item_chars=300,
-    )
-    requirements_excerpt = bound_langfuse_list(
-        [str(item).strip() for item in list(job.get("required_skills") or []) if str(item).strip()],
-        max_items=8,
-        max_item_chars=300,
-    )
-    matched = bound_langfuse_list(
-        list((analysis_record.get("gap_summary") or {}).get("matched") or []),
-        max_items=8,
-        max_item_chars=240,
-    )
-    risks = bound_langfuse_list(
-        list((analysis_record.get("gap_summary") or {}).get("missing") or []),
-        max_items=8,
-        max_item_chars=240,
-    )
-    reasoning_summary = bound_langfuse_excerpt(status, max_chars=1000)
-    input_structured = {
-        "job_id": _extract_job_url(job) or _extract_job_title(job),
-        "job_title": _extract_job_title(job),
-        "job_excerpt": bound_langfuse_excerpt(str(job.get("description") or ""), max_chars=1500),
-        "requirements_excerpt": requirements_excerpt,
-        "candidate_excerpt": {
-            "headline": bound_langfuse_excerpt(str(profile.get("headline") or ""), max_chars=240),
-            "skills": candidate_skills,
-            "experience_highlights": experience_highlights,
-        },
-        "instructions": bound_langfuse_excerpt(
-            str(job.get("analysis_instructions") or "Evaluate fit for generation readiness."),
-            max_chars=2000,
-        ),
-        "rubric": {
-            "fit_dimensions": ["domain", "seniority", "stack", "scope"],
-        },
-        "context_refs": {
-            "analysis_input_fingerprint": analysis_record.get("analysis_input_fingerprint"),
-            "retrieval_context_summary": bound_langfuse_excerpt(
-                ", ".join(matched) if matched else "No bounded retrieval context available",
-                max_chars=1000,
-            ),
-        },
-    }
-    output_structured = {
-        "fit_decision": fit_decision,
-        "fit_score": analysis_record.get("fit_score"),
-        "reasoning_summary": reasoning_summary,
-        "evidence": matched,
-        "risks": risks,
-        "generation_readiness": generation_readiness,
-        "disposition": status,
-        "failure_summary": error_summary,
-    }
-    metadata = {
-        "run_id": run_id,
-        "job_url": _extract_job_url(job),
-        "job_title": _extract_job_title(job),
-        "analysis_input_fingerprint": analysis_record.get("analysis_input_fingerprint"),
-        "analysis_reuse_status": analysis_record.get("analysis_reuse_status"),
-        "ranking_fit_label": analysis_record.get("ranking_fit_label"),
-        "reuse_status": analysis_record.get("analysis_reuse_status"),
-        "deterministic_gate_result": status,
-        "selected": True,
-        "status": status,
-    }
-    return build_langfuse_item_observation_attributes(
-        observation_name="cv_analysis_item",
-        observation_type="generation",
-        rendered_input=_render_cv_analysis_item_input(profile=profile, job=job),
-        rendered_output=_render_cv_analysis_item_output(analysis_record),
-        input_structured=input_structured,
-        output_structured=output_structured,
-        metadata=metadata,
-        prompt_name="cv_analysis_item",
-        extra_attributes={
-            "fitcv.run_id": run_id,
-            "fitcv.job_url": _extract_job_url(job),
-            "fitcv.stage_id": "cv_analysis",
-        },
+    return _build_cv_analysis_item_observation_attributes_observability(
+        run_id=run_id,
+        profile=profile,
+        job=job,
+        analysis_record=analysis_record,
+        extract_job_url=_extract_job_url,
+        extract_job_title=_extract_job_title,
+        flatten_skills=flatten_skills,
+        bound_langfuse_list=bound_langfuse_list,
+        bound_langfuse_excerpt=bound_langfuse_excerpt,
+        build_langfuse_item_observation_attributes=build_langfuse_item_observation_attributes,
+        render_cv_analysis_item_input=_render_cv_analysis_item_input,
+        render_cv_analysis_item_output=_render_cv_analysis_item_output,
     )
 
 
@@ -1851,38 +1757,14 @@ def _render_cv_generation_item_input(
 
 
 def _render_cv_generation_item_output(debug_record: dict[str, Any]) -> str:
-    status = str(debug_record.get("status") or "unknown")
-    markdown_final = bound_langfuse_markdown(str(debug_record.get("markdown_final") or "").strip(), max_chars=12000)
-    validation_initial = dict(debug_record.get("validation_initial") or {})
-    review_issue_inputs = (
-        list(validation_initial.get("missing_sections") or [])
-        + list(validation_initial.get("grounding_violations") or [])
-        + list(validation_initial.get("skill_violations") or [])
-        + list(validation_initial.get("markdown_quality_blocking_issues") or [])
-        + list(validation_initial.get("markdown_quality_review_flags") or [])
+    return _render_cv_generation_item_output_observability(
+        debug_record,
+        cv_generation_review_required_status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+        bound_langfuse_markdown=bound_langfuse_markdown,
+        bound_langfuse_excerpt=bound_langfuse_excerpt,
+        bound_langfuse_issue_list=bound_langfuse_issue_list,
+        render_langfuse_markdown_sections=render_langfuse_markdown_sections,
     )
-    validation_valid = bool(validation_initial.get("valid")) if validation_initial else status == "accepted"
-    error_payload = debug_record.get("error")
-    if isinstance(error_payload, dict):
-        failure_summary = bound_langfuse_excerpt(
-            str(error_payload.get("message") or error_payload.get("stage") or ""),
-            max_chars=1000,
-        )
-    else:
-        failure_summary = bound_langfuse_excerpt(str(error_payload or ""), max_chars=1000)
-    if status == CV_GENERATION_REVIEW_REQUIRED_STATUS and not review_issue_inputs and failure_summary:
-        review_issue_inputs.append(failure_summary)
-    review_issues = bound_langfuse_issue_list(review_issue_inputs)
-    sections = [
-        ("## Status", [status]),
-        ("## Generated CV Markdown", [markdown_final or "No markdown generated"]),
-        ("## Validation Summary", ["valid" if validation_valid else status]),
-        ("## Review Issues", [f"- {item}" for item in review_issues]),
-        ("## Persistence Outcome", ["stored" if status == "accepted" else status]),
-    ]
-    if failure_summary:
-        sections.append(("## Failure Summary", [failure_summary]))
-    return render_langfuse_markdown_sections(sections)
 
 
 def _build_cv_generation_item_observation_attributes(
@@ -1891,97 +1773,20 @@ def _build_cv_generation_item_observation_attributes(
     analysis_record: dict[str, Any],
     debug_record: dict[str, Any],
 ) -> dict[str, Any]:
-    job = dict(analysis_record.get("job_snapshot") or {})
-    status = str(debug_record.get("status") or "")
-    required_skills = bound_langfuse_list(
-        [str(item).strip() for item in list(job.get("required_skills") or []) if str(item).strip()],
-        max_items=8,
-        max_item_chars=300,
-    )
-    evidence_lines = bound_langfuse_list(
-        [
-            str(item.get("name") or item.get("source_ref") or item.get("evidence_type") or "evidence").strip()
-            for item in list(debug_record.get("evidence_used") or [])
-            if str(item.get("name") or item.get("source_ref") or item.get("evidence_type") or "").strip()
-        ],
-        max_items=8,
-        max_item_chars=240,
-    )
-    validation_initial = dict(debug_record.get("validation_initial") or {})
-    review_issue_inputs = (
-        list(validation_initial.get("missing_sections") or [])
-        + list(validation_initial.get("grounding_violations") or [])
-        + list(validation_initial.get("skill_violations") or [])
-        + list(validation_initial.get("markdown_quality_blocking_issues") or [])
-        + list(validation_initial.get("markdown_quality_review_flags") or [])
-    )
-    validation_valid = bool(validation_initial.get("valid")) if validation_initial else status == "accepted"
-    error_payload = debug_record.get("error")
-    if isinstance(error_payload, dict):
-        failure_summary = bound_langfuse_excerpt(
-            str(error_payload.get("message") or error_payload.get("stage") or ""),
-            max_chars=1000,
-        )
-    else:
-        failure_summary = bound_langfuse_excerpt(str(error_payload or ""), max_chars=1000)
-    if status == CV_GENERATION_REVIEW_REQUIRED_STATUS and not review_issue_inputs and failure_summary:
-        review_issue_inputs.append(failure_summary)
-    review_issues = bound_langfuse_issue_list(review_issue_inputs)
-    input_structured = {
-        "job_id": _extract_job_url(job) or _extract_job_title(job),
-        "job_excerpt": bound_langfuse_excerpt(str(job.get("description") or ""), max_chars=1500),
-        "constraints": required_skills,
-        "selected_evidence": evidence_lines,
-        "analysis_inputs": {
-            "analysis_input_fingerprint": analysis_record.get("analysis_input_fingerprint"),
-            "fit_classification": analysis_record.get("fit_classification"),
-        },
-        "generation_instructions": bound_langfuse_excerpt(
-            str(job.get("generation_instructions") or "Generate grounded CV sections only from selected evidence."),
-            max_chars=2000,
-        ),
-    }
-    output_structured = {
-        "status": status,
-        "cv_markdown": bound_langfuse_markdown(str(debug_record.get("markdown_final") or "").strip(), max_chars=12000),
-        "cv_structured": debug_record.get("structured_cv_final"),
-        "validation_summary": {
-            "valid": validation_valid,
-            "review_issues": review_issues,
-        },
-        "persistence_outcome": "stored" if status == "accepted" else status,
-        "failure_summary": failure_summary,
-    }
-    metadata = {
-        "run_id": run_id,
-        "job_url": _extract_job_url(job),
-        "job_title": _extract_job_title(job),
-        "status": status,
-        "selected": status == "accepted",
-        "attempt_count": debug_record.get("attempt_count"),
-        "analysis_input_fingerprint": analysis_record.get("analysis_input_fingerprint"),
-        "parent_observation_name": "cv_analysis_item",
-        "disposition": status,
-        "output_structured": output_structured,
-    }
-    return build_langfuse_item_observation_attributes(
-        observation_name="cv_generation_item",
-        observation_type="generation",
-        rendered_input=_render_cv_generation_item_input(
-            job=job,
-            evidence_used=list(debug_record.get("evidence_used") or []),
-            fit_classification=cast(str | None, debug_record.get("fit_classification")),
-        ),
-        rendered_output=_render_cv_generation_item_output(debug_record),
-        input_structured=input_structured,
-        output_structured=output_structured,
-        metadata=metadata,
-        prompt_name="cv_generation_item",
-        extra_attributes={
-            "fitcv.run_id": run_id,
-            "fitcv.job_url": _extract_job_url(job),
-            "fitcv.stage_id": "cv_generation",
-        },
+    return _build_cv_generation_item_observation_attributes_observability(
+        run_id=run_id,
+        analysis_record=analysis_record,
+        debug_record=debug_record,
+        cv_generation_review_required_status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+        extract_job_url=_extract_job_url,
+        extract_job_title=_extract_job_title,
+        bound_langfuse_list=bound_langfuse_list,
+        bound_langfuse_excerpt=bound_langfuse_excerpt,
+        bound_langfuse_issue_list=bound_langfuse_issue_list,
+        bound_langfuse_markdown=bound_langfuse_markdown,
+        build_langfuse_item_observation_attributes=build_langfuse_item_observation_attributes,
+        render_cv_generation_item_input=_render_cv_generation_item_input,
+        render_cv_generation_item_output=_render_cv_generation_item_output,
     )
 
 
@@ -2637,44 +2442,27 @@ def _build_cv_analysis_record(
 
 
 def _stage_block_not_reached(stage: str) -> dict[str, Any]:
-    stage_result = _build_stage_result(
-        stage_id=stage,
-        status="not_reached",
-        input_counts={},
-        output_counts={},
-        decision_summary={},
+    def _stage_result_builder(stage_id: str) -> dict[str, Any]:
+        return _build_stage_result(
+            stage_id=stage_id,
+            status="not_reached",
+            input_counts={},
+            output_counts={},
+            decision_summary={},
+        )
+
+    return _build_stage_block_not_reached_artifacts(
+        stage=stage,
+        stage_result_builder=_stage_result_builder,
     )
-    return {
-        "stage_id": stage,
-        "stage": stage,
-        "status": "not_reached",
-        "stage_result": stage_result,
-        "input_counts": {},
-        "output_counts": {},
-        "decision_summary": {},
-        "outputs_sample": [],
-        "dropped_or_changed_sample": [],
-        "inputs_sample": [],
-    }
 
 
 def _truncate_stage_text(value: str, *, limit: int = _STAGE_ARTIFACT_TEXT_LIMIT) -> str:
-    if len(value) <= limit:
-        return value
-    return value[:limit] + "...[truncated]"
+    return _truncate_stage_text_artifacts(value, limit=limit)
 
 
 def _truncate_stage_value(value: Any) -> Any:
-    if isinstance(value, str):
-        return _truncate_stage_text(value)
-    if isinstance(value, list):
-        return [_truncate_stage_value(item) for item in value]
-    if isinstance(value, dict):
-        return {
-            str(key): _truncate_stage_value(inner)
-            for key, inner in value.items()
-        }
-    return value
+    return _truncate_stage_value_artifacts(value, text_limit=_STAGE_ARTIFACT_TEXT_LIMIT)
 
 
 def _sample_rows(
@@ -2683,19 +2471,20 @@ def _sample_rows(
     *,
     limit: int = _STAGE_ARTIFACT_SAMPLE_LIMIT,
 ) -> list[dict[str, Any]]:
-    sampled: list[dict[str, Any]] = []
-    for row in rows:
-        built = row_builder(row)
-        if not built:
-            continue
-        sampled.append(_truncate_stage_value(built))
-        if len(sampled) >= limit:
-            break
-    return sampled
+    return _sample_rows_artifacts(
+        rows,
+        row_builder,
+        limit=limit,
+        text_limit=_STAGE_ARTIFACT_TEXT_LIMIT,
+    )
 
 
 def _sample_strings(values: list[str], *, limit: int = _STAGE_ARTIFACT_SAMPLE_LIMIT) -> list[str]:
-    return [_truncate_stage_text(value) for value in values[:limit] if value]
+    return _sample_strings_artifacts(
+        values,
+        limit=limit,
+        text_limit=_STAGE_ARTIFACT_TEXT_LIMIT,
+    )
 
 
 def _safe_rate(numerator: int, denominator: int) -> float:
@@ -3056,30 +2845,38 @@ def _stage_block(
     settings_refs: list[str] | None = None,
     late_stage_mode: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    stage_result = _build_stage_result(
-        stage_id=stage_id,
-        status=status,
-        input_counts=input_counts,
-        output_counts=output_counts,
-        decision_summary=decision_summary,
+    def _stage_result_builder(
+        local_stage_id: str,
+        local_status: str,
+        local_input_counts: dict[str, Any],
+        local_output_counts: dict[str, Any],
+        local_decision_summary: dict[str, Any],
+    ) -> dict[str, Any]:
+        return _build_stage_result(
+            stage_id=local_stage_id,
+            status=local_status,
+            input_counts=local_input_counts,
+            output_counts=local_output_counts,
+            decision_summary=local_decision_summary,
+        )
+
+    return cast(
+        dict[str, Any],
+        _build_stage_block_artifacts(
+            stage_id=stage_id,
+            status=status,
+            input_counts=input_counts,
+            output_counts=output_counts,
+            decision_summary=decision_summary,
+            inputs_sample=inputs_sample,
+            outputs_sample=outputs_sample,
+            dropped_or_changed_sample=dropped_or_changed_sample,
+            settings_refs=settings_refs,
+            late_stage_mode=late_stage_mode,
+            truncate_value=_truncate_stage_value,
+            stage_result_builder=_stage_result_builder,
+        ),
     )
-    block = {
-        "stage_id": stage_id,
-        "stage": stage_id,
-        "status": status,
-        "stage_result": stage_result,
-        "input_counts": input_counts,
-        "output_counts": output_counts,
-        "decision_summary": decision_summary,
-        "outputs_sample": outputs_sample,
-        "dropped_or_changed_sample": dropped_or_changed_sample,
-        "inputs_sample": inputs_sample,
-    }
-    if settings_refs:
-        block["settings_refs"] = settings_refs
-    if late_stage_mode:
-        block["late_stage_mode"] = late_stage_mode
-    return cast(dict[str, Any], _truncate_stage_value(block))
 
 
 def _otel_id(seed: str, *, length: int) -> str:
@@ -3358,351 +3155,134 @@ def _build_stage_transition_artifacts(
     return {
         "schema_version": STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION,
         "stages": {
-            "normalize": _stage_block(
-                stage_id="normalize",
-                status="completed",
-                input_counts={"raw_jobs": len(raw_jobs)},
-                output_counts={
-                    "normalized_jobs": len(normalized),
-                    "deduplicated_jobs": len(deduplicated_jobs),
-                },
-                decision_summary={"dedupe_reason_counts": dedupe_reason_counts},
-                inputs_sample=_sample_rows(raw_jobs, _job_sample),
-                outputs_sample=_sample_rows(normalized, _job_sample),
-                dropped_or_changed_sample=_sample_rows(
-                    deduplicated_jobs,
-                    lambda job: {
-                        **(_job_sample(job) or {}),
-                        "change_type": "deduplicated_before_enrichment",
-                        "dedupe_reason": _DEDUPE_REASON_LABELS.get(str(job.get("dedupe_reason") or ""), "deduplicated"),
-                    } if _job_sample(job) else None,
+            "normalize": _build_normalize_stage_block_artifacts(
+                raw_jobs=raw_jobs,
+                normalized=normalized,
+                deduplicated_jobs=deduplicated_jobs,
+                dedupe_reason_counts=dedupe_reason_counts,
+                stage_block_builder=_stage_block,
+                sample_rows_builder=_sample_rows,
+                job_sample_builder=_job_sample,
+                dedupe_reason_label_resolver=lambda reason: _DEDUPE_REASON_LABELS.get(
+                    reason,
+                    "deduplicated",
                 ),
             ),
-            "enrich": _stage_block(
-                stage_id="enrich",
-                status="completed",
-                input_counts={
-                    "normalized_jobs": len(normalized),
-                    "jobs_entering_enrichment": len(normalized) - len(pre_filter_rejected_jobs),
-                },
-                output_counts={
-                    "enriched_jobs": len(enriched),
-                    "pre_enrichment_rejected_jobs": len(pre_filter_rejected_jobs),
-                },
-                decision_summary={
-                    "candidate_profile_summary": _candidate_profile_summary(profile, config),
-                    "enrich_prompt_id": enrich_prompt_provenance["prompt_id"],
-                    "enrich_prompt_version": enrich_prompt_provenance["prompt_version"],
-                    "enrich_prompt_template_path": enrich_prompt_provenance["template_path"],
-                    "enrich_prompt_model": enrich_prompt_provenance["model"],
-                    **enrich_reuse_counts,
-                },
-                inputs_sample=_sample_rows(
-                    [job for job in normalized if _extract_job_url(job) not in {_extract_job_url(item) for item in pre_filter_rejected_jobs}],
-                    _job_sample,
-                ),
-                outputs_sample=_sample_rows(enriched, _job_sample),
-                dropped_or_changed_sample=_sample_rows(
-                    pre_filter_rejected_jobs,
-                    lambda job: {
-                        **(_job_sample(job) or {}),
-                        "change_type": "rejected_before_enrichment",
-                        "reasons": list(job.get("reasons") or []),
-                    } if _job_sample(job) else None,
-                ),
+            "enrich": _build_enrich_stage_block_artifacts(
+                normalized=normalized,
+                pre_filter_rejected_jobs=pre_filter_rejected_jobs,
+                enriched=enriched,
+                profile=profile,
+                config=config,
+                enrich_prompt_provenance=enrich_prompt_provenance,
+                enrich_reuse_counts=enrich_reuse_counts,
+                stage_block_builder=_stage_block,
+                sample_rows_builder=_sample_rows,
+                job_sample_builder=_job_sample,
+                extract_job_url=_extract_job_url,
+                candidate_profile_summary_builder=_candidate_profile_summary,
             ),
-            "rule_filter": _stage_block(
-                stage_id="rule_filter",
-                status="completed",
-                input_counts={"enriched_jobs": len(enriched)},
-                output_counts={
-                    "passed_jobs": len(passed_jobs),
-                    "rejected_jobs": len(candidate_filter_rejected_jobs),
-                },
-                decision_summary={
-                    "reject_reason_counts": grouped_reject_reasons,
-                    "mark_code_counts": grouped_mark_codes,
-                    "selected_filters": selected_rule_filters,
-                },
-                inputs_sample=_sample_rows(enriched, _job_sample),
-                outputs_sample=_sample_rows(
-                    passed_jobs,
-                    lambda job: _rule_filter_decision_sample(job, filter_outcome="pass"),
-                ),
-                dropped_or_changed_sample=_sample_rows(
-                    candidate_filter_rejected_jobs,
-                    lambda job: (
-                        {
-                            **(_rule_filter_decision_sample(job, filter_outcome="reject") or {}),
-                            "change_type": "rejected_after_enrichment",
-                        }
-                        if _rule_filter_decision_sample(job, filter_outcome="reject")
-                        else None
-                    ),
-                ),
+            "rule_filter": _build_rule_filter_stage_block_artifacts(
+                enriched=enriched,
+                passed_jobs=passed_jobs,
+                candidate_filter_rejected_jobs=candidate_filter_rejected_jobs,
+                grouped_reject_reasons=grouped_reject_reasons,
+                grouped_mark_codes=grouped_mark_codes,
+                selected_rule_filters=selected_rule_filters,
+                stage_block_builder=_stage_block,
+                sample_rows_builder=_sample_rows,
+                job_sample_builder=_job_sample,
+                rule_filter_decision_sample_builder=_rule_filter_decision_sample,
             ),
-            "shortlist": _stage_block(
-                stage_id="shortlist",
-                status="completed" if shortlist_reached else "not_reached",
-                input_counts={"passed_jobs": len(passed_jobs)},
-                output_counts={
-                    "raw_vector_rows": len(raw_shortlist),
-                    "raw_vector_unique_jobs": len(raw_shortlist_urls),
-                    "raw_vector_hits": len(raw_shortlist_urls),
-                    "scoring_shortlist_jobs": len(shortlist),
-                    "backfilled_jobs": len(backfilled_job_urls),
-                    "retrieval_anomalies": len(raw_shortlist_anomaly_urls),
-                    **shortlist_embedding_reuse_counts,
-                },
-                decision_summary={
-                    "candidate_query_text": candidate_summary,
-                    "candidate_query_components": shortlist_candidate_query_components,
-                    **shortlist_candidate_query_debug,
-                    "quality_metrics": shortlist_quality_metrics,
-                    "vector_search_top_n": vector_top_n,
-                    "jobs_not_returned_in_raw_hits": len(
-                        [job for job in passed_jobs if _extract_job_url(job) not in raw_shortlist_urls]
-                    ),
-                    **shortlist_embedding_reuse_counts,
-                    "raw_shortlist_anomaly_urls": _sample_strings(raw_shortlist_anomaly_urls),
-                    "backfilled_job_urls": _sample_strings(backfilled_job_urls),
-                },
-                inputs_sample=_sample_rows(passed_jobs, _job_sample),
-                outputs_sample=_sample_rows(shortlist, _shortlist_row_sample),
-                dropped_or_changed_sample=_sample_rows(
-                    [
-                        *[
-                            {
-                                **job,
-                                "change_type": "not_returned_in_raw_hits",
-                                "shortlist_outcome": "not_returned_in_raw_hits",
-                                "raw_hit_present": False,
-                                "retrieval_anomaly_present": False,
-                            }
-                            for job in passed_jobs
-                            if (
-                                _extract_job_url(job) not in raw_shortlist_urls
-                                and _extract_job_url(job) not in backfilled_job_urls
-                            )
-                        ],
-                        *[
-                            {
-                                "job_url": job_url,
-                                **next(
-                                    (job for job in shortlist if _extract_job_url(job) == job_url),
-                                    {"title": next(
-                                        (_extract_job_title(job) for job in passed_jobs if _extract_job_url(job) == job_url),
-                                        "",
-                                    )},
-                                ),
-                                "change_type": "backfilled_for_scoring",
-                                "shortlist_outcome": "backfilled_for_scoring",
-                                "raw_hit_present": False,
-                                "retrieval_anomaly_present": False,
-                            }
-                            for job_url in backfilled_job_urls
-                        ],
-                        *[
-                            {
-                                "job_url": job_url,
-                                "title": "",
-                                "change_type": "raw_hit_excluded_from_scoring",
-                                "shortlist_outcome": "raw_hit_excluded_from_scoring",
-                                "raw_hit_present": True,
-                                "retrieval_anomaly_present": True,
-                            }
-                            for job_url in raw_shortlist_anomaly_urls
-                        ],
-                    ],
-                    lambda item: {
-                        **(_job_sample(item) or {"job_url": str(item.get("job_url") or ""), "job_title": str(item.get("title") or "")}),
-                        "change_type": str(item.get("change_type") or ""),
-                        "shortlist_outcome": str(item.get("shortlist_outcome") or ""),
-                        "raw_hit_present": bool(item.get("raw_hit_present", False)),
-                        "retrieval_anomaly_present": bool(item.get("retrieval_anomaly_present", False)),
-                        **(
-                            {
-                                "embedding_reuse_status": item.get("embedding_reuse_status"),
-                                "embedding_input_signature": item.get("embedding_input_signature"),
-                                "embedding_contract_fingerprint": item.get("embedding_contract_fingerprint"),
-                            }
-                            if item.get("embedding_reuse_status") is not None
-                            or item.get("embedding_input_signature") is not None
-                            or item.get("embedding_contract_fingerprint") is not None
-                            else {}
-                        ),
-                        **(
-                            {
-                                "vector_similarity": item.get("vector_similarity"),
-                                "vector_rank": item.get("vector_rank"),
-                                "shortlist_origin": item.get("shortlist_origin"),
-                            }
-                            if item.get("vector_rank") is not None or item.get("vector_similarity") is not None
-                            else {}
-                        ),
-                    }
-                    if str(item.get("job_url") or "")
-                    else None,
-                ),
-                settings_refs=["pipeline.vector_search_top_n"],
-            ) if shortlist_reached else _stage_block_not_reached("shortlist"),
-            "ranking": _stage_block(
-                stage_id="ranking",
-                status="completed" if ranking_reached else "not_reached",
-                input_counts={
-                    "ai_scores": len(ai_scores),
-                    "ranking_inputs": len(ranking_inputs),
-                },
-                output_counts={
-                    "ranked_jobs": len(ranked),
-                    "final_top_n": final_top_n,
-                },
-                decision_summary={
-                    "ranking_fit_label_counts": ranking_fit_distribution,
-                    "quality_metrics": ranking_quality_metrics,
-                    "reuse_metrics": ranking_reuse_metrics,
-                    "ranking_prompt_id": ranking_prompt_provenance["prompt_id"],
-                    "ranking_prompt_version": ranking_prompt_provenance["prompt_version"],
-                    "ranking_prompt_template_path": ranking_prompt_provenance["template_path"],
-                    "ai_score_model": get_gemini_model(config),
-                    "configured_ranking_weights": ranking_weights,
-                    "configured_missing_value_defaults": ranking_defaults,
-                    "configured_preference_fit_weights": preference_fit_weights,
-                    "configured_fit_label_thresholds": dict(config.get("fit_label_thresholds") or {}),
-                    "zero_weight_features": zero_weight_features,
-                    "contributing_features": contributing_features,
-                    "candidate_preference_resolution": infer_effective_preferences(profile, config),
-                },
-                inputs_sample=_sample_rows(ranking_inputs, _ranking_row_sample),
-                outputs_sample=_sample_rows(ranked, _ranking_row_sample),
-                dropped_or_changed_sample=_sample_rows(
-                    [row for row in ranking_inputs if _extract_job_url(row) not in ranked_urls],
-                    lambda row: {
-                        **(_ranking_row_sample(row) or {}),
-                        "change_type": "scored_not_ranked",
-                    } if _ranking_row_sample(row) else None,
-                ),
-                settings_refs=[
-                    "ranking_weights",
-                    "preference_fit_weights",
-                    "missing_value_defaults",
-                    "fit_label_thresholds",
-                    "pipeline.final_top_n",
-                    "prompts.ranking.ai_score.prompt_id",
-                ],
-            ) if ranking_reached else _stage_block_not_reached("ranking"),
-            "cv_analysis": _stage_block(
-                stage_id="cv_analysis",
-                status="completed" if cv_analysis_reached else "not_reached",
-                input_counts={"ranked_jobs": len(ranked)},
-                output_counts={
-                    "blocked_by_reranker_fit": sum(
-                        1 for record in cv_analysis_results
-                        if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
-                    ),
-                    "ready_for_generation": sum(
-                        1 for record in cv_analysis_results
-                        if str(record.get("status") or "") == CV_ANALYSIS_READY_FOR_GENERATION_STATUS
-                    ),
-                    "skipped_fit_gate": sum(
-                        1 for record in cv_analysis_results
-                        if str(record.get("status") or "") == CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS
-                    ),
-                    "analysis_failed": sum(
-                        1 for record in cv_analysis_results
-                        if str(record.get("status") or "") == CV_ANALYSIS_FAILED_STATUS
-                    ),
-                },
-                decision_summary={
-                    "analysis_records_captured": len(cv_analysis_results),
-                    "quality_metrics": cv_analysis_quality_metrics,
-                    "reuse_metrics": cv_analysis_reuse_metrics,
-                    "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
-                    "effective_channel_pool_size": int(
-                        config.get("cv_analysis", {}).get("semantic_alignment", {}).get("channel_pool_size", 0) or 0
-                    ),
-                    "selected_evidence_total": sum(
-                        int((record.get("evidence_selection_summary") or {}).get("selected_evidence_count") or 0)
-                        for record in cv_analysis_results
-                    ),
-                    "merged_candidate_pool_total": sum(
-                        int((record.get("evidence_selection_summary") or {}).get("merged_pool_size") or 0)
-                        for record in cv_analysis_results
-                    ),
-                },
-                inputs_sample=_sample_rows(ranked, _ranking_row_sample),
-                outputs_sample=_sample_rows(cv_analysis_results, _analysis_record_output_sample),
-                dropped_or_changed_sample=_sample_rows(cv_analysis_results, _analysis_record_changed_sample),
-                settings_refs=[
-                    "pipeline.evidence_top_k",
-                    "cv_analysis.semantic_alignment.enabled",
-                    "cv_analysis.semantic_alignment.model",
-                    "cv_analysis.semantic_alignment.required_skill_lexical_weight",
-                    "cv_analysis.semantic_alignment.required_skill_semantic_weight",
-                    "cv_analysis.semantic_alignment.role_lexical_weight",
-                    "cv_analysis.semantic_alignment.role_semantic_weight",
-                    "cv_analysis.semantic_alignment.responsibility_lexical_weight",
-                    "cv_analysis.semantic_alignment.responsibility_semantic_weight",
-                    "cv_analysis.semantic_alignment.domain_lexical_weight",
-                    "cv_analysis.semantic_alignment.domain_semantic_weight",
-                    "cv_analysis.semantic_alignment.channel_pool_size",
-                ],
-                late_stage_mode=_build_late_stage_mode_payload(
-                    agentic_late_stage_enabled=agentic_late_stage_enabled,
-                    stage_reached=cv_analysis_reached,
-                ),
-            ) if cv_analysis_reached else _stage_block_not_reached("cv_analysis"),
-            "cv_generation": _stage_block(
-                stage_id="cv_generation",
-                status="completed" if cv_generation_reached else "not_reached",
-                input_counts={
-                    "analysis_ready_jobs": sum(
-                        1 for record in cv_analysis_results
-                        if str(record.get("status") or "") == "ready_for_generation"
-                    ),
-                },
-                output_counts={
-                    "accepted": cv_status_counts["accepted_count"],
-                    "review_required": cv_status_counts["review_required_count"],
-                    "validation_failed": cv_status_counts["validation_failed_count"],
-                    "generation_failed": cv_status_counts["generation_failed_count"],
-                    "persistence_failed": cv_status_counts["persistence_failed_count"],
-                },
-                decision_summary={
-                    "debug_records_captured": cv_status_counts["debug_records_captured"],
-                    "analysis_ready_jobs_total": sum(
-                        1 for record in cv_analysis_results
-                        if str(record.get("status") or "") == "ready_for_generation"
-                    ),
-                    "quality_metrics": cv_generation_quality_metrics,
-                    "cv_generation_model": _summarize_cv_generation_model(
-                        cv_generation_debug_records,
-                        get_cv_generation_model(config),
-                    ),
-                    "cv_generation_provider": _summarize_cv_generation_provider(
-                        cv_generation_debug_records,
-                    ),
-                    "cv_prompt_id": cv_generation_prompt_provenance["prompt_id"],
-                    "cv_prompt_template_path": cv_generation_prompt_provenance["template_path"],
-                },
-                inputs_sample=_sample_rows(
-                    [record for record in cv_analysis_results if str(record.get("status") or "") == "ready_for_generation"],
-                    _analysis_record_output_sample,
-                ),
-                outputs_sample=_sample_rows(cv_generation_debug_records, _debug_record_output_sample),
-                dropped_or_changed_sample=_sample_rows(
-                    [
-                        record for record in cv_generation_debug_records
-                        if str(record.get("status") or "") in {"validation_failed", "generation_failed", "persistence_failed"}
-                    ],
-                    _debug_record_changed_sample,
-                ),
-                settings_refs=["cv.generation.model", "prompts.cv_generation.structured_write.prompt_id"],
-                late_stage_mode=_build_late_stage_mode_payload(
-                    agentic_late_stage_enabled=agentic_late_stage_enabled,
-                    stage_reached=cv_generation_reached,
-                ),
-            ) if cv_generation_reached else _stage_block_not_reached("cv_generation"),
+            "shortlist": _build_shortlist_stage_block_artifacts(
+                shortlist_reached=shortlist_reached,
+                passed_jobs=passed_jobs,
+                raw_shortlist_urls=raw_shortlist_urls,
+                raw_shortlist_anomaly_urls=raw_shortlist_anomaly_urls,
+                raw_shortlist=raw_shortlist,
+                shortlist=shortlist,
+                backfilled_job_urls=backfilled_job_urls,
+                shortlist_embedding_reuse_counts=shortlist_embedding_reuse_counts,
+                shortlist_candidate_query_components=shortlist_candidate_query_components,
+                shortlist_candidate_query_debug=shortlist_candidate_query_debug,
+                shortlist_quality_metrics=shortlist_quality_metrics,
+                candidate_summary=candidate_summary,
+                vector_top_n=vector_top_n,
+                stage_block_builder=_stage_block,
+                stage_block_not_reached_builder=_stage_block_not_reached,
+                sample_rows_builder=_sample_rows,
+                sample_strings_builder=_sample_strings,
+                job_sample_builder=_job_sample,
+                shortlist_row_sample_builder=_shortlist_row_sample,
+                extract_job_url=_extract_job_url,
+                extract_job_title=_extract_job_title,
+            ),
+            "ranking": _build_ranking_stage_block_artifacts(
+                ranking_reached=ranking_reached,
+                ai_scores=ai_scores,
+                ranking_inputs=ranking_inputs,
+                ranked=ranked,
+                ranked_urls=ranked_urls,
+                final_top_n=final_top_n,
+                ranking_fit_distribution=ranking_fit_distribution,
+                ranking_quality_metrics=ranking_quality_metrics,
+                ranking_reuse_metrics=ranking_reuse_metrics,
+                ranking_prompt_provenance=ranking_prompt_provenance,
+                ranking_weights=ranking_weights,
+                ranking_defaults=ranking_defaults,
+                preference_fit_weights=preference_fit_weights,
+                zero_weight_features=zero_weight_features,
+                contributing_features=contributing_features,
+                profile=profile,
+                config=config,
+                stage_block_builder=_stage_block,
+                stage_block_not_reached_builder=_stage_block_not_reached,
+                sample_rows_builder=_sample_rows,
+                ranking_row_sample_builder=_ranking_row_sample,
+                extract_job_url=_extract_job_url,
+                gemini_model_resolver=get_gemini_model,
+                effective_preferences_resolver=infer_effective_preferences,
+            ),
+            "cv_analysis": _build_cv_analysis_stage_block_artifacts(
+                cv_analysis_reached=cv_analysis_reached,
+                ranked=ranked,
+                cv_analysis_results=cv_analysis_results,
+                cv_analysis_quality_metrics=cv_analysis_quality_metrics,
+                cv_analysis_reuse_metrics=cv_analysis_reuse_metrics,
+                config=config,
+                agentic_late_stage_enabled=agentic_late_stage_enabled,
+                blocked_by_reranker_status=CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
+                ready_for_generation_status=CV_ANALYSIS_READY_FOR_GENERATION_STATUS,
+                skipped_fit_gate_status=CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
+                failed_status=CV_ANALYSIS_FAILED_STATUS,
+                stage_block_builder=_stage_block,
+                stage_block_not_reached_builder=_stage_block_not_reached,
+                sample_rows_builder=_sample_rows,
+                ranking_row_sample_builder=_ranking_row_sample,
+                analysis_record_output_sample_builder=_analysis_record_output_sample,
+                analysis_record_changed_sample_builder=_analysis_record_changed_sample,
+                late_stage_mode_payload_builder=_build_late_stage_mode_payload,
+            ),
+            "cv_generation": _build_cv_generation_stage_block_artifacts(
+                cv_generation_reached=cv_generation_reached,
+                cv_analysis_results=cv_analysis_results,
+                cv_generation_debug_records=cv_generation_debug_records,
+                cv_status_counts=cv_status_counts,
+                cv_generation_quality_metrics=cv_generation_quality_metrics,
+                cv_generation_prompt_provenance=cv_generation_prompt_provenance,
+                config=config,
+                agentic_late_stage_enabled=agentic_late_stage_enabled,
+                stage_block_builder=_stage_block,
+                stage_block_not_reached_builder=_stage_block_not_reached,
+                sample_rows_builder=_sample_rows,
+                analysis_record_output_sample_builder=_analysis_record_output_sample,
+                debug_record_output_sample_builder=_debug_record_output_sample,
+                debug_record_changed_sample_builder=_debug_record_changed_sample,
+                late_stage_mode_payload_builder=_build_late_stage_mode_payload,
+                cv_generation_model_summarizer=_summarize_cv_generation_model,
+                cv_generation_provider_summarizer=_summarize_cv_generation_provider,
+                cv_generation_model_resolver=get_cv_generation_model,
+            ),
         },
     }
 
@@ -5637,3 +5217,6 @@ def run_pipeline(
                 ),
             )  # type: ignore[union-attr]
     return summary
+
+
+

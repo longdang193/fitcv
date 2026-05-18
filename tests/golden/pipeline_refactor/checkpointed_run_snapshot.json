@@ -1,0 +1,31 @@
+{
+  "run_id": "3383b1c2-5097-49a8-aae6-ccfe610d88a9",
+  "status": "failed",
+  "checkpoint_status": "queued_for_continue",
+  "next_stage": "enrich",
+  "last_completed_stage": "normalize",
+  "completed_stages": [
+    "normalize"
+  ],
+  "summary_keys": [],
+  "stage_artifacts_schema_version": "stage_transition_artifacts_v6",
+  "event_count": 7,
+  "event_stages_head": [
+    "pipeline_start",
+    "layer1_normalize",
+    "stage_checkpoint",
+    "manual_continue_requested",
+    "pipeline_start",
+    "layer1b_pre_filter",
+    "pipeline_failed"
+  ],
+  "event_stages_tail": [
+    "pipeline_start",
+    "layer1_normalize",
+    "stage_checkpoint",
+    "manual_continue_requested",
+    "pipeline_start",
+    "layer1b_pre_filter",
+    "pipeline_failed"
+  ]
+}
