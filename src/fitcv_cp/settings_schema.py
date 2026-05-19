@@ -322,6 +322,78 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     },
     # ── Timing / Throttling ───────────────────────────────────────────────────
     {
+        "key": "stage_runtime.enrich.sleep_secs",
+        "type": "float",
+        "default": 1.0,
+        "label": "API Delay: Enrichment Stage",
+        "description": "Canonical delay between enrich-stage API calls for shared throttling.",
+        "group": "timing",
+        "config_path": ["stage_runtime", "enrich", "sleep_secs"],
+    },
+    {
+        "key": "stage_runtime.enrich.batch_size",
+        "type": "int",
+        "default": 10,
+        "label": "Batch Size: Enrichment Stage",
+        "description": "Canonical enrich-stage batch size before each scheduling boundary.",
+        "group": "timing",
+        "config_path": ["stage_runtime", "enrich", "batch_size"],
+    },
+    {
+        "key": "stage_runtime.enrich.concurrency",
+        "type": "int",
+        "default": 1,
+        "label": "Concurrency: Enrichment Stage",
+        "description": "Canonical enrich-stage concurrent batch worker count.",
+        "group": "timing",
+        "config_path": ["stage_runtime", "enrich", "concurrency"],
+    },
+    {
+        "key": "stage_runtime.ranking.sleep_secs",
+        "type": "float",
+        "default": 0.5,
+        "label": "API Delay: Ranking Stage",
+        "description": "Canonical delay between ranking-stage AI scoring calls.",
+        "group": "timing",
+        "config_path": ["stage_runtime", "ranking", "sleep_secs"],
+    },
+    {
+        "key": "stage_runtime.cv_analysis.sleep_secs",
+        "type": "float",
+        "default": 0.0,
+        "label": "API Delay: CV Analysis Stage",
+        "description": "Canonical delay between cv_analysis stage AI calls when enabled.",
+        "group": "timing",
+        "config_path": ["stage_runtime", "cv_analysis", "sleep_secs"],
+    },
+    {
+        "key": "stage_runtime.cv_analysis.concurrency",
+        "type": "int",
+        "default": 1,
+        "label": "Concurrency: CV Analysis Stage",
+        "description": "Canonical cv_analysis stage concurrent worker count.",
+        "group": "timing",
+        "config_path": ["stage_runtime", "cv_analysis", "concurrency"],
+    },
+    {
+        "key": "stage_runtime.cv_generation.sleep_secs",
+        "type": "float",
+        "default": 0.0,
+        "label": "API Delay: CV Generation Stage",
+        "description": "Canonical delay between cv_generation stage AI calls when enabled.",
+        "group": "timing",
+        "config_path": ["stage_runtime", "cv_generation", "sleep_secs"],
+    },
+    {
+        "key": "stage_runtime.cv_generation.concurrency",
+        "type": "int",
+        "default": 1,
+        "label": "Concurrency: CV Generation Stage",
+        "description": "Canonical cv_generation stage concurrent worker count.",
+        "group": "timing",
+        "config_path": ["stage_runtime", "cv_generation", "concurrency"],
+    },
+    {
         "key": "enrichment_sleep_secs",
         "type": "float",
         "default": 1.0,
@@ -734,6 +806,14 @@ SETTINGS_SECTIONS: dict[str, list[str]] = {
         "pipeline.evidence_top_k",
     ],
     "timing": [
+        "stage_runtime.enrich.sleep_secs",
+        "stage_runtime.enrich.batch_size",
+        "stage_runtime.enrich.concurrency",
+        "stage_runtime.ranking.sleep_secs",
+        "stage_runtime.cv_analysis.sleep_secs",
+        "stage_runtime.cv_analysis.concurrency",
+        "stage_runtime.cv_generation.sleep_secs",
+        "stage_runtime.cv_generation.concurrency",
         "enrichment_sleep_secs",
         "rerank_sleep_secs",
         "enrichment_batch_size",
@@ -1003,6 +1083,7 @@ _KEY_TO_STAGE_ID: dict[str, str] = {
     # ranking
     "pipeline.ai_score_top_n": _WORKFLOW_STAGE_RANKING,
     "pipeline.final_top_n": _WORKFLOW_STAGE_RANKING,
+    "stage_runtime.ranking.sleep_secs": _WORKFLOW_STAGE_RANKING,
     "rerank_sleep_secs": _WORKFLOW_STAGE_RANKING,
     "ranking_weights.ai_score": _WORKFLOW_STAGE_RANKING,
     "ranking_weights.must_have_match": _WORKFLOW_STAGE_RANKING,
@@ -1019,6 +1100,8 @@ _KEY_TO_STAGE_ID: dict[str, str] = {
     "gap_thresholds.stretch_min_matched_ratio": _WORKFLOW_STAGE_RANKING,
     # cv_analysis
     "pipeline.evidence_top_k": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "stage_runtime.cv_analysis.sleep_secs": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "stage_runtime.cv_analysis.concurrency": _WORKFLOW_STAGE_CV_ANALYSIS,
     "cv.agentic_late_stage.enabled": _WORKFLOW_STAGE_CV_ANALYSIS,
     "cv_analysis.semantic_alignment.enabled": _WORKFLOW_STAGE_CV_ANALYSIS,
     "cv_analysis.semantic_alignment.model": _WORKFLOW_STAGE_CV_ANALYSIS,
@@ -1034,6 +1117,9 @@ _KEY_TO_STAGE_ID: dict[str, str] = {
     # enrich
     "global_job_filters.applications_count_max": _WORKFLOW_STAGE_ENRICH,
     "global_job_filters.max_age_days": _WORKFLOW_STAGE_ENRICH,
+    "stage_runtime.enrich.sleep_secs": _WORKFLOW_STAGE_ENRICH,
+    "stage_runtime.enrich.batch_size": _WORKFLOW_STAGE_ENRICH,
+    "stage_runtime.enrich.concurrency": _WORKFLOW_STAGE_ENRICH,
     "enrichment_sleep_secs": _WORKFLOW_STAGE_ENRICH,
     "enrichment_batch_size": _WORKFLOW_STAGE_ENRICH,
     "enrichment_concurrency": _WORKFLOW_STAGE_ENRICH,
@@ -1048,6 +1134,8 @@ _KEY_TO_STAGE_ID: dict[str, str] = {
     "rule_filter.selected_filters": _WORKFLOW_STAGE_RULE_FILTER,
     # cv_generation
     "cv_generation_model": _WORKFLOW_STAGE_CV_GENERATION,
+    "stage_runtime.cv_generation.sleep_secs": _WORKFLOW_STAGE_CV_GENERATION,
+    "stage_runtime.cv_generation.concurrency": _WORKFLOW_STAGE_CV_GENERATION,
     "cv_preset": _WORKFLOW_STAGE_CV_GENERATION,
     "cv_summary_enabled": _WORKFLOW_STAGE_CV_GENERATION,
     "cv_education_enabled": _WORKFLOW_STAGE_CV_GENERATION,
@@ -1383,7 +1471,8 @@ def validate_settings(settings: dict[str, Any]) -> None:
     Raises ValidationError with a descriptive message on any violation.
     settings values must already be coerced to their declared Python types.
     """
-    for key, value in settings.items():
+    normalized = _normalize_settings_aliases(settings)
+    for key, value in normalized.items():
         if key not in _ALL_SCHEMA_BY_KEY:
             raise ValidationError(f"Unknown setting key: '{key}'")
         entry = _ALL_SCHEMA_BY_KEY[key]
@@ -1437,15 +1526,15 @@ def validate_settings(settings: dict[str, Any]) -> None:
 
     # ── relational constraints ────────────────────────────────────────────────
     for lhs_key, rhs_key, message_template in _RELATIONAL_ORDER_CONSTRAINTS:
-        lhs = settings.get(lhs_key)
-        rhs = settings.get(rhs_key)
+        lhs = normalized.get(lhs_key)
+        rhs = normalized.get(rhs_key)
         if isinstance(lhs, (int, float)) and isinstance(rhs, (int, float)) and rhs > lhs:
             raise ValidationError(message_template.format(lhs=lhs, rhs=rhs))
 
     # Weight-family sum-to-1 checks only run when each full family is present.
     for keys, label in _WEIGHT_SUM_CONSTRAINTS:
-        if keys <= set(settings.keys()):
-            total = sum(float(settings[key]) for key in keys)
+        if keys <= set(normalized.keys()):
+            total = sum(float(normalized[key]) for key in keys)
             if abs(total - 1.0) > 0.01:
                 raise ValidationError(
                     f"{label} must sum to 1.0 (± 0.01), got {total:.4f}"
@@ -1459,12 +1548,30 @@ def apply_settings_to_config(config: dict[str, Any], settings: dict[str, Any]) -
     Uses config_path from the schema registry to navigate nested dicts.
     settings values must already be coerced to their declared Python types.
     """
-    for key, value in settings.items():
+    normalized = _normalize_settings_aliases(settings)
+    for key, value in normalized.items():
         path = _ALL_SCHEMA_BY_KEY[key]["config_path"]
         target = config
         for part in path[:-1]:
             target = target.setdefault(part, {})
         target[path[-1]] = value
+
+_LEGACY_THROUGHPUT_ALIAS_TO_CANONICAL: dict[str, str] = {
+    "enrichment_sleep_secs": "stage_runtime.enrich.sleep_secs",
+    "rerank_sleep_secs": "stage_runtime.ranking.sleep_secs",
+    "enrichment_batch_size": "stage_runtime.enrich.batch_size",
+    "enrichment_concurrency": "stage_runtime.enrich.concurrency",
+}
+
+def _normalize_settings_aliases(settings: dict[str, Any]) -> dict[str, Any]:
+    """Apply canonical-over-legacy precedence for throughput compatibility aliases."""
+    normalized = dict(settings)
+    for legacy_key, canonical_key in _LEGACY_THROUGHPUT_ALIAS_TO_CANONICAL.items():
+        if canonical_key in normalized:
+            continue
+        if legacy_key in normalized:
+            normalized[canonical_key] = normalized[legacy_key]
+    return normalized
 
 
 

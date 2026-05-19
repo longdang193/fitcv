@@ -423,6 +423,37 @@ def test_run_ai_scoring_prefers_nested_pipeline_top_n_over_legacy_flat_key() -> 
     assert mock_score_job.call_count == 1
     assert results[0]["job_url"] == "https://example.com/1"
 
+def test_run_ai_scoring_prefers_stage_runtime_ranking_sleep_over_legacy() -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    shortlist = [
+        {"job_url": "https://example.com/1"},
+        {"job_url": "https://example.com/2"},
+    ]
+    sleep_calls: list[float] = []
+
+    with patch("fitcv.ai_score.score_job") as mock_score_job, patch.object(time, "sleep") as mock_sleep:
+        mock_score_job.side_effect = lambda **kwargs: {
+            "job_url": kwargs["job"]["job_url"],
+            "ai_score": 0.5,
+            "fit_label": "stretch",
+            "score_reasoning": "ok",
+            "matched_strengths": [],
+            "key_risks": [],
+        }
+        mock_sleep.side_effect = lambda secs: sleep_calls.append(float(secs))
+        run_ai_scoring(
+            shortlist=shortlist,
+            candidate_summary="candidate",
+            config={
+                "pipeline": {"ai_score_top_n": 2},
+                "rerank_sleep_secs": 0.9,
+                "stage_runtime": {"ranking": {"sleep_secs": 0.2}},
+            },
+        )
+
+    assert sleep_calls == [0.2]
+
 
 # ── store_ai_scores ───────────────────────────────────────────────────────────
 
