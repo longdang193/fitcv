@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: completed
 template_id: detailed-specification
 name: agentic-review-queue-routing-and-selection
 parent_thread: workstream-bounded-agentic-cv-quality.agentic-cv-quality-analysis-grounding
@@ -37,13 +37,13 @@ Operator-facing wording updates that remove ambiguity around batch scope and ind
 - confirm current queue behavior, route wiring, and test coverage boundaries before changing UX contract
 
 **Steps:**
-- [ ] inspect run-detail queue markup and batch form wiring in `src/fitcv_cp/templates/run_detail.html`
-- [ ] inspect CV review action routes in `src/fitcv_cp/app.py`
-- [ ] inspect current queue UI assertions in `tests/test_fitcv_cp/test_app.py`
-- [ ] confirm GitNexus index freshness and exploration context for cross-file impact awareness
+- [x] inspect run-detail queue markup and batch form wiring in `src/fitcv_cp/templates/run_detail.html`
+- [x] inspect CV review action routes in `src/fitcv_cp/app.py`
+- [x] inspect current queue UI assertions in `tests/test_fitcv_cp/test_app.py`
+- [x] confirm GitNexus index freshness and exploration context for cross-file impact awareness
 
 **Verification:**
-- [ ] current-state contract is explicit for routing threshold, selection mechanics, and button copy
+- [x] current-state contract is explicit for routing threshold, selection mechanics, and button copy
 
 **Exit Criteria:**
 - no proposed UX decision depends on unstated template or route assumptions
@@ -54,13 +54,13 @@ Operator-facing wording updates that remove ambiguity around batch scope and ind
 - close UX and behavior decisions for queue routing and bulk selection with minimal refactor risk
 
 **Steps:**
-- [ ] finalize threshold decision (`pending_count > 5` routes to dedicated page CTA)
-- [ ] finalize Select-All/Clear-All interaction model for visible rows
-- [ ] finalize wording set for batch vs one-by-one review
-- [ ] define minimal reuse strategy (shared partial for queue body across run detail and dedicated page)
+- [x] finalize threshold decision (`pending_count > 5` routes to dedicated page CTA)
+- [x] finalize Select-All/Clear-All interaction model for visible rows
+- [x] finalize wording set for batch vs one-by-one review
+- [x] define minimal reuse strategy (shared partial for queue body across run detail and dedicated page)
 
 **Verification:**
-- [ ] each major UX decision has explicit rationale and downstream implementation boundary
+- [x] each major UX decision has explicit rationale and downstream implementation boundary
 
 **Exit Criteria:**
 - design is bounded, symmetric, and implementation-plan ready
@@ -71,12 +71,12 @@ Operator-facing wording updates that remove ambiguity around batch scope and ind
 - define proof expectations and regression checks for safe handoff
 
 **Steps:**
-- [ ] define template-level assertions for threshold and button visibility
-- [ ] define form behavior checks for Select-All/Clear-All scope
-- [ ] define wording regression assertions
+- [x] define template-level assertions for threshold and button visibility
+- [x] define form behavior checks for Select-All/Clear-All scope
+- [x] define wording regression assertions
 
 **Verification:**
-- [ ] validation plan proves routing behavior and selection behavior without lifecycle regressions
+- [x] validation plan proves routing behavior and selection behavior without lifecycle regressions
 
 **Exit Criteria:**
 - spec is approved or ready for implementation planning
