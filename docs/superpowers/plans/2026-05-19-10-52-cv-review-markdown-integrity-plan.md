@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: cv-review-markdown-integrity-implementation-plan
 parent_thread: workstream-bounded-agentic-cv-quality.agentic-cv-quality-generation-repair
@@ -52,13 +52,13 @@ Unit/integration tests prove no truncation leakage into `cv_versions`, queue pre
 - current truncation behavior confirmed in `_build_cv_generation_debug_payload`
 
 **Steps:**
-- [ ] Step 1: add dual markdown fields (`markdown_full`, `markdown_preview`) for review-required debug records while retaining legacy compatibility field handling.
-- [ ] Step 2: apply truncation only to preview field and stop mutating authoritative full field.
-- [ ] Step 3: keep payload size guard bounded via preview truncation constant and deterministic suffix behavior.
+- [x] Step 1: add dual markdown fields (`markdown_full`, `markdown_preview`) for review-required debug records while retaining legacy compatibility field handling.
+- [x] Step 2: apply truncation only to preview field and stop mutating authoritative full field.
+- [x] Step 3: keep payload size guard bounded via preview truncation constant and deterministic suffix behavior.
 
 **Verification:**
-- [ ] targeted unit test: payload builder preserves full markdown and bounds preview markdown
-- [ ] source inspection confirms no truncation applied to persistence-grade field
+- [x] targeted unit test: payload builder preserves full markdown and bounds preview markdown
+- [x] source inspection confirms no truncation applied to persistence-grade field
 
 **Exit Criteria:**
 - debug payload provides clean split between full and preview markdown with no regression for non-review statuses
@@ -78,14 +78,14 @@ Unit/integration tests prove no truncation leakage into `cv_versions`, queue pre
 - existing queue/finalize call chain mapped (`_build_hitl_review_queue`, `_finalize_review_draft_as_cv_artifact`, batch action endpoint)
 
 **Steps:**
-- [ ] Step 1: update queue preview assembly to prioritize `markdown_preview`, then bounded derivation from `markdown_full`, then legacy fallback.
-- [ ] Step 2: update finalize markdown selection precedence: `markdown_full` -> safe legacy `markdown_final` -> missing draft failure.
-- [ ] Step 3: add truncation sentinel guard (`...[truncated]`, `...[truncated in review queue]`) returning deterministic failure reason `truncated_draft_blocked` and preventing DB write.
-- [ ] Step 4: ensure action/audit payload paths propagate failure reason without altering existing lifecycle semantics.
+- [x] Step 1: update queue preview assembly to prioritize `markdown_preview`, then bounded derivation from `markdown_full`, then legacy fallback.
+- [x] Step 2: update finalize markdown selection precedence: `markdown_full` -> safe legacy `markdown_final` -> missing draft failure.
+- [x] Step 3: add truncation sentinel guard (`...[truncated]`, `...[truncated in review queue]`) returning deterministic failure reason `truncated_draft_blocked` and preventing DB write.
+- [x] Step 4: ensure action/audit payload paths propagate failure reason without altering existing lifecycle semantics.
 
 **Verification:**
-- [ ] unit tests for source precedence branches and failure reasons
-- [ ] integration test for `approve_as_is` path with >4000-char markdown fixture asserts full persistence
+- [x] unit tests for source precedence branches and failure reasons
+- [x] integration test for `approve_as_is` path with >4000-char markdown fixture asserts full persistence
 
 **Exit Criteria:**
 - approve path cannot persist sentinel-truncated markdown and compatibility behavior is deterministic
@@ -105,14 +105,18 @@ Unit/integration tests prove no truncation leakage into `cv_versions`, queue pre
 - affected rows and sentinel patterns documented from investigation
 
 **Steps:**
-- [ ] Step 1: add fixture-driven tests for legacy payload handling (safe legacy value, sentinel legacy value, missing draft).
-- [ ] Step 2: add regression test ensuring queue preview bounded output remains intact with new fields.
-- [ ] Step 3: add recovery-harness test plan/checks (detect truncated persisted rows, verify regenerated replacement behavior and audit evidence contract).
-- [ ] Step 4: document rollback notes in plan execution logs: revert field-read precedence change and sentinel guard together if rollback required.
+- [x] Step 1: add fixture-driven tests for legacy payload handling (safe legacy value, sentinel legacy value, missing draft).
+- [x] Step 2: add regression test ensuring queue preview bounded output remains intact with new fields.
+- [x] Step 3: add recovery-harness test plan/checks (detect truncated persisted rows, verify regenerated replacement behavior and audit evidence contract).
+- [x] Step 4: document rollback notes in plan execution logs: revert field-read precedence change and sentinel guard together if rollback required.
 
 **Verification:**
-- [ ] run targeted test module(s) for HITL review/finalize paths
-- [ ] run repo hook subset validator
+- [x] run targeted test module(s) for HITL review/finalize paths
+- [x] run repo hook subset validator
+
+Execution note:
+- Scoped regression tests added for markdown-integrity paths passed (worker/app/bq_store targeted tests).
+- Broader filter run `python -m pytest tests/test_fitcv_cp -k "review or truncate or finalize" -q` shows unrelated pre-existing synonym-review UI failures; not introduced by this plan scope.
 
 **Exit Criteria:**
 - tests prove no truncation leak path, compatibility preserved, and recovery workflow is verifiable

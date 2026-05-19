@@ -1729,6 +1729,118 @@ def test_admin_run_cv_review_action_approve_as_is_missing_draft_returns_409() ->
         )
     assert resp.status_code == 409
 
+def test_admin_run_cv_review_action_approve_as_is_uses_markdown_full_precedence() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-approve-full-precedence",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                        "markdown_full": "# Candidate\n\nFull draft",
+                        "markdown_final": "# Candidate\n\nLegacy draft",
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.insert_cv_version_row", return_value=[]), \
+         patch("fitcv_cp.app.create_cv_version_record") as mock_create_version, \
+         patch("fitcv_cp.app.update_run_cv_generation_debug"), \
+         patch("fitcv_cp.app.append_event"):
+        mock_create_version.side_effect = lambda **kwargs: {"version_id": "v-test", **kwargs}
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-approve-full-precedence/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "approve_as_is", "actor": "operator"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert mock_create_version.call_args.kwargs["cv_markdown"] == "# Candidate\n\nFull draft"
+
+def test_admin_run_cv_review_action_approve_as_is_blocks_truncated_legacy_draft() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-approve-truncated-legacy",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "markdown_final": "# Candidate\n\nDraft\n...[truncated]",
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.insert_cv_version_row") as mock_insert:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-approve-truncated-legacy/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "approve_as_is", "actor": "operator"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 409
+    mock_insert.assert_not_called()
+
+def test_build_hitl_review_queue_prefers_markdown_preview_over_full_text() -> None:
+    from fitcv_cp.app import _build_hitl_review_queue
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-queue-preview-priority",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "markdown_full": "# Candidate\n\n" + ("x" * 3000),
+                        "markdown_preview": "# Candidate\n\nshort-preview",
+                        "markdown_final": "# Candidate\n\nlegacy-preview",
+                    }
+                ]
+            }
+        ),
+    )
+    queue = _build_hitl_review_queue(run)
+    item = queue["queue_items"][0]
+    assert item["cv_markdown_preview"] == "# Candidate\n\nshort-preview"
+    assert item["cv_preview_available"] is True
+
 
 def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -1889,6 +2001,57 @@ def test_admin_run_cv_review_batch_action_approve_as_is_missing_draft_is_safe_fa
     assert resp.status_code == 303
     assert "hitl_batch_failed=1" in resp.headers["location"]
     mock_update_debug.assert_called_once()
+    mock_update_status.assert_not_called()
+    mock_update_checkpoint.assert_not_called()
+
+def test_admin_run_cv_review_batch_action_tracks_truncated_draft_failure_counter() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-batch-truncated-draft",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "DE1",
+                        "status": "review_required",
+                        "markdown_final": "# DE1\n\nDraft\n...[truncated]",
+                    },
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.append_event") as mock_append, \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-batch-truncated-draft/cv-review-batch-action",
+            data={
+                "action": "approve_as_is",
+                "actor": "operator",
+                "job_url": ["https://example.com/job-1"],
+            },
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert "hitl_batch_failed=1" in resp.headers["location"]
+    payload = json.loads(mock_update_debug.call_args.args[1])
+    assert payload.get("hitl_review_actions") in ([], None)
+    batch_events = [call.args[0] for call in mock_append.call_args_list if getattr(call.args[0], "stage", "") == "cv_review_batch_action"]
+    assert batch_events
+    batch_payload = json.loads(batch_events[0].payload_json)
+    assert batch_payload["failed_truncated_draft"] == 1
     mock_update_status.assert_not_called()
     mock_update_checkpoint.assert_not_called()
 
