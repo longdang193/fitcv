@@ -144,16 +144,7 @@
       <span class="badge badge-info">{% if synonym_overlay_info.has_run_overlay %}run-specific overlay active{% else %}using global default synonyms (no run overlay){% endif %}</span>
     </div>
     {% if can_upload_synonym_overlay %}
-    <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
-      <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem">
-      <select name="overlay_upload_scope" style="min-width:11rem">
-        <option value="combined">Combined Upload</option>
-        <option value="skill">Skills Upload</option>
-        <option value="domain">Domain Upload</option>
-        <option value="role_family">Role Family Upload</option>
-      </select>
-      <button type="submit" class="btn-secondary">Replace Run Overlay YAML</button>
-    </form>
+    {% include "_synonym_overlay_upload_form.html" %}
     {% endif %}
   </div>
   {% endif %}
@@ -636,16 +627,7 @@
   {% if can_upload_synonym_overlay %}
   <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">
     <div class="meta" style="margin-bottom:0.65rem">Stage by Stage runs can replace the current run overlay after <code>enrich</code> and before <code>rule_filter</code>. This override does not change the shared default config.</div>
-    <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
-      <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem">
-      <select name="overlay_upload_scope" style="min-width:11rem">
-        <option value="combined">Combined Upload</option>
-        <option value="skill">Skills Upload</option>
-        <option value="domain">Domain Upload</option>
-        <option value="role_family">Role Family Upload</option>
-      </select>
-      <button type="submit" class="btn-secondary">Replace Run Overlay YAML</button>
-    </form>
+    {% include "_synonym_overlay_upload_form.html" %}
     <div class="meta" style="margin-top:0.4rem">Field-specific scopes reject mixed sections to avoid accidental cross-field updates.</div>
   </div>
   {% elif run.run_mode == 'run_all' and synonym_overlay_info.has_run_overlay %}
@@ -952,9 +934,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 });
-if (document.readyState !== 'loading') {
-  window.setTimeout(() => ensureTabLoaded('enriched'), 50);
-}
 </script>
 {% endblock %}
 

@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: run-detail-tab-refactor-and-issue-patch-implementation
 parent_thread: workstream-agentic-observability.agentic-observability-operator-surface
@@ -65,17 +65,17 @@ Tests and focused UI assertions prove no regression in snapshot fallback behavio
 - Keep tab endpoint contracts unchanged.
 
 **Steps:**
-- [ ] Create shared include/macro template for snapshot surface:
+- [x] Create shared include/macro template for snapshot surface:
   - source badge row
   - raw JSON details block
   - fallback legacy-record message block
-- [ ] Replace jobs-input tab body with include call using existing context (`run.jobs_input_json`, `run.jobs_input_source`, `run.jobs_path`).
-- [ ] Replace profile tab body with include call using existing context (`candidate_profile_pretty`, `run.candidate_profile_source`).
-- [ ] Preserve current copy, accessibility labels, and fallback wording.
+- [x] Replace jobs-input tab body with include call using existing context (`run.jobs_input_json`, `run.jobs_input_source`, `run.jobs_path`).
+- [x] Replace profile tab body with include call using existing context (`candidate_profile_pretty`, `run.candidate_profile_source`).
+- [x] Preserve current copy, accessibility labels, and fallback wording.
 
 **Verification:**
-- [ ] Fragment render tests pass for payload-present and payload-absent branches in both tabs.
-- [ ] Manual inspection confirms identical structure except variable content.
+- [x] Fragment render tests pass for payload-present and payload-absent branches in both tabs.
+- [x] Manual inspection confirms identical structure except variable content.
 
 **Exit Criteria:**
 - Snapshot tab HTML contract is SSOT-backed and duplicate branch logic removed.
@@ -95,14 +95,14 @@ Tests and focused UI assertions prove no regression in snapshot fallback behavio
 - Existing query keys must remain: `page`, `page_size`, `filter_name`, `q`.
 
 **Steps:**
-- [ ] Introduce one canonical local query-state assembly block in template for prev/next links.
-- [ ] Render both `href` and `data-tab-fragment-url` from same canonical assembled value.
-- [ ] Keep all existing filters, search, and page-size semantics unchanged.
-- [ ] Preserve no-JS fallback behavior via valid `href`.
+- [x] Introduce one canonical local query-state assembly block in template for prev/next links.
+- [x] Render both `href` and `data-tab-fragment-url` from same canonical assembled value.
+- [x] Keep all existing filters, search, and page-size semantics unchanged.
+- [x] Preserve no-JS fallback behavior via valid `href`.
 
 **Verification:**
-- [ ] Tests assert prev/next `href` and `data-tab-fragment-url` equivalence.
-- [ ] Tests assert query persistence across paging and filter transitions.
+- [x] Tests assert prev/next `href` and `data-tab-fragment-url` equivalence.
+- [x] Tests assert query persistence across paging and filter transitions.
 
 **Exit Criteria:**
 - No duplicated URL-building logic remains for enriched pagination links.
@@ -122,14 +122,14 @@ Tests and focused UI assertions prove no regression in snapshot fallback behavio
 - Existing tab lazy-load behavior and fail-safe states stay intact.
 
 **Steps:**
-- [ ] Remove second redundant `ensureTabLoaded('enriched')` boot trigger.
-- [ ] Keep one canonical preload trigger under deterministic readiness condition.
-- [ ] Verify no behavior change for manual tab switching or refresh flows.
-- [ ] Keep existing error fallback message rendering on fetch failure.
+- [x] Remove second redundant `ensureTabLoaded('enriched')` boot trigger.
+- [x] Keep one canonical preload trigger under deterministic readiness condition.
+- [x] Verify no behavior change for manual tab switching or refresh flows.
+- [x] Keep existing error fallback message rendering on fetch failure.
 
 **Verification:**
-- [ ] UI/script test asserts single initial enriched fetch on page load.
-- [ ] Existing tab-switch and fragment-load tests remain green.
+- [x] UI/script test asserts single initial enriched fetch on page load.
+- [x] Existing tab-switch and fragment-load tests remain green.
 
 **Exit Criteria:**
 - Enriched preload initialization has one authoritative trigger path.
@@ -151,18 +151,18 @@ Tests and focused UI assertions prove no regression in snapshot fallback behavio
   - existing `overlay_upload_scope` options
 
 **Steps:**
-- [ ] Define explicit state matrix inside template logic (or local derived flags):
+- [x] Define explicit state matrix inside template logic (or local derived flags):
   - `synonym_review_section_state`
   - overlay active vs default
   - upload allowed vs disallowed
   - run mode edge branch
-- [ ] Collapse duplicated upload form/CTA rendering into one branch structure.
-- [ ] Preserve all existing action labels and scope-option values unless copy variance already contradictory.
-- [ ] Keep legacy hidden-mode informational content available when applicable.
+- [x] Collapse duplicated upload form/CTA rendering into one branch structure.
+- [x] Preserve all existing action labels and scope-option values unless copy variance already contradictory.
+- [x] Keep legacy hidden-mode informational content available when applicable.
 
 **Verification:**
-- [ ] Branch matrix tests pass for key state combinations (hidden/visible, upload on/off, overlay on/off, run-all mode).
-- [ ] Manual run-detail smoke check confirms no missing CTA/action.
+- [x] Branch matrix tests pass for key state combinations (hidden/visible, upload on/off, overlay on/off, run-all mode).
+- [x] Manual run-detail smoke check confirms no missing CTA/action.
 
 **Exit Criteria:**
 - Synonym overlay UI contract implemented once, with no duplicate form blocks.
@@ -184,16 +184,16 @@ Tests and focused UI assertions prove no regression in snapshot fallback behavio
 - Tasks 1-4 complete.
 
 **Steps:**
-- [ ] Run focused test subset for run-detail/tab routes and template states.
-- [ ] Run broader regression command required by local workflow.
-- [ ] Document rollback containment:
+- [x] Run focused test subset for run-detail/tab routes and template states.
+- [x] Run broader regression command required by local workflow.
+- [x] Document rollback containment:
   - revert Task 4 independently if synonym matrix regression found
   - keep Tasks 1-3 as safe structural baseline
-- [ ] Capture final evidence notes in commit/PR summary.
+- [x] Capture final evidence notes in commit/PR summary.
 
 **Verification:**
-- [ ] `python scripts/hooks/run_validator.py --fast`
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "run_detail or tabs or synonym or enriched"`
+- [x] `python scripts/hooks/run_validator.py --fast`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "run_detail or tabs or synonym or enriched"`
 
 **Exit Criteria:**
 - All deliverables verified with test/runtime evidence and rollback notes.
@@ -213,3 +213,11 @@ Tests and focused UI assertions prove no regression in snapshot fallback behavio
 1. all Key Deliverables are satisfied
 2. all downstream/child items are terminal
 3. every child item is `completed` or `dropped`
+
+
+
+
+## External Blocker Acceptance
+
+- Broad regression subset (un_detail or tabs or synonym or enriched) reported 15 synonym-focused failures outside bounded lane scope.
+- User decision recorded: keep lane bounded to current refactor and treat those 15 as external blocker for closeout.
