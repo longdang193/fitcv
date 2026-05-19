@@ -457,8 +457,15 @@ def _build_cv_generation_debug_payload(
     def _truncate_large_fields(record: dict[str, Any]) -> dict[str, Any]:
         truncated = dict(record)
         markdown_final = truncated.get("markdown_final")
-        if isinstance(markdown_final, str) and len(markdown_final) > _MAX_DEBUG_MARKDOWN_CHARS:
-            truncated["markdown_final"] = markdown_final[:_MAX_DEBUG_MARKDOWN_CHARS] + "\n...[truncated]"
+        if isinstance(markdown_final, str):
+            markdown_preview = markdown_final
+            if len(markdown_preview) > _MAX_DEBUG_MARKDOWN_CHARS:
+                markdown_preview = markdown_preview[:_MAX_DEBUG_MARKDOWN_CHARS] + "\n...[truncated]"
+            # Keep authoritative draft separate from bounded preview/debug payload.
+            truncated["markdown_full"] = markdown_final
+            truncated["markdown_preview"] = markdown_preview
+            # Legacy field remains bounded for compatibility with older readers.
+            truncated["markdown_final"] = markdown_preview
         return truncated
 
     debug_records = [

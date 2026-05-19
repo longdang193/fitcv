@@ -2101,6 +2101,10 @@ _HITL_TERMINAL_RESOLUTION_STATUSES = {
     "regenerated_and_accepted",
     "regenerated_and_rejected",
 }
+_TRUNCATED_MARKDOWN_SENTINELS = (
+    "...[truncated]",
+    "...[truncated in review queue]",
+)
 
 
 def _normalize_hitl_resolution_status(action_name: str | None, explicit_status: str | None) -> str:
@@ -2144,7 +2148,11 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
             action_name,
             (action or {}).get("resolution_status"),
         )
-        markdown_preview = str(record.get("markdown_final") or "").strip()
+        markdown_preview = str(record.get("markdown_preview") or "").strip()
+        if not markdown_preview:
+            markdown_preview = str(record.get("markdown_full") or "").strip()
+        if not markdown_preview:
+            markdown_preview = str(record.get("markdown_final") or "").strip()
         if markdown_preview and len(markdown_preview) > 2400:
             markdown_preview = markdown_preview[:2400] + "\n...[truncated in review queue]"
         queue_items.append(
@@ -2236,9 +2244,14 @@ def _finalize_review_draft_as_cv_artifact(
 ) -> tuple[bool, str, str | None]:
     if not isinstance(record, dict):
         return (False, "not_review_required", None)
-    markdown = str(record.get("markdown_final") or "").strip()
+    markdown_full = str(record.get("markdown_full") or "").strip()
+    markdown_legacy = str(record.get("markdown_final") or "").strip()
+    markdown = markdown_full or markdown_legacy
     if not markdown:
         return (False, "missing_draft_for_approve", None)
+    lowered_markdown = markdown.lower()
+    if any(lowered_markdown.endswith(sentinel) for sentinel in _TRUNCATED_MARKDOWN_SENTINELS):
+        return (False, "truncated_draft_blocked", None)
     rows = _results_export_rows(run)
     row = next((item for item in rows if str(item.get("job_url") or "").strip() == str(job_url or "").strip()), {})
     effective_settings = _effective_settings_dict(run)
@@ -7259,6 +7272,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         finalized = 0
         failed_missing_draft = 0
         failed_persist = 0
+        failed_truncated_draft = 0
         now = datetime.datetime.now(datetime.timezone.utc)
         for job_url in selected_urls:
             if job_url not in review_required_urls:
@@ -7297,6 +7311,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         failed_missing_draft += 1
                     elif finalized_reason == "persist_failed":
                         failed_persist += 1
+                    elif finalized_reason == "truncated_draft_blocked":
+                        failed_truncated_draft += 1
                     continue
                 finalized += 1
             action_entry = {
@@ -7329,7 +7345,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 level="info",
                 message=(
                     "CV review batch action applied: "
-                    f"action={action}, applied={applied}, skipped={skipped}, failed={failed}, finalized={finalized}, missing_draft={failed_missing_draft}, persist_failed={failed_persist}"
+                    f"action={action}, applied={applied}, skipped={skipped}, failed={failed}, finalized={finalized}, missing_draft={failed_missing_draft}, persist_failed={failed_persist}, truncated_draft={failed_truncated_draft}"
                 ),
                 created_at=now,
                 payload_json=_json.dumps(
@@ -7341,6 +7357,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "finalized": finalized,
                         "failed_missing_draft": failed_missing_draft,
                         "failed_persist": failed_persist,
+                        "failed_truncated_draft": failed_truncated_draft,
                         "selected_count": len(selected_urls),
                     },
                     ensure_ascii=False,

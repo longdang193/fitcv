@@ -1536,6 +1536,10 @@ def test_worker_cv_generation_debug_json_truncates_large_markdown_but_keeps_core
     assert record["job_url"] == "https://example.com/1"
     assert record["status"] == "accepted"
     assert record["evidence_used"] == [{"evidence_type": "experience_entry", "source_ref": "experience[0]", "name": "Data Engineer"}]
+    assert record["markdown_full"] == large_markdown
+    assert record["markdown_preview"].endswith("...[truncated]")
+    assert len(record["markdown_preview"]) < len(large_markdown)
+    assert record["markdown_final"] == record["markdown_preview"]
     assert len(record["markdown_final"]) < len(large_markdown)
 
 

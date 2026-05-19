@@ -238,6 +238,74 @@ def test_cv_versions_sqlite_mode_round_trip(tmp_path, monkeypatch) -> None:
     markdown = get_cv_markdown("ver-1", None, project="", dataset="")
     assert markdown == "# CV"
 
+def test_cv_versions_sqlite_recovery_harness_detects_and_clears_truncated_rows(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    from fitcv_cp.bq_store import insert_cv_version_row
+    import sqlite3
+
+    truncated_row = {
+        "version_id": "ver-trunc-1",
+        "run_id": "run-trunc-1",
+        "job_url": "https://example.com/job/1",
+        "fit_classification": "strong",
+        "generated_at": "2026-05-04T00:00:00+00:00",
+        "cv_generation_model": "cx/gpt-5.2",
+        "cv_prompt_version": "v1",
+        "cv_schema_version": "cv_doc_v1",
+        "cv_structured_json": json.dumps({"schema_version": "cv_doc_v1"}),
+        "cv_markdown": "# CV\n...[truncated]",
+    }
+    assert insert_cv_version_row(truncated_row, None, project="", dataset="") == []
+
+    detection_sql = """
+        SELECT version_id, run_id, job_url
+        FROM cv_versions
+        WHERE lower(trim(coalesce(cv_markdown, ''))) LIKE '%...[truncated]'
+           OR lower(trim(coalesce(cv_markdown, ''))) LIKE '%...[truncated in review queue]'
+    """
+    with sqlite3.connect(str(sqlite_path)) as conn:
+        detected = list(conn.execute(detection_sql).fetchall())
+    assert detected == [("ver-trunc-1", "run-trunc-1", "https://example.com/job/1")]
+
+    replacement_row = {
+        "version_id": "ver-clean-1",
+        "run_id": "run-trunc-1",
+        "job_url": "https://example.com/job/1",
+        "fit_classification": "strong",
+        "generated_at": "2026-05-04T00:05:00+00:00",
+        "cv_generation_model": "cx/gpt-5.2",
+        "cv_prompt_version": "v1",
+        "cv_schema_version": "cv_doc_v1",
+        "cv_structured_json": json.dumps({"schema_version": "cv_doc_v1"}),
+        "cv_markdown": "# CV\nRecovered full draft",
+    }
+    assert insert_cv_version_row(replacement_row, None, project="", dataset="") == []
+
+    unresolved_sql = """
+        SELECT t.version_id
+        FROM cv_versions t
+        WHERE (
+            lower(trim(coalesce(t.cv_markdown, ''))) LIKE '%...[truncated]'
+            OR lower(trim(coalesce(t.cv_markdown, ''))) LIKE '%...[truncated in review queue]'
+        )
+        AND NOT EXISTS (
+            SELECT 1
+            FROM cv_versions c
+            WHERE c.run_id = t.run_id
+              AND c.job_url = t.job_url
+              AND (
+                    lower(trim(coalesce(c.cv_markdown, ''))) NOT LIKE '%...[truncated]'
+                AND lower(trim(coalesce(c.cv_markdown, ''))) NOT LIKE '%...[truncated in review queue]'
+              )
+              AND c.generated_at >= t.generated_at
+        )
+    """
+    with sqlite3.connect(str(sqlite_path)) as conn:
+        unresolved = list(conn.execute(unresolved_sql).fetchall())
+    assert unresolved == []
+
 
 def test_list_cvs_for_run_maps_structured_cv_fields() -> None:
     bq = MagicMock()
