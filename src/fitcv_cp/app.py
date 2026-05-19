@@ -4461,6 +4461,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     }
     hidden_deprecated_keys = hidden_deprecated_settings_keys()
 
+    def _filter_canonical_settings_payload(settings: dict[str, Any]) -> dict[str, Any]:
+        """Drop throughput compatibility aliases from persisted settings payloads."""
+        return {
+            key: value
+            for key, value in settings.items()
+            if key in editable_keys and key not in compatibility_runtime_alias_keys
+        }
+
     def require_run_or_404(run_id: str, *, detail: str = "Run not found") -> PipelineRun:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
@@ -6067,7 +6075,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         # Write — surface BQ failures to the user
         try:
             save_settings_group(
-                {key: value for key, value in coerced.items() if key in editable_keys},
+                _filter_canonical_settings_payload(coerced),
                 updated_by=updated_by,
                 bq=bq,
                 project=project,
@@ -6150,7 +6158,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         updated_by = f"admin:section:{update_id}"
         try:
             save_settings_group(
-                {key: value for key, value in coerced.items() if key in editable_keys},
+                _filter_canonical_settings_payload(coerced),
                 updated_by=updated_by,
                 bq=bq,
                 project=project,

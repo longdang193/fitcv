@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,8 @@ from types import SimpleNamespace
 from fitcv.config import (
     get_gemini_model,
     get_ranking_prompt_id,
+    get_stage_runtime_concurrency,
+    get_stage_runtime_sleep_secs,
     resolve_model_routing_part,
     sqlite_mode_enabled,
 )
@@ -390,30 +393,56 @@ def run_ai_scoring(
         if top_n is not None
         else int((config.get("pipeline") or {}).get("ai_score_top_n") or config.get("rerank_top_n", 50))
     )
-    stage_runtime = dict(config.get("stage_runtime") or {})
-    ranking_runtime = dict(stage_runtime.get("ranking") or {})
-    sleep_secs = float(ranking_runtime.get("sleep_secs", config.get("rerank_sleep_secs", 0.5)))
-    scored: list[dict[str, Any]] = []
-    for i, job in enumerate(shortlist[:effective_top_n]):
+    sleep_secs = get_stage_runtime_sleep_secs(
+        config,
+        stage="ranking",
+        default=0.5,
+        compatibility_fallback_key="rerank_sleep_secs",
+    )
+    ranking_concurrency = get_stage_runtime_concurrency(
+        config,
+        stage="ranking",
+        default=1,
+    )
+    selected_jobs = shortlist[:effective_top_n]
+
+    def _score_single(job: dict[str, Any]) -> dict[str, Any]:
         top_evidence = list(job.get("top_evidence", []) or [])[:2]
         try:
-            result = score_job(
+            return score_job(
                 job=job,
                 candidate_summary=candidate_summary,
                 top_evidence=top_evidence,
                 config=config,
             )
-            scored.append(result)
         except Exception as exc:  # noqa: BLE001
-            scored.append({
+            return {
                 "job_url": str(job.get("job_url", "")),
                 "ai_score": 0.0, "fit_label": "skip",
                 "score_reasoning": f"Scoring error: {exc}",
                 "matched_strengths": [], "key_risks": [],
                 "parser_status": "runtime_exception",
-            })
-        if i < len(shortlist[:effective_top_n]) - 1:
-            time.sleep(sleep_secs)
+            }
+
+    scored_by_index: dict[int, dict[str, Any]] = {}
+    if ranking_concurrency <= 1:
+        for i, job in enumerate(selected_jobs):
+            scored_by_index[i] = _score_single(job)
+            if i < len(selected_jobs) - 1:
+                time.sleep(sleep_secs)
+    else:
+        with ThreadPoolExecutor(max_workers=ranking_concurrency) as executor:
+            futures: dict[Any, int] = {}
+            for i, job in enumerate(selected_jobs):
+                futures[executor.submit(_score_single, job)] = i
+                if i < len(selected_jobs) - 1:
+                    time.sleep(sleep_secs)
+            for future in as_completed(futures):
+                scored_by_index[futures[future]] = future.result()
+
+    scored: list[dict[str, Any]] = []
+    for i in range(len(selected_jobs)):
+        scored.append(scored_by_index[i])
 
     return scored
 

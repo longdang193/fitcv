@@ -7821,6 +7821,39 @@ def test_post_settings_section_valid_redirects():
     assert resp.headers["location"] == "/admin/settings"
 
 
+def test_post_settings_section_timing_drops_throughput_compatibility_aliases() -> None:
+    captured: dict[str, dict[str, object]] = {}
+
+    def _capture_save(payload: dict[str, object], **_: object) -> None:
+        captured["payload"] = dict(payload)
+
+    with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/section/timing",
+            data={
+                "stage_runtime.enrich.sleep_secs": "0.4",
+                "stage_runtime.enrich.batch_size": "8",
+                "stage_runtime.enrich.concurrency": "2",
+                "stage_runtime.ranking.sleep_secs": "0.2",
+                "stage_runtime.cv_analysis.sleep_secs": "0.1",
+                "stage_runtime.cv_analysis.concurrency": "2",
+                "stage_runtime.cv_generation.sleep_secs": "0.1",
+                "stage_runtime.cv_generation.concurrency": "2",
+                "enrichment_sleep_secs": "0.9",
+                "rerank_sleep_secs": "0.9",
+                "enrichment_batch_size": "4",
+                "enrichment_concurrency": "1",
+            },
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 303
+    payload = captured["payload"]
+    assert "enrichment_sleep_secs" not in payload
+    assert payload["stage_runtime.enrich.sleep_secs"] == 0.4
+
+
 def test_post_settings_section_advanced_retrieval_returns_404_after_section_retirement():
     """Legacy retrieval-advanced section is no longer an addressable section-save slug."""
     with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \

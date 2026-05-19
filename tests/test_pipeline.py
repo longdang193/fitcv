@@ -4102,6 +4102,114 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
         "model": "cx/gpt-5.2",
     }
     assert result["export_results"][0]["cv"]["runtime_path"] == "fitcv_cv_generation_openai_compatible"
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.create_cv_version_record")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch_with_exclusions")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_debug_order(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_norm_with_exclusions: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_create_version: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    job_a = _minimal_job(url="https://example.com/job-a")
+    job_b = _minimal_job(url="https://example.com/job-b")
+    profile = _minimal_profile()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    config.setdefault("stage_runtime", {}).setdefault("cv_generation", {})["concurrency"] = 2
+
+    mock_config.return_value = config
+    mock_parse.return_value = [job_a, job_b]
+    mock_norm.return_value = [job_a, job_b]
+    mock_norm_with_exclusions.return_value = ([job_a, job_b], [])
+    mock_enrich.return_value = [job_a, job_b]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job_a["job_url"], job_b["job_url"]], "rejected": []}
+    mock_vec.return_value = [
+        {"job_url": job_a["job_url"], "similarity_score": 0.91, "rank": 1},
+        {"job_url": job_b["job_url"], "similarity_score": 0.90, "rank": 2},
+    ]
+    mock_ai.return_value = [job_a, job_b]
+    mock_build_feat.return_value = [job_a, job_b]
+    mock_rank.return_value = [job_a, job_b]
+
+    def _create_version(*, job_url: str, **_: Any) -> dict[str, Any]:
+        suffix = "a" if job_url.endswith("job-a") else "b"
+        return {"version_id": f"v-{suffix}", "generated_at": "2026-03-31T12:00:00+00:00"}
+
+    mock_create_version.side_effect = _create_version
+
+    def _agentic_generation_side_effect(*, analysis_record: dict[str, Any], **_: Any) -> dict[str, Any]:
+        job_url = str((analysis_record.get("job") or {}).get("job_url") or "")
+        if job_url.endswith("job-a"):
+            import time as _time
+            _time.sleep(0.08)
+        return _agentic_generation_result(markdown="# CV")
+
+    with (
+        patch(
+            "fitcv.pipeline.run_agentic_cv_analysis",
+            side_effect=[
+                _agentic_analysis_ready(job_a),
+                _agentic_analysis_ready(job_b),
+            ],
+        ),
+        patch(
+            "fitcv.pipeline.run_agentic_cv_generation",
+            side_effect=_agentic_generation_side_effect,
+        ),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="parallel-order")
+
+    debug_urls = [str(r.get("job_url") or "") for r in result["cv_generation_debug_records"]]
+    assert debug_urls == [job_a["job_url"], job_b["job_url"]]
     assert result["export_results"][0]["cv"]["provider"] == "openai_compatible"
 
 

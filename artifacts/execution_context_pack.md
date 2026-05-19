@@ -1,96 +1,75 @@
-# Execution Context Pack
-
 ## 1) Objective
 
-- **Workstream / Plan:** `docs/superpowers/plans/2026-05-19-16-22-vector-search-refactor-and-issue-patch-plan.md`
-- **Goal:** Execute shortlist vector-search/embedding SSOT+symmetric refactor with invariance-safe patches.
-- **Bounded Scope (in-scope only):** `src/fitcv/vector_search.py`, `src/fitcv/embeddings.py`, `src/fitcv/shortlist_runtime.py`, related tests.
-- **Out of Scope (explicit):** ranking algorithm changes, pipeline orchestration redesign, merge/closeout orchestration.
+- **Workstream / Plan:** `workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract` / `docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md`
+- **Goal:** Execute SSOT/symmetry/invariance runtime-throughput optimization for ranking + cv_generation bounded parallelism and canonical settings ownership.
+- **Bounded Scope (in-scope only):** `src/fitcv/{config.py,ai_score.py,pipeline.py}`, `src/fitcv_cp/templates/admin_pipeline_settings.html`, `src/fitcv_cp/static/js/admin_pipeline_settings.js`, `tests/test_{config,ai_score,pipeline,pipeline_agentic_late_stage}.py`, `docs/configuration.md`, plan/context-pack updates.
+- **Out of Scope (explicit):** Merge/PR/closeout orchestration, unrelated lane remediation.
 
 ## 2) Canonical Inputs (Source of Truth)
 
-- **Primary plan:** `docs/superpowers/plans/2026-05-19-16-22-vector-search-refactor-and-issue-patch-plan.md`
-- **Specs / maps / thread docs:** `docs/superpowers/specs/2026-05-19-16-19-vector-search-refactor-spec.md`
+- **Primary plan:** `docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md`
+- **Specs / maps / thread docs:** `docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md`
 - **Governance / workflow rules used:**
+  - `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`
   - `docs/operating_system/templates/execution-context-pack-template.md`
   - `docs/operating_system/governance/execution-context-pack-governance.md`
-  - `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`
 
 ## 3) Current Task State
 
-- **Completed:**
-  - Task 1 runtime helper extraction
-  - Task 2 deterministic helper extraction
-  - Task 3 complete: typed contracts + typed payload paths + key/status contract assertions
-  - Task 4 complete: passed-job-url query parameterization + special-character URL safety test
-  - Task 5 step 1 complete: sqlite-vs-mocked-BigQuery shortlist parity test on deterministic fixture
-- **In Progress:** none
-- **Deferred / Dropped:** none
-- **Known divergence from plan (if any):**
-  - Full-repo `mypy src` currently reports large pre-existing baseline errors unrelated to this slice.
+- **Completed:** Tasks 1-3 complete; Task 4 branch decomposition includes validation, markdown-review, policy-review, accepted-finalization, and failure-finalization handlers; per-item startup seam centralized via `_begin_cv_generation_item(...)`; per-item post-generation decision/finalization centralized via `_execute_cv_generation_item(...)`; non-agentic generation compute path extracted via `_run_non_agentic_cv_generation(...)`; agentic generation compute path extracted via `_run_agentic_cv_generation(...)`; agentic early-continue debug side effects deferred/replayed sequentially; agentic reporter emission side effect deferred/replayed sequentially; unified compute dispatcher `_compute_cv_generation_outcome(...)` added; bounded compute submission + deterministic `generation_index` replay landed.
+- **Current:** close-now eligible.
+- **Deferred / Dropped:** none.
+- **Known divergence from plan (if any):** none.
 
 ## 4) Files Changed This Session
 
-- `src/fitcv/vector_search.py` — Task 3 typed contracts + typed payload builder + typed cache-row access path.
-- `tests/test_vector_search.py` — Task 3 contract-key/status assertions for resolve-candidate-query flow.
-- `src/fitcv/vector_search.py` — Task 4 BigQuery query hardening (`UNNEST(@passed_job_urls)` + query parameter wiring).
-- `tests/test_vector_search.py` — Task 4 query hardening invariants + special-character URL non-interpolation coverage.
-- `tests/test_vector_search.py` — Task 5 parity test for sqlite-mode vs mocked BigQuery shortlist semantics.
-- `docs/superpowers/plans/2026-05-19-16-22-vector-search-refactor-and-issue-patch-plan.md` — Task 3 step 2/3 checkboxes updated.
-- `docs/superpowers/execution_context_packs/vector-search-refactor-issue-patch-impl/latest.md` — advanced next-action gate after Task 4 impact checks.
+- `src/fitcv_cp/templates/settings.html` — compatibility alias rows now render disabled/readonly and non-submitting.
+- `src/fitcv_cp/templates/settings.html` — compatibility alias rows now include collapsed `Legacy Compatibility` mapping details + migration-status badge.
+- `src/fitcv_cp/app.py` — settings save routes now filter out throughput compatibility alias keys before persistence (`_filter_canonical_settings_payload`).
+- `tests/test_fitcv_cp/test_app.py` — added timing section regression test proving compatibility alias key is excluded from persisted payload.
+- `docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md` — Task 5 checklist steps marked complete.
+- `docs/configuration.md` — added canonical save-path statement for throughput alias exclusion.
+- `tests/test_pipeline.py` — added deterministic ordering regression test for parallel cv_generation completion.
+- `src/fitcv/pipeline.py` — fixed missing `as_completed` import in bounded compute replay path.
+- `docs/configuration.md` — documented compatibility-readonly policy for throughput alias keys and canonical `stage_runtime.*` ownership.
+- `docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md` — execution evidence updated.
+- `docs/superpowers/execution_context_packs/workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract/latest.md` — canonical sync.
 
 ## 5) Verification State
 
 - **Last commands run:**
-  - `npx gitnexus analyze`
-  - `npx gitnexus impact "Function:src/fitcv/vector_search.py:resolve_candidate_query_embedding" --direction upstream --include-tests --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\vector-search-refactor-impl"`
-  - `python -m py_compile src/fitcv/vector_search.py`
-  - `$env:FITCV_CP_DATA_BACKEND='bigquery'; uvx --with pyyaml --with google-cloud-bigquery --with google-auth pytest tests/test_vector_search.py -k "resolve_candidate_query_embedding or reuse_status"`
-  - `uvx mypy src --show-error-codes`
-  - `npx gitnexus impact "Function:src/fitcv/vector_search.py:build_vector_search_query" --direction upstream --include-tests --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\vector-search-refactor-impl"`
-  - `npx gitnexus impact "Function:src/fitcv/vector_search.py:run_vector_search" --direction upstream --include-tests --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\vector-search-refactor-impl"`
-  - `$env:FITCV_CP_DATA_BACKEND='bigquery'; uvx --with pyyaml --with google-cloud-bigquery --with google-auth pytest tests/test_vector_search.py -k "build_vector_search_query or run_vector_search"`
-  - `npx gitnexus analyze`
-  - `$env:FITCV_CP_DATA_BACKEND='bigquery'; uvx --with pyyaml --with google-cloud-bigquery --with google-auth pytest tests/test_vector_search.py -k "run_vector_search and semantics"`
-  - `$env:FITCV_CP_DATA_BACKEND='bigquery'; uvx --with pyyaml --with google-cloud-bigquery --with google-auth pytest tests/test_vector_search.py tests/test_embeddings.py`
-  - `uvx mypy src --show-error-codes`
-  - `python scripts/hooks/run_validator.py --fast`
-  - `npx gitnexus detect-changes --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\vector-search-refactor-impl"`
-  - `python scripts/validate_planning_lifecycle.py --strict`
-  - `python scripts/validate_checkpoint_packs.py`
-  - `python scripts/validate_repo_contracts.py --fast`
+  - `pytest -q tests/test_pipeline_agentic_late_stage.py`
+  - `pytest -q tests/test_pipeline.py -k "cv_generation or cv_analysis_concurrency or event_payload"`
 - **Result summary:**
-  - GitNexus index refreshed
-  - Task 3 precondition impact check pass (risk LOW)
-  - compile pass
-  - focused Task 3 verification pass (`3 passed`)
-  - full `mypy src` fails with broad pre-existing baseline issues across many modules
-  - Task 4 precondition impact checks pass (`LOW` risk on both target symbols)
-  - Task 4 focused verification pass (`11 passed, 1 skipped`)
-  - GitNexus index refreshed after Task 4 landing
-  - Task 5 parity verification slice pass (`1 passed`)
-  - Task 5 targeted suite pass (`52 passed, 3 skipped`)
-  - `mypy src` re-run confirms unchanged broad baseline debt (419 errors across 26 files; non-slice-wide)
-  - fast validator gate pass
-  - isolated unrelated drift into stash `isolate-unrelated-drift`
-  - `gitnexus_detect_changes` re-run after isolation; changed set narrowed to scoped workstream files/docs
-  - closeout gate validators passed (`validate_planning_lifecycle --strict`, `validate_checkpoint_packs`, `validate_repo_contracts --fast`)
-- **Failing checks (if any):**
-  - `uvx mypy src --show-error-codes` baseline failure (not isolated to current files)
-- **Gaps still unverified:** none for plan-defined Task 1-5 execution gates.
+  - `109 passed` (`pytest -q tests/test_pipeline.py`)
+  - `13 passed` (`pytest -q tests/test_pipeline_agentic_late_stage.py`)
+  - `79 passed` (`pytest -q tests/test_config.py`)
+  - `171 passed` (`pytest -q tests/test_fitcv_cp/test_settings_schema.py`)
+  - `2 passed` (`pytest -q tests/test_fitcv_cp/test_app.py -k "timing_drops_throughput_compatibility_aliases or post_settings_section_valid_redirects"`)
+  - `15 passed, 95 deselected` (`pytest -q tests/test_pipeline.py -k "cv_generation_parallel_completion_preserves_deterministic_debug_order or cv_generation or cv_analysis_concurrency or event_payload"`)
+  - `13 passed` (`pytest -q tests/test_pipeline_agentic_late_stage.py`)
+  - `32 passed, 123 deselected` (`pytest -q tests/test_ai_score.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py -k "ranking or cv_generation or concurrency or event_payload"`)
+  - `python scripts/validate_planning_lifecycle.py --strict` passed.
+  - `python scripts/validate_checkpoint_packs.py` passed.
+  - `python scripts/validate_repo_contracts.py --fast` passed.
+  - `3 passed, 168 deselected` (`pytest -q tests/test_fitcv_cp/test_settings_schema.py -k "conservative_defaults_batch_size_10_concurrency_1 or enrichment_concurrency"`)
+  - `2 passed, 108 deselected` (`pytest -q tests/test_pipeline.py -k "cv_generation_parallel_completion_preserves_deterministic_debug_order or cv_analysis_concurrency_preserves_result_order"`)
+  - Task 5 verification grep passed:
+    - `rg -n "Runtime Throughput|Legacy Compatibility|readonly|disabled|stage_runtime" src/fitcv_cp/templates/settings.html docs/configuration.md`
+- **Failing checks (if any):** none.
+- **Gaps still unverified:** none within current plan scope; closeout routing prompt remains next procedural step.
 
 ## 6) Open Blockers / Risks
 
-- No hard blocker for entering Task 5.
-- Baseline mypy debt means strict full-repo type-green gate not yet achievable in this slice alone.
-- `mypy src` remains non-green due pre-existing repository baseline debt outside this workstream scope.
+- Unrelated dirty files remain out-of-scope (`AGENTS.md`, `CLAUDE.md`, `data/fitcv_cp.sqlite3`, gitnexus skill docs).
+- Main risk: preserving exact side-effect order while converting from inline flow to callable per-item outcome function and then concurrent submission.
 
 ## 7) Next Exact Action
 
-- **Action type:** closeout
-- **Target:** workstream lane
-- **Exact command or edit intent:** `close now` — execution gates satisfied; hand off to closeout workflow prompt (`single-lane-merge-and-reconcile-prompt.md`) for merge/lifecycle reconciliation.
-- **Why this is next:** all plan task gates and required closeout validators for execution phase are complete.
+- **Action type:** closeout-gate
+- **Target:** current lane artifacts
+- **Exact command or edit intent:** `close now` (execution scope complete). If merge/closeout requested, route to `single-lane-merge-and-reconcile-prompt.md`.
+- **Why this is next:** all scoped tasks and verification gates are complete; further implementation actions are ineligible.
 
 ## 8) Resume Prompt (Copy/Paste)
 
@@ -100,10 +79,10 @@ Read this execution context pack first. Verify its state against listed source f
 
 ## 9) Optional Deep Context (Consult Only)
 
-- **conversation_id:** current codex desktop thread
-- **overview_log:** none
-- **consult_if:** GitNexus scope conflict or unexpected regression appears
-- **notes_from_log (optional, concise):** none
+- **conversation_id:** current Codex thread
+- **overview_log:** `.gemini/antigravity/brain/<conversation-id>/.system_generated/logs/overview.txt`
+- **consult_if:** only if source files and current plan/context pack diverge.
+- **notes_from_log (optional, concise):** none.
 
 ## Source-Truth Rule
 

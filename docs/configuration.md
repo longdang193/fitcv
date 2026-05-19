@@ -122,12 +122,15 @@ The settings page intentionally mixes editable controls with metadata-only rows.
 - editable: schema-backed controls with persistence keys and save handlers
 - metadata-only: fixed/runtime-owned values shown for operator context and provenance
 - hidden-deprecated: compatibility keys intentionally removed from operator UI and rejected by settings-save routes (`422`) to prevent false runtime authority signals
+- compatibility-readonly: legacy alias keys shown for migration visibility but rendered non-editable; canonical runtime throughput keys remain single editable authority
 
 Examples:
 
 - editable: retrieval funnel sizes, ranking weights, timing, run lifecycle guard, CV composition toggles
 - metadata-only: fixed runtime-contract fields such as single-option model metadata
 - hidden-deprecated: legacy AI-authority controls (for example `cv_generation_model`) retained only for compatibility projection, not operator control
+- compatibility-readonly: runtime throughput legacy aliases mapped to canonical `stage_runtime.*` keys
+- canonical-save-path: settings-save routes persist `stage_runtime.*` throughput keys and drop compatibility alias keys before storage
 
 ### Settings Mode Strip SSOT Contract
 

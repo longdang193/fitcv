@@ -403,6 +403,18 @@
   <div class="settings-field-control">
     {% if item.is_metadata_only %}
       <div class="settings-field-note is-fixed">{{ item.metadata_note or settings_metadata_note }}</div>
+    {% elif item.compatibility_alias_for %}
+      <input
+        type="text"
+        value="{{ item.effective_display }}"
+        readonly
+        disabled
+        aria-readonly="true"
+        title="Compatibility alias (read-only)"
+      >
+      <div class="settings-field-note is-fixed">
+        Legacy compatibility alias for <code>{{ item.compatibility_alias_for }}</code>. Edit canonical setting only.
+      </div>
     {% elif entry.type == 'bool' %}
       <input type="hidden" name="{{ entry.key }}" value="{{ 'true' if item.form_value in [true, 'true', '1', 'yes', 'on'] else 'false' }}" data-default-value="{{ 'true' if entry.default else 'false' }}">
       <input
@@ -475,6 +487,7 @@
         <span class="badge-chip">Metadata-only: {{ "Yes" if ia.metadata_only else "No" }}</span>
         {% if item.compatibility_alias_for %}
           <span class="badge-chip">Compatibility alias for: {{ item.compatibility_alias_for }}</span>
+          <span class="badge-chip">Migration status: compatibility-readonly</span>
         {% endif %}
         {% if item.compatibility_aliases %}
           <span class="badge-chip">Legacy aliases: {{ item.compatibility_aliases | join(', ') }}</span>
@@ -499,6 +512,16 @@
             <span><strong>Observed in:</strong> settings registry/runtime consumers</span>
           </div>
         </details>
+        {% if item.compatibility_alias_for %}
+        <details>
+          <summary>Legacy Compatibility</summary>
+          <div class="settings-field-help-body">
+            <span><strong>Canonical owner:</strong> <code>{{ item.compatibility_alias_for }}</code></span>
+            <span><strong>Status:</strong> Read-only alias (non-authoritative)</span>
+            <span><strong>Save behavior:</strong> Alias key is not submitted; canonical key remains single write path.</span>
+          </div>
+        </details>
+        {% endif %}
       </div>
     </div>
     {{ render_field_control(item, settings_metadata_note) }}

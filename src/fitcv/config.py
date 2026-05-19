@@ -1193,6 +1193,66 @@ def get_vertex_location(config: dict[str, Any]) -> str:
     return "us-central1"
 
 
+def get_stage_runtime_value(
+    config: dict[str, Any],
+    *,
+    stage: str,
+    key: str,
+    default: Any,
+    compatibility_fallback_key: str | None = None,
+) -> Any:
+    """Resolve runtime throughput value from canonical stage_runtime with optional legacy fallback."""
+    stage_runtime = dict(config.get("stage_runtime") or {})
+    stage_runtime_cfg = dict(stage_runtime.get(stage) or {})
+    if key in stage_runtime_cfg:
+        return stage_runtime_cfg[key]
+    if compatibility_fallback_key:
+        fallback_value = config.get(compatibility_fallback_key)
+        if fallback_value is not None:
+            return fallback_value
+    return default
+
+
+def get_stage_runtime_concurrency(
+    config: dict[str, Any],
+    *,
+    stage: str,
+    default: int = 1,
+    compatibility_fallback_key: str | None = None,
+) -> int:
+    raw_value = get_stage_runtime_value(
+        config,
+        stage=stage,
+        key="concurrency",
+        default=default,
+        compatibility_fallback_key=compatibility_fallback_key,
+    )
+    try:
+        return max(1, int(raw_value))
+    except (TypeError, ValueError):
+        return max(1, int(default))
+
+
+def get_stage_runtime_sleep_secs(
+    config: dict[str, Any],
+    *,
+    stage: str,
+    default: float = 0.5,
+    compatibility_fallback_key: str | None = None,
+) -> float:
+    raw_value = get_stage_runtime_value(
+        config,
+        stage=stage,
+        key="sleep_secs",
+        default=default,
+        compatibility_fallback_key=compatibility_fallback_key,
+    )
+    try:
+        return float(raw_value)
+    except (TypeError, ValueError):
+        return float(default)
+
+
 def get_gemini_model(config: dict[str, Any]) -> str:
     return str(config.get("gemini_model") or "gemini-2.5-flash")
 

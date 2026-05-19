@@ -25,6 +25,8 @@ from fitcv.config import (
     get_cv_generation_structured_prompt_id,
     get_gemini_model,
     get_ranking_prompt_id,
+    get_stage_runtime_concurrency,
+    get_stage_runtime_sleep_secs,
     get_vertex_location,
     load_config,
     load_control_plane_config,
@@ -195,6 +197,35 @@ def test_get_vertex_location_prefers_vertex_location() -> None:
 def test_get_vertex_location_defaults_to_us_central1() -> None:
     cfg = {"location": "US"}
     assert get_vertex_location(cfg) == "us-central1"
+
+
+def test_get_stage_runtime_sleep_secs_prefers_canonical_stage_runtime() -> None:
+    cfg = {
+        "rerank_sleep_secs": 0.9,
+        "stage_runtime": {"ranking": {"sleep_secs": 0.2}},
+    }
+    assert get_stage_runtime_sleep_secs(
+        cfg,
+        stage="ranking",
+        default=0.5,
+        compatibility_fallback_key="rerank_sleep_secs",
+    ) == pytest.approx(0.2)
+
+
+def test_get_stage_runtime_sleep_secs_falls_back_to_compatibility_key() -> None:
+    cfg = {"rerank_sleep_secs": 0.7, "stage_runtime": {"ranking": {}}}
+    assert get_stage_runtime_sleep_secs(
+        cfg,
+        stage="ranking",
+        default=0.5,
+        compatibility_fallback_key="rerank_sleep_secs",
+    ) == pytest.approx(0.7)
+
+
+def test_get_stage_runtime_concurrency_clamps_and_defaults() -> None:
+    assert get_stage_runtime_concurrency({"stage_runtime": {"cv_generation": {"concurrency": 3}}}, stage="cv_generation") == 3
+    assert get_stage_runtime_concurrency({"stage_runtime": {"cv_generation": {"concurrency": 0}}}, stage="cv_generation") == 1
+    assert get_stage_runtime_concurrency({"stage_runtime": {"cv_generation": {"concurrency": "bad"}}}, stage="cv_generation") == 1
 
 
 def test_load_config_defaults_to_repo_config_shape() -> None:

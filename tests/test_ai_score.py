@@ -6,6 +6,7 @@ import sys
 import time
 import types
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -453,6 +454,79 @@ def test_run_ai_scoring_prefers_stage_runtime_ranking_sleep_over_legacy() -> Non
         )
 
     assert sleep_calls == [0.2]
+
+
+def test_run_ai_scoring_parallel_path_preserves_input_order() -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    shortlist = [
+        {"job_url": "https://example.com/1"},
+        {"job_url": "https://example.com/2"},
+        {"job_url": "https://example.com/3"},
+    ]
+
+    def _slow_score_job(*, job: dict[str, Any], **_: Any) -> dict[str, Any]:
+        if job["job_url"].endswith("/1"):
+            time.sleep(0.03)
+        elif job["job_url"].endswith("/2"):
+            time.sleep(0.01)
+        return {
+            "job_url": job["job_url"],
+            "ai_score": 0.5,
+            "fit_label": "stretch",
+            "score_reasoning": "ok",
+            "matched_strengths": [],
+            "key_risks": [],
+        }
+
+    with patch("fitcv.ai_score.score_job", side_effect=_slow_score_job):
+        results = run_ai_scoring(
+            shortlist=shortlist,
+            candidate_summary="candidate",
+            config={
+                "pipeline": {"ai_score_top_n": 3},
+                "stage_runtime": {"ranking": {"concurrency": 3, "sleep_secs": 0.0}},
+            },
+        )
+
+    assert [row["job_url"] for row in results] == [job["job_url"] for job in shortlist]
+
+
+def test_run_ai_scoring_parallel_path_isolates_runtime_exceptions() -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    shortlist = [
+        {"job_url": "https://example.com/1"},
+        {"job_url": "https://example.com/2"},
+    ]
+
+    def _score_or_fail(*, job: dict[str, Any], **_: Any) -> dict[str, Any]:
+        if job["job_url"].endswith("/2"):
+            raise RuntimeError("boom")
+        return {
+            "job_url": job["job_url"],
+            "ai_score": 0.8,
+            "fit_label": "strong",
+            "score_reasoning": "ok",
+            "matched_strengths": [],
+            "key_risks": [],
+        }
+
+    with patch("fitcv.ai_score.score_job", side_effect=_score_or_fail):
+        results = run_ai_scoring(
+            shortlist=shortlist,
+            candidate_summary="candidate",
+            config={
+                "pipeline": {"ai_score_top_n": 2},
+                "stage_runtime": {"ranking": {"concurrency": 2, "sleep_secs": 0.0}},
+            },
+        )
+
+    assert results[0]["job_url"] == "https://example.com/1"
+    assert results[0]["fit_label"] == "strong"
+    assert results[1]["job_url"] == "https://example.com/2"
+    assert results[1]["fit_label"] == "skip"
+    assert results[1]["parser_status"] == "runtime_exception"
 
 
 # ── store_ai_scores ───────────────────────────────────────────────────────────
