@@ -1364,6 +1364,123 @@ def test_admin_run_detail_shows_agentic_review_queue_card() -> None:
     assert resp.status_code == 200
     assert "Agentic Review Queue" in resp.text
 
+def test_admin_run_detail_shows_dedicated_review_queue_cta_when_pending_exceeds_threshold() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    debug_records = [
+        {
+            "job_url": f"https://example.com/job-{idx}",
+            "job_title": f"Data Role {idx}",
+            "status": "review_required",
+            "fit_classification": "stretch",
+            "error": {"stage": "review_gate", "message": "Needs review"},
+        }
+        for idx in range(1, 7)
+    ]
+    run = PipelineRun(
+        run_id="run-review-queue-threshold-high",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": debug_records,
+                "hitl_review_actions": [],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-review-queue-threshold-high")
+    assert resp.status_code == 200
+    assert "Open Full Review Queue" in resp.text
+    assert "Large queue mode enabled for more than 5 pending jobs." in resp.text
+
+def test_admin_run_detail_shows_inline_review_queue_controls_when_pending_at_threshold() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    debug_records = [
+        {
+            "job_url": f"https://example.com/job-{idx}",
+            "job_title": f"Data Role {idx}",
+            "status": "review_required",
+            "fit_classification": "stretch",
+            "error": {"stage": "review_gate", "message": "Needs review"},
+        }
+        for idx in range(1, 6)
+    ]
+    run = PipelineRun(
+        run_id="run-review-queue-threshold-inline",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": debug_records,
+                "hitl_review_actions": [],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-review-queue-threshold-inline")
+    assert resp.status_code == 200
+    assert "Apply One Action to Selected Jobs" in resp.text
+    assert "Apply to Selected Jobs" in resp.text
+    assert "Select All" in resp.text
+    assert "Clear All" in resp.text
+    assert "Open Full Review Queue" not in resp.text
+
+def test_admin_review_queue_page_renders_shared_controls_and_back_link() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-queue-page",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                        "error": {"stage": "review_gate", "message": "Low confidence sections: experience"},
+                    }
+                ],
+                "hitl_review_actions": [],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-review-queue-page/review-queue")
+    assert resp.status_code == 200
+    assert "← Back to Run Detail" in resp.text
+    assert "Apply One Action to Selected Jobs" in resp.text
+    assert "Apply to Selected Jobs" in resp.text
+    assert "Select All" in resp.text
+    assert "Clear All" in resp.text
+
 def test_admin_run_detail_shows_replay_context_metadata() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone

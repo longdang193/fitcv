@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: agentic-review-queue-routing-and-selection-implementation
 parent_thread: workstream-bounded-agentic-cv-quality.agentic-cv-quality-analysis-grounding
@@ -52,14 +52,14 @@ Test suite covers threshold routing, control visibility, wording updates, and se
 - Existing HITL queue builders remain source of queue truth (`_build_hitl_review_queue`, `_build_hitl_closure_summary`).
 
 **Steps:**
-- [ ] Add review-queue display threshold constant (`5`) in run-detail rendering path.
-- [ ] Derive and pass template flags (example: `show_inline_review_queue`, `show_review_queue_cta`, `review_queue_threshold`).
-- [ ] Add dedicated GET route for review queue page using same queue payload builder and run identity context.
-- [ ] Keep existing POST endpoints (`/cv-review-action`, `/cv-review-batch-action`) unchanged.
+- [x] Add review-queue display threshold constant (`5`) in run-detail rendering path.
+- [x] Derive and pass template flags (example: `show_inline_review_queue`, `show_review_queue_cta`, `review_queue_threshold`).
+- [x] Add dedicated GET route for review queue page using same queue payload builder and run identity context.
+- [x] Keep existing POST endpoints (`/cv-review-action`, `/cv-review-batch-action`) unchanged.
 
 **Verification:**
-- [ ] Route tests confirm boundary behavior at `pending_count=5` and `pending_count=6`.
-- [ ] Existing review action tests remain green.
+- [x] Route tests confirm boundary behavior at `pending_count=5` and `pending_count=6`.
+- [x] Existing review action tests remain green.
 
 **Exit Criteria:**
 - Routing state is deterministic and computed once from queue payload.
@@ -81,19 +81,19 @@ Test suite covers threshold routing, control visibility, wording updates, and se
 - Existing queue fields unchanged in template context (`hitl_review_queue`, `hitl_closure_summary`, `run`).
 
 **Steps:**
-- [ ] Extract current queue card body into `_cv_review_queue.html` with context parameters for title/shell mode.
-- [ ] Update run-detail template:
+- [x] Extract current queue card body into `_cv_review_queue.html` with context parameters for title/shell mode.
+- [x] Update run-detail template:
   - inline include when `pending_count <= 5`
   - summary + CTA when `pending_count > 5`
-- [ ] Create dedicated page template `review_queue.html` that includes same partial and links back to run detail.
-- [ ] Apply wording updates in shared partial:
+- [x] Create dedicated page template `review_queue.html` that includes same partial and links back to run detail.
+- [x] Apply wording updates in shared partial:
   - `Apply One Action to Selected Jobs`
   - `Apply to Selected Jobs`
   - `Review One by One`
 
 **Verification:**
-- [ ] Template response assertions show updated text in both surfaces.
-- [ ] Queue row actions remain present and mapped to existing endpoints.
+- [x] Template response assertions show updated text in both surfaces.
+- [x] Queue row actions remain present and mapped to existing endpoints.
 
 **Exit Criteria:**
 - Single queue partial drives both inline and dedicated review experiences.
@@ -113,17 +113,17 @@ Test suite covers threshold routing, control visibility, wording updates, and se
 - Shared partial exists with stable checkbox selectors for queue rows.
 
 **Steps:**
-- [ ] Add visible controls near batch action bar:
+- [x] Add visible controls near batch action bar:
   - `Select All`
   - `Clear All`
-- [ ] Implement client-side toggle logic scoped to visible/selectable row checkboxes tied to batch form.
-- [ ] Keep controls no-op on submission state and do not mutate non-review checkboxes.
-- [ ] Add helper microcopy clarifying scope (`visible jobs`).
+- [x] Implement client-side toggle logic scoped to visible/selectable row checkboxes tied to batch form.
+- [x] Keep controls no-op on submission state and do not mutate non-review checkboxes.
+- [x] Add helper microcopy clarifying scope (`visible jobs`).
 
 **Verification:**
-- [ ] UI test coverage for control presence.
-- [ ] Behavior check confirms selected checkbox count transitions for all/none states.
-- [ ] Batch endpoint tests verify only selected job URLs processed.
+- [x] UI test coverage for control presence.
+- [x] Behavior check confirms selected checkbox count transitions for all/none states.
+- [x] Batch endpoint tests verify only selected job URLs processed.
 
 **Exit Criteria:**
 - Bulk selection works predictably and remains selection-scoped.
@@ -145,15 +145,15 @@ Test suite covers threshold routing, control visibility, wording updates, and se
 - Tasks 1-3 complete.
 
 **Steps:**
-- [ ] Add tests for run-detail threshold switch (`5` inline, `6` dedicated CTA).
-- [ ] Add tests for dedicated queue page render and back-link integrity.
-- [ ] Add/adjust copy assertions for normalized wording.
-- [ ] Run targeted test subset for review queue behavior.
-- [ ] Run fast repo validator for planning/doc contract integrity.
+- [x] Add tests for run-detail threshold switch (`5` inline, `6` dedicated CTA).
+- [x] Add tests for dedicated queue page render and back-link integrity.
+- [x] Add/adjust copy assertions for normalized wording.
+- [x] Run targeted test subset for review queue behavior.
+- [x] Run fast repo validator for planning/doc contract integrity.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "review_queue or cv_review"` passes.
-- [ ] `python scripts/hooks/run_validator.py --fast` passes.
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "review_queue or cv_review"` passes.
+- [x] `python scripts/hooks/run_validator.py --fast` passes.
 
 **Exit Criteria:**
 - Contract-level and regression-level proof artifacts are green.
