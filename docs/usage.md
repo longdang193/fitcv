@@ -33,7 +33,7 @@ Run detail is now decision-first. Default view emphasizes status, outcome, warni
 Workflow entry routes:
 
 - synonym review workspace: `GET /admin/runs/{run_id}/synonym-review`
-- artifacts workspace: `GET /admin/runs/{run_id}/artifacts`
+- artifacts workspace: run detail exports section (`GET /admin/runs/{run_id}` + `#run-exports-workspace`)
 
 Diagnostics access:
 
