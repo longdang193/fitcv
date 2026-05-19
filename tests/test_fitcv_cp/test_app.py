@@ -832,6 +832,28 @@ def test_post_runs_rejects_invalid_config_overrides():
         })
     assert resp.status_code == 422
 
+def test_post_runs_rejects_missing_config_path_with_clear_error():
+    def _load_config_side_effect(path: str = ".env.yaml"):
+        if path == "config/missing.yaml":
+            raise FileNotFoundError("Config file not found: config/missing.yaml")
+        return {
+            "gcp_project": "p",
+            "bigquery_dataset": "d",
+            "service_account_key": "k",
+            "pipeline": {"final_top_n": 10},
+            "paths": {"candidate_profile": "data/candidate_profile.yaml"},
+        }
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.load_config", side_effect=_load_config_side_effect):
+        resp = TestClient(_app()).post("/runs", json={
+            "jobs_path": "data/sample_jobs.json",
+            "config_path": "config/missing.yaml",
+            "config_overrides": {},
+        })
+    assert resp.status_code == 422
+    assert "Config file not found: config/missing.yaml" in resp.text
+
 
 def test_admin_upload_trigger_success(tmp_path):
     """@proves trigger_run_management.job-input-modes"""
@@ -1037,6 +1059,20 @@ def test_admin_continue_run_requeues_manual_paused_run() -> None:
     mock_binding.assert_called_once()
     assert call_order.index("status") < call_order.index("continue")
     assert call_order.index("checkpoint") < call_order.index("continue")
+
+def test_admin_continue_run_is_idempotent_for_already_progressed_state() -> None:
+    progressed_run = MagicMock()
+    progressed_run.run_id = "run-queued"
+    progressed_run.run_mode = "manual_staged"
+    progressed_run.status = RunStatus.QUEUED
+
+    with patch("fitcv_cp.app.get_run", return_value=progressed_run), \
+         patch("fitcv_cp.app.continue_run_with_job_id") as mock_continue:
+        resp = TestClient(_app()).post("/admin/runs/run-queued/continue")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "queued", "run_id": "run-queued", "replay_mode": "noop"}
+    mock_continue.assert_not_called()
 
 
 def test_admin_continue_run_uses_canonical_next_stage_from_completed_truth() -> None:
@@ -9277,6 +9313,24 @@ def test_run_detail_enriched_tab_paginates_server_side():
 
 
 
+
+def test_run_detail_enriched_pagination_fragment_url_matches_href():
+    """Prev/next href and fragment URL must stay identical for query-state invariance."""
+    enriched = [
+        {"job_url": f"https://j.test/{i}", "title": f"Job {i}", "domain": "d",
+         "job_family": "f", "required_skills": [], "location_type": None, "seniority": None}
+        for i in range(1, 61)
+    ]
+    patches = _run_detail_patches(enriched_jobs=enriched, filter_results=[])
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched?page=2&page_size=25&filter_name=all&q=python")
+    assert resp.status_code == 200
+    prev_url = "/admin/runs/run-detail-test/tabs/enriched?page=1&page_size=25&filter_name=all&q=python"
+    next_url = "/admin/runs/run-detail-test/tabs/enriched?page=3&page_size=25&filter_name=all&q=python"
+    assert f'href="{prev_url}"' in resp.text
+    assert f'data-tab-fragment-url="{prev_url}"' in resp.text
+    assert f'href="{next_url}"' in resp.text
+    assert f'data-tab-fragment-url="{next_url}"' in resp.text
 # ── Task 6: Composition consistency tests ──────────────────────────────────────
 
 def test_settings_ranking_section_has_no_tailwind_classes():
