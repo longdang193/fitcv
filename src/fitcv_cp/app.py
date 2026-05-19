@@ -8164,7 +8164,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_regenerated_failed": failed,
             }
         )
-        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/promote-preview", response_class=HTMLResponse)
     async def admin_run_synonym_proposals_promote_preview(
@@ -8645,7 +8645,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_fast_path_promote_overridden_aliases": int(promote_counts.get("overridden_aliases") or 0),
             }
         )
-        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
     @app.get("/admin/runs/{run_id}/approved-synonym-proposals.yaml")
     def download_run_approved_synonym_overlay_yaml(run_id: str) -> Response:

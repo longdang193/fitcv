@@ -142,19 +142,7 @@
   </div>
   {% if request.query_params.get("synonym_fast_path_applied") is not none %}
   <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
-    <strong>AI Fast-Path Result</strong>:
-    applied={{ request.query_params.get("synonym_fast_path_applied") or "0" }},
-    skipped={{ request.query_params.get("synonym_fast_path_skipped") or "0" }},
-    failed={{ request.query_params.get("synonym_fast_path_failed") or "0" }},
-    new_or_updated={{ request.query_params.get("synonym_fast_path_promote_applied") or "0" }},
-    unchanged_already_global={{ request.query_params.get("synonym_fast_path_promote_unchanged_aliases") or "0" }},
-    overridden_aliases={{ request.query_params.get("synonym_fast_path_promote_overridden_aliases") or "0" }},
-    new_aliases={{ request.query_params.get("synonym_fast_path_promote_new_aliases") or "0" }},
-    promote_skipped={{ request.query_params.get("synonym_fast_path_promote_skipped") or "0" }},
-    promote_failed={{ request.query_params.get("synonym_fast_path_promote_failed") or "0" }}.
-    {% if (request.query_params.get("synonym_fast_path_promote_applied") or "0") == "0" and (request.query_params.get("synonym_fast_path_promote_unchanged_aliases") or "0") != "0" %}
-    No promotion needed: selected pairs already in global policy.
-    {% endif %}
+    Synonym fast-path completed. Open Synonym Workspace for detailed action summary.
   </div>
   {% endif %}
   {% if synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay %}

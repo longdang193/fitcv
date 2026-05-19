@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: synonym-workspace-action-model-simplification
 parent_thread: workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow
@@ -83,16 +83,16 @@ Regression coverage and UI assertions that lock action destination, banner behav
 - current UI control inventory confirmed
 
 **Steps:**
-- [ ] Step 1: remove per-row instant Approve/Defer/Reject submit forms
-- [ ] Step 2: retain canonical batch lane:
+- [x] Step 1: remove per-row instant Approve/Defer/Reject submit forms
+- [x] Step 2: retain canonical batch lane:
   - per-row select
   - single batch submit button
-- [ ] Step 3: replace AI/Manual mode toggle semantics with explicit AI assist action behavior and copy that matches backend reality
-- [ ] Step 4: deduplicate actor inputs to one shared actor source for workspace actions
+- [x] Step 3: replace AI/Manual mode toggle semantics with explicit AI assist action behavior and copy that matches backend reality
+- [x] Step 4: deduplicate actor inputs to one shared actor source for workspace actions
 
 **Verification:**
-- [ ] Template-render tests for presence/absence of key controls
-- [ ] Manual HTML assertion checks for removed duplicate button labels
+- [x] Template-render tests for presence/absence of key controls
+- [x] Manual HTML assertion checks for removed duplicate button labels
 
 **Exit Criteria:**
 - one canonical mutation path exists for decision updates
@@ -113,13 +113,13 @@ Regression coverage and UI assertions that lock action destination, banner behav
 - mode fields available from `_synonym_management_mode(run)` context
 
 **Steps:**
-- [ ] Step 1: conditionally render workspace controls based on mode flags (`apply_to_run_enabled`, `promote_global_enabled`, triage toggles)
-- [ ] Step 2: add explicit workspace-local info messages for disabled/empty/no-op states
-- [ ] Step 3: remove or downgrade duplicate synonym action banners in run detail to summary-only role
+- [x] Step 1: conditionally render workspace controls based on mode flags (`apply_to_run_enabled`, `promote_global_enabled`, triage toggles)
+- [x] Step 2: add explicit workspace-local info messages for disabled/empty/no-op states
+- [x] Step 3: remove or downgrade duplicate synonym action banners in run detail to summary-only role
 
 **Verification:**
-- [ ] Tests for control visibility matrix under different mode settings
-- [ ] Tests for workspace info banner rendering on no-approved/no-op states
+- [x] Tests for control visibility matrix under different mode settings
+- [x] Tests for workspace info banner rendering on no-approved/no-op states
 
 **Exit Criteria:**
 - UI no longer advertises actions that backend rejects by design
@@ -138,13 +138,13 @@ Regression coverage and UI assertions that lock action destination, banner behav
 - Tasks 1-3 complete
 
 **Steps:**
-- [ ] Step 1: expand targeted tests for redirects, banners, and action controls
-- [ ] Step 2: rerun existing promote/apply/batch tests to ensure semantic parity
-- [ ] Step 3: run repo fast validator hook and resolve any planning/doc drift
+- [x] Step 1: expand targeted tests for redirects, banners, and action controls
+- [x] Step 2: rerun existing promote/apply/batch tests to ensure semantic parity
+- [x] Step 3: run repo fast validator hook and resolve any planning/doc drift
 
 **Verification:**
-- [ ] `pytest -q tests/test_fitcv_cp/test_app.py -k "synonym and (promote or batch or fast_path or review)"`
-- [ ] `python scripts/hooks/run_validator.py --fast`
+- [x] `pytest -q tests/test_fitcv_cp/test_app.py -k "synonym and (promote or batch or fast_path or review)"`
+- [x] `python scripts/hooks/run_validator.py --fast`
 
 **Exit Criteria:**
 - tests and validator pass with no unexpected contract drift

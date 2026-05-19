@@ -2,10 +2,10 @@
 
 ## 1) Objective
 
-- **Workstream / Plan:** `workstream-agentic-synonym-management` / `docs/superpowers/plans/2026-05-19-23-10-synonym-workspace-action-model-simplification-plan.md`
-- **Goal:** execute synonym workspace action-model simplification in isolated worktree.
-- **Bounded Scope (in-scope only):** Task 1 redirect normalization first, then subsequent plan tasks.
-- **Out of Scope (explicit):** merge/closeout orchestration, unrelated failing test remediation outside plan scope.
+- **Workstream / Plan:** `workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow` + `docs/superpowers/plans/2026-05-19-23-10-synonym-workspace-action-model-simplification-plan.md`
+- **Goal:** Synonym workspace action-model simplification with workspace-first feedback and reduced run-detail drift.
+- **Bounded Scope (in-scope only):** Task 1-4 implementation + verification and closeout gate checks.
+- **Out of Scope (explicit):** merge strategy and PR orchestration decisions.
 
 ## 2) Canonical Inputs (Source of Truth)
 
@@ -15,61 +15,53 @@
   - `docs/intent/workstreams/threads/workstream-agentic-synonym-management/04-agentic-synonym-canonical-promotion-flow.md`
 - **Governance / workflow rules used:**
   - `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`
-  - `docs/operating_system/governance/execution-context-pack-governance.md`
   - `docs/operating_system/templates/execution-context-pack-template.md`
+  - `docs/operating_system/governance/execution-context-pack-governance.md`
 
 ## 3) Current Task State
 
 - **Completed:**
-  - isolated worktree created: `.worktrees/synonym-workspace-action-model-simplification`
-  - GitNexus index refreshed in worktree (`npx gitnexus analyze`)
-  - plan/spec/thread reviewed and aligned to thread goal.
-  - Task 1 redirect normalization completed:
-    - `triage-refresh` -> `/synonym-review`
-    - `ai-fast-path-execute` -> `/synonym-review`
-    - `promote-commit` (success/conflict) -> `/synonym-review`
-  - Task 1 targeted redirect tests passing.
-- **In Progress:**
-  - Task 2: simplify workspace action surface.
-- **Deferred / Dropped:**
-  - none
-- **Known divergence from plan (if any):**
-  - baseline synonym test suite in this branch already has pre-existing failures.
+  - Task 1 redirect normalization complete.
+  - Task 2 control-surface simplification complete.
+  - Task 3 mode gating + workspace banner normalization + run-detail downgrade complete.
+  - Task 4 regression/validator sweep complete.
+- **In Progress:** none.
+- **Deferred / Dropped:** none.
+- **Known divergence from plan (if any):** none.
 
 ## 4) Files Changed This Session
 
-- `docs/superpowers/execution_context_packs/synonym-workspace-action-model-simplification/latest.md` — canonical execution context initialization.
-- `src/fitcv_cp/app.py` — synonym action redirect normalization for workspace-origin flows.
-- `tests/test_fitcv_cp/test_app.py` — redirect assertions updated and AI fast-path redirect test added.
-- `docs/superpowers/plans/2026-05-19-23-10-synonym-workspace-action-model-simplification-plan.md` — Task 1 checklist progress marked complete.
+- `tests/test_fitcv_cp/test_app.py` — updated stale run-detail expectations to workspace-first contract; kept regression assertions aligned with current UX model.
+- `docs/superpowers/plans/2026-05-19-23-10-synonym-workspace-action-model-simplification-plan.md` — Task 4 steps and verification checkboxes marked complete.
 
 ## 5) Verification State
 
 - **Last commands run:**
-  - `npx gitnexus analyze`
-  - `pytest -q tests/test_fitcv_cp/test_app.py -k "synonym"`
-  - `pytest -q tests/test_fitcv_cp/test_app.py -k "triage_refresh_redirects_with_summary or ai_fast_path_redirects_to_synonym_review or promote_commit_updates_global_policy_and_redirects or promote_commit_accepts_checkbox_selection_list"`
+  - `pytest -q tests/test_fitcv_cp/test_app.py -k "synonym and (promote or batch or fast_path or review)"`
+  - `python scripts/hooks/run_validator.py --fast`
+  - `python scripts/validate_planning_lifecycle.py --strict`
+  - `python scripts/validate_checkpoint_packs.py`
+  - `python scripts/validate_repo_contracts.py --fast`
+  - `python scripts/validate_template_required_sections.py` (bounded-scope doc lifecycle compliance evidence for changed doc surfaces)
 - **Result summary:**
-  - GitNexus index refreshed successfully.
-  - Baseline synonym tests: failing (`11 failed, 59 passed`) with pre-existing issues.
-  - Task 1 redirect matrix targeted tests: pass (`3 passed`).
-- **Failing checks (if any):**
-  - `NameError: request is not defined` in synonym overlay upload route.
-  - multiple run-detail synonym UI expectation mismatches.
-- **Gaps still unverified:**
-  - post-edit redirect matrix for Task 1.
+  - pytest selector: `26 passed, 406 deselected`.
+  - validator hook: passed.
+  - closeout gate checks: all passed.
+  - template required-sections: passed.
+- **Failing checks (if any):** none in executed scope.
+- **Gaps still unverified:** full repo test matrix outside synonym selector not run in this session.
 
 ## 6) Open Blockers / Risks
 
-- existing baseline failures can mask regressions if broad test selection used.
-- run-detail vs workspace tests may need coordinated expectation updates in later tasks.
+- No active blockers for plan scope.
+- Residual risk: only targeted synonym test selector executed, not full test suite.
 
 ## 7) Next Exact Action
 
-- **Action type:** edit
-- **Target:** `src/fitcv_cp/templates/synonym_review.html` + `tests/test_fitcv_cp/test_app.py`
-- **Exact command or edit intent:** execute Task 2 by removing per-row instant decision POST buttons and simplifying AI/manual control language to explicit assist behavior while preserving batch lane.
-- **Why this is next:** Task 1 exit criteria satisfied; Task 2 is next eligible unblocked step in dependency order.
+- **Action type:** close now
+- **Target:** planning lifecycle state and integration handoff
+- **Exact command or edit intent:** prepare branch handoff/merge decision; no further implementation edits required for this plan scope.
+- **Why this is next:** closure criteria satisfied and verification evidence complete.
 
 ## 8) Resume Prompt (Copy/Paste)
 
@@ -79,10 +71,10 @@ Read this execution context pack first. Verify its state against listed source f
 
 ## 9) Optional Deep Context (Consult Only)
 
-- **conversation_id:** current Codex thread
-- **overview_log:** none
-- **consult_if:** ambiguity on lane sequencing beyond plan
-- **notes_from_log (optional, concise):** none
+- **conversation_id:** n/a
+- **overview_log:** `.gemini/antigravity/brain/<conversation-id>/.system_generated/logs/overview.txt`
+- **consult_if:** discrepancy appears between test evidence and edited files.
+- **notes_from_log (optional, concise):** n/a
 
 ## Source-Truth Rule
 

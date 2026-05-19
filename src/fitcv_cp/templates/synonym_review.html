@@ -28,35 +28,91 @@
 <div class="card">
   <h3 style="margin:0 0 0.35rem">Synonyms</h3>
   <div class="meta" style="margin-bottom:0.75rem">{{ synonym_proposal_review_queue.pending_count }} pending of {{ synonym_proposal_review_queue.total_count }} proposal(s).</div>
+  {% if request.query_params.get("synonym_batch_applied") is not none %}
+  <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Batch Result:
+    applied={{ request.query_params.get("synonym_batch_applied") or "0" }},
+    skipped={{ request.query_params.get("synonym_batch_skipped") or "0" }},
+    failed={{ request.query_params.get("synonym_batch_failed") or "0" }}.
+  </div>
+  {% endif %}
+  {% if request.query_params.get("synonym_apply_to_run_applied") is not none %}
+  <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Apply To Run Result:
+    applied={{ request.query_params.get("synonym_apply_to_run_applied") or "0" }},
+    skipped={{ request.query_params.get("synonym_apply_to_run_skipped") or "0" }},
+    failed={{ request.query_params.get("synonym_apply_to_run_failed") or "0" }}.
+  </div>
+  {% endif %}
+  {% if request.query_params.get("synonym_promote_applied") is not none %}
+  <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Promote To Global Result:
+    applied={{ request.query_params.get("synonym_promote_applied") or "0" }},
+    skipped={{ request.query_params.get("synonym_promote_skipped") or "0" }},
+    failed={{ request.query_params.get("synonym_promote_failed") or "0" }},
+    new_or_updated={{ request.query_params.get("synonym_promote_new_aliases") or "0" }},
+    unchanged_already_global={{ request.query_params.get("synonym_promote_unchanged_aliases") or "0" }},
+    overridden={{ request.query_params.get("synonym_promote_overridden_aliases") or "0" }}.
+  </div>
+  {% endif %}
+  {% if request.query_params.get("synonym_fast_path_applied") is not none %}
+  <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    AI Fast-Path Result:
+    applied={{ request.query_params.get("synonym_fast_path_applied") or "0" }},
+    skipped={{ request.query_params.get("synonym_fast_path_skipped") or "0" }},
+    failed={{ request.query_params.get("synonym_fast_path_failed") or "0" }},
+    promoted={{ request.query_params.get("synonym_fast_path_promote_applied") or "0" }},
+    promote_skipped={{ request.query_params.get("synonym_fast_path_promote_skipped") or "0" }},
+    promote_failed={{ request.query_params.get("synonym_fast_path_promote_failed") or "0" }}.
+  </div>
+  {% endif %}
   {% if request.query_params.get("synonym_promote_preview_status") == "no_approved" %}
   <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
     No approved proposals available to preview promotion.
   </div>
   {% endif %}
 
-  <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;margin-bottom:0.35rem">
-    <button class="btn-secondary decision-toggle" aria-pressed="true" type="button" id="review-mode-ai">AI-Assisted Decide + Promote</button>
-    <button class="btn-secondary decision-toggle" aria-pressed="false" type="button" id="review-mode-manual">Manual Decide + Promote</button>
-  </div>
   <div class="meta" style="margin-bottom:0.85rem">
-    AI-assisted fills recommended actions for pending rows. Manual keeps every row decision explicit.
+    Choose row decisions, or use AI assist to prefill recommendations. Review selections, then submit batch.
   </div>
 
-  <form id="synonym-triage-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/triage-refresh" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+  <form id="synonym-actions-form" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
     <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
+  </form>
+  {% if synonym_management_mode.auto_triage_recommendation_enabled %}
+  <form id="synonym-triage-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/triage-refresh" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+    <input type="hidden" name="acted_by" value="admin">
     <input type="hidden" name="note" value="ui:triage-refresh">
     <button class="btn-secondary" type="submit">Refresh Triage Recommendations</button>
   </form>
+  {% else %}
+  <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Triage recommendations disabled for this run mode.
+  </div>
+  {% endif %}
+
+  {% if synonym_management_mode.apply_to_run_enabled %}
   <form id="synonym-batch-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/batch-action" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
-    <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
+    <input type="hidden" name="acted_by" value="admin">
     <input type="hidden" name="note" value="ui:batch-action">
     <button class="btn-secondary" type="submit">Submit Selected Decisions</button>
-    <button class="btn-secondary" type="button" id="apply-recommendations-btn">Apply Recommendations</button>
+    <button class="btn-secondary" type="button" id="apply-recommendations-btn">AI Assist: Prefill Recommendations</button>
   </form>
+  {% else %}
+  <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Decision updates disabled for this run mode.
+  </div>
+  {% endif %}
   <div class="meta" id="synonym-mode-status" style="margin:-0.45rem 0 0.85rem 0"></div>
+  {% if synonym_management_mode.promote_global_enabled %}
   <form id="synonym-promote-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-preview" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
     <button class="btn-secondary" type="submit">Preview Promote to Global</button>
   </form>
+  {% else %}
+  <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Global promotion disabled for this run mode.
+  </div>
+  {% endif %}
 
   {% set synonym_field_groups = [("skill", "Skills"), ("domain", "Domain"), ("role_family", "Role Family")] %}
   {% for field_key, field_label in synonym_field_groups %}
@@ -98,9 +154,6 @@
             <option value="defer">Defer</option>
             <option value="reject">Reject</option>
           </select>
-          <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline"><input type="hidden" name="action" value="approve"><button class="btn-secondary" type="submit">Approve</button></form>
-          <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline"><input type="hidden" name="action" value="defer"><button class="btn-secondary" type="submit">Defer</button></form>
-          <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline"><input type="hidden" name="action" value="reject"><button class="btn-secondary" type="submit">Reject</button></form>
         </div>
         {% endif %}
       </div>
@@ -157,10 +210,12 @@
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const reviewModeAiBtn = document.getElementById('review-mode-ai');
-  const reviewModeManualBtn = document.getElementById('review-mode-manual');
+  const actionsForm = document.getElementById('synonym-actions-form');
+  const actorInput = actionsForm ? actionsForm.querySelector('input[name="acted_by"]') : null;
   const applyRecommendationsBtn = document.getElementById('apply-recommendations-btn');
   const modeStatus = document.getElementById('synonym-mode-status');
+  const triageActorInput = document.querySelector('#synonym-triage-form input[name="acted_by"]');
+  const batchActorInput = document.querySelector('#synonym-batch-form input[name="acted_by"]');
   const pendingSelects = () => Array.from(
     document.querySelectorAll('select[form="synonym-batch-form"][data-recommended-action]')
   );
@@ -177,44 +232,22 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
     if (modeStatus) modeStatus.textContent = applied > 0
-      ? `AI-assisted mode filled ${applied} recommended action(s).`
-      : 'AI-assisted mode found no pending recommended actions.';
+      ? `AI assist prefilled ${applied} recommended action(s).`
+      : 'AI assist found no pending recommended actions.';
   };
-
-  const clearSelections = () => {
-    let cleared = 0;
-    pendingSelects().forEach((selectEl) => {
-      if (!selectEl || !selectEl.value) return;
-      selectEl.value = '';
-      selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-      cleared += 1;
-    });
-    if (modeStatus) modeStatus.textContent = cleared > 0
-      ? `Manual mode cleared ${cleared} prefilled action(s).`
-      : 'Manual mode active. Pick each decision explicitly.';
-  };
-
-  const setDecisionMode = (mode) => {
-    if (reviewModeAiBtn) reviewModeAiBtn.setAttribute('aria-pressed', mode === 'ai' ? 'true' : 'false');
-    if (reviewModeManualBtn) reviewModeManualBtn.setAttribute('aria-pressed', mode === 'manual' ? 'true' : 'false');
+  const syncActor = () => {
+    const actor = actorInput ? String(actorInput.value || '').trim() : '';
+    if (triageActorInput) triageActorInput.value = actor || 'admin';
+    if (batchActorInput) batchActorInput.value = actor || 'admin';
   };
 
   if (applyRecommendationsBtn) {
     applyRecommendationsBtn.addEventListener('click', applyRecommendations);
   }
-  if (reviewModeAiBtn) {
-    reviewModeAiBtn.addEventListener('click', () => {
-      setDecisionMode('ai');
-      applyRecommendations();
-    });
+  if (actorInput) {
+    actorInput.addEventListener('input', syncActor);
   }
-  if (reviewModeManualBtn) {
-    reviewModeManualBtn.addEventListener('click', () => {
-      setDecisionMode('manual');
-      clearSelections();
-    });
-  }
-  setDecisionMode('ai');
+  syncActor();
 });
 </script>
 {% endblock %}
