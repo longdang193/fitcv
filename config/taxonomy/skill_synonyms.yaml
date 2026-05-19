@@ -1,71 +1,139 @@
 skill_synonyms:
+  about you: about you advertising
   advanced proficiency in sql: sql
   airflow: apache airflow
+  amazon: amazon advertising
+  analysis of performance: marketing analytics
   anspruch an "clean code": clean code
   architecting complex data models: data modeling
+  attribution tooling: marketing attribution
+  audio: audio technology
   aws: amazon web services
   azure: microsoft azure
   backend-anwendungen: backend development
   big query: google bigquery
   bigquery: google bigquery
   bigquery ml: machine learning
+  build dashboards: dashboard building
   building and maintaining dashboards: dashboarding
   ci/cd pipelines: ci/cd
+  clear reporting through dashboards: dashboard reporting
   conduct industry analysis reports: industry analysis
+  continuously improve ... roi: roi optimization
+  continuously improve conversion: conversion rate optimization
+  contribute to cro initiatives: cro
+  corporate pitch decks: pitch deck design
+  create execution roadmaps: project roadmap planning
   data vault und 3nf: data vault
   dbt core: dbt
+  deep content seo expertise: seo
+  define go-to-market strategies: go-to-market strategy
+  design and execute campaigns: campaign management
   developing critical dashboards: dashboarding
+  digital social media kits: social media asset design
+  digital strategies: digital marketing strategy
+  digital-kampagnen: digital campaign management
+  distinct color palettes: color palette development
+  du analysierst relevante kpis: kpi analysis
+  du erstellst instagram-posts: instagram marketing
+  du übernimmst eigenständig bookings: influencer booking
+  email: email marketing
+  end-to-end campaign execution: campaign execution
+  erfahrung mit datev wünscheswert: datev
   erfahrungen im anforderungsmanagement: requirements management
+  erste erfahrung im projektmanagement: project management
+  erstellung von forecasts: forecasting
+  evaluate pricing: pricing analysis
   excel: microsoft excel
+  experience in ai: artificial intelligence
   familiarity with ... databases: databases
   familiarity with ... excel: microsoft excel
   familiarity with data modeling: data modeling
   flatfiles: flat files
   flowcharts: flowcharting
-  ga4: google analytics
+  focus on lead generation: lead generation
+  ga4: google analytics 4
   gcp: google cloud
   gemini: genai
   git / github: git
   github: git
+  go-to-market: go-to-market strategy
   good knowledge of excel: microsoft excel
   google analytics (ga4): google analytics
   google cloud platform: google cloud
+  grundkenntnisse in ... premiere: adobe premiere
+  grundkenntnisse in photoshop: adobe photoshop
+  gtm strategy: go-to-market (gtm) strategy
+  hands-on campaign management experience: campaign management
+  ideally hubspot: hubspot
+  idealweise im programmatic advertising: programmatic advertising
+  improve roas and margin: roas optimization
+  inbound: inbound marketing
+  including scalable logos: logo design
+  instrument the funnel: funnel instrumentation
+  into cohesive gtm programs: go-to-market (gtm)
   k8s: kubernetes
   kafka: apache kafka
   kenntnisse in der datenbankmodellierung: data modeling
   large language models: genai
+  leading a marketing team: marketing team leadership
   llm: genai
   llms: genai
   looker studio: looker
+  lookerstudio: looker
   low-code/no-code platforms: low-code development
   meta: meta ads
+  meta library: meta ad library
   ml: machine learning
   nlp: natural language processing
   nosql-datenbanksystemen: nosql databases
+  ooh: out-of-home advertising
+  otto: otto advertising
+  outbound: outbound marketing
+  paid social: paid social advertising
   partitioning strategies: data partitioning
   pg: postgresql
   postgres: postgresql
   power automate: microsoft power automate
   power bi: microsoft power bi
-  powerbi: power bi
+  powerbi: microsoft power bi
+  powerpoint: microsoft powerpoint
+  print materials: print design
+  product launch activations: product launch activation
+  proficient in microsoft powerpoint: microsoft powerpoint
   project management through data: project management
   prompt engineering: genai
+  pull salesforce reports: salesforce
   quality assurance: quality assurance (qa)
   rag: genai
   redshift: amazon redshift
   relationalen ... datenbanksystemen: relational databases
+  revenue forecasts: revenue forecasting
+  run email marketing campaigns: email marketing
+  running multi-channel campaigns: multi-channel campaign management
   sap idocs: sap idoc
+  search: search marketing
+  set okrs: okrs
   sharepoint: microsoft sharepoint
+  social media ads: social media advertising
+  solid project management skills: project management
   sowie jira und confluence: confluence
   spark: apache spark
+  speech: speech technology
   strong command of sql: sql
   strong data analysis skills: data analysis
   strong sql skills: sql
   support change management processes: change management
   support pricing analysis: pricing analysis
   teams: microsoft teams
+  testing & skalierung: campaign scaling
+  typography systems: typography system design
+  umsetzung von test‑&‑learn‑ansätzen: test-and-learn experimentation
   und datenvisualisierung: data visualization
   vector databases: genai
   vertex ai: genai
   visio: microsoft visio
   von rest-apis: rest apis
+  webanalyse mit google analytics: google analytics
+  wie bspw. google dv360: google dv360
+  zalando: zalando advertising

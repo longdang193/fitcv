@@ -6143,7 +6143,8 @@ def test_admin_run_synonym_promote_preview_defaults_to_approved_decisions() -> N
     assert resp.status_code == 200
     assert "Promote Synonyms to Global Policy" in resp.text
     assert "new=1" in resp.text
-    assert "unchanged=1" in resp.text
+    assert "proposal-gcp" not in resp.text
+    assert "proposal-sql" in resp.text
 
 
 def test_admin_run_synonym_promote_preview_redirects_with_info_when_no_approved_rows() -> None:

@@ -8188,11 +8188,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if not isinstance(payload, dict):
             raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
         if not selected_ids:
-            proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
+            # Default selection must mirror workspace visibility:
+            # rows already present in global map are filtered out in review queue.
+            queue = _build_synonym_proposal_review_queue(run)
+            queue_items = [item for item in list(queue.get("items") or []) if isinstance(item, dict)]
             selected_ids = [
                 str(item.get("proposal_id") or "").strip()
-                for item in proposals
-                if str(item.get("proposal_status") or "").strip() == "approved_for_run_overlay"
+                for item in queue_items
+                if str(item.get("status") or "").strip() == "approved_for_run_overlay"
             ]
             selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
         if not selected_ids:
