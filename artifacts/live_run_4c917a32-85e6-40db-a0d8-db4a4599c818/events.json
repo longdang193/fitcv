@@ -1,0 +1,65 @@
+[
+  {
+    "run_id": "4c917a32-85e6-40db-a0d8-db4a4599c818",
+    "event_id": "05887bde-00af-4018-bb04-7785c0d2b1dd",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=4c917a32-85e6-40db-a0d8-db4a4599c818]",
+    "created_at": "2026-05-19T13:07:27.569496+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"976bfdea82ebda4247688577af3ebfb0\", \"span_id\": \"871ba0f3f82e3923\", \"parent_span_id\": \"7550508ea43b8918\"}, \"telemetry_export\": {\"status\": \"export_enabled\", \"degradation_reason\": null}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"unverified\", \"degradation_reason\": \"langfuse_ingestion_unverified\", \"trace_url\": \"http://localhost:3000/trace/976bfdea82ebda4247688577af3ebfb0\"}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "4c917a32-85e6-40db-a0d8-db4a4599c818",
+    "event_id": "05badc7c-eef6-4594-bacb-5f7726abad3e",
+    "stage": "layer1_normalize",
+    "level": "info",
+    "message": "Normalization dedupe: kept 9 of 12 jobs, removed 3 duplicate(s)",
+    "created_at": "2026-05-19T13:07:27.605163+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"976bfdea82ebda4247688577af3ebfb0\", \"span_id\": \"753b5592d734ae56\", \"parent_span_id\": \"871ba0f3f82e3923\"}, \"telemetry_export\": {\"status\": \"export_enabled\", \"degradation_reason\": null}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"unverified\", \"degradation_reason\": \"langfuse_ingestion_unverified\", \"trace_url\": \"http://localhost:3000/trace/976bfdea82ebda4247688577af3ebfb0\"}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "4c917a32-85e6-40db-a0d8-db4a4599c818",
+    "event_id": "9fa5a784-afb6-458e-a334-f5be245f50de",
+    "stage": "layer1b_pre_filter",
+    "level": "info",
+    "message": "Pre-enrichment filter: 9 pass, 0 rejected",
+    "created_at": "2026-05-19T13:07:27.686607+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"976bfdea82ebda4247688577af3ebfb0\", \"span_id\": \"5feee71d3e0c1623\", \"parent_span_id\": \"871ba0f3f82e3923\"}, \"telemetry_export\": {\"status\": \"export_enabled\", \"degradation_reason\": null}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"unverified\", \"degradation_reason\": \"langfuse_ingestion_unverified\", \"trace_url\": \"http://localhost:3000/trace/976bfdea82ebda4247688577af3ebfb0\"}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "4c917a32-85e6-40db-a0d8-db4a4599c818",
+    "event_id": "bc154670-9a03-4fbf-99e1-3c83ac3bb234",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich heartbeat: {'phase': 'job_start', 'index': 1, 'total': 9, 'job_url': 'https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title', 'timeout_secs': 10}",
+    "created_at": "2026-05-19T13:07:27.704697+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"976bfdea82ebda4247688577af3ebfb0\", \"span_id\": \"5feee71d3e0c1623\", \"parent_span_id\": \"871ba0f3f82e3923\"}, \"telemetry_export\": {\"status\": \"export_enabled\", \"degradation_reason\": null}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"unverified\", \"degradation_reason\": \"langfuse_ingestion_unverified\", \"trace_url\": \"http://localhost:3000/trace/976bfdea82ebda4247688577af3ebfb0\"}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "4c917a32-85e6-40db-a0d8-db4a4599c818",
+    "event_id": "335376c9-f362-4261-9212-740ff6e5ba10",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich heartbeat: {'phase': 'job_timeout', 'index': 1, 'total': 9, 'job_url': 'https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title', 'timeout_secs': 10}",
+    "created_at": "2026-05-19T13:07:37.719562+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"976bfdea82ebda4247688577af3ebfb0\", \"span_id\": \"5feee71d3e0c1623\", \"parent_span_id\": \"871ba0f3f82e3923\"}, \"telemetry_export\": {\"status\": \"export_enabled\", \"degradation_reason\": null}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"unverified\", \"degradation_reason\": \"langfuse_ingestion_unverified\", \"trace_url\": \"http://localhost:3000/trace/976bfdea82ebda4247688577af3ebfb0\"}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "4c917a32-85e6-40db-a0d8-db4a4599c818",
+    "event_id": "9ed1c422-fbeb-4aba-9090-7d6eaccdd43e",
+    "stage": "cancel_requested",
+    "level": "warning",
+    "message": "Bulk cancel requested — run will be cancelled at next checkpoint",
+    "created_at": "2026-05-19T13:07:54.830437+00:00",
+    "payload_json": null
+  },
+  {
+    "run_id": "4c917a32-85e6-40db-a0d8-db4a4599c818",
+    "event_id": "15ab04dc-7cf7-4f3f-ac37-d405e2e18269",
+    "stage": "pipeline_failed",
+    "level": "error",
+    "message": "generator didn't stop after throw()",
+    "created_at": "2026-05-19T13:07:57.624926+00:00",
+    "payload_json": null
+  }
+]

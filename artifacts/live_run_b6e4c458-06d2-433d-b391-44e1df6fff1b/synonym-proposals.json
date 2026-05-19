@@ -1,0 +1,1082 @@
+{
+  "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+  "synonym_proposals_schema_version": "synonym_proposals_v1",
+  "created_at": "2026-05-19T13:28:09.674657+00:00",
+  "proposal_generation_status": "generated",
+  "persistence_status": "persisted",
+  "proposals": [
+    {
+      "proposal_id": "synprop-5e9cab4aae96",
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "field": "skill",
+      "alias": "power automate",
+      "canonical": "microsoft power automate",
+      "candidate_aliases": [
+        "power automate"
+      ],
+      "candidate_canonicals": [
+        "microsoft power automate"
+      ],
+      "confidence": 0.98,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.98,
+        "must_have_skills": [
+          "microsoft power automate"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.98
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.98,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:28:09.778997+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "20a7031a3c23df787f100e18b5d5b514c190d2afc53a8669b75088391d027bcb"
+      }
+    },
+    {
+      "proposal_id": "synprop-c7e4275d4077",
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "field": "skill",
+      "alias": "power bi",
+      "canonical": "microsoft power bi",
+      "candidate_aliases": [
+        "power bi"
+      ],
+      "candidate_canonicals": [
+        "microsoft power bi"
+      ],
+      "confidence": 0.98,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.98,
+        "must_have_skills": [
+          "microsoft power bi"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.98
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.98,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:28:09.778997+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "12be5b2d69581a2dcadb5c2821d3a2c1ccfbed4e78f66629b5ff1ce9a4fc5f78"
+      }
+    },
+    {
+      "proposal_id": "synprop-d2363b650e2d",
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "field": "skill",
+      "alias": "sharepoint",
+      "canonical": "microsoft sharepoint",
+      "candidate_aliases": [
+        "sharepoint"
+      ],
+      "candidate_canonicals": [
+        "microsoft sharepoint"
+      ],
+      "confidence": 0.98,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.98,
+        "must_have_skills": [
+          "microsoft sharepoint"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.98
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.98,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:28:09.778997+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "35356ca4d00715580acf0f0ad0cb31c422d4e30608126789de69054947fb2c3d"
+      }
+    },
+    {
+      "proposal_id": "synprop-8df7f0b9b88c",
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "field": "skill",
+      "alias": "excel",
+      "canonical": "microsoft excel",
+      "candidate_aliases": [
+        "excel"
+      ],
+      "candidate_canonicals": [
+        "microsoft excel"
+      ],
+      "confidence": 0.97,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.97,
+        "must_have_skills": [
+          "microsoft excel"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.97
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.97,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:28:09.778997+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "3905eb4e2896f6d0ee1e1ae9c743091d7fa44f737cf48eaa3cb8ce70977a2947"
+      }
+    },
+    {
+      "proposal_id": "synprop-7882b2ea4562",
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "field": "skill",
+      "alias": "teams",
+      "canonical": "microsoft teams",
+      "candidate_aliases": [
+        "teams"
+      ],
+      "candidate_canonicals": [
+        "microsoft teams"
+      ],
+      "confidence": 0.97,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.97,
+        "must_have_skills": [
+          "microsoft teams"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.97
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.97,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:28:09.778997+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "915564ab955918ba9df5d7454a4d5b71124716d8380089161cf73c2228bc5055"
+      }
+    },
+    {
+      "proposal_id": "synprop-f80268523c29",
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "field": "skill",
+      "alias": "visio",
+      "canonical": "microsoft visio",
+      "candidate_aliases": [
+        "visio"
+      ],
+      "candidate_canonicals": [
+        "microsoft visio"
+      ],
+      "confidence": 0.97,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.97,
+        "must_have_skills": [
+          "microsoft visio"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.97
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.97,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:28:09.778997+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "7bf9982af762ea8e1671ed6d8c1aab93817a3d0c7c0fc620a1bcf67972b1f0e3"
+      }
+    },
+    {
+      "proposal_id": "synprop-6b15bc2d9efd",
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "field": "skill",
+      "alias": "conduct industry analysis reports",
+      "canonical": "industry analysis",
+      "candidate_aliases": [
+        "conduct industry analysis reports"
+      ],
+      "candidate_canonicals": [
+        "industry analysis"
+      ],
+      "confidence": 0.85,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.85,
+        "must_have_skills": [
+          "industry analysis"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/business-development-manager-at-temu-4413525295?trk=public_jobs_topcard-title",
+            "job_title": "Business Development Manager [probe_1779195595]",
+            "confidence": 0.85
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:28:09.778997+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "6320aa9a910527813796e79b6250d5fa8bd7d7b9f57857e40011bea2bc503eba"
+      }
+    },
+    {
+      "proposal_id": "synprop-8abb134ca6d1",
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "field": "skill",
+      "alias": "good knowledge of excel",
+      "canonical": "microsoft excel",
+      "candidate_aliases": [
+        "good knowledge of excel"
+      ],
+      "candidate_canonicals": [
+        "microsoft excel"
+      ],
+      "confidence": 0.8,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.8,
+        "must_have_skills": [
+          "microsoft excel"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413403826",
+            "job_title": "Data Entry [probe_1779195595]",
+            "confidence": 0.8
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.8,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:28:09.778997+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "bd36d59e6f40a8be480ab103d14aca37c4059307bebd4b35ba7c35f6a68cedb3"
+      }
+    },
+    {
+      "proposal_id": "synprop-7b4794d11c00",
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "field": "skill",
+      "alias": "low-code/no-code platforms",
+      "canonical": "low-code development",
+      "candidate_aliases": [
+        "low-code/no-code platforms"
+      ],
+      "candidate_canonicals": [
+        "low-code development"
+      ],
+      "confidence": 0.76,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.76,
+        "must_have_skills": [
+          "low-code development"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.76
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.76,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:28:09.778997+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "6215b14cf9a50ab947f5b1ccf07dc94a064a283f02b6ac2041e18e10bb652d50"
+      }
+    },
+    {
+      "proposal_id": "synprop-2011466b86ec",
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "field": "skill",
+      "alias": "reporting & visualisierung",
+      "canonical": "data visualization",
+      "candidate_aliases": [
+        "reporting & visualisierung"
+      ],
+      "candidate_canonicals": [
+        "data visualization"
+      ],
+      "confidence": 0.7,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.7,
+        "must_have_skills": [
+          "data visualization"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4410059415",
+            "job_title": "(Junior) Data & Market Analyst (m/w/d) – Bildungs- und Arbeitsmarkt [probe_1779195595]",
+            "confidence": 0.7
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.8,
+      "recommendation_rationale": "Moderate confidence mapping should be deferred for review.",
+      "recommendation_risk_flags": [
+        "moderate_confidence"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:28:09.778997+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "f670c2b1f24ad06ec2ef5b9158c74e7abfd16c27fce5ef4ebcb58d6a0d0c3e3f"
+      }
+    }
+  ],
+  "synonym_proposals_trace": {
+    "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+    "trace_schema_version": "agentic_step_trace_run_v1",
+    "trace_family": "agentic_step_trace",
+    "step_id": "synonym_proposals",
+    "created_at": "2026-05-19T13:28:09.674657+00:00",
+    "trace_status": "completed",
+    "trace_summary": {
+      "records_total": 10,
+      "present_records": 10,
+      "proposal_count": 10,
+      "suppressed_as_already_global_count": 0,
+      "generated_for_review_count": 10,
+      "suppressed_count_by_field": {
+        "domain": 8,
+        "role_family": 6
+      },
+      "suppressed_reason_counts_by_field": {
+        "domain": {
+          "insufficient_non_skill_support": 8
+        },
+        "role_family": {
+          "insufficient_non_skill_support": 6
+        }
+      },
+      "suppression_source": "run_effective_skill_synonyms",
+      "triage_recommendation_generated_total": 10,
+      "triage_recommendation_reused_total": 0,
+      "triage_recommendation_fresh_total": 10,
+      "triage_recommendation_suppressed_total": 0,
+      "triage_recommendation_reuse_reason": "reuse_enabled",
+      "triage_recommendation_fingerprint": "06d50da2002bea45cf6df2649fd03ca86aff2652292e75a6590d47d43460b422",
+      "auto_apply_recommendation_applied": 0,
+      "auto_apply_recommendation_skipped": 0,
+      "auto_apply_recommendation_failed": 0,
+      "auto_apply_recommendation_reason_counts": {},
+      "auto_promote_global_applied": 0,
+      "auto_promote_global_skipped": 0,
+      "auto_promote_global_failed": 0,
+      "auto_promote_global_skip_reason": "disabled"
+    },
+    "records": [
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-5e9cab4aae96",
+        "scope_type": "alias",
+        "scope_key": "power automate",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "power automate",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.98
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-c7e4275d4077",
+        "scope_type": "alias",
+        "scope_key": "power bi",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "power bi",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.98
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-d2363b650e2d",
+        "scope_type": "alias",
+        "scope_key": "sharepoint",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "sharepoint",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.98
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-8df7f0b9b88c",
+        "scope_type": "alias",
+        "scope_key": "excel",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "excel",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.97
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-7882b2ea4562",
+        "scope_type": "alias",
+        "scope_key": "teams",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "teams",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.97
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-f80268523c29",
+        "scope_type": "alias",
+        "scope_key": "visio",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "visio",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.97
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-6b15bc2d9efd",
+        "scope_type": "alias",
+        "scope_key": "conduct industry analysis reports",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "conduct industry analysis reports",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.85
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-8abb134ca6d1",
+        "scope_type": "alias",
+        "scope_key": "good knowledge of excel",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "good knowledge of excel",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.8
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-7b4794d11c00",
+        "scope_type": "alias",
+        "scope_key": "low-code/no-code platforms",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "low-code/no-code platforms",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.76
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-2011466b86ec",
+        "scope_type": "alias",
+        "scope_key": "reporting & visualisierung",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "reporting & visualisierung",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.7
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      }
+    ],
+    "degradation": {},
+    "artifact_refs": {
+      "proposal_artifact": "synonym-proposals.json",
+      "stage_artifact": "enrich.json"
+    },
+    "suppression_examples": [
+      {
+        "field": "domain",
+        "alias": "software development and it services and it consulting",
+        "canonical": "software (design platform / saas)"
+      },
+      {
+        "field": "role_family",
+        "alias": "growth marketing",
+        "canonical": "growth_marketing"
+      },
+      {
+        "field": "domain",
+        "alias": "technology, information and internet, online and mail order retail, and retail",
+        "canonical": "ecommerce retail"
+      },
+      {
+        "field": "role_family",
+        "alias": "business development",
+        "canonical": "business_development"
+      },
+      {
+        "field": "domain",
+        "alias": "international affairs",
+        "canonical": "defense"
+      },
+      {
+        "field": "domain",
+        "alias": "it services and it consulting",
+        "canonical": "enterprise software"
+      },
+      {
+        "field": "role_family",
+        "alias": "data engineering",
+        "canonical": "data_engineering"
+      },
+      {
+        "field": "role_family",
+        "alias": "data_engineering",
+        "canonical": "ml_engineering"
+      },
+      {
+        "field": "role_family",
+        "alias": "data science",
+        "canonical": "data_science"
+      },
+      {
+        "field": "domain",
+        "alias": "financial services",
+        "canonical": "banking"
+      }
+    ]
+  }
+}

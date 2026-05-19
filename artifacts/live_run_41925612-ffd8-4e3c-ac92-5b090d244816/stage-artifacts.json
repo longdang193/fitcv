@@ -1,0 +1,506 @@
+{
+  "run_id": "41925612-ffd8-4e3c-ac92-5b090d244816",
+  "status": "running",
+  "artifact_schema_version": "stage_transition_artifacts_run_v1",
+  "created_at": "2026-05-19T13:13:52.258672+00:00",
+  "snapshot_complete": false,
+  "degradation_reason": "partial_snapshot",
+  "artifacts": {
+    "schema_version": "stage_transition_artifacts_v6",
+    "stages": {
+      "normalize": {
+        "stage_id": "normalize",
+        "stage": "normalize",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "normalize",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "normalized_jobs": 9,
+            "deduplicated_jobs": 3
+          },
+          "evidence": {
+            "input_counts": {
+              "raw_jobs": 12
+            },
+            "decision_summary": {
+              "dedupe_reason_counts": {
+                "near_duplicate_job_posting": 3
+              }
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.normalize.v1",
+          "trace_context": {
+            "trace_id": "79877a35381cbe6b0959d0b1d3ecb748",
+            "span_id": "d9fc15b7e8fa8c3a",
+            "parent_span_id": "abdb9099699864da"
+          }
+        },
+        "input_counts": {
+          "raw_jobs": 12
+        },
+        "output_counts": {
+          "normalized_jobs": 9,
+          "deduplicated_jobs": 3
+        },
+        "decision_summary": {
+          "dedupe_reason_counts": {
+            "near_duplicate_job_posting": 3
+          }
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title",
+            "job_title": "Creative Strategist, Growth Marketing [probe_1779195595]",
+            "company": "Canva"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/business-development-manager-at-temu-4413525295?trk=public_jobs_topcard-title",
+            "job_title": "Business Development Manager [probe_1779195595]",
+            "company": "Temu"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "company": "NATO"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/ai-engineer-at-huzzle-com-4413936464?trk=public_jobs_topcard-title",
+            "job_title": "AI Engineer [probe_1779195595]",
+            "company": "Huzzle.com"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-python-sql-freelance-ai-trainer-at-mindrift-4410200409?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist (Python & SQL) - Freelance AI Trainer [probe_1779195595]",
+            "company": "Mindrift"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413461417",
+            "job_title": "Data Analyst Business Intelligence (d/m/w/x) [probe_1779195595]",
+            "company": "Mercedes-Benz Bank AG"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413403826",
+            "job_title": "Data Entry [probe_1779195595]",
+            "company": "Relief International"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4409730791",
+            "job_title": "Founder | Upto $5000 Part-time [probe_1779195595]",
+            "company": "Mercor"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4410059415",
+            "job_title": "(Junior) Data & Market Analyst (m/w/d) – Bildungs- und Arbeitsmarkt [probe_1779195595]",
+            "company": "IBB Institut für Berufliche Bildung AG"
+          }
+        ],
+        "dropped_or_changed_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-python-sql-freelance-ai-trainer-at-mindrift-4410206054?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist (Python & SQL) - Freelance AI Trainer [probe_1779195595]",
+            "company": "Mindrift",
+            "change_type": "deduplicated_before_enrichment",
+            "dedupe_reason": "near_duplicate_job_posting"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-python-sql-freelance-ai-trainer-at-mindrift-4410202405?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist (Python & SQL) - Freelance AI Trainer [probe_1779195595]",
+            "company": "Mindrift",
+            "change_type": "deduplicated_before_enrichment",
+            "dedupe_reason": "near_duplicate_job_posting"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-python-sql-freelance-ai-trainer-at-mindrift-4410097402?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist (Python & SQL) - Freelance AI Trainer [probe_1779195595]",
+            "company": "Mindrift",
+            "change_type": "deduplicated_before_enrichment",
+            "dedupe_reason": "near_duplicate_job_posting"
+          }
+        ],
+        "inputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title",
+            "job_title": "Creative Strategist, Growth Marketing [probe_1779195595]",
+            "company": "Canva"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/business-development-manager-at-temu-4413525295?trk=public_jobs_topcard-title",
+            "job_title": "Business Development Manager [probe_1779195595]",
+            "company": "Temu"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "company": "NATO"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/ai-engineer-at-huzzle-com-4413936464?trk=public_jobs_topcard-title",
+            "job_title": "AI Engineer [probe_1779195595]",
+            "company": "Huzzle.com"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-python-sql-freelance-ai-trainer-at-mindrift-4410200409?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist (Python & SQL) - Freelance AI Trainer [probe_1779195595]",
+            "company": "Mindrift"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-python-sql-freelance-ai-trainer-at-mindrift-4410206054?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist (Python & SQL) - Freelance AI Trainer [probe_1779195595]",
+            "company": "Mindrift"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413461417",
+            "job_title": "Data Analyst Business Intelligence (d/m/w/x) [probe_1779195595]",
+            "company": "Mercedes-Benz Bank AG"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413403826",
+            "job_title": "Data Entry [probe_1779195595]",
+            "company": "Relief International"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4409730791",
+            "job_title": "Founder | Upto $5000 Part-time [probe_1779195595]",
+            "company": "Mercor"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-python-sql-freelance-ai-trainer-at-mindrift-4410202405?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist (Python & SQL) - Freelance AI Trainer [probe_1779195595]",
+            "company": "Mindrift"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4410059415",
+            "job_title": "(Junior) Data & Market Analyst (m/w/d) – Bildungs- und Arbeitsmarkt [probe_1779195595]",
+            "company": "IBB Institut für Berufliche Bildung AG"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-python-sql-freelance-ai-trainer-at-mindrift-4410097402?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist (Python & SQL) - Freelance AI Trainer [probe_1779195595]",
+            "company": "Mindrift"
+          }
+        ]
+      },
+      "enrich": {
+        "stage_id": "enrich",
+        "stage": "enrich",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "enrich",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "enriched_jobs": 0,
+            "pre_enrichment_rejected_jobs": 0
+          },
+          "evidence": {
+            "input_counts": {
+              "normalized_jobs": 9,
+              "jobs_entering_enrichment": 9
+            },
+            "decision_summary": {
+              "candidate_profile_summary": {
+                "preference_sources": {}
+              },
+              "enrich_prompt_id": "enrich.extraction.v1",
+              "enrich_prompt_version": "v1",
+              "enrich_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\enrich_extraction_v1.md",
+              "enrich_prompt_model": "gemini-2.5-flash",
+              "reused_rows": 0,
+              "fresh_rows": 0,
+              "total_enriched_rows": 0
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.enrich.v1",
+          "trace_context": {
+            "trace_id": "79877a35381cbe6b0959d0b1d3ecb748",
+            "span_id": "d9fc15b7e8fa8c3a",
+            "parent_span_id": "abdb9099699864da"
+          }
+        },
+        "input_counts": {
+          "normalized_jobs": 9,
+          "jobs_entering_enrichment": 9
+        },
+        "output_counts": {
+          "enriched_jobs": 0,
+          "pre_enrichment_rejected_jobs": 0
+        },
+        "decision_summary": {
+          "candidate_profile_summary": {
+            "preference_sources": {}
+          },
+          "enrich_prompt_id": "enrich.extraction.v1",
+          "enrich_prompt_version": "v1",
+          "enrich_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\enrich_extraction_v1.md",
+          "enrich_prompt_model": "gemini-2.5-flash",
+          "reused_rows": 0,
+          "fresh_rows": 0,
+          "total_enriched_rows": 0
+        },
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title",
+            "job_title": "Creative Strategist, Growth Marketing [probe_1779195595]",
+            "company": "Canva"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/business-development-manager-at-temu-4413525295?trk=public_jobs_topcard-title",
+            "job_title": "Business Development Manager [probe_1779195595]",
+            "company": "Temu"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "company": "NATO"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/ai-engineer-at-huzzle-com-4413936464?trk=public_jobs_topcard-title",
+            "job_title": "AI Engineer [probe_1779195595]",
+            "company": "Huzzle.com"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-python-sql-freelance-ai-trainer-at-mindrift-4410200409?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist (Python & SQL) - Freelance AI Trainer [probe_1779195595]",
+            "company": "Mindrift"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413461417",
+            "job_title": "Data Analyst Business Intelligence (d/m/w/x) [probe_1779195595]",
+            "company": "Mercedes-Benz Bank AG"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413403826",
+            "job_title": "Data Entry [probe_1779195595]",
+            "company": "Relief International"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4409730791",
+            "job_title": "Founder | Upto $5000 Part-time [probe_1779195595]",
+            "company": "Mercor"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4410059415",
+            "job_title": "(Junior) Data & Market Analyst (m/w/d) – Bildungs- und Arbeitsmarkt [probe_1779195595]",
+            "company": "IBB Institut für Berufliche Bildung AG"
+          }
+        ]
+      },
+      "rule_filter": {
+        "stage_id": "rule_filter",
+        "stage": "rule_filter",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "rule_filter",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "passed_jobs": 0,
+            "rejected_jobs": 0
+          },
+          "evidence": {
+            "input_counts": {
+              "enriched_jobs": 0
+            },
+            "decision_summary": {
+              "reject_reason_counts": {},
+              "mark_code_counts": {},
+              "selected_filters": [
+                "seniority_mismatch",
+                "location_type_excluded",
+                "contract_type_excluded",
+                "experience_level_excluded"
+              ]
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.rule_filter.v1",
+          "trace_context": {
+            "trace_id": "79877a35381cbe6b0959d0b1d3ecb748",
+            "span_id": "d9fc15b7e8fa8c3a",
+            "parent_span_id": "abdb9099699864da"
+          }
+        },
+        "input_counts": {
+          "enriched_jobs": 0
+        },
+        "output_counts": {
+          "passed_jobs": 0,
+          "rejected_jobs": 0
+        },
+        "decision_summary": {
+          "reject_reason_counts": {},
+          "mark_code_counts": {},
+          "selected_filters": [
+            "seniority_mismatch",
+            "location_type_excluded",
+            "contract_type_excluded",
+            "experience_level_excluded"
+          ]
+        },
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": []
+      },
+      "shortlist": {
+        "stage_id": "shortlist",
+        "stage": "shortlist",
+        "status": "not_reached",
+        "stage_result": {
+          "stage_id": "shortlist",
+          "status": "not_reached",
+          "stage_version": "1.0.0",
+          "output": {},
+          "evidence": {
+            "input_counts": {},
+            "decision_summary": {}
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "not_reached"
+            }
+          },
+          "decision": "not_applicable",
+          "policy_version": "policy.shortlist.v1",
+          "trace_context": {
+            "trace_id": "79877a35381cbe6b0959d0b1d3ecb748",
+            "span_id": "d9fc15b7e8fa8c3a",
+            "parent_span_id": "abdb9099699864da"
+          }
+        },
+        "input_counts": {},
+        "output_counts": {},
+        "decision_summary": {},
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": []
+      },
+      "ranking": {
+        "stage_id": "ranking",
+        "stage": "ranking",
+        "status": "not_reached",
+        "stage_result": {
+          "stage_id": "ranking",
+          "status": "not_reached",
+          "stage_version": "1.0.0",
+          "output": {},
+          "evidence": {
+            "input_counts": {},
+            "decision_summary": {}
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "not_reached"
+            }
+          },
+          "decision": "not_applicable",
+          "policy_version": "policy.ranking.v1",
+          "trace_context": {
+            "trace_id": "79877a35381cbe6b0959d0b1d3ecb748",
+            "span_id": "d9fc15b7e8fa8c3a",
+            "parent_span_id": "abdb9099699864da"
+          }
+        },
+        "input_counts": {},
+        "output_counts": {},
+        "decision_summary": {},
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": []
+      },
+      "cv_analysis": {
+        "stage_id": "cv_analysis",
+        "stage": "cv_analysis",
+        "status": "not_reached",
+        "stage_result": {
+          "stage_id": "cv_analysis",
+          "status": "not_reached",
+          "stage_version": "1.0.0",
+          "output": {},
+          "evidence": {
+            "input_counts": {},
+            "decision_summary": {}
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "not_reached"
+            }
+          },
+          "decision": "not_applicable",
+          "policy_version": "policy.cv_analysis.v1",
+          "trace_context": {
+            "trace_id": "79877a35381cbe6b0959d0b1d3ecb748",
+            "span_id": "d9fc15b7e8fa8c3a",
+            "parent_span_id": "abdb9099699864da"
+          }
+        },
+        "input_counts": {},
+        "output_counts": {},
+        "decision_summary": {},
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": []
+      },
+      "cv_generation": {
+        "stage_id": "cv_generation",
+        "stage": "cv_generation",
+        "status": "not_reached",
+        "stage_result": {
+          "stage_id": "cv_generation",
+          "status": "not_reached",
+          "stage_version": "1.0.0",
+          "output": {},
+          "evidence": {
+            "input_counts": {},
+            "decision_summary": {}
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "not_reached"
+            }
+          },
+          "decision": "not_applicable",
+          "policy_version": "policy.cv_generation.v1",
+          "trace_context": {
+            "trace_id": "79877a35381cbe6b0959d0b1d3ecb748",
+            "span_id": "d9fc15b7e8fa8c3a",
+            "parent_span_id": "abdb9099699864da"
+          }
+        },
+        "input_counts": {},
+        "output_counts": {},
+        "decision_summary": {},
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": []
+      }
+    }
+  }
+}
