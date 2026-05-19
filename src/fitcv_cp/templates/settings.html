@@ -467,7 +467,7 @@
         data-current-value="{{ item.effective_value }}">
     {% endif %}
     {% if entry.key == "enrichment_concurrency" %}
-      <div class="settings-field-note">Higher concurrency does not bypass the enrich-stage global rate lock, so gains may be modest.</div>
+      <div class="settings-field-note">Higher concurrency enables more overlapping enrich requests, while shared request-start pacing still controls aggregate request rate.</div>
     {% endif %}
   </div>
 {%- endmacro %}

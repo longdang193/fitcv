@@ -6268,6 +6268,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=404, detail=f"Unknown section: {section_name!r}")
 
         keys = [key for key in all_settings_sections[section_name] if key not in hidden_deprecated_keys]
+        if section_name == "timing":
+            # Runtime throughput compatibility aliases are read-only display surfaces.
+            # Section-save accepts canonical stage_runtime keys only.
+            keys = [key for key in keys if key not in compatibility_runtime_alias_keys]
         form = await request.form()
         active = load_active_settings(bq=bq, project=project, dataset=dataset)
         hidden_submitted = sorted(

@@ -52,7 +52,7 @@ import os
 import time
 import uuid
 import datetime
-from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as FuturesTimeoutError, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from typing import Any, Callable, cast
 
@@ -371,6 +371,8 @@ def _enrich_jobs_with_reuse(
     pipeline_store: PipelineStore | None = None,
     heartbeat_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    import threading
+
     if not normalized_jobs:
         return [], []
     if pipeline_store is None:
@@ -407,6 +409,42 @@ def _enrich_jobs_with_reuse(
         if _extract_job_url(job) and _extract_job_url(job) not in reused_rows_by_url
     ]
     fresh_rows: list[dict[str, Any]] = []
+
+    def _run_enrich_call_with_polling(
+        fn: Callable[[], list[dict[str, Any]]],
+        *,
+        timeout_secs: int | None = None,
+        heartbeat_interval_secs: int | None = None,
+        on_progress: Callable[[int, float], None] | None = None,
+    ) -> list[dict[str, Any]]:
+        result_holder: dict[str, Any] = {"rows": None, "error": None}
+
+        def _target() -> None:
+            try:
+                result_holder["rows"] = fn()
+            except Exception as exc:  # noqa: BLE001
+                result_holder["error"] = exc
+
+        worker = threading.Thread(target=_target, daemon=True)
+        worker.start()
+        started_at = time.monotonic()
+        heartbeat_count = 0
+        poll_interval = float(heartbeat_interval_secs or 1)
+
+        while worker.is_alive():
+            worker.join(timeout=poll_interval)
+            elapsed = max(0.0, time.monotonic() - started_at)
+            if timeout_secs is not None and elapsed >= float(timeout_secs):
+                raise TimeoutError(f"Enrich timeout after {timeout_secs}s")
+            if worker.is_alive() and on_progress is not None and heartbeat_interval_secs is not None:
+                heartbeat_count += 1
+                on_progress(heartbeat_count, elapsed)
+
+        error = result_holder.get("error")
+        if error is not None:
+            raise error
+        return list(result_holder.get("rows") or [])
+
     if fresh_jobs:
         debug_heartbeat_enabled = str(os.environ.get("FITCV_ENRICH_DEBUG_HEARTBEAT", "") or "").strip().lower() in {
             "1",
@@ -439,24 +477,25 @@ def _enrich_jobs_with_reuse(
                             "timeout_secs": per_job_timeout_secs,
                         }
                     )
-                with ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(enrich_batch, [job], config)
-                    try:
-                        batch_rows = future.result(timeout=per_job_timeout_secs)
-                    except FuturesTimeoutError as exc:
-                        if heartbeat_callback:
-                            heartbeat_callback(
-                                {
-                                    "phase": "job_timeout",
-                                    "index": idx,
-                                    "total": total,
-                                    "job_url": job_url,
-                                    "timeout_secs": per_job_timeout_secs,
-                                }
-                            )
-                        raise TimeoutError(
-                            f"Enrich timeout for {job_url} after {per_job_timeout_secs}s (job {idx}/{total})"
-                        ) from exc
+                try:
+                    batch_rows = _run_enrich_call_with_polling(
+                        lambda: enrich_batch([job], config),
+                        timeout_secs=per_job_timeout_secs,
+                    )
+                except TimeoutError as exc:
+                    if heartbeat_callback:
+                        heartbeat_callback(
+                            {
+                                "phase": "job_timeout",
+                                "index": idx,
+                                "total": total,
+                                "job_url": job_url,
+                                "timeout_secs": per_job_timeout_secs,
+                            }
+                        )
+                    raise TimeoutError(
+                        f"Enrich timeout for {job_url} after {per_job_timeout_secs}s (job {idx}/{total})"
+                    ) from exc
                 if batch_rows:
                     fresh_rows.extend(batch_rows)
                 if heartbeat_callback:
@@ -479,27 +518,22 @@ def _enrich_jobs_with_reuse(
                         "heartbeat_interval_secs": heartbeat_interval_secs,
                     }
                 )
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(enrich_batch, fresh_jobs, config)
-                heartbeat_count = 0
-                started_at = time.monotonic()
-                while True:
-                    try:
-                        fresh_rows = future.result(timeout=heartbeat_interval_secs)
-                        break
-                    except FuturesTimeoutError:
-                        heartbeat_count += 1
-                        if heartbeat_callback:
-                            heartbeat_callback(
-                                {
-                                    "phase": "batch_progress",
-                                    "fresh_jobs_total": len(fresh_jobs),
-                                    "reused_jobs_total": len(reused_rows_by_url),
-                                    "heartbeat_count": heartbeat_count,
-                                    "elapsed_secs": int(max(0, time.monotonic() - started_at)),
-                                    "heartbeat_interval_secs": heartbeat_interval_secs,
-                                }
-                            )
+            fresh_rows = _run_enrich_call_with_polling(
+                lambda: enrich_batch(fresh_jobs, config),
+                heartbeat_interval_secs=heartbeat_interval_secs,
+                on_progress=(
+                    lambda heartbeat_count, elapsed_secs: heartbeat_callback(
+                        {
+                            "phase": "batch_progress",
+                            "fresh_jobs_total": len(fresh_jobs),
+                            "reused_jobs_total": len(reused_rows_by_url),
+                            "heartbeat_count": heartbeat_count,
+                            "elapsed_secs": int(elapsed_secs),
+                            "heartbeat_interval_secs": heartbeat_interval_secs,
+                        }
+                    ) if heartbeat_callback else None
+                ),
+            )
             if heartbeat_callback:
                 heartbeat_callback(
                     {
@@ -544,11 +578,11 @@ def _enrich_runtime_projection(config: dict[str, Any]) -> dict[str, Any]:
     projected = dict(config)
     stage_runtime = dict(projected.get("stage_runtime") or {})
     enrich_runtime = dict(stage_runtime.get("enrich") or {})
-    if "enrichment_sleep_secs" not in projected and "sleep_secs" in enrich_runtime:
+    if "sleep_secs" in enrich_runtime:
         projected["enrichment_sleep_secs"] = enrich_runtime["sleep_secs"]
-    if "enrichment_batch_size" not in projected and "batch_size" in enrich_runtime:
+    if "batch_size" in enrich_runtime:
         projected["enrichment_batch_size"] = enrich_runtime["batch_size"]
-    if "enrichment_concurrency" not in projected and "concurrency" in enrich_runtime:
+    if "concurrency" in enrich_runtime:
         projected["enrichment_concurrency"] = enrich_runtime["concurrency"]
     return projected
 

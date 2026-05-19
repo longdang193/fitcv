@@ -22,6 +22,7 @@ import os
 import re
 import sqlite3
 import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, TypedDict
@@ -36,11 +37,25 @@ logger = logging.getLogger(__name__)
 
 _SQLITE_STRUCTURED_JOBS_TABLE = "structured_jobs_cache"
 
-# ── global rate limiter ──────────────────────────────────────────────────────
-# Acquired around every enrich_job call so that concurrent chunks cannot
-# exceed one API request per enrichment_sleep_secs interval globally.
-# Per-chunk sleep alone is NOT a true rate limiter when concurrency > 1.
-_ENRICH_RATE_LOCK: threading.Lock = threading.Lock()
+# ── shared request-start pacing state ─────────────────────────────────────────
+_ENRICH_RATE_STATE_LOCK: threading.Lock = threading.Lock()
+_ENRICH_NEXT_ALLOWED_START_AT: float = 0.0
+
+def _acquire_enrich_rate_slot(sleep_secs: float) -> None:
+    """Reserve next globally paced enrich request-start slot."""
+    global _ENRICH_NEXT_ALLOWED_START_AT
+    if sleep_secs <= 0.0:
+        return
+    while True:
+        now = time.monotonic()
+        wait_for = 0.0
+        with _ENRICH_RATE_STATE_LOCK:
+            if now >= _ENRICH_NEXT_ALLOWED_START_AT:
+                _ENRICH_NEXT_ALLOWED_START_AT = now + sleep_secs
+                return
+            wait_for = _ENRICH_NEXT_ALLOWED_START_AT - now
+        if wait_for > 0.0:
+            time.sleep(wait_for)
 
 # ── enum definitions (fallbacks — overridden by taxonomy.yaml via config) ──────
 
@@ -1440,15 +1455,14 @@ def _enrich_chunk(
 
     @capability bounded_parallel_enrichment.per-job-failure-isolation
 
-    Uses the module-level _ENRICH_RATE_LOCK to serialize API calls across all
-    concurrent chunks. This makes enrichment_sleep_secs a true global rate limit
-    rather than a per-thread-only delay, regardless of enrichment_concurrency.
+    Uses shared request-start pacing across concurrent chunks so aggregate
+    request starts remain globally throttled without forcing single in-flight
+    API request execution.
 
     Raises:
         Any exception that enrich_job raises after exhausting retries (ResourceExhausted,
         ClientError, etc.) — non-recoverable failures propagate to the caller.
     """
-    import time
     from google.api_core.exceptions import ResourceExhausted  # type: ignore[import-untyped]
     from google.genai.errors import ClientError  # type: ignore[import-untyped]
     import httpx
@@ -1459,29 +1473,26 @@ def _enrich_chunk(
     for job in chunk:
         attempts = 0
         while True:
-            with _ENRICH_RATE_LOCK:
-                # Hold the lock for the API call + inter-request sleep so that
-                # no other chunk thread can issue an API call during this window.
-                try:
-                    enriched = enrich_job(job, config)
-                    results.append(enriched)
-                    time.sleep(sleep_secs)  # global rate limit: one req per sleep_secs
-                    break
-                except ResourceExhausted:
-                    if attempts >= max_retries:
-                        raise
-                    attempts += 1
-                    time.sleep(sleep_secs * (2 ** (attempts - 1)))
-                except ClientError as exc:
-                    if getattr(exc, "status_code", None) != 429 or attempts >= max_retries:
-                        raise
-                    attempts += 1
-                    time.sleep(sleep_secs * (2 ** (attempts - 1)))
-                except httpx.HTTPStatusError as exc:
-                    if getattr(getattr(exc, "response", None), "status_code", None) != 429 or attempts >= max_retries:
-                        raise
-                    attempts += 1
-                    time.sleep(sleep_secs * (2 ** (attempts - 1)))
+            _acquire_enrich_rate_slot(sleep_secs)
+            try:
+                enriched = enrich_job(job, config)
+                results.append(enriched)
+                break
+            except ResourceExhausted:
+                if attempts >= max_retries:
+                    raise
+                attempts += 1
+                time.sleep(sleep_secs * (2 ** (attempts - 1)))
+            except ClientError as exc:
+                if getattr(exc, "status_code", None) != 429 or attempts >= max_retries:
+                    raise
+                attempts += 1
+                time.sleep(sleep_secs * (2 ** (attempts - 1)))
+            except httpx.HTTPStatusError as exc:
+                if getattr(getattr(exc, "response", None), "status_code", None) != 429 or attempts >= max_retries:
+                    raise
+                attempts += 1
+                time.sleep(sleep_secs * (2 ** (attempts - 1)))
     return results
 
 
@@ -1507,10 +1518,9 @@ def enrich_batch(
         enrichment_batch_size  (int, default 10)
         enrichment_concurrency (int, default 1)
 
-    Rate limiting: all API calls across all concurrent chunks are serialized
-    through the module-level _ENRICH_RATE_LOCK, making enrichment_sleep_secs
-    a true global rate limiter. Higher concurrency values speed up wall-clock
-    time only when chunk processing overhead (not API latency) dominates.
+    Rate limiting: request-start pacing is shared across chunk workers using a
+    global slot scheduler. This preserves global throttling while allowing
+    overlapping in-flight API calls when latency exceeds pacing interval.
     """
     from concurrent.futures import ThreadPoolExecutor
 

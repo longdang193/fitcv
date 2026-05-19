@@ -8487,6 +8487,34 @@ def test_post_settings_section_timing_drops_throughput_compatibility_aliases() -
     assert "enrichment_sleep_secs" not in payload
     assert payload["stage_runtime.enrich.sleep_secs"] == 0.4
 
+def test_post_settings_section_timing_accepts_canonical_only_payload() -> None:
+    captured: dict[str, dict[str, object]] = {}
+
+    def _capture_save(payload: dict[str, object], **_: object) -> None:
+        captured["payload"] = dict(payload)
+
+    with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/section/timing",
+            data={
+                "stage_runtime.enrich.sleep_secs": "0.0",
+                "stage_runtime.enrich.batch_size": "25",
+                "stage_runtime.enrich.concurrency": "8",
+                "stage_runtime.ranking.sleep_secs": "0.0",
+                "stage_runtime.cv_analysis.sleep_secs": "0.0",
+                "stage_runtime.cv_analysis.concurrency": "3",
+                "stage_runtime.cv_generation.sleep_secs": "0.0",
+                "stage_runtime.cv_generation.concurrency": "3",
+            },
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 303
+    payload = captured["payload"]
+    assert payload["stage_runtime.enrich.concurrency"] == 8
+    assert "enrichment_concurrency" not in payload
+
 
 def test_post_settings_section_advanced_retrieval_returns_404_after_section_retirement():
     """Legacy retrieval-advanced section is no longer an addressable section-save slug."""

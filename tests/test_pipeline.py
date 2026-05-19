@@ -8654,6 +8654,71 @@ def test_run_pipeline_projects_canonical_enrich_runtime_to_legacy_keys(
     assert passed_config.get("enrichment_batch_size") == 7
     assert passed_config.get("enrichment_concurrency") == 2
 
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_canonical_enrich_runtime_overrides_legacy_throughput_keys(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+    cfg = dict(_minimal_config())
+    cfg["enrichment_sleep_secs"] = 9.0
+    cfg["enrichment_batch_size"] = 99
+    cfg["enrichment_concurrency"] = 11
+    cfg["stage_runtime"] = {"enrich": {"sleep_secs": 0.2, "batch_size": 6, "concurrency": 3}}
+
+    mock_config.return_value = cfg
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = []
+
+    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="reg-test-canonical-precedence")
+
+    args, kwargs = mock_enrich.call_args
+    passed_config = kwargs.get("config", args[1] if len(args) > 1 else {})
+    assert passed_config.get("enrichment_sleep_secs") == 0.2
+    assert passed_config.get("enrichment_batch_size") == 6
+    assert passed_config.get("enrichment_concurrency") == 3
+
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")

@@ -1890,6 +1890,41 @@ def test_enrich_batch_no_jobs_dropped() -> None:
 
     assert len(result) == N
 
+def test_enrich_batch_allows_overlapping_inflight_calls_when_concurrent() -> None:
+    """concurrency>1 allows overlapping enrich_job calls when pacing interval is zero."""
+    import threading
+    import time
+    import fitcv.enrich as enrich_mod
+    from unittest.mock import patch
+    from fitcv.enrich import enrich_batch
+
+    jobs = [{"job_url": f"o{i}"} for i in range(4)]
+    state_lock = threading.Lock()
+    inflight = {"now": 0, "max": 0}
+
+    def fake_enrich(job: dict, config: dict) -> dict:
+        with state_lock:
+            inflight["now"] += 1
+            inflight["max"] = max(inflight["max"], inflight["now"])
+        time.sleep(0.03)
+        with state_lock:
+            inflight["now"] -= 1
+        return {**job, "enriched": True}
+
+    enrich_mod._ENRICH_NEXT_ALLOWED_START_AT = 0.0
+    with patch("fitcv.enrich.enrich_job", side_effect=fake_enrich):
+        result = enrich_batch(
+            jobs,
+            config={
+                "enrichment_batch_size": 1,
+                "enrichment_concurrency": 4,
+                "enrichment_sleep_secs": 0.0,
+            },
+        )
+
+    assert len(result) == 4
+    assert inflight["max"] > 1
+
 
 def test_enrich_batch_non_recoverable_error_propagates() -> None:
     """A non-recoverable exception in a chunk must propagate, not be swallowed."""

@@ -130,7 +130,8 @@ Examples:
 - metadata-only: fixed runtime-contract fields such as single-option model metadata
 - hidden-deprecated: legacy AI-authority controls (for example `cv_generation_model`) retained only for compatibility projection, not operator control
 - compatibility-readonly: runtime throughput legacy aliases mapped to canonical `stage_runtime.*` keys
-- canonical-save-path: settings-save routes persist `stage_runtime.*` throughput keys and drop compatibility alias keys before storage
+- canonical-save-path: settings-save routes persist canonical `stage_runtime.*` throughput keys and ignore compatibility alias inputs in timing-section writes
+- enrich-pacing-contract: enrich concurrency controls worker parallelism; shared request-start pacing still limits aggregate request rate
 
 ### Settings Mode Strip SSOT Contract
 
