@@ -17,12 +17,19 @@ lifecycle:
 
 import hashlib
 import json
-import os
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any
 
 from fitcv.config import get_embedding_model, sqlite_mode_enabled
+from fitcv.shortlist_runtime import (
+    canonicalize_for_hash,
+    configure_sqlite_connection,
+    hash_payload,
+    normalize_text_scalar,
+    run_sqlite_io_retry,
+    sqlite_path,
+)
 
 JOB_SUMMARY_CHUNK_TYPE = "job_summary"
 SHORTLIST_SUMMARY_SCHEMA_VERSION = "shortlist_job_summary_v2"
@@ -36,21 +43,12 @@ SQLITE_EMBED_DIM = 256
 
 def _normalize_summary_scalar(value: Any) -> str:
     """Collapse whitespace while preserving human-readable casing."""
-    return " ".join(str(value or "").split()).strip()
+    return normalize_text_scalar(value)
 
 
 def _canonicalize_for_hash(value: Any) -> Any:
     """Canonicalize nested values for deterministic hashing."""
-    if isinstance(value, dict):
-        return {
-            key: _canonicalize_for_hash(value[key])
-            for key in sorted(value)
-        }
-    if isinstance(value, list):
-        return [_canonicalize_for_hash(item) for item in value]
-    if isinstance(value, str):
-        return value.casefold()
-    return value
+    return canonicalize_for_hash(value)
 
 
 def _stable_sorted_unique_strings(values: list[Any]) -> list[str]:
@@ -106,9 +104,7 @@ def build_job_summary_signature_payload(structured_jd: dict[str, Any]) -> dict[s
 def build_job_summary_signature_record(structured_jd: dict[str, Any]) -> dict[str, Any]:
     """Return the stable shortlist summary payload plus its hash signature."""
     payload = build_job_summary_signature_payload(structured_jd)
-    canonical_payload = _canonicalize_for_hash(payload)
-    payload_json = json.dumps(canonical_payload, sort_keys=True, separators=(",", ":"))
-    signature = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+    payload_json, signature = hash_payload(payload)
     return {
         "payload": payload,
         "payload_json": json.dumps(payload, sort_keys=True, separators=(",", ":")),
@@ -363,8 +359,6 @@ def generate_embedding(
         return _deterministic_local_embedding(text)
 
 
-def _sqlite_path() -> str:
-    return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
 
 
 def _ensure_sqlite_embedding_tables(conn: sqlite3.Connection) -> None:
@@ -438,33 +432,34 @@ def embed_and_store_jobs(
                     "embedding_input_signature_payload_json": signature_record["payload_json"],
                 }
             )
-        with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
-            conn.execute("PRAGMA journal_mode=WAL;")
-            conn.execute("PRAGMA synchronous=NORMAL;")
-            conn.execute("PRAGMA busy_timeout=30000;")
-            _ensure_sqlite_embedding_tables(conn)
-            conn.executemany(
-                """
-                INSERT INTO job_embeddings(
-                  job_url, chunk_type, chunk_text, embedding_json, created_at,
-                  embedding_input_signature, embedding_contract_fingerprint, embedding_input_signature_payload_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                [
-                    (
-                        row["job_url"],
-                        row["chunk_type"],
-                        row["chunk_text"],
-                        row["embedding_json"],
-                        row["created_at"],
-                        row["embedding_input_signature"],
-                        row["embedding_contract_fingerprint"],
-                        row["embedding_input_signature_payload_json"],
-                    )
-                    for row in rows
-                ],
-            )
-            conn.commit()
+        def _write_job_embeddings() -> None:
+            with sqlite3.connect(sqlite_path(), timeout=30) as conn:
+                configure_sqlite_connection(conn)
+                _ensure_sqlite_embedding_tables(conn)
+                conn.executemany(
+                    """
+                    INSERT INTO job_embeddings(
+                      job_url, chunk_type, chunk_text, embedding_json, created_at,
+                      embedding_input_signature, embedding_contract_fingerprint, embedding_input_signature_payload_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    [
+                        (
+                            row["job_url"],
+                            row["chunk_type"],
+                            row["chunk_text"],
+                            row["embedding_json"],
+                            row["created_at"],
+                            row["embedding_input_signature"],
+                            row["embedding_contract_fingerprint"],
+                            row["embedding_input_signature_payload_json"],
+                        )
+                        for row in rows
+                    ],
+                )
+                conn.commit()
+
+        run_sqlite_io_retry(_write_job_embeddings)
         return len(rows)
 
     import time
@@ -559,20 +554,21 @@ def embed_and_store_candidate(
                     now,
                 )
             )
-        with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
-            conn.execute("PRAGMA journal_mode=WAL;")
-            conn.execute("PRAGMA synchronous=NORMAL;")
-            conn.execute("PRAGMA busy_timeout=30000;")
-            _ensure_sqlite_embedding_tables(conn)
-            conn.executemany(
-                """
-                INSERT INTO candidate_embeddings(
-                  evidence_id, source_ref_id, evidence_type, chunk_text, embedding_json, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                rows,
-            )
-            conn.commit()
+        def _write_candidate_embeddings() -> None:
+            with sqlite3.connect(sqlite_path(), timeout=30) as conn:
+                configure_sqlite_connection(conn)
+                _ensure_sqlite_embedding_tables(conn)
+                conn.executemany(
+                    """
+                    INSERT INTO candidate_embeddings(
+                      evidence_id, source_ref_id, evidence_type, chunk_text, embedding_json, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    rows,
+                )
+                conn.commit()
+
+        run_sqlite_io_retry(_write_candidate_embeddings)
         return len(rows)
 
     import time
@@ -611,3 +607,5 @@ def embed_and_store_candidate(
     if errors:
         raise RuntimeError(f"BigQuery insert errors for candidate_embeddings: {errors}")
     return len(rows)
+
+

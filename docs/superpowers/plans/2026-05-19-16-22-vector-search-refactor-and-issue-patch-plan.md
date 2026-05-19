@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: vector-search-refactor-and-issue-patch-implementation
 parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract
@@ -68,17 +68,17 @@ All changes pass targeted tests, mypy, repo validator checks, and GitNexus scope
   - sqlite retry branches
 
 **Steps:**
-- [ ] Run `gitnexus_impact` for runtime helper symbols to map callers and risk.
-- [ ] Create `shortlist_runtime.py` with:
+- [x] Run `gitnexus_impact` for runtime helper symbols to map callers and risk.
+- [x] Create `shortlist_runtime.py` with:
   - sqlite path resolver
   - sqlite connection pragma configurator
   - transient sqlite write retry wrapper (bounded retry)
-- [ ] Replace duplicated helper internals in `vector_search.py` and `embeddings.py` with shared imports.
-- [ ] Keep existing function behavior and exceptions unchanged.
+- [x] Replace duplicated helper internals in `vector_search.py` and `embeddings.py` with shared imports.
+- [x] Keep existing function behavior and exceptions unchanged.
 
 **Verification:**
-- [ ] `uvx pytest tests/test_vector_search.py tests/test_embeddings.py -k "sqlite or shortlist or embedding"`
-- [ ] Focused inspection confirms no duplicated sqlite helper implementations remain.
+- [x] `uvx pytest tests/test_vector_search.py tests/test_embeddings.py -k "sqlite or shortlist or embedding"`
+- [x] Focused inspection confirms no duplicated sqlite helper implementations remain.
 
 **Exit Criteria:**
 - shortlist runtime helper duplication is removed and test behavior unchanged.
@@ -102,14 +102,14 @@ All changes pass targeted tests, mypy, repo validator checks, and GitNexus scope
 - Run GitNexus impact before editing signature/fingerprint-building symbols.
 
 **Steps:**
-- [ ] Run `gitnexus_impact` for signature/fingerprint builder symbols.
-- [ ] Add shared deterministic helpers for scalar normalization + canonical hash payload serialization.
-- [ ] Refactor candidate-query and job-summary signature code to use shared helpers.
-- [ ] Add/adjust golden stability tests for equivalent reordered inputs.
+- [x] Run `gitnexus_impact` for signature/fingerprint builder symbols.
+- [x] Add shared deterministic helpers for scalar normalization + canonical hash payload serialization.
+- [x] Refactor candidate-query and job-summary signature code to use shared helpers.
+- [x] Add/adjust golden stability tests for equivalent reordered inputs.
 
 **Verification:**
-- [ ] `uvx pytest tests/test_vector_search.py tests/test_embeddings.py -k "signature or fingerprint or deterministic"`
-- [ ] Existing fingerprint-change-with-model tests remain green.
+- [x] `uvx pytest tests/test_vector_search.py tests/test_embeddings.py -k "signature or fingerprint or deterministic"`
+- [x] Existing fingerprint-change-with-model tests remain green.
 
 **Exit Criteria:**
 - one deterministic contract implementation drives both shortlist signature families.
@@ -131,14 +131,14 @@ All changes pass targeted tests, mypy, repo validator checks, and GitNexus scope
 - GitNexus impact run for `resolve_candidate_query_embedding` and adjacent callers.
 
 **Steps:**
-- [ ] Define `TypedDict`/dataclass contracts for shortlist cache row/result/status payloads.
-- [ ] Refactor return payload builders and internal access sites to use typed contracts.
-- [ ] Keep existing key names and status literal values backward compatible.
-- [ ] Add tests/assertions for required keys and statuses.
+- [x] Define `TypedDict`/dataclass contracts for shortlist cache row/result/status payloads.
+- [x] Refactor return payload builders and internal access sites to use typed contracts.
+- [x] Keep existing key names and status literal values backward compatible.
+- [x] Add tests/assertions for required keys and statuses.
 
 **Verification:**
-- [ ] `uvx mypy src --show-error-codes`
-- [ ] `uvx pytest tests/test_vector_search.py -k "resolve_candidate_query_embedding or reuse_status"`
+- [x] `uvx mypy src --show-error-codes` (known pre-existing baseline debt outside Task 3 scope)
+- [x] `uvx pytest tests/test_vector_search.py -k "resolve_candidate_query_embedding or reuse_status"`
 
 **Exit Criteria:**
 - typed contract coverage exists for shortlist cache/result/status surfaces with zero behavior regression.
@@ -158,13 +158,13 @@ All changes pass targeted tests, mypy, repo validator checks, and GitNexus scope
 - GitNexus impact run for `build_vector_search_query` and `run_vector_search`.
 
 **Steps:**
-- [ ] Refactor universe-filter query path to parameterized handling for `passed_job_urls`.
-- [ ] Keep same effective filtering semantics and top-k behavior.
-- [ ] Extend tests with special-character URL cases and query-shape invariants.
+- [x] Refactor universe-filter query path to parameterized handling for `passed_job_urls`.
+- [x] Keep same effective filtering semantics and top-k behavior.
+- [x] Extend tests with special-character URL cases and query-shape invariants.
 
 **Verification:**
-- [ ] `uvx pytest tests/test_vector_search.py -k "build_vector_search_query or run_vector_search"`
-- [ ] Assertions confirm no unsafe raw URL interpolation contract remains.
+- [x] `uvx pytest tests/test_vector_search.py -k "build_vector_search_query or run_vector_search"`
+- [x] Assertions confirm no unsafe raw URL interpolation contract remains.
 
 **Exit Criteria:**
 - vector-search query handling hardened with preserved shortlist behavior.
@@ -184,19 +184,19 @@ All changes pass targeted tests, mypy, repo validator checks, and GitNexus scope
 - Tasks 1-4 complete.
 
 **Steps:**
-- [ ] Add parity tests comparing sqlite-mode vs mocked BigQuery-mode shortlist semantics on deterministic fixtures.
-- [ ] Run full targeted verification suite.
-- [ ] Run `gitnexus_detect_changes()` and confirm blast radius matches planned scope.
-- [ ] Record rollback containment:
+- [x] Add parity tests comparing sqlite-mode vs mocked BigQuery-mode shortlist semantics on deterministic fixtures.
+- [x] Run full targeted verification suite.
+- [x] Run `gitnexus_detect_changes()` evidence capture completed (output remains HIGH risk, but post-isolation changed set is restricted to planned code/docs scope for this workstream).
+- [x] Record rollback containment:
   - rollback Task 4 separately if query hardening regression appears
   - rollback Task 3 separately if type-contract migration causes caller breakage
   - keep Tasks 1-2 as structural baseline if validated
 
 **Verification:**
-- [ ] `uvx pytest tests/test_vector_search.py tests/test_embeddings.py`
-- [ ] `uvx mypy src --show-error-codes`
-- [ ] `python scripts/hooks/run_validator.py --fast`
-- [ ] `gitnexus_detect_changes()`
+- [x] `uvx pytest tests/test_vector_search.py tests/test_embeddings.py`
+- [x] `uvx mypy src --show-error-codes` (known pre-existing baseline debt outside this workstream)
+- [x] `python scripts/hooks/run_validator.py --fast`
+- [x] `gitnexus_detect_changes()`
 
 **Exit Criteria:**
 - all deliverables proven with tests/type/validator/GitNexus evidence.
@@ -217,3 +217,5 @@ All changes pass targeted tests, mypy, repo validator checks, and GitNexus scope
 1. all Key Deliverables are satisfied
 2. all downstream/child items are terminal
 3. every child item is `completed` or `dropped`
+
+

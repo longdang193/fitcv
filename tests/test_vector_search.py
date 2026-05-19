@@ -1,5 +1,7 @@
 """Tests for fitcv.vector_search — all pure unit tests (no cloud calls)."""
 
+import json
+import sqlite3
 import pytest
 from unittest.mock import patch
 
@@ -13,6 +15,16 @@ from fitcv.vector_search import (
     resolve_candidate_query_embedding,
     run_vector_search,
 )
+
+
+_CANDIDATE_QUERY_RECORD_KEYS = {
+    "text",
+    "components",
+    "embedding",
+    "candidate_query_signature",
+    "candidate_query_contract_fingerprint",
+    "candidate_query_reuse_status",
+}
 
 
 # ── build_candidate_query_text ────────────────────────────────────────────────
@@ -284,17 +296,58 @@ def test_resolve_candidate_query_embedding_reuses_or_refreshes_cache(
 
         record = resolve_candidate_query_embedding(profile, config)
 
+    assert set(record.keys()) == _CANDIDATE_QUERY_RECORD_KEYS
     assert record["text"] == expected_text
     assert record["components"] == expected_components
     assert record["candidate_query_signature"] == expected_signature
     assert record["candidate_query_contract_fingerprint"] == expected_contract
     assert record["candidate_query_reuse_status"] == expected_status
+    assert record["candidate_query_reuse_status"] in {
+        "reused_cached_query_embedding",
+        "fresh_query_embedding",
+    }
     if should_generate:
         mock_generate_embedding.assert_called_once_with(expected_text, config)
         client.insert_rows_json.assert_called_once()
     else:
         mock_generate_embedding.assert_not_called()
         client.insert_rows_json.assert_not_called()
+
+
+def test_resolve_candidate_query_embedding_contract_shape_when_cache_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
+    profile = {
+        "headline": "Data Analyst",
+        "skills": [{"name": "SQL"}],
+        "preferences": {"target_role": "Data Analyst", "domains": ["banking"]},
+    }
+    config = {
+        "gcp_project": "fitcv-test",
+        "bigquery_dataset": "fitcv",
+        "service_account_key": "/tmp/fake.json",
+    }
+
+    with (
+        patch("google.cloud.bigquery.Client") as mock_bigquery_client,
+        patch("google.oauth2.service_account.Credentials.from_service_account_file"),
+        patch("fitcv.vector_search.generate_embedding") as mock_generate_embedding,
+    ):
+        client = mock_bigquery_client.return_value
+        client.query.return_value.result.return_value = []
+        client.insert_rows_json.return_value = []
+        mock_generate_embedding.return_value = [0.55, 0.66]
+
+        record = resolve_candidate_query_embedding(profile, config)
+
+    assert set(record.keys()) == _CANDIDATE_QUERY_RECORD_KEYS
+    assert record["candidate_query_reuse_status"] == "fresh_query_embedding"
+    assert isinstance(record["text"], str)
+    assert isinstance(record["components"], dict)
+    assert isinstance(record["embedding"], list)
+    assert isinstance(record["candidate_query_signature"], str)
+    assert isinstance(record["candidate_query_contract_fingerprint"], str)
 
 
 # ── build_vector_search_query ─────────────────────────────────────────────────
@@ -319,8 +372,7 @@ def test_build_vector_search_query_enforces_top_n() -> None:
 def test_build_vector_search_query_filters_passed_universe() -> None:
     """Query must restrict to the rule-filtered job universe."""
     query = build_vector_search_query(top_n=50, passed_job_urls=["url1", "url2"])
-    # Must embed the passed URLs directly or reference a filtered subquery
-    assert "url1" in query or "rule_filter_results" in query or "passed" in query.lower()
+    assert "job_url IN UNNEST(@passed_job_urls)" in query
 
 
 def test_build_vector_search_query_filters_job_universe_inside_vector_search() -> None:
@@ -328,7 +380,14 @@ def test_build_vector_search_query_filters_job_universe_inside_vector_search() -
     query = build_vector_search_query(top_n=50, passed_job_urls=["url1", "url2"])
     assert "CREATE TEMP TABLE _latest_job_embeddings AS" in query
     assert "VECTOR_SEARCH(\n    TABLE _latest_job_embeddings" in query
-    assert "chunk_type = 'job_summary' AND job_url IN ('url1', 'url2')" in query
+    assert "chunk_type = 'job_summary' AND job_url IN UNNEST(@passed_job_urls)" in query
+
+
+def test_build_vector_search_query_does_not_interpolate_raw_urls() -> None:
+    url_with_quote = "https://example.com/job?x=O'Reilly"
+    query = build_vector_search_query(top_n=10, passed_job_urls=[url_with_quote])
+    assert url_with_quote not in query
+    assert "@passed_job_urls" in query
 
 
 def test_build_vector_search_query_materializes_latest_rows_before_vector_search() -> None:
@@ -429,6 +488,102 @@ def test_run_vector_search_prefers_nested_pipeline_top_n_over_legacy_flat_key(
     rendered_query = client.query.call_args.args[0]
     assert "top_k => 7" in rendered_query
     assert "top_k => 99" not in rendered_query
+
+
+def test_run_vector_search_sqlite_and_bigquery_paths_keep_shortlist_semantics(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    sqlite_file = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_file))
+    profile = {
+        "headline": "Data Analyst",
+        "skills": [{"name": "SQL"}],
+        "preferences": {"domains": ["banking"]},
+    }
+    passed_job_urls = [
+        "https://example.com/job-1",
+        "https://example.com/job-2",
+        "https://example.com/job-3",
+    ]
+    config = {
+        "gcp_project": "fitcv-test",
+        "bigquery_dataset": "fitcv",
+        "service_account_key": "/tmp/fake.json",
+    }
+    candidate_query_record = {
+        "embedding": [1.0, 0.0],
+        "candidate_query_signature": "sig",
+        "candidate_query_contract_fingerprint": "contract",
+        "candidate_query_reuse_status": "fresh_query_embedding",
+        "text": "query",
+        "components": {},
+    }
+    with sqlite3.connect(str(sqlite_file), timeout=30) as conn:
+        conn.execute(
+            """
+            CREATE TABLE job_embeddings (
+                job_url TEXT NOT NULL,
+                chunk_type TEXT NOT NULL,
+                embedding_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.executemany(
+            "INSERT INTO job_embeddings(job_url, chunk_type, embedding_json, created_at) VALUES (?, ?, ?, ?)",
+            [
+                ("https://example.com/job-1", "job_summary", json.dumps([1.0, 0.0]), "2026-01-01T10:00:00+00:00"),
+                ("https://example.com/job-1", "job_summary", json.dumps([0.2, 0.8]), "2026-01-01T09:00:00+00:00"),
+                ("https://example.com/job-2", "job_summary", json.dumps([0.8, 0.2]), "2026-01-01T10:00:00+00:00"),
+                ("https://example.com/job-3", "job_summary", json.dumps([0.0, 1.0]), "2026-01-01T10:00:00+00:00"),
+            ],
+        )
+        conn.commit()
+
+    with patch("fitcv.vector_search.resolve_candidate_query_embedding") as mock_resolve:
+        mock_resolve.return_value = candidate_query_record
+        monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+        sqlite_rows = run_vector_search(
+            profile=profile,
+            passed_job_urls=passed_job_urls,
+            config=config,
+            top_n=2,
+        )
+
+    with (
+        patch("fitcv.vector_search.resolve_candidate_query_embedding") as mock_resolve,
+        patch("google.cloud.bigquery.Client") as mock_bigquery_client,
+        patch("google.oauth2.service_account.Credentials.from_service_account_file"),
+    ):
+        mock_resolve.return_value = candidate_query_record
+        client = mock_bigquery_client.return_value
+        client.query.return_value.result.return_value = [
+            type(
+                "Row",
+                (),
+                {
+                    "job_url": row["job_url"],
+                    "vector_similarity": row["vector_similarity"],
+                    "vector_rank": row["vector_rank"],
+                },
+            )()
+            for row in sqlite_rows
+        ]
+        monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
+        bigquery_rows = run_vector_search(
+            profile=profile,
+            passed_job_urls=passed_job_urls,
+            config=config,
+            top_n=2,
+        )
+
+    assert bigquery_rows == sqlite_rows
+    assert [row["job_url"] for row in sqlite_rows] == [
+        "https://example.com/job-1",
+        "https://example.com/job-2",
+    ]
+    assert [row["vector_rank"] for row in sqlite_rows] == [1, 2]
 """
 @meta
 type: test
