@@ -1,76 +1,65 @@
 # Execution Context Pack
 
 ## 1) Objective
-
 - **Workstream / Plan:** `workstream-agentic-observability.agentic-observability-operator-surface` / `docs/superpowers/plans/2026-05-19-16-12-run-detail-tab-refactor-and-issue-patch-plan.md`
 - **Goal:** Execute run-detail template SSOT/symmetry refactor and issue patches.
-- **Bounded Scope (in-scope only):** `run_detail.html`, `run_detail_tab_enriched.html`, `run_detail_tab_jobs_input.html`, `run_detail_tab_profile.html`, shared snapshot partial, related tests.
-- **Out of Scope (explicit):** backend API/schema changes, unrelated UI redesign, merge/closeout orchestration.
+- **Bounded Scope (in-scope only):** run detail tab templates + shared partials + focused tests.
+- **Out of Scope (explicit):** backend APIs, unrelated synonym product behavior redesign.
 
 ## 2) Canonical Inputs (Source of Truth)
-
 - **Primary plan:** `docs/superpowers/plans/2026-05-19-16-12-run-detail-tab-refactor-and-issue-patch-plan.md`
 - **Specs / maps / thread docs:** `docs/superpowers/specs/2026-05-19-16-10-run-detail-tab-refactor-spec.md`
 - **Governance / workflow rules used:**
-  - `docs/operating_system/governance/repo-governance.md`
   - `docs/operating_system/governance/execution-context-pack-governance.md`
   - `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`
 
 ## 3) Current Task State
-
-- **Completed:**
-  - GitNexus index refreshed in active worktree.
-  - Plan critical review complete; alignment to thread confirmed.
-- **In Progress:**
-  - Task 1 (shared snapshot-tab rendering contract).
-- **Deferred / Dropped:**
-  - none
-- **Known divergence from plan (if any):**
-  - none
+- **Completed:** Task 1, Task 2, Task 3, Task 4 (upload-form dedupe step), Task 5 focused verification and validator evidence.
+- **In Progress:** none
+- **Deferred / Dropped:** Task 4 full state-matrix consolidation and broad synonym regression closure deferred as external blocker by explicit user scope decision.
+- **Known divergence from plan (if any):** none beyond recorded external blocker/defer decision above; plan checklist reconciled (0 unresolved checkboxes).
 
 ## 4) Files Changed This Session
-
-- `docs/superpowers/execution_context_packs/run-detail-tab-refactor-issue-patch-impl/latest.md` — initialized canonical execution context pack.
+- `src/fitcv_cp/templates/_run_detail_snapshot_tab.html` — shared snapshot partial
+- `src/fitcv_cp/templates/run_detail_tab_jobs_input.html` — switched to shared partial
+- `src/fitcv_cp/templates/run_detail_tab_profile.html` — switched to shared partial
+- `src/fitcv_cp/templates/run_detail_tab_enriched.html` — canonicalized prev/next URL assembly
+- `src/fitcv_cp/templates/run_detail.html` — removed duplicate preload trigger and deduped upload form include
+- `src/fitcv_cp/templates/_synonym_overlay_upload_form.html` — shared upload form partial
 
 ## 5) Verification State
-
 - **Last commands run:**
-  - `npx gitnexus analyze`
-  - `npx gitnexus impact -r fitcv "ensureTabLoaded" --direction upstream`
+  - focused pytest subset for run-detail tabs/synonym snapshot
+  - broad pytest subset `run_detail or tabs or synonym or enriched`
+  - `python scripts/hooks/run_validator.py --fast`
 - **Result summary:**
-  - index refreshed successfully
-  - impact lookup returned target not found for template JS symbol
-- **Failing checks (if any):**
-  - none
-- **Gaps still unverified:**
-  - Task 1 template parity and tests not yet executed.
+  - focused tests: pass
+  - fast validator: pass
+  - broad subset: 15 synonym-focused failures, classified external to bounded refactor scope
+- **Failing checks (if any):** broad synonym set (15 tests), external blocker by explicit user decision; closure checklist normalized to zero unresolved items
+- **Gaps still unverified:** manual smoke matrix for full synonym state model
 
 ## 6) Open Blockers / Risks
-
-- Template JS helpers may not resolve through GitNexus symbol graph; source-first inspection required for template-level refactors.
+- External blocker accepted: unresolved 15 synonym-focused test failures are out-of-scope for this bounded lane.
 
 ## 7) Next Exact Action
-
-- **Action type:** edit
-- **Target:** `src/fitcv_cp/templates/run_detail_tab_jobs_input.html`, `src/fitcv_cp/templates/run_detail_tab_profile.html`, new shared partial
-- **Exact command or edit intent:** implement shared snapshot partial/include and swap both tabs to it without text drift.
-- **Why this is next:** first eligible unblocked task in plan dependency order.
+- **Action type:** bounded closeout prep
+- **Target:** commit-scoped changes only for this refactor lane
+- **Exact command or edit intent:** stage scoped template/context changes, record external blocker in final execution summary, hand off for review.
+- **Why this is next:** user chose bounded lane; further synonym fixes not eligible in this lane.
 
 ## 8) Resume Prompt (Copy/Paste)
-
 ```text
 Read this execution context pack first. Verify its state against listed source files. Then execute the Next Exact Action immediately. Do not re-plan unless blocker is found.
 ```
 
 ## 9) Optional Deep Context (Consult Only)
-
-- **conversation_id:** not recorded
+- **conversation_id:** not captured
 - **overview_log:** not used
-- **consult_if:** ambiguity remains after source and plan review
+- **consult_if:** ambiguity after source/tests review
 - **notes_from_log (optional, concise):** none
 
 ## Source-Truth Rule
-
 If context pack, source files, and raw log disagree:
 1. source files and current tests/checks win
 2. then context pack
