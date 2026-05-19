@@ -20,6 +20,7 @@ import logging
 import os
 import sqlite3
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -43,6 +44,42 @@ def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA synchronous=NORMAL;")
     conn.execute("PRAGMA busy_timeout=30000;")
+
+
+def _is_sqlite_malformed_error(exc: BaseException) -> bool:
+    return "database disk image is malformed" in str(exc).strip().lower()
+
+
+def _rotate_corrupt_sqlite_artifacts(db_path: Path) -> None:
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d-%H%M%S")
+    for candidate in (db_path, Path(f"{db_path}-wal"), Path(f"{db_path}-shm")):
+        if not candidate.exists():
+            continue
+        rotated = candidate.with_name(f"{candidate.name}.corrupt.{stamp}")
+        try:
+            candidate.replace(rotated)
+        except OSError as exc:
+            logger.warning("sqlite recovery rotate failed [%s]: %s", candidate, exc)
+        else:
+            logger.warning("sqlite recovery rotated corrupt artifact: %s", candidate)
+
+
+@contextmanager
+def _sqlite_connection(db_path: Path, *, ensure_parent: bool = False):
+    if ensure_parent:
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+    for attempt in range(2):
+        try:
+            with sqlite3.connect(db_path, timeout=30) as conn:
+                _configure_sqlite_connection(conn)
+                yield conn
+                return
+        except sqlite3.DatabaseError as exc:
+            if attempt == 0 and _is_sqlite_malformed_error(exc):
+                logger.warning("sqlite malformed DB detected; rotating artifacts for recovery: %s", db_path)
+                _rotate_corrupt_sqlite_artifacts(db_path)
+                continue
+            raise
 
 def _sqlite_mode_enabled() -> bool:
     return str(os.environ.get("FITCV_CP_DATA_BACKEND") or "").strip().lower() == "sqlite"
@@ -240,8 +277,7 @@ def _upsert_local_pipeline_run(run: PipelineRun) -> None:
     last_error: Exception | None = None
     for attempt in range(_PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS):
         try:
-            with sqlite3.connect(db_path, timeout=30) as conn:
-                _configure_sqlite_connection(conn)
+            with _sqlite_connection(db_path) as conn:
                 _ensure_local_pipeline_runs_table(conn)
                 conn.execute(
                     """
@@ -269,8 +305,7 @@ def _load_local_pipeline_run(run_id: str) -> Optional[PipelineRun]:
     db_path = Path(_local_sqlite_path())
     if not db_path.exists():
         return None
-    with sqlite3.connect(db_path, timeout=30) as conn:
-        _configure_sqlite_connection(conn)
+    with _sqlite_connection(db_path) as conn:
         _ensure_local_pipeline_runs_table(conn)
         row = conn.execute(
             "SELECT run_json FROM local_pipeline_runs WHERE run_id = ? LIMIT 1",
@@ -287,8 +322,7 @@ def _list_local_pipeline_runs() -> list[PipelineRun]:
     db_path = Path(_local_sqlite_path())
     if not db_path.exists():
         return []
-    with sqlite3.connect(db_path, timeout=30) as conn:
-        _configure_sqlite_connection(conn)
+    with _sqlite_connection(db_path) as conn:
         _ensure_local_pipeline_runs_table(conn)
         rows = conn.execute(
             "SELECT run_json FROM local_pipeline_runs ORDER BY created_at DESC"
@@ -330,8 +364,7 @@ def _local_event_history_file(run_id: str) -> Path:
 def _append_local_pipeline_run_event(event: RunEvent) -> None:
     db_path = Path(_local_sqlite_path())
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path, timeout=30) as conn:
-        _configure_sqlite_connection(conn)
+    with _sqlite_connection(db_path) as conn:
         _ensure_local_pipeline_run_events_table(conn)
         conn.execute(
             """
@@ -356,8 +389,7 @@ def _list_local_pipeline_run_events(run_id: str) -> list[RunEvent]:
     db_path = Path(_local_sqlite_path())
     if not db_path.exists():
         return []
-    with sqlite3.connect(db_path, timeout=30) as conn:
-        _configure_sqlite_connection(conn)
+    with _sqlite_connection(db_path) as conn:
         conn.row_factory = sqlite3.Row
         _ensure_local_pipeline_run_events_table(conn)
         rows = conn.execute(
@@ -1356,8 +1388,7 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
     if bq is None:
         db_path = Path(_local_sqlite_path())
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(db_path, timeout=30) as conn:
-            _configure_sqlite_connection(conn)
+        with _sqlite_connection(db_path) as conn:
             _ensure_local_cv_versions_table(conn)
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -1446,8 +1477,7 @@ def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> 
     if bq is None:
         db_path = Path(_local_sqlite_path())
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(db_path, timeout=30) as conn:
-            _configure_sqlite_connection(conn)
+        with _sqlite_connection(db_path) as conn:
             _ensure_local_cv_versions_table(conn)
             row = conn.execute(
                 "SELECT cv_markdown FROM cv_versions WHERE version_id = ? LIMIT 1",
@@ -1578,8 +1608,7 @@ def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset
         last_error: Exception | None = None
         for attempt in range(_PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS):
             try:
-                with sqlite3.connect(db_path, timeout=30) as conn:
-                    _configure_sqlite_connection(conn)
+                with _sqlite_connection(db_path) as conn:
                     _ensure_local_cv_versions_table(conn)
                     conn.execute(
                         """

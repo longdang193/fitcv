@@ -5494,7 +5494,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run_mode: str = "run_all",
     ) -> dict:
         # Build effective config: YAML → BQ settings → per-run overrides
-        base_config = load_config(config_path)
+        try:
+            base_config = load_config(config_path)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         active_settings = load_active_settings(bq=bq, project=project, dataset=dataset)
 
         # Coerce and validate per-run overrides using the same schema
@@ -5593,7 +5596,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     ) -> dict:
         """Like _execute_trigger but records run-scoped input metadata."""
         # Build effective config: YAML → BQ settings → per-run overrides
-        base_config = load_config(config_path)
+        try:
+            base_config = load_config(config_path)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         active_settings = load_active_settings(bq=bq, project=project, dataset=dataset)
         coerced_overrides: dict[str, Any] = {}
         for k, v in config_overrides.items():
@@ -6618,6 +6624,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=404, detail="Run not found")
         if run.run_mode != "manual_staged":
             raise HTTPException(status_code=409, detail="Only Stage by Stage runs can be continued")
+        if run.status in {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.SUCCEEDED}:
+            # Idempotent no-op for already-progressed/completed runs.
+            return {"status": run.status.value, "run_id": run.run_id, "replay_mode": "noop"}
         if run.status != RunStatus.AWAITING_CONTINUE:
             raise HTTPException(
                 status_code=409,
