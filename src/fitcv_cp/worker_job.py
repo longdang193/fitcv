@@ -587,6 +587,41 @@ def _build_settings_used_payload(
     replay_context: dict[str, Any],
 ) -> str:
     effective_settings = dict(effective_config or {})
+
+    def _materialize_stage_runtime_snapshot(settings: dict[str, Any]) -> None:
+        """Persist canonical stage_runtime values in settings-used snapshots."""
+        stage_runtime = dict(settings.get("stage_runtime") or {})
+
+        def _stage_block(stage: str) -> dict[str, Any]:
+            block = dict(stage_runtime.get(stage) or {})
+            stage_runtime[stage] = block
+            return block
+
+        enrich = _stage_block("enrich")
+        if "sleep_secs" not in enrich:
+            enrich["sleep_secs"] = settings.get("enrichment_sleep_secs", 0.5)
+        if "batch_size" not in enrich:
+            enrich["batch_size"] = settings.get("enrichment_batch_size", 10)
+        if "concurrency" not in enrich:
+            enrich["concurrency"] = settings.get("enrichment_concurrency", 1)
+
+        ranking = _stage_block("ranking")
+        if "sleep_secs" not in ranking:
+            ranking["sleep_secs"] = settings.get("rerank_sleep_secs", 0.5)
+        if "concurrency" not in ranking:
+            ranking["concurrency"] = 1
+
+        cv_analysis = _stage_block("cv_analysis")
+        cv_analysis.setdefault("sleep_secs", 0.0)
+        cv_analysis.setdefault("concurrency", 1)
+
+        cv_generation = _stage_block("cv_generation")
+        cv_generation.setdefault("sleep_secs", 0.0)
+        cv_generation.setdefault("concurrency", 1)
+
+        settings["stage_runtime"] = stage_runtime
+
+    _materialize_stage_runtime_snapshot(effective_settings)
     sqlite_mode = resolve_backend_runtime().backend_type == "sqlite"
     if sqlite_mode:
         effective_settings.pop("service_account_key", None)

@@ -5080,12 +5080,13 @@ def test_admin_run_synonym_proposals_batch_action_repeat_submit_skips_resolved_r
     )
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.list_runs", return_value=[run]), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
          patch("fitcv_cp.app.update_run_synonym_proposals", return_value={
              "persistence_status": "persisted",
              "degradation_reason": "",
          }), \
          patch("fitcv_cp.app.update_run_effective_settings"), \
-         patch("fitcv_cp.app.append_event"):
+         patch("fitcv_cp.app.append_event") as append_event_mock:
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/runs/run-proposal-batch-repeat/synonym-proposals/batch-action",
             data={
@@ -5100,6 +5101,52 @@ def test_admin_run_synonym_proposals_batch_action_repeat_submit_skips_resolved_r
         resp.headers["location"]
         == "/admin/runs/run-proposal-batch-repeat?synonym_batch_applied=1&synonym_batch_skipped=1&synonym_batch_failed=0"
     )
+    stages = [call.args[0].stage for call in append_event_mock.call_args_list]
+    assert "synonym_noop_guard_triggered" not in stages
+
+
+def test_admin_run_synonym_proposals_batch_action_noop_guard_suppresses_summary_spam() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
+
+    run = PipelineRun(
+        run_id="run-proposal-noop-guard",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-noop-guard","proposals":['
+            '{"proposal_id":"proposal-approved","proposal_status":"approved_for_run_overlay","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.list_runs", return_value=[run]), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.update_run_synonym_proposals"), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event") as append_event_mock:
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-proposal-noop-guard/synonym-proposals/batch-action",
+            data={
+                "acted_by": "operator@example.com",
+                "proposal_action__proposal-approved": "approve",
+            },
+        )
+
+    assert resp.status_code == 303
+    assert (
+        resp.headers["location"]
+        == "/admin/runs/run-proposal-noop-guard?synonym_batch_applied=0&synonym_batch_skipped=1&synonym_batch_failed=0"
+    )
+    stages = [call.args[0].stage for call in append_event_mock.call_args_list]
+    assert "synonym_noop_guard_triggered" in stages
+    assert "synonym_proposal_batch_summary" not in stages
 
 
 def test_admin_run_synonym_proposals_triage_refresh_redirects_with_summary() -> None:

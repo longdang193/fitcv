@@ -1008,6 +1008,11 @@ def test_worker_settings_used_export_canonicalizes_legacy_compatibility_keys():
     assert payload["compatibility_projection"]["rerank_top_n"] == 15
     assert payload["compatibility_projection"]["cv_generation_model"] == "legacy-model"
     assert payload["compatibility_projection"]["cv_max_pages"] == 3
+    assert payload["effective_settings"]["stage_runtime"]["enrich"]["batch_size"] == 10
+    assert payload["effective_settings"]["stage_runtime"]["enrich"]["concurrency"] == 1
+    assert payload["effective_settings"]["stage_runtime"]["ranking"]["sleep_secs"] == 0.5
+    assert payload["effective_settings"]["stage_runtime"]["cv_analysis"]["concurrency"] == 1
+    assert payload["effective_settings"]["stage_runtime"]["cv_generation"]["concurrency"] == 1
 
 
 def test_worker_settings_used_persistence_failure_does_not_fail_run():

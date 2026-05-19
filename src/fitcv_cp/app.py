@@ -7661,6 +7661,47 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     failed += 1
                 continue
             applied += 1
+
+        if applied == 0 and failed == 0 and len(deduped_decisions) > 0 and skipped == len(deduped_decisions):
+            recent_noop_guard_exists = any(
+                event.stage == "synonym_noop_guard_triggered"
+                for event in get_events(run.run_id, bq, project=project, dataset=dataset)[-10:]
+            )
+            if not recent_noop_guard_exists:
+                append_event(
+                    RunEvent(
+                        run_id=run.run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="synonym_noop_guard_triggered",
+                        level="info",
+                        message=(
+                            "Synonym batch decision loop suppressed: no actionable proposals remained "
+                            f"(requested={len(deduped_decisions)}, skipped={skipped})."
+                        ),
+                        created_at=datetime.datetime.now(datetime.timezone.utc),
+                        payload_json=_json.dumps(
+                            {
+                                "decisions_requested": len(deduped_decisions),
+                                "skipped_count": skipped,
+                                "failed_count": failed,
+                                "acted_by": acted_by,
+                            },
+                            ensure_ascii=False,
+                        ),
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+            query = urlencode(
+                {
+                    "synonym_batch_applied": applied,
+                    "synonym_batch_skipped": skipped,
+                    "synonym_batch_failed": failed,
+                }
+            )
+            return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+
         if applied > 0:
             _persist_synonym_proposal_payload(
                 run=run,
