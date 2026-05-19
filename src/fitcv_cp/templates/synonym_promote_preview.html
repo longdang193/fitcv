@@ -25,6 +25,7 @@
   <table>
     <thead>
       <tr>
+        <th>Select</th>
         <th>Proposal</th>
         <th>Status</th>
         <th>Diff</th>
@@ -34,6 +35,15 @@
     <tbody>
       {% for row in preview.rows %}
       <tr>
+        <td>
+          <input
+            type="checkbox"
+            name="promote_proposal_id"
+            value="{{ row.proposal_id }}"
+            form="promote-commit-form"
+            checked
+          >
+        </td>
         <td><code>{{ row.alias or "—" }}</code> → <code>{{ row.canonical or "—" }}</code></td>
         <td>{{ row.status }}</td>
         <td>{{ row.diff_type }}</td>
@@ -46,17 +56,61 @@
 
 <div class="card">
   <h3 style="margin:0 0 0.6rem">Confirm Promotion</h3>
+  <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;margin-bottom:0.65rem">
+    <button class="btn-secondary" type="button" id="promote-select-all-btn">Select All</button>
+    <button class="btn-secondary" type="button" id="promote-clear-all-btn">Clear Selection</button>
+    <span class="meta" id="promote-selected-count">Selected: {{ preview.selected_count }}</span>
+  </div>
   {% if preview.counts.conflict > 0 %}
   <div class="error-box">
     <strong>Promotion blocked</strong>
     Resolve conflicts in the selected set, then preview again.
   </div>
   {% endif %}
-  <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-commit" style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+  <form id="promote-commit-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-commit" style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
     <input type="hidden" name="selected_ids_csv" value="{{ selected_ids_csv }}">
     <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
     <input type="hidden" name="note" value="ui:promote-to-global">
     <button class="btn-primary" type="submit" {% if preview.counts.conflict > 0 %}disabled{% endif %}>Confirm Promote to Global</button>
   </form>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const promoteSelectAllBtn = document.getElementById('promote-select-all-btn');
+  const promoteClearAllBtn = document.getElementById('promote-clear-all-btn');
+  const promoteSelectedCount = document.getElementById('promote-selected-count');
+  const promoteCheckboxes = () => Array.from(
+    document.querySelectorAll('input[type="checkbox"][name="promote_proposal_id"]')
+  );
+
+  const refreshPromoteSelectedCount = () => {
+    if (!promoteSelectedCount) return;
+    const selected = promoteCheckboxes().filter((cb) => cb.checked).length;
+    promoteSelectedCount.textContent = `Selected: ${selected}`;
+  };
+
+  promoteCheckboxes().forEach((checkboxEl) => {
+    checkboxEl.addEventListener('change', refreshPromoteSelectedCount);
+  });
+
+  if (promoteSelectAllBtn) {
+    promoteSelectAllBtn.addEventListener('click', () => {
+      promoteCheckboxes().forEach((checkboxEl) => {
+        checkboxEl.checked = true;
+      });
+      refreshPromoteSelectedCount();
+    });
+  }
+  if (promoteClearAllBtn) {
+    promoteClearAllBtn.addEventListener('click', () => {
+      promoteCheckboxes().forEach((checkboxEl) => {
+        checkboxEl.checked = false;
+      });
+      refreshPromoteSelectedCount();
+    });
+  }
+
+  refreshPromoteSelectedCount();
+});
+</script>
 {% endblock %}

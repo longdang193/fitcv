@@ -49,9 +49,9 @@
     {% if run.candidate_profile_source %}
     <span class="k">Profile Source</span><span class="v"><span class="badge badge-info">{{ run.candidate_profile_source }}</span></span>
     {% endif %}
-    <span class="k">Created</span><span class="v">{{ run.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.created_at else '—' }}</span>
-    <span class="k">Started</span><span class="v">{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.started_at else '—' }}</span>
-    <span class="k">Finished</span><span class="v">{{ run.finished_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.finished_at else '—' }}</span>
+    <span class="k">Created</span><span class="v">{{ run.created_at.strftime('%Y-%m-%d %H:%M UTC') if run.created_at else '—' }}</span>
+    <span class="k">Started</span><span class="v">{{ run.started_at.strftime('%Y-%m-%d %H:%M UTC') if run.started_at else '—' }}</span>
+    <span class="k">Finished</span><span class="v">{{ run.finished_at.strftime('%Y-%m-%d %H:%M UTC') if run.finished_at else '—' }}</span>
     {% if run.last_completed_stage or run.completed_stages %}
     <span class="k">Last Completed</span><span class="v"><code>{{ run.last_completed_stage or '—' }}</code></span>
     <span class="k">Completed Stages</span><span class="v">{% if run.completed_stages %}<code>{{ run.completed_stages | join(', ') }}</code>{% else %}—{% endif %}</span>
@@ -76,6 +76,12 @@
 {% if show_inline_review_queue %}
 {% include "_cv_review_queue.html" %}
 {% elif show_review_queue_cta %}
+{% set show_agentic_runtime_alignment = (
+  agentic_runtime_drift.status != 'not_applicable'
+  or agentic_runtime_drift.actual_provider
+  or agentic_runtime_drift.actual_model
+) %}
+{% if show_agentic_runtime_alignment %}
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
     <div>
@@ -94,6 +100,7 @@
     <span class="meta">Review One by One or use batch actions on dedicated page.</span>
   </div>
 </div>
+{% endif %}
 {% endif %}
 {% endif %}
 
@@ -117,6 +124,13 @@
   </div>
 </div>
 {% endif %}
+{% if request.query_params.get("synonym_promote_preview_status") == "no_approved" %}
+<div class="card">
+  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    No approved proposals available to preview promotion.
+  </div>
+</div>
+{% endif %}
 
 {% if synonym_review_section_state != "hidden" %}
 {% set manual_synonym_workspace_active = false %}
@@ -132,9 +146,15 @@
     applied={{ request.query_params.get("synonym_fast_path_applied") or "0" }},
     skipped={{ request.query_params.get("synonym_fast_path_skipped") or "0" }},
     failed={{ request.query_params.get("synonym_fast_path_failed") or "0" }},
-    promoted={{ request.query_params.get("synonym_fast_path_promote_applied") or "0" }},
+    new_or_updated={{ request.query_params.get("synonym_fast_path_promote_applied") or "0" }},
+    unchanged_already_global={{ request.query_params.get("synonym_fast_path_promote_unchanged_aliases") or "0" }},
+    overridden_aliases={{ request.query_params.get("synonym_fast_path_promote_overridden_aliases") or "0" }},
+    new_aliases={{ request.query_params.get("synonym_fast_path_promote_new_aliases") or "0" }},
     promote_skipped={{ request.query_params.get("synonym_fast_path_promote_skipped") or "0" }},
     promote_failed={{ request.query_params.get("synonym_fast_path_promote_failed") or "0" }}.
+    {% if (request.query_params.get("synonym_fast_path_promote_applied") or "0") == "0" and (request.query_params.get("synonym_fast_path_promote_unchanged_aliases") or "0") != "0" %}
+    No promotion needed: selected pairs already in global policy.
+    {% endif %}
   </div>
   {% endif %}
   {% if synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay %}
@@ -150,17 +170,18 @@
   {% endif %}
   {% if synonym_proposal_decision_ledger %}
   <div style="margin:0.2rem 0 0.85rem 0">
-    <div class="meta" style="margin-bottom:0.35rem"><strong>Proposal Decision Ledger</strong></div>
+    <div class="meta" style="margin-bottom:0.15rem"><strong>Synonym Decisions</strong></div>
+    <div class="meta" style="margin-bottom:0.35rem">Decision = current state. Recommendation = model suggestion. Queue Source = provenance only.</div>
     <div style="overflow:auto;max-height:14rem;border:1px solid var(--accent);border-radius:6px">
       <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
         <thead>
           <tr style="background:var(--panel-bg)">
             <th style="text-align:left;padding:0.35rem 0.5rem">Alias</th>
             <th style="text-align:left;padding:0.35rem 0.5rem">Canonical</th>
-            <th style="text-align:left;padding:0.35rem 0.5rem">Source</th>
-            <th style="text-align:left;padding:0.35rem 0.5rem">Recommendation</th>
             <th style="text-align:left;padding:0.35rem 0.5rem">Decision</th>
-            <th style="text-align:left;padding:0.35rem 0.5rem">Reason</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Recommendation</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Queue Source</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Last Action / Why</th>
           </tr>
         </thead>
         <tbody>
@@ -168,10 +189,16 @@
           <tr>
             <td style="padding:0.3rem 0.5rem"><code>{{ row.alias }}</code></td>
             <td style="padding:0.3rem 0.5rem"><code>{{ row.canonical }}</code></td>
-            <td style="padding:0.3rem 0.5rem">{{ row.decision_source }}</td>
-            <td style="padding:0.3rem 0.5rem">{{ row.recommendation or '—' }}</td>
-            <td style="padding:0.3rem 0.5rem">{{ row.decision or '—' }}</td>
-            <td style="padding:0.3rem 0.5rem">{{ row.decision_reason }}</td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-{{ 'warning' if row.decision == 'pending' else ('success' if row.decision == 'approve' else ('error' if row.decision == 'reject' else ('info' if row.decision == 'defer' else 'neutral'))) }}">{{ row.decision_display or row.decision or '—' }}</span>
+              {% if row.is_overridden %}<span class="badge badge-info" style="margin-left:0.25rem">Overridden</span>{% endif %}
+            </td>
+            <td style="padding:0.3rem 0.5rem">{% if row.recommendation_display and row.recommendation_display != '—' %}<span class="badge badge-neutral">{{ row.recommendation_display }}</span>{% else %}—{% endif %}</td>
+            <td style="padding:0.3rem 0.5rem">{{ row.decision_source_display or row.decision_source }}</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>{{ row.last_action_display or '—' }}</div>
+              <div class="meta">{{ row.decision_reason_display or row.decision_reason }}</div>
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -187,9 +214,9 @@
     <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/ai-fast-path-execute" style="display:inline" onsubmit="return confirm('Confirm AI fast-path execute? This will apply AI recommendations and promote approved mappings to global.');">
       <input type="hidden" name="acted_by" value="admin">
       <input type="hidden" name="note" value="ai_fast_path">
-      <button class="btn-secondary decision-toggle" data-active="false" type="submit">AI-Assisted Decide + Promote</button>
+      <button class="btn-secondary decision-toggle" type="submit">AI-Assisted Decide + Promote</button>
     </form>
-    <a class="btn-secondary decision-toggle" data-active="false" href="/admin/runs/{{ run.run_id }}/synonym-review">Manual Decide + Promote</a>
+    <a class="btn-secondary decision-toggle" href="/admin/runs/{{ run.run_id }}/synonym-review">Manual Decide + Promote</a>
   </div>
 </div>
 {% endif %}
@@ -260,7 +287,7 @@
           <div class="cv-row">
             <div style="display:flex;align-items:center;gap:0.8rem">
               <span class="badge badge-success">{{ cv.fit_classification }}</span>
-              <a href="{{ cv.job_url }}" target="_blank">{{ job_title_by_url.get(cv.job_url) or 'View Job' }} ↗</a>
+              <a class="truncate-link job-title-link" href="{{ cv.job_url }}" target="_blank" rel="noopener">{{ job_title_by_url.get(cv.job_url) or 'View Job' }} ↗</a>
             </div>
             <a href="/admin/cvs/{{ cv.version_id }}/download" class="btn-secondary">⬇ Download Markdown</a>
           </div>
@@ -458,7 +485,7 @@
   </div>
   <div class="kv">
     <span class="k">Dead-lettered Events</span><span class="v">{{ event_delivery_health.count }}</span>
-    <span class="k">Last Dead-letter Timestamp</span><span class="v">{{ event_delivery_health.last_failed_at or '—' }}</span>
+    <span class="k">Last Dead-letter Timestamp</span><span class="v">{{ event_delivery_health.last_failed_at_display or '—' }}</span>
     <span class="k">Degradation Reason</span><span class="v"><code>{{ event_delivery_health.last_degradation_reason or '—' }}</code></span>
     <span class="k">Max Retry Attempts</span><span class="v">{{ event_delivery_health.max_retry_attempts or 0 }}</span>
     <span class="k">Dead-letter Path</span><span class="v"><code>{{ event_delivery_health.dead_letter_path }}</code></span>
@@ -520,7 +547,7 @@
     {% endif %}
   </div>
   <div class="kv">
-    <span class="k">Last Replay Timestamp</span><span class="v">{{ dead_letter_replay_summary.occurred_at or '—' }}</span>
+    <span class="k">Last Replay Timestamp</span><span class="v">{{ dead_letter_replay_summary.occurred_at_display or '—' }}</span>
     <span class="k">Replay Success Ratio</span><span class="v">{{ '%.2f'|format(dead_letter_replay_summary.replay_success_ratio) }}</span>
     <span class="k">Replayed / Candidates</span><span class="v">{{ dead_letter_replay_summary.replayed }} / {{ dead_letter_replay_summary.replay_candidates }}</span>
     <span class="k">Failed Replays</span><span class="v">{{ dead_letter_replay_summary.failed }}</span>
@@ -607,7 +634,7 @@
     <span class="k">Role Family Entries</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_alias_map or 0 }}</span>
     <span class="k">Domain Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.domain_neighbors or 0 }}</span>
     <span class="k">Role Family Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_neighbors or 0 }}</span>
-    <span class="k">Uploaded</span><span class="v">{{ synonym_overlay_info.uploaded_at or '—' }}</span>
+    <span class="k">Uploaded</span><span class="v">{{ synonym_overlay_info.uploaded_at_display or '—' }}</span>
     {% endif %}
     <span class="k">Effective Entries</span><span class="v">{{ synonym_overlay_info.effective_entry_count or '—' }}</span>
   </div>

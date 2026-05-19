@@ -25,7 +25,7 @@ import uuid
 import zipfile
 from pathlib import Path
 from typing import Any, Literal, TypedDict
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
@@ -918,6 +918,7 @@ TIMELINE_STAGE_LABELS: dict[str, str] = {
     "pipeline_start": "Pipeline",
     "layer1_normalize": "Normalize",
     "layer1b_pre_filter": "Pre-Enrichment Filter",
+    "enrich_heartbeat": "Enrich In Progress",
     "layer1_jobs": "Enrich",
     "layer2_candidate": "Candidate Profile",
     "layer3_filter": "Rule Filter",
@@ -1356,6 +1357,7 @@ def _run_event_delivery_health(run_id: str) -> dict[str, Any]:
             "status": "healthy",
             "count": 0,
             "last_failed_at": None,
+            "last_failed_at_display": None,
             "dead_letter_path": str(dead_letter_file),
         }
     count = 0
@@ -1390,6 +1392,7 @@ def _run_event_delivery_health(run_id: str) -> dict[str, Any]:
             "status": "unknown",
             "count": 0,
             "last_failed_at": None,
+            "last_failed_at_display": None,
             "last_degradation_reason": None,
             "max_retry_attempts": 0,
             "dead_letter_path": str(dead_letter_file),
@@ -1398,6 +1401,7 @@ def _run_event_delivery_health(run_id: str) -> dict[str, Any]:
         "status": "degraded" if count > 0 else "healthy",
         "count": count,
         "last_failed_at": last_failed_at,
+        "last_failed_at_display": _format_compact_utc_timestamp(last_failed_at),
         "last_degradation_reason": last_degradation_reason,
         "max_retry_attempts": max_retry_attempts,
         "dead_letter_path": str(dead_letter_file),
@@ -1498,6 +1502,9 @@ def _latest_dead_letter_replay_summary(events: list[RunEvent]) -> dict[str, Any]
                 if getattr(event, "created_at", None) is not None
                 else None
             ),
+            "occurred_at_display": _format_compact_utc_timestamp(
+                event.created_at.isoformat() if getattr(event, "created_at", None) is not None else None
+            ),
         }
     if latest is not None:
         return latest
@@ -1508,6 +1515,7 @@ def _latest_dead_letter_replay_summary(events: list[RunEvent]) -> dict[str, Any]
         "replay_success_ratio": 0.0,
         "remaining_dead_letter_total": 0,
         "occurred_at": None,
+        "occurred_at_display": None,
     }
 
 def _aggregate_dead_letter_replay_health(
@@ -2095,6 +2103,20 @@ def _build_cv_generation_failure_reason_summary(run: PipelineRun) -> dict[str, A
         "reason_rows": reason_rows,
     }
 
+def _format_compact_utc_timestamp(value: Any) -> str | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        normalized = raw.replace("Z", "+00:00")
+        parsed = datetime.datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+        utc_value = parsed.astimezone(datetime.timezone.utc)
+        return utc_value.strftime("%Y-%m-%d %H:%M UTC")
+    except ValueError:
+        return raw
+
 _HITL_TERMINAL_RESOLUTION_STATUSES = {
     "approved_as_is",
     "rejected",
@@ -2163,6 +2185,7 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
                 "reason": str((record.get("error") or {}).get("message") or "").strip() or "Manual review required.",
                 "action": action_name,
                 "action_at": str((action or {}).get("created_at") or "").strip() or None,
+                "action_at_display": _format_compact_utc_timestamp((action or {}).get("created_at")),
                 "action_by": str((action or {}).get("actor") or "").strip() or None,
                 "resolution_status": resolution_status,
                 "pending": resolution_status not in _HITL_TERMINAL_RESOLUTION_STATUSES,
@@ -2367,6 +2390,7 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
             "pending": pending,
             "latest_action": str(latest_action.get("action") or "").strip() or None,
             "latest_action_at": str(latest_action.get("acted_at") or "").strip() or None,
+            "latest_action_at_display": _format_compact_utc_timestamp(latest_action.get("acted_at")),
             "latest_action_by": str(latest_action.get("acted_by") or "").strip() or None,
             "recommended_action": str(proposal.get("recommended_action") or "").strip() or None,
             "recommendation_confidence": float(proposal.get("recommendation_confidence") or 0.0),
@@ -2683,19 +2707,103 @@ def _build_synonym_proposal_decision_ledger(run: PipelineRun) -> list[dict[str, 
             return "approve"
         return value or "pending"
 
+    def _decision_source_from_status_and_history(
+        *,
+        status: str,
+        review_history: list[dict[str, Any]],
+    ) -> str:
+        status_value = str(status or "").strip()
+        if status_value in {"proposed_unreviewed", "in_review"}:
+            return "generated_for_review"
+        if review_history:
+            return "review_decision_applied"
+        return "status_transitioned"
+
+    def _source_display(value: str) -> str:
+        mapping = {
+            "generated_for_review": "Auto generated",
+            "review_decision_applied": "Reviewed",
+            "suppressed_as_already_global": "Suppressed (already global)",
+            "status_transitioned": "Status transitioned",
+        }
+        return mapping.get(value, value.replace("_", " ").strip().title() or "—")
+
+    def _reason_display(value: str) -> str:
+        mapping = {
+            "repeated_alias_mapping": "Seen repeatedly with same meaning",
+            "already_global_exact_match": "Already exists in global synonyms",
+            "insufficient_non_skill_support": "Insufficient non-skill evidence",
+            "generated": "Generated from mapping suggestions",
+        }
+        return mapping.get(value, value.replace("_", " ").strip() or "—")
+
+    def _decision_display(value: str) -> str:
+        mapping = {
+            "approve": "Approved",
+            "reject": "Rejected",
+            "defer": "Deferred",
+            "pending": "Pending",
+            "suppressed": "Suppressed",
+        }
+        return mapping.get(value, value.replace("_", " ").strip().title() or "Pending")
+
+    def _recommendation_display(value: str) -> str:
+        if not value or value == "—":
+            return "—"
+        mapping = {
+            "approve": "Recommend Approve",
+            "reject": "Recommend Reject",
+            "defer": "Recommend Defer",
+        }
+        lowered = value.strip().lower()
+        return mapping.get(lowered, f"Recommend {value.strip().title()}")
+
     payload = _load_run_synonym_proposals_payload(run) or {}
     proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
     rows: list[dict[str, Any]] = []
     for proposal in proposals:
         status = str(proposal.get("proposal_status") or "").strip()
+        review_history = [
+            item for item in list(proposal.get("review_history") or [])
+            if isinstance(item, dict)
+        ]
+        decision_source = _decision_source_from_status_and_history(
+            status=status,
+            review_history=review_history,
+        )
+        raw_reason = str((proposal.get("rationale") or {}).get("kind") or "generated")
+        decision = _decision_from_status(status)
+        recommendation = str(proposal.get("recommended_action") or "").strip() or "—"
+        last_action_display = "—"
+        if review_history:
+            last = review_history[-1]
+            action = str(last.get("action") or "").strip()
+            actor = str(last.get("acted_by") or "").strip()
+            acted_at = str(last.get("acted_at") or "").strip()
+            acted_at_display = _format_compact_utc_timestamp(acted_at) if acted_at else None
+            parts = [part for part in [action or None, (f"by {actor}" if actor else None), acted_at_display or None] if part]
+            if parts:
+                last_action_display = " ".join(parts)
+        is_overridden = (
+            recommendation != "—"
+            and recommendation.lower() in {"approve", "reject", "defer"}
+            and decision in {"approve", "reject", "defer"}
+            and recommendation.lower() != decision
+        )
         rows.append(
             {
                 "alias": str(proposal.get("alias") or "").strip(),
                 "canonical": str(proposal.get("canonical") or "").strip(),
-                "decision_source": "generated_for_review",
-                "decision_reason": str((proposal.get("rationale") or {}).get("kind") or "generated"),
-                "recommendation": str(proposal.get("recommended_action") or "").strip() or "—",
-                "decision": _decision_from_status(status),
+                "decision_source": decision_source,
+                "decision_source_display": _source_display(decision_source),
+                "decision_reason": raw_reason,
+                "decision_reason_display": _reason_display(raw_reason),
+                "recommendation": recommendation,
+                "recommendation_display": _recommendation_display(recommendation),
+                "decision": decision,
+                "decision_display": _decision_display(decision),
+                "is_overridden": is_overridden,
+                "last_action_display": last_action_display,
                 "confidence": float(proposal.get("confidence") or 0.0),
                 "conflict": bool((proposal.get("conflict_summary") or {}).get("has_conflict")),
             }
@@ -2709,9 +2817,15 @@ def _build_synonym_proposal_decision_ledger(run: PipelineRun) -> list[dict[str, 
                 "alias": str(example.get("alias") or "").strip(),
                 "canonical": str(example.get("canonical") or "").strip(),
                 "decision_source": "suppressed_as_already_global",
+                "decision_source_display": _source_display("suppressed_as_already_global"),
                 "decision_reason": "already_global_exact_match",
+                "decision_reason_display": _reason_display("already_global_exact_match"),
                 "recommendation": "—",
+                "recommendation_display": "—",
                 "decision": "suppressed",
+                "decision_display": _decision_display("suppressed"),
+                "is_overridden": False,
+                "last_action_display": "—",
                 "confidence": None,
                 "conflict": False,
             }
@@ -2966,6 +3080,7 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
         "filename": str(runtime.get("run_overlay_filename") or ""),
         "entry_count": int(runtime.get("run_overlay_entry_count") or 0),
         "uploaded_at": str(runtime.get("run_overlay_uploaded_at") or ""),
+        "uploaded_at_display": _format_compact_utc_timestamp(runtime.get("run_overlay_uploaded_at")),
         "effective_entry_count": int(runtime.get("entry_count") or 0),
         "section_counts": normalized_section_counts,
         "has_default_overlay": bool(runtime.get("has_overlay")),
@@ -4185,6 +4300,35 @@ def _timeline_stage_summary_message(
     stage_artifacts_by_id: dict[str, dict[str, Any]],
 ) -> str:
     payload = _event_payload(event)
+    if event.stage == "enrich_heartbeat":
+        phase = str(payload.get("phase") or "").strip()
+        fresh_total = payload.get("fresh_jobs_total")
+        reused_total = payload.get("reused_jobs_total")
+        if phase == "batch_start":
+            return (
+                "Enrich in progress: "
+                f"fresh={fresh_total if fresh_total is not None else '—'}, "
+                f"reused={reused_total if reused_total is not None else '—'}"
+            )
+        if phase == "batch_progress":
+            elapsed = payload.get("elapsed_secs")
+            beats = payload.get("heartbeat_count")
+            return (
+                "Enrich in progress: "
+                f"fresh={fresh_total if fresh_total is not None else '—'}, "
+                f"reused={reused_total if reused_total is not None else '—'}, "
+                f"elapsed={elapsed if elapsed is not None else '—'}s, "
+                f"heartbeat={beats if beats is not None else '—'}"
+            )
+        if phase == "batch_done":
+            fresh_rows_total = payload.get("fresh_rows_total")
+            return (
+                "Enrich complete (batch): "
+                f"fresh_rows={fresh_rows_total if fresh_rows_total is not None else '—'}, "
+                f"fresh={fresh_total if fresh_total is not None else '—'}, "
+                f"reused={reused_total if reused_total is not None else '—'}"
+            )
+        return "Enrich in progress"
     raw_payload_output = payload.get("output_snapshot")
     payload_output: dict[str, Any] = (
         dict(raw_payload_output)
@@ -4286,12 +4430,25 @@ def _timeline_stage_summary_message(
     return event.message
 
 def _collapse_timeline_noise(events: list[RunEvent]) -> list[tuple[RunEvent, int]]:
-    """Collapse repeated informational noise rows with identical payloads."""
+    """Collapse repeated informational noise rows."""
     collapsed: list[tuple[RunEvent, int]] = []
     last_triage_fingerprint: str | None = None
     last_triage_index: int | None = None
     for event in events:
-        if str(event.stage or "") == "synonym_proposal_triage_completed":
+        stage = str(event.stage or "").strip()
+        level = str(event.level or "").strip().lower()
+        message = str(event.message or "").strip()
+        if collapsed and stage != "synonym_proposal_triage_completed":
+            prev_event, prev_count = collapsed[-1]
+            prev_stage = str(prev_event.stage or "").strip()
+            prev_level = str(prev_event.level or "").strip().lower()
+            prev_message = str(prev_event.message or "").strip()
+            if stage == prev_stage and level == prev_level and message == prev_message:
+                collapsed[-1] = (prev_event, prev_count + 1)
+                if stage == "synonym_proposal_triage_completed":
+                    last_triage_index = len(collapsed) - 1
+                continue
+        if stage == "synonym_proposal_triage_completed":
             payload = _event_payload(event)
             fingerprint = _stable_sha256_json(
                 {
@@ -6623,7 +6780,19 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
-        return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
+        redirect_target = f"/admin/runs/{run_id}/review-queue"
+        referer = str(request.headers.get("referer") or "").strip()
+        if referer:
+            parsed_referer = urlparse(referer)
+            referer_path = str(parsed_referer.path or "").strip()
+            allowed_paths = {
+                f"/admin/runs/{run_id}",
+                f"/admin/runs/{run_id}/review-queue",
+            }
+            if referer_path in allowed_paths:
+                query_suffix = f"?{parsed_referer.query}" if parsed_referer.query else ""
+                redirect_target = f"{referer_path}{query_suffix}"
+        return RedirectResponse(redirect_target, status_code=303)
 
     @app.post("/admin/runs/{run_id}/continue")
     def admin_continue_run(request: Request, run_id: str) -> dict:
@@ -7238,7 +7407,19 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     project=project,
                     dataset=dataset,
                 )
-                return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
+                redirect_target = f"/admin/runs/{run_id}/review-queue"
+                referer = str(request.headers.get("referer") or "").strip()
+                if referer:
+                    parsed_referer = urlparse(referer)
+                    referer_path = str(parsed_referer.path or "").strip()
+                    allowed_paths = {
+                        f"/admin/runs/{run_id}",
+                        f"/admin/runs/{run_id}/review-queue",
+                    }
+                    if referer_path in allowed_paths:
+                        query_suffix = f"?{parsed_referer.query}" if parsed_referer.query else ""
+                        redirect_target = f"{referer_path}{query_suffix}"
+                return RedirectResponse(redirect_target, status_code=303)
             update_run_status(
                 run_id,
                 RunStatus.SUCCEEDED,
@@ -7297,7 +7478,19 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 project=project,
                 dataset=dataset,
             )
-        return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
+        redirect_target = f"/admin/runs/{run_id}/review-queue"
+        referer = str(request.headers.get("referer") or "").strip()
+        if referer:
+            parsed_referer = urlparse(referer)
+            referer_path = str(parsed_referer.path or "").strip()
+            allowed_paths = {
+                f"/admin/runs/{run_id}",
+                f"/admin/runs/{run_id}/review-queue",
+            }
+            if referer_path in allowed_paths:
+                query_suffix = f"?{parsed_referer.query}" if parsed_referer.query else ""
+                redirect_target = f"{referer_path}{query_suffix}"
+        return RedirectResponse(redirect_target, status_code=303)
 
     @app.post("/admin/runs/{run_id}/cv-review-batch-action")
     async def admin_run_cv_review_batch_action(
@@ -7486,7 +7679,18 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "hitl_closure_blocked": 1,
                     }
                 )
-                return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+                redirect_target = f"/admin/runs/{run_id}/review-queue?{query}"
+                referer = str(request.headers.get("referer") or "").strip()
+                if referer:
+                    parsed_referer = urlparse(referer)
+                    referer_path = str(parsed_referer.path or "").strip()
+                    allowed_paths = {
+                        f"/admin/runs/{run_id}",
+                        f"/admin/runs/{run_id}/review-queue",
+                    }
+                    if referer_path in allowed_paths:
+                        redirect_target = f"{referer_path}?{query}"
+                return RedirectResponse(redirect_target, status_code=303)
             update_run_status(
                 run_id,
                 RunStatus.SUCCEEDED,
@@ -7594,7 +7798,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             acted_by=actor,
             note=note,
         )
-        return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
+        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/batch-action")
     async def admin_run_synonym_proposals_batch_action(
@@ -7700,7 +7904,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "synonym_batch_failed": failed,
                 }
             )
-            return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+            return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
         if applied > 0:
             _persist_synonym_proposal_payload(
@@ -7741,7 +7945,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_batch_failed": failed,
             }
         )
-        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/apply-approved-to-run")
     async def admin_run_synonym_proposals_apply_approved_to_run(
@@ -7786,7 +7990,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_apply_to_run_failed": 0,
             }
         )
-        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/regenerate")
     async def admin_run_synonym_proposals_regenerate(
@@ -7886,11 +8090,24 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         form = await request.form()
         selected_ids = [str(value or "").strip() for value in form.getlist("promote_proposal_id")]
         selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
-        if not selected_ids:
-            raise HTTPException(status_code=422, detail="Select at least one proposal to preview promotion")
         payload = _load_run_synonym_proposals_payload(run)
         if not isinstance(payload, dict):
             raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
+        if not selected_ids:
+            proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
+            selected_ids = [
+                str(item.get("proposal_id") or "").strip()
+                for item in proposals
+                if str(item.get("proposal_status") or "").strip() == "approved_for_run_overlay"
+            ]
+            selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
+        if not selected_ids:
+            query = urlencode(
+                {
+                    "synonym_promote_preview_status": "no_approved",
+                }
+            )
+            return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
         preview = _build_promote_global_preview(
             run=run,
             payload=payload,
@@ -7918,8 +8135,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if not mode["promote_global_enabled"]:
             raise HTTPException(status_code=409, detail="Synonym global promotion is disabled by rollout settings")
         form = await request.form()
-        selected_csv = str(form.get("selected_ids_csv") or "").strip()
-        selected_ids = [value.strip() for value in selected_csv.split(",") if value and value.strip()]
+        selected_ids = [str(value or "").strip() for value in form.getlist("promote_proposal_id")]
+        selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
+        if not selected_ids:
+            selected_csv = str(form.get("selected_ids_csv") or "").strip()
+            selected_ids = [value.strip() for value in selected_csv.split(",") if value and value.strip()]
         if not selected_ids:
             raise HTTPException(status_code=422, detail="No proposals selected for promotion")
         acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
@@ -8330,6 +8550,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_fast_path_promote_applied": int(promote_counts.get("applied") or 0),
                 "synonym_fast_path_promote_skipped": int(promote_counts.get("skipped") or 0),
                 "synonym_fast_path_promote_failed": int(promote_counts.get("failed") or 0),
+                "synonym_fast_path_promote_new_aliases": int(promote_counts.get("new_aliases") or 0),
+                "synonym_fast_path_promote_unchanged_aliases": int(promote_counts.get("unchanged_aliases") or 0),
+                "synonym_fast_path_promote_overridden_aliases": int(promote_counts.get("overridden_aliases") or 0),
             }
         )
         return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)

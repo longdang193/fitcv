@@ -131,9 +131,11 @@ workstreams:
   - thread_id: workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow
     status: proposed
     path: docs/intent/workstreams/threads/workstream-agentic-synonym-management/04-agentic-synonym-canonical-promotion-flow.md
-    specs: []
-    plans: []
-    derived_completion: not_started
+    specs:
+    - docs/superpowers/specs/2026-05-19-22-45-synonym-workspace-action-model-simplification-spec.md
+    plans:
+    - docs/superpowers/plans/2026-05-19-23-10-synonym-workspace-action-model-simplification-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-agentic-synonym-management.agentic-synonym-downstream-impact-preview
     status: proposed
     path: docs/intent/workstreams/threads/workstream-agentic-synonym-management/05-agentic-synonym-downstream-impact-preview.md

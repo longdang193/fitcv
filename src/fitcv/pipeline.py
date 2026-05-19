@@ -419,6 +419,11 @@ def _enrich_jobs_with_reuse(
             per_job_timeout_secs = max(10, int(float(per_job_timeout_raw)))
         except ValueError:
             per_job_timeout_secs = 180
+        heartbeat_interval_raw = str(os.environ.get("FITCV_ENRICH_HEARTBEAT_SECS", "15") or "15").strip()
+        try:
+            heartbeat_interval_secs = max(5, int(float(heartbeat_interval_raw)))
+        except ValueError:
+            heartbeat_interval_secs = 15
 
         if debug_heartbeat_enabled:
             total = len(fresh_jobs)
@@ -465,7 +470,45 @@ def _enrich_jobs_with_reuse(
                         }
                     )
         else:
-            fresh_rows = enrich_batch(fresh_jobs, config)
+            if heartbeat_callback:
+                heartbeat_callback(
+                    {
+                        "phase": "batch_start",
+                        "fresh_jobs_total": len(fresh_jobs),
+                        "reused_jobs_total": len(reused_rows_by_url),
+                        "heartbeat_interval_secs": heartbeat_interval_secs,
+                    }
+                )
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(enrich_batch, fresh_jobs, config)
+                heartbeat_count = 0
+                started_at = time.monotonic()
+                while True:
+                    try:
+                        fresh_rows = future.result(timeout=heartbeat_interval_secs)
+                        break
+                    except FuturesTimeoutError:
+                        heartbeat_count += 1
+                        if heartbeat_callback:
+                            heartbeat_callback(
+                                {
+                                    "phase": "batch_progress",
+                                    "fresh_jobs_total": len(fresh_jobs),
+                                    "reused_jobs_total": len(reused_rows_by_url),
+                                    "heartbeat_count": heartbeat_count,
+                                    "elapsed_secs": int(max(0, time.monotonic() - started_at)),
+                                    "heartbeat_interval_secs": heartbeat_interval_secs,
+                                }
+                            )
+            if heartbeat_callback:
+                heartbeat_callback(
+                    {
+                        "phase": "batch_done",
+                        "fresh_jobs_total": len(fresh_jobs),
+                        "reused_jobs_total": len(reused_rows_by_url),
+                        "fresh_rows_total": len(fresh_rows),
+                    }
+                )
         for row in fresh_rows:
             job_url = _extract_job_url(row)
             if not job_url:
