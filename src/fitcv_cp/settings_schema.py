@@ -401,6 +401,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Seconds to wait between calls to the web scraping/enrichment API to avoid rate limiting.",
         "group": "timing",
         "config_path": ["enrichment_sleep_secs"],
+        "compatibility_alias_for": "stage_runtime.enrich.sleep_secs",
     },
     {
         "key": "rerank_sleep_secs",
@@ -410,6 +411,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Seconds to wait between concurrent/sequential LLM calls during candidate scoring.",
         "group": "timing",
         "config_path": ["rerank_sleep_secs"],
+        "compatibility_alias_for": "stage_runtime.ranking.sleep_secs",
     },
     {
         "key": "enrichment_batch_size",
@@ -419,6 +421,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "How many jobs each enrich worker batch handles at once before the next scheduling boundary.",
         "group": "timing",
         "config_path": ["enrichment_batch_size"],
+        "compatibility_alias_for": "stage_runtime.enrich.batch_size",
     },
     {
         "key": "enrichment_concurrency",
@@ -428,6 +431,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "How many enrich batches may run concurrently. Higher values can improve throughput, but the stage still uses shared rate limiting so gains are not linear.",
         "group": "timing",
         "config_path": ["enrichment_concurrency"],
+        "compatibility_alias_for": "stage_runtime.enrich.concurrency",
     },
     # ── Run Lifecycle ─────────────────────────────────────────────────────────
     {
@@ -1045,6 +1049,8 @@ _GROUP_TO_WORKFLOW_STAGES: dict[str, tuple[str, ...]] = {
     "timing": (
         _WORKFLOW_STAGE_ENRICH,
         _WORKFLOW_STAGE_RANKING,
+        _WORKFLOW_STAGE_CV_ANALYSIS,
+        _WORKFLOW_STAGE_CV_GENERATION,
     ),
     "agentic": (
         _WORKFLOW_STAGE_CV_ANALYSIS,
@@ -1068,7 +1074,7 @@ _GROUP_TO_APPLIES_WHEN: dict[str, str] = {
     "rule_filter": "Used when rule-filter stage decides reject vs pass marks.",
     "run_lifecycle": "Used by control-plane timeout guard for queued/running/manual-wait runs.",
     "ranking": "Used during reranking, fit labeling, and gap classification.",
-    "timing": "Used by enrichment and reranking runtime throttling/concurrency controls.",
+    "timing": "Used by enrich, ranking, cv_analysis, and cv_generation runtime throttling/concurrency controls.",
     "agentic": "Used only when agentic late-stage path or synonym-management controls are active.",
     "cv_composition": "Used when CV generation decides section visibility and output composition intent.",
     "cv_validation": "Used by post-generation CV validation checks.",

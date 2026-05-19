@@ -1749,7 +1749,9 @@ def test_run_pipeline_repairs_candidate_name_placeholder_without_llm_retry(
         },
     }
 
-    mock_config.return_value = _minimal_config()
+    cfg = _minimal_config()
+    cfg["stage_runtime"] = {"cv_analysis": {"concurrency": 3}}
+    mock_config.return_value = cfg
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
@@ -1882,6 +1884,24 @@ def _minimal_job(url: str = "https://example.com/1") -> dict:
         "location_type": "remote",
         "preferences": {},
     }
+
+
+def test_cv_analysis_stage_concurrency_defaults_to_one() -> None:
+    from fitcv.pipeline import _cv_analysis_stage_concurrency
+
+    assert _cv_analysis_stage_concurrency({}) == 1
+    assert _cv_analysis_stage_concurrency({"stage_runtime": {}}) == 1
+    assert _cv_analysis_stage_concurrency({"stage_runtime": {"cv_analysis": {}}}) == 1
+
+
+def test_cv_analysis_stage_concurrency_coerces_and_clamps() -> None:
+    from fitcv.pipeline import _cv_analysis_stage_concurrency
+
+    assert _cv_analysis_stage_concurrency({"stage_runtime": {"cv_analysis": {"concurrency": 4}}}) == 4
+    assert _cv_analysis_stage_concurrency({"stage_runtime": {"cv_analysis": {"concurrency": "3"}}}) == 3
+    assert _cv_analysis_stage_concurrency({"stage_runtime": {"cv_analysis": {"concurrency": 0}}}) == 1
+    assert _cv_analysis_stage_concurrency({"stage_runtime": {"cv_analysis": {"concurrency": -2}}}) == 1
+    assert _cv_analysis_stage_concurrency({"stage_runtime": {"cv_analysis": {"concurrency": "bad"}}}) == 1
 
 def _agentic_analysis_ready(
     job: dict[str, Any],
@@ -4509,7 +4529,9 @@ def test_run_pipeline_prepares_raw_rows_before_bigquery_insert(
     normalized_job = _minimal_job(url=raw_job["jobUrl"])
     profile = _minimal_profile()
 
-    mock_config.return_value = _minimal_config()
+    cfg = _minimal_config()
+    cfg["stage_runtime"] = {"cv_analysis": {"concurrency": 3}}
+    mock_config.return_value = cfg
     mock_parse.return_value = [raw_job]
     mock_norm.return_value = [normalized_job]
     mock_enrich.return_value = [normalized_job]
@@ -6927,7 +6949,9 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
     profile = _minimal_profile()
     reporter = _Reporter()
 
-    mock_config.return_value = _minimal_config()
+    cfg = _minimal_config()
+    cfg["stage_runtime"] = {"cv_analysis": {"concurrency": 3}}
+    mock_config.return_value = cfg
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_pre_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
@@ -6952,18 +6976,109 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
         "fallback_used": False,
         "input_snapshot": {
             "ranked_jobs": 1,
+            "cv_analysis_concurrency_configured": 3,
         },
         "output_snapshot": {
             "ready_for_generation": 0,
             "blocked_by_reranker_fit": 1,
             "skipped_fit_gate": 0,
             "analysis_failed": 0,
+            "cv_analysis_concurrency_effective": 3,
         },
         "artifact_refs": {
             "stage_id": "cv_analysis",
         },
         "latency_ms": 0,
     }
+
+
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_cv_analysis_concurrency_preserves_result_order(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_rank: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_ai: MagicMock,
+    mock_vec: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_pre_filter: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job_a = _minimal_job("https://example.com/a")
+    job_b = _minimal_job("https://example.com/b")
+
+    cfg = _minimal_config()
+    cfg.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    cfg["stage_runtime"] = {"cv_analysis": {"concurrency": 2}}
+    mock_config.return_value = cfg
+    mock_parse.return_value = [job_a, job_b]
+    mock_norm.return_value = [job_a, job_b]
+    mock_pre_filter.return_value = {"passed": [job_a["job_url"], job_b["job_url"]], "rejected": []}
+    mock_enrich.return_value = [job_a, job_b]
+    mock_profile_yaml.return_value = _minimal_profile()
+    mock_filter.return_value = {"passed": [job_a["job_url"], job_b["job_url"]], "rejected": []}
+    mock_vec.return_value = [
+        {"job_url": job_a["job_url"], "similarity_score": 0.9, "rank": 1},
+        {"job_url": job_b["job_url"], "similarity_score": 0.89, "rank": 2},
+    ]
+    mock_ai.return_value = [
+        {**job_a, "fit_label": "strong", "fit_label_source": "reranker"},
+        {**job_b, "fit_label": "strong", "fit_label_source": "reranker"},
+    ]
+    mock_build_feat.return_value = [
+        {**job_a, "fit_label": "strong", "fit_label_source": "reranker", "final_rank": 1},
+        {**job_b, "fit_label": "strong", "fit_label_source": "reranker", "final_rank": 2},
+    ]
+    mock_rank.return_value = [
+        {**job_a, "fit_label": "strong", "fit_label_source": "reranker", "final_rank": 1},
+        {**job_b, "fit_label": "strong", "fit_label_source": "reranker", "final_rank": 2},
+    ]
+
+    with patch(
+        "fitcv.pipeline.run_agentic_cv_analysis",
+        side_effect=[_agentic_analysis_ready(job_a), _agentic_analysis_ready(job_b)],
+    ):
+        result = run_pipeline(
+            "data/sample_jobs.json",
+            config_path="config/env.yaml",
+            stop_after_stage="cv_analysis",
+        )
+
+    assert result["paused_after_stage"] == "cv_analysis"
+    assert [row["job_url"] for row in result["checkpoint_payload"]["cv_analysis_results"]] == [
+        job_a["job_url"],
+        job_b["job_url"],
+    ]
 
 
 def test_normalize_late_stage_reuse_snapshots_skips_poisoned_runtime_exception_rows() -> None:
@@ -8367,6 +8482,69 @@ def test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch(
     assert passed_config.get("enrichment_concurrency") == 3, (
         f"enrichment_concurrency not forwarded. config={passed_config}"
     )
+
+
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_projects_canonical_enrich_runtime_to_legacy_keys(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+    cfg = dict(_minimal_config())
+    cfg["stage_runtime"] = {"enrich": {"sleep_secs": 0.3, "batch_size": 7, "concurrency": 2}}
+
+    mock_config.return_value = cfg
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = []
+
+    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="reg-test-canonical-enrich")
+
+    args, kwargs = mock_enrich.call_args
+    passed_config = kwargs.get("config", args[1] if len(args) > 1 else {})
+    assert passed_config.get("enrichment_sleep_secs") == 0.3
+    assert passed_config.get("enrichment_batch_size") == 7
+    assert passed_config.get("enrichment_concurrency") == 2
 
 
 @patch("fitcv.pipeline.store_cv_version")

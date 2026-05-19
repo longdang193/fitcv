@@ -51,6 +51,7 @@ import hashlib
 import os
 import time
 import uuid
+from concurrent.futures import Future, ThreadPoolExecutor
 from copy import deepcopy
 from typing import Any, Callable, cast
 
@@ -434,6 +435,19 @@ def _enrich_jobs_with_reuse(
         if fresh_row is not None:
             enriched_rows.append(fresh_row)
     return enriched_rows, fresh_rows
+
+
+def _enrich_runtime_projection(config: dict[str, Any]) -> dict[str, Any]:
+    projected = dict(config)
+    stage_runtime = dict(projected.get("stage_runtime") or {})
+    enrich_runtime = dict(stage_runtime.get("enrich") or {})
+    if "enrichment_sleep_secs" not in projected and "sleep_secs" in enrich_runtime:
+        projected["enrichment_sleep_secs"] = enrich_runtime["sleep_secs"]
+    if "enrichment_batch_size" not in projected and "batch_size" in enrich_runtime:
+        projected["enrichment_batch_size"] = enrich_runtime["batch_size"]
+    if "enrichment_concurrency" not in projected and "concurrency" in enrich_runtime:
+        projected["enrichment_concurrency"] = enrich_runtime["concurrency"]
+    return projected
 
 
 def _merge_ranked_job_with_enriched_context(
@@ -1314,6 +1328,16 @@ def _agentic_late_stage_enabled(config: dict[str, Any]) -> bool:
     if isinstance(late_stage_block, dict):
         return True
     return False
+
+
+def _cv_analysis_stage_concurrency(config: dict[str, Any]) -> int:
+    stage_runtime = dict(config.get("stage_runtime") or {})
+    cv_analysis_runtime = dict(stage_runtime.get("cv_analysis") or {})
+    raw_value = cv_analysis_runtime.get("concurrency", 1)
+    try:
+        return max(1, int(raw_value))
+    except (TypeError, ValueError):
+        return 1
 
 
 def _build_late_stage_mode_payload(
@@ -3529,6 +3553,7 @@ def run_pipeline(
 
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("enrich"):
             with observe_span("pipeline.enrich", attributes={"run_id": run_id}):
+                enrich_runtime_config = _enrich_runtime_projection(config)
                 raw_global = config.get("global_job_filters", {})
                 global_settings = (
                     {f"global_job_filters.{k}": v for k, v in raw_global.items()}
@@ -3552,12 +3577,12 @@ def run_pipeline(
                     raise PipelineCancelled("Cancelled before enrichment")
                 enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(
                     surviving_normalized,
-                    config,
+                    enrich_runtime_config,
                     pipeline_store=pipeline_store,
                 )
                 if fresh_enriched_rows:
-                    pipeline_store.load_structured_jobs(fresh_enriched_rows, config)
-                pipeline_store.load_run_structured_jobs(enriched, run_id, config)
+                    pipeline_store.load_structured_jobs(fresh_enriched_rows, enrich_runtime_config)
+                pipeline_store.load_run_structured_jobs(enriched, run_id, enrich_runtime_config)
                 reused_count = sum(
                     1 for row in enriched
                     if str(row.get("enrich_reuse_status") or "") == REUSED_CACHED_ENRICHMENT_STATUS
@@ -3923,6 +3948,7 @@ def run_pipeline(
         cv_acceptance_policy = get_cv_acceptance_policy(config)
         enabled_cv_sections = _cv_generation_enabled_sections(config)
         agentic_late_stage_enabled = _agentic_late_stage_enabled(config)
+        cv_analysis_concurrency = _cv_analysis_stage_concurrency(config)
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("cv_analysis"):
             with observe_span("pipeline.cv_analysis", attributes={"run_id": run_id, "ranked_jobs": len(ranked_jobs_for_cv)}):
                 cv_analysis_started_monotonic = time.monotonic()
@@ -3939,9 +3965,11 @@ def run_pipeline(
                             fallback_used=False,
                             provenance={
                                 "late_stage_mode": "agentic",
+                                "cv_analysis_concurrency_effective": cv_analysis_concurrency,
                             },
                             input_snapshot={
                                 "ranked_jobs": len(ranked_jobs_for_cv),
+                                "cv_analysis_concurrency_configured": cv_analysis_concurrency,
                             },
                             artifact_refs={"stage_id": "cv_analysis"},
                         ),
@@ -3949,6 +3977,8 @@ def run_pipeline(
                 if cancellation_check and cancellation_check():
                     raise PipelineCancelled("Cancelled before CV analysis")
                 cv_analysis_results = []
+                pending_agentic_analysis: list[tuple[int, dict[str, Any], Future[dict[str, Any]]]] = []
+                agentic_executor: ThreadPoolExecutor | None = None
                 for job in ranked_jobs_for_cv:
                     ranking_fit_label = _resolve_layer4_fit(job, gap_fit=None, config=config)
                     if ranking_fit_label == "skip":
@@ -4080,6 +4110,17 @@ def run_pipeline(
                     fit = "skip"
                     try:
                         if agentic_late_stage_enabled:
+                            if cv_analysis_concurrency > 1:
+                                if agentic_executor is None:
+                                    agentic_executor = ThreadPoolExecutor(max_workers=cv_analysis_concurrency)
+                                future: Future[dict[str, Any]] = agentic_executor.submit(
+                                    lambda pending_job: dict(run_agentic_cv_analysis(pending_job, profile, config)),
+                                    job,
+                                )
+                                placeholder_index = len(cv_analysis_results)
+                                cv_analysis_results.append({})
+                                pending_agentic_analysis.append((placeholder_index, dict(job), future))
+                                continue
                             analysis_record = dict(run_agentic_cv_analysis(job, profile, config))
                             cv_analysis_results.append(analysis_record)
                             _emit_cv_analysis_item_observation(
@@ -4304,6 +4345,44 @@ def run_pipeline(
                                 ),
                             )  # type: ignore[union-attr]
                         continue
+                if agentic_executor is not None:
+                    agentic_executor.shutdown(wait=True)
+                for placeholder_index, pending_job, future in pending_agentic_analysis:
+                    analysis_record = dict(future.result())
+                    cv_analysis_results[placeholder_index] = analysis_record
+                    _emit_cv_analysis_item_observation(
+                        run_id=run_id,
+                        profile=profile,
+                        job=pending_job,
+                        analysis_record=analysis_record,
+                    )
+                    evidence = list(analysis_record.get("evidence_payload") or [])
+                    evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
+                    gap = analysis_record.get("gap_summary")
+                    fit = str(analysis_record.get("fit_classification") or "skip")
+                    if str(analysis_record.get("status") or "") != "ready_for_generation":
+                        cv_generation_debug_records.append(
+                            _build_cv_generation_debug_record(
+                                job=pending_job,
+                                status=str(analysis_record.get("status") or "analysis_failed"),
+                                fit_classification=fit,
+                                evidence_used=analysis_record["evidence_used"],
+                                evidence_selection_summary=evidence_selection_summary,
+                                analysis_input_summary=_build_cv_generation_analysis_input_summary(pending_job),
+                                gap_summary=gap,
+                                structured_cv_initial=None,
+                                validation_initial=None,
+                                repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
+                                structured_cv_final=None,
+                                markdown_final=None,
+                                enabled_sections=enabled_cv_sections,
+                                cv_generation_model=cv_generation_model_value,
+                                runtime_provenance=None,
+                                cv_prompt_id=cv_prompt_id_value,
+                                cv_prompt_template_path=cv_prompt_template_path_value,
+                                error=analysis_record.get("outcome_reason") or analysis_record["error"],
+                            )
+                        )
             if reporter is not None:
                 blocked_by_reranker_diagnostics = [
                     {
@@ -4335,6 +4414,7 @@ def run_pipeline(
                         stage_owned_subreason="stage_summary",
                         input_snapshot={
                             "ranked_jobs": len(ranked),
+                            "cv_analysis_concurrency_configured": cv_analysis_concurrency,
                         },
                         output_snapshot={
                             "ready_for_generation": sum(
@@ -4353,6 +4433,7 @@ def run_pipeline(
                                 1 for record in cv_analysis_results
                                 if str(record.get("status") or "") == CV_ANALYSIS_FAILED_STATUS
                             ),
+                            "cv_analysis_concurrency_effective": cv_analysis_concurrency,
                         },
                         artifact_refs={"stage_id": "cv_analysis"},
                         latency_ms=int((time.monotonic() - cv_analysis_started_monotonic) * 1000),
@@ -4390,6 +4471,7 @@ def run_pipeline(
                         1 for record in cv_analysis_results
                         if str(record.get("status") or "") == CV_ANALYSIS_FAILED_STATUS
                     ),
+                    "cv_analysis_concurrency_effective": cv_analysis_concurrency,
                 }
             )
             state["cv_analysis_results"] = cv_analysis_results
@@ -5217,6 +5299,7 @@ def run_pipeline(
                 ),
             )  # type: ignore[union-attr]
     return summary
+
 
 
 
