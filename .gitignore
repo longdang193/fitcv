@@ -28,3 +28,5 @@ data/uploads/
 # SQLite WAL/SHM sidecars (created when WAL enabled)
 *.sqlite3-wal
 *.sqlite3-shm
+
+data/fitcv_cp.sqlite3
