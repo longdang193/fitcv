@@ -2179,6 +2179,9 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
         "actions_count": len(actions),
     }
 
+
+HITL_REVIEW_QUEUE_INLINE_THRESHOLD = 5
+
 def _build_hitl_closure_summary(run: PipelineRun, queue: dict[str, Any] | None = None) -> dict[str, Any]:
     queue_payload = queue or _build_hitl_review_queue(run)
     queue_items = [item for item in list(queue_payload.get("queue_items") or []) if isinstance(item, dict)]
@@ -7003,6 +7006,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         data_plane_summary = _run_data_plane_summary(run)
         stage_result_summary_rows = _stage_result_summary_rows(run)
         hitl_closure_summary = _build_hitl_closure_summary(run, queue=hitl_review_queue)
+        hitl_review_pending_count = int(hitl_review_queue.get("pending_count") or 0)
+        show_inline_review_queue = hitl_review_pending_count <= HITL_REVIEW_QUEUE_INLINE_THRESHOLD
+        show_review_queue_cta = hitl_review_pending_count > HITL_REVIEW_QUEUE_INLINE_THRESHOLD
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -7037,6 +7043,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "agentic_runtime_drift": agentic_runtime_drift,
                 "hitl_review_queue": hitl_review_queue,
                 "hitl_closure_summary": hitl_closure_summary,
+                "review_queue_inline_threshold": HITL_REVIEW_QUEUE_INLINE_THRESHOLD,
+                "show_inline_review_queue": show_inline_review_queue,
+                "show_review_queue_cta": show_review_queue_cta,
+                "review_queue_page_url": f"/admin/runs/{run_id}/review-queue",
                 "synonym_proposal_review_queue": synonym_proposal_review_queue,
                 "synonym_proposal_decision_ledger": synonym_proposal_decision_ledger,
                 "synonym_fingerprints": synonym_fingerprints,
@@ -7051,6 +7061,28 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "data_plane_summary": data_plane_summary,
                 "stage_result_summary_rows": stage_result_summary_rows,
             }
+        )
+
+    @app.get("/admin/runs/{run_id}/review-queue", response_class=HTMLResponse)
+    def admin_run_review_queue(request: Request, run_id: str) -> HTMLResponse:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404)
+        run = _reconcile_orphaned_running_run(run)
+        run = _enforce_run_timeout_guard(run, max_runtime_minutes=_run_max_runtime_minutes())
+        hitl_review_queue = _build_hitl_review_queue(run)
+        hitl_closure_summary = _build_hitl_closure_summary(run, queue=hitl_review_queue)
+        return templates.TemplateResponse(
+            request=request,
+            name="review_queue.html",
+            context={
+                "run": run,
+                "run_status_projection": _run_status_projection(run),
+                "run_mode_label": RUN_MODE_LABELS.get(run.run_mode, run.run_mode),
+                "hitl_review_queue": hitl_review_queue,
+                "hitl_closure_summary": hitl_closure_summary,
+                "review_queue_inline_threshold": HITL_REVIEW_QUEUE_INLINE_THRESHOLD,
+            },
         )
 
     @app.post("/admin/runs/{run_id}/cv-review-action")
