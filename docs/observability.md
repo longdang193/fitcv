@@ -77,7 +77,7 @@ Expected:
 Run checker script:
 
 ```powershell
-python scripts/check_outbox_replay_health.py --base-url http://localhost:8010 --view active --min-replay-success-ratio 0.95
+python scripts/check_outbox_replay_health.py --base-url http://localhost:8000 --view active --min-replay-success-ratio 0.95
 ```
 
 Exit code meaning:
@@ -289,7 +289,7 @@ When enabled (`emit_event=true`), the check emits an auditable event:
 Use:
 
 ```powershell
-python scripts/check_outbox_replay_health.py --base-url http://localhost:8010 --view active --min-replay-success-ratio 0.95
+python scripts/check_outbox_replay_health.py --base-url http://localhost:8000 --view active --min-replay-success-ratio 0.95
 ```
 
 Exit code contract:

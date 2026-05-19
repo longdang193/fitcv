@@ -77,7 +77,7 @@ If you are using `.\sa_key.json`:
 .\start_web.ps1
 ```
 
-The admin UI is available at `http://localhost/admin/runs`.
+The admin UI is available at `http://localhost:8000/admin/runs`.
 
 ### 3. Start the Worker
 
@@ -140,7 +140,7 @@ cd "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT"
 docker compose up -d --build redis web worker
 ```
 
-The admin UI is available at `http://localhost/admin/runs`.
+The admin UI is available at `http://localhost:8000/admin/runs`.
 
 Notes:
 
@@ -157,15 +157,15 @@ Notes:
 
 Open:
 
-- `http://localhost/admin/runs`
-- `http://localhost/healthz`
+- `http://localhost:8000/admin/runs`
+- `http://localhost:8000/healthz`
 
 ### Trigger a Test Run
 
 ```powershell
 Invoke-RestMethod `
   -Method Post `
-  -Uri "http://localhost/runs" `
+  -Uri "http://localhost:8000/runs" `
   -ContentType "application/json" `
   -Body '{"jobs_path":"data/sample_jobs.json","config_path":"config/env.yaml","triggered_by":"admin","run_mode":"run_all"}'
 ```
@@ -267,14 +267,14 @@ Use this after triggering runs to confirm orchestration diagnostics are visible 
 Basic verification (schema + run evidence + run detail labels):
 
 ```powershell
-.\scripts\verify_fitcv_orchestration_modes.ps1 -BaseUrl "http://localhost"
+.\scripts\verify_fitcv_orchestration_modes.ps1 -BaseUrl "http://localhost:8000"
 ```
 
 Require both queue and prefect runs to exist in the inspected run set:
 
 ```powershell
 .\scripts\verify_fitcv_orchestration_modes.ps1 `
-  -BaseUrl "http://localhost" `
+  -BaseUrl "http://localhost:8000" `
   -RequireQueue `
   -RequirePrefect
 ```
@@ -283,7 +283,7 @@ Verify a specific run id:
 
 ```powershell
 .\scripts\verify_fitcv_orchestration_modes.ps1 `
-  -BaseUrl "http://localhost" `
+  -BaseUrl "http://localhost:8000" `
   -RunId "<run-id>"
 ```
 
@@ -318,13 +318,13 @@ Use this when you want recurring operational checks and alert-friendly exit code
 
 Prerequisite:
 
-- `web` must be running and reachable at your chosen base URL (for example `http://localhost`).
+- `web` must be running and reachable at your chosen base URL (for example `http://localhost:8000`).
 
 Manual command:
 
 ```powershell
 python scripts/check_outbox_replay_health.py `
-  --base-url http://localhost `
+  --base-url http://localhost:8000 `
   --view active `
   --min-replay-success-ratio 0.95
 ```
@@ -340,7 +340,7 @@ Exit codes:
 Example `schtasks` registration (every 10 minutes):
 
 ```powershell
-schtasks /Create /TN "FitCV-Outbox-Replay-Health" /SC MINUTE /MO 10 /F /TR "\"C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe\" \"C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\check_outbox_replay_health.py\" --base-url http://localhost --view active --min-replay-success-ratio 0.95"
+schtasks /Create /TN "FitCV-Outbox-Replay-Health" /SC MINUTE /MO 10 /F /TR "\"C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe\" \"C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\check_outbox_replay_health.py\" --base-url http://localhost:8000 --view active --min-replay-success-ratio 0.95"
 ```
 
 Run now:
@@ -358,7 +358,7 @@ schtasks /Delete /TN "FitCV-Outbox-Replay-Health" /F
 ### Cron example (Linux/macOS environments)
 
 ```bash
-*/10 * * * * /path/to/python /path/to/repo/scripts/check_outbox_replay_health.py --base-url http://localhost --view active --min-replay-success-ratio 0.95 >> /var/log/fitcv-outbox-health.log 2>&1
+*/10 * * * * /path/to/python /path/to/repo/scripts/check_outbox_replay_health.py --base-url http://localhost:8000 --view active --min-replay-success-ratio 0.95 >> /var/log/fitcv-outbox-health.log 2>&1
 ```
 
 The checker prints JSON payloads; use your scheduler or wrapper to route non-zero
@@ -370,7 +370,7 @@ Use the wrapper when you want direct webhook delivery for alert/error outcomes:
 
 ```powershell
 python scripts/route_outbox_replay_health_alert.py `
-  --base-url http://localhost `
+  --base-url http://localhost:8000 `
   --view active `
   --min-replay-success-ratio 0.95 `
   --webhook-url https://example-alert-endpoint.local/hooks/fitcv
