@@ -9891,7 +9891,7 @@ def test_settings_page_renders_task_first_sections():
     assert "Ranking" in html
     assert "CV Output" in html
     assert "Run Safety" in html
-    assert "Advanced" in html
+    assert "Legacy Compatibility" in html
 
 
 def test_settings_page_renders_cv_sub_cards():
@@ -9934,9 +9934,9 @@ def test_settings_page_uses_advanced_disclosure_for_expert_controls() -> None:
     assert resp.status_code == 200
     html = resp.text
     assert "Diagnostics" in html
-    assert "Advanced Runtime Tuning" in html
+    assert "Legacy Compatibility" in html
     assert "metadata-only semantic runtime contract details" in html.lower()
-    assert "Shared timing and compatibility controls outside late-stage agentic throughput" in html
+    assert "Collapsed read-only mapping of legacy aliases to canonical runtime throughput keys." in html
     assert "<details" in html
     assert 'name="cv_analysis.semantic_alignment.required_skill_lexical_weight"' in html
     assert 'name="cv_analysis.semantic_alignment.role_semantic_weight"' in html
@@ -9957,7 +9957,11 @@ def test_settings_page_surfaces_late_stage_stage_runtime_controls_in_agentic_sec
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "Agentic Runtime Throughput" in html
+    assert "Runtime Throughput" in html
+    assert "Enrichment" in html
+    assert "Ranking" in html
+    assert "CV Analysis" in html
+    assert "CV Generation" in html
     assert "API Delay: CV Analysis Stage" in html
     assert "Concurrency: CV Analysis Stage" in html
     assert "API Delay: CV Generation Stage" in html
@@ -9965,6 +9969,7 @@ def test_settings_page_surfaces_late_stage_stage_runtime_controls_in_agentic_sec
     assert "Quality Targets" in html
     assert "Throughput" in html
     assert "Advanced Agentic Tuning" not in html
+    assert "Advanced Runtime Tuning" not in html
     assert 'action="/admin/settings/section/agentic-core"' in html
     assert 'action="/admin/settings/section/agentic-advanced"' in html
 
@@ -11018,7 +11023,10 @@ def test_admin_settings_renders_legacy_alias_keys_as_compatibility_surface() -> 
     resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
+    assert "Legacy Compatibility" in html
     assert "Legacy aliases: enrichment_sleep_secs" in html
+    assert "Read-only compatibility mapping. Edit canonical Runtime Throughput settings instead." in html
+    assert "Save Runtime Compatibility Settings" not in html
 
 def test_admin_settings_has_guarded_save_preflight_script() -> None:
     resp = TestClient(_app()).get("/admin/settings")

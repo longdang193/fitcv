@@ -297,6 +297,13 @@
     font-size: 0.84rem;
     color: var(--text-primary);
   }
+  .settings-group-title {
+    margin: 0.25rem 0 0.65rem;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: none;
+  }
   .sub-card-footer {
     display: flex;
     justify-content: flex-end;
@@ -395,7 +402,7 @@
   {% set entry = item.entry %}
   <div class="settings-field-control">
     {% if item.is_metadata_only %}
-      <div class="settings-field-note is-fixed">{{ settings_metadata_note }}</div>
+      <div class="settings-field-note is-fixed">{{ item.metadata_note or settings_metadata_note }}</div>
     {% elif entry.type == 'bool' %}
       <input type="hidden" name="{{ entry.key }}" value="{{ 'true' if item.form_value in [true, 'true', '1', 'yes', 'on'] else 'false' }}" data-default-value="{{ 'true' if entry.default else 'false' }}">
       <input
@@ -501,7 +508,7 @@
 <div class="page-header">
   <div>
     <h1>Pipeline Settings</h1>
-    <p class="meta">Changes apply to future runs only. The default view highlights the settings operators tune most often; advanced tuning stays available when you need deeper control.</p>
+    <p class="meta">Changes apply to future runs only. Runtime throughput uses one canonical editable surface with legacy compatibility shown as read-only mapping.</p>
   </div>
 </div>
 
@@ -564,13 +571,33 @@
       </div>
       <div class="task-section-grid">
         {% for card in section.cards %}
-          {% if card.is_advanced %}
-            <details class="settings-advanced-details"{% if card.error_message %} open{% endif %}>
+          {% if card.is_advanced or card.is_collapsible %}
+            <details class="settings-advanced-details"{% if card.error_message or not card.collapsed_by_default %} open{% endif %}>
               <summary>
                 <div class="settings-advanced-summary-title">{{ card.title }}</div>
                 <div class="settings-advanced-summary-helper">{{ card.helper }}</div>
               </summary>
               <div class="settings-panel" data-card-risk="{{ card.risk }}" data-card-domains="{{ card.domains | join('|') }}" data-card-stages="{{ card.workflow_stages | join('|') }}">
+                {% if card.read_only %}
+                  <div class="settings-panel-body" style="padding-top:1rem">
+                    {% if card.stage_groups %}
+                      {% for stage_group in card.stage_groups %}
+                        <div class="settings-group-title">{{ stage_group.title }}</div>
+                        <div class="settings-field-list">
+                          {% for item in stage_group.entries %}
+                            {{ render_settings_row(item, settings_metadata_note) }}
+                          {% endfor %}
+                        </div>
+                      {% endfor %}
+                    {% else %}
+                      <div class="settings-field-list">
+                        {% for item in card.entries %}
+                          {{ render_settings_row(item, settings_metadata_note) }}
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+                  </div>
+                {% else %}
                 <form id="{{ card.form_id }}" method="post" action="{{ card.action }}" data-dirty-card="{{ card.form_id }}" data-guarded-save="{{ 'true' if card.guarded_save else 'false' }}">
                   {% if card.error_message %}
                     <div class="error-box" style="margin-top:1rem">
@@ -579,11 +606,22 @@
                     </div>
                   {% endif %}
                   <div class="settings-panel-body" style="padding-top:1rem">
-                    <div class="settings-field-list">
-                      {% for item in card.entries %}
-                        {{ render_settings_row(item, settings_metadata_note) }}
+                    {% if card.stage_groups %}
+                      {% for stage_group in card.stage_groups %}
+                        <div class="settings-group-title">{{ stage_group.title }}</div>
+                        <div class="settings-field-list">
+                          {% for item in stage_group.entries %}
+                            {{ render_settings_row(item, settings_metadata_note) }}
+                          {% endfor %}
+                        </div>
                       {% endfor %}
-                    </div>
+                    {% else %}
+                      <div class="settings-field-list">
+                        {% for item in card.entries %}
+                          {{ render_settings_row(item, settings_metadata_note) }}
+                        {% endfor %}
+                      </div>
+                    {% endif %}
                   </div>
                   <div class="sub-card-footer">
                     <div class="settings-card-status" data-dirty-summary="{{ card.form_id }}">
@@ -593,6 +631,7 @@
                     <button type="submit" class="btn-section">{{ card.save_label }}</button>
                   </div>
                 </form>
+                {% endif %}
               </div>
             </details>
           {% else %}
@@ -635,6 +674,15 @@
                         </div>
                       {% endfor %}
                     </div>
+                  {% elif card.stage_groups %}
+                    {% for stage_group in card.stage_groups %}
+                      <div class="settings-group-title">{{ stage_group.title }}</div>
+                      <div class="settings-field-list">
+                        {% for item in stage_group.entries %}
+                          {{ render_settings_row(item, settings_metadata_note) }}
+                        {% endfor %}
+                      </div>
+                    {% endfor %}
                   {% else %}
                     <div class="settings-field-list">
                       {% for item in card.entries %}

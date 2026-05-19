@@ -4429,12 +4429,33 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     schema_by_key = {entry["key"]: entry for entry in runtime_settings_schema}
     metadata_only_keys = metadata_only_settings_keys()
     editable_keys = editable_settings_keys()
+    timing_schema_entries: dict[str, dict[str, Any]] = {
+        str(entry.get("key") or ""): entry
+        for entry in runtime_settings_schema
+        if str(entry.get("group") or "") == "timing"
+    }
+    canonical_runtime_throughput_keys: list[str] = [
+        key
+        for key in SETTINGS_SECTIONS["timing"]
+        if key.startswith("stage_runtime.")
+    ]
+    compatibility_runtime_alias_keys: list[str] = [
+        key
+        for key in SETTINGS_SECTIONS["timing"]
+        if str(timing_schema_entries.get(key, {}).get("compatibility_alias_for") or "").strip()
+    ]
     canonical_compatibility_aliases: dict[str, list[str]] = {}
     for schema_entry in runtime_settings_schema:
         legacy_key = str(schema_entry.get("key") or "").strip()
         canonical_key = str(schema_entry.get("compatibility_alias_for") or "").strip()
         if canonical_key and legacy_key:
             canonical_compatibility_aliases.setdefault(canonical_key, []).append(legacy_key)
+    runtime_throughput_stage_titles = {
+        "enrich": "Enrichment",
+        "ranking": "Ranking",
+        "cv_analysis": "CV Analysis",
+        "cv_generation": "CV Generation",
+    }
     hidden_deprecated_keys = hidden_deprecated_settings_keys()
 
     def require_run_or_404(run_id: str, *, detail: str = "Run not found") -> PipelineRun:
@@ -4748,17 +4769,24 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 },
                 {
                     "id": "agentic-runtime-throughput",
-                    "title": "Agentic Runtime Throughput",
-                    "helper": "First-class late-stage runtime pacing and concurrency controls for analysis and generation.",
+                    "title": "Runtime Throughput",
+                    "helper": "Canonical runtime pacing and concurrency controls grouped by stage.",
                     "submit_kind": "section",
                     "submit_slug": "timing",
-                    "save_label": "Save Agentic Runtime Throughput",
-                    "keys": [
-                        "stage_runtime.cv_analysis.sleep_secs",
-                        "stage_runtime.cv_analysis.concurrency",
-                        "stage_runtime.cv_generation.sleep_secs",
-                        "stage_runtime.cv_generation.concurrency",
-                    ],
+                    "save_label": "Save Runtime Throughput Settings",
+                    "keys": canonical_runtime_throughput_keys,
+                    "group_by_stage": True,
+                },
+                {
+                    "id": "agentic-runtime-compatibility",
+                    "title": "Legacy Compatibility",
+                    "helper": "Collapsed read-only mapping of legacy aliases to canonical runtime throughput keys.",
+                    "submit_kind": "section",
+                    "submit_slug": "timing",
+                    "keys": compatibility_runtime_alias_keys,
+                    "is_collapsible": True,
+                    "collapsed_by_default": True,
+                    "read_only": True,
                 },
             ],
         },
@@ -4857,33 +4885,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 },
             ],
         },
-        {
-            "id": "advanced",
-            "title": "Advanced",
-            "helper": "Expert-only tuning for semantic alignment, batching, concurrency, and throttle behavior.",
-            "cards": [
-                {
-                    "id": "advanced-runtime",
-                    "title": "Advanced Runtime Tuning",
-                    "helper": "Shared timing and compatibility controls outside late-stage agentic throughput.",
-                    "submit_kind": "section",
-                    "submit_slug": "timing",
-                    "save_label": "Save Timing Settings",
-                    "keys": [
-                        key
-                        for key in SETTINGS_SECTIONS["timing"]
-                        if key
-                        not in {
-                            "stage_runtime.cv_analysis.sleep_secs",
-                            "stage_runtime.cv_analysis.concurrency",
-                            "stage_runtime.cv_generation.sleep_secs",
-                            "stage_runtime.cv_generation.concurrency",
-                        }
-                    ],
-                    "is_advanced": True,
-                },
-            ],
-        },
     ]
 
     @app.get("/healthz")
@@ -4977,6 +4978,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         def _build_card(card_spec: dict[str, Any]) -> dict[str, Any]:
             submit_kind = str(card_spec["submit_kind"])
             submit_slug = str(card_spec["submit_slug"])
+            card_read_only = bool(card_spec.get("read_only", False))
             action = (
                 f"/admin/settings/group/{submit_slug}"
                 if submit_kind == "group"
@@ -5066,7 +5068,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "source_label": "Persisted override" if key in active else "Baseline default",
                         "override_state": "overridden" if key in active else "inherited",
                         "has_error": has_error,
-                        "is_metadata_only": key in metadata_only_keys,
+                        "is_metadata_only": card_read_only or key in metadata_only_keys,
+                        "metadata_note": (
+                            "Read-only compatibility mapping. Edit canonical Runtime Throughput settings instead."
+                            if card_read_only else None
+                        ),
                         "ia_contract": settings_ia_contract_for_key(key),
                         "decision_state": decision_state,
                         "decision_status": str(decision_state.get("decision_status") or DECISION_STATUS_CONFIGURED),
@@ -5104,6 +5110,18 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 item_risk = str(item["ia_contract"].get("risk") or "low")
                 if risk_rank.get(item_risk, 1) > risk_rank.get(card_risk, 1):
                     card_risk = item_risk
+            stage_groups: list[dict[str, Any]] = []
+            if bool(card_spec.get("group_by_stage", False)):
+                for stage_id, stage_title in runtime_throughput_stage_titles.items():
+                    stage_entries = [item for item in entries if item.get("decision_stage") == stage_id]
+                    if stage_entries:
+                        stage_groups.append(
+                            {
+                                "id": stage_id,
+                                "title": stage_title,
+                                "entries": stage_entries,
+                            }
+                        )
             return {
                 "id": card_spec["id"],
                 "title": card_spec["title"],
@@ -5119,10 +5137,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "error_message": _card_error_for(submit_kind, submit_slug, list(visible_keys)),
                 "layout": card_spec.get("layout", "list"),
                 "is_advanced": bool(card_spec.get("is_advanced", False)),
+                "is_collapsible": bool(card_spec.get("is_collapsible", False)),
+                "collapsed_by_default": bool(card_spec.get("collapsed_by_default", False)),
+                "read_only": card_read_only,
+                "stage_groups": stage_groups,
                 "domains": card_domains,
                 "workflow_stages": card_stages,
                 "risk": card_risk,
-                "guarded_save": bool(card_spec.get("is_advanced", False)) or card_risk == "high",
+                "guarded_save": (not card_read_only) and (bool(card_spec.get("is_advanced", False)) or card_risk == "high"),
             }
 
         settings_page_task_sections = [
