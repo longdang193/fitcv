@@ -14,6 +14,9 @@ tags:
 """
 
 import json
+import sys
+import types
+import pytest
 
 from fitcv import telemetry
 
@@ -64,6 +67,33 @@ def test_observe_span_yields_none_when_telemetry_disabled() -> None:
     with telemetry.observe_span("pipeline.test", attributes={"run_id": "r1"}) as trace_context:
         assert trace_context is None
         assert telemetry.current_trace_context() is None
+
+def test_observe_span_does_not_double_yield_when_body_raises(monkeypatch) -> None:
+    telemetry.reset_telemetry_runtime_for_tests()
+    monkeypatch.setattr(telemetry, "_OTEL_ENABLED", True)
+    monkeypatch.setattr(telemetry, "setup_telemetry_runtime", lambda: None)
+    monkeypatch.setattr(telemetry, "current_trace_context", lambda: {"trace_id": "0" * 32, "span_id": "0" * 16, "parent_span_id": "0" * 16})
+
+    class _Span:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def set_attribute(self, _key: str, _value: object) -> None:
+            return None
+
+    class _Tracer:
+        def start_as_current_span(self, _name: str):
+            return _Span()
+
+    fake_trace = types.SimpleNamespace(get_tracer=lambda _name: _Tracer())
+    monkeypatch.setitem(sys.modules, "opentelemetry", types.SimpleNamespace(trace=fake_trace))
+
+    with pytest.raises(RuntimeError, match="probe-fail"):
+        with telemetry.observe_span("pipeline.test", attributes={"run_id": "r1"}):
+            raise RuntimeError("probe-fail")
 
 
 def test_langfuse_link_status_disabled_by_default() -> None:
