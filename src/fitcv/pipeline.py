@@ -51,7 +51,7 @@ import hashlib
 import os
 import time
 import uuid
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from copy import deepcopy
 from typing import Any, Callable, cast
 
@@ -367,6 +367,7 @@ def _enrich_jobs_with_reuse(
     config: dict[str, Any],
     *,
     pipeline_store: PipelineStore | None = None,
+    heartbeat_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     if not normalized_jobs:
         return [], []
@@ -405,7 +406,64 @@ def _enrich_jobs_with_reuse(
     ]
     fresh_rows: list[dict[str, Any]] = []
     if fresh_jobs:
-        fresh_rows = enrich_batch(fresh_jobs, config)
+        debug_heartbeat_enabled = str(os.environ.get("FITCV_ENRICH_DEBUG_HEARTBEAT", "") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        per_job_timeout_raw = str(os.environ.get("FITCV_ENRICH_JOB_TIMEOUT_SECS", "180") or "180").strip()
+        try:
+            per_job_timeout_secs = max(10, int(float(per_job_timeout_raw)))
+        except ValueError:
+            per_job_timeout_secs = 180
+
+        if debug_heartbeat_enabled:
+            total = len(fresh_jobs)
+            for idx, job in enumerate(fresh_jobs, start=1):
+                job_url = _extract_job_url(job) or f"job_{idx}"
+                if heartbeat_callback:
+                    heartbeat_callback(
+                        {
+                            "phase": "job_start",
+                            "index": idx,
+                            "total": total,
+                            "job_url": job_url,
+                            "timeout_secs": per_job_timeout_secs,
+                        }
+                    )
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(enrich_batch, [job], config)
+                    try:
+                        batch_rows = future.result(timeout=per_job_timeout_secs)
+                    except FuturesTimeoutError as exc:
+                        if heartbeat_callback:
+                            heartbeat_callback(
+                                {
+                                    "phase": "job_timeout",
+                                    "index": idx,
+                                    "total": total,
+                                    "job_url": job_url,
+                                    "timeout_secs": per_job_timeout_secs,
+                                }
+                            )
+                        raise TimeoutError(
+                            f"Enrich timeout for {job_url} after {per_job_timeout_secs}s (job {idx}/{total})"
+                        ) from exc
+                if batch_rows:
+                    fresh_rows.extend(batch_rows)
+                if heartbeat_callback:
+                    heartbeat_callback(
+                        {
+                            "phase": "job_done",
+                            "index": idx,
+                            "total": total,
+                            "job_url": job_url,
+                            "rows": len(batch_rows or []),
+                        }
+                    )
+        else:
+            fresh_rows = enrich_batch(fresh_jobs, config)
         for row in fresh_rows:
             job_url = _extract_job_url(row)
             if not job_url:
@@ -3579,6 +3637,14 @@ def run_pipeline(
                     surviving_normalized,
                     enrich_runtime_config,
                     pipeline_store=pipeline_store,
+                    heartbeat_callback=(
+                        (lambda payload: reporter.emit(  # type: ignore[union-attr]
+                            "enrich_heartbeat",
+                            "info",
+                            f"Enrich heartbeat: {payload}",
+                        ))
+                        if reporter is not None else None
+                    ),
                 )
                 if fresh_enriched_rows:
                     pipeline_store.load_structured_jobs(fresh_enriched_rows, enrich_runtime_config)

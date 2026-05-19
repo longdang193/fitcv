@@ -513,15 +513,14 @@ def observe_span(name: str, *, attributes: Mapping[str, Any] | None = None) -> I
         return
     try:
         from opentelemetry import trace  # type: ignore
-
-        tracer = trace.get_tracer("fitcv.telemetry")
-        with tracer.start_as_current_span(name) as span:
-            for key, value in normalized_attributes.items():
-                span.set_attribute(key, value)
-            yield current_trace_context()
-            return
     except Exception:
         yield None
+        return
+    tracer = trace.get_tracer("fitcv.telemetry")
+    with tracer.start_as_current_span(name) as span:
+        for key, value in normalized_attributes.items():
+            span.set_attribute(key, value)
+        yield current_trace_context()
 
 
 def set_span_attributes(attributes: Mapping[str, Any] | None) -> None:
