@@ -161,9 +161,11 @@ workstreams:
     - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
     - docs/superpowers/specs/2026-05-02-ranked-cv-outcome-clarity-and-review-diagnostics-spec.md
     - docs/superpowers/specs/2026-05-03-agentic-cv-review-lifecycle-truth-clarity-batch-actions-spec.md
+    - docs/superpowers/specs/2026-05-19-15-18-agentic-review-queue-routing-spec.md
     plans:
     - docs/superpowers/plans/2026-05-03-bounded-cv-quality-analysis-grounding-bootstrap-plan.md
     - docs/superpowers/plans/2026-05-05-cross-section-placeholder-guardrails-implementation-plan.md
+    - docs/superpowers/plans/2026-05-19-15-26-agentic-review-queue-routing-and-selection-plan.md
     derived_completion: in_progress
   - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-generation-repair
     status: proposed

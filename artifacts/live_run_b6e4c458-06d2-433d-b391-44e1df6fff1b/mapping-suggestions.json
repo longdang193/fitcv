@@ -1,0 +1,271 @@
+{
+  "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+  "mapping_suggestions_schema_version": "mapping_suggestions_v1",
+  "created_at": "2026-05-19T13:28:09.674657+00:00",
+  "suggestions": [
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title",
+      "job_title": "Creative Strategist, Growth Marketing [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "software development and it services and it consulting",
+      "canonical": "software (design platform / saas)",
+      "field": "domain"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title",
+      "job_title": "Creative Strategist, Growth Marketing [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "growth marketing",
+      "canonical": "growth_marketing",
+      "field": "role_family"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://de.linkedin.com/jobs/view/business-development-manager-at-temu-4413525295?trk=public_jobs_topcard-title",
+      "job_title": "Business Development Manager [probe_1779195595]",
+      "must_have_skill": "industry analysis",
+      "matches": true,
+      "confidence": 0.85,
+      "alias": "conduct industry analysis reports",
+      "canonical": "industry analysis",
+      "field": "skill"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://de.linkedin.com/jobs/view/business-development-manager-at-temu-4413525295?trk=public_jobs_topcard-title",
+      "job_title": "Business Development Manager [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "technology, information and internet, online and mail order retail, and retail",
+      "canonical": "ecommerce retail",
+      "field": "domain"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://de.linkedin.com/jobs/view/business-development-manager-at-temu-4413525295?trk=public_jobs_topcard-title",
+      "job_title": "Business Development Manager [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "business development",
+      "canonical": "business_development",
+      "field": "role_family"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+      "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+      "must_have_skill": "microsoft excel",
+      "matches": true,
+      "confidence": 0.97,
+      "alias": "excel",
+      "canonical": "microsoft excel",
+      "field": "skill"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+      "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+      "must_have_skill": "microsoft sharepoint",
+      "matches": true,
+      "confidence": 0.98,
+      "alias": "sharepoint",
+      "canonical": "microsoft sharepoint",
+      "field": "skill"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+      "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+      "must_have_skill": "microsoft teams",
+      "matches": true,
+      "confidence": 0.97,
+      "alias": "teams",
+      "canonical": "microsoft teams",
+      "field": "skill"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+      "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+      "must_have_skill": "microsoft visio",
+      "matches": true,
+      "confidence": 0.97,
+      "alias": "visio",
+      "canonical": "microsoft visio",
+      "field": "skill"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+      "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+      "must_have_skill": "low-code development",
+      "matches": true,
+      "confidence": 0.76,
+      "alias": "low-code/no-code platforms",
+      "canonical": "low-code development",
+      "field": "skill"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+      "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+      "must_have_skill": "microsoft power automate",
+      "matches": true,
+      "confidence": 0.98,
+      "alias": "power automate",
+      "canonical": "microsoft power automate",
+      "field": "skill"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+      "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+      "must_have_skill": "microsoft power bi",
+      "matches": true,
+      "confidence": 0.98,
+      "alias": "power bi",
+      "canonical": "microsoft power bi",
+      "field": "skill"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+      "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "international affairs",
+      "canonical": "defense",
+      "field": "domain"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://de.linkedin.com/jobs/view/ai-engineer-at-huzzle-com-4413936464?trk=public_jobs_topcard-title",
+      "job_title": "AI Engineer [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "it services and it consulting",
+      "canonical": "enterprise software",
+      "field": "domain"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://de.linkedin.com/jobs/view/ai-engineer-at-huzzle-com-4413936464?trk=public_jobs_topcard-title",
+      "job_title": "AI Engineer [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "data engineering",
+      "canonical": "data_engineering",
+      "field": "role_family"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://de.linkedin.com/jobs/view/ai-engineer-at-huzzle-com-4413936464?trk=public_jobs_topcard-title",
+      "job_title": "AI Engineer [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "data_engineering",
+      "canonical": "ml_engineering",
+      "field": "role_family"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://de.linkedin.com/jobs/view/data-scientist-python-sql-freelance-ai-trainer-at-mindrift-4410200409?trk=public_jobs_topcard-title",
+      "job_title": "Data Scientist (Python & SQL) - Freelance AI Trainer [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "data science",
+      "canonical": "data_science",
+      "field": "role_family"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4413461417",
+      "job_title": "Data Analyst Business Intelligence (d/m/w/x) [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "financial services",
+      "canonical": "banking",
+      "field": "domain"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4413403826",
+      "job_title": "Data Entry [probe_1779195595]",
+      "must_have_skill": "microsoft excel",
+      "matches": true,
+      "confidence": 0.8,
+      "alias": "good knowledge of excel",
+      "canonical": "microsoft excel",
+      "field": "skill"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4413403826",
+      "job_title": "Data Entry [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "non-profit organizations",
+      "canonical": "healthcare",
+      "field": "domain"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4413403826",
+      "job_title": "Data Entry [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "data management",
+      "canonical": "data_management",
+      "field": "role_family"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4409730791",
+      "job_title": "Founder | Upto $5000 Part-time [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "software development",
+      "canonical": "artificial intelligence",
+      "field": "domain"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4410059415",
+      "job_title": "(Junior) Data & Market Analyst (m/w/d) – Bildungs- und Arbeitsmarkt [probe_1779195595]",
+      "must_have_skill": "data visualization",
+      "matches": true,
+      "confidence": 0.7,
+      "alias": "reporting & visualisierung",
+      "canonical": "data visualization",
+      "field": "skill"
+    },
+    {
+      "run_id": "b6e4c458-06d2-433d-b391-44e1df6fff1b",
+      "job_url": "https://www.linkedin.com/jobs/view/4410059415",
+      "job_title": "(Junior) Data & Market Analyst (m/w/d) – Bildungs- und Arbeitsmarkt [probe_1779195595]",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "professional training and coaching",
+      "canonical": "professional training and education",
+      "field": "domain"
+    }
+  ]
+}

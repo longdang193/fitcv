@@ -1,0 +1,1664 @@
+{
+  "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+  "synonym_proposals_schema_version": "synonym_proposals_v1",
+  "created_at": "2026-05-19T13:27:46.106974+00:00",
+  "proposal_generation_status": "generated",
+  "persistence_status": "persisted",
+  "proposals": [
+    {
+      "proposal_id": "synprop-36f0997b0fe5",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "excel",
+      "canonical": "microsoft excel",
+      "candidate_aliases": [
+        "excel"
+      ],
+      "candidate_canonicals": [
+        "microsoft excel"
+      ],
+      "confidence": 0.98,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.98,
+        "must_have_skills": [
+          "microsoft excel"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.98
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.98,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "682822bb0eeb0bf046e218848dffada384d4ab741a581d8db745380803de6f2d"
+      }
+    },
+    {
+      "proposal_id": "synprop-27faf9422811",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "power automate",
+      "canonical": "microsoft power automate",
+      "candidate_aliases": [
+        "power automate"
+      ],
+      "candidate_canonicals": [
+        "microsoft power automate"
+      ],
+      "confidence": 0.98,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.98,
+        "must_have_skills": [
+          "microsoft power automate"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.98
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.98,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "bf16129cc72d0f41acddca82e94dfa40d5304be854a5bf294ca0fe211ac55266"
+      }
+    },
+    {
+      "proposal_id": "synprop-35ca31be5f11",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "power bi",
+      "canonical": "microsoft power bi",
+      "candidate_aliases": [
+        "power bi"
+      ],
+      "candidate_canonicals": [
+        "microsoft power bi"
+      ],
+      "confidence": 0.98,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.98,
+        "must_have_skills": [
+          "microsoft power bi"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.98
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.98,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "bd9ec97b69b28042e7e1dda25382943985042fad7fc802ff98fbae31bfbd6d87"
+      }
+    },
+    {
+      "proposal_id": "synprop-ac5ce7423a5a",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "sharepoint",
+      "canonical": "microsoft sharepoint",
+      "candidate_aliases": [
+        "sharepoint"
+      ],
+      "candidate_canonicals": [
+        "microsoft sharepoint"
+      ],
+      "confidence": 0.98,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.98,
+        "must_have_skills": [
+          "microsoft sharepoint"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.98
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.98,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "73e8377fe4303eb682ee29a9ccba96478900343f628128f6063d376af339deb0"
+      }
+    },
+    {
+      "proposal_id": "synprop-a15f8b2ab6c2",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "teams",
+      "canonical": "microsoft teams",
+      "candidate_aliases": [
+        "teams"
+      ],
+      "candidate_canonicals": [
+        "microsoft teams"
+      ],
+      "confidence": 0.98,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.98,
+        "must_have_skills": [
+          "microsoft teams"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.98
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.98,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "91bb08db706236d27bd6316938eea685007792ced6a0c884ee4b775784dd8a95"
+      }
+    },
+    {
+      "proposal_id": "synprop-5c305059a9d3",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "visio",
+      "canonical": "microsoft visio",
+      "candidate_aliases": [
+        "visio"
+      ],
+      "candidate_canonicals": [
+        "microsoft visio"
+      ],
+      "confidence": 0.98,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.98,
+        "must_have_skills": [
+          "microsoft visio"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.98
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.98,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "9ab0832ca0bbaf3ea73b038cc9ede8cffaf3356779a57d0f65347b68c286de9b"
+      }
+    },
+    {
+      "proposal_id": "synprop-e92970fa849f",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "kenntnisse in python",
+      "canonical": "python",
+      "candidate_aliases": [
+        "kenntnisse in python"
+      ],
+      "candidate_canonicals": [
+        "python"
+      ],
+      "confidence": 0.95,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.95,
+        "must_have_skills": [
+          "python"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4410059415",
+            "job_title": "(Junior) Data & Market Analyst (m/w/d) – Bildungs- und Arbeitsmarkt [probe_1779195595]",
+            "confidence": 0.95
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.95,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "b8dd21a94448d1d5c02521b515e1f2185e57dafe50037e04c2d4714c2cdefb7d"
+      }
+    },
+    {
+      "proposal_id": "synprop-28dd668dc996",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "kenntnisse in sql",
+      "canonical": "sql",
+      "candidate_aliases": [
+        "kenntnisse in sql"
+      ],
+      "candidate_canonicals": [
+        "sql"
+      ],
+      "confidence": 0.95,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.95,
+        "must_have_skills": [
+          "sql"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4410059415",
+            "job_title": "(Junior) Data & Market Analyst (m/w/d) – Bildungs- und Arbeitsmarkt [probe_1779195595]",
+            "confidence": 0.95
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.95,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "e83cb5e176e76209e1b34e0a65ad97aaa681c664da7af974dc215d290d610c11"
+      }
+    },
+    {
+      "proposal_id": "synprop-09e2cc516621",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "instagram",
+      "canonical": "instagram marketing",
+      "candidate_aliases": [
+        "instagram"
+      ],
+      "candidate_canonicals": [
+        "instagram marketing"
+      ],
+      "confidence": 0.9,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.9,
+        "must_have_skills": [
+          "instagram marketing"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title",
+            "job_title": "Creative Strategist, Growth Marketing [probe_1779195595]",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.9,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "e8bbb0238a438680c47cd4d8d4d9582b94dc28ca24221230a2331fe2b315da52"
+      }
+    },
+    {
+      "proposal_id": "synprop-68d18d12b82b",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "meta",
+      "canonical": "meta advertising",
+      "candidate_aliases": [
+        "meta"
+      ],
+      "candidate_canonicals": [
+        "meta advertising"
+      ],
+      "confidence": 0.9,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.9,
+        "must_have_skills": [
+          "meta advertising"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title",
+            "job_title": "Creative Strategist, Growth Marketing [probe_1779195595]",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.9,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "f445ede9cbbf0e0e35ea445f271329b77404b806f24881727b5fd7cc25b7a269"
+      }
+    },
+    {
+      "proposal_id": "synprop-8cb0b593df2c",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "tiktok",
+      "canonical": "tiktok marketing",
+      "candidate_aliases": [
+        "tiktok"
+      ],
+      "candidate_canonicals": [
+        "tiktok marketing"
+      ],
+      "confidence": 0.9,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.9,
+        "must_have_skills": [
+          "tiktok marketing"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title",
+            "job_title": "Creative Strategist, Growth Marketing [probe_1779195595]",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.9,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "ee142271255e628dee37468fbb5955a0051e6c8df5a54a39dbeea936a20f6602"
+      }
+    },
+    {
+      "proposal_id": "synprop-d9476184d1df",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "youtube",
+      "canonical": "youtube marketing",
+      "candidate_aliases": [
+        "youtube"
+      ],
+      "candidate_canonicals": [
+        "youtube marketing"
+      ],
+      "confidence": 0.9,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.9,
+        "must_have_skills": [
+          "youtube marketing"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title",
+            "job_title": "Creative Strategist, Growth Marketing [probe_1779195595]",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.9,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "4be7bb5ffacebc4e9b52ec026cdc27883a6969b09d82710271b17d99f449d81a"
+      }
+    },
+    {
+      "proposal_id": "synprop-b514b6304588",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "including ... attribution",
+      "canonical": "marketing attribution",
+      "candidate_aliases": [
+        "including ... attribution"
+      ],
+      "candidate_canonicals": [
+        "marketing attribution"
+      ],
+      "confidence": 0.88,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.88,
+        "must_have_skills": [
+          "marketing attribution"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title",
+            "job_title": "Creative Strategist, Growth Marketing [probe_1779195595]",
+            "confidence": 0.88
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.88,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "82bb061e702c9209cf981c57769d25b3432319a73a6f706ccbdf1e0857ec80d3"
+      }
+    },
+    {
+      "proposal_id": "synprop-4fdbc70f37ca",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "including mmm",
+      "canonical": "marketing mix modeling (mmm)",
+      "candidate_aliases": [
+        "including mmm"
+      ],
+      "candidate_canonicals": [
+        "marketing mix modeling (mmm)"
+      ],
+      "confidence": 0.88,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.88,
+        "must_have_skills": [
+          "marketing mix modeling (mmm)"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/creative-strategist-growth-marketing-at-canva-4413886917?trk=public_jobs_topcard-title",
+            "job_title": "Creative Strategist, Growth Marketing [probe_1779195595]",
+            "confidence": 0.88
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.88,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "90458825fa60b0e077f862487887ede9b89f049c47396a0600a7b3df2ff5903c"
+      }
+    },
+    {
+      "proposal_id": "synprop-a158533fea0a",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "flowcharts",
+      "canonical": "flowcharting",
+      "candidate_aliases": [
+        "flowcharts"
+      ],
+      "candidate_canonicals": [
+        "flowcharting"
+      ],
+      "confidence": 0.85,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.85,
+        "must_have_skills": [
+          "flowcharting"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407665608",
+            "job_title": "Internship - Information & Knowledge Management [probe_1779195595]",
+            "confidence": 0.85
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "0ce4d6a1723bf697341d3ed11489d5a14f267bceca15a0bb0d141489fcbb62ca"
+      }
+    },
+    {
+      "proposal_id": "synprop-e1a96397c6a6",
+      "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+      "field": "skill",
+      "alias": "perform regular database backups",
+      "canonical": "database backup",
+      "candidate_aliases": [
+        "perform regular database backups"
+      ],
+      "candidate_canonicals": [
+        "database backup"
+      ],
+      "confidence": 0.7,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.7,
+        "must_have_skills": [
+          "database backup"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413403826",
+            "job_title": "Data Entry [probe_1779195595]",
+            "confidence": 0.7
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.8,
+      "recommendation_rationale": "Moderate confidence mapping should be deferred for review.",
+      "recommendation_risk_flags": [
+        "moderate_confidence"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-19T13:27:46.216215+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "ebe8a153838bea48587e75281d42e1dcba4f43e370c78ada747cdaceef91a970"
+      }
+    }
+  ],
+  "synonym_proposals_trace": {
+    "run_id": "70a005e8-6b76-4ab5-9021-0888244ad5e8",
+    "trace_schema_version": "agentic_step_trace_run_v1",
+    "trace_family": "agentic_step_trace",
+    "step_id": "synonym_proposals",
+    "created_at": "2026-05-19T13:27:46.106974+00:00",
+    "trace_status": "completed",
+    "trace_summary": {
+      "records_total": 16,
+      "present_records": 16,
+      "proposal_count": 16,
+      "suppressed_as_already_global_count": 0,
+      "generated_for_review_count": 16,
+      "suppressed_count_by_field": {
+        "domain": 8,
+        "role_family": 6
+      },
+      "suppressed_reason_counts_by_field": {
+        "domain": {
+          "insufficient_non_skill_support": 8
+        },
+        "role_family": {
+          "insufficient_non_skill_support": 6
+        }
+      },
+      "suppression_source": "run_effective_skill_synonyms",
+      "triage_recommendation_generated_total": 16,
+      "triage_recommendation_reused_total": 0,
+      "triage_recommendation_fresh_total": 16,
+      "triage_recommendation_suppressed_total": 0,
+      "triage_recommendation_reuse_reason": "reuse_enabled",
+      "triage_recommendation_fingerprint": "06d50da2002bea45cf6df2649fd03ca86aff2652292e75a6590d47d43460b422",
+      "auto_apply_recommendation_applied": 0,
+      "auto_apply_recommendation_skipped": 0,
+      "auto_apply_recommendation_failed": 0,
+      "auto_apply_recommendation_reason_counts": {},
+      "auto_promote_global_applied": 0,
+      "auto_promote_global_skipped": 0,
+      "auto_promote_global_failed": 0,
+      "auto_promote_global_skip_reason": "disabled"
+    },
+    "records": [
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-36f0997b0fe5",
+        "scope_type": "alias",
+        "scope_key": "excel",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "excel",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.98
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-27faf9422811",
+        "scope_type": "alias",
+        "scope_key": "power automate",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "power automate",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.98
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-35ca31be5f11",
+        "scope_type": "alias",
+        "scope_key": "power bi",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "power bi",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.98
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-ac5ce7423a5a",
+        "scope_type": "alias",
+        "scope_key": "sharepoint",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "sharepoint",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.98
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-a15f8b2ab6c2",
+        "scope_type": "alias",
+        "scope_key": "teams",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "teams",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.98
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-5c305059a9d3",
+        "scope_type": "alias",
+        "scope_key": "visio",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "visio",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.98
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-e92970fa849f",
+        "scope_type": "alias",
+        "scope_key": "kenntnisse in python",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "kenntnisse in python",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.95
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-28dd668dc996",
+        "scope_type": "alias",
+        "scope_key": "kenntnisse in sql",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "kenntnisse in sql",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.95
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-09e2cc516621",
+        "scope_type": "alias",
+        "scope_key": "instagram",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "instagram",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.9
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-68d18d12b82b",
+        "scope_type": "alias",
+        "scope_key": "meta",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "meta",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.9
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-8cb0b593df2c",
+        "scope_type": "alias",
+        "scope_key": "tiktok",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "tiktok",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.9
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-d9476184d1df",
+        "scope_type": "alias",
+        "scope_key": "youtube",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "youtube",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.9
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-b514b6304588",
+        "scope_type": "alias",
+        "scope_key": "including ... attribution",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "including ... attribution",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.88
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-4fdbc70f37ca",
+        "scope_type": "alias",
+        "scope_key": "including mmm",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "including mmm",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.88
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-a158533fea0a",
+        "scope_type": "alias",
+        "scope_key": "flowcharts",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "flowcharts",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.85
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-e1a96397c6a6",
+        "scope_type": "alias",
+        "scope_key": "perform regular database backups",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "perform regular database backups",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.7
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      }
+    ],
+    "degradation": {},
+    "artifact_refs": {
+      "proposal_artifact": "synonym-proposals.json",
+      "stage_artifact": "enrich.json"
+    },
+    "suppression_examples": [
+      {
+        "field": "domain",
+        "alias": "software development and it services and it consulting",
+        "canonical": "design software (saas)"
+      },
+      {
+        "field": "role_family",
+        "alias": "growth marketing",
+        "canonical": "growth_marketing"
+      },
+      {
+        "field": "domain",
+        "alias": "technology, information and internet, online and mail order retail, and retail",
+        "canonical": "ecommerce retail"
+      },
+      {
+        "field": "role_family",
+        "alias": "business development",
+        "canonical": "business_development"
+      },
+      {
+        "field": "domain",
+        "alias": "international affairs",
+        "canonical": "defense"
+      },
+      {
+        "field": "domain",
+        "alias": "it services and it consulting",
+        "canonical": "enterprise software"
+      },
+      {
+        "field": "role_family",
+        "alias": "data engineering",
+        "canonical": "data_engineering"
+      },
+      {
+        "field": "role_family",
+        "alias": "data_engineering",
+        "canonical": "ml_engineering"
+      },
+      {
+        "field": "role_family",
+        "alias": "data science",
+        "canonical": "data_science"
+      },
+      {
+        "field": "domain",
+        "alias": "financial services",
+        "canonical": "banking"
+      }
+    ]
+  }
+}
