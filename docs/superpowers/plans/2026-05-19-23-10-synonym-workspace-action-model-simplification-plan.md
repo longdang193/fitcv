@@ -54,16 +54,16 @@ Regression coverage and UI assertions that lock action destination, banner behav
 - current route behavior captured from tests and source
 
 **Steps:**
-- [ ] Step 1: enumerate workspace-origin action handlers and current redirect destinations
-- [ ] Step 2: update handlers to redirect to `/synonym-review` for:
+- [x] Step 1: enumerate workspace-origin action handlers and current redirect destinations
+- [x] Step 2: update handlers to redirect to `/synonym-review` for:
   - triage refresh
   - AI fast-path execute
   - promote commit (success and conflict summary)
   - any remaining workspace-origin no-op guards
-- [ ] Step 3: keep explicit preview route behavior intact (`promote-preview` page) while handling no-approved state via workspace banner
+- [x] Step 3: keep explicit preview route behavior intact (`promote-preview` page) while handling no-approved state via workspace banner
 
 **Verification:**
-- [ ] Add/adjust route tests asserting `Location` headers for all touched endpoints
+- [x] Add/adjust route tests asserting `Location` headers for all touched endpoints
 
 **Exit Criteria:**
 - no workspace action unexpectedly lands user on run detail

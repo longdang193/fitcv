@@ -7758,7 +7758,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "hitl_batch_finalized": finalized,
             }
         )
-        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/{proposal_id}/action")
     async def admin_run_synonym_proposal_action(
@@ -8163,7 +8163,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "synonym_promote_overridden_aliases": preview["counts"].get("overridden_aliases", 0),
                 }
             )
-            return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+            return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
         promote_result = _commit_synonym_global_promotion(
             run=run,
             payload=payload,
@@ -8185,7 +8185,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_promote_overridden_aliases": promote_result["overridden_aliases"],
             }
         )
-        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/triage-refresh")
     async def admin_run_synonym_proposals_triage_refresh(
@@ -8448,7 +8448,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_auto_promote_failed": int(promote_counts.get("failed") or 0),
             }
         )
-        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/ai-fast-path-execute")
     async def admin_run_synonym_proposals_ai_fast_path_execute(

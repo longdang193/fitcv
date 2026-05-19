@@ -5473,7 +5473,7 @@ def test_admin_run_synonym_proposals_triage_refresh_redirects_with_summary() -> 
 
     assert resp.status_code == 303
     location = resp.headers["location"]
-    assert location.startswith("/admin/runs/run-triage-refresh?")
+    assert location.startswith("/admin/runs/run-triage-refresh/synonym-review?")
     assert "synonym_triage_triaged=1" in location
     assert "synonym_triage_reused=0" in location
     assert "synonym_triage_fresh=1" in location
@@ -5511,6 +5511,39 @@ def test_resolve_synonym_triage_runtime_includes_canonical_cv_analysis_runtime()
 
     assert runtime["sleep_secs"] == 0.4
     assert runtime["concurrency"] == 5
+
+
+def test_admin_run_synonym_ai_fast_path_redirects_to_synonym_review() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-ai-fast-path-redirect",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json='{"synonym_management":{"promote_global_enabled":false}}',
+        synonym_proposals_json=(
+            '{"run_id":"run-ai-fast-path-redirect","proposals":['
+            '{"proposal_id":"proposal-pending","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app._persist_synonym_proposal_payload"), \
+         patch("fitcv_cp.app._auto_apply_synonym_recommendations", return_value={"applied": 0, "skipped": 1, "failed": 0, "reason_counts": {}}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-ai-fast-path-redirect/synonym-proposals/ai-fast-path-execute",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    assert resp.headers["location"].startswith("/admin/runs/run-ai-fast-path-redirect/synonym-review?")
 
 
 def test_admin_run_synonym_proposals_triage_refresh_does_not_mutate_status() -> None:
@@ -6182,7 +6215,7 @@ def test_admin_run_synonym_promote_commit_updates_global_policy_and_redirects() 
     assert resp.status_code == 303
     assert (
         resp.headers["location"]
-        == "/admin/runs/run-promote-commit?synonym_promote_applied=1&synonym_promote_skipped=0&synonym_promote_failed=0&synonym_promote_new_aliases=1&synonym_promote_unchanged_aliases=0&synonym_promote_overridden_aliases=0"
+        == "/admin/runs/run-promote-commit/synonym-review?synonym_promote_applied=1&synonym_promote_skipped=0&synonym_promote_failed=0&synonym_promote_new_aliases=1&synonym_promote_unchanged_aliases=0&synonym_promote_overridden_aliases=0"
     )
     assert persisted_global["gcp"] == "google cloud"
     assert persisted_global["sql"] == "structured query language"
@@ -6226,7 +6259,7 @@ def test_admin_run_synonym_promote_commit_accepts_checkbox_selection_list() -> N
     assert resp.status_code == 303
     assert (
         resp.headers["location"]
-        == "/admin/runs/run-promote-commit-checkbox-list?synonym_promote_applied=1&synonym_promote_skipped=0&synonym_promote_failed=0&synonym_promote_new_aliases=1&synonym_promote_unchanged_aliases=0&synonym_promote_overridden_aliases=0"
+        == "/admin/runs/run-promote-commit-checkbox-list/synonym-review?synonym_promote_applied=1&synonym_promote_skipped=0&synonym_promote_failed=0&synonym_promote_new_aliases=1&synonym_promote_unchanged_aliases=0&synonym_promote_overridden_aliases=0"
     )
     assert persisted_global["gcp"] == "google cloud"
     assert persisted_global["sql"] == "structured query language"
