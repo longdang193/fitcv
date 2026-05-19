@@ -26,4 +26,6 @@ A: Reusable candidate-query embedding and signature/fingerprint-gated embedding 
 E: Source-grounded fact: See docs/stages/shortlist.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 EEND
 
+2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
 

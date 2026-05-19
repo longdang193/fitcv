@@ -488,8 +488,15 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     assert stage_artifacts["cv_generation"]["late_stage_mode"]["late_stage_mode"] == "agentic"
     assert stage_artifacts["cv_generation"]["decision_summary"]["cv_generation_model"] == "cx/gpt-5.5"
     assert stage_artifacts["cv_generation"]["decision_summary"]["cv_generation_provider"] == "openai"
+    cv_generation_started_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_started")
+    assert cv_generation_started_event[3]["output_snapshot"]["configured_concurrency"] >= 1
+    assert "started_at" in cv_generation_started_event[3]["output_snapshot"]
+    assert "worker_slot" in cv_generation_started_event[3]["output_snapshot"]
     cv_generation_invoked_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_invoked")
     assert cv_generation_invoked_event[3]["provenance"]["cv_generation_model"] == "cx/gpt-5.5"
+    cv_generation_result_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_result")
+    assert "started_at" in cv_generation_result_event[3]["output_snapshot"]
+    assert "finished_at" in cv_generation_result_event[3]["output_snapshot"]
 
 
 @patch("fitcv.pipeline.store_cv_version")

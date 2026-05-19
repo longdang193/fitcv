@@ -51,6 +51,7 @@ import hashlib
 import os
 import time
 import uuid
+import datetime
 from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from copy import deepcopy
 from typing import Any, Callable, cast
@@ -4566,7 +4567,14 @@ def run_pipeline(
             record for record in cv_analysis_results
             if str(record.get("status") or "") == "ready_for_generation"
         ]
-        for analysis_record in generation_ready_records:
+        raw_cv_generation_concurrency = (
+            ((config.get("stage_runtime") or {}).get("cv_generation") or {}).get("concurrency", 1)
+        )
+        try:
+            configured_cv_generation_concurrency = max(1, int(raw_cv_generation_concurrency))
+        except (TypeError, ValueError):
+            configured_cv_generation_concurrency = 1
+        for generation_index, analysis_record in enumerate(generation_ready_records):
             with observe_span(
                 "pipeline.cv_generation",
                 attributes={
@@ -4603,6 +4611,36 @@ def run_pipeline(
                 )
                 job_agentic_live_trace: dict[str, Any] | None = None
                 generation_attempt_count = 1
+                generation_started_at_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                generation_finished_at_iso: str | None = None
+                generation_worker_slot = generation_index % configured_cv_generation_concurrency
+
+                if reporter is not None:
+                    reporter.emit(
+                        "layer4_cv_generation_started",
+                        "info",
+                        f"CV generation started for {job.get('job_url')} [item {generation_index + 1}/{len(generation_ready_records)}]",
+                        _bounded_event_payload(
+                            event_name="cv_generation_started",
+                            event_family="invocation",
+                            source_stage="cv_generation",
+                            event_status="started",
+                            job_url=str(job.get("job_url") or ""),
+                            fallback_used=False,
+                            input_snapshot={
+                                "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
+                                "fit_classification": fit,
+                                "generation_index": int(generation_index),
+                                "generation_total": int(len(generation_ready_records)),
+                            },
+                            output_snapshot={
+                                "configured_concurrency": int(configured_cv_generation_concurrency),
+                                "worker_slot": int(generation_worker_slot),
+                                "started_at": generation_started_at_iso,
+                            },
+                            artifact_refs={"stage_id": "cv_generation"},
+                        ),
+                    )  # type: ignore[union-attr]
 
             def _emit_cv_generation_result_event(
                 *,
@@ -4615,6 +4653,7 @@ def run_pipeline(
             ) -> None:
                 if reporter is None:
                     return
+                generation_finished_at_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 reporter.emit(
                     "layer4_cv_generation_result",
                     "info",
@@ -4635,6 +4674,10 @@ def run_pipeline(
                             "status": str(status or ""),
                             "attempt_count": int(attempt_count),
                             "retry_count": int(retry_count),
+                            "configured_concurrency": int(configured_cv_generation_concurrency),
+                            "worker_slot": int(generation_worker_slot),
+                            "started_at": generation_started_at_iso,
+                            "finished_at": generation_finished_at_iso,
                         },
                         artifact_refs={"stage_id": "cv_generation"},
                         latency_ms=latency_ms,
@@ -4690,6 +4733,10 @@ def run_pipeline(
                                     "status": str(agentic_generation_result.get("status") or ""),
                                     "attempt_count": int(generation_metrics["attempt_count"]),
                                     "retry_count": int(generation_metrics["retry_count"]),
+                                    "configured_concurrency": int(configured_cv_generation_concurrency),
+                                    "worker_slot": int(generation_worker_slot),
+                                    "started_at": generation_started_at_iso,
+                                    "finished_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                                 },
                                 artifact_refs={"stage_id": "cv_generation"},
                                 latency_ms=cast(int | None, generation_metrics["latency_ms"]),
