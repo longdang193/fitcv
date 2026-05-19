@@ -929,6 +929,7 @@ def test_generate_from_analysis_live_provider_records_retry_trace(
     profile = _minimal_profile()
     config = _minimal_config()
     config["cv"]["agentic_late_stage"]["enabled"] = True
+    config["stage_runtime"] = {"cv_generation": {"sleep_secs": 0.2}}
     mock_run_all_validations.side_effect = [
         {
             "valid": False,
@@ -966,7 +967,9 @@ def test_generate_from_analysis_live_provider_records_retry_trace(
             "provider": "openai",
             "model": "cx/gpt-5.4",
         },
-    ):
+    ), patch(
+        "fitcv.agentic_cv_generation.time.sleep",
+    ) as mock_sleep:
         result = generate_from_analysis(analysis_record, profile, config)
 
     mock_live_generation.assert_called()
@@ -977,6 +980,7 @@ def test_generate_from_analysis_live_provider_records_retry_trace(
     assert result["agentic_live_trace"]["repair_summary"]["repair_targets"] == ["Projects"]
     assert result["agentic_live_trace"]["attempts"][1]["attempt_index"] == 2
     assert result["agentic_live_trace"]["attempts"][1]["retry_reason"] == "missing_or_shallow_sections"
+    mock_sleep.assert_called_once_with(0.2)
 
 
 def test_generate_cv_with_live_provider_renders_repo_template_markdown(tmp_path: Path) -> None:

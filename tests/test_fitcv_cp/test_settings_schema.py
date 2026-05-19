@@ -363,6 +363,7 @@ def test_float_threshold_must_be_in_range():
 
 def test_sleep_secs_may_be_zero():
     validate_settings({"enrichment_sleep_secs": 0.0})  # should not raise
+    validate_settings({"stage_runtime.cv_generation.sleep_secs": 0.0})  # should not raise
 
 
 # ── relational validation ─────────────────────────────────────────────────────
@@ -481,6 +482,26 @@ def test_apply_settings_to_config_flat_key():
     config = {"enrichment_sleep_secs": 1.0}
     apply_settings_to_config(config, {"enrichment_sleep_secs": 0.5})
     assert config["enrichment_sleep_secs"] == 0.5
+
+def test_apply_settings_to_config_stage_runtime_nested_path() -> None:
+    config: dict[str, object] = {}
+    apply_settings_to_config(config, {"stage_runtime.cv_analysis.concurrency": 2})
+    assert config["stage_runtime"] == {"cv_analysis": {"concurrency": 2}}
+
+def test_legacy_throughput_alias_hydrates_canonical_value() -> None:
+    config = {"enrichment_sleep_secs": 1.0}
+    apply_settings_to_config(config, {"enrichment_sleep_secs": 0.75})
+    assert config["stage_runtime"]["enrich"]["sleep_secs"] == 0.75
+
+def test_canonical_value_wins_over_legacy_alias_for_validation_and_apply() -> None:
+    settings = {
+        "enrichment_sleep_secs": 0.8,
+        "stage_runtime.enrich.sleep_secs": 0.2,
+    }
+    validate_settings(settings)
+    config = {"enrichment_sleep_secs": 1.0}
+    apply_settings_to_config(config, settings)
+    assert config["stage_runtime"]["enrich"]["sleep_secs"] == 0.2
 
 
 # ── global_job_filters settings ───────────────────────────────────────────────
@@ -904,6 +925,7 @@ def test_enrichment_parallelism_keys_registered():
     keys = {s["key"] for s in SETTINGS_SCHEMA}
     assert "enrichment_batch_size" in keys
     assert "enrichment_concurrency" in keys
+    assert "stage_runtime.cv_generation.concurrency" in keys
 
 
 def test_enrichment_parallelism_defaults():

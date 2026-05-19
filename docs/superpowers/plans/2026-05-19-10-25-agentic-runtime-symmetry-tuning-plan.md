@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: active
 template_id: implementation-plan
 name: agentic-runtime-throughput-symmetry-implementation
 parent_thread: workstream-operator-control-plane.operator-control-plane-agentic-settings-surface
@@ -69,19 +69,24 @@ Targeted tests plus GitNexus scope checks prove compatibility and bounded blast 
 - GitNexus index fresh
 
 **Steps:**
-- [ ] Step 1: run `.\scripts\get_gitnexus_freshness.ps1`; refresh via `npx gitnexus analyze` if stale.
-- [ ] Step 2: run `npx gitnexus impact --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT" settings_ia_contract_for_key --direction upstream`.
-- [ ] Step 3: run `npx gitnexus impact --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT" run_pipeline --direction upstream`.
-- [ ] Step 4: run `npx gitnexus impact --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT" analyze_ranked_job --direction upstream`.
-- [ ] Step 5: run `npx gitnexus impact --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT" generate_from_analysis --direction upstream`.
-- [ ] Step 6: record risk notes and containment order; stop if any impact reports `HIGH`/`CRITICAL`.
+- [x] Step 1: run `.\scripts\get_gitnexus_freshness.ps1`; refresh via `npx gitnexus analyze` if stale.
+- [x] Step 2: run `npx gitnexus impact --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\agentic-runtime-symmetry-tuning-impl" settings_ia_contract_for_key --direction upstream`.
+- [x] Step 3: run `npx gitnexus impact --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\agentic-runtime-symmetry-tuning-impl" run_pipeline --direction upstream`.
+- [x] Step 4: run `npx gitnexus impact --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\agentic-runtime-symmetry-tuning-impl" analyze_ranked_job --direction upstream`.
+- [x] Step 5: run `npx gitnexus impact --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\agentic-runtime-symmetry-tuning-impl" generate_from_analysis --direction upstream`.
+- [x] Step 6: record risk notes and containment order; stop if any impact reports `HIGH`/`CRITICAL`.
 
 **Verification:**
-- [ ] all edited symbols have captured upstream impact evidence
-- [ ] no unreviewed high-risk symbol enters modification set
+- [x] all edited symbols have captured upstream impact evidence
+- [x] no unreviewed high-risk symbol enters modification set
 
 **Exit Criteria:**
 - implementation order and test scope derived from measured graph impact
+
+Execution notes:
+- Critical review: plan aligns with parent thread goal (operator-facing real agentic runtime controls) and does not require operating-system-only justification.
+- Risk outcome: all required `gitnexus impact` checks returned `LOW`; no `HIGH`/`CRITICAL` blocker.
+- Bounded divergence note: runtime-design discussion includes `synonym_triage`, but registered stage IDs in this repo currently exclude `synonym_triage`; implementation keeps stage-contract truthfulness and avoids introducing unregistered stage metadata in plan frontmatter.
 
 ### Task 2: Canonical schema + alias resolution layer
 

@@ -716,6 +716,11 @@ def _execute_generation_attempt(
     )
     return structured_cv, markdown, validation
 
+def _cv_generation_sleep_secs(config: dict[str, Any]) -> float:
+    stage_runtime = dict(config.get("stage_runtime") or {})
+    generation_runtime = dict(stage_runtime.get("cv_generation") or {})
+    return float(generation_runtime.get("sleep_secs", 0.0))
+
 def _build_live_provider_generator(
     *,
     job: dict[str, Any],
@@ -771,6 +776,27 @@ def _build_fallback_provider_generator(
         )
 
     return _call
+
+def _build_fallback_retry_executor(
+    *,
+    fallback_provider_generator: Callable[[list[str] | None], Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+    analysis_grounding: AnalysisGroundingPayload,
+) -> Callable[[list[str]], tuple[dict[str, Any] | None, str, dict[str, Any]]]:
+    def _retry(repair_targets: list[str]) -> tuple[dict[str, Any] | None, str, dict[str, Any]]:
+        sleep_secs = _cv_generation_sleep_secs(config)
+        if sleep_secs > 0.0:
+            time.sleep(sleep_secs)
+        return _execute_generation_attempt(
+            fallback_provider_generator,
+            profile=profile,
+            config=config,
+            analysis_grounding=analysis_grounding,
+            repair_missing_sections=repair_targets,
+        )
+
+    return _retry
 
 
 def _build_repair_attempt(missing_sections: list[str] | None = None) -> RepairAttempt:
@@ -992,6 +1018,9 @@ def generate_from_analysis(
             def _live_retry_executor(
                 repair_targets: list[str],
             ) -> tuple[dict[str, Any] | None, str, dict[str, Any]]:
+                sleep_secs = _cv_generation_sleep_secs(config)
+                if sleep_secs > 0.0:
+                    time.sleep(sleep_secs)
                 second_attempt_trace: dict[str, Any] = {}
                 second_attempt_trace.setdefault("attempt_index", 2)
                 second_attempt_trace.setdefault("provider_status", "accepted")
@@ -1189,12 +1218,11 @@ def generate_from_analysis(
             profile=profile,
             config=config,
             analysis_grounding=analysis_grounding,
-            retry_executor=lambda repair_targets: _execute_generation_attempt(
-                fallback_provider_generator,
+            retry_executor=_build_fallback_retry_executor(
+                fallback_provider_generator=fallback_provider_generator,
                 profile=profile,
                 config=config,
                 analysis_grounding=analysis_grounding,
-                repair_missing_sections=repair_targets,
             ),
         )
 
