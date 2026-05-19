@@ -466,6 +466,12 @@
         <span class="badge-chip">Decision Area: {{ item.decision_area | replace('_', ' ') | title }}</span>
         <span class="badge-chip">Runtime-used: {{ "Yes" if ia.runtime_used else "No" }}</span>
         <span class="badge-chip">Metadata-only: {{ "Yes" if ia.metadata_only else "No" }}</span>
+        {% if item.compatibility_alias_for %}
+          <span class="badge-chip">Compatibility alias for: {{ item.compatibility_alias_for }}</span>
+        {% endif %}
+        {% if item.compatibility_aliases %}
+          <span class="badge-chip">Legacy aliases: {{ item.compatibility_aliases | join(', ') }}</span>
+        {% endif %}
         <span class="badge-chip badge-risk-{{ ia.risk }}">Risk: {{ ia.risk | title }}</span>
       </div>
     </div>

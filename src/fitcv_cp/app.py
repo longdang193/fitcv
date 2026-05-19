@@ -20,6 +20,7 @@ import io
 import json as _json
 import logging
 import os
+import time
 import uuid
 import zipfile
 from pathlib import Path
@@ -3421,6 +3422,8 @@ def _synonym_triage_fingerprint(
         "provider": str(runtime.get("provider") or "fitcv_builtin").strip().lower(),
         "model": str(runtime.get("model") or "synonym_triage_v1").strip(),
         "wire_api": str(runtime.get("wire_api") or "builtin").strip(),
+        "sleep_secs": round(float(runtime.get("sleep_secs") or 0.0), 6),
+        "concurrency": int(runtime.get("concurrency") or 1),
         "triage_version": "synonym_triage_v1",
         "overlay_fingerprint": str(overlay_fingerprint or "").strip() or None,
     }
@@ -3437,6 +3440,8 @@ def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
         str(os.environ.get("FITCV_LANGGRAPH_OPENAI_API_KEY", "") or "").strip()
         or str(os.environ.get("OPENAI_API_KEY", "") or "").strip()
     )
+    sleep_secs = 0.0
+    concurrency = 1
     effective_settings = _load_json_object(run.effective_settings_json)
     if isinstance(effective_settings, dict):
         runtime_inputs = dict(effective_settings.get("runtime_inputs") or {})
@@ -3445,12 +3450,24 @@ def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
         model = str(expected.get("model") or model).strip() or model
         base_url = str(expected.get("base_url") or base_url or "").strip() or None
         wire_api = str(expected.get("wire_api") or wire_api).strip() or wire_api
+        stage_runtime = dict(effective_settings.get("stage_runtime") or {})
+        cv_analysis_runtime = dict(stage_runtime.get("cv_analysis") or {})
+        try:
+            sleep_secs = max(0.0, float(cv_analysis_runtime.get("sleep_secs", 0.0)))
+        except (TypeError, ValueError):
+            sleep_secs = 0.0
+        try:
+            concurrency = max(1, int(cv_analysis_runtime.get("concurrency", 1)))
+        except (TypeError, ValueError):
+            concurrency = 1
     return {
         "provider": provider,
         "model": model,
         "base_url": base_url,
         "wire_api": wire_api,
         "api_key": api_key,
+        "sleep_secs": sleep_secs,
+        "concurrency": concurrency,
     }
 
 
@@ -4399,6 +4416,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     schema_by_key = {entry["key"]: entry for entry in runtime_settings_schema}
     metadata_only_keys = metadata_only_settings_keys()
     editable_keys = editable_settings_keys()
+    canonical_compatibility_aliases: dict[str, list[str]] = {}
+    for schema_entry in runtime_settings_schema:
+        legacy_key = str(schema_entry.get("key") or "").strip()
+        canonical_key = str(schema_entry.get("compatibility_alias_for") or "").strip()
+        if canonical_key and legacy_key:
+            canonical_compatibility_aliases.setdefault(canonical_key, []).append(legacy_key)
     hidden_deprecated_keys = hidden_deprecated_settings_keys()
 
     def require_run_or_404(run_id: str, *, detail: str = "Run not found") -> PipelineRun:
@@ -4710,6 +4733,20 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     ],
                     "is_advanced": True,
                 },
+                {
+                    "id": "agentic-runtime-throughput",
+                    "title": "Agentic Runtime Throughput",
+                    "helper": "First-class late-stage runtime pacing and concurrency controls for analysis and generation.",
+                    "submit_kind": "section",
+                    "submit_slug": "timing",
+                    "save_label": "Save Agentic Runtime Throughput",
+                    "keys": [
+                        "stage_runtime.cv_analysis.sleep_secs",
+                        "stage_runtime.cv_analysis.concurrency",
+                        "stage_runtime.cv_generation.sleep_secs",
+                        "stage_runtime.cv_generation.concurrency",
+                    ],
+                },
             ],
         },
         {
@@ -4815,11 +4852,21 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 {
                     "id": "advanced-runtime",
                     "title": "Advanced Runtime Tuning",
-                    "helper": "Timing and throttling controls. Higher concurrency does not bypass global rate limits, so use carefully.",
+                    "helper": "Shared timing and compatibility controls outside late-stage agentic throughput.",
                     "submit_kind": "section",
                     "submit_slug": "timing",
                     "save_label": "Save Timing Settings",
-                    "keys": SETTINGS_SECTIONS["timing"],
+                    "keys": [
+                        key
+                        for key in SETTINGS_SECTIONS["timing"]
+                        if key
+                        not in {
+                            "stage_runtime.cv_analysis.sleep_secs",
+                            "stage_runtime.cv_analysis.concurrency",
+                            "stage_runtime.cv_generation.sleep_secs",
+                            "stage_runtime.cv_generation.concurrency",
+                        }
+                    ],
                     "is_advanced": True,
                 },
             ],
@@ -4978,6 +5025,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 )
                 owner_label = "Settings"
                 active_label = "Yes"
+                compatibility_alias_for = str(entry.get("compatibility_alias_for") or "").strip()
+                compatibility_aliases = list(canonical_compatibility_aliases.get(key) or [])
                 if key == "cv_generation_model":
                     owner_label = "Settings (non-agentic path)"
                     active_label = "No (agentic mode ON)" if agentic_enabled else "Yes (agentic mode OFF)"
@@ -4987,6 +5036,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 elif key == "cv_analysis.semantic_alignment.model":
                     owner_label = "Runtime Contract"
                     active_label = "Yes"
+                elif compatibility_alias_for:
+                    owner_label = "Compatibility surface (legacy alias)"
+                    active_label = "Yes (maps to canonical runtime key)"
                 entries.append(
                     {
                         "entry": entry,
@@ -5013,6 +5065,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "decision_complexity": str(settings_ia_contract_for_key(key).get("complexity_view") or ""),
                         "owner_label": owner_label,
                         "active_label": active_label,
+                        "compatibility_alias_for": compatibility_alias_for,
+                        "compatibility_aliases": compatibility_aliases,
                     }
                 )
             dirty_count = sum(1 for item in entries if item["is_dirty"])
@@ -7841,6 +7895,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             if reuse_enabled:
                 reuse_reason = "fingerprint_mismatch"
             try:
+                sleep_secs = max(0.0, float(triage_runtime.get("sleep_secs") or 0.0))
+                if sleep_secs > 0:
+                    time.sleep(sleep_secs)
                 recommendation = _triage_synonym_proposal_recommendation(
                     proposal,
                     now_iso=now_iso,

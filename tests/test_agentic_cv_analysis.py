@@ -35,7 +35,9 @@ def _config() -> dict:
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+@patch("fitcv.agentic_cv_analysis.time.sleep")
 def test_analyze_ranked_job_emits_extended_analysis_fields(
+    mock_sleep,
     mock_fingerprint,
     mock_bundle,
     mock_gap,
@@ -57,12 +59,15 @@ def test_analyze_ranked_job_emits_extended_analysis_fields(
     assert any(item["requirement"] == "Python" for item in result["requirement_coverage"])
     assert result["do_not_claim"] == ["Python"]
     assert result["section_confidence_hints"]["experience"] in {"medium", "high"}
+    mock_sleep.assert_not_called()
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+@patch("fitcv.agentic_cv_analysis.time.sleep")
 def test_analyze_ranked_job_preserves_bundle_evidence_summary_fields(
+    mock_sleep,
     mock_fingerprint,
     mock_bundle,
     mock_gap,
@@ -92,4 +97,32 @@ def test_analyze_ranked_job_preserves_bundle_evidence_summary_fields(
         "lexical_weight": 0.25,
         "semantic_weight": 0.75,
     }
+    mock_sleep.assert_not_called()
+
+
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+@patch("fitcv.agentic_cv_analysis.time.sleep")
+def test_analyze_ranked_job_uses_stage_runtime_cv_analysis_sleep(
+    mock_sleep,
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+) -> None:
+    mock_fingerprint.return_value = {"fingerprint": "analysis::3"}
+    mock_bundle.return_value = {
+        "selected_evidence": [{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
+        "channel_counts": {"required_skill_support": 1},
+        "merged_pool_size": 1,
+        "deduped_pool_size": 1,
+        "effective_channel_pool_size": 1,
+    }
+    mock_gap.return_value = {"matched": ["SQL"], "missing": []}
+    config = _config()
+    config["stage_runtime"] = {"cv_analysis": {"sleep_secs": 0.3}}
+
+    analyze_ranked_job(_job(), _profile(), config)
+
+    mock_sleep.assert_called_once_with(0.3)
 

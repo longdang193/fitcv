@@ -136,6 +136,26 @@ def test_settings_ia_contract_marks_metadata_only_as_non_overrideable() -> None:
     assert contract["can_override"] is False
     assert contract["override_policy"] == "disabled"
 
+
+def test_settings_ia_contract_canonical_timing_keys_are_throughput_runtime_used() -> None:
+    for key in [
+        "stage_runtime.enrich.sleep_secs",
+        "stage_runtime.ranking.sleep_secs",
+        "stage_runtime.cv_analysis.concurrency",
+        "stage_runtime.cv_generation.sleep_secs",
+    ]:
+        contract = settings_ia_contract_for_key(key)
+        assert contract["decision_area"] == "throughput"
+        assert contract["runtime_used"] is True
+        assert contract["risk"] == "high"
+
+
+def test_settings_ia_contract_timing_workflow_stages_cover_late_agentic_stages() -> None:
+    contract = settings_ia_contract_for_key("stage_runtime.ranking.sleep_secs")
+    workflow_stages = set(contract["workflow_stages"])
+    assert "cv_analysis" in workflow_stages
+    assert "cv_generation" in workflow_stages
+
 def test_danger_zone_settings_keys_contains_high_risk_groups() -> None:
     keys = set(danger_zone_settings_keys())
     assert "enrichment_concurrency" in keys

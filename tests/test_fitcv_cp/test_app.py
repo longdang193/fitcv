@@ -4799,6 +4799,7 @@ def test_admin_run_synonym_proposals_triage_refresh_redirects_with_summary() -> 
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
         run_mode="run_all",
+        effective_settings_json='{"stage_runtime":{"cv_analysis":{"sleep_secs":0.2,"concurrency":3}}}',
         synonym_proposals_json=(
             '{"run_id":"run-triage-refresh","proposals":['
             '{"proposal_id":"proposal-pending","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9},'
@@ -4816,7 +4817,8 @@ def test_admin_run_synonym_proposals_triage_refresh_redirects_with_summary() -> 
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.update_run_synonym_proposals", side_effect=_capture_update), \
          patch("fitcv_cp.app.update_run_effective_settings"), \
-         patch("fitcv_cp.app.append_event"):
+         patch("fitcv_cp.app.append_event"), \
+         patch("fitcv_cp.app.time.sleep") as mock_sleep:
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/runs/run-triage-refresh/synonym-proposals/triage-refresh",
             data={"acted_by": "operator@example.com"},
@@ -4832,11 +4834,36 @@ def test_admin_run_synonym_proposals_triage_refresh_redirects_with_summary() -> 
     assert "synonym_triage_failed=0" in location
     assert "synonym_triage_fallback=0" in location
     assert persisted_payloads
+    mock_sleep.assert_called_once_with(0.2)
     proposals = persisted_payloads[-1]["proposals"]
     pending = [row for row in proposals if row.get("proposal_id") == "proposal-pending"][0]
     assert pending["recommended_action"] in {"approve", "defer", "reject"}
     assert isinstance(pending["recommendation_confidence"], float)
     assert pending["proposal_status"] == "proposed_unreviewed"
+
+
+def test_resolve_synonym_triage_runtime_includes_canonical_cv_analysis_runtime() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.app import _resolve_synonym_triage_runtime
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-triage-runtime",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json='{"stage_runtime":{"cv_analysis":{"sleep_secs":0.4,"concurrency":5}}}',
+    )
+
+    runtime = _resolve_synonym_triage_runtime(run)
+
+    assert runtime["sleep_secs"] == 0.4
+    assert runtime["concurrency"] == 5
 
 
 def test_admin_run_synonym_proposals_triage_refresh_does_not_mutate_status() -> None:
@@ -9746,7 +9773,7 @@ def test_settings_page_uses_advanced_disclosure_for_expert_controls() -> None:
     assert "Diagnostics" in html
     assert "Advanced Runtime Tuning" in html
     assert "metadata-only semantic runtime contract details" in html.lower()
-    assert "Timing and throttling controls" in html
+    assert "Shared timing and compatibility controls outside late-stage agentic throughput" in html
     assert "<details" in html
     assert 'name="cv_analysis.semantic_alignment.required_skill_lexical_weight"' in html
     assert 'name="cv_analysis.semantic_alignment.role_semantic_weight"' in html
@@ -9761,6 +9788,17 @@ def test_settings_page_renders_dedicated_agentic_section() -> None:
     assert "Agentic Processing" in html
     assert "Enablement" in html
     assert "Automation" in html
+
+def test_settings_page_surfaces_late_stage_stage_runtime_controls_in_agentic_section() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Agentic Runtime Throughput" in html
+    assert "API Delay: CV Analysis Stage" in html
+    assert "Concurrency: CV Analysis Stage" in html
+    assert "API Delay: CV Generation Stage" in html
+    assert "Concurrency: CV Generation Stage" in html
     assert "Quality Targets" in html
     assert "Throughput" in html
     assert "Advanced Agentic Tuning" not in html
@@ -10813,6 +10851,12 @@ def test_admin_settings_renders_ia_contract_fields_and_badges() -> None:
     assert "Observed in:" in html
 
 
+def test_admin_settings_renders_legacy_alias_keys_as_compatibility_surface() -> None:
+    resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Legacy aliases: enrichment_sleep_secs" in html
+
 def test_admin_settings_has_guarded_save_preflight_script() -> None:
     resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
@@ -10843,6 +10887,24 @@ def test_admin_settings_rows_expose_decision_metadata_attrs() -> None:
     assert 'data-unused="' in html
     assert 'data-entry-key="cv_summary_enabled"' in html
     assert 'data-decision-stage="cv_generation"' in html
+
+def test_admin_settings_late_stage_runtime_rows_have_truthful_stage_and_runtime_badges() -> None:
+    resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+
+    analysis_row = html.split('id="entry-stage_runtime-cv_analysis-sleep_secs"', 1)[1].split('id="entry-', 1)[0]
+    generation_row = html.split('id="entry-stage_runtime-cv_generation-sleep_secs"', 1)[1].split('id="entry-', 1)[0]
+
+    assert 'data-decision-stage="cv_analysis"' in analysis_row
+    assert 'data-control-surface="shared"' in analysis_row
+    assert "Stage: Cv Analysis" in analysis_row
+    assert "Runtime-used: Yes" in analysis_row
+
+    assert 'data-decision-stage="cv_generation"' in generation_row
+    assert 'data-control-surface="shared"' in generation_row
+    assert "Stage: Cv Generation" in generation_row
+    assert "Runtime-used: Yes" in generation_row
 
 def test_admin_settings_has_visibility_toggles_and_recommendation_preview_script() -> None:
     resp = TestClient(_app()).get("/admin/settings")
