@@ -1517,6 +1517,112 @@ def test_admin_review_queue_page_renders_shared_controls_and_back_link() -> None
     assert "Select All" in resp.text
     assert "Clear All" in resp.text
 
+def test_admin_review_queue_resolved_rows_render_locked_non_actionable_state() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-queue-resolved-lock",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                        "error": {"stage": "review_gate", "message": "Needs review"},
+                    }
+                ],
+                "hitl_review_actions": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "action": "approve_as_is",
+                        "actor": "admin",
+                        "timestamp": "2026-05-19T20:00:00Z",
+                    }
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-review-queue-resolved-lock/review-queue")
+    assert resp.status_code == 200
+    assert "Row is resolved. Action controls are locked." in resp.text
+    assert 'action="/admin/runs/run-review-queue-resolved-lock/cv-review-action"' not in resp.text
+    assert 'name="job_url" value="https://example.com/job-1" form="hitl-batch-form" data-hitl-selectable="true"' not in resp.text
+
+def test_synonym_decision_toggle_contract_is_symmetric_across_pages() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-synonym-toggle-symmetry",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        synonym_proposals_json=(
+            '{"run_id":"run-synonym-toggle-symmetry","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        run_detail_resp = TestClient(_app()).get("/admin/runs/run-synonym-toggle-symmetry")
+        workspace_resp = TestClient(_app()).get("/admin/runs/run-synonym-toggle-symmetry/synonym-review")
+    assert run_detail_resp.status_code == 200
+    assert workspace_resp.status_code == 200
+    assert run_detail_resp.text.count("decision-toggle") >= 2
+    assert 'AI-Assisted Decide + Promote</button>' in run_detail_resp.text
+    assert 'Manual Decide + Promote</a>' in run_detail_resp.text
+    assert 'data-active="false"' in run_detail_resp.text
+    assert 'id="review-mode-ai"' in workspace_resp.text
+    assert 'id="review-mode-manual"' in workspace_resp.text
+    assert 'class="btn-secondary decision-toggle"' in workspace_resp.text
+    assert 'data-active="true"' in workspace_resp.text
+    assert 'data-active="false"' in workspace_resp.text
+
+def test_run_detail_renders_single_manual_entry_synonym_workspace_cta() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-manual-entry-single-cta",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        synonym_proposals_json=(
+            '{"run_id":"run-manual-entry-single-cta","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-manual-entry-single-cta")
+    assert resp.status_code == 200
+    assert resp.text.count("Manual Decide + Promote") == 1
+    assert "Open Synonym Workspace" not in resp.text
+
 def test_admin_run_detail_shows_replay_context_metadata() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone

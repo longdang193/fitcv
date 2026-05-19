@@ -30,8 +30,8 @@
   <div class="meta" style="margin-bottom:0.75rem">{{ synonym_proposal_review_queue.pending_count }} pending of {{ synonym_proposal_review_queue.total_count }} proposal(s).</div>
 
   <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;margin-bottom:0.35rem">
-    <button class="btn-secondary" type="button" id="review-mode-ai">AI-Assisted Decide + Promote</button>
-    <button class="btn-secondary" type="button" id="review-mode-manual">Manual Decide + Promote</button>
+    <button class="btn-secondary decision-toggle" data-active="true" type="button" id="review-mode-ai">AI-Assisted Decide + Promote</button>
+    <button class="btn-secondary decision-toggle" data-active="false" type="button" id="review-mode-manual">Manual Decide + Promote</button>
   </div>
   <div class="meta" style="margin-bottom:0.85rem">
     AI-assisted fills recommended actions for pending rows. Manual keeps every row decision explicit.
@@ -177,15 +177,27 @@ document.addEventListener('DOMContentLoaded', () => {
       : 'Manual mode active. Pick each decision explicitly.';
   };
 
+  const setDecisionMode = (mode) => {
+    if (reviewModeAiBtn) reviewModeAiBtn.setAttribute('data-active', mode === 'ai' ? 'true' : 'false');
+    if (reviewModeManualBtn) reviewModeManualBtn.setAttribute('data-active', mode === 'manual' ? 'true' : 'false');
+  };
+
   if (applyRecommendationsBtn) {
     applyRecommendationsBtn.addEventListener('click', applyRecommendations);
   }
   if (reviewModeAiBtn) {
-    reviewModeAiBtn.addEventListener('click', applyRecommendations);
+    reviewModeAiBtn.addEventListener('click', () => {
+      setDecisionMode('ai');
+      applyRecommendations();
+    });
   }
   if (reviewModeManualBtn) {
-    reviewModeManualBtn.addEventListener('click', clearSelections);
+    reviewModeManualBtn.addEventListener('click', () => {
+      setDecisionMode('manual');
+      clearSelections();
+    });
   }
+  setDecisionMode('ai');
 });
 </script>
 {% endblock %}

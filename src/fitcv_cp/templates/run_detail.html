@@ -187,12 +187,9 @@
     <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/ai-fast-path-execute" style="display:inline" onsubmit="return confirm('Confirm AI fast-path execute? This will apply AI recommendations and promote approved mappings to global.');">
       <input type="hidden" name="acted_by" value="admin">
       <input type="hidden" name="note" value="ai_fast_path">
-      <button class="btn-secondary" type="submit">AI-Assisted Decide + Promote</button>
+      <button class="btn-secondary decision-toggle" data-active="false" type="submit">AI-Assisted Decide + Promote</button>
     </form>
-    <a class="btn-secondary" href="/admin/runs/{{ run.run_id }}/synonym-review">Manual Decide + Promote</a>
-  </div>
-  <div style="margin:0 0 0.85rem 0">
-    <a class="btn-secondary" href="/admin/runs/{{ run.run_id }}/synonym-review">Open Synonym Workspace</a>
+    <a class="btn-secondary decision-toggle" data-active="false" href="/admin/runs/{{ run.run_id }}/synonym-review">Manual Decide + Promote</a>
   </div>
 </div>
 {% endif %}

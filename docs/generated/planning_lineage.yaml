@@ -454,12 +454,14 @@ workstreams:
     - docs/superpowers/specs/2026-05-18-14-45-enrich-refactor-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-19-16-19-vector-search-refactor-spec.md
     - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
     plans:
     - docs/superpowers/plans/2026-05-03-pipeline-efficiency-exact-match-bootstrap-plan.md
     - docs/superpowers/plans/2026-05-18-14-40-evidence-refactor-ssot-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-15-05-enrich-refactor-drift-remediation-plan.md
     - docs/superpowers/plans/2026-05-19-16-22-vector-search-refactor-and-issue-patch-plan.md
     - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
     derived_completion: in_progress
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
     status: proposed

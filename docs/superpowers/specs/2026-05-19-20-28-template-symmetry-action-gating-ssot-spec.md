@@ -1,10 +1,10 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: completed
 template_id: detailed-specification
 name: template-symmetry-action-gating-ssot
-parent_workstream: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract
+parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract
 targets:
   - src/fitcv_cp/templates/_cv_review_queue.html
   - src/fitcv_cp/templates/run_detail.html
@@ -50,12 +50,12 @@ Template + route tests assert no state/action mismatch and no cross-page decisio
 - confirm all current state/action mismatches and style-contract drift points
 
 **Steps:**
-- [ ] enumerate all in-scope template controls with pending/resolved semantics
-- [ ] map element-type and class differences across equivalent controls
-- [ ] confirm backend guardrails vs UI affordance drift
+- [x] enumerate all in-scope template controls with pending/resolved semantics
+- [x] map element-type and class differences across equivalent controls
+- [x] confirm backend guardrails vs UI affordance drift
 
 **Verification:**
-- [ ] violation matrix includes exact file + line references and state contract deltas
+- [x] violation matrix includes exact file + line references and state contract deltas
 
 **Exit Criteria:**
 - no proposed patch relies on assumptions not proven in source templates/routes
@@ -66,12 +66,12 @@ Template + route tests assert no state/action mismatch and no cross-page decisio
 - lock one canonical UI contract for action gating and decision-mode controls
 
 **Steps:**
-- [ ] define resolved-row lock behavior and pending-row action behavior
-- [ ] define one decision-toggle style/state contract for run detail + workspace
-- [ ] define minimal template refactor boundaries and shared helper class usage
+- [x] define resolved-row lock behavior and pending-row action behavior
+- [x] define one decision-toggle style/state contract for run detail + workspace
+- [x] define minimal template refactor boundaries and shared helper class usage
 
 **Verification:**
-- [ ] each control in scope maps to exactly one canonical contract row
+- [x] each control in scope maps to exactly one canonical contract row
 
 **Exit Criteria:**
 - no duplicate or conflicting control semantics remain in design
@@ -82,12 +82,12 @@ Template + route tests assert no state/action mismatch and no cross-page decisio
 - make proof targets explicit before implementation planning
 
 **Steps:**
-- [ ] define template rendering proof targets for pending/resolved rows
-- [ ] define UI parity proof targets for AI/manual decision controls
-- [ ] define regression test additions and expected assertions
+- [x] define template rendering proof targets for pending/resolved rows
+- [x] define UI parity proof targets for AI/manual decision controls
+- [x] define regression test additions and expected assertions
 
 **Verification:**
-- [ ] validation plan can fail if any symmetry/SSOT drift reappears
+- [x] validation plan can fail if any symmetry/SSOT drift reappears
 
 **Exit Criteria:**
 - spec can hand off directly to implementation planning without ambiguity

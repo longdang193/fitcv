@@ -297,11 +297,21 @@ canonical: true
       transition: all 0.15s;
     }
     .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
-    .btn-secondary[data-active="true"] {
+    .decision-toggle[data-active="true"] {
       background: var(--accent-dim);
       border-color: var(--accent);
       color: var(--accent-text);
       font-weight: 600;
+    }
+    .decision-toggle[data-active="false"] {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .decision-toggle:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
     }
 
     /* Section — settings section saves (Save Retrieval Settings, etc.) */
