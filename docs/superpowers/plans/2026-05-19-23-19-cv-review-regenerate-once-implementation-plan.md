@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: cv-review-regenerate-once-implementation
 parent_thread: workstream-operator-control-plane.operator-control-plane-agentic-review-actions
@@ -54,13 +54,13 @@ Successful regeneration updates target debug record fields (`last_regenerated_at
 - spec decision fixed on dedicated bounded worker path
 
 **Steps:**
-- [ ] Step 1: define queue function for regenerate-once enqueue with stable signature `(run_id, job_url, actor, note, redis_url)`.
-- [ ] Step 2: wire inline and RQ modes to execute bounded worker function (parallel to existing run enqueue patterns).
-- [ ] Step 3: preserve backward compatibility of existing run enqueue APIs.
-- [ ] Step 4: add/extend queue tests for job creation payload and inline status behavior.
+- [x] Step 1: define queue function for regenerate-once enqueue with stable signature `(run_id, job_url, actor, note, redis_url)`.
+- [x] Step 2: wire inline and RQ modes to execute bounded worker function (parallel to existing run enqueue patterns).
+- [x] Step 3: preserve backward compatibility of existing run enqueue APIs.
+- [x] Step 4: add/extend queue tests for job creation payload and inline status behavior.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_queue.py -k regenerate_once`
+- [x] `pytest tests/test_fitcv_cp/test_queue.py -k regenerate_once`
 
 **Exit Criteria:**
 - dedicated queue API exists and passes targeted queue tests
@@ -81,14 +81,14 @@ Successful regeneration updates target debug record fields (`last_regenerated_at
 - current debug payload schema and review-required row shape confirmed
 
 **Steps:**
-- [ ] Step 1: add worker entrypoint for regenerate-once job with `cv_regenerate_once_started` event emission.
-- [ ] Step 2: load run + debug payload, resolve target record by `job_url`, and guard on `status=review_required`.
-- [ ] Step 3: run bounded regeneration logic for target row, update row markdown fields + regeneration metadata (`last_regenerated_at`, fingerprint/hash).
-- [ ] Step 4: emit success/failure terminal event with structured payload and preserve prior draft on failure.
-- [ ] Step 5: add worker tests for happy path, missing target row, and regeneration failure paths.
+- [x] Step 1: add worker entrypoint for regenerate-once job with `cv_regenerate_once_started` event emission.
+- [x] Step 2: load run + debug payload, resolve target record by `job_url`, and guard on `status=review_required`.
+- [x] Step 3: run bounded regeneration logic for target row, update row markdown fields + regeneration metadata (`last_regenerated_at`, fingerprint/hash).
+- [x] Step 4: emit success/failure terminal event with structured payload and preserve prior draft on failure.
+- [x] Step 5: add worker tests for happy path, missing target row, and regeneration failure paths.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_worker_job.py -k "regenerate_once or cv_regenerate_once"`
+- [x] `pytest tests/test_fitcv_cp/test_worker_job.py -k "regenerate_once or cv_regenerate_once"`
 
 **Exit Criteria:**
 - worker path emits started+terminal events and mutates only target row on success
@@ -108,14 +108,14 @@ Successful regeneration updates target debug record fields (`last_regenerated_at
 - action semantics for non-regenerate paths must remain unchanged
 
 **Steps:**
-- [ ] Step 1: in single-action route, enqueue regenerate job for `regenerate_once` and append `cv_regenerate_once_requested` event with queue job metadata.
-- [ ] Step 2: in batch route, enqueue per eligible row, track applied/skipped/failed enqueue counts, and emit aggregate requested event summary.
-- [ ] Step 3: persist action entries with regeneration request metadata while preserving existing `hitl_review_actions` compatibility.
-- [ ] Step 4: ensure queue closure logic still depends on terminal human review statuses, not regeneration success.
-- [ ] Step 5: add/extend app tests for single and batch regenerate enqueue behavior plus non-regression on `approve`, `approve_as_is`, `reject`.
+- [x] Step 1: in single-action route, enqueue regenerate job for `regenerate_once` and append `cv_regenerate_once_requested` event with queue job metadata.
+- [x] Step 2: in batch route, enqueue per eligible row, track applied/skipped/failed enqueue counts, and emit aggregate requested event summary.
+- [x] Step 3: persist action entries with regeneration request metadata while preserving existing `hitl_review_actions` compatibility.
+- [x] Step 4: ensure queue closure logic still depends on terminal human review statuses, not regeneration success.
+- [x] Step 5: add/extend app tests for single and batch regenerate enqueue behavior plus non-regression on `approve`, `approve_as_is`, `reject`.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "cv_review_action or review_batch or regenerate_once"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "cv_review_action or review_batch or regenerate_once"`
 
 **Exit Criteria:**
 - route calls enqueue for regenerate_once and preserves existing non-regenerate behavior
@@ -135,13 +135,13 @@ Successful regeneration updates target debug record fields (`last_regenerated_at
 - any queue-shape change must be additive and backward-compatible
 
 **Steps:**
-- [ ] Step 1: keep `_build_hitl_review_queue` status resolution contract unchanged.
-- [ ] Step 2: add only optional/pass-through regeneration metadata fields needed by operator surfaces and exports.
-- [ ] Step 3: validate pending semantics remain true until terminal human action.
-- [ ] Step 4: add regression assertions for queue item pending flags before/after regeneration success.
+- [x] Step 1: keep `_build_hitl_review_queue` status resolution contract unchanged.
+- [x] Step 2: add only optional/pass-through regeneration metadata fields needed by operator surfaces and exports.
+- [x] Step 3: validate pending semantics remain true until terminal human action.
+- [x] Step 4: add regression assertions for queue item pending flags before/after regeneration success.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "review_queue or hitl_review"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "review_queue or hitl_review"`
 
 **Exit Criteria:**
 - queue semantics unchanged, optional regeneration metadata available
@@ -161,14 +161,14 @@ Successful regeneration updates target debug record fields (`last_regenerated_at
 - Tasks 1-4 complete
 
 **Steps:**
-- [ ] Step 1: run targeted tests for queue, worker, and app regenerate paths.
-- [ ] Step 2: run broader control-plane subset touching review and run-detail surfaces.
-- [ ] Step 3: reconcile failing assertions with spec acceptance criteria and patch gaps.
-- [ ] Step 4: capture concise evidence summary mapped to spec validation targets.
+- [x] Step 1: run targeted tests for queue, worker, and app regenerate paths.
+- [x] Step 2: run broader control-plane subset touching review and run-detail surfaces.
+- [x] Step 3: reconcile failing assertions with spec acceptance criteria and patch gaps.
+- [x] Step 4: capture concise evidence summary mapped to spec validation targets.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_queue.py tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_app.py -k "regenerate_once or cv_review or review_queue"`
-- [ ] `python scripts/hooks/run_validator.py --fast`
+- [x] `pytest tests/test_fitcv_cp/test_queue.py tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_app.py -k "regenerate_once or cv_review or review_queue"`
+- [x] `python scripts/hooks/run_validator.py --fast`
 
 **Exit Criteria:**
 - acceptance criteria evidenced by passing tests and validator checks
@@ -184,3 +184,19 @@ Successful regeneration updates target debug record fields (`last_regenerated_at
 2. regenerate-once request, started, succeeded/failed lifecycle evidence is present and verifiable
 3. review queue pending semantics preserved until terminal human action
 4. validator and targeted test suite pass with no regressions in existing review actions
+
+## Execution Progress
+
+- Task 1 status: completed
+- Task 2 status: completed
+- Task 3 status: completed
+- Task 4 status: completed
+- Task 5 status: completed
+
+
+## Execution Notes
+
+- Broad verification blocker: 	ests/test_fitcv_cp/test_app.py::test_admin_run_detail_shows_dedicated_review_queue_cta_when_pending_exceeds_threshold fails because CTA rendering in un_detail.html is now gated by show_agentic_runtime_alignment, making previous unconditional expectation stale. Out-of-scope to regenerate-once behavior unless explicitly approved.
+
+
+

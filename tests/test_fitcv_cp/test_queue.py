@@ -73,6 +73,42 @@ def test_enqueue_run_still_returns_str():
             )
     assert isinstance(result, str) and len(result) == 36
 
+def test_enqueue_cv_regenerate_once_with_job_id_returns_job_id() -> None:
+    from fitcv_cp.queue import enqueue_cv_regenerate_once_with_job_id
+
+    mock_q = MagicMock()
+    mock_job = MagicMock()
+    mock_job.id = "rq-regenerate-1"
+    mock_q.enqueue.return_value = mock_job
+    with patch("fitcv_cp.queue.get_queue", return_value=mock_q):
+        with patch.dict("os.environ", {"FITCV_CP_INLINE_EXECUTION": "0"}):
+            queue_job_id = enqueue_cv_regenerate_once_with_job_id(
+                run_id="run-1",
+                job_url="https://example.com/job",
+                actor="admin",
+                note="retry",
+                redis_url="redis://localhost:6379/0",
+            )
+    assert queue_job_id == "rq-regenerate-1"
+    mock_q.enqueue.assert_called_once()
+
+def test_enqueue_cv_regenerate_once_with_job_id_inline_marks_queued() -> None:
+    from fitcv_cp.queue import enqueue_cv_regenerate_once_with_job_id
+
+    with patch("fitcv_cp.queue.threading.Thread") as thread_cls:
+        thread = MagicMock()
+        thread_cls.return_value = thread
+        with patch.dict("os.environ", {"FITCV_CP_INLINE_EXECUTION": "1"}):
+            queue_job_id = enqueue_cv_regenerate_once_with_job_id(
+                run_id="run-2",
+                job_url="https://example.com/job2",
+                actor="admin",
+                note=None,
+            )
+    assert queue_job_id.startswith("inline-")
+    assert queue_module._INLINE_JOB_STATUS[queue_job_id] == "queued"
+    thread.start.assert_called_once()
+
 
 # ── cancel_queued_run ────────────────────────────────────────────────────────
 

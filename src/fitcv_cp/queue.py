@@ -120,6 +120,46 @@ def _run_inline_job_after_delay(job_id: str, run_id: str, jobs_path: str, config
         time.sleep(delay_seconds)
     _run_inline_job(job_id, run_id, jobs_path, config_path)
 
+def _run_inline_cv_regenerate_once(
+    job_id: str,
+    run_id: str,
+    job_url: str,
+    actor: str,
+    note: str | None,
+) -> None:
+    from fitcv_cp import worker_job  # noqa: F401
+
+    _INLINE_JOB_STATUS[job_id] = "started"
+    try:
+        worker_job.execute_cv_regenerate_once(
+            run_id=run_id,
+            job_url=job_url,
+            actor=actor,
+            note=note,
+        )
+        _INLINE_JOB_STATUS[job_id] = "finished"
+    except Exception:
+        _INLINE_JOB_STATUS[job_id] = "failed"
+        raise
+
+def _run_inline_cv_regenerate_once_after_delay(
+    job_id: str,
+    run_id: str,
+    job_url: str,
+    actor: str,
+    note: str | None,
+) -> None:
+    delay_seconds = _inline_start_delay_seconds()
+    if delay_seconds > 0:
+        time.sleep(delay_seconds)
+    _run_inline_cv_regenerate_once(
+        job_id=job_id,
+        run_id=run_id,
+        job_url=job_url,
+        actor=actor,
+        note=note,
+    )
+
 
 def get_queue(redis_url: str = "redis://redis:6379/0") -> Queue:
     global _queue
@@ -177,6 +217,38 @@ def enqueue_run(
         run_id=run_id,
     )
     return run_id
+
+def enqueue_cv_regenerate_once_with_job_id(
+    *,
+    run_id: str,
+    job_url: str,
+    actor: str,
+    note: str | None = None,
+    redis_url: str = "redis://redis:6379/0",
+) -> str:
+    """Enqueue a bounded regenerate-once CV review job. Returns rq_job_id."""
+    if _inline_execution_enabled():
+        queue_job_id = f"inline-{uuid.uuid4()}"
+        _INLINE_JOB_STATUS[queue_job_id] = "queued"
+        thread = threading.Thread(
+            target=_run_inline_cv_regenerate_once_after_delay,
+            args=(queue_job_id, run_id, job_url, actor, note),
+            daemon=True,
+        )
+        thread.start()
+        return queue_job_id
+    from fitcv_cp import worker_job  # noqa: F401
+
+    q = get_queue(redis_url)
+    job = q.enqueue(
+        worker_job.execute_cv_regenerate_once,
+        run_id=run_id,
+        job_url=job_url,
+        actor=actor,
+        note=note,
+        job_timeout=1800,
+    )
+    return str(job.id)
 
 
 def cancel_queued_run(queue_job_id: str, redis_url: str = "redis://redis:6379/0") -> bool:

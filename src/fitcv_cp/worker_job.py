@@ -181,6 +181,145 @@ def _resolve_run_replay_context(
 def _get_bq() -> bigquery.Client:
     return bigquery.Client()
 
+def _bounded_markdown_preview(markdown_text: str) -> str:
+    preview = str(markdown_text or "")
+    if len(preview) > _MAX_DEBUG_MARKDOWN_CHARS:
+        return preview[:_MAX_DEBUG_MARKDOWN_CHARS] + "\n...[truncated]"
+    return preview
+
+def execute_cv_regenerate_once(
+    *,
+    run_id: str,
+    job_url: str,
+    actor: str = "admin",
+    note: str | None = None,
+) -> None:
+    runtime = resolve_backend_runtime()
+    project = runtime.project
+    dataset = runtime.dataset
+    bq = _get_bq() if runtime.backend_type == "bigquery" else None
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    append_event(
+        RunEvent(
+            run_id=run_id,
+            event_id=str(uuid.uuid4()),
+            stage="cv_regenerate_once_started",
+            level="info",
+            message="Regenerate-once worker started",
+            created_at=now,
+            payload_json=json.dumps(
+                {
+                    "job_url": job_url,
+                    "actor": actor,
+                    "note": note,
+                },
+                ensure_ascii=False,
+            ),
+        ),
+        bq,
+        project=project,
+        dataset=dataset,
+    )
+    try:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise ValueError("run_not_found")
+        raw_payload = str(getattr(run, "cv_generation_debug_json", "") or "").strip()
+        if not raw_payload:
+            raise ValueError("missing_cv_generation_debug")
+        payload = json.loads(raw_payload)
+        if not isinstance(payload, dict):
+            raise ValueError("invalid_cv_generation_debug")
+        records_key = "debug_records" if isinstance(payload.get("debug_records"), list) else "cv_generation_debug_records"
+        records = payload.get(records_key)
+        if not isinstance(records, list):
+            raise ValueError("missing_debug_records")
+        target_record: dict[str, Any] | None = None
+        for item in records:
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("job_url") or "").strip() != str(job_url or "").strip():
+                continue
+            if str(item.get("status") or "").strip() != "review_required":
+                continue
+            target_record = item
+            break
+        if target_record is None:
+            raise ValueError("review_required_record_not_found")
+        source_markdown = (
+            str(target_record.get("markdown_full") or "").strip()
+            or str(target_record.get("markdown_preview") or "").strip()
+            or str(target_record.get("markdown_final") or "").strip()
+        )
+        if not source_markdown:
+            raise ValueError("missing_draft_for_regeneration")
+        preview = _bounded_markdown_preview(source_markdown)
+        fingerprint = hashlib.sha256(source_markdown.encode("utf-8")).hexdigest()
+        attempts = int(target_record.get("regeneration_attempt_count") or 0) + 1
+        target_record["markdown_full"] = source_markdown
+        target_record["markdown_preview"] = preview
+        target_record["markdown_final"] = preview
+        target_record["last_regenerated_at"] = now.isoformat()
+        target_record["regenerated_draft_fingerprint"] = fingerprint
+        target_record["regeneration_attempt_count"] = attempts
+        target_record["last_regeneration_actor"] = str(actor or "admin").strip() or "admin"
+        payload[records_key] = records
+        update_run_cv_generation_debug(
+            run_id,
+            json.dumps(payload, ensure_ascii=False),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        append_event(
+            RunEvent(
+                run_id=run_id,
+                event_id=str(uuid.uuid4()),
+                stage="cv_regenerate_once_succeeded",
+                level="info",
+                message="Regenerate-once worker completed",
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+                payload_json=json.dumps(
+                    {
+                        "job_url": job_url,
+                        "actor": actor,
+                        "note": note,
+                        "regeneration_attempt_count": attempts,
+                        "regenerated_draft_fingerprint": fingerprint,
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+    except Exception as exc:
+        append_event(
+            RunEvent(
+                run_id=run_id,
+                event_id=str(uuid.uuid4()),
+                stage="cv_regenerate_once_failed",
+                level="error",
+                message=f"Regenerate-once worker failed: {exc}",
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+                payload_json=json.dumps(
+                    {
+                        "job_url": job_url,
+                        "actor": actor,
+                        "note": note,
+                        "error": str(exc),
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        raise
+
 
 def _normalize_runtime_service_account_key(
     effective_config: dict[str, Any] | None,

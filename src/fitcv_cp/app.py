@@ -69,7 +69,12 @@ from fitcv_cp.bq_store import (
 import fitcv_cp.bq_store as bq_store_module
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission, get_orchestration_adapter
-from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
+from fitcv_cp.queue import (
+    cancel_queued_run,
+    enqueue_cv_regenerate_once_with_job_id,
+    enqueue_run,
+    enqueue_run_with_job_id,
+)
 from fitcv_cp.settings_schema import (
     AGENTIC_SETTINGS_SECTIONS,
     ALL_GROUP_REGISTRIES,
@@ -2191,6 +2196,9 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
                 "pending": resolution_status not in _HITL_TERMINAL_RESOLUTION_STATUSES,
                 "cv_markdown_preview": markdown_preview or None,
                 "cv_preview_available": bool(markdown_preview),
+                "last_regenerated_at": _format_compact_utc_timestamp(record.get("last_regenerated_at")),
+                "regenerated_draft_fingerprint": str(record.get("regenerated_draft_fingerprint") or "").strip() or None,
+                "regeneration_job_id": str((action or {}).get("regeneration_job_id") or "").strip() or None,
             }
         )
     queue_items.sort(key=lambda item: (not item["pending"], item["job_title"].lower(), item["job_url"]))
@@ -7308,6 +7316,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=404, detail="Review-required record not found for job_url")
         accepted_increment = 0
         finalized_version_id: str | None = None
+        regeneration_job_id: str | None = None
         if payload.action == "approve_as_is":
             finalized_ok, finalized_reason, finalized_version_id = _finalize_review_draft_as_cv_artifact(
                 run=run,
@@ -7320,6 +7329,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             if not finalized_ok:
                 raise HTTPException(status_code=409, detail=f"Cannot approve as final CV: {finalized_reason}")
             accepted_increment = 1
+        elif payload.action == "regenerate_once":
+            regeneration_job_id = enqueue_cv_regenerate_once_with_job_id(
+                run_id=run_id,
+                job_url=payload.job_url,
+                actor=payload.actor or "admin",
+                note=payload.note,
+                redis_url=redis_url,
+            )
 
         now = datetime.datetime.now(datetime.timezone.utc)
         action_entry = {
@@ -7333,6 +7350,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "note": payload.note,
             "created_at": now.isoformat(),
         }
+        if payload.action == "regenerate_once":
+            action_entry["regeneration_requested_at"] = now.isoformat()
+            action_entry["regeneration_job_id"] = regeneration_job_id
         review_actions = [item for item in list(debug_payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
         review_actions.append(action_entry)
         debug_payload["hitl_review_actions"] = review_actions
@@ -7356,6 +7376,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "job_url": payload.job_url,
                         "job_title": target_record.get("job_title"),
                         "action": payload.action,
+                        "regeneration_job_id": regeneration_job_id,
                         "artifact_finalized": bool(accepted_increment),
                         "artifact_version_id": finalized_version_id,
                         "actor": payload.actor,
@@ -7368,6 +7389,30 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
+        if payload.action == "regenerate_once":
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="cv_regenerate_once_requested",
+                    level="info",
+                    message="Regenerate-once requested from review queue",
+                    created_at=now,
+                    payload_json=_json.dumps(
+                        {
+                            "job_url": payload.job_url,
+                            "job_title": target_record.get("job_title"),
+                            "actor": payload.actor,
+                            "note": payload.note,
+                            "queue_job_id": regeneration_job_id,
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
 
         updated_run = dataclasses.replace(
             run,
@@ -7534,6 +7579,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         skipped = 0
         failed = 0
         finalized = 0
+        regeneration_requested = 0
         failed_missing_draft = 0
         failed_persist = 0
         failed_truncated_draft = 0
@@ -7551,6 +7597,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 skipped += 1
                 continue
             finalized_version_id: str | None = None
+            regeneration_job_id: str | None = None
             if action == "approve_as_is":
                 target_record = next(
                     (
@@ -7579,6 +7626,19 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         failed_truncated_draft += 1
                     continue
                 finalized += 1
+            elif action == "regenerate_once":
+                try:
+                    regeneration_job_id = enqueue_cv_regenerate_once_with_job_id(
+                        run_id=run_id,
+                        job_url=job_url,
+                        actor=actor,
+                        note=note,
+                        redis_url=redis_url,
+                    )
+                except Exception:
+                    failed += 1
+                    continue
+                regeneration_requested += 1
             action_entry = {
                 "job_url": job_url,
                 "action": action,
@@ -7589,6 +7649,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "note": note,
                 "created_at": now.isoformat(),
             }
+            if action == "regenerate_once":
+                action_entry["regeneration_requested_at"] = now.isoformat()
+                action_entry["regeneration_job_id"] = regeneration_job_id
             review_actions.append(action_entry)
             latest_action_by_job[job_url] = action_entry
             applied += 1
@@ -7619,6 +7682,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "skipped": skipped,
                         "failed": failed,
                         "finalized": finalized,
+                        "regeneration_requested": regeneration_requested,
                         "failed_missing_draft": failed_missing_draft,
                         "failed_persist": failed_persist,
                         "failed_truncated_draft": failed_truncated_draft,
@@ -7631,6 +7695,32 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
+        if action == "regenerate_once":
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="cv_regenerate_once_requested",
+                    level="info",
+                    message=(
+                        "Regenerate-once requested from review batch action: "
+                        f"requested={regeneration_requested}, failed={failed}, skipped={skipped}"
+                    ),
+                    created_at=now,
+                    payload_json=_json.dumps(
+                        {
+                            "requested": regeneration_requested,
+                            "failed": failed,
+                            "skipped": skipped,
+                            "selected_count": len(selected_urls),
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
 
         updated_run = dataclasses.replace(
             run,

@@ -26,6 +26,90 @@ import pytest
 def _force_bigquery_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
 
+def test_execute_cv_regenerate_once_updates_target_record_and_emits_success() -> None:
+    from fitcv_cp.worker_job import execute_cv_regenerate_once
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="run-regen-1",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "markdown_full": "# Draft 1",
+                    },
+                    {
+                        "job_url": "https://example.com/job-2",
+                        "status": "review_required",
+                        "markdown_full": "# Draft 2",
+                    },
+                ]
+            },
+            ensure_ascii=False,
+        ),
+    )
+    with patch("fitcv_cp.worker_job.get_run", return_value=run), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=MagicMock()), \
+         patch("fitcv_cp.worker_job.update_run_cv_generation_debug") as mock_update, \
+         patch("fitcv_cp.worker_job.append_event") as mock_append:
+        execute_cv_regenerate_once(
+            run_id="run-regen-1",
+            job_url="https://example.com/job-1",
+            actor="operator",
+            note="retry",
+        )
+
+    saved_payload = json.loads(mock_update.call_args.args[1])
+    target = next(
+        row for row in saved_payload["cv_generation_debug_records"]
+        if row.get("job_url") == "https://example.com/job-1"
+    )
+    untouched = next(
+        row for row in saved_payload["cv_generation_debug_records"]
+        if row.get("job_url") == "https://example.com/job-2"
+    )
+    assert target["last_regenerated_at"]
+    assert target["regenerated_draft_fingerprint"]
+    assert target["regeneration_attempt_count"] == 1
+    assert untouched.get("last_regenerated_at") is None
+    stages = [call.args[0].stage for call in mock_append.call_args_list]
+    assert stages == ["cv_regenerate_once_started", "cv_regenerate_once_succeeded"]
+
+def test_execute_cv_regenerate_once_emits_failed_event_for_missing_record() -> None:
+    from fitcv_cp.worker_job import execute_cv_regenerate_once
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="run-regen-2",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        cv_generation_debug_json=json.dumps({"cv_generation_debug_records": []}, ensure_ascii=False),
+    )
+    with patch("fitcv_cp.worker_job.get_run", return_value=run), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=MagicMock()), \
+         patch("fitcv_cp.worker_job.append_event") as mock_append:
+        with pytest.raises(ValueError):
+            execute_cv_regenerate_once(
+                run_id="run-regen-2",
+                job_url="https://example.com/job-404",
+                actor="operator",
+                note=None,
+            )
+    stages = [call.args[0].stage for call in mock_append.call_args_list]
+    assert stages == ["cv_regenerate_once_started", "cv_regenerate_once_failed"]
+
 
 def test_worker_marks_succeeded_on_success():
     bq = MagicMock()
