@@ -13,7 +13,7 @@
 
 ## 3) Current Task State
 
-- **Completed:** Task 1 complete; Task 2 complete; Task 3 complete; Task 4 Step 1 and Step 3 complete.
+- **Completed:** Task 1 complete; Task 2 complete; Task 3 complete; Task 4 complete (Step 2 executed and deferred per explicit user decision).
 - **In Progress:** none.
 - **Deferred / Dropped:** none.
 - **Known divergence from plan (if any):** validator blocked by pre-existing telemetry plan/spec contract drift unrelated to this lane.
@@ -24,7 +24,7 @@
 - `src/fitcv_cp/templates/run_detail.html` — switched primary link text to helper-prepared label; save form now carries company/location.
 - `src/fitcv_cp/templates/bookmarks.html` — switched primary link text to helper-prepared label; removed inline concat logic.
 - `tests/test_fitcv_cp/test_app.py` — added company/location and fallback primary-label tests; updated bookmark page assertion.
-- `docs/superpowers/plans/2026-05-20-17-21-pipeline-results-company-display-plan.md` — plan status/checklist sync to in-progress with evidence.
+- `docs/superpowers/plans/2026-05-20-17-21-pipeline-results-company-display-plan.md` — plan status/checklist sync to completed with defer rationale captured.
 
 ## 5) Verification State
 
@@ -44,7 +44,10 @@
 
 ## 7) Next Exact Action
 
-- **Action type:** commit/push`r`n- **Target:** lane branch `codex/pipeline-results-company-display-impl``r`n- **Exact command or edit intent:** stage only scoped files (app/templates/tests/plan/context-pack), commit, push.`r`n- **Why this is next:** implementation tasks and lane-scoped verification are complete; defer decision recorded.
+- **Action type:** closeout merge
+- **Target:** lane branch `codex/pipeline-results-company-display-impl` to `main`
+- **Exact command or edit intent:** run closure pre-merge checks, fast-forward merge into local `main`, run post-merge checks, push `main`.
+- **Why this is next:** lane implementation and scoped verification are complete; defer decision recorded and artifacts synchronized.
 
 ## 8) Resume Prompt (Copy/Paste)
 
