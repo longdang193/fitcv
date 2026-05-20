@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import sqlite3
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +28,11 @@ logger = logging.getLogger(__name__)
 
 
 def _local_sqlite_path() -> Path:
-    raw = str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+    raw = str(
+        os.environ.get("FITCV_CP_SETTINGS_SQLITE_PATH")
+        or os.environ.get("FITCV_CP_SQLITE_PATH")
+        or "data/fitcv_cp.sqlite3"
+    ).strip() or "data/fitcv_cp.sqlite3"
     return Path(raw)
 
 
@@ -43,49 +48,99 @@ def _ensure_local_pipeline_settings_table(conn: sqlite3.Connection) -> None:
         """
     )
 
+def _is_recoverable_sqlite_error(exc: sqlite3.Error) -> bool:
+    message = str(exc).lower()
+    return (
+        "disk i/o error" in message
+        or "database is locked" in message
+        or "file is not a database" in message
+    )
+
+def _rotate_local_sqlite_family(db_path: Path, *, reason: str) -> Path | None:
+    if not db_path.exists():
+        return None
+    ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d-%H%M%S")
+    backup_dir = db_path.parent / f"{db_path.stem}.corrupt.{ts}"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    moved = False
+    for suffix in ("", "-wal", "-shm"):
+        source = Path(f"{db_path}{suffix}")
+        if not source.exists():
+            continue
+        target = backup_dir / source.name
+        try:
+            shutil.move(str(source), str(target))
+            moved = True
+        except OSError as move_exc:
+            logger.warning("Failed to rotate sqlite file %s: %s", source, move_exc)
+    if moved:
+        logger.warning(
+            "Rotated local settings sqlite files due to recoverable sqlite failure (%s). backup_dir=%s",
+            reason,
+            backup_dir,
+        )
+        return backup_dir
+    return None
+
 
 def _save_local_settings_rows(rows: list[dict[str, str]]) -> None:
     db_path = _local_sqlite_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path, timeout=30) as conn:
-        _ensure_local_pipeline_settings_table(conn)
-        conn.executemany(
-            """
-            INSERT INTO pipeline_settings (
-                setting_key,
-                setting_value_json,
-                updated_by,
-                updated_at
-            ) VALUES (?, ?, ?, ?)
-            """,
-            [
-                (
-                    str(row["setting_key"]),
-                    str(row["setting_value_json"]),
-                    str(row.get("updated_by") or ""),
-                    str(row["updated_at"]),
+    for attempt in (1, 2):
+        try:
+            with sqlite3.connect(db_path, timeout=30) as conn:
+                _ensure_local_pipeline_settings_table(conn)
+                conn.executemany(
+                    """
+                    INSERT INTO pipeline_settings (
+                        setting_key,
+                        setting_value_json,
+                        updated_by,
+                        updated_at
+                    ) VALUES (?, ?, ?, ?)
+                    """,
+                    [
+                        (
+                            str(row["setting_key"]),
+                            str(row["setting_value_json"]),
+                            str(row.get("updated_by") or ""),
+                            str(row["updated_at"]),
+                        )
+                        for row in rows
+                    ],
                 )
-                for row in rows
-            ],
-        )
-        conn.commit()
+                conn.commit()
+                return
+        except sqlite3.Error as exc:
+            if attempt == 1 and _is_recoverable_sqlite_error(exc):
+                _rotate_local_sqlite_family(db_path, reason=str(exc))
+                continue
+            raise
 
 
 def _load_local_settings_rows() -> list[sqlite3.Row]:
     db_path = _local_sqlite_path()
     if not db_path.exists():
         return []
-    with sqlite3.connect(db_path, timeout=30) as conn:
-        conn.row_factory = sqlite3.Row
-        _ensure_local_pipeline_settings_table(conn)
-        rows = conn.execute(
-            """
-            SELECT setting_key, setting_value_json
-            FROM pipeline_settings
-            ORDER BY updated_at DESC, rowid DESC
-            """
-        ).fetchall()
-    return rows
+    for attempt in (1, 2):
+        try:
+            with sqlite3.connect(db_path, timeout=30) as conn:
+                conn.row_factory = sqlite3.Row
+                _ensure_local_pipeline_settings_table(conn)
+                rows = conn.execute(
+                    """
+                    SELECT setting_key, setting_value_json
+                    FROM pipeline_settings
+                    ORDER BY updated_at DESC, rowid DESC
+                    """
+                ).fetchall()
+            return rows
+        except sqlite3.Error as exc:
+            if attempt == 1 and _is_recoverable_sqlite_error(exc):
+                _rotate_local_sqlite_family(db_path, reason=str(exc))
+                return []
+            raise
+    return []
 
 
 def save_setting(

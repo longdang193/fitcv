@@ -4428,7 +4428,7 @@ def _timeline_stage_summary_message(
         )
         if phase == "batch_start":
             return _format_message(
-                "Enrich in progress",
+                "Enrich starting",
                 [
                     ("fresh", fresh_total),
                     ("reused", reused_total),
@@ -4773,6 +4773,43 @@ def _collapse_timeline_noise(events: list[RunEvent]) -> list[tuple[RunEvent, int
             last_triage_index = None
             collapsed.append((event, 1))
     return collapsed
+
+
+def _timeline_show_repeat_suffix(event: RunEvent) -> bool:
+    """Keep primary timeline message invariant for repeatable progress pulses."""
+    stage = str(event.stage or "").strip()
+    if stage == "enrich_heartbeat":
+        return False
+    return True
+
+
+def _dedupe_timeline_semantic_overlaps(
+    collapsed_events: list[tuple[RunEvent, int]],
+) -> list[tuple[RunEvent, int]]:
+    """Drop duplicate semantic rows when heartbeat completion is mirrored by stage completion."""
+    if not collapsed_events:
+        return []
+    deduped: list[tuple[RunEvent, int]] = []
+    for event, repeat_count in collapsed_events:
+        stage = str(event.stage or "").strip()
+        if deduped and stage == "layer1_jobs":
+            prev_event, _prev_repeat_count = deduped[-1]
+            prev_stage = str(prev_event.stage or "").strip()
+            if prev_stage == "enrich_heartbeat":
+                prev_payload = _event_payload(prev_event)
+                prev_phase = str(prev_payload.get("phase") or "").strip()
+                if prev_phase == "batch_done":
+                    prev_fresh = prev_payload.get("fresh_jobs_total")
+                    prev_reused = prev_payload.get("reused_jobs_total")
+                    payload = _event_payload(event)
+                    output_snapshot = payload.get("output_snapshot")
+                    outputs = dict(output_snapshot) if isinstance(output_snapshot, dict) else {}
+                    current_fresh = outputs.get("fresh_rows")
+                    current_reused = outputs.get("reused_rows")
+                    if prev_fresh == current_fresh and prev_reused == current_reused:
+                        deduped.pop()
+        deduped.append((event, repeat_count))
+    return deduped
 
 def _stage_download_label(stage_id: str | None) -> str:
     if not stage_id:
@@ -7537,6 +7574,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         )
         timeline_events: list[dict[str, Any]] = []
         visible_events = _collapse_timeline_noise(events[-timeline_limit:])
+        visible_events = _dedupe_timeline_semantic_overlaps(visible_events)
         for ev, repeat_count in visible_events:
             stage_id = _timeline_stage_download_for_event(ev.stage)
             stage_download_url = None
@@ -7556,6 +7594,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "level": ev.level,
                     "message": _timeline_stage_summary_message(ev, stage_artifacts_by_id),
                     "repeat_count": int(repeat_count),
+                    "show_repeat_suffix": _timeline_show_repeat_suffix(ev),
                     "stage_id": stage_id,
                     "stage_download_url": stage_download_url,
                     "stage_download_label": stage_download_label,

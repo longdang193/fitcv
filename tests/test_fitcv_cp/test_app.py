@@ -227,6 +227,46 @@ def test_timeline_stage_summary_message_includes_concurrency_for_applicable_stag
     assert "concurrency 3" in _timeline_stage_summary_message(cv_analysis_event, {})
     assert "concurrency 2" in _timeline_stage_summary_message(cv_gen_event, {})
 
+
+def test_timeline_stage_summary_message_distinguishes_enrich_start_vs_progress() -> None:
+    ts = datetime.datetime.now(datetime.timezone.utc)
+    enrich_start_event = RunEvent(
+        run_id="r",
+        event_id="e-enrich-start",
+        stage="enrich_heartbeat",
+        level="info",
+        message="Enrich in progress",
+        created_at=ts,
+        payload_json=json.dumps(
+            {
+                "phase": "batch_start",
+                "fresh_jobs_total": 85,
+                "reused_jobs_total": 0,
+                "enrich_concurrency_effective": 4,
+            }
+        ),
+    )
+    enrich_progress_event = RunEvent(
+        run_id="r",
+        event_id="e-enrich-progress",
+        stage="enrich_heartbeat",
+        level="info",
+        message="Enrich in progress",
+        created_at=ts,
+        payload_json=json.dumps(
+            {
+                "phase": "batch_progress",
+                "fresh_jobs_total": 85,
+                "reused_jobs_total": 0,
+                "enrich_concurrency_effective": 4,
+            }
+        ),
+    )
+    start_message = _timeline_stage_summary_message(enrich_start_event, {})
+    progress_message = _timeline_stage_summary_message(enrich_progress_event, {})
+    assert start_message.startswith("Enrich starting:")
+    assert progress_message.startswith("Enrich in progress:")
+
 def test_synonym_decision_ledger_marks_reviewed_rows_as_decision_applied() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -4767,6 +4807,107 @@ def test_run_detail_timeline_shows_repeat_count_for_collapsed_synonym_triage() -
 
     assert resp.status_code == 200
     assert "(x2)" in resp.text
+
+
+def test_run_detail_timeline_hides_repeat_count_for_collapsed_enrich_progress() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-enrich-repeat",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    ts = datetime.now(timezone.utc)
+    payload = {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 85,
+        "reused_jobs_total": 0,
+        "enrich_concurrency_effective": 4,
+        "heartbeat_count": 1,
+        "elapsed_secs": 15,
+    }
+    events = [
+        RunEvent(run_id="run-enrich-repeat", event_id="e1", stage="enrich_heartbeat", level="info", message="Enrich heartbeat #1", created_at=ts, payload_json=json.dumps(payload)),
+        RunEvent(run_id="run-enrich-repeat", event_id="e2", stage="enrich_heartbeat", level="info", message="Enrich heartbeat #2", created_at=ts, payload_json=json.dumps({**payload, "heartbeat_count": 2, "elapsed_secs": 30})),
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-enrich-repeat")
+
+    assert resp.status_code == 200
+    assert "Enrich in progress: fresh 85, reused 0, concurrency 4." in resp.text
+    assert "(x2)" not in resp.text
+
+
+def test_run_detail_timeline_dedupes_enrich_complete_overlap_between_heartbeat_and_layer1_jobs() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-enrich-complete-overlap",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    ts = datetime.now(timezone.utc)
+    events = [
+        RunEvent(
+            run_id="run-enrich-complete-overlap",
+            event_id="e1",
+            stage="enrich_heartbeat",
+            level="info",
+            message="Enrich in progress",
+            created_at=ts,
+            payload_json=json.dumps(
+                {
+                    "phase": "batch_done",
+                    "fresh_jobs_total": 85,
+                    "reused_jobs_total": 0,
+                    "fresh_rows_total": 85,
+                    "enrich_concurrency_effective": 4,
+                }
+            ),
+        ),
+        RunEvent(
+            run_id="run-enrich-complete-overlap",
+            event_id="e2",
+            stage="layer1_jobs",
+            level="info",
+            message="Enrich complete",
+            created_at=ts,
+            payload_json=json.dumps(
+                {
+                    "output_snapshot": {
+                        "enriched_jobs": 85,
+                        "pre_enrichment_rejected_jobs": 0,
+                        "fresh_rows": 85,
+                        "reused_rows": 0,
+                    }
+                }
+            ),
+        ),
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-enrich-complete-overlap")
+
+    assert resp.status_code == 200
+    assert "Enrich complete" in resp.text
+    assert "Enrich complete: fresh rows 85, fresh 85, reused 0, concurrency 4." not in resp.text
 def test_run_detail_timeline_hides_stage_download_for_mapped_event_without_stage_artifact():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
