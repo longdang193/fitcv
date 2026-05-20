@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: active
+status: completed
 template_id: implementation-plan
 name: synonym-promote-review-page-and-queue-symmetry
 parent_thread: workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow

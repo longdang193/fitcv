@@ -66,10 +66,10 @@
 
 Single smallest concrete action to run first in next session.
 
-- **Action type:** close-now gate
-- **Target:** closeout eligibility decision
-- **Exact command or edit intent:** run required closeout gate checks when user asks to close and stage only intended files.
-- **Why this is next:** plan key deliverables and verification evidence now complete; only closure workflow remains.
+- **Action type:** closed
+- **Target:** lane closure record
+- **Exact command or edit intent:** no further implementation action; lane merged fast-forward to `main` and pushed (`7ad73d8c`).
+- **Why this is next:** closure complete; further execution actions not eligible.
 
 ## 8) Resume Prompt (Copy/Paste)
 
