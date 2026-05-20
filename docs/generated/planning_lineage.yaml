@@ -359,7 +359,7 @@ workstreams:
   status: active
   path: docs/intent/workstreams/workstream-operator-control-plane.md
   thread_count: 6
-  completed_thread_count: 3
+  completed_thread_count: 2
   derived_completion: in_progress
   threads:
   - thread_id: workstream-operator-control-plane.operator-control-plane-trigger-and-mode-contract
@@ -406,7 +406,8 @@ workstreams:
     - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
     plans:
     - docs/superpowers/plans/2026-05-19-23-19-cv-review-regenerate-once-implementation-plan.md
-    derived_completion: completed
+    - docs/superpowers/plans/2026-05-20-09-24-hitl-review-queue-identity-alignment-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-operator-control-plane.operator-control-plane-agentic-settings-surface
     status: active
     path: docs/intent/workstreams/threads/workstream-operator-control-plane/05-operator-control-plane-agentic-settings-surface.md
