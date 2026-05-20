@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: in_progress
 template_id: implementation-plan
 name: pipeline-results-and-bookmarks-company-display-format-alignment
 parent_thread: workstream-operator-control-plane.operator-control-plane-run-detail-truth
@@ -51,12 +51,12 @@ Tests verify the exact format and fallback behavior for both pages, including mi
 - agreed canonical format: `Job Title (Company, Location)` or `Job Title (Company)` when location missing
 
 **Steps:**
-- [ ] Step 1: add helper for canonical primary-line label with fallback matrix
-- [ ] Step 2: wire run-detail `cv_versions` mapping through helper
-- [ ] Step 3: wire bookmarks view-model mapping through same helper
+- [x] Step 1: add helper for canonical primary-line label with fallback matrix
+- [x] Step 2: wire run-detail `cv_versions` mapping through helper
+- [x] Step 3: wire bookmarks view-model mapping through same helper
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "bookmark and format"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "bookmark or company_location_label or primary_label"`
 
 **Exit Criteria:**
 - app-layer helper is single source for primary-line text in both surfaces
@@ -77,12 +77,12 @@ Tests verify the exact format and fallback behavior for both pages, including mi
 - Task 1 complete
 
 **Steps:**
-- [ ] Step 1: render helper-produced label in Pipeline Results row link text
-- [ ] Step 2: render helper-produced label in Bookmarks primary link text
-- [ ] Step 3: ensure no inline `title/company/location` concatenation remains in templates
+- [x] Step 1: render helper-produced label in Pipeline Results row link text
+- [x] Step 2: render helper-produced label in Bookmarks primary link text
+- [x] Step 3: ensure no inline `title/company/location` concatenation remains in templates
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py`
+- [x] `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py`
 
 **Exit Criteria:**
 - templates use upstream prepared values only and preserve action-button layout
@@ -101,12 +101,12 @@ Tests verify the exact format and fallback behavior for both pages, including mi
 - Tasks 1-2 complete
 
 **Steps:**
-- [ ] Step 1: add/adjust tests for full format (`title+company+location`)
-- [ ] Step 2: add tests for missing location (`title+company`)
-- [ ] Step 3: add tests for missing company/title fallback behavior
+- [x] Step 1: add/adjust tests for full format (`title+company+location`)
+- [x] Step 2: add tests for missing location (`title+company`)
+- [x] Step 3: add tests for missing company/title fallback behavior
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "bookmark and (company or location or format)"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "bookmark or company_location_label or primary_label"`
 
 **Exit Criteria:**
 - all fallback contracts are explicit and test-proven
@@ -127,9 +127,9 @@ Tests verify the exact format and fallback behavior for both pages, including mi
 - Tasks 1-3 complete
 
 **Steps:**
-- [ ] Step 1: run targeted pytest subset for bookmark/display surfaces
-- [ ] Step 2: run fast contract validator
-- [ ] Step 3: capture residual risks and handoff notes
+- [x] Step 1: run targeted pytest subset for bookmark/display surfaces
+- [x] Step 2: run fast contract validator (executed; blocked by unrelated telemetry artifacts; deferred to telemetry lane owner per user decision)
+- [x] Step 3: capture residual risks and handoff notes
 
 **Verification:**
 - [ ] `pytest tests/test_fitcv_cp/test_app.py -k bookmark`

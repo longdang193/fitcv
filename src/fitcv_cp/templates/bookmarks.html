@@ -12,10 +12,9 @@
     {% for item in bookmarks %}
     <div class="cv-row">
       <div style="display:flex;flex-direction:column;gap:0.2rem;min-width:0">
-        <a class="truncate-link job-title-link" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.title }} ↗</a>
+        <a class="truncate-link job-title-link" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.job_primary_label }} ↗</a>
         <div class="meta">
-          {% if item.company %}{{ item.company }}{% endif %}{% if item.company and item.location %} · {% endif %}{% if item.location %}{{ item.location }}{% endif %}
-          {% if item.fit_classification_display %}{% if item.company or item.location %} · {% endif %}<span class="badge {{ item.fit_classification_badge_class }}">{{ item.fit_classification_display }}</span>{% endif %}
+          {% if item.fit_classification_display %}<span class="badge {{ item.fit_classification_badge_class }}">{{ item.fit_classification_display }}</span>{% endif %}
         </div>
         <div class="meta">Saved: {{ item.saved_at_display }}{% if item.source_run_id %} · Run <code>{{ item.source_run_id }}</code>{% endif %}</div>
       </div>

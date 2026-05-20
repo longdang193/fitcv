@@ -4244,12 +4244,36 @@ def _pipeline_outcome_surface(row: dict[str, Any]) -> dict[str, str]:
     )
 
 
-def _job_title_by_url_from_results_rows(rows: list[dict[str, Any]]) -> dict[str, str]:
-    return {
-        str(row.get("job_url") or ""): str(row.get("job_title") or "")
-        for row in rows
-        if row.get("job_url")
-    }
+def _build_job_primary_label(
+    *,
+    title: str | None,
+    company: str | None,
+    location: str | None,
+) -> str:
+    canonical_title = str(title or "").strip() or "View Job"
+    canonical_company = str(company or "").strip()
+    canonical_location = str(location or "").strip()
+    if canonical_company and canonical_location:
+        return f"{canonical_title} ({canonical_company}, {canonical_location})"
+    if canonical_company:
+        return f"{canonical_title} ({canonical_company})"
+    if canonical_location:
+        return f"{canonical_title} ({canonical_location})"
+    return canonical_title
+
+
+def _job_metadata_by_url_from_results_rows(rows: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+    metadata: dict[str, dict[str, str]] = {}
+    for row in rows:
+        url = str(row.get("job_url") or "").strip()
+        if not url:
+            continue
+        metadata[url] = {
+            "title": str(row.get("job_title") or "").strip(),
+            "company": str(row.get("company") or "").strip(),
+            "location": str(row.get("location") or "").strip(),
+        }
+    return metadata
 
 
 def _bookmark_destination_for_request(request: Request, run_id: str) -> str:
@@ -7638,14 +7662,17 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             )
         cv_versions = list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
         results_rows = _results_export_rows(run)
-        job_title_by_url = _job_title_by_url_from_results_rows(results_rows)
+        job_metadata_by_url = _job_metadata_by_url_from_results_rows(results_rows)
         cv_versions_with_bookmarks: list[dict[str, Any]] = []
         for cv in cv_versions:
             if not isinstance(cv, dict):
                 continue
             row = dict(cv)
             job_url = str(row.get("job_url") or "").strip()
-            job_title = str(job_title_by_url.get(job_url) or "View Job")
+            metadata = job_metadata_by_url.get(job_url, {})
+            job_title = str(row.get("job_title") or metadata.get("title") or "View Job").strip()
+            company = str(row.get("company") or metadata.get("company") or "").strip()
+            location = str(row.get("location") or metadata.get("location") or "").strip()
             bookmark_key = bookmark_key_for_job(
                 job_id=str(row.get("job_id") or "").strip() or None,
                 url=job_url or None,
@@ -7653,6 +7680,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             )
             row["bookmark_key"] = bookmark_key
             row["job_title"] = job_title
+            row["company"] = company or None
+            row["location"] = location or None
+            row["job_primary_label"] = _build_job_primary_label(
+                title=job_title,
+                company=company,
+                location=location,
+            )
             row["bookmarked"] = is_job_bookmarked(
                 job_id=str(row.get("job_id") or "").strip() or None,
                 url=job_url or None,
@@ -7709,7 +7743,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "late_stage_reuse_metric_rows": late_stage_reuse_metric_rows,
                 "run_health_rows": run_health_rows,
                 "run_export_links": run_export_links,
-                "job_title_by_url": job_title_by_url,
+                "job_metadata_by_url": job_metadata_by_url,
                 "reranker_blocked_ranked_count": reranker_blocked_ranked_count,
                 "ranked_cv_outcome_summary": ranked_cv_outcome_summary,
                 "cv_generation_failure_reason_summary": cv_generation_failure_reason_summary,
@@ -7807,6 +7841,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             row["fit_classification_display"] = fit_classification.lower() if fit_classification else None
             row["fit_classification_badge_class"] = _fit_classification_badge_class(fit_classification)
             row["version_id"] = version_id
+            row["job_primary_label"] = _build_job_primary_label(
+                title=str(row.get("title") or "").strip() or "View Job",
+                company=str(row.get("company") or "").strip() or None,
+                location=str(row.get("location") or "").strip() or None,
+            )
             bookmarks_view.append(row)
         return templates.TemplateResponse(
             request=request,
