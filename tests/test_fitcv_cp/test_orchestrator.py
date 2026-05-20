@@ -67,7 +67,9 @@ def test_prefect_adapter_preserves_submit_contract_with_prefect_backend_label() 
 
     assert submission.run_id == "run-9"
     assert submission.queue_job_id == "job-9"
-    assert submission.backend == "prefect"
+    assert submission.requested_backend == "prefect"
+    assert submission.execution_backend == "queue"
+    assert submission.backend == "queue"
 
 def test_prefect_adapter_uses_prefect_api_when_configured() -> None:
     adapter = PrefectOrchestrationAdapter(name="prefect")
@@ -90,6 +92,8 @@ def test_prefect_adapter_uses_prefect_api_when_configured() -> None:
 
     assert submission.run_id == "run-55"
     assert submission.queue_job_id == "flow-123"
+    assert submission.requested_backend == "prefect"
+    assert submission.execution_backend == "prefect"
     assert submission.backend == "prefect"
     submit_mock.assert_called_once()
     queue_submit_mock.assert_not_called()
@@ -115,7 +119,9 @@ def test_prefect_adapter_falls_back_to_queue_when_prefect_submit_fails() -> None
 
     assert submission.run_id == "run-77"
     assert submission.queue_job_id == "job-77"
-    assert submission.backend == "prefect"
+    assert submission.requested_backend == "prefect"
+    assert submission.execution_backend == "queue"
+    assert submission.backend == "queue"
     queue_submit_mock.assert_called_once()
 
 def test_prefect_adapter_status_and_cancel_use_prefect_when_available() -> None:

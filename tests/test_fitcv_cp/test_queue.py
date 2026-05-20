@@ -164,3 +164,19 @@ def test_run_inline_job_after_delay_waits_before_execution() -> None:
         "config/env.yaml",
     )
 
+
+def test_get_queue_job_status_normalizes_rq_runtime_values() -> None:
+    from fitcv_cp.queue import get_queue_job_status
+
+    mock_job = MagicMock()
+    mock_job.get_status.return_value = "running"
+    with patch("fitcv_cp.queue.Job.fetch", return_value=mock_job):
+        assert get_queue_job_status("rq-job-1", redis_url="redis://localhost:6379/0") == "started"
+
+
+def test_get_queue_job_status_normalizes_inline_missing_run() -> None:
+    from fitcv_cp.queue import get_queue_job_status
+
+    queue_module._INLINE_JOB_STATUS["inline-1"] = "missing_run"
+    assert get_queue_job_status("inline-1") == "missing"
+
