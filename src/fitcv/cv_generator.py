@@ -51,7 +51,7 @@ from fitcv.section_policy import (
     certification_evidence_lines,
     certification_policy_decisions,
 )
-from fitcv.rule_filter import _canonicalise_skill
+from fitcv.rule_filter import canonicalize_skill
 from fitcv.runtime_routing import resolve_cv_generation_routing, resolve_openai_compatible_api_key
 
 # ── template variant map ─────────────────────────────────────────────────────
@@ -574,7 +574,7 @@ def _build_generation_prompt_context(
             text = str(raw_skill or "").strip()
             if not text:
                 continue
-            allowed_skill_set.add(_canonicalise_skill(text, config or {}))
+            allowed_skill_set.add(canonicalize_skill(text, config or {}))
     allowed_skills = sorted(skill for skill in allowed_skill_set if skill)
 
     allowed_certifications: list[str] = []
@@ -1727,6 +1727,7 @@ def generate_cv(
         "structured_cv": structured_cv,
         "markdown": markdown,
     }
+
 
 
 

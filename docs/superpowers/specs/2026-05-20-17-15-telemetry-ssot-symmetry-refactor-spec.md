@@ -13,8 +13,10 @@ targets:
   - tests/test_fitcv/test_telemetry.py
   - tests/test_pipeline.py
   - tests/test_fitcv_cp/test_reporter.py
-related_features: []
-related_stages: []
+related_features:
+  - cv_system
+related_stages:
+  - cv_analysis
 ---
 
 ## Goal

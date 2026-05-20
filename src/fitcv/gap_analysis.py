@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from fitcv.config import sqlite_mode_enabled
-from fitcv.rule_filter import _canonicalise_skill, _get_skill_synonyms
+from fitcv.rule_filter import canonicalize_skill, get_skill_synonyms
 
 
 # ── config defaults ───────────────────────────────────────────────────────────
@@ -76,13 +76,13 @@ def _normalise_compact_skill(skill: str) -> str:
 
 def _skill_variants(skill: str, config: dict[str, Any] | None = None) -> set[str]:
     """Return raw/canonical alias variants for phrase-level matching."""
-    synonyms = _get_skill_synonyms(config)
-    canonical = _normalise_phrase_text(_canonicalise_skill(skill, config))
+    synonyms = get_skill_synonyms(config)
+    canonical = _normalise_phrase_text(canonicalize_skill(skill, config))
     variants = {
         _normalise_phrase_text(skill),
         canonical,
         _normalise_compact_skill(skill),
-        _normalise_compact_skill(_canonicalise_skill(skill, config)),
+        _normalise_compact_skill(canonicalize_skill(skill, config)),
     }
     for alias, canonical_value in synonyms.items():
         if _normalise_phrase_text(canonical_value) == canonical:
@@ -143,7 +143,7 @@ def classify_skill_match(
     3. Missing     — no match at either level
     """
     req_norm = normalise_raw_skill(required_skill)
-    req_canonical = _canonicalise_skill(required_skill, config)
+    req_canonical = canonicalize_skill(required_skill, config)
 
     for cand in candidate_skills:
         cand_norm = normalise_raw_skill(cand)
@@ -183,7 +183,7 @@ def classify_skill_match(
             }
 
     for cand in candidate_skills:
-        cand_canonical = _canonicalise_skill(cand, config)
+        cand_canonical = canonicalize_skill(cand, config)
         if cand_canonical == req_canonical:
             return {
                 "result": "partial",
@@ -473,3 +473,4 @@ def store_gap_analysis(
     errors = client.insert_rows_json(table_ref, [row])
     if errors:
         raise RuntimeError(f"BigQuery insert errors for gap_analysis: {errors}")
+

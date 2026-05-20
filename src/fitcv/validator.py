@@ -30,7 +30,7 @@ from fitcv.section_policy import (
     certification_policy_decisions,
     is_meaningful_certification_row,
 )
-from fitcv.rule_filter import _canonicalise_skill
+from fitcv.rule_filter import canonicalize_skill
 
 # ── constants ─────────────────────────────────────────────────────────────────
 
@@ -604,7 +604,7 @@ def _normalize_analysis_grounding(
             if not skill_text:
                 continue
             skills_lower.add(skill_text.lower())
-            skills_canonical.add(_canonicalise_skill(skill_text, config))
+            skills_canonical.add(canonicalize_skill(skill_text, config))
 
         for raw_theme in list(item.get("responsibility_themes") or []):
             theme_text = str(raw_theme or "").strip()
@@ -709,7 +709,7 @@ def _check_selected_skill_grounding(
         return violations
     for skill in _extract_skill_section_tokens(cv_text):
         skill_lower = skill.lower()
-        skill_canonical = _canonicalise_skill(skill, config)
+        skill_canonical = canonicalize_skill(skill, config)
         if skill_lower in selected_skills_lower or skill_canonical in selected_skills_canonical:
             continue
         if skill_lower in candidate_skills_lower or skill_canonical in candidate_skills_canonical:
@@ -970,7 +970,7 @@ def check_skill_provenance(
 
     candidate_lower = {s.strip().lower() for s in candidate_skills}
     candidate_canonical = {
-        _canonicalise_skill(skill, config)
+        canonicalize_skill(skill, config)
         for skill in candidate_skills
         if skill.strip()
     }
@@ -978,7 +978,7 @@ def check_skill_provenance(
 
     for skill in cv_skills:
         skill_lower = skill.lower()
-        skill_canonical = _canonicalise_skill(skill, config)
+        skill_canonical = canonicalize_skill(skill, config)
         if skill_lower not in candidate_lower and skill_canonical not in candidate_canonical:
             violations.append(
                 f"Skill '{skill}' in CV Skills section is not in candidate knowledge base"
@@ -1077,7 +1077,7 @@ def run_all_validations(
     if support_surface["has_selected_support"]:
         candidate_skills_lower = _normalize_lower_set(candidate_skills)
         candidate_skills_canonical = {
-            _canonicalise_skill(skill, config)
+            canonicalize_skill(skill, config)
             for skill in candidate_skills
             if str(skill).strip()
         }
@@ -1181,3 +1181,4 @@ def run_all_validations(
         "markdown_quality_blocking_issues": markdown_quality_blocking_issues,
         "markdown_quality_review_flags": markdown_quality_review_flags,
     }
+
