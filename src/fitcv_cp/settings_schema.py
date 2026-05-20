@@ -103,7 +103,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "pipeline.final_top_n",
         "type": "int",
-        "default": 10,
+        "default": 15,
         "label": "Final Output Count",
         "description": "Bounds how many ranked jobs reach the final output set and late CV stages.",
         "group": "retrieval",
@@ -333,7 +333,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.enrich.batch_size",
         "type": "int",
-        "default": 20,
+        "default": 10,
         "label": "Batch Size: Enrichment Stage",
         "description": "Canonical enrich-stage batch size before each scheduling boundary.",
         "group": "timing",
@@ -342,7 +342,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.enrich.concurrency",
         "type": "int",
-        "default": 4,
+        "default": 8,
         "label": "Concurrency: Enrichment Stage",
         "description": "Canonical enrich-stage concurrent batch worker count.",
         "group": "timing",
@@ -425,7 +425,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "enrichment_batch_size",
         "type": "int",
-        "default": 20,
+        "default": 10,
         "label": "Enrichment Batch Size",
         "description": "How many jobs each enrich worker batch handles at once before the next scheduling boundary.",
         "group": "timing",
@@ -435,7 +435,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "enrichment_concurrency",
         "type": "int",
-        "default": 4,
+        "default": 8,
         "label": "Enrichment Concurrency",
         "description": "How many enrich batches may run concurrently. Higher values can improve throughput, but the stage still uses shared rate limiting so gains are not linear.",
         "group": "timing",

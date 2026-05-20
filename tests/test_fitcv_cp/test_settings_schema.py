@@ -950,10 +950,10 @@ def test_enrichment_parallelism_keys_registered():
 
 
 def test_enrichment_parallelism_defaults():
-    """@proves bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1"""
+    """@proves bounded_parallel_enrichment.defaults-batch-size-10-concurrency-8"""
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["enrichment_batch_size"]["default"] == 10
-    assert schema_by_key["enrichment_concurrency"]["default"] == 1
+    assert schema_by_key["enrichment_concurrency"]["default"] == 8
 
 
 def test_enrichment_parallelism_group_is_timing():

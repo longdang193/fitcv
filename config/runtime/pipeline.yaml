@@ -25,8 +25,8 @@ embedding_model: text-embedding-005
 # ── Enrichment (Task 4) ────────────────────────────────────────────────────────
 enrichment_version: v1
 enrichment_sleep_secs: 0.0             # default: no enforced delay between enrichment calls
-enrichment_batch_size: 20              # default enrichment batch size
-enrichment_concurrency: 4              # default enrichment parallel workers
+enrichment_batch_size: 10              # default enrichment batch size
+enrichment_concurrency: 8              # default enrichment parallel workers
 
 # ── Embeddings (Task 6) ────────────────────────────────────────────────────────
 embedding_batch_size: 100
@@ -35,7 +35,7 @@ embedding_batch_size: 100
 pipeline:
   vector_search_top_n: 50              # canonical shortlist top-N for vector search
   ai_score_top_n: 50                   # canonical ranking top-N for AI scoring
-  final_top_n: 10                      # canonical final ranked list size
+  final_top_n: 15                      # canonical final ranked list size
   evidence_top_k: 5                    # canonical cv_analysis evidence bundle size
 
 run_lifecycle:
@@ -55,8 +55,8 @@ rerank_sleep_secs: 0.0                 # default: no enforced delay between rank
 stage_runtime:
   enrich:
     sleep_secs: 0.0
-    batch_size: 20
-    concurrency: 4
+    batch_size: 10
+    concurrency: 8
   ranking:
     sleep_secs: 0.0
     concurrency: 4
