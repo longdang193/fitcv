@@ -125,12 +125,24 @@ def test_validate_profile_accepts_education_evidence_ref() -> None:
     errors = validate_profile(profile)
     assert errors == [], f"Unexpected errors: {errors}"
 
-def test_validate_profile_rejects_invalid_skill_entry_type() -> None:
+def test_validate_profile_accepts_string_skill_entry_type_for_compatibility() -> None:
     profile = {
         "experiences": [{"id": "exp_1", "bullets": []}],
         "projects": [],
         "achievements": [],
         "skills": ["SQL"],
+        "preferences": {},
+    }
+    errors = validate_profile(profile)
+    assert errors == []
+
+
+def test_validate_profile_rejects_non_string_non_dict_skill_entry_type() -> None:
+    profile = {
+        "experiences": [{"id": "exp_1", "bullets": []}],
+        "projects": [],
+        "achievements": [],
+        "skills": [123],
         "preferences": {},
     }
     errors = validate_profile(profile)
@@ -347,6 +359,15 @@ def test_load_profile_json_text_valid_returns_dict() -> None:
 def test_load_profile_json_text_invalid_json_raises() -> None:
     with pytest.raises(ValueError, match="Invalid JSON"):
         load_profile_json_text("{not json}")
+
+
+def test_load_profile_text_json_hint_matches_load_profile_json_text_error_contract() -> None:
+    from fitcv.candidate import load_profile_text
+
+    with pytest.raises(ValueError, match="Invalid JSON in candidate profile:"):
+        load_profile_json_text("{not json}")
+    with pytest.raises(ValueError, match="Invalid JSON in candidate profile:"):
+        load_profile_text("{not json}", format_hint="json")
 
 
 def test_load_profile_json_text_array_raises() -> None:

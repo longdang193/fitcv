@@ -48,12 +48,12 @@ Section-role constants and skills-shape handling are made non-contradictory acro
 - current tests baseline passing or known
 
 **Steps:**
-- [ ] Step 1: add internal helper boundary (for example `_ensure_normalized_profile`) that applies canonical normalization rules once
-- [ ] Step 2: route `load_profile_yaml`, `load_profile_json_text`, and `load_profile_text` through shared parse+validate+normalize sequence
-- [ ] Step 3: route direct consumers (`infer_effective_preferences`, `prepare_profile_rows`) through same internal readiness boundary where needed
+- [x] Step 1: add internal helper boundary (for example `_ensure_normalized_profile`) that applies canonical normalization rules once
+- [x] Step 2: route `load_profile_yaml`, `load_profile_json_text`, and `load_profile_text` through shared parse+validate+normalize sequence
+- [x] Step 3: route direct consumers (`infer_effective_preferences`, `prepare_profile_rows`) through same internal readiness boundary where needed
 
 **Verification:**
-- [ ] `uvx pytest tests/test_candidate.py -k "load_profile or infer_effective_preferences or prepare_profile_rows"`
+- [x] `uv run pytest tests/test_candidate.py -k "load_profile or infer_effective_preferences or prepare_profile_rows" -q`
 
 **Exit Criteria:**
 - all relevant entrypoints consume equivalent normalized profile assumptions
@@ -72,12 +72,12 @@ Section-role constants and skills-shape handling are made non-contradictory acro
 - Task 1 complete
 
 **Steps:**
-- [ ] Step 1: introduce explicit constants for required sections, id-bearing sections, and evidence-ref participant sections
-- [ ] Step 2: refactor validation loops to use shared section constants and remove implicit drift
-- [ ] Step 3: implement compatibility-first skills normalization policy so validation/flattening/row-prep no longer conflict
+- [x] Step 1: introduce explicit constants for required sections, id-bearing sections, and evidence-ref participant sections
+- [x] Step 2: refactor validation loops to use shared section constants and remove implicit drift
+- [x] Step 3: implement compatibility-first skills normalization policy so validation/flattening/row-prep no longer conflict
 
 **Verification:**
-- [ ] `uvx pytest tests/test_candidate.py -k "validate_profile or flatten_skills or prepare_profile_rows"`
+- [x] `uv run pytest tests/test_candidate.py -k "validate_profile or flatten_skills or prepare_profile_rows" -q`
 
 **Exit Criteria:**
 - single declared skills policy enforced consistently across all candidate helpers
@@ -97,12 +97,12 @@ Section-role constants and skills-shape handling are made non-contradictory acro
 - Tasks 1-2 complete
 
 **Steps:**
-- [ ] Step 1: centralize parse error handling for JSON code paths (`load_profile_json_text` and `load_profile_text(..., format_hint="json")`)
-- [ ] Step 2: add/update tests for parser error parity and normalized loader parity
-- [ ] Step 3: add/update tests confirming explicit preferences not overridden and evidence-ref integrity preserved
+- [x] Step 1: centralize parse error handling for JSON code paths (`load_profile_json_text` and `load_profile_text(..., format_hint="json")`)
+- [x] Step 2: add/update tests for parser error parity and normalized loader parity
+- [x] Step 3: add/update tests confirming explicit preferences not overridden and evidence-ref integrity preserved
 
 **Verification:**
-- [ ] `uvx pytest tests/test_candidate.py`
+- [x] `uv run pytest tests/test_candidate.py -q`
 
 **Exit Criteria:**
 - invariants covered by tests with stable error contract assertions
@@ -121,13 +121,13 @@ Section-role constants and skills-shape handling are made non-contradictory acro
 - Tasks 1-3 complete and tests passing
 
 **Steps:**
-- [ ] Step 1: run repo hook subset validator for contract compliance
-- [ ] Step 2: review diff scope to ensure only intended files/behaviors changed
-- [ ] Step 3: if committing, run `gitnexus_detect_changes()` advisory check per repo guidance and compare with expected scope
+- [x] Step 1: run repo hook subset validator for contract compliance
+- [x] Step 2: review diff scope to ensure only intended files/behaviors changed
+- [x] Step 3: if committing, run `gitnexus_detect_changes()` advisory check per repo guidance and compare with expected scope
 
 **Verification:**
-- [ ] `python scripts/hooks/run_validator.py --fast`
-- [ ] `uvx pytest tests/test_candidate.py`
+- [x] `python scripts/hooks/run_validator.py --fast`
+- [x] `uv run pytest tests/test_candidate.py -q`
 
 **Exit Criteria:**
 - change set bounded, validated, and ready for execution closeout workflow

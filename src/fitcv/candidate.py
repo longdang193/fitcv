@@ -29,6 +29,8 @@ from fitcv.config import sqlite_mode_enabled
 # ── required profile sections ─────────────────────────────────────────────────
 
 _REQUIRED_SECTIONS = ["experiences", "skills", "projects", "achievements", "preferences"]
+_ID_BEARING_SECTIONS = ("experiences", "projects", "achievements", "certifications", "education")
+_EVIDENCE_REF_SECTIONS = ("skills", "achievements")
 _ROLE_INFERENCE_LIMIT = 4
 _MAX_INFERRED_ROLE_FAMILIES = 2
 _MAX_INFERRED_DOMAINS = 3
@@ -147,7 +149,31 @@ def _normalize_profile_alignment_metadata(profile: dict[str, Any]) -> dict[str, 
         achievements.append(normalized_achievement)
     normalized["achievements"] = achievements
 
+    normalized["skills"] = _normalize_skill_entries(normalized.get("skills"))
+
     return normalized
+
+
+def _normalize_skill_entries(values: Any) -> list[Any]:
+    if not isinstance(values, list):
+        return []
+    normalized: list[Any] = []
+    for value in values:
+        if isinstance(value, dict):
+            normalized.append(value)
+            continue
+        if isinstance(value, str):
+            skill_name = value.strip()
+            if skill_name:
+                normalized.append({"name": skill_name})
+            continue
+        normalized.append(value)
+    return normalized
+
+
+def _ensure_normalized_profile(profile: dict[str, Any]) -> dict[str, Any]:
+    """Return profile with additive alignment metadata normalized."""
+    return _normalize_profile_alignment_metadata(profile)
 
 
 # ── loading ───────────────────────────────────────────────────────────────────
@@ -173,12 +199,16 @@ def load_profile_json_text(payload: str) -> dict[str, Any]:
         ValueError: if payload is not valid JSON, not a top-level object,
                     or fails existing `validate_profile()` validation.
     """
+    profile = _parse_json_profile_payload(payload)
+    return _validate_profile_payload(profile, "JSON")
+
+
+def _parse_json_profile_payload(payload: str) -> Any:
     import json
     try:
-        profile = json.loads(payload)
+        return json.loads(payload)
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid JSON in candidate profile: {exc}") from exc
-    return _validate_profile_payload(profile, "JSON")
 
 def _validate_profile_payload(profile: Any, source_format: str) -> dict[str, Any]:
     if not isinstance(profile, dict):
@@ -188,7 +218,8 @@ def _validate_profile_payload(profile: Any, source_format: str) -> dict[str, Any
     errors = validate_profile(profile)
     if errors:
         raise ValueError(f"Candidate profile validation failed: {'; '.join(errors)}")
-    return _normalize_profile_alignment_metadata(profile)  # type: ignore[return-value]
+    normalized_profile = _ensure_normalized_profile(profile)
+    return normalized_profile  # type: ignore[return-value]
 
 def load_profile_text(payload: str, *, format_hint: str = "auto") -> dict[str, Any]:
     """Parse and validate a candidate profile from JSON or YAML text.
@@ -199,14 +230,12 @@ def load_profile_text(payload: str, *, format_hint: str = "auto") -> dict[str, A
     if hint not in {"json", "yaml", "auto"}:
         raise ValueError(f"Unsupported candidate profile format_hint: {format_hint!r}")
 
-    import json
-
     if hint in {"json", "auto"}:
         try:
-            return _validate_profile_payload(json.loads(payload), "JSON")
-        except json.JSONDecodeError:
+            return _validate_profile_payload(_parse_json_profile_payload(payload), "JSON")
+        except ValueError:
             if hint == "json":
-                raise ValueError("Invalid JSON in candidate profile")
+                raise
 
     if hint in {"yaml", "auto"}:
         try:
@@ -397,6 +426,7 @@ def infer_effective_preferences(
     profile: dict[str, Any],
     config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    profile = _ensure_normalized_profile(profile)
     preferences = dict(profile.get("preferences") or {})
     inferred_preferences: dict[str, Any] = {}
     preference_sources: dict[str, str] = {}
@@ -464,21 +494,10 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
 
     # ── 2. ID uniqueness ──────────────────────────────────────────────────────
     all_ids: list[str] = []
-    for item in profile.get("experiences", []):
-        if isinstance(item, dict):
-            all_ids.append(str(item.get("id", "")))
-    for item in profile.get("projects", []):
-        if isinstance(item, dict):
-            all_ids.append(str(item.get("id", "")))
-    for item in profile.get("achievements", []):
-        if isinstance(item, dict):
-            all_ids.append(str(item.get("id", "")))
-    for item in profile.get("certifications", []):
-        if isinstance(item, dict):
-            all_ids.append(str(item.get("id", "")))
-    for item in profile.get("education", []):
-        if isinstance(item, dict):
-            all_ids.append(str(item.get("id", "")))
+    for section in _ID_BEARING_SECTIONS:
+        for item in profile.get(section, []):
+            if isinstance(item, dict):
+                all_ids.append(str(item.get("id", "")))
     seen_ids: set[str] = set()
     for id_val in all_ids:
         if not id_val:
@@ -490,24 +509,20 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
 
     # ── 3. dangling evidence_refs ─────────────────────────────────────────────
     known_ids: set[str] = set(all_ids)
-    for skill in profile.get("skills", []):
-        if not isinstance(skill, dict):
-            errors.append(f"Invalid skill entry type: {type(skill).__name__}")
-            continue
-        for ref in skill.get("evidence_refs", []):
-            if ref not in known_ids:
-                errors.append(
-                    f"Dangling evidence_ref '{ref}' in skill '{skill.get('name', '?')}'"
-                )
-    for ach in profile.get("achievements", []):
-        if not isinstance(ach, dict):
-            errors.append(f"Invalid achievement entry type: {type(ach).__name__}")
-            continue
-        for ref in ach.get("evidence_refs", []):
-            if ref not in known_ids:
-                errors.append(
-                    f"Dangling evidence_ref '{ref}' in achievement '{ach.get('id', '?')}'"
-                )
+    for section in _EVIDENCE_REF_SECTIONS:
+        entries = profile.get(section, [])
+        if section == "skills":
+            entries = _normalize_skill_entries(entries)
+        for entry in entries:
+            if not isinstance(entry, dict):
+                errors.append(f"Invalid {section[:-1]} entry type: {type(entry).__name__}")
+                continue
+            for ref in entry.get("evidence_refs", []):
+                if ref not in known_ids:
+                    label = entry.get("name", "?") if section == "skills" else entry.get("id", "?")
+                    errors.append(
+                        f"Dangling evidence_ref '{ref}' in {section[:-1]} '{label}'"
+                    )
 
     return errors
 
@@ -560,6 +575,7 @@ def prepare_profile_rows(profile: dict[str, Any]) -> dict[str, list[dict[str, An
     Returns a dict with keys: profile, experiences, projects, skills, achievements.
     Each value is a list of row dicts ready for BigQuery insertion.
     """
+    profile = _ensure_normalized_profile(profile)
     now = datetime.now(tz=timezone.utc).isoformat()
     profile_id = str(uuid.uuid4())
     prefs = profile.get("preferences", {})
