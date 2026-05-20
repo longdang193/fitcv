@@ -1217,6 +1217,17 @@ def archive_run(
 ) -> None:
     """Persist archive state on the run record (non-destructive)."""
     now = datetime.datetime.now(datetime.timezone.utc)
+    if bq is None:
+        existing = _local_get_run(run_id)
+        if existing is None:
+            return
+        updated = dataclasses.replace(
+            existing,
+            archived_at=now,
+            archived_by=archived_by,
+        )
+        _local_save_run(updated)
+        return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET archived_at = @archived_at, archived_by = @archived_by "
@@ -1240,6 +1251,17 @@ def unarchive_run(
     dataset: str,
 ) -> None:
     """Clear archive state, returning run to the active list."""
+    if bq is None:
+        existing = _local_get_run(run_id)
+        if existing is None:
+            return
+        updated = dataclasses.replace(
+            existing,
+            archived_at=None,
+            archived_by=None,
+        )
+        _local_save_run(updated)
+        return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET archived_at = NULL, archived_by = NULL "

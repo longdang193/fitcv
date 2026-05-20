@@ -1180,6 +1180,37 @@ def test_unarchive_run_uses_parameterized_query():
 
 # ──  list_runs archive filter ───────────────────────────────────────────────
 
+def test_archive_run_local_mode_updates_local_state() -> None:
+    """@proves run_lifecycle_controls.archive-and-unarchive-terminal-runs"""
+    from fitcv_cp import bq_store
+    from fitcv_cp.bq_store import archive_run
+
+    run = _make_run()
+    bq_store._local_save_run(run)
+
+    archive_run(run.run_id, "admin", None, project="local", dataset="local")
+
+    stored = bq_store._local_get_run(run.run_id)
+    assert stored is not None
+    assert stored.archived_at is not None
+    assert stored.archived_by == "admin"
+
+def test_unarchive_run_local_mode_clears_local_state() -> None:
+    """@proves run_lifecycle_controls.archive-and-unarchive-terminal-runs"""
+    from fitcv_cp import bq_store
+    from fitcv_cp.bq_store import archive_run, unarchive_run
+
+    run = _make_run()
+    bq_store._local_save_run(run)
+    archive_run(run.run_id, "admin", None, project="local", dataset="local")
+
+    unarchive_run(run.run_id, None, project="local", dataset="local")
+
+    stored = bq_store._local_get_run(run.run_id)
+    assert stored is not None
+    assert stored.archived_at is None
+    assert stored.archived_by is None
+
 def test_list_runs_active_filters_archived():
     """@proves admin_control_plane_core.pipeline-runs-bigquery-table"""
     bq = MagicMock()
