@@ -3730,11 +3730,25 @@ def _build_promote_global_preview(
             counts["update"] += 1
             counts["overridden_aliases"] += 1
 
+    ready_rows = [row for row in selected if str(row.get("diff_type") or "").strip() in {"add", "update"}]
+    already_global_rows = [
+        row for row in selected
+        if str(row.get("diff_type") or "").strip() == "skip"
+        and str(row.get("reason") or "").strip() == "already_present"
+    ]
+    blocked_rows = [
+        row for row in selected
+        if row not in ready_rows and row not in already_global_rows
+    ]
+
     return {
         "run_id": run.run_id,
         "selected_count": len(selected),
         "counts": counts,
         "rows": selected,
+        "ready_rows": ready_rows,
+        "already_global_rows": already_global_rows,
+        "blocked_rows": blocked_rows,
     }
 
 
@@ -7993,16 +8007,27 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         form = await request.form()
         acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
         note = str(form.get("note") or "").strip()
-        valid_actions = {"approve", "defer", "reject"}
+        valid_actions = {"approve", "defer", "reject", "reopen_pending"}
         decisions: list[SynonymBatchDecision] = []
-        for key, raw_value in form.multi_items():
-            if not str(key).startswith("proposal_action__"):
-                continue
-            proposal_id = str(key).split("proposal_action__", 1)[-1].strip()
-            action = str(raw_value or "").strip()
-            if not proposal_id or action not in valid_actions:
-                continue
-            decisions.append(SynonymBatchDecision(proposal_id=proposal_id, action=action))
+
+        selected_ids = [str(value or "").strip() for value in form.getlist("proposal_id")]
+        selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
+        batch_action = str(form.get("batch_action") or "").strip()
+        if selected_ids:
+            if batch_action not in valid_actions:
+                raise HTTPException(status_code=422, detail="Select a valid batch action")
+            for proposal_id in selected_ids:
+                decisions.append(SynonymBatchDecision(proposal_id=proposal_id, action=batch_action))
+        else:
+            # Backward-compat fallback for older UI payload shape.
+            for key, raw_value in form.multi_items():
+                if not str(key).startswith("proposal_action__"):
+                    continue
+                proposal_id = str(key).split("proposal_action__", 1)[-1].strip()
+                action = str(raw_value or "").strip()
+                if not proposal_id or action not in valid_actions:
+                    continue
+                decisions.append(SynonymBatchDecision(proposal_id=proposal_id, action=action))
         payload = _load_run_synonym_proposals_payload(run)
         if not isinstance(payload, dict):
             raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
@@ -8018,7 +8043,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "approve": "approve_for_run_overlay",
             "defer": "defer",
             "reject": "reject",
+            "reopen_pending": "start_review",
         }
+        if not deduped_decisions:
+            raise HTTPException(status_code=422, detail="Select at least one synonym proposal row")
         applied = 0
         skipped = 0
         failed = 0
@@ -8322,6 +8350,50 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "run": run,
                 "preview": preview,
                 "selected_ids_csv": ",".join(selected_ids),
+            },
+        )
+
+    @app.get("/admin/runs/{run_id}/synonym-proposals/promote-review", response_class=HTMLResponse)
+    async def admin_run_synonym_proposals_promote_review(
+        request: Request,
+        run_id: str,
+    ) -> HTMLResponse:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        mode = _synonym_management_mode(run)
+        if not mode["promote_global_enabled"]:
+            raise HTTPException(status_code=409, detail="Synonym global promotion is disabled by rollout settings")
+        payload = _load_run_synonym_proposals_payload(run)
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
+        proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
+        approved_ids: list[str] = []
+        for item in proposals:
+            if str(item.get("proposal_status") or "").strip() != "approved_for_run_overlay":
+                continue
+            proposal_id = str(item.get("proposal_id") or "").strip()
+            if proposal_id:
+                approved_ids.append(proposal_id)
+        if not approved_ids:
+            query = urlencode(
+                {
+                    "synonym_promote_preview_status": "no_approved",
+                }
+            )
+            return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
+        preview = _build_promote_global_preview(
+            run=run,
+            payload=payload,
+            selected_proposal_ids=approved_ids,
+        )
+        return templates.TemplateResponse(
+            request=request,
+            name="synonym_promote_preview.html",
+            context={
+                "run": run,
+                "preview": preview,
+                "selected_ids_csv": ",".join(approved_ids),
             },
         )
 

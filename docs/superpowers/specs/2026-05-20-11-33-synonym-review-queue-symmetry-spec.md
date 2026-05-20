@@ -4,15 +4,11 @@ artifact_type: spec
 status: proposed
 template_id: detailed-specification
 name: synonym-review-queue-symmetry
-parent_workstream: none
+parent_thread: workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow
 targets:
   - src/fitcv_cp/templates/synonym_review.html
   - src/fitcv_cp/templates/_cv_review_queue.html
   - src/fitcv_cp/app.py
-related_features:
-  - none
-related_stages:
-  - none
 ---
 
 ## Goal
@@ -215,3 +211,4 @@ Specify a dedicated promote-review surface that clearly separates:
 2. all downstream/child items are terminal
 3. every child item is `completed` or `dropped`
 4. implementation plan references this spec and preserves stated invariants
+

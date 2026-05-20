@@ -1,9 +1,10 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: active
 template_id: implementation-plan
 name: synonym-promote-review-page-and-queue-symmetry
+parent_thread: workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow
 parent_spec: docs/superpowers/specs/2026-05-20-11-33-synonym-review-queue-symmetry-spec.md
 targets:
   - src/fitcv_cp/app.py
@@ -11,10 +12,6 @@ targets:
   - src/fitcv_cp/templates/synonym_promote_preview.html
   - src/fitcv_cp/templates/_cv_review_queue.html
   - tests/
-related_features:
-  - none
-related_stages:
-  - none
 ---
 
 ## Goal
@@ -61,14 +58,14 @@ Targeted tests and regression checks verify queue symmetry, state transitions (`
 - Existing synonym management mode gates unchanged.
 
 **Steps:**
-- [ ] Add row-level checkbox controls for actionable synonym rows (`pending`, `deferred`, and any explicitly reversible states).
-- [ ] Add top controls: Select All, Clear All, Selected count, and helper text aligned with Agentic queue phrasing.
-- [ ] Keep row-level quick action controls where valid, without hiding rows from batch selection.
-- [ ] Update client-side JS to maintain selected counts and scoped actions.
+- [x] Add row-level checkbox controls for actionable synonym rows (`pending`, `deferred`, and any explicitly reversible states).
+- [x] Add top controls: Select All, Clear All, Selected count, and helper text aligned with Agentic queue phrasing.
+- [x] Keep row-level quick action controls where valid, without hiding rows from batch selection.
+- [x] Update client-side JS to maintain selected counts and scoped actions.
 
 **Verification:**
-- [ ] UI inspection confirms checkbox model present and usable on deferred rows.
-- [ ] No regression in existing actor sync and AI prefill UX.
+- [x] UI inspection confirms checkbox model present and usable on deferred rows.
+- [x] No regression in existing actor sync and AI prefill UX.
 
 **Exit Criteria:**
 - Synonym queue uses explicit selected-row interaction semantics equivalent to Agentic queue.
@@ -87,14 +84,14 @@ Targeted tests and regression checks verify queue symmetry, state transitions (`
 - Task 1 form shape finalized (`proposal_id[]` + batch action).
 
 **Steps:**
-- [ ] Update `admin_run_synonym_proposals_batch_action` parsing to require explicit `proposal_id[]` selected set.
-- [ ] Add explicit `batch_action` contract supporting `approve`, `defer`, `reject`, `reopen_pending`.
-- [ ] Enforce allowed transitions in `_apply_synonym_proposal_action_in_run` path and return clear 422 details for invalid transitions or empty selection.
-- [ ] Preserve event/audit history semantics for each applied row.
+- [x] Update `admin_run_synonym_proposals_batch_action` parsing to require explicit `proposal_id[]` selected set.
+- [x] Add explicit `batch_action` contract supporting `approve`, `defer`, `reject`, `reopen_pending`.
+- [x] Enforce allowed transitions in `_apply_synonym_proposal_action_in_run` path and return clear 422 details for invalid transitions or empty selection.
+- [x] Preserve event/audit history semantics for each applied row.
 
 **Verification:**
-- [ ] Endpoint-level tests verify only selected rows mutate.
-- [ ] Empty selection and invalid transition cases return deterministic errors.
+- [x] Endpoint-level tests verify only selected rows mutate.
+- [x] Empty selection and invalid transition cases return deterministic errors.
 
 **Exit Criteria:**
 - Batch action logic cannot silently apply to non-selected rows.
@@ -116,15 +113,15 @@ Targeted tests and regression checks verify queue symmetry, state transitions (`
 - `_build_promote_global_preview` remains canonical diff calculator.
 
 **Steps:**
-- [ ] Add route `GET /admin/runs/{run_id}/synonym-proposals/promote-review` (or equivalent) as dedicated promote workbench entrypoint.
-- [ ] Extend preview view-model to provide grouped buckets (`ready`, `already_global`, `blocked`) from existing `diff_type/reason/status` semantics.
-- [ ] Render grouped sections with counts and selection enabled only for promotable rows.
-- [ ] Ensure commit endpoint consumes explicit selected ids from workbench and returns deterministic post-commit summary.
-- [ ] Link synonym review page button to dedicated promote workbench route.
+- [x] Add route `GET /admin/runs/{run_id}/synonym-proposals/promote-review` (or equivalent) as dedicated promote workbench entrypoint.
+- [x] Extend preview view-model to provide grouped buckets (`ready`, `already_global`, `blocked`) from existing `diff_type/reason/status` semantics.
+- [x] Render grouped sections with counts and selection enabled only for promotable rows.
+- [x] Ensure commit endpoint consumes explicit selected ids from workbench and returns deterministic post-commit summary.
+- [x] Link synonym review page button to dedicated promote workbench route.
 
 **Verification:**
-- [ ] Manual/browser verification confirms grouped sections and selection constraints.
-- [ ] Promote commit rejects empty selected set and conflict-selected set as specified.
+- [x] Manual/browser verification confirms grouped sections and selection constraints.
+- [x] Promote commit rejects empty selected set and conflict-selected set as specified.
 
 **Exit Criteria:**
 - Dedicated promote workbench exists and removes no-op ambiguity.
@@ -143,14 +140,14 @@ Targeted tests and regression checks verify queue symmetry, state transitions (`
 - Tasks 1-3 implemented.
 
 **Steps:**
-- [ ] Add tests for synonym selection model rendering and actionable state coverage.
-- [ ] Add tests for batch action selected-scope enforcement and `reopen_pending` transition.
-- [ ] Add tests for promote workbench grouping membership and counts.
-- [ ] Add tests for promote commit deterministic failures/success summary.
+- [x] Add tests for synonym selection model rendering and actionable state coverage.
+- [x] Add tests for batch action selected-scope enforcement and `reopen_pending` transition.
+- [x] Add tests for promote workbench grouping membership and counts.
+- [x] Add tests for promote commit deterministic failures/success summary.
 
 **Verification:**
-- [ ] Run targeted pytest subset for modified handlers/templates.
-- [ ] Run broader regression slice if shared helpers changed.
+- [x] Run targeted pytest subset for modified handlers/templates.
+- [x] Run broader regression slice if shared helpers changed.
 
 **Exit Criteria:**
 - Tests prove invariants from parent spec and prevent regressions.
@@ -168,3 +165,6 @@ Targeted tests and regression checks verify queue symmetry, state transitions (`
 2. all downstream/child items are terminal
 3. every child item is `completed` or `dropped`
 4. parent spec invariants are preserved and verification evidence is attached to plan execution closeout
+
+
+

@@ -6275,6 +6275,100 @@ def test_admin_run_synonym_promote_preview_redirects_with_info_when_no_approved_
     assert resp.status_code == 303
     assert resp.headers["location"] == "/admin/runs/run-promote-preview-no-approved/synonym-review?synonym_promote_preview_status=no_approved"
 
+def test_admin_run_synonym_promote_review_groups_ready_already_global_and_blocked() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-promote-review-grouping",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json='{"synonym_management":{"promote_global_enabled":true}}',
+        synonym_proposals_json=(
+            '{"run_id":"run-promote-review-grouping","proposals":['
+            '{"proposal_id":"proposal-new","proposal_status":"approved_for_run_overlay","alias":"sql","canonical":"structured query language","confidence":0.9},'
+            '{"proposal_id":"proposal-existing","proposal_status":"approved_for_run_overlay","alias":"gcp","canonical":"google cloud","confidence":0.9},'
+            '{"proposal_id":"proposal-conflict-a","proposal_status":"approved_for_run_overlay","alias":"ai","canonical":"artificial intelligence","confidence":0.9},'
+            '{"proposal_id":"proposal-conflict-b","proposal_status":"approved_for_run_overlay","alias":"ai","canonical":"applied informatics","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app._load_global_skill_synonyms_map", return_value={"gcp": "google cloud"}):
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-promote-review-grouping/synonym-proposals/promote-review",
+        )
+    assert resp.status_code == 200
+    assert "Ready to Promote" in resp.text
+    assert "Already Global (No Change)" in resp.text
+    assert "Blocked / Conflict" in resp.text
+    assert "proposal-new" in resp.text
+    assert "proposal-existing" in resp.text
+    assert "proposal-conflict-a" in resp.text
+    assert "proposal-conflict-b" in resp.text
+
+def test_admin_run_synonym_review_renders_selection_controls_for_pending_and_deferred_rows() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-synonym-selection-controls",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json='{"synonym_management":{"apply_to_run_enabled":true}}',
+        synonym_proposals_json=(
+            '{"run_id":"run-synonym-selection-controls","proposals":['
+            '{"proposal_id":"proposal-pending","proposal_status":"proposed_unreviewed","alias":"sql","canonical":"structured query language","confidence":0.9},'
+            '{"proposal_id":"proposal-deferred","proposal_status":"deferred","alias":"ai","canonical":"artificial intelligence","confidence":0.9}'
+            ']}'
+        ),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-synonym-selection-controls/synonym-review",
+        )
+
+    assert resp.status_code == 200
+    assert 'id="synonym-batch-action-select"' in resp.text
+    assert 'id="synonym-select-all-btn"' in resp.text
+    assert 'id="synonym-clear-all-btn"' in resp.text
+    assert 'id="synonym-selected-count"' in resp.text
+    assert resp.text.count('name="proposal_id"') >= 2
+
+def test_admin_run_synonym_batch_action_requires_selected_rows_when_using_new_contract() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-proposal-batch-empty-selection",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        effective_settings_json='{"synonym_management":{"apply_to_run_enabled":true}}',
+        synonym_proposals_json='{"run_id":"run-proposal-batch-empty-selection","proposals":[]}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-proposal-batch-empty-selection/synonym-proposals/batch-action",
+            data={"batch_action": "approve", "acted_by": "admin"},
+        )
+    assert resp.status_code == 422
+    assert "Select at least one synonym proposal row" in resp.text
+
 
 def test_admin_run_synonym_promote_commit_updates_global_policy_and_redirects() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -6399,7 +6493,7 @@ def test_run_detail_includes_approved_overlay_export_link_when_proposal_review_o
     assert resp.status_code == 200
     assert "/admin/runs/run-overlay-export-link/approved-synonym-proposals.yaml" not in resp.text
     assert "/admin/synonyms/global.yaml" not in resp.text
-    assert "Preview Promote to Global" in resp.text
+    assert "Review Promote to Global" in resp.text
 
 
 def test_run_detail_shows_no_promote_controls_when_no_approved_rows() -> None:
@@ -6427,7 +6521,7 @@ def test_run_detail_shows_no_promote_controls_when_no_approved_rows() -> None:
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/run-no-promote-eligible/synonym-review")
     assert resp.status_code == 200
-    assert "Preview Promote to Global" in resp.text
+    assert "Review Promote to Global" in resp.text
 
 
 def test_run_detail_shows_global_download_link_after_promote_summary() -> None:
@@ -7054,7 +7148,7 @@ def test_run_detail_keeps_promote_checkbox_when_pair_only_exists_in_run_overlay(
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/run-promote-checkbox-visible-run-overlay-only/synonym-review")
     assert resp.status_code == 200
-    assert "Preview Promote to Global" in resp.text
+    assert "Review Promote to Global" in resp.text
 
 
 def test_run_detail_shows_reranker_blocked_message_when_no_cvs_generated() -> None:

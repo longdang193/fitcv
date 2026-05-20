@@ -100,8 +100,18 @@
   <form id="synonym-batch-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/batch-action" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
     <input type="hidden" name="acted_by" value="admin">
     <input type="hidden" name="note" value="ui:batch-action">
+    <select name="batch_action" id="synonym-batch-action-select">
+      <option value="">Choose Action</option>
+      <option value="approve">Approve Selected</option>
+      <option value="defer">Defer Selected</option>
+      <option value="reject">Reject Selected</option>
+      <option value="reopen_pending">Reopen Selected to Pending</option>
+    </select>
     <button class="btn-secondary" type="submit">Submit Selected Decisions</button>
     <button class="btn-secondary" type="button" id="apply-recommendations-btn">AI Assist: Prefill Recommendations</button>
+    <button class="btn-secondary" type="button" id="synonym-select-all-btn">Select All</button>
+    <button class="btn-secondary" type="button" id="synonym-clear-all-btn">Clear All</button>
+    <span class="meta" id="synonym-selected-count">Selected: 0</span>
   </form>
   {% else %}
   <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
@@ -110,8 +120,8 @@
   {% endif %}
   <div class="meta" id="synonym-mode-status" style="margin:-0.45rem 0 0.85rem 0"></div>
   {% if synonym_management_mode.promote_global_enabled %}
-  <form id="synonym-promote-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-preview" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
-    <button class="btn-secondary" type="submit">Preview Promote to Global</button>
+  <form id="synonym-promote-form" method="get" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-review" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+    <button class="btn-secondary" type="submit">Review Promote to Global</button>
   </form>
   {% else %}
   <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
@@ -153,12 +163,17 @@
         {% endif %}
         {% if item.pending %}
         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem">
-          <select name="proposal_action__{{ item.proposal_id }}" form="synonym-batch-form" data-recommended-action="{{ item.recommended_action or '' }}">
-            <option value="">Keep Pending</option>
-            <option value="approve">Approve</option>
-            <option value="defer">Defer</option>
-            <option value="reject">Reject</option>
-          </select>
+          <label style="display:inline-flex;align-items:center;gap:0.35rem">
+            <input
+              type="checkbox"
+              name="proposal_id"
+              value="{{ item.proposal_id }}"
+              form="synonym-batch-form"
+              data-synonym-selectable="true"
+              data-recommended-action="{{ item.recommended_action or '' }}"
+            >
+            Select
+          </label>
         </div>
         {% endif %}
       </div>
@@ -218,27 +233,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const actionsForm = document.getElementById('synonym-actions-form');
   const actorInput = actionsForm ? actionsForm.querySelector('input[name="acted_by"]') : null;
   const applyRecommendationsBtn = document.getElementById('apply-recommendations-btn');
+  const batchActionSelect = document.getElementById('synonym-batch-action-select');
+  const synonymSelectAllBtn = document.getElementById('synonym-select-all-btn');
+  const synonymClearAllBtn = document.getElementById('synonym-clear-all-btn');
+  const synonymSelectedCount = document.getElementById('synonym-selected-count');
   const modeStatus = document.getElementById('synonym-mode-status');
   const triageActorInput = document.querySelector('#synonym-triage-form input[name="acted_by"]');
   const batchActorInput = document.querySelector('#synonym-batch-form input[name="acted_by"]');
-  const pendingSelects = () => Array.from(
-    document.querySelectorAll('select[form="synonym-batch-form"][data-recommended-action]')
+  const pendingSelections = () => Array.from(
+    document.querySelectorAll('input[type="checkbox"][name="proposal_id"][data-synonym-selectable="true"]')
   );
+  const refreshSelectedCount = () => {
+    if (!synonymSelectedCount) return;
+    const selected = pendingSelections().filter((cb) => cb.checked).length;
+    synonymSelectedCount.textContent = `Selected: ${selected}`;
+  };
 
   const applyRecommendations = () => {
-    let applied = 0;
-    pendingSelects().forEach((selectEl) => {
-      if (!selectEl || selectEl.value) return;
-      const recommended = (selectEl.getAttribute('data-recommended-action') || '').trim();
-      if (recommended === 'approve' || recommended === 'defer' || recommended === 'reject') {
-        selectEl.value = recommended;
-        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-        applied += 1;
-      }
+    const action = batchActionSelect ? String(batchActionSelect.value || '').trim() : '';
+    let selected = 0;
+    pendingSelections().forEach((checkboxEl) => {
+      const recommended = (checkboxEl.getAttribute('data-recommended-action') || '').trim();
+      checkboxEl.checked = !!(action && recommended === action);
+      if (checkboxEl.checked) selected += 1;
     });
-    if (modeStatus) modeStatus.textContent = applied > 0
-      ? `AI assist prefilled ${applied} recommended action(s).`
-      : 'AI assist found no pending recommended actions.';
+    refreshSelectedCount();
+    if (modeStatus) modeStatus.textContent = selected > 0
+      ? `AI assist selected ${selected} recommended row(s) for action "${action}".`
+      : (action ? `AI assist found no rows recommending "${action}".` : 'Choose batch action first, then run AI assist.');
   };
   const syncActor = () => {
     const actor = actorInput ? String(actorInput.value || '').trim() : '';
@@ -249,9 +271,29 @@ document.addEventListener('DOMContentLoaded', () => {
   if (applyRecommendationsBtn) {
     applyRecommendationsBtn.addEventListener('click', applyRecommendations);
   }
+  if (synonymSelectAllBtn) {
+    synonymSelectAllBtn.addEventListener('click', () => {
+      pendingSelections().forEach((checkboxEl) => {
+        checkboxEl.checked = true;
+      });
+      refreshSelectedCount();
+    });
+  }
+  if (synonymClearAllBtn) {
+    synonymClearAllBtn.addEventListener('click', () => {
+      pendingSelections().forEach((checkboxEl) => {
+        checkboxEl.checked = false;
+      });
+      refreshSelectedCount();
+    });
+  }
+  pendingSelections().forEach((checkboxEl) => {
+    checkboxEl.addEventListener('change', refreshSelectedCount);
+  });
   if (actorInput) {
     actorInput.addEventListener('input', syncActor);
   }
+  refreshSelectedCount();
   syncActor();
 });
 </script>
