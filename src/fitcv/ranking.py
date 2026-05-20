@@ -26,11 +26,6 @@ from fitcv.ranking_contract import (
     validate_missing_defaults_contract,
     validate_weight_contract,
 )
-from fitcv.persistence import build_bigquery_client
-from fitcv.ranking_contract import (
-    validate_missing_defaults_contract,
-    validate_weight_contract,
-)
 
 SUPPORTED_RANKING_FEATURES = (
     "ai_score",
