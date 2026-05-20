@@ -2636,6 +2636,7 @@ def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> N
             follow_redirects=False,
         )
     assert resp.status_code == 303
+    assert resp.headers["location"].startswith("/admin/runs/run-review-batch-1/review-queue?")
     assert "hitl_batch_applied=1" in resp.headers["location"]
     assert "hitl_batch_skipped=1" in resp.headers["location"]
     assert "hitl_batch_failed=0" in resp.headers["location"]

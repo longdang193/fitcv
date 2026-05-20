@@ -8052,7 +8052,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "hitl_batch_finalized": finalized,
             }
         )
-        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
+        return RedirectResponse(f"/admin/runs/{run_id}/review-queue?{query}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/{proposal_id}/action")
     async def admin_run_synonym_proposal_action(
