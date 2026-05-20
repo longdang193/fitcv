@@ -8471,6 +8471,7 @@ def test_post_settings_section_timing_drops_throughput_compatibility_aliases() -
                 "stage_runtime.enrich.batch_size": "8",
                 "stage_runtime.enrich.concurrency": "2",
                 "stage_runtime.ranking.sleep_secs": "0.2",
+                "stage_runtime.ranking.concurrency": "4",
                 "stage_runtime.cv_analysis.sleep_secs": "0.1",
                 "stage_runtime.cv_analysis.concurrency": "2",
                 "stage_runtime.cv_generation.sleep_secs": "0.1",
@@ -8503,6 +8504,7 @@ def test_post_settings_section_timing_accepts_canonical_only_payload() -> None:
                 "stage_runtime.enrich.batch_size": "25",
                 "stage_runtime.enrich.concurrency": "8",
                 "stage_runtime.ranking.sleep_secs": "0.0",
+                "stage_runtime.ranking.concurrency": "6",
                 "stage_runtime.cv_analysis.sleep_secs": "0.0",
                 "stage_runtime.cv_analysis.concurrency": "3",
                 "stage_runtime.cv_generation.sleep_secs": "0.0",
@@ -8514,6 +8516,7 @@ def test_post_settings_section_timing_accepts_canonical_only_payload() -> None:
     assert resp.status_code == 303
     payload = captured["payload"]
     assert payload["stage_runtime.enrich.concurrency"] == 8
+    assert payload["stage_runtime.ranking.concurrency"] == 6
     assert "enrichment_concurrency" not in payload
 
 

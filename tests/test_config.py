@@ -227,6 +227,27 @@ def test_get_stage_runtime_concurrency_clamps_and_defaults() -> None:
     assert get_stage_runtime_concurrency({"stage_runtime": {"cv_generation": {"concurrency": 0}}}, stage="cv_generation") == 1
     assert get_stage_runtime_concurrency({"stage_runtime": {"cv_generation": {"concurrency": "bad"}}}, stage="cv_generation") == 1
 
+def test_get_stage_runtime_concurrency_prefers_canonical_stage_runtime() -> None:
+    cfg = {
+        "enrichment_concurrency": 9,
+        "stage_runtime": {"enrich": {"concurrency": 4}},
+    }
+    assert get_stage_runtime_concurrency(
+        cfg,
+        stage="enrich",
+        default=1,
+        compatibility_fallback_key="enrichment_concurrency",
+    ) == 4
+
+def test_get_stage_runtime_concurrency_falls_back_to_compatibility_key() -> None:
+    cfg = {"enrichment_concurrency": 7, "stage_runtime": {"enrich": {}}}
+    assert get_stage_runtime_concurrency(
+        cfg,
+        stage="enrich",
+        default=1,
+        compatibility_fallback_key="enrichment_concurrency",
+    ) == 7
+
 
 def test_load_config_defaults_to_repo_config_shape() -> None:
     cfg = load_config()

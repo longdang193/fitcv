@@ -1095,8 +1095,39 @@ def test_worker_settings_used_export_canonicalizes_legacy_compatibility_keys():
     assert payload["effective_settings"]["stage_runtime"]["enrich"]["batch_size"] == 10
     assert payload["effective_settings"]["stage_runtime"]["enrich"]["concurrency"] == 1
     assert payload["effective_settings"]["stage_runtime"]["ranking"]["sleep_secs"] == 0.5
+    assert payload["effective_settings"]["stage_runtime"]["ranking"]["concurrency"] == 1
     assert payload["effective_settings"]["stage_runtime"]["cv_analysis"]["concurrency"] == 1
     assert payload["effective_settings"]["stage_runtime"]["cv_generation"]["concurrency"] == 1
+
+def test_worker_settings_used_snapshot_materializes_ranking_concurrency_from_canonical_stage_runtime() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock()
+    mock_run.effective_settings_json = json.dumps({
+        "pipeline": {"vector_search_top_n": 50, "ai_score_top_n": 10, "final_top_n": 5},
+        "stage_runtime": {"ranking": {"concurrency": 6}},
+    })
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r1",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 1,
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_settings_used") as mock_store_settings:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    payload = json.loads(mock_store_settings.call_args.args[1])
+    assert payload["effective_settings"]["stage_runtime"]["ranking"]["concurrency"] == 6
 
 
 def test_worker_settings_used_persistence_failure_does_not_fail_run():

@@ -132,6 +132,7 @@ Examples:
 - compatibility-readonly: runtime throughput legacy aliases mapped to canonical `stage_runtime.*` keys
 - canonical-save-path: settings-save routes persist canonical `stage_runtime.*` throughput keys and ignore compatibility alias inputs in timing-section writes
 - enrich-pacing-contract: enrich concurrency controls worker parallelism; shared request-start pacing still limits aggregate request rate
+- ranking-pacing-contract: ranking uses `stage_runtime.ranking.concurrency` workers, but submit loop still sleeps `stage_runtime.ranking.sleep_secs` between submissions, so provider timestamps can look sequential when sleep is positive
 
 ### Settings Mode Strip SSOT Contract
 

@@ -141,6 +141,7 @@ def test_settings_ia_contract_canonical_timing_keys_are_throughput_runtime_used(
     for key in [
         "stage_runtime.enrich.sleep_secs",
         "stage_runtime.ranking.sleep_secs",
+        "stage_runtime.ranking.concurrency",
         "stage_runtime.cv_analysis.concurrency",
         "stage_runtime.cv_generation.sleep_secs",
     ]:

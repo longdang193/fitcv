@@ -469,6 +469,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
     - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
     - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
     derived_completion: in_progress
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
     status: proposed

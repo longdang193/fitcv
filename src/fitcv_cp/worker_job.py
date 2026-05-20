@@ -27,7 +27,12 @@ from typing import Any
 import yaml
 from google.cloud import bigquery
 
-from fitcv.config import apply_runtime_skill_synonym_overlay, parse_skill_synonym_overlay_yaml
+from fitcv.config import (
+    apply_runtime_skill_synonym_overlay,
+    get_stage_runtime_concurrency,
+    get_stage_runtime_sleep_secs,
+    parse_skill_synonym_overlay_yaml,
+)
 from fitcv.contracts import (
     MAPPING_SUGGESTIONS_SCHEMA_VERSION,
     STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION,
@@ -746,9 +751,18 @@ def _build_settings_used_payload(
 
         ranking = _stage_block("ranking")
         if "sleep_secs" not in ranking:
-            ranking["sleep_secs"] = settings.get("rerank_sleep_secs", 0.5)
+            ranking["sleep_secs"] = get_stage_runtime_sleep_secs(
+                settings,
+                stage="ranking",
+                default=0.5,
+                compatibility_fallback_key="rerank_sleep_secs",
+            )
         if "concurrency" not in ranking:
-            ranking["concurrency"] = 1
+            ranking["concurrency"] = get_stage_runtime_concurrency(
+                settings,
+                stage="ranking",
+                default=1,
+            )
 
         cv_analysis = _stage_block("cv_analysis")
         cv_analysis.setdefault("sleep_secs", 0.0)

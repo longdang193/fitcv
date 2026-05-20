@@ -3,6 +3,7 @@
 import json
 import sqlite3
 import sys
+import threading
 import time
 import types
 from pathlib import Path
@@ -527,6 +528,69 @@ def test_run_ai_scoring_parallel_path_isolates_runtime_exceptions() -> None:
     assert results[1]["job_url"] == "https://example.com/2"
     assert results[1]["fit_label"] == "skip"
     assert results[1]["parser_status"] == "runtime_exception"
+
+def test_run_ai_scoring_parallel_path_overlaps_workers_when_sleep_zero() -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    shortlist = [
+        {"job_url": "https://example.com/1"},
+        {"job_url": "https://example.com/2"},
+    ]
+    barrier = threading.Barrier(2)
+
+    def _score_with_barrier(*, job: dict[str, Any], **_: Any) -> dict[str, Any]:
+        barrier.wait(timeout=0.5)
+        return {
+            "job_url": job["job_url"],
+            "ai_score": 0.6,
+            "fit_label": "stretch",
+            "score_reasoning": "ok",
+            "matched_strengths": [],
+            "key_risks": [],
+        }
+
+    with patch("fitcv.ai_score.score_job", side_effect=_score_with_barrier):
+        results = run_ai_scoring(
+            shortlist=shortlist,
+            candidate_summary="candidate",
+            config={
+                "pipeline": {"ai_score_top_n": 2},
+                "stage_runtime": {"ranking": {"concurrency": 2, "sleep_secs": 0.0}},
+            },
+        )
+
+    assert len(results) == 2
+
+def test_run_ai_scoring_parallel_path_still_paces_submission_when_sleep_positive() -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    shortlist = [
+        {"job_url": "https://example.com/1"},
+        {"job_url": "https://example.com/2"},
+        {"job_url": "https://example.com/3"},
+    ]
+    sleep_calls: list[float] = []
+
+    with patch("fitcv.ai_score.score_job") as mock_score_job, patch.object(time, "sleep") as mock_sleep:
+        mock_score_job.side_effect = lambda **kwargs: {
+            "job_url": kwargs["job"]["job_url"],
+            "ai_score": 0.5,
+            "fit_label": "stretch",
+            "score_reasoning": "ok",
+            "matched_strengths": [],
+            "key_risks": [],
+        }
+        mock_sleep.side_effect = lambda secs: sleep_calls.append(float(secs))
+        run_ai_scoring(
+            shortlist=shortlist,
+            candidate_summary="candidate",
+            config={
+                "pipeline": {"ai_score_top_n": 3},
+                "stage_runtime": {"ranking": {"concurrency": 3, "sleep_secs": 0.2}},
+            },
+        )
+
+    assert sleep_calls == [0.2, 0.2]
 
 
 # ── store_ai_scores ───────────────────────────────────────────────────────────
