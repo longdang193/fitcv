@@ -10799,6 +10799,52 @@ def test_run_detail_generated_outputs_render_bookmark_action():
     assert "☆" in resp.text
 
 
+def test_run_detail_generated_outputs_primary_label_uses_company_and_location():
+    import datetime as _dt
+    import json as _json
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    cv = {
+        "version_id": "cv-company-location-1",
+        "job_url": "https://jobs.example.com/company-location-1",
+        "fit_classification": "strong",
+        "generated_at": _dt.datetime.now(_dt.timezone.utc),
+    }
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://jobs.example.com/company-location-1",
+                "job_title": "Data Engineer",
+                "company": "Acme",
+                "location": "Berlin",
+                "pipeline_status": "ranked_with_cv",
+            }
+        ]
+    })
+    run_with_cv = PipelineRun(
+        run_id="run-company-location-label",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
+        cvs_generated=1,
+        results_export_json=export_payload,
+    )
+    patches = _run_detail_patches(
+        cv_versions=[cv],
+        enriched_jobs=[],
+        filter_results=[{"job_url": "https://jobs.example.com/company-location-1", "passed": True, "reasons": []}],
+        results_export_json=export_payload,
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), \
+         patch("fitcv_cp.app.is_job_bookmarked", return_value=False), \
+         patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-company-location-label")
+    assert resp.status_code == 200
+    assert "Data Engineer (Acme, Berlin)" in resp.text
+
 def test_run_bookmark_save_redirects_to_run_detail():
     import datetime as _dt
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -10850,7 +10896,7 @@ def test_admin_bookmarks_page_and_delete_flow():
         page_resp = TestClient(_app()).get("/admin/bookmarks")
     assert page_resp.status_code == 200
     assert "Bookmarked Jobs" in page_resp.text
-    assert "Role 1" in page_resp.text
+    assert "Role 1 (Acme, Remote)" in page_resp.text
     assert "20.05.2026 18:00 CEST" in page_resp.text
     assert 'class="badge badge-info">stretch<' in page_resp.text
     assert 'href="/admin/cvs/cv-1/download"' in page_resp.text
@@ -10867,6 +10913,48 @@ def test_admin_bookmarks_page_and_delete_flow():
     delete_mock.assert_called_once_with("url:https://jobs.example.com/1")
 
 
+
+def test_admin_bookmarks_primary_label_without_location():
+    bookmarks = [
+        {
+            "bookmark_key": "url:https://jobs.example.com/2",
+            "job_id": None,
+            "title": "Role 2",
+            "company": "Contoso",
+            "location": None,
+            "url": "https://jobs.example.com/2",
+            "fit_classification": "STRONG",
+            "source_run_id": "run-2",
+            "source": "pipeline_results",
+            "saved_at": "2026-05-20T16:00:00+00:00",
+            "snapshot": {"version_id": None},
+        }
+    ]
+    with patch("fitcv_cp.app.list_bookmarked_jobs", return_value=bookmarks):
+        page_resp = TestClient(_app()).get("/admin/bookmarks")
+    assert page_resp.status_code == 200
+    assert "Role 2 (Contoso)" in page_resp.text
+
+def test_admin_bookmarks_primary_label_fallback_when_title_missing():
+    bookmarks = [
+        {
+            "bookmark_key": "url:https://jobs.example.com/3",
+            "job_id": None,
+            "title": "",
+            "company": "Northwind",
+            "location": "Munich",
+            "url": "https://jobs.example.com/3",
+            "fit_classification": "STRETCH",
+            "source_run_id": "run-3",
+            "source": "pipeline_results",
+            "saved_at": "2026-05-20T16:00:00+00:00",
+            "snapshot": {"version_id": None},
+        }
+    ]
+    with patch("fitcv_cp.app.list_bookmarked_jobs", return_value=bookmarks):
+        page_resp = TestClient(_app()).get("/admin/bookmarks")
+    assert page_resp.status_code == 200
+    assert "View Job (Northwind, Munich)" in page_resp.text
 def test_run_detail_zero_cvs_and_zero_ranked_shows_ranking_threshold_message():
     """@proves inspection_debugging.ranking-diagnostics"""
     import datetime as _dt
@@ -12995,3 +13083,5 @@ def test_is_hitl_resolution_pending_uses_terminal_status_set() -> None:
     assert _is_hitl_resolution_pending("regeneration_requested") is True
     assert _is_hitl_resolution_pending("approved_as_is") is False
     assert _is_hitl_resolution_pending("rejected") is False
+
+
