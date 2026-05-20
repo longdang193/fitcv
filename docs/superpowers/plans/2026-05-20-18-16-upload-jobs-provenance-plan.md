@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: upload-jobs-provenance-labeling
 parent_thread: workstream-operator-control-plane.operator-control-plane-run-detail-truth
@@ -56,14 +56,14 @@ Tests validate new wording, fallback behavior, and unchanged behavior for path/p
 - Backward compatibility needed for existing run rows.
 
 **Steps:**
-- [ ] Step 1: Define/extend run metadata field for jobs provenance (source filenames + mode marker).
-- [ ] Step 2: Populate provenance in upload-mode trigger path where `effective_files` are known.
-- [ ] Step 3: Keep non-upload modes null/empty to avoid semantic drift.
-- [ ] Step 4: Persist/read field through store adapters with backward-compatible fallback.
+- [x] Step 1: Define/extend run metadata field for jobs provenance (source filenames + mode marker).
+- [x] Step 2: Populate provenance in upload-mode trigger path where `effective_files` are known.
+- [x] Step 3: Keep non-upload modes null/empty to avoid semantic drift.
+- [x] Step 4: Persist/read field through store adapters with backward-compatible fallback.
 
 **Verification:**
-- [ ] Unit test: upload trigger run row contains merged path and provenance filenames.
-- [ ] Unit test: path/paste triggers remain unchanged.
+- [x] Unit test: upload trigger run row contains merged path and provenance filenames.
+- [x] Unit test: path/paste triggers remain unchanged.
 
 **Exit Criteria:**
 - Metadata available at render layer for deterministic wording generation.
@@ -88,14 +88,14 @@ for upload-mode runs only.
 - Existing truncation/tooltip behavior for long jobs path should remain usable.
 
 **Steps:**
-- [ ] Step 1: Add formatter/helper that composes wording from merged path + provenance list.
-- [ ] Step 2: Use formatter in run detail and runs list view models.
-- [ ] Step 3: Ensure fallback to raw `jobs_path` when provenance unavailable.
-- [ ] Step 4: Keep output stable and symmetric across both pages.
+- [x] Step 1: Add formatter/helper that composes wording from merged path + provenance list.
+- [x] Step 2: Use formatter in run detail and runs list view models.
+- [x] Step 3: Ensure fallback to raw `jobs_path` when provenance unavailable.
+- [x] Step 4: Keep output stable and symmetric across both pages.
 
 **Verification:**
-- [ ] Template test: upload-mode rendered string matches exact wording pattern.
-- [ ] Template test: non-upload mode still shows raw path only.
+- [x] Template test: upload-mode rendered string matches exact wording pattern.
+- [x] Template test: non-upload mode still shows raw path only.
 
 **Exit Criteria:**
 - Both pages show same invariant wording rule with no regressions.
@@ -114,13 +114,13 @@ for upload-mode runs only.
 - Task 1 and Task 2 complete.
 
 **Steps:**
-- [ ] Step 1: Run focused tests for trigger + run detail/list rendering.
-- [ ] Step 2: Run broader fitcv_cp test subset if needed for storage/model changes.
-- [ ] Step 3: Manual smoke-check one upload run in UI for final wording.
+- [x] Step 1: Run focused tests for trigger + run detail/list rendering.
+- [x] Step 2: Run broader fitcv_cp test subset if needed for storage/model changes.
+- [x] Step 3: Manual smoke-check one upload run in UI for final wording.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "upload or jobs_path or run_detail or runs_list"`
-- [ ] `python scripts/hooks/run_validator.py --fast`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "upload or jobs_path or run_detail or runs_list"`
+- [x] `python scripts/hooks/run_validator.py --fast`
 
 **Exit Criteria:**
 - Tests pass, wording appears exactly as requested, no unrelated behavior drift found.
@@ -143,3 +143,5 @@ Canonical source-of-truth:
 - `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
 </LINK>
+
+

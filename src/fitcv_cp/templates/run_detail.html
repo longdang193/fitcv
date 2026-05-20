@@ -41,7 +41,7 @@
   <div class="kv">
     <span class="k">Triggered By</span><span class="v">{{ run.triggered_by }}</span>
     <span class="k">Run Mode</span><span class="v">{{ run_mode_label }}</span>
-    <span class="k">Jobs Path</span><span class="v"><code>{{ run.jobs_path }}</code></span>
+    <span class="k">Jobs Path</span><span class="v"><code>{{ run.jobs_path_display or run.jobs_path }}</code></span>
     {% if run.jobs_input_source %}
     <span class="k">Jobs Source</span><span class="v"><span class="badge badge-info">{{ run.jobs_input_source }}</span></span>
     {% endif %}

@@ -18,7 +18,6 @@ services:
       - FITCV_LANGGRAPH_REPO_ROOT=/opt/fitcv-langgraph
     volumes:
       - ./.env:/app/.env:ro
-      - ./.env.yaml:/app/.env.yaml:ro
       - ./config/env.yaml:/app/config/env.yaml:ro
       - C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/fitcv-491123-51c030d71e07.json:/app/sa_key.json:ro
       - ${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}:/opt/fitcv-langgraph:ro
@@ -39,7 +38,6 @@ services:
       - FITCV_LANGGRAPH_REPO_ROOT=/opt/fitcv-langgraph
     volumes:
       - ./.env:/app/.env:ro
-      - ./.env.yaml:/app/.env.yaml:ro
       - ./config/env.yaml:/app/config/env.yaml:ro
       - C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/fitcv-491123-51c030d71e07.json:/app/sa_key.json:ro
       - ${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}:/opt/fitcv-langgraph:ro
@@ -48,6 +46,7 @@ services:
 
 volumes:
   fitcv_uploads:
+
 
 
 

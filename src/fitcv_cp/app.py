@@ -800,6 +800,7 @@ def _apply_trigger_runtime_envelope(
     *,
     jobs_input_source: str | None,
     jobs_input_json: str | None,
+    jobs_input_manifest_json: str | None,
     candidate_profile_source: str | None,
     candidate_profile_json: str | None,
     run_mode: str,
@@ -809,6 +810,8 @@ def _apply_trigger_runtime_envelope(
     runtime_inputs = effective_config.setdefault("runtime_inputs", {})
     if jobs_input_json:
         runtime_inputs["jobs_input_json"] = jobs_input_json
+    if jobs_input_manifest_json:
+        runtime_inputs["jobs_input_manifest_json"] = jobs_input_manifest_json
     if candidate_profile_json:
         runtime_inputs["candidate_profile_json"] = candidate_profile_json
     # Capture trigger-time agentic runtime expectation to avoid later interpretation drift.
@@ -876,6 +879,33 @@ def _resolve_candidate_profile_snapshot_from_text(raw_text: str) -> str:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     return _json.dumps(resolved_profile, ensure_ascii=False, indent=2)
+
+def _load_jobs_input_manifest(raw_manifest_json: str | None) -> dict[str, Any]:
+    if not raw_manifest_json:
+        return {}
+    try:
+        payload = _json.loads(raw_manifest_json)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+def _format_jobs_path_display(run: PipelineRun) -> str:
+    raw_jobs_path = str(getattr(run, "jobs_path", "") or "").strip()
+    manifest = _load_jobs_input_manifest(getattr(run, "jobs_input_manifest_json", None))
+    source = str(getattr(run, "jobs_input_source", "") or "").strip().lower()
+    if source != "upload":
+        return raw_jobs_path
+    merged_from = manifest.get("source_filenames")
+    if not isinstance(merged_from, list):
+        return raw_jobs_path
+    names = [str(item).strip() for item in merged_from if str(item).strip()]
+    if not names:
+        return raw_jobs_path
+    return f"{raw_jobs_path} (merged from: {', '.join(names)})"
+
+def _attach_jobs_path_display(run: PipelineRun) -> PipelineRun:
+    run.jobs_path_display = _format_jobs_path_display(run)  # type: ignore[attr-defined]
+    return run
 
 
 def _canonical_continue_next_stage(run: PipelineRun) -> str | None:
@@ -4692,15 +4722,17 @@ def _timeline_stage_summary_message(
             outputs.get("cv_analysis_concurrency_effective"),
         )
         if ready is not None and blocked is not None and skipped is not None and failed is not None:
+            details: list[tuple[str, Any]] = [
+                ("ready", ready),
+                ("blocked", blocked),
+                ("skipped", skipped),
+                ("failed", failed),
+            ]
+            if cv_analysis_concurrency is not None:
+                details.append(("concurrency", cv_analysis_concurrency))
             return _format_message(
                 "CV analysis complete",
-                [
-                    ("ready", ready),
-                    ("blocked", blocked),
-                    ("skipped", skipped),
-                    ("failed", failed),
-                    ("concurrency", cv_analysis_concurrency),
-                ],
+                details,
             )
     if event.stage == "synonym_proposal_triage_completed":
         return _format_message(
@@ -6138,6 +6170,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             effective_config,
             jobs_input_source="path",
             jobs_input_json=jobs_input_json_snapshot,
+            jobs_input_manifest_json=None,
             candidate_profile_source="default_config",
             candidate_profile_json=candidate_json_snapshot,
             run_mode=run_mode,
@@ -6198,6 +6231,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         *,
         jobs_input_source: str | None = None,
         jobs_input_json: str | None = None,
+        jobs_input_manifest_json: str | None = None,
         candidate_profile_source: str | None = None,
         candidate_profile_json: str | None = None,
         run_synonym_overlay: dict[str, Any] | None = None,
@@ -6281,6 +6315,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             effective_config,
             jobs_input_source=jobs_input_source,
             jobs_input_json=jobs_input_json,
+            jobs_input_manifest_json=jobs_input_manifest_json,
             candidate_profile_source=candidate_profile_source,
             candidate_profile_json=candidate_profile_json,
             run_mode=run_mode,
@@ -6308,6 +6343,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             effective_settings_json=_json.dumps(effective_config),
             jobs_input_source=jobs_input_source,
             jobs_input_json=jobs_input_json,
+            jobs_input_manifest_json=jobs_input_manifest_json,
             candidate_profile_source=candidate_profile_source,
             candidate_profile_json=candidate_profile_json,
             run_mode=run_mode,
@@ -6376,6 +6412,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
         # ── Jobs input resolution ──────────────────────────────────────
         jobs_input_json_snapshot: str | None = None
+        jobs_input_manifest_json: str | None = None
         if jobs_input_mode == "path":
             actual_jobs_path, jobs_input_json_snapshot = _resolve_jobs_path_snapshot(jobs_path)
             jobs_input_source = "path"
@@ -6449,6 +6486,16 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             actual_jobs_path = str(save_path)
             jobs_input_source = "upload"
             jobs_input_json_snapshot = canonical_merged
+            jobs_input_manifest_json = _json.dumps(
+                {
+                    "source_filenames": [
+                        str(upload.filename or "").strip()
+                        for upload in effective_files
+                        if str(upload.filename or "").strip()
+                    ],
+                },
+                ensure_ascii=False,
+            )
         elif jobs_input_mode == "paste":
             if not jobs_text or not jobs_text.strip():
                 raise HTTPException(status_code=422, detail="jobs_text required for paste mode")
@@ -6510,6 +6557,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             config_overrides={},
             jobs_input_source=jobs_input_source,
             jobs_input_json=jobs_input_json_snapshot,
+            jobs_input_manifest_json=jobs_input_manifest_json,
             candidate_profile_source=candidate_profile_source,
             candidate_profile_json=candidate_json_snapshot,
             run_synonym_overlay=synonym_overlay_payload,
@@ -6834,6 +6882,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         else:  # default: active
             runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
         runs = [_reconcile_orphaned_running_run(run) for run in runs]
+        runs = [_attach_jobs_path_display(run) for run in runs]
         max_runtime_minutes = _run_max_runtime_minutes()
         runs = [_enforce_run_timeout_guard(run, max_runtime_minutes=max_runtime_minutes) for run in runs]
         pipeline_runs_schema_status = get_pipeline_runs_schema_status(
@@ -7614,6 +7663,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if run is None:
             raise HTTPException(status_code=404)
         run = _reconcile_orphaned_running_run(run)
+        run = _attach_jobs_path_display(run)
         run = _enforce_run_timeout_guard(run, max_runtime_minutes=_run_max_runtime_minutes())
         timeline_limit = _coerce_positive_int(
             request.query_params.get("timeline_limit"),

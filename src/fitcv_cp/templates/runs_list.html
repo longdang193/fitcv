@@ -74,12 +74,16 @@
   .runs-table .col-orch { width: 10rem; }
 
   .run-jobs-path {
-    display: inline-block;
+    display: block;
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
     vertical-align: top;
+  }
+
+  .runs-table td.jobs-path-cell {
+    overflow: visible;
   }
 
   .run-created-at {
@@ -263,7 +267,7 @@
           <div class="run-next-stage"><code>next: {{ run.next_stage }}</code></div>
           {% endif %}
         </td>
-        <td><code class="run-jobs-path" title="{{ run.jobs_path }}">{{ run.jobs_path }}</code></td>
+        <td class="jobs-path-cell"><code class="run-jobs-path" title="{{ run.jobs_path_display or run.jobs_path }}">{{ run.jobs_path_display or run.jobs_path }}</code></td>
         <td class="meta">
           {% if run.created_at %}
           <span class="run-created-at">
@@ -543,3 +547,4 @@ async function bulkLifecycleAction(action, btn) {
 restoreLifecycleNotice();
 </script>
 {% endblock %}
+

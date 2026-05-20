@@ -3591,6 +3591,8 @@ def test_admin_upload_trigger_merges_multiple_job_files():
     urls = [j["job_url"] for j in merged]
     assert "http://a.com" in urls
     assert "http://b.com" in urls
+    manifest = json.loads(captured["run"].jobs_input_manifest_json)
+    assert manifest["source_filenames"] == ["file1.json", "file2.json"]
 
 
 def test_admin_upload_trigger_multi_file_preserves_order():
@@ -4472,6 +4474,36 @@ def test_run_detail_paused_after_normalize_shows_normalize_download_on_timeline_
     assert "Download Normalize JSON" in resp.text
     assert "Normalize complete: kept 10 of 10 jobs, removed 0 duplicate(s)" in resp.text
 
+def test_run_detail_upload_jobs_path_shows_merged_from_filenames():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-detail-jobs-merged-from",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/uploads/e99cd34d9c2343d1b8577e6c9a3120fb_merged_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        jobs_input_source="upload",
+        jobs_input_manifest_json=json.dumps(
+            {"source_filenames": ["foo.json", "bar.json", "baz.json", "qux.json"]}
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-detail-jobs-merged-from")
+
+    assert resp.status_code == 200
+    assert (
+        "data/uploads/e99cd34d9c2343d1b8577e6c9a3120fb_merged_jobs.json "
+        "(merged from: foo.json, bar.json, baz.json, qux.json)"
+    ) in resp.text
+
 
 def test_run_detail_timeline_shows_cv_analysis_download_only_on_aggregate_row():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
@@ -4593,7 +4625,7 @@ def test_run_detail_timeline_uses_bounded_cv_analysis_payload_counts():
         resp = TestClient(_app()).get("/admin/runs/run-cv-analysis-payload")
 
     assert resp.status_code == 200
-    assert "CV analysis complete: 1 ready, 2 blocked, 0 skipped, 1 failed" in resp.text
+    assert "CV analysis complete: ready 1, blocked 2, skipped 0, failed 1." in resp.text
 
 
 def test_run_detail_timeline_keeps_cv_generation_failure_types_distinct() -> None:
@@ -10085,6 +10117,21 @@ def test_runs_list_jobs_path_is_truncated_with_full_title():
     assert 'class="run-jobs-path"' in html
     assert 'title="data/uploads/very_long_nested_folder_name/another_folder/really_long_jobs_snapshot_name.json"' in html
 
+def test_runs_list_upload_jobs_path_shows_merged_from_filenames():
+    run = _make_full_run_mock(status="queued", run_id="run-jobs-merged-from")
+    run.jobs_path = "data/uploads/e99cd34d9c2343d1b8577e6c9a3120fb_merged_jobs.json"
+    run.jobs_input_source = "upload"
+    run.jobs_input_manifest_json = json.dumps(
+        {"source_filenames": ["foo.json", "bar.json", "baz.json", "qux.json"]}
+    )
+    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    assert (
+        "data/uploads/e99cd34d9c2343d1b8577e6c9a3120fb_merged_jobs.json "
+        "(merged from: foo.json, bar.json, baz.json, qux.json)"
+    ) in resp.text
+
 
 def test_settings_page_renders_run_lifecycle_section() -> None:
     """@proves settings_system.run-safety-settings"""
@@ -13083,5 +13130,6 @@ def test_is_hitl_resolution_pending_uses_terminal_status_set() -> None:
     assert _is_hitl_resolution_pending("regeneration_requested") is True
     assert _is_hitl_resolution_pending("approved_as_is") is False
     assert _is_hitl_resolution_pending("rejected") is False
+
 
 
