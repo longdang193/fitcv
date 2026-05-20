@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from fitcv.rule_filter import (
+    DEFAULT_SELECTED_RULE_FILTERS,
     apply_pre_enrichment_global_filters,
     apply_rule_filters,
     check_applicant_count,
@@ -63,6 +64,13 @@ def test_apply_rule_filters_returns_passed_and_rejected() -> None:
     assert isinstance(result["rejected"], list)
 
 
+def test_apply_rule_filters_returns_passed_records_contract_key() -> None:
+    """Return contract includes passed_records for downstream mark propagation."""
+    result = apply_rule_filters([_job()], _prefs())
+    assert "passed_records" in result
+    assert isinstance(result["passed_records"], list)
+
+
 def test_rejected_jobs_include_reasons() -> None:
     """@proves pipeline_performance.explicit-rejection-reasons-in-rule-filter-results
 
@@ -107,6 +115,17 @@ def test_unselected_must_have_skill_missing_emits_mark_not_reject_by_default() -
             ],
         }
     ]
+
+
+def test_selected_filter_defaults_match_runtime_contract_constant() -> None:
+    result = apply_rule_filters([_job()], _prefs(), config={})
+    assert DEFAULT_SELECTED_RULE_FILTERS == [
+        "seniority_mismatch",
+        "location_type_excluded",
+        "contract_type_excluded",
+        "experience_level_excluded",
+    ]
+    assert isinstance(result["passed_records"], list)
 
 
 def test_selected_must_have_skill_missing_rejects() -> None:

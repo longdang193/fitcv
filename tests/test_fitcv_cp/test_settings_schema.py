@@ -46,6 +46,7 @@ from fitcv_cp.settings_schema import (
     ValidationError,
 )
 import fitcv_cp.settings_schema as settings_schema_module
+from fitcv.rule_filter import DEFAULT_SELECTED_RULE_FILTERS
 
 
 # ── schema registry ───────────────────────────────────────────────────────────
@@ -601,6 +602,11 @@ def test_rule_filter_selected_filters_default_matches_spec() -> None:
         "contract_type_excluded",
         "experience_level_excluded",
     ]
+
+
+def test_rule_filter_selected_filters_default_matches_runtime_contract() -> None:
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["rule_filter.selected_filters"]["default"] == DEFAULT_SELECTED_RULE_FILTERS
 
 
 def test_retrieval_defaults_are_hydrated_from_centralized_pipeline_config() -> None:
