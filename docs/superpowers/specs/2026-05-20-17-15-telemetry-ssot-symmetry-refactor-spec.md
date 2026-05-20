@@ -4,7 +4,7 @@ artifact_type: spec
 status: proposed
 template_id: detailed-specification
 name: telemetry-ssot-symmetry-refactor
-parent_workstream: none
+parent_thread: workstream-agentic-observability.agentic-observability-shared-trace-standard
 targets:
   - src/fitcv/telemetry.py
   - src/fitcv/pipeline.py
@@ -13,10 +13,8 @@ targets:
   - tests/test_fitcv/test_telemetry.py
   - tests/test_pipeline.py
   - tests/test_fitcv_cp/test_reporter.py
-related_features:
-  - cv_system.stage-artifact-diagnostics
-related_stages:
-  - none
+related_features: []
+related_stages: []
 ---
 
 ## Goal
