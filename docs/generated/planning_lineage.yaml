@@ -387,6 +387,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
     - docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md
     - docs/superpowers/plans/2026-05-18-21-14-fitcv-cp-app-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-20-13-20-timeline-concurrency-messaging-and-dedupe-plan.md
     derived_completion: completed
   - thread_id: workstream-operator-control-plane.operator-control-plane-settings-surface-alignment
     status: in_progress
