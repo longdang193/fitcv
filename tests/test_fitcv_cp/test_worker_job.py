@@ -808,7 +808,7 @@ def test_worker_persists_cv_generation_debug_coverage_accounting():
                 "error": None,
             },
             {
-                "job_url": "https://example.com/2",
+                "job_url": "",
                 "status": "skipped_fit_gate",
                 "ranking_fit_label": "skip",
                 "fit_classification": "skip",
@@ -928,7 +928,7 @@ def test_worker_persists_cv_generation_debug_coverage_for_reranker_blocked_rows(
                 "analysis_reuse_status": "reused_exact_match",
             },
             {
-                "job_url": "https://example.com/2",
+                "job_url": "",
                 "status": "blocked_by_reranker_fit",
                 "analysis_reuse_status": "not_run_reranker_skip",
             },
@@ -2577,3 +2577,107 @@ def test_worker_results_export_includes_deterministic_stage_summary_fields() -> 
     assert cv_generation_summary["deterministic_outcome"] is None
     assert cv_generation_summary["outcome_counts"]["accepted"] == 1
     assert cv_generation_summary["outcome_counts"]["validation_failed"] == 1
+
+def test_worker_review_required_with_terminal_resolution_status_is_not_counted_pending() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=json.dumps({"synonym_management": {"auto_accept_ai_action_enabled": True}}))
+    mock_run.cancel_requested_at = None
+    mock_run.checkpoint_payload_json = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+    mock_run.synonym_proposals_json = None
+    mock_run.run_mode = "run_all"
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r-resolved-review",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 0,
+        "completed_stages": ["normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis", "cv_generation"],
+        "cv_generation_debug_records": [
+            {
+                "status": "review_required",
+                "job_url": "https://example.com/1",
+                "resolution_status": "rejected",
+                "error": {"stage": "validation", "message": "validation failed"},
+            }
+        ],
+        "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update, \
+       patch("fitcv_cp.worker_job.append_event") as mock_append:
+        execute_pipeline_run(run_id="r-resolved-review", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    final_status = mock_update.call_args_list[-1].args[1]
+    assert final_status.value == "succeeded"
+
+def test_worker_review_required_reason_totals_preserved_while_remaining_counts_only_pending() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(
+        effective_settings_json=json.dumps({"synonym_management": {"auto_accept_ai_action_enabled": True}})
+    )
+    mock_run.cancel_requested_at = None
+    mock_run.checkpoint_payload_json = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+    mock_run.synonym_proposals_json = None
+    mock_run.run_mode = "run_all"
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r-reason-parity",
+        "total_jobs": 2,
+        "passed_filter": 2,
+        "ranked": 2,
+        "cvs_generated": 0,
+        "completed_stages": ["normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis", "cv_generation"],
+        "cv_generation_debug_records": [
+            {
+                "status": "review_required",
+                "job_url": "https://example.com/1",
+                "resolution_status": "rejected",
+                "error": {"stage": "validation", "message": "validation failed"},
+            },
+            {
+                "status": "review_required",
+                "job_url": "",
+                "error": {"stage": "validation", "message": "validation failed"},
+            },
+        ],
+        "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update, \
+       patch("fitcv_cp.worker_job.append_event") as mock_append:
+        execute_pipeline_run(run_id="r-reason-parity", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    status_updates = mock_update.call_args_list
+    assert status_updates
+    final_args = status_updates[-1].args
+    final_status = final_args[1]
+    final_summary = dict(status_updates[-1].kwargs.get("summary") or {})
+
+    assert final_status.value == "awaiting_continue"
+    assert int(final_summary.get("review_required_total") or 0) == 2
+    assert int(final_summary.get("review_required_remaining") or 0) == 1
+    assert int(final_summary.get("review_required_remaining_missing_job_url") or 0) == 1
+
+    review_events = [call.args[0] for call in mock_append.call_args_list if call.args and str(getattr(call.args[0], "stage", "")) == "cv_review_required"]
+    assert review_events
+    payload = json.loads(str(getattr(review_events[-1], "payload_json", "") or "{}"))
+    assert int(payload.get("remaining") or 0) == 1
+    assert int(payload.get("remaining_missing_job_url") or 0) == 1
+
+
+

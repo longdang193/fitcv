@@ -113,6 +113,7 @@ from fitcv_cp.synonym_proposals import (
 from fitcv_cp.data_plane import data_plane_contract_payload
 from fitcv_cp.observability import emit_observability_event
 from fitcv_cp.store import ControlPlaneStore
+from fitcv_cp.review_identity import ensure_review_item_id
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 ORCHESTRATION_ADAPTER = get_orchestration_adapter()
 _RUN_SUBMISSION_CACHE: dict[str, RunSubmission] = {}
@@ -1854,8 +1855,15 @@ def _load_run_cv_generation_debug_payload(run: PipelineRun) -> dict[str, Any] | 
         if isinstance(item, dict)
     ]
     normalized_records: list[dict[str, Any]] = []
-    for record in records:
+    run_id_value = str(getattr(run, "run_id", "") or payload.get("run_id") or "")
+    for index, record in enumerate(records):
         row = dict(record)
+        if str(row.get("status") or "").strip() == "review_required":
+            ensure_review_item_id(
+                run_id=run_id_value,
+                record=row,
+                fallback_index=index + 1,
+            )
         ranking_fit_label = row.get("ranking_fit_label")
         reranker_fit_label = row.get("reranker_fit_label")
         if ranking_fit_label is None and reranker_fit_label is not None:
@@ -1974,8 +1982,15 @@ def _normalized_cv_debug_payload_for_export(run: PipelineRun) -> dict[str, Any] 
     copied = dict(payload)
     records = [item for item in list(copied.get("debug_records") or copied.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
     normalized_records: list[dict[str, Any]] = []
-    for record in records:
+    run_id_value = str(getattr(run, "run_id", "") or payload.get("run_id") or "")
+    for index, record in enumerate(records):
         row = dict(record)
+        if str(row.get("status") or "").strip() == "review_required":
+            ensure_review_item_id(
+                run_id=run_id_value,
+                record=row,
+                fallback_index=index + 1,
+            )
         ranking_fit_label = row.get("ranking_fit_label")
         reranker_fit_label = row.get("reranker_fit_label")
         if ranking_fit_label is None and reranker_fit_label is not None:
@@ -2158,8 +2173,12 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
         return {"queue_items": [], "pending_count": 0, "total_review_required": 0, "actions_count": 0}
     records = list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or [])
     actions = [item for item in list(payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
+    latest_action_by_review_item_id: dict[str, dict[str, Any]] = {}
     latest_action_by_job: dict[str, dict[str, Any]] = {}
     for action in actions:
+        review_item_id = str(action.get("review_item_id") or "").strip()
+        if review_item_id:
+            latest_action_by_review_item_id[review_item_id] = action
         job_url = str(action.get("job_url") or "").strip()
         if not job_url:
             continue
@@ -2170,10 +2189,11 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
             continue
         if str(record.get("status") or "").strip() != "review_required":
             continue
+        review_item_id = str(record.get("review_item_id") or "").strip()
         job_url = str(record.get("job_url") or "").strip()
-        if not job_url:
-            continue
-        action = latest_action_by_job.get(job_url)
+        action = latest_action_by_review_item_id.get(review_item_id) if review_item_id else None
+        if action is None and job_url:
+            action = latest_action_by_job.get(job_url)
         action_name = str((action or {}).get("action") or "").strip() or None
         resolution_status = _normalize_hitl_resolution_status(
             action_name,
@@ -2189,6 +2209,8 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
         queue_items.append(
             {
                 "job_url": job_url,
+                "review_item_id": review_item_id or None,
+                "missing_job_url": not bool(job_url),
                 "job_title": str(record.get("job_title") or "").strip() or "Unknown title",
                 "fit_classification": str(record.get("fit_classification") or "").strip() or "unknown",
                 "reason": str((record.get("error") or {}).get("message") or "").strip() or "Manual review required.",
@@ -2547,16 +2569,30 @@ def _results_export_rows_with_hitl_audit(run: PipelineRun) -> list[dict[str, Any
     if not isinstance(payload, dict):
         return rows
     actions = [item for item in list(payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
+    latest_action_by_review_item_id: dict[str, dict[str, Any]] = {}
     latest_action_by_job: dict[str, dict[str, Any]] = {}
     for action in actions:
+        review_item_id = str(action.get("review_item_id") or "").strip()
+        if review_item_id:
+            latest_action_by_review_item_id[review_item_id] = action
         job_url = str(action.get("job_url") or "").strip()
         if job_url:
             latest_action_by_job[job_url] = action
     queue = _build_hitl_review_queue(run)
+    review_item_by_id = {
+        str(item.get("review_item_id") or "").strip(): item
+        for item in list(queue.get("queue_items") or [])
+        if isinstance(item, dict) and str(item.get("review_item_id") or "").strip()
+    }
     review_item_by_job = {
         str(item.get("job_url") or "").strip(): item
         for item in list(queue.get("queue_items") or [])
         if isinstance(item, dict) and str(item.get("job_url") or "").strip()
+    }
+    debug_records_by_id = {
+        str(item.get("review_item_id") or "").strip(): item
+        for item in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or [])
+        if isinstance(item, dict) and str(item.get("review_item_id") or "").strip()
     }
     debug_records_by_job = {
         str(item.get("job_url") or "").strip(): item
@@ -2567,9 +2603,16 @@ def _results_export_rows_with_hitl_audit(run: PipelineRun) -> list[dict[str, Any
     for row in rows:
         row_copy = dict(row)
         job_url = str(row_copy.get("job_url") or "").strip()
-        review_item = review_item_by_job.get(job_url)
-        latest_action = latest_action_by_job.get(job_url)
-        debug_record = debug_records_by_job.get(job_url)
+        review_item_id = str(row_copy.get("review_item_id") or "").strip()
+        review_item = review_item_by_id.get(review_item_id) if review_item_id else None
+        if review_item is None:
+            review_item = review_item_by_job.get(job_url)
+        latest_action = latest_action_by_review_item_id.get(review_item_id) if review_item_id else None
+        if latest_action is None and job_url:
+            latest_action = latest_action_by_job.get(job_url)
+        debug_record = debug_records_by_id.get(review_item_id) if review_item_id else None
+        if debug_record is None and job_url:
+            debug_record = debug_records_by_job.get(job_url)
         if review_item is not None:
             row_copy["hitl_review_required"] = True
             row_copy["hitl_review_reason"] = str(review_item.get("reason") or "").strip() or None
@@ -4558,6 +4601,7 @@ class BulkRunActionRequest(BaseModel):
         return deduped
 
 class CvReviewActionRequest(BaseModel):
+    review_item_id: str | None = None
     job_url: str
     action: str
     actor: str = "admin"
@@ -7417,6 +7461,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=404, detail="Run not found")
         form = await request.form()
         payload = CvReviewActionRequest(
+            review_item_id=str(form.get("review_item_id") or "").strip() or None,
             job_url=str(form.get("job_url") or ""),
             action=str(form.get("action") or ""),
             actor=str(form.get("actor") or "admin"),
@@ -7432,23 +7477,32 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=409, detail="No cv_generation_debug payload available")
         records = list(debug_payload.get("debug_records") or debug_payload.get("cv_generation_debug_records") or [])
         target_record = None
+        selector_review_item_id = str(payload.review_item_id or "").strip()
+        selector_job_url = str(payload.job_url or "").strip()
         for record in records:
             if not isinstance(record, dict):
                 continue
             if str(record.get("status") or "").strip() != "review_required":
                 continue
-            if str(record.get("job_url") or "").strip() == payload.job_url:
+            record_review_item_id = str(record.get("review_item_id") or "").strip()
+            record_job_url = str(record.get("job_url") or "").strip()
+            if selector_review_item_id and record_review_item_id == selector_review_item_id:
+                target_record = record
+                break
+            if selector_job_url and record_job_url == selector_job_url:
                 target_record = record
                 break
         if target_record is None:
-            raise HTTPException(status_code=404, detail="Review-required record not found for job_url")
+            raise HTTPException(status_code=404, detail="Review-required record not found for selector")
+        target_job_url = str(target_record.get("job_url") or "").strip()
+        target_review_item_id = str(target_record.get("review_item_id") or "").strip() or None
         accepted_increment = 0
         finalized_version_id: str | None = None
         regeneration_job_id: str | None = None
         if payload.action == "approve_as_is":
             finalized_ok, finalized_reason, finalized_version_id = _finalize_review_draft_as_cv_artifact(
                 run=run,
-                job_url=payload.job_url,
+                job_url=target_job_url,
                 record=target_record,
                 bq=bq,
                 project=project,
@@ -7460,7 +7514,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         elif payload.action == "regenerate_once":
             regeneration_job_id = enqueue_cv_regenerate_once_with_job_id(
                 run_id=run_id,
-                job_url=payload.job_url,
+                job_url=target_job_url,
                 actor=payload.actor or "admin",
                 note=payload.note,
                 redis_url=redis_url,
@@ -7468,7 +7522,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
         now = datetime.datetime.now(datetime.timezone.utc)
         action_entry = {
-            "job_url": payload.job_url,
+            "review_item_id": target_review_item_id,
+            "job_url": target_job_url,
             "job_title": str(target_record.get("job_title") or "").strip() or None,
             "action": payload.action,
             "resolution_status": _normalize_hitl_resolution_status(payload.action, None),
@@ -7501,7 +7556,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 created_at=now,
                 payload_json=_json.dumps(
                     {
-                        "job_url": payload.job_url,
+                        "review_item_id": target_review_item_id,
+                        "job_url": target_job_url,
                         "job_title": target_record.get("job_title"),
                         "action": payload.action,
                         "regeneration_job_id": regeneration_job_id,
@@ -7517,6 +7573,31 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
+        if payload.action == "regenerate_once":
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="cv_regenerate_once_requested",
+                    level="info",
+                    message="Regenerate-once requested from review queue",
+                    created_at=now,
+                    payload_json=_json.dumps(
+                        {
+                            "review_item_id": target_review_item_id,
+                            "job_url": target_job_url,
+                            "job_title": target_record.get("job_title"),
+                            "actor": payload.actor,
+                            "note": payload.note,
+                            "queue_job_id": regeneration_job_id,
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
         updated_run = dataclasses.replace(
             run,
             cv_generation_debug_json=_json.dumps(debug_payload, ensure_ascii=False),
@@ -7653,27 +7734,41 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         actor = str(form.get("actor") or "admin").strip() or "admin"
         note = str(form.get("note") or "").strip() or None
         allow_no_accepted_closure = str(form.get("confirm_no_accepted_cv_closure") or "").strip().lower() in {"1", "true", "yes", "on"}
+        selected_review_item_ids = [str(value or "").strip() for value in form.getlist("review_item_id")]
+        selected_review_item_ids = [value for value in selected_review_item_ids if value]
         selected_urls = [str(value or "").strip() for value in form.getlist("job_url")]
         selected_urls = [url for url in selected_urls if url]
+        selected_selectors: list[tuple[str, str]] = [("review_item_id", value) for value in selected_review_item_ids]
+        selected_selectors.extend(("job_url", value) for value in selected_urls)
+        selected_selectors = list(dict.fromkeys(selected_selectors))
         allowed_actions = {"approve", "approve_as_is", "regenerate_once", "reject"}
         if action not in allowed_actions:
             raise HTTPException(status_code=422, detail="Invalid batch review action")
-        if not selected_urls:
+        if not selected_selectors:
             raise HTTPException(status_code=422, detail="Select at least one review-required row")
 
         debug_payload = _load_run_cv_generation_debug_payload(run)
         if not isinstance(debug_payload, dict):
             raise HTTPException(status_code=409, detail="No cv_generation_debug payload available")
         records = [item for item in list(debug_payload.get("debug_records") or debug_payload.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
-        review_required_urls = {
-            str(record.get("job_url") or "").strip()
+        review_required_by_review_item_id = {
+            str(record.get("review_item_id") or "").strip(): record
+            for record in records
+            if str(record.get("status") or "").strip() == "review_required" and str(record.get("review_item_id") or "").strip()
+        }
+        review_required_by_job_url = {
+            str(record.get("job_url") or "").strip(): record
             for record in records
             if str(record.get("status") or "").strip() == "review_required" and str(record.get("job_url") or "").strip()
         }
 
         review_actions = [item for item in list(debug_payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
+        latest_action_by_review_item_id: dict[str, dict[str, Any]] = {}
         latest_action_by_job: dict[str, dict[str, Any]] = {}
         for item in review_actions:
+            review_item_id = str(item.get("review_item_id") or "").strip()
+            if review_item_id:
+                latest_action_by_review_item_id[review_item_id] = item
             job_url = str(item.get("job_url") or "").strip()
             if job_url:
                 latest_action_by_job[job_url] = item
@@ -7687,11 +7782,22 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         failed_persist = 0
         failed_truncated_draft = 0
         now = datetime.datetime.now(datetime.timezone.utc)
-        for job_url in selected_urls:
-            if job_url not in review_required_urls:
+        for selector_type, selector_value in selected_selectors:
+            target_record = None
+            if selector_type == "review_item_id":
+                target_record = review_required_by_review_item_id.get(selector_value)
+            if target_record is None:
+                target_record = review_required_by_job_url.get(selector_value)
+            if target_record is None:
                 failed += 1
                 continue
-            latest = latest_action_by_job.get(job_url) or {}
+            target_job_url = str(target_record.get("job_url") or "").strip()
+            target_review_item_id = str(target_record.get("review_item_id") or "").strip() or None
+            latest = (
+                latest_action_by_review_item_id.get(target_review_item_id or "")
+                or latest_action_by_job.get(target_job_url)
+                or {}
+            )
             latest_resolution = _normalize_hitl_resolution_status(
                 str(latest.get("action") or "").strip() or None,
                 str(latest.get("resolution_status") or "").strip() or None,
@@ -7702,18 +7808,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             finalized_version_id: str | None = None
             regeneration_job_id: str | None = None
             if action == "approve_as_is":
-                target_record = next(
-                    (
-                        record
-                        for record in records
-                        if str(record.get("job_url") or "").strip() == job_url
-                        and str(record.get("status") or "").strip() == "review_required"
-                    ),
-                    None,
-                )
                 finalized_ok, finalized_reason, finalized_version_id = _finalize_review_draft_as_cv_artifact(
                     run=run,
-                    job_url=job_url,
+                    job_url=target_job_url,
                     record=target_record,
                     bq=bq,
                     project=project,
@@ -7733,7 +7830,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 try:
                     regeneration_job_id = enqueue_cv_regenerate_once_with_job_id(
                         run_id=run_id,
-                        job_url=job_url,
+                        job_url=target_job_url,
                         actor=actor,
                         note=note,
                         redis_url=redis_url,
@@ -7743,7 +7840,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     continue
                 regeneration_requested += 1
             action_entry = {
-                "job_url": job_url,
+                "review_item_id": target_review_item_id,
+                "job_url": target_job_url,
                 "action": action,
                 "resolution_status": _normalize_hitl_resolution_status(action, None),
                 "artifact_finalized": bool(finalized_version_id),
@@ -7756,7 +7854,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 action_entry["regeneration_requested_at"] = now.isoformat()
                 action_entry["regeneration_job_id"] = regeneration_job_id
             review_actions.append(action_entry)
-            latest_action_by_job[job_url] = action_entry
+            if target_review_item_id:
+                latest_action_by_review_item_id[target_review_item_id] = action_entry
+            if target_job_url:
+                latest_action_by_job[target_job_url] = action_entry
             applied += 1
 
         debug_payload["hitl_review_actions"] = review_actions
@@ -7789,7 +7890,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "failed_missing_draft": failed_missing_draft,
                         "failed_persist": failed_persist,
                         "failed_truncated_draft": failed_truncated_draft,
-                        "selected_count": len(selected_urls),
+                        "selected_count": len(selected_selectors),
                     },
                     ensure_ascii=False,
                 ),
@@ -7815,7 +7916,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                             "requested": regeneration_requested,
                             "failed": failed,
                             "skipped": skipped,
-                            "selected_count": len(selected_urls),
+                            "selected_count": len(selected_selectors),
                         },
                         ensure_ascii=False,
                     ),
@@ -9533,3 +9634,12 @@ def _run_to_dict(run: PipelineRun) -> dict:
 
 
 
+
+
+
+
+
+
+def _is_hitl_resolution_pending(resolution_status: str | None) -> bool:
+    normalized = str(resolution_status or "").strip().lower() or "pending"
+    return normalized not in _HITL_TERMINAL_RESOLUTION_STATUSES

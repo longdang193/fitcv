@@ -68,6 +68,7 @@ from fitcv_cp.synonym_proposals import (
     build_synonym_proposals_payload,
     transition_synonym_proposal_status,
 )
+from fitcv_cp.review_identity import ensure_review_item_id, is_review_resolution_pending
 from fitcv_cp.run_artifact_contracts import (
     iso_or_none,
     json_safe,
@@ -1949,6 +1950,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 auto_accept_enabled = _auto_accept_ai_action_enabled_from_run_record(run_record)
                 auto_accepted_count = 0
                 pending_review_required = 0
+                pending_review_required_missing_job_url = 0
                 review_reason_counts: dict[str, int] = {}
                 for record in cv_debug_records:
                     if str(record.get("status") or "").strip() != "review_required":
@@ -1958,10 +1960,15 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     if run_mode == "run_all" and auto_accept_enabled and reason_code in LOW_RISK_AUTO_ACCEPT_REASON_CODES:
                         auto_accepted_count += 1
                         continue
+                    if not is_review_resolution_pending(record.get("resolution_status")):
+                        continue
                     pending_review_required += 1
+                    if not str(record.get("job_url") or "").strip():
+                        pending_review_required_missing_job_url += 1
                 summary["review_required_total"] = int(sum(review_reason_counts.values()))
                 summary["review_required_auto_accepted"] = int(auto_accepted_count)
                 summary["review_required_remaining"] = int(pending_review_required)
+                summary["review_required_remaining_missing_job_url"] = int(pending_review_required_missing_job_url)
                 summary["review_required_reason_counts"] = dict(review_reason_counts)
                 finished_at = datetime.datetime.now(datetime.timezone.utc) if pending_review_required == 0 else None
                 terminal_status = RunStatus.SUCCEEDED if pending_review_required == 0 else RunStatus.AWAITING_CONTINUE
@@ -1969,6 +1976,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     {
                         "review_required_total": int(sum(review_reason_counts.values())),
                         "review_required_remaining": int(pending_review_required),
+                        "review_required_remaining_missing_job_url": int(pending_review_required_missing_job_url),
                         "run_terminal_status": str(terminal_status),
                     }
                 )
@@ -2018,6 +2026,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                                     "review_required_total": int(sum(review_reason_counts.values())),
                                     "auto_accepted": int(auto_accepted_count),
                                     "remaining": int(pending_review_required),
+                                    "remaining_missing_job_url": int(pending_review_required_missing_job_url),
                                     "reason_counts": dict(review_reason_counts),
                                 },
                                 ensure_ascii=False,
@@ -2289,6 +2298,15 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 os.environ.pop("FITCV_CP_SQLITE_PATH", None)
             else:
                 os.environ["FITCV_CP_SQLITE_PATH"] = previous_sqlite_path_env
+
+
+
+
+
+
+
+
+
 
 
 

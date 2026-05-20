@@ -21,7 +21,7 @@ import datetime
 import os
 import pytest
 from fastapi.testclient import TestClient
-from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _timeline_semantic_outcome, _timeline_stage_download_for_event, _timeline_stage_label, create_app
+from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _timeline_semantic_outcome, _timeline_stage_download_for_event, _timeline_stage_label, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, create_app
 from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission
 
@@ -1997,6 +1997,49 @@ def test_admin_run_cv_review_action_persists_and_appends_event() -> None:
     mock_append.assert_called_once()
 
 
+def test_admin_run_cv_review_action_resolves_by_review_item_id_without_job_url() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-review-action-by-id",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "review_item_id": "ri_demo",
+                        "job_url": "",
+                        "job_title": "No URL Row",
+                        "status": "review_required",
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-action-by-id/cv-review-action",
+            data={"review_item_id": "ri_demo", "job_url": "", "action": "reject", "actor": "operator"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    saved_payload = json.loads(mock_update.call_args.args[1])
+    action_row = saved_payload["hitl_review_actions"][-1]
+    assert action_row["review_item_id"] == "ri_demo"
+    assert action_row["job_url"] == ""
+    assert action_row["resolution_status"] == "rejected"
+
+
 def test_admin_run_cv_review_action_regenerate_once_does_not_auto_complete_review() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -2039,7 +2082,10 @@ def test_admin_run_cv_review_action_regenerate_once_does_not_auto_complete_revie
     mock_update_debug.assert_called_once()
     mock_update_status.assert_not_called()
     mock_update_checkpoint.assert_not_called()
-    assert mock_append.call_count == 1
+    assert mock_append.call_count == 2
+    stages = [str(getattr(call.args[0], "stage", "")) for call in mock_append.call_args_list if call.args]
+    assert "cv_review_action" in stages
+    assert "cv_regenerate_once_requested" in stages
 
 
 def test_admin_run_cv_review_action_redirects_back_to_run_detail_when_triggered_inline() -> None:
@@ -2385,6 +2431,161 @@ def test_build_hitl_review_queue_prefers_markdown_preview_over_full_text() -> No
     assert item["cv_preview_available"] is True
 
 
+def test_build_hitl_review_queue_keeps_review_required_rows_without_job_url() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.app import _build_hitl_review_queue
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-review-queue-missing-url",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "status": "review_required",
+                        "job_url": "",
+                        "job_title": "Role Without URL",
+                        "review_item_id": "ri_demo",
+                        "error": {"message": "Manual review required."},
+                    }
+                ]
+            }
+        ),
+    )
+
+    queue = _build_hitl_review_queue(run)
+    assert queue["total_review_required"] == 1
+    assert queue["pending_count"] == 1
+    assert len(queue["queue_items"]) == 1
+    row = queue["queue_items"][0]
+    assert row["job_url"] == ""
+    assert row["review_item_id"] == "ri_demo"
+    assert row["missing_job_url"] is True
+
+
+def test_build_hitl_review_queue_applies_action_by_review_item_id_when_job_url_missing() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.app import _build_hitl_review_queue
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-review-queue-id-action",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "status": "review_required",
+                        "job_url": "",
+                        "job_title": "Role Without URL",
+                        "review_item_id": "ri_demo",
+                        "error": {"message": "Manual review required."},
+                    }
+                ],
+                "hitl_review_actions": [
+                    {
+                        "review_item_id": "ri_demo",
+                        "action": "reject",
+                        "resolution_status": "rejected",
+                        "created_at": "2026-05-20T10:00:00+00:00",
+                    }
+                ],
+            }
+        ),
+    )
+
+    queue = _build_hitl_review_queue(run)
+    assert queue["pending_count"] == 0
+    row = queue["queue_items"][0]
+    assert row["review_item_id"] == "ri_demo"
+    assert row["resolution_status"] == "rejected"
+    assert row["pending"] is False
+
+
+def test_admin_run_review_queue_forms_post_review_item_id_selectors() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-review-queue-selector-fields",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "review_item_id": "ri_selector_1",
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Selector Role",
+                        "status": "review_required",
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-review-queue-selector-fields/review-queue")
+    assert resp.status_code == 200
+    assert 'name="review_item_id"' in resp.text
+    assert 'value="ri_selector_1"' in resp.text
+
+
+def test_admin_run_review_queue_missing_url_disables_regenerate_and_shows_explicit_state() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-review-queue-missing-url-state",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "review_item_id": "ri_missing_url",
+                        "job_url": "",
+                        "job_title": "No URL Role",
+                        "status": "review_required",
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-review-queue-missing-url-state/review-queue")
+    assert resp.status_code == 200
+    assert "Job URL unavailable" in resp.text
+    assert 'name="action" value="regenerate_once"' in resp.text
+    assert 'Regenerate once requires job URL' in resp.text
+
+
 def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -2458,6 +2659,226 @@ def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> N
     assert completion_events
     completion_payload = json.loads(completion_events[0].payload_json)
     assert completion_payload["closure_mode"] in {"all_review_rows_terminal", "all_review_rows_terminal_no_accepted_cv"}
+
+
+def test_admin_run_cv_review_batch_action_accepts_review_item_id_selectors() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-review-batch-by-id",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "review_item_id": "ri_1",
+                        "job_url": "",
+                        "job_title": "No URL Row",
+                        "status": "review_required",
+                    },
+                    {
+                        "review_item_id": "ri_2",
+                        "job_url": "https://example.com/job-2",
+                        "job_title": "URL Row",
+                        "status": "review_required",
+                    },
+                ],
+                "hitl_review_actions": [
+                    {"review_item_id": "ri_2", "job_url": "https://example.com/job-2", "action": "reject", "resolution_status": "rejected"},
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.update_run_status"), \
+         patch("fitcv_cp.app.update_run_checkpoint"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-batch-by-id/cv-review-batch-action",
+            data={
+                "action": "reject",
+                "actor": "operator",
+                "review_item_id": ["ri_1", "ri_2"],
+            },
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert "hitl_batch_applied=1" in resp.headers["location"]
+    assert "hitl_batch_skipped=1" in resp.headers["location"]
+    payload = json.loads(mock_update_debug.call_args.args[1])
+    assert any(
+        row.get("review_item_id") == "ri_1" and row.get("resolution_status") == "rejected"
+        for row in list(payload.get("hitl_review_actions") or [])
+    )
+
+
+def test_admin_run_cv_review_action_does_not_close_when_another_identity_remains_pending() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-review-closure-identity-pending",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "review_item_id": "ri_resolve_now",
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Resolvable Row",
+                        "status": "review_required",
+                    },
+                    {
+                        "review_item_id": "ri_pending_other",
+                        "job_url": "",
+                        "job_title": "Still Pending Row",
+                        "status": "review_required",
+                    },
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug"), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-closure-identity-pending/cv-review-action",
+            data={"review_item_id": "ri_resolve_now", "action": "reject", "actor": "operator"},
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 303
+    mock_update_status.assert_not_called()
+    mock_update_checkpoint.assert_not_called()
+
+
+def test_legacy_review_required_row_without_persisted_id_is_actionable_and_closable_via_derived_id() -> None:
+    from datetime import datetime, timezone
+    import re
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-review-legacy-derived-id",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "",
+                        "job_title": "Legacy Row Without Persisted ID",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                    }
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint, \
+         patch("fitcv_cp.app.append_event"):
+        client = TestClient(_app())
+        queue_resp = client.get("/admin/runs/run-review-legacy-derived-id/review-queue")
+        assert queue_resp.status_code == 200
+        match = re.search(r'name="review_item_id" value="(ri_[^"]+)"', queue_resp.text)
+        assert match is not None
+        derived_review_item_id = str(match.group(1) or "")
+
+        action_resp = client.post(
+            "/admin/runs/run-review-legacy-derived-id/cv-review-action",
+            data={
+                "review_item_id": derived_review_item_id,
+                "action": "reject",
+                "actor": "operator",
+                "confirm_no_accepted_cv_closure": "true",
+            },
+            follow_redirects=False,
+        )
+
+    assert action_resp.status_code == 303
+    saved_payload = json.loads(mock_update_debug.call_args.args[1])
+    action_rows = list(saved_payload.get("hitl_review_actions") or [])
+    assert action_rows
+    assert str(action_rows[-1].get("review_item_id") or "").startswith("ri_")
+    assert action_rows[-1].get("resolution_status") == "rejected"
+    assert any(call.args[1] == RunStatus.SUCCEEDED for call in mock_update_status.call_args_list)
+    mock_update_checkpoint.assert_called_once()
+
+
+def test_admin_run_cv_review_action_blocks_zero_accepted_closure_without_confirmation() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-review-zero-accepted-block",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cvs_generated=0,
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "review_item_id": "ri_only_row",
+                        "job_url": "",
+                        "job_title": "Only Pending Row",
+                        "status": "review_required",
+                    }
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug"), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint, \
+         patch("fitcv_cp.app.append_event") as mock_append:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-zero-accepted-block/cv-review-action",
+            data={"review_item_id": "ri_only_row", "action": "reject", "actor": "operator"},
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 303
+    assert mock_update_status.call_count == 0
+    mock_update_checkpoint.assert_not_called()
+    blocked_events = [
+        call.args[0]
+        for call in mock_append.call_args_list
+        if getattr(call.args[0], "stage", "") == "cv_review_closure_blocked"
+    ]
+    assert blocked_events
 
 def test_admin_run_cv_review_batch_action_finalize_path_no_longer_needs_zero_cv_confirmation() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -12154,3 +12575,36 @@ def test_admin_settings_has_visibility_toggles_and_recommendation_preview_script
 
 
 
+
+def test_load_run_cv_generation_debug_payload_derives_review_item_id_for_legacy_review_required_rows() -> None:
+    from types import SimpleNamespace
+
+    run = SimpleNamespace(
+        run_id="run-legacy-1",
+        cv_generation_debug_json=json.dumps(
+            {
+                "run_id": "run-legacy-1",
+                "debug_records": [
+                    {
+                        "status": "review_required",
+                        "job_url": "",
+                        "job_title": "Legacy review row",
+                        "rank": 1,
+                        "attempt_count": 1,
+                    }
+                ],
+            }
+        ),
+    )
+
+    payload = _load_run_cv_generation_debug_payload(run)
+    assert isinstance(payload, dict)
+    records = list(payload.get("debug_records") or [])
+    assert len(records) == 1
+    assert str(records[0].get("review_item_id") or "").startswith("ri_")
+
+def test_is_hitl_resolution_pending_uses_terminal_status_set() -> None:
+    assert _is_hitl_resolution_pending("pending") is True
+    assert _is_hitl_resolution_pending("regeneration_requested") is True
+    assert _is_hitl_resolution_pending("approved_as_is") is False
+    assert _is_hitl_resolution_pending("rejected") is False
