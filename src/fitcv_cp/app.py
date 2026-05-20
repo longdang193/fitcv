@@ -4374,15 +4374,31 @@ def _timeline_stage_summary_message(
     stage_artifacts_by_id: dict[str, dict[str, Any]],
 ) -> str:
     payload = _event_payload(event)
+    def _resolve_concurrency_value(*values: Any) -> str | None:
+        for value in values:
+            if value is None:
+                continue
+            try:
+                return str(max(1, int(value)))
+            except (TypeError, ValueError):
+                continue
+        return None
     if event.stage == "enrich_heartbeat":
         phase = str(payload.get("phase") or "").strip()
         fresh_total = payload.get("fresh_jobs_total")
         reused_total = payload.get("reused_jobs_total")
+        concurrency = _resolve_concurrency_value(
+            payload.get("enrich_concurrency_effective"),
+            payload.get("concurrency_effective"),
+            payload.get("configured_concurrency"),
+        )
+        concurrency_suffix = f", concurrency={concurrency}" if concurrency is not None else ""
         if phase == "batch_start":
             return (
                 "Enrich in progress: "
                 f"fresh={fresh_total if fresh_total is not None else '—'}, "
                 f"reused={reused_total if reused_total is not None else '—'}"
+                f"{concurrency_suffix}"
             )
         if phase == "batch_progress":
             elapsed = payload.get("elapsed_secs")
@@ -4393,6 +4409,7 @@ def _timeline_stage_summary_message(
                 f"reused={reused_total if reused_total is not None else '—'}, "
                 f"elapsed={elapsed if elapsed is not None else '—'}s, "
                 f"heartbeat={beats if beats is not None else '—'}"
+                f"{concurrency_suffix}"
             )
         if phase == "batch_done":
             fresh_rows_total = payload.get("fresh_rows_total")
@@ -4401,14 +4418,44 @@ def _timeline_stage_summary_message(
                 f"fresh_rows={fresh_rows_total if fresh_rows_total is not None else '—'}, "
                 f"fresh={fresh_total if fresh_total is not None else '—'}, "
                 f"reused={reused_total if reused_total is not None else '—'}"
+                f"{concurrency_suffix}"
             )
-        return "Enrich in progress"
+        return f"Enrich in progress{concurrency_suffix}"
     raw_payload_output = payload.get("output_snapshot")
     payload_output: dict[str, Any] = (
         dict(raw_payload_output)
         if isinstance(raw_payload_output, dict)
         else {}
     )
+    if event.stage == "layer4_cv_analysis_invoked":
+        ranked_jobs = payload_output.get("ranked_jobs", payload.get("ranked_jobs"))
+        cv_analysis_concurrency = _resolve_concurrency_value(
+            payload_output.get("cv_analysis_concurrency_effective"),
+            payload_output.get("cv_analysis_concurrency_configured"),
+            payload.get("cv_analysis_concurrency_effective"),
+            payload.get("cv_analysis_concurrency_configured"),
+        )
+        details = []
+        if ranked_jobs is not None:
+            details.append(f"{ranked_jobs} ranked job(s)")
+        if cv_analysis_concurrency is not None:
+            details.append(f"concurrency={cv_analysis_concurrency}")
+        if details:
+            return f"CV analysis invoked: {', '.join(details)}"
+    if event.stage == "layer4_cv_generation_started":
+        cv_generation_concurrency = _resolve_concurrency_value(
+            payload_output.get("cv_generation_concurrency_effective"),
+            payload_output.get("configured_concurrency"),
+        )
+        if cv_generation_concurrency is not None:
+            return f"{event.message} (concurrency={cv_generation_concurrency})"
+    if event.stage == "layer4_cv_generation_result":
+        cv_generation_concurrency = _resolve_concurrency_value(
+            payload_output.get("cv_generation_concurrency_effective"),
+            payload_output.get("configured_concurrency"),
+        )
+        if cv_generation_concurrency is not None:
+            return f"{event.message} (concurrency={cv_generation_concurrency})"
     stage_id = _timeline_stage_download_for_event(event.stage)
     if not stage_id:
         return event.message
@@ -4457,24 +4504,48 @@ def _timeline_stage_summary_message(
             return f"Shortlist complete: {', '.join(details)}"
     if event.stage == "layer3_ranking":
         ranked = outputs.get("ranked_jobs")
+        ranking_concurrency = _resolve_concurrency_value(
+            payload_output.get("ranking_concurrency_effective"),
+            outputs.get("ranking_concurrency_effective"),
+        )
         raw_distribution = decision.get("label_distribution")
         distribution: dict[str, Any] = dict(raw_distribution) if isinstance(raw_distribution, dict) else {}
         details = []
         if ranked is not None:
             details.append(f"{ranked} ranked")
+        if ranking_concurrency is not None:
+            details.append(f"concurrency={ranking_concurrency}")
         for key, label in (("strong_count", "strong"), ("stretch_count", "stretch"), ("skip_count", "skip")):
             count = distribution.get(key)
             if count is not None:
                 details.append(f"{label}={count}")
         if details:
             return f"Ranking complete: {', '.join(details)}"
+    if event.stage == "layer3_ai_score":
+        ai_scored = payload_output.get("ai_scored_jobs")
+        ranking_concurrency = _resolve_concurrency_value(payload_output.get("ranking_concurrency_effective"))
+        details = []
+        if ai_scored is not None:
+            details.append(f"{ai_scored} jobs")
+        if ranking_concurrency is not None:
+            details.append(f"concurrency={ranking_concurrency}")
+        if details:
+            return f"AI scored: {', '.join(details)}"
     if event.stage == "layer4_cv_analysis":
         ready = outputs.get("ready_for_generation", payload_output.get("ready_for_generation"))
         blocked = outputs.get("blocked_by_reranker_fit", payload_output.get("blocked_by_reranker_fit"))
         skipped = outputs.get("skipped_fit_gate", payload_output.get("skipped_fit_gate"))
         failed = outputs.get("analysis_failed", payload_output.get("analysis_failed"))
+        cv_analysis_concurrency = _resolve_concurrency_value(
+            payload_output.get("cv_analysis_concurrency_effective"),
+            outputs.get("cv_analysis_concurrency_effective"),
+        )
         if ready is not None and blocked is not None and skipped is not None and failed is not None:
-            return f"CV analysis complete: {ready} ready, {blocked} blocked, {skipped} skipped, {failed} failed"
+            suffix = f", concurrency={cv_analysis_concurrency}" if cv_analysis_concurrency is not None else ""
+            return (
+                f"CV analysis complete: {ready} ready, {blocked} blocked, "
+                f"{skipped} skipped, {failed} failed{suffix}"
+            )
     if event.stage == "layer4_cv_validation_failed":
         job_url = str(payload.get("job_url") or "").strip()
         semantic_outcome = _timeline_semantic_outcome(event, payload)
@@ -4505,19 +4576,49 @@ def _timeline_stage_summary_message(
 
 def _collapse_timeline_noise(events: list[RunEvent]) -> list[tuple[RunEvent, int]]:
     """Collapse repeated informational noise rows."""
+    def _timeline_noise_fingerprint(event: RunEvent) -> tuple[str, str, str]:
+        stage = str(event.stage or "").strip()
+        level = str(event.level or "").strip().lower()
+        message = str(event.message or "").strip()
+        if stage == "enrich_heartbeat":
+            payload = _event_payload(event)
+            phase = str(payload.get("phase") or "").strip()
+            if not phase:
+                return (stage, level, "Enrich in progress")
+            enrich_concurrency = payload.get("enrich_concurrency_effective")
+            heartbeat_interval = payload.get("heartbeat_interval_secs")
+            fresh_jobs_total = payload.get("fresh_jobs_total")
+            reused_jobs_total = payload.get("reused_jobs_total")
+            elapsed_secs = payload.get("elapsed_secs")
+            heartbeat_count = payload.get("heartbeat_count")
+            fresh_rows_total = payload.get("fresh_rows_total")
+            return (
+                stage,
+                level,
+                _stable_sha256_json(
+                    {
+                        "phase": phase,
+                        "fresh_jobs_total": fresh_jobs_total,
+                        "reused_jobs_total": reused_jobs_total,
+                        "elapsed_secs": elapsed_secs,
+                        "heartbeat_count": heartbeat_count,
+                        "fresh_rows_total": fresh_rows_total,
+                        "heartbeat_interval_secs": heartbeat_interval,
+                        "enrich_concurrency_effective": enrich_concurrency,
+                    }
+                ),
+            )
+        return (stage, level, message)
+
     collapsed: list[tuple[RunEvent, int]] = []
     last_triage_fingerprint: str | None = None
     last_triage_index: int | None = None
     for event in events:
         stage = str(event.stage or "").strip()
-        level = str(event.level or "").strip().lower()
-        message = str(event.message or "").strip()
+        fingerprint = _timeline_noise_fingerprint(event)
         if collapsed and stage != "synonym_proposal_triage_completed":
             prev_event, prev_count = collapsed[-1]
-            prev_stage = str(prev_event.stage or "").strip()
-            prev_level = str(prev_event.level or "").strip().lower()
-            prev_message = str(prev_event.message or "").strip()
-            if stage == prev_stage and level == prev_level and message == prev_message:
+            if fingerprint == _timeline_noise_fingerprint(prev_event):
                 collapsed[-1] = (prev_event, prev_count + 1)
                 if stage == "synonym_proposal_triage_completed":
                     last_triage_index = len(collapsed) - 1

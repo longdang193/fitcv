@@ -140,6 +140,99 @@ def test_shallow_section_repair_targets_flags_empty_experience_bullets() -> None
     assert _shallow_section_repair_targets(structured_cv) == ["experience"]
 
 
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_normalize: MagicMock,
+    mock_load_to_bigquery: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_run_structured: MagicMock,
+    mock_load_structured: MagicMock,
+    mock_load_profile: MagicMock,
+    mock_load_candidate_to_bigquery: MagicMock,
+    mock_apply_rule_filters: MagicMock,
+    mock_store_filter_results: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_candidate: MagicMock,
+    mock_run_vector_search: MagicMock,
+    mock_run_ai_scoring: MagicMock,
+    mock_build_ranking_features: MagicMock,
+    mock_rank_jobs: MagicMock,
+    mock_store_final_ranking: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    class _Reporter:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, str, str, dict | None]] = []
+
+        def emit(self, stage: str, level: str, message: str, payload: dict | None = None) -> None:
+            self.events.append((stage, level, message, payload))
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+    config = _minimal_config()
+    config.setdefault("stage_runtime", {})
+    config["stage_runtime"]["enrich"] = {"concurrency": 2, "batch_size": 10}
+    config["stage_runtime"]["ranking"] = {"concurrency": 3, "sleep_secs": 0.0}
+    reporter = _Reporter()
+
+    mock_config.return_value = config
+    mock_parse.return_value = [job]
+    mock_normalize.return_value = [job]
+    mock_enrich.return_value = [job]
+    mock_load_run_structured.return_value = [job]
+    mock_load_structured.return_value = [job]
+    mock_load_profile.return_value = profile
+    mock_apply_rule_filters.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_run_vector_search.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_run_ai_scoring.return_value = [{"job_url": job["job_url"], "ai_score": 0.85, "fit_label": "strong"}]
+    ranked_job = {
+        **job,
+        "title": "Data Engineer",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+        "shortlist_origin": "vector_search",
+    }
+    mock_build_ranking_features.return_value = [ranked_job]
+    mock_rank_jobs.return_value = [ranked_job]
+
+    run_pipeline(
+        "data/sample_jobs.json",
+        config_path="config/env.yaml",
+        run_id="timeline-concurrency-check",
+        stop_after_stage="ranking",
+        reporter=reporter,
+    )
+
+    enrich_heartbeat_event = next(event for event in reporter.events if event[0] == "enrich_heartbeat")
+    assert enrich_heartbeat_event[3] is not None
+    assert enrich_heartbeat_event[3]["enrich_concurrency_effective"] == 2
+    ai_score_event = next(event for event in reporter.events if event[0] == "layer3_ai_score")
+    assert ai_score_event[3] is not None
+    assert ai_score_event[3]["output_snapshot"]["ranking_concurrency_effective"] == 3
+    ranking_event = next(event for event in reporter.events if event[0] == "layer3_ranking")
+    assert ranking_event[3] is not None
+    assert ranking_event[3]["output_snapshot"]["ranking_concurrency_effective"] == 3
+
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
@@ -490,11 +583,15 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     assert stage_artifacts["cv_generation"]["decision_summary"]["cv_generation_provider"] == "openai"
     cv_generation_started_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_started")
     assert cv_generation_started_event[3]["output_snapshot"]["configured_concurrency"] >= 1
+    assert cv_generation_started_event[3]["output_snapshot"]["cv_generation_concurrency_effective"] >= 1
     assert "started_at" in cv_generation_started_event[3]["output_snapshot"]
     assert "worker_slot" in cv_generation_started_event[3]["output_snapshot"]
+    cv_analysis_invoked_event = next(event for event in reporter.events if event[0] == "layer4_cv_analysis_invoked")
+    assert cv_analysis_invoked_event[3]["output_snapshot"]["cv_analysis_concurrency_effective"] >= 1
     cv_generation_invoked_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_invoked")
     assert cv_generation_invoked_event[3]["provenance"]["cv_generation_model"] == "cx/gpt-5.5"
     cv_generation_result_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_result")
+    assert cv_generation_result_event[3]["output_snapshot"]["cv_generation_concurrency_effective"] >= 1
     assert "started_at" in cv_generation_result_event[3]["output_snapshot"]
     assert "finished_at" in cv_generation_result_event[3]["output_snapshot"]
 

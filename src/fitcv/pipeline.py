@@ -1472,6 +1472,17 @@ def _agentic_late_stage_enabled(config: dict[str, Any]) -> bool:
 def _cv_analysis_stage_concurrency(config: dict[str, Any]) -> int:
     return get_stage_runtime_concurrency(config, stage="cv_analysis", default=1)
 
+def _enrich_stage_concurrency(config: dict[str, Any]) -> int:
+    return get_stage_runtime_concurrency(
+        config,
+        stage="enrich",
+        default=1,
+        compatibility_fallback_key="enrichment_concurrency",
+    )
+
+def _ranking_stage_concurrency(config: dict[str, Any]) -> int:
+    return get_stage_runtime_concurrency(config, stage="ranking", default=1)
+
 
 def _build_late_stage_mode_payload(
     *,
@@ -3669,6 +3680,7 @@ def run_pipeline(
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("enrich"):
             with observe_span("pipeline.enrich", attributes={"run_id": run_id}):
                 enrich_runtime_config = _enrich_runtime_projection(config)
+                enrich_concurrency = _enrich_stage_concurrency(config)
                 raw_global = config.get("global_job_filters", {})
                 global_settings = (
                     {f"global_job_filters.{k}": v for k, v in raw_global.items()}
@@ -3698,7 +3710,11 @@ def run_pipeline(
                         (lambda payload: reporter.emit(  # type: ignore[union-attr]
                             "enrich_heartbeat",
                             "info",
-                            f"Enrich heartbeat: {payload}",
+                            "Enrich in progress",
+                            {
+                                **dict(payload or {}),
+                                "enrich_concurrency_effective": int(enrich_concurrency),
+                            },
                         ))
                         if reporter is not None else None
                     ),
@@ -4004,7 +4020,22 @@ def run_pipeline(
                     if str(row.get("ai_score_reuse_status") or "") == "fresh_compute"
                 )
                 if reporter is not None:
-                    reporter.emit("layer3_ai_score", "info", f"AI scored: {len(ai_scores)} jobs")  # type: ignore[union-attr]
+                    reporter.emit(  # type: ignore[union-attr]
+                        "layer3_ai_score",
+                        "info",
+                        f"AI scored: {len(ai_scores)} jobs",
+                        _bounded_event_payload(
+                            event_name="ranking_ai_scored",
+                            event_family="summary",
+                            source_stage="ranking",
+                            event_status="completed",
+                            output_snapshot={
+                                "ai_scored_jobs": len(ai_scores),
+                                "ranking_concurrency_effective": _ranking_stage_concurrency(config),
+                            },
+                            artifact_refs={"stage_id": "ranking"},
+                        ),
+                    )
                 set_span_attributes(
                     {
                         "ai_score_candidates": len(ai_score_candidates),
@@ -4019,7 +4050,22 @@ def run_pipeline(
                 ranked = rank_jobs(ranking_inputs, top_n=final_top_n)
                 pipeline_store.store_final_ranking(ranked, config)
                 if reporter is not None:
-                    reporter.emit("layer3_ranking", "info", f"Final ranking: top {len(ranked)} jobs")  # type: ignore[union-attr]
+                    reporter.emit(  # type: ignore[union-attr]
+                        "layer3_ranking",
+                        "info",
+                        f"Final ranking: top {len(ranked)} jobs",
+                        _bounded_event_payload(
+                            event_name="ranking_completed",
+                            event_family="summary",
+                            source_stage="ranking",
+                            event_status="completed",
+                            output_snapshot={
+                                "ranked_jobs": len(ranked),
+                                "ranking_concurrency_effective": _ranking_stage_concurrency(config),
+                            },
+                            artifact_refs={"stage_id": "ranking"},
+                        ),
+                    )
                 state["ai_scores"] = ai_scores
                 state["ranking_inputs"] = ranking_inputs
                 state["ranked"] = ranked
@@ -4093,6 +4139,9 @@ def run_pipeline(
                             input_snapshot={
                                 "ranked_jobs": len(ranked_jobs_for_cv),
                                 "cv_analysis_concurrency_configured": cv_analysis_concurrency,
+                            },
+                            output_snapshot={
+                                "cv_analysis_concurrency_effective": cv_analysis_concurrency,
                             },
                             artifact_refs={"stage_id": "cv_analysis"},
                         ),
@@ -4784,6 +4833,7 @@ def run_pipeline(
                     },
                     output_snapshot={
                         "configured_concurrency": int(configured_cv_generation_concurrency),
+                        "cv_generation_concurrency_effective": int(configured_cv_generation_concurrency),
                         "worker_slot": int(generation_worker_slot),
                         "started_at": generation_started_at_iso,
                     },
@@ -4829,6 +4879,7 @@ def run_pipeline(
                         "attempt_count": int(attempt_count),
                         "retry_count": int(retry_count),
                         "configured_concurrency": int(configured_cv_generation_concurrency),
+                        "cv_generation_concurrency_effective": int(configured_cv_generation_concurrency),
                         "worker_slot": int(generation_worker_slot),
                         "started_at": generation_started_at_iso,
                         "finished_at": generation_finished_at_iso,

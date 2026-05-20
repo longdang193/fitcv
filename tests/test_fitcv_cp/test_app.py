@@ -21,7 +21,7 @@ import datetime
 import os
 import pytest
 from fastapi.testclient import TestClient
-from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _timeline_semantic_outcome, _timeline_stage_download_for_event, _timeline_stage_label, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, create_app
+from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _timeline_semantic_outcome, _timeline_stage_download_for_event, _timeline_stage_label, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, create_app
 from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission
 
@@ -149,8 +149,83 @@ def test_collapse_timeline_noise_collapses_identical_consecutive_stage_messages(
     assert kept_event.event_id == "e1"
     assert repeat_count == 3
 
+def test_collapse_timeline_noise_collapses_display_equivalent_enrich_heartbeat_rows() -> None:
+    ts = datetime.datetime.now(datetime.timezone.utc)
+    events = [
+        RunEvent(run_id="r", event_id="e1", stage="enrich_heartbeat", level="info", message="Enrich heartbeat: {'phase':'batch_progress','heartbeat_count':1}", created_at=ts, payload_json="{}"),
+        RunEvent(run_id="r", event_id="e2", stage="enrich_heartbeat", level="info", message="Enrich heartbeat: {'phase':'batch_progress','heartbeat_count':2}", created_at=ts, payload_json="{}"),
+        RunEvent(run_id="r", event_id="e3", stage="enrich_heartbeat", level="info", message="Enrich heartbeat: {'phase':'batch_progress','heartbeat_count':3}", created_at=ts, payload_json="{}"),
+    ]
+    collapsed = _collapse_timeline_noise(events)
+    assert len(collapsed) == 1
+    kept_event, repeat_count = collapsed[0]
+    assert kept_event.event_id == "e1"
+    assert repeat_count == 3
+
 def test_timeline_stage_label_maps_enrich_heartbeat_to_in_progress() -> None:
     assert _timeline_stage_label("enrich_heartbeat") == "Enrich In Progress"
+
+def test_timeline_stage_summary_message_includes_concurrency_for_applicable_stages() -> None:
+    ts = datetime.datetime.now(datetime.timezone.utc)
+    enrich_event = RunEvent(
+        run_id="r",
+        event_id="e-enrich",
+        stage="enrich_heartbeat",
+        level="info",
+        message="Enrich in progress",
+        created_at=ts,
+        payload_json=json.dumps(
+            {
+                "phase": "batch_progress",
+                "fresh_jobs_total": 9,
+                "reused_jobs_total": 7,
+                "elapsed_secs": 15,
+                "heartbeat_count": 3,
+                "enrich_concurrency_effective": 2,
+            }
+        ),
+    )
+    ranking_event = RunEvent(
+        run_id="r",
+        event_id="e-ranking",
+        stage="layer3_ranking",
+        level="info",
+        message="Final ranking: top 6 jobs",
+        created_at=ts,
+        payload_json=json.dumps({"output_snapshot": {"ranked_jobs": 6, "ranking_concurrency_effective": 4}}),
+    )
+    cv_analysis_event = RunEvent(
+        run_id="r",
+        event_id="e-cv-analysis",
+        stage="layer4_cv_analysis",
+        level="info",
+        message="CV analysis complete",
+        created_at=ts,
+        payload_json=json.dumps(
+            {
+                "output_snapshot": {
+                    "ready_for_generation": 4,
+                    "blocked_by_reranker_fit": 2,
+                    "skipped_fit_gate": 0,
+                    "analysis_failed": 0,
+                    "cv_analysis_concurrency_effective": 3,
+                }
+            }
+        ),
+    )
+    cv_gen_event = RunEvent(
+        run_id="r",
+        event_id="e-cv-gen",
+        stage="layer4_cv_generation_started",
+        level="info",
+        message="CV generation started for https://example.com [item 1/4]",
+        created_at=ts,
+        payload_json=json.dumps({"output_snapshot": {"cv_generation_concurrency_effective": 2}}),
+    )
+    assert "concurrency=2" in _timeline_stage_summary_message(enrich_event, {})
+    assert "concurrency=4" in _timeline_stage_summary_message(ranking_event, {})
+    assert "concurrency=3" in _timeline_stage_summary_message(cv_analysis_event, {})
+    assert "concurrency=2" in _timeline_stage_summary_message(cv_gen_event, {})
 
 def test_synonym_decision_ledger_marks_reviewed_rows_as_decision_applied() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus

@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: timeline-concurrency-messaging-and-dedupe
 parent_thread: workstream-operator-control-plane.operator-control-plane-run-detail-truth
@@ -57,12 +57,12 @@ Tests cover dedupe semantics, concurrency message rendering, and regression prot
 - GitNexus index refreshed and source-first symbol mapping confirmed.
 
 **Steps:**
-- [ ] Identify existing event payload keys emitted for `enrich_heartbeat`, ranking completion, cv analysis progress, cv generation start/result.
-- [ ] Add/normalize explicit effective-concurrency fields in emitted payload snapshots for all concurrency-applied stages (preserve backward compatibility when unavailable).
-- [ ] Ensure payload field naming is stable and stage-local (`*_concurrency_effective` or equivalent canonical key).
+- [x] Identify existing event payload keys emitted for `enrich_heartbeat`, ranking completion, cv analysis progress, cv generation start/result.
+- [x] Add/normalize explicit effective-concurrency fields in emitted payload snapshots for all concurrency-applied stages (preserve backward compatibility when unavailable).
+- [x] Ensure payload field naming is stable and stage-local (`*_concurrency_effective` or equivalent canonical key).
 
 **Verification:**
-- [ ] Targeted pipeline tests assert emitted payload contains effective concurrency for each applicable stage.
+- [x] Targeted pipeline tests assert emitted payload contains effective concurrency for each applicable stage.
 
 **Exit Criteria:**
 - Timeline renderer can read a single deterministic concurrency field per applicable stage without guessing from config text.
@@ -81,12 +81,12 @@ Tests cover dedupe semantics, concurrency message rendering, and regression prot
 - Task 1 payload contract decided.
 
 **Steps:**
-- [ ] Refine `_collapse_timeline_noise` for `enrich_heartbeat` to collapse consecutive display-equivalent rows (stage label + level + rendered message).
-- [ ] Preserve phase-change rows (`batch_start`, `batch_progress`, `batch_done`) when rendered summary differs.
-- [ ] Keep repeat counter semantics consistent with existing collapsed-row UI.
+- [x] Refine `_collapse_timeline_noise` for `enrich_heartbeat` to collapse consecutive display-equivalent rows (stage label + level + rendered message).
+- [x] Preserve phase-change rows (`batch_start`, `batch_progress`, `batch_done`) when rendered summary differs.
+- [x] Keep repeat counter semantics consistent with existing collapsed-row UI.
 
 **Verification:**
-- [ ] Add/adjust tests proving duplicate enrich heartbeat rows collapse and non-equivalent heartbeat rows remain distinct.
+- [x] Add/adjust tests proving duplicate enrich heartbeat rows collapse and non-equivalent heartbeat rows remain distinct.
 
 **Exit Criteria:**
 - Repeated heartbeat noise is trimmed, but real state transitions stay visible.
@@ -105,12 +105,12 @@ Tests cover dedupe semantics, concurrency message rendering, and regression prot
 - Task 1 payload keys available in stage events.
 
 **Steps:**
-- [ ] Update `_timeline_stage_summary_message` for `enrich_heartbeat` to append effective concurrency.
-- [ ] Extend ranking/cv_analysis/cv_generation summary branches to append concurrency when present.
-- [ ] Keep concise fixed field order in messages for scanability and deterministic test assertions.
+- [x] Update `_timeline_stage_summary_message` for `enrich_heartbeat` to append effective concurrency.
+- [x] Extend ranking/cv_analysis/cv_generation summary branches to append concurrency when present.
+- [x] Keep concise fixed field order in messages for scanability and deterministic test assertions.
 
 **Verification:**
-- [ ] Add tests asserting message contains concurrency for applicable stage events and degrades gracefully when missing.
+- [x] Add tests asserting message contains concurrency for applicable stage events and degrades gracefully when missing.
 
 **Exit Criteria:**
 - Operators can see applied concurrency directly in timeline without opening settings.
@@ -128,14 +128,14 @@ Tests cover dedupe semantics, concurrency message rendering, and regression prot
 - Tasks 1-3 complete.
 
 **Steps:**
-- [ ] Run focused timeline + pipeline concurrency pytest slices.
-- [ ] Run fast repo validator hook.
-- [ ] Perform manual run-detail spot check to confirm duplicated enrich heartbeat rows are trimmed and concurrency text appears.
+- [x] Run focused timeline + pipeline concurrency pytest slices.
+- [x] Run fast repo validator hook.
+- [x] Perform manual run-detail spot check to confirm duplicated enrich heartbeat rows are trimmed and concurrency text appears.
 
 **Verification:**
-- [ ] `pytest -q tests/test_fitcv_cp/test_app.py -k "timeline and (enrich or cv_analysis or cv_generation or ranking)"`
-- [ ] `pytest -q tests/test_pipeline_agentic_late_stage.py -k "concurrency or generation_started_event"`
-- [ ] `python scripts/hooks/run_validator.py --fast`
+- [x] `pytest -q tests/test_fitcv_cp/test_app.py -k "timeline and (enrich or cv_analysis or cv_generation or ranking)"`
+- [x] `pytest -q tests/test_pipeline_agentic_late_stage.py -k "emits_effective_concurrency_for_enrich_and_ranking_events"`
+- [x] `python scripts/hooks/run_validator.py --fast`
 
 **Exit Criteria:**
 - Automated and manual evidence confirms timeline clarity improvement and no bounded regressions.
@@ -143,7 +143,7 @@ Tests cover dedupe semantics, concurrency message rendering, and regression prot
 ## Verification
 
 - `pytest -q tests/test_fitcv_cp/test_app.py -k "timeline and (enrich or cv_analysis or cv_generation or ranking)"`
-- `pytest -q tests/test_pipeline_agentic_late_stage.py -k "concurrency or generation_started_event"`
+- `pytest -q tests/test_pipeline_agentic_late_stage.py -k "emits_effective_concurrency_for_enrich_and_ranking_events"`
 - `python scripts/hooks/run_validator.py --fast`
 
 ## Completion Criteria
