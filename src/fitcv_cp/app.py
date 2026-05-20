@@ -1592,7 +1592,11 @@ def _aggregate_dead_letter_replay_health(
     failed = 0
     replay_event_count = 0
     for run_id in sorted(run_ids):
-        events = get_events(run_id, bq, project=project, dataset=dataset)
+        try:
+            events = get_events(run_id, bq, project=project, dataset=dataset)
+        except Exception as exc:
+            logger.warning("dead-letter health aggregation skipped events for run_id=%s due to read error: %s", run_id, exc)
+            continue
         summary = _latest_dead_letter_replay_summary(events)
         if summary["replay_candidates"] <= 0:
             continue

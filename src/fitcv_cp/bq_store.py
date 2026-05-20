@@ -36,18 +36,29 @@ _PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS = 0.25
 _EVENT_APPEND_RETRY_ATTEMPTS = 3
 _EVENT_APPEND_RETRY_DELAY_SECONDS = 0.2
 _DEGRADATION_REASON_NONE = "none"
+_SQLITE_OPEN_RETRY_ATTEMPTS = 3
+_SQLITE_OPEN_RETRY_DELAY_SECONDS = 0.2
 
 def _local_sqlite_path() -> str:
     return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
 
 def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:
-    conn.execute("PRAGMA journal_mode=WAL;")
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+    except sqlite3.OperationalError as exc:
+        if "unable to open database file" in str(exc).strip().lower():
+            logger.warning("sqlite journal_mode pragma skipped due to transient open failure: %s", exc)
+        else:
+            raise
     conn.execute("PRAGMA synchronous=NORMAL;")
     conn.execute("PRAGMA busy_timeout=30000;")
 
 
 def _is_sqlite_malformed_error(exc: BaseException) -> bool:
     return "database disk image is malformed" in str(exc).strip().lower()
+
+def _sqlite_auto_rotate_enabled() -> bool:
+    return str(os.environ.get("FITCV_CP_SQLITE_AUTO_ROTATE_ON_MALFORMED") or "").strip().lower() in {"1", "true", "yes"}
 
 
 def _rotate_corrupt_sqlite_artifacts(db_path: Path) -> None:
@@ -66,20 +77,32 @@ def _rotate_corrupt_sqlite_artifacts(db_path: Path) -> None:
 
 @contextmanager
 def _sqlite_connection(db_path: Path, *, ensure_parent: bool = False):
-    if ensure_parent:
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-    for attempt in range(2):
+    _ = ensure_parent
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn: sqlite3.Connection | None = None
+    for attempt in range(_SQLITE_OPEN_RETRY_ATTEMPTS):
         try:
-            with sqlite3.connect(db_path, timeout=30) as conn:
-                _configure_sqlite_connection(conn)
-                yield conn
-                return
+            conn = sqlite3.connect(db_path, timeout=30)
+            _configure_sqlite_connection(conn)
+            break
+        except sqlite3.OperationalError as exc:
+            message = str(exc).strip().lower()
+            if "unable to open database file" in message and attempt < (_SQLITE_OPEN_RETRY_ATTEMPTS - 1):
+                time.sleep(_SQLITE_OPEN_RETRY_DELAY_SECONDS)
+                continue
+            raise
         except sqlite3.DatabaseError as exc:
-            if attempt == 0 and _is_sqlite_malformed_error(exc):
+            if attempt == 0 and _is_sqlite_malformed_error(exc) and _sqlite_auto_rotate_enabled():
                 logger.warning("sqlite malformed DB detected; rotating artifacts for recovery: %s", db_path)
                 _rotate_corrupt_sqlite_artifacts(db_path)
                 continue
             raise
+    if conn is None:
+        raise RuntimeError(f"failed to open sqlite connection: {db_path}")
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 def _sqlite_mode_enabled() -> bool:
     return str(os.environ.get("FITCV_CP_DATA_BACKEND") or "").strip().lower() == "sqlite"
