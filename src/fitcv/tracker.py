@@ -21,18 +21,13 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fitcv.config import sqlite_mode_enabled
+from fitcv.contracts import DEFAULT_APPLICATION_STATUSES
+from fitcv.persistence import build_bigquery_client
 
 
 # ── default status enum ───────────────────────────────────────────────────────
 
-_DEFAULT_APPLICATION_STATUSES: list[str] = [
-    "applied",
-    "not_applied",
-    "interview",
-    "rejected",
-    "no_response",
-]
-
+_DEFAULT_APPLICATION_STATUSES: tuple[str, ...] = DEFAULT_APPLICATION_STATUSES
 
 def _get_valid_statuses(config: dict[str, Any] | None) -> list[str]:
     """Return the list of valid application statuses from config, or the built-in default."""
@@ -40,7 +35,7 @@ def _get_valid_statuses(config: dict[str, Any] | None) -> list[str]:
         statuses = config.get("application_statuses")
         if isinstance(statuses, list) and statuses:
             return [str(s) for s in statuses]
-    return _DEFAULT_APPLICATION_STATUSES
+    return list(_DEFAULT_APPLICATION_STATUSES)
 
 
 # ── cv version record ─────────────────────────────────────────────────────────
@@ -145,15 +140,9 @@ def store_cv_version(record: dict[str, Any], config: dict[str, Any]) -> None:
             raise RuntimeError(f"SQLite insert errors for cv_versions: {errors}")
         return
 
-    from google.cloud import bigquery  # type: ignore[import-not-found]
-    from google.oauth2 import service_account  # type: ignore[import-not-found]
-
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
-    key_path = str(config["service_account_key"])
-
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    client = build_bigquery_client(config)
     table_ref = f"{project}.{dataset}.cv_versions"
 
     errors = client.insert_rows_json(table_ref, [record])
@@ -218,20 +207,18 @@ def store_application_status(record: dict[str, Any], config: dict[str, Any]) -> 
             raise RuntimeError(f"SQLite insert errors for application_tracker: {errors}")
         return
 
-    from google.cloud import bigquery  # type: ignore[import-not-found]
-    from google.oauth2 import service_account  # type: ignore[import-not-found]
-
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
-    key_path = str(config.get("service_account_key") or "").strip()
-
-    if key_path:
-        credentials = service_account.Credentials.from_service_account_file(key_path)
-        client = bigquery.Client(project=project, credentials=credentials)
-    else:
-        client = bigquery.Client(project=project)
+    client = build_bigquery_client(config)
     table_ref = f"{project}.{dataset}.application_tracker"
 
     errors = client.insert_rows_json(table_ref, [record])
     if errors:
         raise RuntimeError(f"BigQuery insert errors for application_tracker: {errors}")
+
+
+
+
+
+
+

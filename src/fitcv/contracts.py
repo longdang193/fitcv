@@ -96,3 +96,38 @@ def normalize_analysis_channel_mapping(mapping: Mapping[str, Any] | None) -> dic
             continue
         normalized[canonical_key] = value
     return normalized
+
+# Shared ingest/normalize/tracker contracts
+SCRAPER_CAMEL_TO_SNAKE: dict[str, str] = {
+    "jobUrl": "job_url",
+    "postedTime": "posted_time",
+    "publishedAt": "published_at",
+    "companyName": "company_name",
+    "companyUrl": "company_url",
+    "companyId": "company_id",
+    "applicationsCount": "applications_count",
+    "contractType": "contract_type",
+    "experienceLevel": "experience_level",
+    "workType": "work_type",
+    "posterFullName": "poster_full_name",
+    "posterProfileUrl": "poster_profile_url",
+    "applyUrl": "apply_url",
+    "applyType": "apply_type",
+}
+
+REQUIRED_SCRAPER_FIELDS: tuple[str, ...] = (
+    "jobUrl",
+    "title",
+    "companyName",
+    "description",
+    "contractType",
+    "experienceLevel",
+)
+
+DEFAULT_APPLICATION_STATUSES: tuple[str, ...] = (
+    "applied",
+    "not_applied",
+    "interview",
+    "rejected",
+    "no_response",
+)

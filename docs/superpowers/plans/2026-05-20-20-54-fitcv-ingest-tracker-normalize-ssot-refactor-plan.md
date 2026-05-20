@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: fitcv-ingest-tracker-normalize-ssot-refactor-plan
 parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract
@@ -60,13 +60,13 @@ CV version write fallback (structured->legacy schema) remains backward compatibl
 - GitNexus impact/context captured for target symbols (`snake_case_keys`, `load_to_bigquery`, `normalize_batch_with_exclusions`, `parse_salary`, `parse_applications_count`, `store_cv_version`, `store_application_status`).
 
 **Steps:**
-- [ ] Step 1: Run targeted `gitnexus impact` for each edited symbol and record risk in execution notes.
-- [ ] Step 2: Snapshot current tests for scoped modules to detect behavior drift quickly.
-- [ ] Step 3: Confirm no unrelated code rollback in dirty worktree.
+- [x] Step 1: Run targeted `gitnexus impact` for each edited symbol and record risk in execution notes.
+- [x] Step 2: Snapshot current tests for scoped modules to detect behavior drift quickly.
+- [x] Step 3: Confirm no unrelated code rollback in dirty worktree.
 
 **Verification:**
-- [ ] `npx gitnexus impact <symbol> -r "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT"`
-- [ ] `uvx pytest tests/test_ingest.py tests/test_tracker.py tests/test_normalize.py`
+- [x] `npx gitnexus impact <symbol> -r "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT"`
+- [x] `uvx pytest tests/test_ingest.py tests/test_tracker.py tests/test_normalize.py`
 
 **Exit Criteria:**
 - Symbol-level risk map exists and baseline tests are green or known-failing with recorded reason.
@@ -87,13 +87,13 @@ CV version write fallback (structured->legacy schema) remains backward compatibl
 - Task 1 complete.
 
 **Steps:**
-- [ ] Step 1: Route BigQuery client creation in ingest/tracker through shared persistence helper.
-- [ ] Step 2: Route sqlite path resolution through shared helper instead of module-local duplicate functions.
-- [ ] Step 3: Normalize credential fallback behavior (ADC when key missing) across both tracker write paths and ingest write path.
+- [x] Step 1: Route BigQuery client creation in ingest/tracker through shared persistence helper.
+- [x] Step 2: Route sqlite path resolution through shared helper instead of module-local duplicate functions.
+- [x] Step 3: Normalize credential fallback behavior (ADC when key missing) across both tracker write paths and ingest write path.
 
 **Verification:**
-- [ ] `uvx pytest tests/test_ingest.py -k bigquery_mode`
-- [ ] `uvx pytest tests/test_tracker.py -k store_cv_version`
+- [x] `uvx pytest tests/test_ingest.py -k bigquery_mode`
+- [x] `uvx pytest tests/test_tracker.py -k store_cv_version`
 
 **Exit Criteria:**
 - No module-local credential policy divergence remains in scoped files.
@@ -114,13 +114,13 @@ CV version write fallback (structured->legacy schema) remains backward compatibl
 - Task 2 complete.
 
 **Steps:**
-- [ ] Step 1: Extract scraper key map + required scraper field list + default application statuses to shared contract module.
-- [ ] Step 2: Replace module-local duplicates with imports from shared contract module.
-- [ ] Step 3: Add contract-focused tests asserting mapping/status invariants remain stable.
+- [x] Step 1: Extract scraper key map + required scraper field list + default application statuses to shared contract module.
+- [x] Step 2: Replace module-local duplicates with imports from shared contract module.
+- [x] Step 3: Add contract-focused tests asserting mapping/status invariants remain stable.
 
 **Verification:**
-- [ ] `uvx pytest tests/test_ingest.py -k "snake_case_keys or validate_linkedin_schema"`
-- [ ] `uvx pytest tests/test_tracker.py -k update_application_status`
+- [x] `uvx pytest tests/test_ingest.py -k "snake_case_keys or validate_linkedin_schema"`
+- [x] `uvx pytest tests/test_tracker.py -k update_application_status`
 
 **Exit Criteria:**
 - Equivalent concepts no longer defined in multiple scoped modules.
@@ -140,13 +140,13 @@ CV version write fallback (structured->legacy schema) remains backward compatibl
 - Task 3 complete.
 
 **Steps:**
-- [ ] Step 1: Consolidate exact and near-dedupe keying into shared internal helper path used by both standalone and exclusion-aware batch flow.
-- [ ] Step 2: Keep dedupe reason labels and ordering invariants unchanged (`duplicate_job_url`, `near_duplicate_job_posting`, input-order sorting).
-- [ ] Step 3: Add symmetry tests proving helper-backed and batch-backed dedupe behavior stays equivalent.
+- [x] Step 1: Consolidate exact and near-dedupe keying into shared internal helper path used by both standalone and exclusion-aware batch flow.
+- [x] Step 2: Keep dedupe reason labels and ordering invariants unchanged (`duplicate_job_url`, `near_duplicate_job_posting`, input-order sorting).
+- [x] Step 3: Add symmetry tests proving helper-backed and batch-backed dedupe behavior stays equivalent.
 
 **Verification:**
-- [ ] `uvx pytest tests/test_normalize.py`
-- [ ] `uvx pytest tests/test_pipeline.py -k dedupe`
+- [x] `uvx pytest tests/test_normalize.py`
+- [x] `uvx pytest tests/test_pipeline.py -k dedupe`
 
 **Exit Criteria:**
 - One dedupe algorithmic surface owns key construction + exclusion tagging behavior.
@@ -165,13 +165,13 @@ CV version write fallback (structured->legacy schema) remains backward compatibl
 - Task 4 complete.
 
 **Steps:**
-- [ ] Step 1: Define explicit policy for mixed salary unit/currency strings (reject or normalize deterministically).
-- [ ] Step 2: Expand applicant-count parser contract for accepted localized/variant phrases or explicit `None` fallback semantics.
-- [ ] Step 3: Add regression tests for mixed currency/period and non-English/variant applicant strings.
+- [x] Step 1: Define explicit policy for mixed salary unit/currency strings (reject or normalize deterministically).
+- [x] Step 2: Expand applicant-count parser contract for accepted localized/variant phrases or explicit `None` fallback semantics.
+- [x] Step 3: Add regression tests for mixed currency/period and non-English/variant applicant strings.
 
 **Verification:**
-- [ ] `uvx pytest tests/test_normalize.py -k "salary or applications_count"`
-- [ ] `uvx pytest tests/test_rule_filter.py -k applications_count`
+- [x] `uvx pytest tests/test_normalize.py -k "salary or applications_count"`
+- [x] `uvx pytest tests/test_rule_filter.py -k applications_count`
 
 **Exit Criteria:**
 - Parser behavior for known risky edge cases is explicit, test-locked, and documented in code comments where necessary.
@@ -189,12 +189,12 @@ CV version write fallback (structured->legacy schema) remains backward compatibl
 - Task 2 complete.
 
 **Steps:**
-- [ ] Step 1: Refine missing-column detection to prefer structured fields/reasons/locations over brittle message fragments.
-- [ ] Step 2: Preserve current backward-compatibility retry path (`structured` write then `legacy` write) only for qualifying schema-missing errors.
-- [ ] Step 3: Add tests for both qualifying and non-qualifying error payloads.
+- [x] Step 1: Refine missing-column detection to prefer structured fields/reasons/locations over brittle message fragments.
+- [x] Step 2: Preserve current backward-compatibility retry path (`structured` write then `legacy` write) only for qualifying schema-missing errors.
+- [x] Step 3: Add tests for both qualifying and non-qualifying error payloads.
 
 **Verification:**
-- [ ] `uvx pytest tests/test_tracker.py -k "legacy_schema or structured_columns"`
+- [x] `uvx pytest tests/test_tracker.py -k "legacy_schema or structured_columns"`
 
 **Exit Criteria:**
 - Fallback triggers only for intended schema-migration gaps.
@@ -216,14 +216,14 @@ CV version write fallback (structured->legacy schema) remains backward compatibl
 - Tasks 2-6 complete.
 
 **Steps:**
-- [ ] Step 1: Run full scoped test suite and type check for edited modules.
-- [ ] Step 2: Run `gitnexus_detect_changes` to verify expected symbol/process blast radius.
-- [ ] Step 3: Record migration/deprecation notes (if any behavior changed under RF-004).
+- [x] Step 1: Run full scoped test suite and type check for edited modules.
+- [x] Step 2: Run `gitnexus_detect_changes` to verify expected symbol/process blast radius.
+- [x] Step 3: Record migration/deprecation notes (if any behavior changed under RF-004).
 
 **Verification:**
-- [ ] `uvx pytest tests/test_ingest.py tests/test_tracker.py tests/test_normalize.py`
-- [ ] `uvx mypy src --show-error-codes`
-- [ ] `npx gitnexus detect_changes -r "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT"`
+- [x] `uvx pytest tests/test_ingest.py tests/test_tracker.py tests/test_normalize.py`
+- [x] `uvx mypy src --show-error-codes`
+- [x] `npx gitnexus detect_changes -r "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT"`
 
 **Exit Criteria:**
 - All scoped tests pass, type check clean (or known/approved exceptions), and GitNexus change map matches expected scope.

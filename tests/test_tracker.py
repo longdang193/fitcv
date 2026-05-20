@@ -170,6 +170,53 @@ def test_store_cv_version_falls_back_to_legacy_schema_when_structured_columns_mi
     assert "cv_schema_version" not in retried_record
     assert "cv_structured_json" not in retried_record
 
+
+def test_store_cv_version_does_not_fallback_for_non_schema_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
+    record = create_cv_version_record(
+        job_url="u",
+        run_id="rid",
+        enrichment_version="v1",
+        vector_rank=1,
+        ai_score=0.8,
+        final_score=0.7,
+        evidence_ids=["ev-001"],
+        prompt_version="v1",
+        cv_markdown="# CV",
+        gap_summary={},
+        fit_classification="strong",
+        cv_structured={"schema_version": "cv_doc_v1", "sections": {"summary": {"text": "x"}}},
+        cv_generation_model="gemini-2.5-pro",
+        cv_prompt_version="cv_prompt_v3",
+    )
+    fake_client = MagicMock()
+    fake_client.insert_rows_json.return_value = [
+        {
+            "index": 0,
+            "errors": [
+                {"reason": "invalid", "location": "vector_rank", "message": "invalid integer value"}
+            ],
+        }
+    ]
+
+    with patch("google.oauth2.service_account.Credentials.from_service_account_file", return_value=object()), patch(
+        "google.cloud.bigquery.Client",
+        return_value=fake_client,
+    ):
+        with pytest.raises(RuntimeError, match="BigQuery insert errors for cv_versions"):
+            store_cv_version(
+                record,
+                {
+                    "gcp_project": "fitcv-491123",
+                    "bigquery_dataset": "fitcv",
+                    "service_account_key": "sa_key.json",
+                },
+            )
+
+    assert fake_client.insert_rows_json.call_count == 1
+
 def test_store_cv_version_sqlite_mode_uses_control_plane_store(tmp_path, monkeypatch) -> None:
     record = create_cv_version_record(
         job_url="https://example.com/job/1",

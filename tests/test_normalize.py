@@ -119,6 +119,26 @@ def test_parse_applications_count_no_number() -> None:
     assert parse_applications_count("applicants") is None
 
 
+def test_parse_applications_count_german_phrase() -> None:
+    assert parse_applications_count("Mehr als 120 Bewerber") == 120
+
+
+def test_parse_applications_count_french_phrase() -> None:
+    assert parse_applications_count("Plus de 40 candidats") == 40
+
+
+def test_parse_applications_count_spanish_phrase() -> None:
+    assert parse_applications_count("Mas de 30 candidatos") == 30
+
+
+def test_parse_applications_count_localized_among_first() -> None:
+    assert parse_applications_count("Unter den ersten 25 Bewerbern") == 0
+
+
+def test_parse_applications_count_unrecognized_localized_phrase_returns_none() -> None:
+    assert parse_applications_count("Viele Interessenten") is None
+
+
 # ── parse_salary ──────────────────────────────────────────────────────────────
 
 def test_parse_salary_euro_yearly() -> None:
@@ -141,6 +161,14 @@ def test_parse_salary_dollar_hourly() -> None:
     assert result["max"] == 100
     assert result["currency"] == "USD"
     assert result["period"] == "hr"
+
+
+def test_parse_salary_rejects_mixed_currency() -> None:
+    assert parse_salary("€45,000.00/yr - $55,000.00/yr") is None
+
+
+def test_parse_salary_rejects_mixed_period() -> None:
+    assert parse_salary("€45,000.00/yr - €100.00/hr") is None
 
 
 # ── normalize_job + normalize_batch ────────────────────────────────────────────
@@ -237,6 +265,21 @@ def test_normalize_batch_with_exclusions_tracks_removed_duplicates() -> None:
         "near_duplicate_job_posting",
     ]
     assert [row["input_index"] for row in excluded] == [1, 2]
+
+
+def test_dedupe_symmetry_standalone_and_exclusion_flow_match() -> None:
+    jobs = [
+        {"job_url": "url1", "company_id": "101", "title": "DE", "description": "Same JD", "applications_count": "5 applicants", "salary": ""},
+        {"job_url": "url1", "company_id": "101", "title": "DE", "description": "Same JD", "applications_count": "5 applicants", "salary": ""},
+        {"job_url": "url2", "company_id": "101", "title": "DE", "description": "Same JD", "applications_count": "6 applicants", "salary": ""},
+        {"job_url": "url3", "company_id": "102", "title": "DA", "description": "Different JD", "applications_count": "", "salary": ""},
+    ]
+
+    standalone = deduplicate_near_duplicates(deduplicate_jobs([normalize_job(job) for job in jobs]))
+    kept, _excluded = normalize_batch_with_exclusions(jobs)
+
+    assert [row["job_url"] for row in standalone] == [row["job_url"] for row in kept]
+    assert [row["company_id"] for row in standalone] == [row["company_id"] for row in kept]
 """
 @meta
 type: test
