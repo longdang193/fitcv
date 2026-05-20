@@ -141,6 +141,7 @@ from fitcv.vector_search import run_vector_search
 from fitcv.vector_search import store_shortlist
 from fitcv.pipeline_observability import build_cv_analysis_item_observation_attributes as _build_cv_analysis_item_observation_attributes_observability
 from fitcv.pipeline_observability import build_cv_generation_item_observation_attributes as _build_cv_generation_item_observation_attributes_observability
+from fitcv.pipeline_observability import build_bounded_event_payload as _build_bounded_event_payload_observability
 from fitcv.pipeline_observability import render_cv_analysis_item_output as _render_cv_analysis_item_output_observability
 from fitcv.pipeline_observability import render_cv_generation_item_output as _render_cv_generation_item_output_observability
 from fitcv.pipeline_stage_artifacts import build_stage_block as _build_stage_block_artifacts
@@ -1679,54 +1680,7 @@ def _deterministic_truth_fields(status: str | None) -> dict[str, str | None]:
     }
 
 
-def _bounded_event_payload(
-    *,
-    event_name: str,
-    event_family: str,
-    source_stage: str,
-    event_status: str,
-    job_url: str | None = None,
-    deterministic_outcome: str | None = None,
-    stage_owned_subreason: str | None = None,
-    confidence: float | None = None,
-    fallback_used: bool = False,
-    provenance: dict[str, Any] | None = None,
-    input_snapshot: dict[str, Any] | None = None,
-    output_snapshot: dict[str, Any] | None = None,
-    artifact_refs: dict[str, Any] | None = None,
-    latency_ms: int | None = None,
-    usage: dict[str, Any] | None = None,
-    cost: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    payload: dict[str, Any] = {
-        "event_name": event_name,
-        "event_family": event_family,
-        "source_stage": source_stage,
-        "event_status": event_status,
-        "deterministic_outcome": deterministic_outcome,
-        "fallback_used": fallback_used,
-    }
-    if job_url:
-        payload["job_url"] = job_url
-    if stage_owned_subreason is not None:
-        payload["stage_owned_subreason"] = stage_owned_subreason
-    if confidence is not None:
-        payload["confidence"] = float(confidence)
-    if provenance:
-        payload["provenance"] = _json_safe_pipeline_value(provenance)
-    if input_snapshot:
-        payload["input_snapshot"] = _json_safe_pipeline_value(input_snapshot)
-    if output_snapshot:
-        payload["output_snapshot"] = _json_safe_pipeline_value(output_snapshot)
-    if artifact_refs:
-        payload["artifact_refs"] = _json_safe_pipeline_value(artifact_refs)
-    if latency_ms is not None:
-        payload["latency_ms"] = int(latency_ms)
-    if usage:
-        payload["usage"] = _json_safe_pipeline_value(usage)
-    if cost:
-        payload["cost"] = _json_safe_pipeline_value(cost)
-    return payload
+_bounded_event_payload = _build_bounded_event_payload_observability
 
 
 def _extract_generation_trace_metrics(agentic_live_trace: dict[str, Any] | None) -> dict[str, Any]:

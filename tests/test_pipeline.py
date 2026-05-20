@@ -8936,3 +8936,28 @@ def test_run_pipeline_preserves_agentic_evidence_selection_summary_contract(
     assert summary["selected_evidence_count"] == 1
     assert summary["fallback_used"] is False
     assert summary["hybrid_alignment"]["responsibility_alignment"]["semantic_weight"] == 0.75
+
+
+def test_bounded_event_payload_uses_canonical_observability_builder() -> None:
+    from fitcv.pipeline import _bounded_event_payload
+    from fitcv.pipeline_observability import build_bounded_event_payload
+
+    payload_kwargs = {
+        "event_name": "cv_generation_result",
+        "event_family": "decision",
+        "source_stage": "cv_generation",
+        "event_status": "completed",
+        "job_url": "https://example.com/job",
+        "deterministic_outcome": "accepted",
+        "stage_owned_subreason": "accepted",
+        "confidence": 0.9,
+        "fallback_used": False,
+        "provenance": {"source": "test"},
+        "input_snapshot": {"k": "v"},
+        "output_snapshot": {"status": "ok"},
+        "artifact_refs": {"stage_id": "cv_generation"},
+        "latency_ms": 123,
+        "usage": {"input_tokens": 10},
+        "cost": {"usd": 0.01},
+    }
+    assert _bounded_event_payload(**payload_kwargs) == build_bounded_event_payload(**payload_kwargs)

@@ -30,6 +30,20 @@ def _json_safe_pipeline_value(value: Any) -> Any:
     return value
 
 
+def _extract_bounded_error_summary(
+    error_payload: Any,
+    *,
+    bound_langfuse_excerpt: Callable[..., str],
+    max_chars: int = 1000,
+) -> str:
+    if isinstance(error_payload, dict):
+        return bound_langfuse_excerpt(
+            str(error_payload.get("message") or error_payload.get("stage") or ""),
+            max_chars=max_chars,
+        )
+    return bound_langfuse_excerpt(str(error_payload or ""), max_chars=max_chars)
+
+
 def build_bounded_event_payload(
     *,
     event_name: str,
@@ -100,13 +114,7 @@ def render_cv_analysis_item_output(
     )
     status = str(analysis_record.get("status") or "unknown")
     error_payload = analysis_record.get("outcome_reason") or analysis_record.get("error")
-    if isinstance(error_payload, dict):
-        error_summary = bound_langfuse_excerpt(
-            str(error_payload.get("message") or error_payload.get("stage") or ""),
-            max_chars=1000,
-        )
-    else:
-        error_summary = bound_langfuse_excerpt(str(error_payload or ""), max_chars=1000)
+    error_summary = _extract_bounded_error_summary(error_payload, bound_langfuse_excerpt=bound_langfuse_excerpt)
     reasoning_summary = bound_langfuse_excerpt(status, max_chars=1000) or "unknown"
     sections = [
         ("## Fit Decision", [fit_decision]),
@@ -145,13 +153,7 @@ def render_cv_generation_item_output(
     )
     validation_valid = bool(validation_initial.get("valid")) if validation_initial else status == "accepted"
     error_payload = debug_record.get("error")
-    if isinstance(error_payload, dict):
-        failure_summary = bound_langfuse_excerpt(
-            str(error_payload.get("message") or error_payload.get("stage") or ""),
-            max_chars=1000,
-        )
-    else:
-        failure_summary = bound_langfuse_excerpt(str(error_payload or ""), max_chars=1000)
+    failure_summary = _extract_bounded_error_summary(error_payload, bound_langfuse_excerpt=bound_langfuse_excerpt)
     if status == cv_generation_review_required_status and not review_issue_inputs and failure_summary:
         review_issue_inputs.append(failure_summary)
     review_issues = bound_langfuse_issue_list(review_issue_inputs)
@@ -209,13 +211,7 @@ def build_cv_generation_item_observation_attributes(
     )
     validation_valid = bool(validation_initial.get("valid")) if validation_initial else status == "accepted"
     error_payload = debug_record.get("error")
-    if isinstance(error_payload, dict):
-        failure_summary = bound_langfuse_excerpt(
-            str(error_payload.get("message") or error_payload.get("stage") or ""),
-            max_chars=1000,
-        )
-    else:
-        failure_summary = bound_langfuse_excerpt(str(error_payload or ""), max_chars=1000)
+    failure_summary = _extract_bounded_error_summary(error_payload, bound_langfuse_excerpt=bound_langfuse_excerpt)
     if status == cv_generation_review_required_status and not review_issue_inputs and failure_summary:
         review_issue_inputs.append(failure_summary)
     review_issues = bound_langfuse_issue_list(review_issue_inputs)
@@ -296,13 +292,7 @@ def build_cv_analysis_item_observation_attributes(
     fit_decision = str(analysis_record.get("fit_classification") or "unknown")
     generation_readiness = status == "ready_for_generation"
     error_payload = analysis_record.get("outcome_reason") or analysis_record.get("error")
-    if isinstance(error_payload, dict):
-        error_summary = bound_langfuse_excerpt(
-            str(error_payload.get("message") or error_payload.get("stage") or ""),
-            max_chars=1000,
-        )
-    else:
-        error_summary = bound_langfuse_excerpt(str(error_payload or ""), max_chars=1000)
+    error_summary = _extract_bounded_error_summary(error_payload, bound_langfuse_excerpt=bound_langfuse_excerpt)
     candidate_skills = bound_langfuse_list(
         flatten_skills(profile),
         max_items=20,

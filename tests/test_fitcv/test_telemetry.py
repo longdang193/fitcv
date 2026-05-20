@@ -377,7 +377,7 @@ def test_build_langfuse_item_observation_attributes_renders_reviewer_markdown() 
     assert metadata["input_structured"] == {"candidate": {"name": "Ada"}, "job": {"title": "Staff Data Engineer"}}
     assert metadata["output_structured"] == {"fit_decision": "strong", "evidence": ["Built ETL pipelines"]}
     assert metadata["selected"] is True
-    assert metadata["observation_type"] == "cv_analysis_item"
+    assert metadata["observation_type"] == "generation"
     assert metadata["model"] == "gemini-2.5-flash"
     assert attributes["fitcv.run_id"] == "run-123"
     assert attributes["fitcv.job_id"] == "job-456"
@@ -421,7 +421,7 @@ def test_build_langfuse_item_observation_attributes_omits_missing_optional_field
     metadata = json.loads(attributes["langfuse.observation.metadata"])
     assert metadata["input_structured"] == {"candidate_id": "cand-1"}
     assert metadata["output_structured"] == {"status": "accepted"}
-    assert metadata["observation_type"] == "cv_generation_item"
+    assert metadata["observation_type"] == "generation"
     assert "langfuse.observation.model" not in attributes
     assert "langfuse.observation.prompt_name" not in attributes
     assert "langfuse.observation.usage_details" not in attributes
