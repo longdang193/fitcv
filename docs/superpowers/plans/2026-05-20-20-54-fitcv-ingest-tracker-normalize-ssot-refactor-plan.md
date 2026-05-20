@@ -4,7 +4,8 @@ artifact_type: plan
 status: proposed
 template_id: implementation-plan
 name: fitcv-ingest-tracker-normalize-ssot-refactor-plan
-parent_thread: 01-efficiency-reuse-exact-match-contract
+parent_spec: docs/superpowers/specs/2026-05-20-20-54-fitcv-ingest-tracker-normalize-ssot-refactor-spec.md
+parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract
 targets:
   - src/fitcv/ingest.py
   - src/fitcv/tracker.py
@@ -15,6 +16,8 @@ targets:
   - tests/test_normalize.py
 related_features:
   - cv_system
+related_stages:
+  - normalize
 ---
 
 ## Goal
