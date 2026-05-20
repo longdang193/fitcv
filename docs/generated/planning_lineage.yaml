@@ -485,9 +485,11 @@ workstreams:
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
     status: proposed
     path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/02-efficiency-reuse-late-stage-gating.md
-    specs: []
-    plans: []
-    derived_completion: not_started
+    specs:
+    - docs/superpowers/specs/2026-05-20-17-11-rule-filter-refactor-spec.md
+    plans:
+    - docs/superpowers/plans/2026-05-20-17-16-rule-filter-refactor-implementation-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-operator-diagnostics
     status: proposed
     path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/03-efficiency-reuse-operator-diagnostics.md
