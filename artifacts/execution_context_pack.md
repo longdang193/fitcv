@@ -38,20 +38,16 @@
 
 ## 6) Open Blockers / Risks
 
-- **Blocker:** Worktree includes additional modified generated instruction files plus untracked `uv.lock`; commit scope decision required before safe closeout commit.
-- **Required unblock input / approval:** user must choose commit scope policy:
-  1. candidate-refactor files only (+context-pack/plan)
-  2. include generated instruction drifts
-  3. discard unrelated drifts before commit
+- none.
 
 ## 7) Next Exact Action
 
 Single smallest concrete action to run first in next session.
 
-- **Action type:** closeout gate decision
-- **Target:** working tree staging boundary
-- **Exact command or edit intent:** select commit-scope policy, stage chosen file set, commit.
-- **Why this is next:** all plan deliverables and dependency-ordered tasks are complete; no further implementation step is eligible.
+- **Action type:** merge/closeout
+- **Target:** lane-to-main single-lane merge sequence
+- **Exact command or edit intent:** run closure prompt gate, pre-merge checks, ff-only merge, post-merge checks, push.
+- **Why this is next:** implementation and verification complete; closure is now eligible.
 
 ## 8) Resume Prompt (Copy/Paste)
 
@@ -72,3 +68,4 @@ If context pack, source files, and raw log disagree:
 1. source files and current tests/checks win
 2. then context pack
 3. raw log is fallback evidence only
+

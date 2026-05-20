@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: completed
 template_id: detailed-specification
 name: candidate-module-ssot-symmetry-invariance-refactor
 parent_thread: workstream-fitcv-semantic-spine.semantic-spine-phase-2-source-of-truth-boundary
@@ -38,16 +38,16 @@ Concrete invariants for skills shape, required section behavior, evidence refere
 - lock current behavior and drift boundaries before edits
 
 **Steps:**
-- [ ] capture baseline contracts from `src/fitcv/candidate.py`
-- [ ] classify equivalent concepts:
+- [x] capture baseline contracts from `src/fitcv/candidate.py`
+- [x] classify equivalent concepts:
   - profile parsing (`load_profile_yaml`, `load_profile_json_text`, `load_profile_text`)
   - normalization (`_normalize_profile_alignment_metadata`, `_normalize_text_list`, `_normalize_text`)
   - validation (`validate_profile`)
   - consumption (`flatten_skills`, `prepare_profile_rows`, `infer_effective_preferences`)
-- [ ] map contradictions and duplication with line anchors
+- [x] map contradictions and duplication with line anchors
 
 **Verification:**
-- [ ] findings matrix fully mapped to code lines and existing tests
+- [x] findings matrix fully mapped to code lines and existing tests
 
 **Exit Criteria:**
 - no planned refactor step depends on unstated behavior assumptions
@@ -58,14 +58,14 @@ Concrete invariants for skills shape, required section behavior, evidence refere
 - finalize contract decisions and bounded patch order
 
 **Steps:**
-- [ ] decide canonical internal entrypoint for normalized profile consumption
-- [ ] decide skills shape policy (strict dict-only vs backward-compatible dual-shape)
-- [ ] define shared constants for id-bearing and evidence-bearing sections
-- [ ] define parser error contract unification target
-- [ ] define extraction boundaries for shared normalization helpers
+- [x] decide canonical internal entrypoint for normalized profile consumption
+- [x] decide skills shape policy (strict dict-only vs backward-compatible dual-shape)
+- [x] define shared constants for id-bearing and evidence-bearing sections
+- [x] define parser error contract unification target
+- [x] define extraction boundaries for shared normalization helpers
 
 **Verification:**
-- [ ] each design decision includes rationale, alternatives, impact
+- [x] each design decision includes rationale, alternatives, impact
 
 **Exit Criteria:**
 - patch sequence can run incrementally with passing tests after each action
@@ -76,13 +76,13 @@ Concrete invariants for skills shape, required section behavior, evidence refere
 - define proof plan and migration/safety controls
 
 **Steps:**
-- [ ] define unit tests to lock invariants
-- [ ] define compatibility/deprecation controls
-- [ ] define rollback containment trigger and steps
-- [ ] define completion criteria for handoff to implementation plan
+- [x] define unit tests to lock invariants
+- [x] define compatibility/deprecation controls
+- [x] define rollback containment trigger and steps
+- [x] define completion criteria for handoff to implementation plan
 
 **Verification:**
-- [ ] every invariant has at least one proof target and evidence artifact
+- [x] every invariant has at least one proof target and evidence artifact
 
 **Exit Criteria:**
 - spec ready for implementation planning with bounded risk
@@ -245,5 +245,6 @@ Invariant IDs:
 - none
 Spec needed: yes
 Plan needed: yes
+
 
 
