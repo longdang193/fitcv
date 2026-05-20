@@ -721,6 +721,7 @@ def test_enrich_batch_retries_resource_exhausted_once(
     fake_exceptions = types.SimpleNamespace(ResourceExhausted=FakeResourceExhausted)
 
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
+    monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
     monkeypatch.setitem(sys.modules, "google.api_core.exceptions", fake_exceptions)
     monkeypatch.setattr("time.sleep", lambda secs: sleeps.append(secs))
 
@@ -731,7 +732,7 @@ def test_enrich_batch_retries_resource_exhausted_once(
 
     assert result == [{"job_url": "url1"}]
     assert attempts["count"] == 2
-    assert sleeps == [1.5, 1.5]  # backoff sleep + success-path global rate-limit sleep
+    assert sleeps == [1.5]
 
 
 def test_enrich_chunk_isolates_single_job_retry_from_following_jobs(
@@ -800,6 +801,7 @@ def test_enrich_batch_retries_genai_client_error_429_once(
     fake_google = types.SimpleNamespace(genai=fake_genai)
 
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
+    monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
     monkeypatch.setitem(sys.modules, "google.api_core.exceptions", fake_exceptions)
     monkeypatch.setitem(sys.modules, "google", fake_google)
     monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
@@ -813,7 +815,7 @@ def test_enrich_batch_retries_genai_client_error_429_once(
 
     assert result == [{"job_url": "url1"}]
     assert attempts["count"] == 2
-    assert sleeps == [2.0, 2.0]  # backoff sleep + success-path global rate-limit sleep
+    assert sleeps == [2.0]
 
 
 def test_enrich_batch_uses_exponential_backoff_for_repeated_429s(
@@ -844,6 +846,7 @@ def test_enrich_batch_uses_exponential_backoff_for_repeated_429s(
     fake_google = types.SimpleNamespace(genai=fake_genai)
 
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
+    monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
     monkeypatch.setitem(sys.modules, "google.api_core.exceptions", fake_exceptions)
     monkeypatch.setitem(sys.modules, "google", fake_google)
     monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
@@ -857,7 +860,7 @@ def test_enrich_batch_uses_exponential_backoff_for_repeated_429s(
 
     assert result == [{"job_url": "url1"}]
     assert attempts["count"] == 3
-    assert sleeps == [1.5, 3.0, 1.5]  # two backoff sleeps + success-path global rate-limit sleep
+    assert sleeps == [1.5, 3.0]
 
 
 def test_enrich_job_uses_google_genai_client(
@@ -1563,6 +1566,14 @@ def test_apply_structured_normalization_preserves_raw_scalar_companions() -> Non
     assert result["job_family_raw"] == " Data_Engineering "
     assert result["job_family"] == "data_engineering"
 
+def test_apply_structured_normalization_coerces_fractional_years_in_dict_payload() -> None:
+    result = _apply_structured_normalization(
+        {"years_experience_min": 0.5, "years_experience_max": 2.8},
+        config=None,
+    )
+    assert result["years_experience_min"] == 0
+    assert result["years_experience_max"] == 2
+
 def test_apply_structured_normalization_emits_domain_and_role_family_mapping_suggestions() -> None:
     output = EnrichmentOutput(
         domain=" Telco ",
@@ -1815,6 +1826,34 @@ def test_enrich_job_fallback_empty_on_bad_text(caplog: pytest.LogCaptureFixture)
 
     assert result["required_skills"] == []
     assert result["location_type"] is None
+
+def test_enrich_job_fallback_when_structured_payload_fails_validation(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
+    from unittest.mock import MagicMock, patch
+
+    mock_response = MagicMock()
+    mock_response.parsed = {
+        "required_skills": ["SQL"],
+        "required_skill_entities": ["bad-entry"],
+        "years_experience_min": 0.5,
+    }
+    mock_response.text = (
+        '{"required_skills":["SQL"],'
+        '"required_skill_entities":[{"raw_text":"SQL","canonical":"sql","confidence":1.0}],'
+        '"years_experience_min":0}'
+    )
+
+    with patch("fitcv.enrich._make_genai_client") as mk, \
+         caplog.at_level(logging.WARNING, logger="fitcv.enrich"):
+        mk.return_value.models.generate_content.return_value = mock_response
+        result = enrich_job(_job_fixture(), _config_fixture())
+
+    assert "structured output validation failed" in caplog.text.lower()
+    assert result["required_skills"] == ["SQL"]
+    assert result["required_skills_canonical"] == ["sql"]
+    assert result["years_experience_min"] == 0
 
 
 # ── bounded parallel enrichment (Tasks 3 + 4) ─────────────────────────────────

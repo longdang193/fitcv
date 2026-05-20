@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from typing import Any, TypedDict
 from types import SimpleNamespace
 
-from pydantic import BaseModel as _BaseModel, Field as _Field
+from pydantic import BaseModel as _BaseModel, Field as _Field, ValidationError as _ValidationError
 from fitcv.config import get_gemini_model, resolve_model_routing_part, sqlite_mode_enabled
 from fitcv.candidate import infer_role_family
 from fitcv.prompts import get_prompt_definition, render_prompt
@@ -607,7 +607,12 @@ def _apply_structured_normalization(
     - list fields: None values removed, items coerced to str
     """
     if isinstance(output, dict):
-        output = EnrichmentOutput.model_validate(output)
+        # Keep structured-dict behavior aligned with text-path coercion.
+        coerced_output = {
+            key: _coerce_field(key, value, config)
+            for key, value in output.items()
+        }
+        output = EnrichmentOutput.model_validate(coerced_output)
 
     required_skills = _normalize_array_values(output.required_skills)
     preferred_skills = _normalize_array_values(output.preferred_skills)
@@ -1429,8 +1434,15 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
 
     # ── Primary path: structured output ──────────────────────────────────────
     if response.parsed is not None:
-        parsed = _apply_structured_normalization(response.parsed, config)
-        return merge_scraped_and_enriched(job, parsed, config)
+        try:
+            parsed = _apply_structured_normalization(response.parsed, config)
+            return merge_scraped_and_enriched(job, parsed, config)
+        except _ValidationError as exc:
+            _log.warning(
+                "Structured output validation failed for %r — falling back to json_repair: %s",
+                title_for_log,
+                exc,
+            )
 
     # ── Fallback: text + json_repair ─────────────────────────────────────────
     _log.warning(
