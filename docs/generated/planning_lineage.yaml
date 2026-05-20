@@ -15,10 +15,8 @@ workstreams:
     path: docs/intent/workstreams/threads/workstream-agentic-observability/01-agentic-observability-event-contract.md
     specs:
     - docs/superpowers/specs/2026-04-28-agentic-observability-event-contract-spec.md
-    - docs/superpowers/specs/2026-05-20-17-15-telemetry-ssot-symmetry-refactor-spec.md
     plans:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
-    - docs/superpowers/plans/2026-05-20-17-20-telemetry-ssot-symmetry-refactor-plan.md
     derived_completion: completed
   - thread_id: workstream-agentic-observability.agentic-observability-operator-surface
     status: proposed
@@ -492,8 +490,10 @@ workstreams:
     path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/02-efficiency-reuse-late-stage-gating.md
     specs:
     - docs/superpowers/specs/2026-05-20-17-11-rule-filter-refactor-spec.md
+    - docs/superpowers/specs/2026-05-20-17-35-ranking-ssot-symmetry-invariance-spec.md
     plans:
     - docs/superpowers/plans/2026-05-20-17-16-rule-filter-refactor-implementation-plan.md
+    - docs/superpowers/plans/2026-05-20-17-45-ranking-ssot-symmetry-invariance-plan.md
     derived_completion: in_progress
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-operator-diagnostics
     status: proposed
