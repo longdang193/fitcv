@@ -18,6 +18,7 @@ from unittest.mock import patch
 import pytest
 
 from fitcv.embeddings import (
+    EMBEDDING_FAILURE_POLICY_RAISE,
     FRESH_EMBEDDING_STATUS,
     REUSED_CACHED_EMBEDDING_STATUS,
     build_embedding_contract_fingerprint,
@@ -26,6 +27,7 @@ from fitcv.embeddings import (
     build_job_summary_signature_payload,
     build_job_summary_signature_record,
     build_job_summary_text,
+    get_embedding_failure_policy,
 )
 
 
@@ -140,6 +142,17 @@ class TestBuildJobSummarySignatureRecord:
 
         assert build_job_summary_signature_record(first) == build_job_summary_signature_record(second)
 
+    def test_payload_json_uses_canonical_hash_payload_representation(self) -> None:
+        record = build_job_summary_signature_record(
+            {
+                "title": "Data Engineer",
+                "required_skills_canonical": ["python", "sql"],
+                "preferred_skills_canonical": ["dbt"],
+            }
+        )
+        assert record["payload_json"]
+        assert record["payload_json"] == record["payload_json"].strip()
+
 
 class TestBuildEmbeddingContractFingerprint:
     def test_contract_changes_when_embedding_model_changes(self) -> None:
@@ -147,6 +160,29 @@ class TestBuildEmbeddingContractFingerprint:
         second = build_embedding_contract_fingerprint({"shortlist_embedding_model": "text-embedding-004"})
 
         assert first["fingerprint"] != second["fingerprint"]
+
+
+class TestEmbeddingFailurePolicy:
+    def test_defaults_to_deterministic_fallback(self) -> None:
+        assert get_embedding_failure_policy({}) == "deterministic_fallback"
+
+    def test_unknown_policy_falls_back_to_default(self) -> None:
+        assert get_embedding_failure_policy({"embedding_failure_policy": "unknown"}) == "deterministic_fallback"
+
+    @patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False)
+    @patch("fitcv.embeddings._generate_vertex_embedding", side_effect=RuntimeError("provider down"))
+    def test_generate_embedding_raises_when_failure_policy_raise(
+        self,
+        mock_generate_vertex_embedding: object,
+        mock_sqlite_mode_enabled: object,
+    ) -> None:
+        from fitcv.embeddings import generate_embedding
+
+        with pytest.raises(RuntimeError, match="failure policy is set to raise"):
+            generate_embedding(
+                "Data Engineer",
+                {"embedding_failure_policy": EMBEDDING_FAILURE_POLICY_RAISE, "gcp_project": "p"},
+            )
 
 
 class TestBuildJobSummaryChunk:

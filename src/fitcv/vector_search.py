@@ -26,7 +26,8 @@ from fitcv.candidate import flatten_skills, infer_role_family
 from fitcv.config import sqlite_mode_enabled
 from fitcv.embeddings import generate_embedding, get_shortlist_embedding_model
 from fitcv.shortlist_runtime import (
-    canonicalize_for_hash,
+    build_bigquery_client,
+    build_contract_fingerprint,
     configure_sqlite_connection,
     hash_payload,
     normalize_text_scalar,
@@ -164,10 +165,6 @@ def _normalize_query_scalar(value: Any) -> str:
     return normalize_text_scalar(value)
 
 
-def _canonicalize_for_hash(value: Any) -> Any:
-    return canonicalize_for_hash(value)
-
-
 def build_candidate_query_components(
     profile: dict[str, Any],
     config: dict[str, Any] | None = None,
@@ -286,7 +283,7 @@ def build_candidate_query_signature_record(components: dict[str, Any]) -> dict[s
     payload_json, signature = hash_payload(payload)
     return {
         "payload": payload,
-        "payload_json": json.dumps(payload, sort_keys=True, separators=(",", ":")),
+        "payload_json": payload_json,
         "signature": signature,
     }
 
@@ -297,8 +294,7 @@ def build_candidate_query_embedding_contract_fingerprint(config: dict[str, Any])
         "embedding_model": get_shortlist_embedding_model(config),
         "candidate_query_schema_version": CANDIDATE_QUERY_SCHEMA_VERSION,
     }
-    payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    fingerprint = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+    fingerprint = build_contract_fingerprint(payload)
     return {
         "payload": payload,
         "fingerprint": fingerprint,
@@ -468,17 +464,9 @@ def resolve_candidate_query_embedding(
             candidate_query_reuse_status=FRESH_QUERY_EMBEDDING_STATUS,
         )
 
-    from google.cloud import bigquery  # type: ignore[import-untyped]
-    from google.oauth2 import service_account  # type: ignore[import-untyped]
-
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
-    key_path = str(config["service_account_key"])
-    if key_path:
-        credentials = service_account.Credentials.from_service_account_file(key_path)
-        client = bigquery.Client(project=project, credentials=credentials)
-    else:
-        client = bigquery.Client(project=project)
+    client = build_bigquery_client(config)
     table_ref = f"{project}.{dataset}.candidate_query_embeddings"
     try:
         cached_row = _load_latest_candidate_query_embedding(
@@ -704,17 +692,10 @@ def run_vector_search(
         return deduped
 
     from google.cloud import bigquery  # type: ignore[import-untyped]
-    from google.oauth2 import service_account  # type: ignore[import-untyped]
 
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
-    key_path = str(config["service_account_key"])
-
-    if key_path:
-        credentials = service_account.Credentials.from_service_account_file(key_path)
-        client = bigquery.Client(project=project, credentials=credentials)
-    else:
-        client = bigquery.Client(project=project)
+    client = build_bigquery_client(config)
 
     candidate_query_record = resolve_candidate_query_embedding(profile, config)
     embedding_vector = list(candidate_query_record.get("embedding") or [])
@@ -797,18 +778,9 @@ def store_shortlist(
 
     effective_strategy = retrieval_strategy or str(config.get("retrieval_strategy", "job_summary_v1"))
 
-    from google.cloud import bigquery  # type: ignore[import-untyped]
-    from google.oauth2 import service_account  # type: ignore[import-untyped]
-
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
-    key_path = str(config["service_account_key"])
-
-    if key_path:
-        credentials = service_account.Credentials.from_service_account_file(key_path)
-        client = bigquery.Client(project=project, credentials=credentials)
-    else:
-        client = bigquery.Client(project=project)
+    client = build_bigquery_client(config)
     table_ref = f"{project}.{dataset}.vector_shortlist"
     now = datetime.now(tz=timezone.utc).isoformat()
 

@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: embedding-cache-query-ssot-refactor
 parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract
@@ -30,6 +30,13 @@ Implement RA-01 safely by replacing interpolated job URL SQL in `_load_latest_jo
 ### Deliverable 3: Verified Bounded Change Scope
 
 Implementation evidence confirms scope stays within RA-01 targets and does not alter embedding fallback policy, schema versions, or status naming contracts.
+
+### Deliverable 4: Follow-on Refactor Sequencing Record
+
+Plan state explicitly records that:
+- RA-04 (`generate_embedding` path) is high-impact and must be preceded by explicit degradation-policy spec decision.
+- RA-02 broad extraction is deferred until query/failure invariants are locked.
+- RA-03 and RA-05 remain cleanup candidates but are lower risk-reduction priority than RA-01.
 
 ## Task/Wave Breakdown
 
@@ -123,17 +130,124 @@ Implementation evidence confirms scope stays within RA-01 targets and does not a
 - Tasks 1-3 complete
 
 **Steps:**
-- [ ] Step 1: run required fast validators and targeted tests (targeted tests pass; validator blocked by pre-existing unrelated spec/doc drift)
+- [x] Step 1: run required fast validators and targeted tests (targeted tests pass; strict validator closure waived by explicit user decision due pre-existing unrelated spec/doc drift)
 - [x] Step 2: confirm changed-file scope stays within RA-01 targets
-- [x] Step 3: record rollback plan (revert only RA-01 diff) and residual follow-on items (RA-02..RA-05)
+- [x] Step 3: record rollback plan (revert only RA-01 diff) and residual follow-on items (RA-02..RA-05), with explicit ordering:
+  - RA-04 requires dedicated degradation-policy decision first (high-impact path).
+  - RA-02 executes after invariants lock.
+  - RA-03 and RA-05 remain lower-priority cleanup.
 
 **Verification:**
-- [ ] `python scripts/hooks/run_validator.py --fast`
-- [ ] `pytest tests/test_embeddings.py -q`
-- [ ] scope inspection via git diff (and GitNexus detect-changes during implementation if commit phase reached)
+- [x] `python scripts/hooks/run_validator.py --fast` (known unrelated blocker accepted by explicit scope decision)
+- [x] `pytest tests/test_embeddings.py -q`
+- [x] scope inspection via git diff (and GitNexus detect-changes during implementation if commit phase reached)
 
 **Exit Criteria:**
 - implementation patch is validated, bounded, and ready for next-action execution
+
+### Task 5: RA-02 cross-module extraction
+
+**Purpose:**
+- centralize duplicated runtime helpers to improve symmetry and reduce repeated BigQuery/client wiring
+
+**Files:**
+- Inspect: `src/fitcv/embeddings.py`
+- Inspect: `src/fitcv/vector_search.py`
+- Modify: `src/fitcv/shortlist_runtime.py`
+- Modify: `src/fitcv/embeddings.py`
+- Modify: `src/fitcv/vector_search.py`
+
+**Preconditions:**
+- Task 4 scoped safety checks complete
+- query/failure invariants preserved
+
+**Steps:**
+- [x] Step 1: add shared helper(s) for BigQuery client construction in `shortlist_runtime.py`
+- [x] Step 2: update embedding and vector-search flows to use shared helper(s)
+- [x] Step 3: confirm behavior parity and no contract-field regressions
+
+**Verification:**
+- [x] `pytest tests/test_embeddings.py -q`
+- [x] `pytest tests/test_vector_search.py -q`
+
+**Exit Criteria:**
+- duplicated cross-module runtime setup reduced with preserved behavior
+
+### Task 6: RA-03 contract-fingerprint SSOT cleanup
+
+**Purpose:**
+- enforce one deterministic fingerprint pathway across equivalent embedding-contract flows
+
+**Files:**
+- Inspect: `src/fitcv/embeddings.py`
+- Inspect: `src/fitcv/vector_search.py`
+- Modify: `src/fitcv/shortlist_runtime.py`
+- Modify: `src/fitcv/embeddings.py`
+- Modify: `src/fitcv/vector_search.py`
+
+**Preconditions:**
+- Task 5 complete
+
+**Steps:**
+- [x] Step 1: add shared contract-fingerprint helper in `shortlist_runtime.py`
+- [x] Step 2: route job and candidate-query fingerprint builders through shared helper
+- [x] Step 3: keep payload schemas and version fields unchanged
+
+**Verification:**
+- [x] `pytest tests/test_embeddings.py -q`
+- [x] `pytest tests/test_vector_search.py -q`
+
+**Exit Criteria:**
+- contract fingerprint generation is centralized and invariant-preserving
+
+### Task 7: RA-04 degradation policy gate for high-impact embedding path
+
+**Purpose:**
+- add explicit failure-policy decision point for `generate_embedding` without changing default runtime semantics
+
+**Files:**
+- Inspect: `src/fitcv/embeddings.py`
+- Modify: `src/fitcv/embeddings.py`
+- Modify: `tests/test_embeddings.py`
+
+**Preconditions:**
+- Task 6 complete
+- high-impact guard acknowledged for `generate_embedding` path
+
+**Steps:**
+- [x] Step 1: add explicit `embedding_failure_policy` resolver and policy constants
+- [x] Step 2: keep default behavior as deterministic fallback; add `raise` policy branch
+- [x] Step 3: add tests for policy behavior and preserve existing passing behavior
+
+**Verification:**
+- [x] `pytest tests/test_embeddings.py -q`
+
+**Exit Criteria:**
+- degradation policy is explicit, default behavior preserved, and policy branch tested
+
+### Task 8: RA-05 obsolete/duplication cleanup
+
+**Purpose:**
+- remove dead wrappers and duplicate payload-json derivation to improve symmetry and reduce maintenance noise
+
+**Files:**
+- Modify: `src/fitcv/embeddings.py`
+- Modify: `src/fitcv/vector_search.py`
+
+**Preconditions:**
+- Tasks 5-7 complete
+
+**Steps:**
+- [x] Step 1: remove dead `_canonicalize_for_hash` wrappers
+- [x] Step 2: use canonical `hash_payload` output for `payload_json` fields
+- [x] Step 3: confirm no behavior regressions in covered tests
+
+**Verification:**
+- [x] `pytest tests/test_embeddings.py -q`
+- [x] `pytest tests/test_vector_search.py -q`
+
+**Exit Criteria:**
+- dead duplication removed and serialization symmetry preserved
 
 ## Verification
 
@@ -146,6 +260,26 @@ Implementation evidence confirms scope stays within RA-01 targets and does not a
 1. all Key Deliverables are satisfied
 2. all downstream/child items are terminal
 3. every child item is `completed` or `dropped`
+
+## Scope Evolution Note
+
+- Initial lane intent was RA-01 bounded execution.
+- Scope expanded in-lane to RA-02 through RA-05 by explicit user instruction.
+- Strict full-validator closure remained outside scoped remediation and was waived with known-blocker note.
+
+## Execution Addendum (RA-02 to RA-05)
+
+Follow-on work executed in this lane after explicit sequencing update:
+
+- [x] RA-02: broad extraction started across modules by centralizing shared runtime helpers in `src/fitcv/shortlist_runtime.py` and wiring `embeddings.py` + `vector_search.py` to shared BigQuery client/fingerprint helpers.
+- [x] RA-03: contract fingerprint cleanup executed via shared deterministic helper usage.
+- [x] RA-04: high-impact `generate_embedding` path updated with explicit degradation policy gate (`embedding_failure_policy`), default behavior preserved.
+- [x] RA-05: cleanup applied for dead helpers and duplicate payload-json derivations.
+
+Verification evidence for addendum:
+
+- `pytest tests/test_embeddings.py -q`
+- `pytest tests/test_vector_search.py -q`
 
 Canonical source-of-truth:
 

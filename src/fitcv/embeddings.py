@@ -17,13 +17,15 @@ lifecycle:
 
 import hashlib
 import json
+import logging
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any
 
 from fitcv.config import get_embedding_model, sqlite_mode_enabled
 from fitcv.shortlist_runtime import (
-    canonicalize_for_hash,
+    build_bigquery_client,
+    build_contract_fingerprint,
     configure_sqlite_connection,
     hash_payload,
     normalize_text_scalar,
@@ -37,6 +39,10 @@ SHORTLIST_DEFAULT_EMBEDDING_MODEL = "text-embedding-005"
 REUSED_CACHED_EMBEDDING_STATUS = "reused_cached_embedding"
 FRESH_EMBEDDING_STATUS = "fresh_embedding"
 SQLITE_EMBED_DIM = 256
+EMBEDDING_FAILURE_POLICY_DEFAULT = "deterministic_fallback"
+EMBEDDING_FAILURE_POLICY_RAISE = "raise"
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -44,11 +50,6 @@ SQLITE_EMBED_DIM = 256
 def _normalize_summary_scalar(value: Any) -> str:
     """Collapse whitespace while preserving human-readable casing."""
     return normalize_text_scalar(value)
-
-
-def _canonicalize_for_hash(value: Any) -> Any:
-    """Canonicalize nested values for deterministic hashing."""
-    return canonicalize_for_hash(value)
 
 
 def _stable_sorted_unique_strings(values: list[Any]) -> list[str]:
@@ -107,7 +108,7 @@ def build_job_summary_signature_record(structured_jd: dict[str, Any]) -> dict[st
     payload_json, signature = hash_payload(payload)
     return {
         "payload": payload,
-        "payload_json": json.dumps(payload, sort_keys=True, separators=(",", ":")),
+        "payload_json": payload_json,
         "signature": signature,
     }
 
@@ -123,8 +124,7 @@ def build_embedding_contract_fingerprint(config: dict[str, Any]) -> dict[str, An
         "embedding_model": get_shortlist_embedding_model(config),
         "summary_schema_version": SHORTLIST_SUMMARY_SCHEMA_VERSION,
     }
-    payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    fingerprint = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+    fingerprint = build_contract_fingerprint(payload)
     return {
         "payload": payload,
         "fingerprint": fingerprint,
@@ -336,6 +336,32 @@ def _deterministic_local_embedding(text: str) -> list[float]:
     return values
 
 
+def get_embedding_failure_policy(config: dict[str, Any]) -> str:
+    policy = str(config.get("embedding_failure_policy") or EMBEDDING_FAILURE_POLICY_DEFAULT).strip().lower()
+    if policy in {EMBEDDING_FAILURE_POLICY_DEFAULT, EMBEDDING_FAILURE_POLICY_RAISE}:
+        return policy
+    return EMBEDDING_FAILURE_POLICY_DEFAULT
+
+
+def _generate_vertex_embedding(
+    *,
+    text: str,
+    config: dict[str, Any],
+    model_name: str | None = None,
+) -> list[float]:
+    import vertexai  # type: ignore[import-untyped]
+    from fitcv.config import get_vertex_location
+    from vertexai.language_models import TextEmbeddingModel  # type: ignore[import-untyped]
+
+    vertexai.init(
+        project=str(config["gcp_project"]),
+        location=get_vertex_location(config),
+    )
+    model = TextEmbeddingModel.from_pretrained(str(model_name or SHORTLIST_DEFAULT_EMBEDDING_MODEL))
+    embeddings = model.get_embeddings([text])
+    return embeddings[0].values  # type: ignore[return-value]
+
+
 def generate_embedding(
     text: str,
     config: dict[str, Any],
@@ -350,18 +376,15 @@ def generate_embedding(
         return _deterministic_local_embedding(text)
 
     try:
-        import vertexai  # type: ignore[import-untyped]
-        from fitcv.config import get_vertex_location
-        from vertexai.language_models import TextEmbeddingModel  # type: ignore[import-untyped]
-
-        vertexai.init(
-            project=str(config["gcp_project"]),
-            location=get_vertex_location(config),
+        return _generate_vertex_embedding(
+            text=text,
+            config=config,
+            model_name=model_name,
         )
-        model = TextEmbeddingModel.from_pretrained(str(model_name or SHORTLIST_DEFAULT_EMBEDDING_MODEL))
-        embeddings = model.get_embeddings([text])
-        return embeddings[0].values  # type: ignore[return-value]
-    except Exception:
+    except Exception as exc:
+        if get_embedding_failure_policy(config) == EMBEDDING_FAILURE_POLICY_RAISE:
+            raise RuntimeError("Embedding provider call failed and failure policy is set to raise") from exc
+        logger.warning("Embedding provider failed; falling back to deterministic local embedding: %s", exc)
         return _deterministic_local_embedding(text)
 
 
@@ -470,17 +493,9 @@ def embed_and_store_jobs(
 
     import time
 
-    from google.cloud import bigquery  # type: ignore[import-untyped]
-    from google.oauth2 import service_account  # type: ignore[import-untyped]
-
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
-    key_path = str(config["service_account_key"])
-    if key_path:
-        credentials = service_account.Credentials.from_service_account_file(key_path)
-        client = bigquery.Client(project=project, credentials=credentials)
-    else:
-        client = bigquery.Client(project=project)
+    client = build_bigquery_client(config)
     table_ref = f"{project}.{dataset}.job_embeddings"
     now = datetime.now(tz=timezone.utc).isoformat()
     embedding_contract = build_embedding_contract_fingerprint(config)
@@ -579,17 +594,9 @@ def embed_and_store_candidate(
 
     import time
 
-    from google.cloud import bigquery  # type: ignore[import-untyped]
-    from google.oauth2 import service_account  # type: ignore[import-untyped]
-
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
-    key_path = str(config["service_account_key"])
-    if key_path:
-        credentials = service_account.Credentials.from_service_account_file(key_path)
-        client = bigquery.Client(project=project, credentials=credentials)
-    else:
-        client = bigquery.Client(project=project)
+    client = build_bigquery_client(config)
     table_ref = f"{project}.{dataset}.candidate_embeddings"
     now = datetime.now(tz=timezone.utc).isoformat()
 

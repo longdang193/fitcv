@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: completed
 template_id: detailed-specification
 name: embedding-cache-query-ssot-refactor
 parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract
@@ -123,6 +123,56 @@ Define acceptance criteria and validation evidence proving no behavioral regress
 **Exit Criteria:**
 - spec ready for implementation planning handoff
 
+### Wave 4: RA-02 extraction execution wave
+
+**Purpose:**
+- execute cross-module helper extraction after RA-01 invariants lock
+
+**Steps:**
+- [x] extract shared BigQuery-client construction into `shortlist_runtime.py`
+- [x] update `embeddings.py` and `vector_search.py` to consume shared helper
+- [x] verify parity on embedding/vector unit tests
+
+**Verification:**
+- [x] `pytest tests/test_embeddings.py -q`
+- [x] `pytest tests/test_vector_search.py -q`
+
+**Exit Criteria:**
+- duplicated cross-module setup is reduced without contract drift
+
+### Wave 5: RA-03 and RA-05 cleanup execution wave
+
+**Purpose:**
+- consolidate SSOT serialization/fingerprint logic and remove obsolete wrappers
+
+**Steps:**
+- [x] centralize contract fingerprint generation via shared helper
+- [x] remove dead `_canonicalize_for_hash` wrappers
+- [x] unify payload-json derivation to canonical `hash_payload` output
+
+**Verification:**
+- [x] `pytest tests/test_embeddings.py -q`
+- [x] `pytest tests/test_vector_search.py -q`
+
+**Exit Criteria:**
+- equivalent concepts now use symmetric implementation paths
+
+### Wave 6: RA-04 high-impact degradation-policy wave
+
+**Purpose:**
+- encode explicit degradation policy for high-impact `generate_embedding` path
+
+**Steps:**
+- [x] add explicit failure-policy resolver and policy constants
+- [x] preserve default fallback behavior; add explicit raise policy branch
+- [x] add/expand tests to prove policy branch behavior
+
+**Verification:**
+- [x] `pytest tests/test_embeddings.py -q`
+
+**Exit Criteria:**
+- high-impact path has explicit policy control with default semantics preserved
+
 ## Design Decisions
 
 ### Decision: Parameterize job metadata lookup query
@@ -148,6 +198,21 @@ Define acceptance criteria and validation evidence proving no behavioral regress
   - faster safe delivery
   - clearer rollback path
   - preserves behavior while reducing near-term risk
+
+### Decision: Explicit post-RA-01 sequencing for RA-02/03/04/05
+
+- context: follow-on refactors differ in blast radius and risk-reduction value.
+- choice:
+  - RA-04 touches high-impact `generate_embedding` path (GitNexus HIGH) and requires explicit degradation-policy decision in a dedicated spec before implementation.
+  - RA-02 is broad extraction across modules and executes only after query/failure invariants are locked and accepted.
+  - RA-03 and RA-05 remain valid cleanup actions, but are lower risk-reduction priority than RA-01.
+- alternatives considered:
+  - parallelize RA-02 and RA-04 immediately after RA-01
+  - run RA-03/RA-05 before RA-02/RA-04 without policy lock
+- impact:
+  - keeps highest-risk policy work gated by explicit decision records
+  - avoids premature cross-module extraction before invariant lock
+  - preserves momentum while prioritizing risk-reduction order
 
 ### Decision: Preserve runtime mutation contract for jobs in this phase
 
@@ -220,3 +285,22 @@ Define acceptance criteria and validation evidence proving no behavioral regress
 2. downstream implementation plan authored from this spec
 3. implementation patch verified with required tests and invariants
 4. no unresolved decision remains for RA-01 scope
+
+## Scope Evolution Note
+
+- Initial scope: RA-01 only.
+- Approved execution expansion: RA-02 through RA-05 executed in same lane after explicit sequencing update.
+- High-impact RA-04 governance handling: implemented with explicit degradation-policy gate while preserving default runtime behavior.
+
+## Execution Update (Scope Extension Applied)
+
+This lane moved beyond RA-01 and executed concrete RA-02 through RA-05 follow-ons with safety gates:
+
+- RA-02: extraction across `embeddings.py`, `vector_search.py`, and shared `shortlist_runtime.py`.
+- RA-03: shared contract-fingerprint normalization helper applied.
+- RA-04: explicit degradation-policy decision encoded in runtime (`embedding_failure_policy`), preserving current default fallback behavior.
+- RA-05: duplicate/dead helper cleanup and payload-json derivation symmetry fixes applied.
+
+High-impact notes:
+
+- `generate_embedding` impact remains HIGH in GitNexus; execution preserved default behavior and added explicit policy gate rather than changing default semantics.

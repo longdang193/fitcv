@@ -3,9 +3,9 @@
 ## 1) Objective
 
 - **Workstream / Plan:** `docs/superpowers/plans/2026-05-20-15-12-embedding-cache-query-ssot-refactor-plan.md`
-- **Goal:** Implement RA-01 parameterized metadata lookup in `src/fitcv/embeddings.py` with parity-safe tests.
-- **Bounded Scope (in-scope only):** `src/fitcv/embeddings.py`, `tests/test_embeddings.py`, plan/context-pack sync surfaces.
-- **Out of Scope (explicit):** provider fallback policy, schema migrations, unrelated dirty files/spec remediation.
+- **Goal:** finalize planning-source consistency for RA-01..RA-05 lane closeout.
+- **Bounded Scope (in-scope only):** remove stale spec non-goal contradiction + state sync.
+- **Out of Scope (explicit):** additional runtime/code behavior changes.
 
 ## 2) Canonical Inputs (Source of Truth)
 
@@ -15,36 +15,35 @@
 
 ## 3) Current Task State
 
-- **Completed:** Task 1 baseline; Task 2 parameterized query refactor; Task 3 regression tests; Task 4 step 2/3; scoped commit `de580266` prepared.
+- **Completed:** stale non-goal contradiction removed from spec; plan/spec now consistent with executed RA-02..RA-05 scope.
 - **In Progress:** none
-- **Deferred / Dropped:** none
-- **Known divergence from plan (if any):** strict validator closure intentionally waived by user due out-of-scope pre-existing planning-doc drift.
+- **Deferred / Dropped:** strict full-validator close remains previously waived as out-of-scope.
+- **Known divergence from plan (if any):** none for in-scope artifacts.
 
 ## 4) Files Changed This Session
 
-- `docs/superpowers/execution_context_packs/embedding-cache-query-ssot-refactor/latest.md` — closure decision and known-blocker acceptance recorded.
+- `docs/superpowers/specs/2026-05-20-15-10-embedding-cache-query-ssot-refactor-spec.md` — removed contradictory non-goal line.
+- `docs/superpowers/execution_context_packs/embedding-cache-query-ssot-refactor/latest.md` — closure-ready state sync.
 - `artifacts/execution_context_pack.md` — mirror sync.
 
 ## 5) Verification State
 
-- **Last commands run:** `npx gitnexus analyze` (worktree path), `pytest tests/test_embeddings.py -q`, `python scripts/hooks/run_validator.py --fast`.
-- **Result summary:** GitNexus refreshed successfully; targeted tests pass (`24 passed, 2 skipped`); RA-01 scoped diff complete.
-- **Failing checks (if any):** full validator still fails due unrelated pre-existing issues:
-  - `docs/superpowers/specs/2026-05-20-15-12-candidate-ssot-symmetry-invariance-spec.md` has `parent_workstream` with `parent_thread`
-  - `docs/generated/planning_lineage.yaml` stale
-- **Gaps still unverified:** strict repo-level validator green (waived for this scoped closeout).
+- **Last commands run:** targeted spec edit only.
+- **Result summary:** planning-source contradiction resolved.
+- **Failing checks (if any):** unchanged known out-of-scope validator drift.
+- **Gaps still unverified:** optional strict closeout validators if scope is expanded to include unrelated drift remediation.
 
 ## 6) Open Blockers / Risks
 
-- Known blocker accepted for scoped closeout: unrelated validator failures remain.
-- Unrelated dirty files in lane remain present by explicit user decision.
+- No in-scope blocker remains.
+- Known out-of-scope validator drift still exists by accepted waiver.
 
 ## 7) Next Exact Action
 
 - **Action type:** close now
-- **Target:** RA-01 lane closeout in scoped mode
-- **Exact command or edit intent:** no additional implementation edits; finalize with known-blocker note and hand off for merge/reconcile flow when requested.
-- **Why this is next:** all in-scope deliverables are complete; further actions are not eligible without expanding scope beyond RA-01.
+- **Target:** lane close boundary
+- **Exact command or edit intent:** no further in-scope edits; hand off to merge/reconcile flow when requested.
+- **Why this is next:** all in-scope artifacts and consistency checks are now complete.
 
 ## 8) Resume Prompt (Copy/Paste)
 

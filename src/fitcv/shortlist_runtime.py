@@ -85,3 +85,23 @@ def hash_payload(payload: dict[str, Any]) -> tuple[str, str]:
     payload_json = json.dumps(canonical_payload, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
     return payload_json, digest
+
+
+def build_contract_fingerprint(payload: dict[str, Any]) -> str:
+    """Return deterministic SHA-256 digest for a JSON-like contract payload."""
+    canonical_payload = canonicalize_for_hash(payload)
+    payload_json = json.dumps(canonical_payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+
+
+def build_bigquery_client(config: dict[str, Any]) -> Any:
+    """Build BigQuery client using optional service-account key path."""
+    from google.cloud import bigquery  # type: ignore[import-untyped]
+    from google.oauth2 import service_account  # type: ignore[import-untyped]
+
+    project = str(config["gcp_project"])
+    key_path = str(config.get("service_account_key") or "")
+    if key_path:
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        return bigquery.Client(project=project, credentials=credentials)
+    return bigquery.Client(project=project)
