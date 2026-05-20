@@ -24,7 +24,7 @@
   - user approved closure policy: broad pipeline/mypy failures treated as pre-existing out-of-scope for this lane
   - scoped verifications passing for telemetry/reporter and new event-payload parity test
 - **In Progress:**
-  - scoped staging/commit packaging for closure
+  - closure precondition reconciliation and validator evidence capture before merge/push
 - **Deferred / Dropped:**
   - none
 - **Known divergence from plan (if any):**
@@ -59,10 +59,10 @@
 
 ## 7) Next Exact Action
 
-- **Action type:** commit packaging
-- **Target:** scoped lane files only
-- **Exact command or edit intent:** stage only in-scope telemetry/pipeline/tests/plan/context-pack files, explicitly exclude unrelated modified files and `data/fitcv_cp_runtime.sqlite3`.
-- **Why this is next:** implementation and scoped evidence are complete; closure progression requires bounded commit artifact.
+- **Action type:** closure precondition validation
+- **Target:** lane closure gates in single-lane merge/reconcile flow
+- **Exact command or edit intent:** run `py scripts/validate_planning_lifecycle.py --strict`, `py scripts/validate_checkpoint_packs.py`, and `.\.venv\Scripts\python.exe scripts/validate_repo_contracts.py --fast` before merge decision; run architecture sync check only if script exists.
+- **Why this is next:** scoped commit exists (`a5af291d`); closure prompt requires evidence-first validator pass before any merge/push.
 
 ## 8) Resume Prompt (Copy/Paste)
 
