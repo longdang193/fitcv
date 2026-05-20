@@ -1,0 +1,28 @@
+{
+  "runId": "cb17dd77-5b3b-489a-aea1-edc66861701e",
+  "url": "http://localhost:8000/admin/runs/cb17dd77-5b3b-489a-aea1-edc66861701e/synonym-review",
+  "pendingLabel": "2 pending of 2 proposal(s)",
+  "rowActionCountBefore": 2,
+  "checkedBefore": 0,
+  "valuesBefore": [
+    "",
+    ""
+  ],
+  "prefillVisible": true,
+  "checkedAfter": 2,
+  "valuesAfter": [
+    "approve",
+    "defer"
+  ],
+  "valueCountsAfter": {
+    "approve": 1,
+    "defer": 1
+  },
+  "statusText": "AI assist prefilled actions: approve=1, defer=1, reject=0, no_recommendation=0. Selected: 2.",
+  "assertions": {
+    "rowActionsRender": true,
+    "prefillChangedAnyAction": true,
+    "prefillAutoCheckedRows": true,
+    "statusHasCounts": true
+  }
+}

@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: implemented
 template_id: detailed-specification
 name: synonym-review-queue-symmetry
 parent_thread: workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow
@@ -48,12 +48,12 @@ Specify a dedicated promote-review surface that clearly separates:
 - baseline current asymmetry and affected boundaries before design choice
 
 **Steps:**
-- [ ] map Agentic queue UX + batch contract (`job_url[]` selection)
-- [ ] map Synonym queue UX + batch contract (`proposal_action__<id>` pending-only controls)
-- [ ] map promote preview fallback behavior when selected set absent
+- [x] map Agentic queue UX + batch contract (`job_url[]` selection)
+- [x] map Synonym queue UX + batch contract (`proposal_action__<id>` pending-only controls)
+- [x] map promote preview fallback behavior when selected set absent
 
 **Verification:**
-- [ ] asymmetry documented with concrete file/symbol references
+- [x] asymmetry documented with concrete file/symbol references
 
 **Exit Criteria:**
 - no design claim depends on unstated UI or backend behavior
@@ -64,12 +64,12 @@ Specify a dedicated promote-review surface that clearly separates:
 - resolve target interaction model and state machine boundaries
 
 **Steps:**
-- [ ] define shared queue interaction invariants
-- [ ] define synonym row selectability and action transition matrix
-- [ ] define dedicated promote-review page route, grouped sections, and commit contract
+- [x] define shared queue interaction invariants
+- [x] define synonym row selectability and action transition matrix
+- [x] define dedicated promote-review page route, grouped sections, and commit contract
 
 **Verification:**
-- [ ] all major design questions have explicit decision
+- [x] all major design questions have explicit decision
 
 **Exit Criteria:**
 - design internally coherent and bounded to review-surface behavior
@@ -80,12 +80,12 @@ Specify a dedicated promote-review surface that clearly separates:
 - make implementation proof obligations explicit
 
 **Steps:**
-- [ ] define acceptance criteria with observable UI/API evidence
-- [ ] define regression checks against Agentic queue behavior
-- [ ] define non-goals to prevent scope creep into unrelated pipeline logic
+- [x] define acceptance criteria with observable UI/API evidence
+- [x] define regression checks against Agentic queue behavior
+- [x] define non-goals to prevent scope creep into unrelated pipeline logic
 
 **Verification:**
-- [ ] validation plan can prove symmetry without ambiguous interpretation
+- [x] validation plan can prove symmetry without ambiguous interpretation
 
 **Exit Criteria:**
 - spec ready for implementation planning handoff

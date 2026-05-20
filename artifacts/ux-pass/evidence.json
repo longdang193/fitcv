@@ -1,0 +1,21 @@
+{
+  "base": "http://localhost:8000",
+  "steps": [
+    {
+      "step": "open_runs",
+      "url": "http://localhost:8000/admin/runs"
+    },
+    {
+      "step": "open_synonym_review",
+      "url": "http://localhost:8000/admin/runs/e8cde832-a950-4d02-ba93-65ac0bafc3cc/synonym-review"
+    }
+  ],
+  "rowActionCount": 0,
+  "prefillButtonVisible": true,
+  "prefill": {
+    "checkedRows": 0,
+    "allRows": 0,
+    "selectValueCounts": {},
+    "statusText": ""
+  }
+}
