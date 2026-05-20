@@ -5747,6 +5747,7 @@ def test_admin_synonym_workspace_shows_triage_refresh_action_and_status() -> Non
     assert "/admin/runs/run-proposal-ui-triage-action/synonym-proposals/triage-refresh" in resp.text
     assert "Refresh Triage Recommendations" in resp.text
     assert "Choose row decisions, or use AI assist to prefill recommendations." in resp.text
+    assert 'name="proposal_action__proposal-gcpx"' in resp.text
 
 
 def test_admin_run_detail_shows_triage_summary_banner_from_query_params() -> None:
@@ -5859,6 +5860,51 @@ def test_admin_run_synonym_proposals_batch_action_redirects_to_synonym_workspace
     assert (
         resp.headers["location"]
         == "/admin/runs/run-proposal-batch/synonym-review?synonym_batch_applied=2&synonym_batch_skipped=0&synonym_batch_failed=0"
+    )
+
+
+def test_admin_run_synonym_proposals_batch_action_selected_rows_use_row_action_before_batch() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-proposal-batch-row-priority",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-batch-row-priority","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9},'
+            '{"proposal_id":"proposal-sql","proposal_status":"proposed_unreviewed","alias":"sql","canonical":"structured query language","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.list_runs", return_value=[run]), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={
+             "persistence_status": "persisted",
+             "degradation_reason": "",
+         }), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-proposal-batch-row-priority/synonym-proposals/batch-action",
+            data={
+                "acted_by": "operator@example.com",
+                "proposal_id": ["proposal-gcp", "proposal-sql"],
+                "batch_action": "defer",
+                "proposal_action__proposal-gcp": "approve",
+            },
+        )
+
+    assert resp.status_code == 303
+    assert (
+        resp.headers["location"]
+        == "/admin/runs/run-proposal-batch-row-priority/synonym-review?synonym_batch_applied=2&synonym_batch_skipped=0&synonym_batch_failed=0"
     )
 
 def test_admin_run_synonym_proposal_action_blocked_when_apply_to_run_disabled() -> None:

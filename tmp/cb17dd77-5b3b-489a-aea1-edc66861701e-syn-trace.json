@@ -1,0 +1,165 @@
+{
+  "run_id": "cb17dd77-5b3b-489a-aea1-edc66861701e",
+  "trace_schema_version": "agentic_step_trace_run_v1",
+  "trace_family": "agentic_step_trace",
+  "step_id": "synonym_proposals",
+  "created_at": "2026-05-20T12:08:20.209586+00:00",
+  "trace_status": "completed",
+  "trace_summary": {
+    "records_total": 2,
+    "present_records": 2,
+    "proposal_count": 2,
+    "suppressed_as_already_global_count": 3,
+    "generated_for_review_count": 2,
+    "suppressed_count_by_field": {
+      "role_family": 1,
+      "domain": 2,
+      "skill": 3
+    },
+    "suppressed_reason_counts_by_field": {
+      "role_family": {
+        "insufficient_non_skill_support": 1
+      },
+      "domain": {
+        "insufficient_non_skill_support": 2
+      },
+      "skill": {
+        "already_global_exact": 3
+      }
+    },
+    "suppression_source": "run_effective_skill_synonyms",
+    "triage_recommendation_generated_total": 2,
+    "triage_recommendation_reused_total": 0,
+    "triage_recommendation_fresh_total": 2,
+    "triage_recommendation_suppressed_total": 0,
+    "triage_recommendation_reuse_reason": "reuse_disabled",
+    "triage_recommendation_fingerprint": "06d50da2002bea45cf6df2649fd03ca86aff2652292e75a6590d47d43460b422",
+    "auto_apply_recommendation_applied": 0,
+    "auto_apply_recommendation_skipped": 0,
+    "auto_apply_recommendation_failed": 0,
+    "auto_apply_recommendation_reason_counts": {},
+    "auto_promote_global_applied": 0,
+    "auto_promote_global_skipped": 0,
+    "auto_promote_global_failed": 0,
+    "auto_promote_global_skip_reason": "disabled"
+  },
+  "records": [
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "synonym_proposals",
+      "trace_status": "completed",
+      "record_id": "synprop-2f05a41d95c3",
+      "scope_type": "alias",
+      "scope_key": "it services and it consulting",
+      "status": "proposed_unreviewed",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "mapping_suggestions_to_synonym_proposals"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "proposal_generation",
+          "attempt_status": "completed",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "alias": "it services and it consulting",
+        "candidate_canonicals_count": 2
+      },
+      "output_summary": {
+        "proposal_family": "conflict_bundle",
+        "proposal_scope": "run_scoped_overlay_candidate",
+        "confidence": 1.0
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "synonym_proposals",
+      "trace_status": "completed",
+      "record_id": "synprop-cde5c4f18656",
+      "scope_type": "alias",
+      "scope_key": "datenvisualisierung",
+      "status": "proposed_unreviewed",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "mapping_suggestions_to_synonym_proposals"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "proposal_generation",
+          "attempt_status": "completed",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "alias": "datenvisualisierung",
+        "candidate_canonicals_count": 1
+      },
+      "output_summary": {
+        "proposal_family": "alias_to_canonical_mapping",
+        "proposal_scope": "run_scoped_overlay_candidate",
+        "confidence": 0.9
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null
+    }
+  ],
+  "degradation": {},
+  "artifact_refs": {
+    "proposal_artifact": "synonym-proposals.json",
+    "stage_artifact": "enrich.json"
+  },
+  "suppression_examples": [
+    {
+      "field": "role_family",
+      "alias": "data science",
+      "canonical": "data_science"
+    },
+    {
+      "field": "domain",
+      "alias": "motor vehicle manufacturing and technology, information and internet",
+      "canonical": "automotive mobility (car subscription)"
+    },
+    {
+      "field": "skill",
+      "alias": "sowie jira und confluence",
+      "canonical": "confluence"
+    },
+    {
+      "field": "skill",
+      "alias": "strong sql skills",
+      "canonical": "sql"
+    },
+    {
+      "field": "domain",
+      "alias": "non-profit organizations and primary and secondary education",
+      "canonical": "telecommunications"
+    },
+    {
+      "field": "skill",
+      "alias": "erfahrungen im anforderungsmanagement",
+      "canonical": "requirements management"
+    }
+  ]
+}

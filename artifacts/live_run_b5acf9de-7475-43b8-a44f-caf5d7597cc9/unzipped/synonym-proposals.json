@@ -1,0 +1,2856 @@
+{
+  "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+  "synonym_proposals_schema_version": "synonym_proposals_v1",
+  "created_at": "2026-05-20T12:28:50.243123+00:00",
+  "proposal_generation_status": "generated",
+  "persistence_status": "persisted",
+  "proposals": [
+    {
+      "proposal_id": "synprop-e28528fd940c",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "domain",
+      "alias": "business consulting and services",
+      "canonical": "banking",
+      "candidate_aliases": [
+        "business consulting and services"
+      ],
+      "candidate_canonicals": [
+        "banking",
+        "manufacturing"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 2,
+        "distinct_canonical_count": 2
+      },
+      "evidence_summary": {
+        "occurrence_count": 2,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4048085589",
+            "job_title": "(Junior) Consultant (w/m/d) Banking & Financial Institutions",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/manufacturing-associate-partner-deutschlandweit-at-infosys-consulting-4415387000?trk=public_jobs_topcard-title",
+            "job_title": "Manufacturing Associate Partner- Deutschlandweit",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "manufacturing"
+        ]
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "71daf01be5bc102fb29f6d40c08a6984f6af99704b99358986fcc4c1c10f5aa9"
+      }
+    },
+    {
+      "proposal_id": "synprop-b2ad1310a4c3",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "domain",
+      "alias": "it services and it consulting",
+      "canonical": "business messaging saas",
+      "candidate_aliases": [
+        "it services and it consulting"
+      ],
+      "candidate_canonicals": [
+        "business messaging saas",
+        "human_resources",
+        "logistics"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 3,
+        "distinct_canonical_count": 3
+      },
+      "evidence_summary": {
+        "occurrence_count": 3,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/finance-assistant-remote-at-360dialog-4416244424?trk=public_jobs_topcard-title",
+            "job_title": "Finance Assistant | Remote",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/dock-tech-at-christie-lites-4415510746?trk=public_jobs_topcard-title",
+            "job_title": "Dock Tech",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4416600250",
+            "job_title": "Human Resources Assistant | Remote",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "human_resources",
+          "logistics"
+        ]
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "fff5aad8da3ca70862f99c7f8a5c6c08156fb334426995f3b65ecee314d686fc"
+      }
+    },
+    {
+      "proposal_id": "synprop-f5494bd583ff",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "domain",
+      "alias": "retail luxury goods and jewelry",
+      "canonical": "retail",
+      "candidate_aliases": [
+        "retail luxury goods and jewelry"
+      ],
+      "candidate_canonicals": [
+        "retail",
+        "retail (premium consumer goods / fashion)"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 2,
+        "distinct_canonical_count": 2
+      },
+      "evidence_summary": {
+        "occurrence_count": 2,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4405992963",
+            "job_title": "Operations Manager (m/w/d)",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413600413",
+            "job_title": "(Senior) Operations Manager (m/f/d)",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "retail (premium consumer goods / fashion)"
+        ]
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "a03c226b8112e66cfd6aa56b27c5c70fb4ee07d0adad02d61933ef39d64355d5"
+      }
+    },
+    {
+      "proposal_id": "synprop-77ceebbaf5f9",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "domain",
+      "alias": "software development",
+      "canonical": "food delivery",
+      "candidate_aliases": [
+        "software development"
+      ],
+      "candidate_canonicals": [
+        "food delivery",
+        "healthcare",
+        "industrial procurement / manufacturing",
+        "last-mile delivery / commerce marketplace",
+        "live entertainment",
+        "manufacturing"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 6,
+        "distinct_canonical_count": 6
+      },
+      "evidence_summary": {
+        "occurrence_count": 6,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/revenue-strategy-operations-manager-at-wolt-4405038786?trk=public_jobs_topcard-title",
+            "job_title": "Revenue Strategy & Operations Manager",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4383804472",
+            "job_title": "Office Management",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/restaurant-onboarding-specialist-m-f-x-at-wolt-4414700375?trk=public_jobs_topcard-title",
+            "job_title": "Restaurant Onboarding Specialist (m/f/x)",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/global-people-operations-manager-w-m-d-at-vivenu-4415384094?trk=public_jobs_topcard-title",
+            "job_title": "Global People Operations Manager (w/m/d)",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/sales-performance-senior-lead-x-f-m-at-doctolib-4407405606?trk=public_jobs_topcard-title",
+            "job_title": "Sales Performance Senior Lead (x/f/m)",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "healthcare",
+          "industrial procurement / manufacturing",
+          "last-mile delivery / commerce marketplace",
+          "live entertainment",
+          "manufacturing"
+        ]
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "33a2988fbb483f630fa87c61c5c837918c7ba34f7089aa58121a34e938738c7b"
+      }
+    },
+    {
+      "proposal_id": "synprop-0adbd26399f3",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "domain",
+      "alias": "software development and it services and it consulting",
+      "canonical": "e-commerce",
+      "candidate_aliases": [
+        "software development and it services and it consulting"
+      ],
+      "candidate_canonicals": [
+        "e-commerce",
+        "e-commerce pharmacy",
+        "last-mile delivery logistics",
+        "on-demand delivery logistics"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 4,
+        "distinct_canonical_count": 4
+      },
+      "evidence_summary": {
+        "occurrence_count": 4,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/group-product-manager-logistics-routing-dispatch-optimization-at-delivery-hero-4401423303?trk=public_jobs_topcard-title",
+            "job_title": "Group Product Manager - (Logistics,  Routing & Dispatch Optimization)",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/manager-product-operations-support-logistics-rider-at-delivery-hero-4415019899?trk=public_jobs_topcard-title",
+            "job_title": "Manager, Product Operations Support - (Logistics, Rider)",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/senior-pricing-analyst-product-operations-global-pricing-at-delivery-hero-4397268650?trk=public_jobs_topcard-title",
+            "job_title": "Senior Pricing Analyst, Product Operations (Global Pricing)",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/supply-chain-director-m-w-d-at-redcare-pharmacy-4416093062?trk=public_jobs_topcard-title",
+            "job_title": "Supply Chain Director (m/w/d)",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "e-commerce pharmacy",
+          "last-mile delivery logistics",
+          "on-demand delivery logistics"
+        ]
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "b7bd3a7028768289d4debf87be1d964ce206d65933370fd3f4da7e24e261e1e6"
+      }
+    },
+    {
+      "proposal_id": "synprop-9718ab88e698",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "domain",
+      "alias": "technology, information and internet",
+      "canonical": "fintech",
+      "candidate_aliases": [
+        "technology, information and internet"
+      ],
+      "candidate_canonicals": [
+        "fintech",
+        "industrial manufacturing (high-performance engineering materials/chemicals)"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 2,
+        "distinct_canonical_count": 2
+      },
+      "evidence_summary": {
+        "occurrence_count": 2,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/teamlead-logistics-at-envalior-4402113214?trk=public_jobs_topcard-title",
+            "job_title": "Teamlead Logistics",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/client-operations-representative-at-viva-com-4394620714?trk=public_jobs_topcard-title",
+            "job_title": "Client Operations Representative",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "industrial manufacturing (high-performance engineering materials/chemicals)"
+        ]
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "7899de5f928bfc41d9b181f6a783bb48f00896277cdd432f64975152ee35ba9c"
+      }
+    },
+    {
+      "proposal_id": "synprop-4ae10f18063f",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "domain",
+      "alias": "travel arrangements",
+      "canonical": "business travel",
+      "candidate_aliases": [
+        "travel arrangements"
+      ],
+      "candidate_canonicals": [
+        "business travel",
+        "campervan rental / travel"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 2,
+        "distinct_canonical_count": 2
+      },
+      "evidence_summary": {
+        "occurrence_count": 2,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413988739",
+            "job_title": "Multi-Site Operations Specialist (m/w/d)",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/operations-manager-at-c-m-travel-recruitment-4415930294?trk=public_jobs_topcard-title",
+            "job_title": "Operations Manager",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "campervan rental / travel"
+        ]
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "39ae87a91f8334a37e8b03eb5c18cdeab810458ed7063b163dfd270e5dcb54a1"
+      }
+    },
+    {
+      "proposal_id": "synprop-b747452ab8b2",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "specifically for a/b testing",
+      "canonical": "a/b testing",
+      "candidate_aliases": [
+        "specifically for a/b testing"
+      ],
+      "candidate_canonicals": [
+        "a/b testing"
+      ],
+      "confidence": 0.95,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.95,
+        "must_have_skills": [
+          "a/b testing"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/senior-pricing-analyst-product-operations-global-pricing-at-delivery-hero-4397268650?trk=public_jobs_topcard-title",
+            "job_title": "Senior Pricing Analyst, Product Operations (Global Pricing)",
+            "confidence": 0.95
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.95,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "1904e9ca4633341194fbf5e915618e00b4e806cd8953fbc7d7d5ffce7c705125"
+      }
+    },
+    {
+      "proposal_id": "synprop-138bc02dbc09",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "experience with github",
+      "canonical": "git",
+      "candidate_aliases": [
+        "experience with github"
+      ],
+      "candidate_canonicals": [
+        "git"
+      ],
+      "confidence": 0.93,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.93,
+        "must_have_skills": [
+          "git"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/senior-pricing-analyst-product-operations-global-pricing-at-delivery-hero-4397268650?trk=public_jobs_topcard-title",
+            "job_title": "Senior Pricing Analyst, Product Operations (Global Pricing)",
+            "confidence": 0.93
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.93,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "807ef358bb32016b129bae535b9ba5d3771c7082e4a4bcb9e478cc8d3f2882b3"
+      }
+    },
+    {
+      "proposal_id": "synprop-04b4b88d81f0",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "background in facility management",
+      "canonical": "facility management",
+      "candidate_aliases": [
+        "background in facility management"
+      ],
+      "candidate_canonicals": [
+        "facility management"
+      ],
+      "confidence": 0.9,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.9,
+        "must_have_skills": [
+          "facility management"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/facilities-operations-manager-at-mindspace-4415458301?trk=public_jobs_topcard-title",
+            "job_title": "Facilities Operations Manager",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.9,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "e0bd596a79c5dfd12143e09de4ac7ecd7a5be713a3cdfab9b042e32e938e2276"
+      }
+    },
+    {
+      "proposal_id": "synprop-4040ca4f7904",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "managing external manufacturing",
+      "canonical": "external manufacturing management",
+      "candidate_aliases": [
+        "managing external manufacturing"
+      ],
+      "candidate_canonicals": [
+        "external manufacturing management"
+      ],
+      "confidence": 0.86,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.86,
+        "must_have_skills": [
+          "external manufacturing management"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/manufacturing-operations-manager-at-european-tech-recruit-4416254580?trk=public_jobs_topcard-title",
+            "job_title": "Manufacturing Operations Manager",
+            "confidence": 0.86
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.86,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "8405dace07721772a446767874547efb99291d1e16965f22827829f51121ac85"
+      }
+    },
+    {
+      "proposal_id": "synprop-1f83d488e795",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "headcount-analysen",
+      "canonical": "headcount analysis",
+      "candidate_aliases": [
+        "headcount-analysen"
+      ],
+      "candidate_canonicals": [
+        "headcount analysis"
+      ],
+      "confidence": 0.85,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.85,
+        "must_have_skills": [
+          "headcount analysis"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/global-people-operations-manager-w-m-d-at-vivenu-4415384094?trk=public_jobs_topcard-title",
+            "job_title": "Global People Operations Manager (w/m/d)",
+            "confidence": 0.85
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "9d291f84fdc1e3b819a2e7996e8651d9ee1e678eae6792c34ac6680bf0b47b8b"
+      }
+    },
+    {
+      "proposal_id": "synprop-0644beac6d63",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "prozess engineering",
+      "canonical": "process engineering",
+      "candidate_aliases": [
+        "prozess engineering"
+      ],
+      "candidate_canonicals": [
+        "process engineering"
+      ],
+      "confidence": 0.84,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.84,
+        "must_have_skills": [
+          "process engineering"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/global-people-operations-manager-w-m-d-at-vivenu-4415384094?trk=public_jobs_topcard-title",
+            "job_title": "Global People Operations Manager (w/m/d)",
+            "confidence": 0.84
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.84,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "79de25f4ad5a8ab6e253b56994b9cbc22414530058afe775544c4e1e23c355e7"
+      }
+    },
+    {
+      "proposal_id": "synprop-3d07d89a581f",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "updating editorial calendars",
+      "canonical": "editorial calendar management",
+      "candidate_aliases": [
+        "updating editorial calendars"
+      ],
+      "candidate_canonicals": [
+        "editorial calendar management"
+      ],
+      "confidence": 0.84,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.84,
+        "must_have_skills": [
+          "editorial calendar management"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-social-media-content-manager-at-spire-4384168261?trk=public_jobs_topcard-title",
+            "job_title": "Junior Social Media & Content Manager",
+            "confidence": 0.84
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.84,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "cda09c6f50d14aa471c32dd7d007ba42e1d8c079cd5913c2427cb5e6700be125"
+      }
+    },
+    {
+      "proposal_id": "synprop-c056b3c7a39c",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "you own the reporting",
+      "canonical": "reporting",
+      "candidate_aliases": [
+        "you own the reporting"
+      ],
+      "candidate_canonicals": [
+        "reporting"
+      ],
+      "confidence": 0.83,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.83,
+        "must_have_skills": [
+          "reporting"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4407414538",
+            "job_title": "Revenue Operations",
+            "confidence": 0.83
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.83,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "ef5f149bbaeaf85dd459cc15509576bf283a55ccba179bccb19b4a17dbe19e7a"
+      }
+    },
+    {
+      "proposal_id": "synprop-6c1db2a9ebe6",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "assisting with video scripts",
+      "canonical": "video scripting",
+      "candidate_aliases": [
+        "assisting with video scripts"
+      ],
+      "candidate_canonicals": [
+        "video scripting"
+      ],
+      "confidence": 0.78,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.78,
+        "must_have_skills": [
+          "video scripting"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-social-media-content-manager-at-spire-4384168261?trk=public_jobs_topcard-title",
+            "job_title": "Junior Social Media & Content Manager",
+            "confidence": 0.78
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.78,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "1793a7d2df61d10683b7e97bc0e0690f4e4ef8e7dfc84a484686cdbed7c6a732"
+      }
+    },
+    {
+      "proposal_id": "synprop-68b8d017615a",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "including experimentation and guardrails",
+      "canonical": "experimentation",
+      "candidate_aliases": [
+        "including experimentation and guardrails"
+      ],
+      "candidate_canonicals": [
+        "experimentation"
+      ],
+      "confidence": 0.78,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.78,
+        "must_have_skills": [
+          "experimentation"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/group-product-manager-logistics-routing-dispatch-optimization-at-delivery-hero-4401423303?trk=public_jobs_topcard-title",
+            "job_title": "Group Product Manager - (Logistics,  Routing & Dispatch Optimization)",
+            "confidence": 0.78
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.78,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "1770bc1e3f44150656edf92a3a7c6280a3530822a1a0b7e96fb874a9d3b62289"
+      }
+    },
+    {
+      "proposal_id": "synprop-fac4e9d766fb",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "optimising the supply chain",
+      "canonical": "supply chain optimization",
+      "candidate_aliases": [
+        "optimising the supply chain"
+      ],
+      "candidate_canonicals": [
+        "supply chain optimization"
+      ],
+      "confidence": 0.78,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.78,
+        "must_have_skills": [
+          "supply chain optimization"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/manufacturing-operations-manager-at-european-tech-recruit-4416254580?trk=public_jobs_topcard-title",
+            "job_title": "Manufacturing Operations Manager",
+            "confidence": 0.78
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.78,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "b631ff51d1d333f8086a08258b4db5b9da1284f199e4ffb3cd940ee8a0e8dd29"
+      }
+    },
+    {
+      "proposal_id": "synprop-4c0660bd0031",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "stetige optimierung von prozessen",
+      "canonical": "process optimization",
+      "candidate_aliases": [
+        "stetige optimierung von prozessen"
+      ],
+      "candidate_canonicals": [
+        "process optimization"
+      ],
+      "confidence": 0.78,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.78,
+        "must_have_skills": [
+          "process optimization"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/head-of-global-operations-m-w-d-at-dsj-global-4415681741?trk=public_jobs_topcard-title",
+            "job_title": "Head of global Operations (m/w/d)",
+            "confidence": 0.78
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.78,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "d79e81d792ab026127b46d4ce31608ed3c09c84e551b393a1b9658235cd8270c"
+      }
+    },
+    {
+      "proposal_id": "synprop-1972ebb24c9b",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "enhance product ramp-up",
+      "canonical": "product ramp-up",
+      "candidate_aliases": [
+        "enhance product ramp-up"
+      ],
+      "candidate_canonicals": [
+        "product ramp-up"
+      ],
+      "confidence": 0.77,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.77,
+        "must_have_skills": [
+          "product ramp-up"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/manufacturing-operations-manager-at-european-tech-recruit-4416254580?trk=public_jobs_topcard-title",
+            "job_title": "Manufacturing Operations Manager",
+            "confidence": 0.77
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.77,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "45478f57e01f9f6b7aed38ae197f4f77874a0b5445ca17537b31fc578943b2ed"
+      }
+    },
+    {
+      "proposal_id": "synprop-962aa995a8e2",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "basic computer skills",
+      "canonical": "computer literacy",
+      "candidate_aliases": [
+        "basic computer skills"
+      ],
+      "candidate_canonicals": [
+        "computer literacy"
+      ],
+      "confidence": 0.74,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.74,
+        "must_have_skills": [
+          "computer literacy"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/dock-tech-at-christie-lites-4415510746?trk=public_jobs_topcard-title",
+            "job_title": "Dock Tech",
+            "confidence": 0.74
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.84,
+      "recommendation_rationale": "Moderate confidence mapping should be deferred for review.",
+      "recommendation_risk_flags": [
+        "moderate_confidence"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "f188d78e36a55238a9d9673ddc04033ba176aa3a2cbf5546b410bfe2a7570231"
+      }
+    },
+    {
+      "proposal_id": "synprop-850360aaf616",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "optimize delivery",
+      "canonical": "delivery optimization",
+      "candidate_aliases": [
+        "optimize delivery"
+      ],
+      "candidate_canonicals": [
+        "delivery optimization"
+      ],
+      "confidence": 0.72,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.72,
+        "must_have_skills": [
+          "delivery optimization"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/manufacturing-operations-manager-at-european-tech-recruit-4416254580?trk=public_jobs_topcard-title",
+            "job_title": "Manufacturing Operations Manager",
+            "confidence": 0.72
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.82,
+      "recommendation_rationale": "Moderate confidence mapping should be deferred for review.",
+      "recommendation_risk_flags": [
+        "moderate_confidence"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "992afe6e7fa76f78e8a5e5f7f68abf53f47aa5d3269d0e1a630226d4d3bcff23"
+      }
+    },
+    {
+      "proposal_id": "synprop-992643848ff1",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "reduce costs",
+      "canonical": "cost reduction",
+      "candidate_aliases": [
+        "reduce costs"
+      ],
+      "candidate_canonicals": [
+        "cost reduction"
+      ],
+      "confidence": 0.72,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.72,
+        "must_have_skills": [
+          "cost reduction"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/manufacturing-operations-manager-at-european-tech-recruit-4416254580?trk=public_jobs_topcard-title",
+            "job_title": "Manufacturing Operations Manager",
+            "confidence": 0.72
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.82,
+      "recommendation_rationale": "Moderate confidence mapping should be deferred for review.",
+      "recommendation_risk_flags": [
+        "moderate_confidence"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "4c8734e25eff77bb4b83188cb547d05715edd3cc33ec2c3dd255f1e6ac06c983"
+      }
+    },
+    {
+      "proposal_id": "synprop-3b5f2ef0cbd9",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "strengthening our supplier relationships",
+      "canonical": "supplier relationship management",
+      "candidate_aliases": [
+        "strengthening our supplier relationships"
+      ],
+      "candidate_canonicals": [
+        "supplier relationship management"
+      ],
+      "confidence": 0.72,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.72,
+        "must_have_skills": [
+          "supplier relationship management"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/manufacturing-operations-manager-at-european-tech-recruit-4416254580?trk=public_jobs_topcard-title",
+            "job_title": "Manufacturing Operations Manager",
+            "confidence": 0.72
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.82,
+      "recommendation_rationale": "Moderate confidence mapping should be deferred for review.",
+      "recommendation_risk_flags": [
+        "moderate_confidence"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "407293db6b87c9886824620b350a13de5f14a677a0dd07d4929e87faeb7ea5f6"
+      }
+    },
+    {
+      "proposal_id": "synprop-25d12094c397",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "track channel performance",
+      "canonical": "social media analytics",
+      "candidate_aliases": [
+        "track channel performance"
+      ],
+      "candidate_canonicals": [
+        "social media analytics"
+      ],
+      "confidence": 0.72,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.72,
+        "must_have_skills": [
+          "social media analytics"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-social-media-content-manager-at-spire-4384168261?trk=public_jobs_topcard-title",
+            "job_title": "Junior Social Media & Content Manager",
+            "confidence": 0.72
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.82,
+      "recommendation_rationale": "Moderate confidence mapping should be deferred for review.",
+      "recommendation_risk_flags": [
+        "moderate_confidence"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "8bdbca390b7c0e12bb76b7a52690ea0abfc6caf086e41c72bfa6cc56d19628df"
+      }
+    },
+    {
+      "proposal_id": "synprop-e4fc3bcbbe63",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "lückenlose digitale personalakten",
+      "canonical": "digital personnel files",
+      "candidate_aliases": [
+        "lückenlose digitale personalakten"
+      ],
+      "candidate_canonicals": [
+        "digital personnel files"
+      ],
+      "confidence": 0.7,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.7,
+        "must_have_skills": [
+          "digital personnel files"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/global-people-operations-manager-w-m-d-at-vivenu-4415384094?trk=public_jobs_topcard-title",
+            "job_title": "Global People Operations Manager (w/m/d)",
+            "confidence": 0.7
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.8,
+      "recommendation_rationale": "Moderate confidence mapping should be deferred for review.",
+      "recommendation_risk_flags": [
+        "moderate_confidence"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "2d61d5b74c6656c5c9da9dce4502249791245d7978bae1cb1531d7af3d31bcd4"
+      }
+    },
+    {
+      "proposal_id": "synprop-8d58831059a9",
+      "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+      "field": "skill",
+      "alias": "familiarity with relevant tools",
+      "canonical": "subtitling tools",
+      "candidate_aliases": [
+        "familiarity with relevant tools"
+      ],
+      "candidate_canonicals": [
+        "subtitling tools",
+        "transcription tools"
+      ],
+      "confidence": 0.55,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 2,
+        "distinct_canonical_count": 2
+      },
+      "evidence_summary": {
+        "occurrence_count": 2,
+        "average_confidence": 0.55,
+        "must_have_skills": [
+          "subtitling tools",
+          "transcription tools"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4216739019",
+            "job_title": "Transcription / Subtitling Specialist (Freelance)",
+            "confidence": 0.55
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4216739019",
+            "job_title": "Transcription / Subtitling Specialist (Freelance)",
+            "confidence": 0.55
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "transcription tools"
+        ]
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.55,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T12:28:50.790105+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "f4d6e3513160ccde244ed9e0fdf7bbdc3d339e9c1487889e8f9ed47720ce20ce"
+      }
+    }
+  ],
+  "synonym_proposals_trace": {
+    "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+    "trace_schema_version": "agentic_step_trace_run_v1",
+    "trace_family": "agentic_step_trace",
+    "step_id": "synonym_proposals",
+    "created_at": "2026-05-20T12:28:50.243123+00:00",
+    "trace_status": "completed",
+    "trace_summary": {
+      "records_total": 27,
+      "present_records": 27,
+      "proposal_count": 27,
+      "suppressed_as_already_global_count": 2,
+      "generated_for_review_count": 27,
+      "suppressed_count_by_field": {
+        "role_family": 20,
+        "domain": 14,
+        "skill": 2
+      },
+      "suppressed_reason_counts_by_field": {
+        "role_family": {
+          "insufficient_non_skill_support": 20
+        },
+        "domain": {
+          "insufficient_non_skill_support": 14
+        },
+        "skill": {
+          "already_global_exact": 2
+        }
+      },
+      "suppression_source": "run_effective_skill_synonyms",
+      "triage_recommendation_generated_total": 27,
+      "triage_recommendation_reused_total": 0,
+      "triage_recommendation_fresh_total": 27,
+      "triage_recommendation_suppressed_total": 0,
+      "triage_recommendation_reuse_reason": "reuse_disabled",
+      "triage_recommendation_fingerprint": "06d50da2002bea45cf6df2649fd03ca86aff2652292e75a6590d47d43460b422",
+      "auto_apply_recommendation_applied": 0,
+      "auto_apply_recommendation_skipped": 0,
+      "auto_apply_recommendation_failed": 0,
+      "auto_apply_recommendation_reason_counts": {},
+      "auto_promote_global_applied": 0,
+      "auto_promote_global_skipped": 0,
+      "auto_promote_global_failed": 0,
+      "auto_promote_global_skip_reason": "disabled"
+    },
+    "records": [
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-e28528fd940c",
+        "scope_type": "alias",
+        "scope_key": "business consulting and services",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "business consulting and services",
+          "candidate_canonicals_count": 2
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-b2ad1310a4c3",
+        "scope_type": "alias",
+        "scope_key": "it services and it consulting",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "it services and it consulting",
+          "candidate_canonicals_count": 3
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-f5494bd583ff",
+        "scope_type": "alias",
+        "scope_key": "retail luxury goods and jewelry",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "retail luxury goods and jewelry",
+          "candidate_canonicals_count": 2
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-77ceebbaf5f9",
+        "scope_type": "alias",
+        "scope_key": "software development",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "software development",
+          "candidate_canonicals_count": 6
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-0adbd26399f3",
+        "scope_type": "alias",
+        "scope_key": "software development and it services and it consulting",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "software development and it services and it consulting",
+          "candidate_canonicals_count": 4
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-9718ab88e698",
+        "scope_type": "alias",
+        "scope_key": "technology, information and internet",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "technology, information and internet",
+          "candidate_canonicals_count": 2
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-4ae10f18063f",
+        "scope_type": "alias",
+        "scope_key": "travel arrangements",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "travel arrangements",
+          "candidate_canonicals_count": 2
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-b747452ab8b2",
+        "scope_type": "alias",
+        "scope_key": "specifically for a/b testing",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "specifically for a/b testing",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.95
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-138bc02dbc09",
+        "scope_type": "alias",
+        "scope_key": "experience with github",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "experience with github",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.93
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-04b4b88d81f0",
+        "scope_type": "alias",
+        "scope_key": "background in facility management",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "background in facility management",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.9
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-4040ca4f7904",
+        "scope_type": "alias",
+        "scope_key": "managing external manufacturing",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "managing external manufacturing",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.86
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-1f83d488e795",
+        "scope_type": "alias",
+        "scope_key": "headcount-analysen",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "headcount-analysen",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.85
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-0644beac6d63",
+        "scope_type": "alias",
+        "scope_key": "prozess engineering",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "prozess engineering",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.84
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-3d07d89a581f",
+        "scope_type": "alias",
+        "scope_key": "updating editorial calendars",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "updating editorial calendars",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.84
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-c056b3c7a39c",
+        "scope_type": "alias",
+        "scope_key": "you own the reporting",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "you own the reporting",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.83
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-6c1db2a9ebe6",
+        "scope_type": "alias",
+        "scope_key": "assisting with video scripts",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "assisting with video scripts",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.78
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-68b8d017615a",
+        "scope_type": "alias",
+        "scope_key": "including experimentation and guardrails",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "including experimentation and guardrails",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.78
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-fac4e9d766fb",
+        "scope_type": "alias",
+        "scope_key": "optimising the supply chain",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "optimising the supply chain",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.78
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-4c0660bd0031",
+        "scope_type": "alias",
+        "scope_key": "stetige optimierung von prozessen",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "stetige optimierung von prozessen",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.78
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-1972ebb24c9b",
+        "scope_type": "alias",
+        "scope_key": "enhance product ramp-up",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "enhance product ramp-up",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.77
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-962aa995a8e2",
+        "scope_type": "alias",
+        "scope_key": "basic computer skills",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "basic computer skills",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.74
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-850360aaf616",
+        "scope_type": "alias",
+        "scope_key": "optimize delivery",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "optimize delivery",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.72
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-992643848ff1",
+        "scope_type": "alias",
+        "scope_key": "reduce costs",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "reduce costs",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.72
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-3b5f2ef0cbd9",
+        "scope_type": "alias",
+        "scope_key": "strengthening our supplier relationships",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "strengthening our supplier relationships",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.72
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-25d12094c397",
+        "scope_type": "alias",
+        "scope_key": "track channel performance",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "track channel performance",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.72
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-e4fc3bcbbe63",
+        "scope_type": "alias",
+        "scope_key": "lückenlose digitale personalakten",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "lückenlose digitale personalakten",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.7
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-8d58831059a9",
+        "scope_type": "alias",
+        "scope_key": "familiarity with relevant tools",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "familiarity with relevant tools",
+          "candidate_canonicals_count": 2
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.55
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      }
+    ],
+    "degradation": {},
+    "artifact_refs": {
+      "proposal_artifact": "synonym-proposals.json",
+      "stage_artifact": "enrich.json"
+    },
+    "suppression_examples": [
+      {
+        "field": "role_family",
+        "alias": "logistics operations",
+        "canonical": "logistics_operations"
+      },
+      {
+        "field": "role_family",
+        "alias": "product management",
+        "canonical": "product_management"
+      },
+      {
+        "field": "role_family",
+        "alias": "operations management",
+        "canonical": "operations_management"
+      },
+      {
+        "field": "domain",
+        "alias": "chemical manufacturing, transportation, logistics, supply chain and storage, and biotechnology research",
+        "canonical": "chemical manufacturing"
+      },
+      {
+        "field": "role_family",
+        "alias": "supply chain",
+        "canonical": "supply_chain"
+      },
+      {
+        "field": "role_family",
+        "alias": "product operations",
+        "canonical": "product_operations"
+      },
+      {
+        "field": "domain",
+        "alias": "pharmaceutical manufacturing",
+        "canonical": "pharmaceuticals"
+      },
+      {
+        "field": "role_family",
+        "alias": "sales marketing",
+        "canonical": "sales_marketing"
+      },
+      {
+        "field": "role_family",
+        "alias": "revenue operations",
+        "canonical": "revenue_operations"
+      },
+      {
+        "field": "domain",
+        "alias": "semiconductor manufacturing, computers and electronics manufacturing, and appliances, electrical, and electronics manufacturing",
+        "canonical": "semiconductor manufacturing"
+      }
+    ]
+  }
+}

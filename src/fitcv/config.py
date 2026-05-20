@@ -427,7 +427,7 @@ def _handle_ssot_overlaps(*, mode: str, overlap_label: str, overlaps: list[str])
     if not overlaps:
         return
     if mode == "strict":
-        raise ValueError(f"{overlap_label}: {", ".join(overlaps)}")
+        raise ValueError(f"{overlap_label}: {', '.join(overlaps)}")
     logger.warning("%s: %s", overlap_label, ", ".join(overlaps))
 
 def _apply_legacy_env_compatibility_projection(cfg: dict[str, Any]) -> dict[str, Any]:

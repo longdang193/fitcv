@@ -1,0 +1,4163 @@
+{
+  "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+  "stage_id": "ranking",
+  "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+  "created_at": "2026-05-20T12:29:12.770856+00:00",
+  "stage_artifact": {
+    "stage_id": "ranking",
+    "stage": "ranking",
+    "status": "completed",
+    "stage_result": {
+      "stage_id": "ranking",
+      "status": "completed",
+      "stage_version": "1.0.0",
+      "output": {
+        "ranked_jobs": 10,
+        "final_top_n": 10
+      },
+      "evidence": {
+        "input_counts": {
+          "ai_scores": 41,
+          "ranking_inputs": 41
+        },
+        "decision_summary": {
+          "ranking_fit_label_counts": {
+            "skip": 36,
+            "stretch": 5
+          },
+          "quality_metrics": {
+            "label_distribution": {
+              "strong_count": 0,
+              "stretch_count": 5,
+              "skip_count": 36,
+              "strong_rate": 0.0,
+              "stretch_rate": 0.12195121951219512,
+              "skip_rate": 0.8780487804878049,
+              "total_scored": 41
+            }
+          },
+          "reuse_metrics": {
+            "reused_ai_scores": 0,
+            "fresh_ai_scores": 41,
+            "total_ai_scores": 41
+          },
+          "ranking_prompt_id": "ranking.ai_score.v1",
+          "ranking_prompt_version": "v1",
+          "ranking_prompt_template_path": "/app/src/fitcv/prompts/templates/ranking_ai_score_v1.md",
+          "ai_score_model": "gemini-2.5-flash",
+          "configured_ranking_weights": {
+            "ai_score": 0.4,
+            "must_have_match": 0.2,
+            "vector_similarity": 0.15,
+            "title_relevance": 0.1,
+            "seniority_fit": 0.1,
+            "preference_fit": 0.05
+          },
+          "configured_missing_value_defaults": {
+            "ai_score": 0.0,
+            "must_have_match": 0.5,
+            "vector_similarity": 0.0,
+            "title_relevance": 0.5,
+            "seniority_fit": 0.5,
+            "preference_fit": 0.5
+          },
+          "configured_preference_fit_weights": {
+            "domain": 0.5,
+            "role_family": 0.3,
+            "location_type": 0.2
+          },
+          "configured_fit_label_thresholds": {
+            "strong": 0.7,
+            "stretch": 0.4
+          },
+          "zero_weight_features": [],
+          "contributing_features": [
+            "ai_score",
+            "must_have_match",
+            "vector_similarity",
+            "title_relevance",
+            "seniority_fit",
+            "preference_fit"
+          ],
+          "candidate_preference_resolution": {
+            "preferences": {
+              "target_role": "Data Analyst",
+              "role_families": [
+                "data analytics",
+                "business intelligence",
+                "business analytics",
+                "product analytics",
+                "marketing analytics",
+                "customer analytics",
+                "commercial analytics",
+                "operations analytics",
+                "reporting analytics",
+                "analytics engineering",
+                "junior data scientist"
+              ],
+              "location_types": [
+                "remote",
+                "hybrid",
+                "onsite"
+              ],
+              "locations": [],
+              "domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ],
+              "seniority_target": "junior",
+              "salary_range": null,
+              "notice_period": null,
+              "exclude_contract_types": [],
+              "exclude_experience_levels": []
+            },
+            "inferred_preferences": {},
+            "effective_preferences": {
+              "target_role": "Data Analyst",
+              "role_families": [
+                "data analytics",
+                "business intelligence",
+                "business analytics",
+                "product analytics",
+                "marketing analytics",
+                "customer analytics",
+                "commercial analytics",
+                "operations analytics",
+                "reporting analytics",
+                "analytics engineering",
+                "junior data scientist"
+              ],
+              "location_types": [
+                "remote",
+                "hybrid",
+                "onsite"
+              ],
+              "locations": [],
+              "domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ],
+              "seniority_target": "junior",
+              "salary_range": null,
+              "notice_period": null,
+              "exclude_contract_types": [],
+              "exclude_experience_levels": []
+            },
+            "preference_sources": {
+              "target_role": "explicit_yaml",
+              "role_families": "explicit_yaml",
+              "location_types": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml"
+            }
+          }
+        }
+      },
+      "validation": {
+        "checks": [],
+        "summary": {
+          "status": "completed"
+        }
+      },
+      "decision": "pass",
+      "policy_version": "policy.ranking.v1",
+      "trace_context": {
+        "trace_id": "828e9141559e004a554983d1c297e2eb",
+        "span_id": "ed89e5ac86bb4383",
+        "parent_span_id": "68adce1cbf7f3036"
+      }
+    },
+    "input_counts": {
+      "ai_scores": 41,
+      "ranking_inputs": 41
+    },
+    "output_counts": {
+      "ranked_jobs": 10,
+      "final_top_n": 10
+    },
+    "decision_summary": {
+      "ranking_fit_label_counts": {
+        "skip": 36,
+        "stretch": 5
+      },
+      "quality_metrics": {
+        "label_distribution": {
+          "strong_count": 0,
+          "stretch_count": 5,
+          "skip_count": 36,
+          "strong_rate": 0.0,
+          "stretch_rate": 0.12195121951219512,
+          "skip_rate": 0.8780487804878049,
+          "total_scored": 41
+        }
+      },
+      "reuse_metrics": {
+        "reused_ai_scores": 0,
+        "fresh_ai_scores": 41,
+        "total_ai_scores": 41
+      },
+      "ranking_prompt_id": "ranking.ai_score.v1",
+      "ranking_prompt_version": "v1",
+      "ranking_prompt_template_path": "/app/src/fitcv/prompts/templates/ranking_ai_score_v1.md",
+      "ai_score_model": "gemini-2.5-flash",
+      "configured_ranking_weights": {
+        "ai_score": 0.4,
+        "must_have_match": 0.2,
+        "vector_similarity": 0.15,
+        "title_relevance": 0.1,
+        "seniority_fit": 0.1,
+        "preference_fit": 0.05
+      },
+      "configured_missing_value_defaults": {
+        "ai_score": 0.0,
+        "must_have_match": 0.5,
+        "vector_similarity": 0.0,
+        "title_relevance": 0.5,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.5
+      },
+      "configured_preference_fit_weights": {
+        "domain": 0.5,
+        "role_family": 0.3,
+        "location_type": 0.2
+      },
+      "configured_fit_label_thresholds": {
+        "strong": 0.7,
+        "stretch": 0.4
+      },
+      "zero_weight_features": [],
+      "contributing_features": [
+        "ai_score",
+        "must_have_match",
+        "vector_similarity",
+        "title_relevance",
+        "seniority_fit",
+        "preference_fit"
+      ],
+      "candidate_preference_resolution": {
+        "preferences": {
+          "target_role": "Data Analyst",
+          "role_families": [
+            "data analytics",
+            "business intelligence",
+            "business analytics",
+            "product analytics",
+            "marketing analytics",
+            "customer analytics",
+            "commercial analytics",
+            "operations analytics",
+            "reporting analytics",
+            "analytics engineering",
+            "junior data scientist"
+          ],
+          "location_types": [
+            "remote",
+            "hybrid",
+            "onsite"
+          ],
+          "locations": [],
+          "domains": [
+            "retail",
+            "consumer goods",
+            "e-commerce",
+            "technology",
+            "marketing analytics",
+            "saas",
+            "marketplace",
+            "fmcg",
+            "supply chain",
+            "logistics",
+            "hr tech"
+          ],
+          "seniority_target": "junior",
+          "salary_range": null,
+          "notice_period": null,
+          "exclude_contract_types": [],
+          "exclude_experience_levels": []
+        },
+        "inferred_preferences": {},
+        "effective_preferences": {
+          "target_role": "Data Analyst",
+          "role_families": [
+            "data analytics",
+            "business intelligence",
+            "business analytics",
+            "product analytics",
+            "marketing analytics",
+            "customer analytics",
+            "commercial analytics",
+            "operations analytics",
+            "reporting analytics",
+            "analytics engineering",
+            "junior data scientist"
+          ],
+          "location_types": [
+            "remote",
+            "hybrid",
+            "onsite"
+          ],
+          "locations": [],
+          "domains": [
+            "retail",
+            "consumer goods",
+            "e-commerce",
+            "technology",
+            "marketing analytics",
+            "saas",
+            "marketplace",
+            "fmcg",
+            "supply chain",
+            "logistics",
+            "hr tech"
+          ],
+          "seniority_target": "junior",
+          "salary_range": null,
+          "notice_period": null,
+          "exclude_contract_types": [],
+          "exclude_experience_levels": []
+        },
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        }
+      }
+    },
+    "outputs_sample": [
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4363043608",
+        "job_title": "Brand Manager – Graduate Entry (m/f/d)",
+        "ai_score": 0.58,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "a01126401fb621fdd7c3a2f0779de2ebf5eccf702a919bef6b9b65e04141572d",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows brand marketing, market/consumer research, competitor analysis, go-to-market support, but core role target and strongest evidence skew data analytics (SQL/Python) vs junior brand manager ownership and brand-building executio...[truncated]",
+        "reranker_key_risks": [
+          "Role misalignment: target role Data Analyst, not brand management",
+          "Missing explicit evidence of brand strategy development, positioning, and end-to-end brand campaigns",
+          "Graduate-entry brand manager may expect marketing execution depth beyond analytics tooling",
+          "Hybrid/location preference unknown"
+        ],
+        "reranker_matched_strengths": [
+          "Brand marketing experience (Brand Marketing Executive)",
+          "Market research, consumer research, competitor analysis",
+          "Insight generation and performance analysis to support decisions",
+          "Product/commercial analysis and go-to-market exposure",
+          "Category management and new product development support"
+        ],
+        "must_have_match": 0.5,
+        "vector_similarity": 0.036682927052700605,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.23199999999999998,
+          "must_have_match": 0.1,
+          "vector_similarity": 0.005502439057905091,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.47250243905790507,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-pricing-analyst-product-operations-global-pricing-at-delivery-hero-4397268650?trk=public_jobs_topcard-title",
+        "job_title": "Senior Pricing Analyst, Product Operations (Global Pricing)",
+        "ai_score": 0.46,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "61d5c88d42169d77b98da291f8f3f2ea0a2bb119618e5a93afc0312db1c48f1e",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python, SQL, analytics fit, but missing evidence for required a/b testing, applied statistics, git, BigQuery, price elasticity modeling, so readiness for Senior Pricing Analyst (Global Pricing) weak.",
+        "reranker_key_risks": [
+          "No demonstrated a/b testing experimentation work",
+          "No demonstrated applied statistics rigor",
+          "No git experience shown",
+          "No Google BigQuery experience shown",
+          "No price elasticity modeling or pricing science evidence",
+          "Seniority mismatch: target role Data Analyst vs Senior Pricing Analyst scope"
+        ],
+        "reranker_matched_strengths": [
+          "Python for data analysis and workflow automation",
+          "SQL for analytics and reporting",
+          "Business/product & commercial analysis in retail/consumer/e-commerce context",
+          "Market/consumer/competitor research supporting pricing-adjacent insights"
+        ],
+        "must_have_match": 0.42857142857142855,
+        "vector_similarity": -0.14651721727605616,
+        "title_relevance": 1.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.18400000000000002,
+          "must_have_match": 0.08571428571428572,
+          "vector_similarity": -0.02197758259140842,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.43273670312287726,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/client-operations-representative-at-viva-com-4394620714?trk=public_jobs_topcard-title",
+        "job_title": "Client Operations Representative",
+        "ai_score": 0.45,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "f75cae93e920559ac7e075bd9a53ba374736012a3ff7b83dc3844f51a1eb5e5e",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show strong performance analysis and data/insight work (SQL/Python/BI) but weak evidence for core client-ops tasks like lead intake triage, client record maintenance, merchant onboarding, payment acceptance setup, and client-facin...[truncated]",
+        "reranker_key_risks": [
+          "No clear evidence of maintaining client records in company database/CRM workflows",
+          "No clear evidence of lead intake triage and assignment ownership",
+          "No evidence of merchant onboarding support or payment acceptance setup support",
+          "Target role (Data Analyst) misaligned with junior onsite client operations role; may lack readiness for client-facing ops cadence"
+        ],
+        "reranker_matched_strengths": [
+          "Account performance monitoring and analysis (performance analysis, BI, insight generation)",
+          "Cross-functional collaboration (implied via R&D and go-to-market work)",
+          "Identifying commercial requirements to craft solutions (product & commercial analysis, concept validation)"
+        ],
+        "must_have_match": 0.125,
+        "vector_similarity": 0.22997208032773653,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.18000000000000002,
+          "must_have_match": 0.025,
+          "vector_similarity": 0.034495812049160475,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.34949581204916047,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/sales-performance-senior-lead-x-f-m-at-doctolib-4407405606?trk=public_jobs_topcard-title",
+        "job_title": "Sales Performance Senior Lead (x/f/m)",
+        "ai_score": 0.46,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c86b2bc789e9aa5169e030bc1be6de0c1b2f62242269e34edb6b5e0a879703cd",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows data analysis strength (SQL/Python, performance analysis) but lacks clear evidence for required AI agents/AI workflows/AI fluency plus Excel/reporting depth and senior-lead readiness for sales performance role.",
+        "reranker_key_risks": [
+          "No explicit AI agents, AI workflows, or AI fluency evidence",
+          "Excel and reporting not explicitly evidenced",
+          "Preferred stack gaps (HubSpot, Metabase, Salesforce, Tableau) not listed",
+          "Seniority mismatch: lead-level sales performance senior lead vs data analyst target and mixed recent roles"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis (SQL, Python)",
+          "Performance analysis and insight generation",
+          "Business intelligence/business analytics orientation",
+          "Marketing/consumer/competitor analysis domain overlap with sales performance"
+        ],
+        "must_have_match": 0.16666666666666666,
+        "vector_similarity": 0.04359408910510072,
+        "title_relevance": 1.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.18400000000000002,
+          "must_have_match": 0.03333333333333333,
+          "vector_similarity": 0.006539113365765108,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.33387244669909844,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4407414538",
+        "job_title": "Revenue Operations",
+        "ai_score": 0.62,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "39b55141a69d9e4c5b13cfecb9d65ee4eb9ac6bebc0a73d30a0fe5a422a26e38",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows strong data analysis and reporting capability via BI/performance analysis, but Microsoft Excel not evidenced and role/seniority alignment for onsite senior Revenue Operations unclear.",
+        "reranker_key_risks": [
+          "Microsoft Excel skill not explicitly listed or evidenced",
+          "Target role Data Analyst vs job family Revenue Operations; RevOps-specific processes not shown",
+          "Seniority mismatch risk: recent roles not clearly senior RevOps/ops ownership",
+          "Onsite requirement: candidate location preference/availability not provided"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis (Python, SQL, BI, performance analysis, insight generation)",
+          "Reporting/decision support (business intelligence, decision support systems)",
+          "Commercial/market analytics exposure (product & commercial analysis, go-to-market, category management)"
+        ],
+        "must_have_match": 0.3333333333333333,
+        "vector_similarity": -0.05162367699755543,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.248,
+          "must_have_match": 0.06666666666666667,
+          "vector_similarity": -0.007743551549633314,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.31692311511703336,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413988739",
+        "job_title": "Multi-Site Operations Specialist (m/w/d)",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "653ee7ed9aa893df22511c3244d106969da199315b29382d4723c7b8c86e85d9",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need onsite multi-site operations execution; candidate show data analytics (SQL/Python, BI, marketing/consumer insights) with weak evidence for hands-on site operations, logistics, vendor/warehouse, or facilities process ownership.",
+        "reranker_key_risks": [
+          "Core role mismatch: operations specialist vs data analyst focus",
+          "Missing evidence for multi-site operations duties (site coordination, SOPs, staffing, compliance, logistics)",
+          "Onsite operational readiness unclear from past roles (R&D staff, brand marketing executive)"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis for performance tracking (SQL/Python/BI)",
+          "Insight generation and decision support",
+          "Cross-functional business/market analysis experience"
+        ],
+        "must_have_match": 0.5,
+        "vector_similarity": -0.23132149376104025,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.1,
+          "vector_similarity": -0.034698224064156034,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.287301775935844,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4416600250",
+        "job_title": "Human Resources Assistant | Remote",
+        "ai_score": 0.38,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "071831b788f6a4d97f18b9f1169c55e6ed650f2dea9573aa3fb726131d8f8c5f",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows strong analytics (SQL, Python) but lacks clear evidence for core required skills data entry, Google Sheets, Microsoft Excel, plus target role misaligned with junior HR assistant.",
+        "reranker_key_risks": [
+          "No explicit Google Sheets experience shown",
+          "No explicit Microsoft Excel experience shown",
+          "Data entry skill not evidenced",
+          "Role family mismatch (data analyst vs human resources assistant)",
+          "Seniority/interest mismatch with HR assistant work"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis and reporting mindset",
+          "Process/workflow automation experience",
+          "Attention to performance/insight generation"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.11608678901624933,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.15200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.017413018352437398,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.2794130183524374,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413983843",
+        "job_title": "Task Force Operations Manager  (m/w/d)",
+        "ai_score": 0.33,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "3f43924b24e24130fddbed4e4ecede405a7d178ae7c1e77fb4792b91f72ada5b",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need mid onsite operations/task-force execution and ops leadership, but profile show data analyst/marketing analytics skills with no clear ops management, field execution, or team/task-force leadership evidence.",
+        "reranker_key_risks": [
+          "Core role mismatch: operations task-force manager vs data analyst target role",
+          "Missing evidence of operations management (logistics, staffing, incident response, SOP enforcement)",
+          "Missing evidence of people leadership and onsite execution responsibility",
+          "Seniority/practical readiness unclear for managing task-force operations"
+        ],
+        "reranker_matched_strengths": [
+          "SQL/Python data analysis for performance tracking",
+          "Business intelligence and decision support",
+          "Workflow automation mindset for process improvement",
+          "Cross-functional insight generation from market/consumer data"
+        ],
+        "must_have_match": 0.5,
+        "vector_similarity": -0.13187804358109864,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.132,
+          "must_have_match": 0.1,
+          "vector_similarity": -0.019781706537164795,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.2722182934628352,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/dock-tech-at-christie-lites-4415510746?trk=public_jobs_topcard-title",
+        "job_title": "Dock Tech",
+        "ai_score": 0.22,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "85c7772198c0133e2f4f97c1ebbd813a113c95eaeb666f98fa3969ae8e77c12e",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need computer literacy, Microsoft SharePoint, Nexus for onsite junior Dock Tech operations; candidate show data analytics (SQL/Python) but no evidence SharePoint or Nexus use and role target misaligned.",
+        "reranker_key_risks": [
+          "No evidence Microsoft SharePoint experience",
+          "No evidence Nexus experience",
+          "Role mismatch: candidate targets Data Analyst vs Dock Tech operations",
+          "Practical readiness unclear for onsite dock/operations workflows"
+        ],
+        "reranker_matched_strengths": [
+          "Computer literacy from analytics tooling (SQL/Python)",
+          "Operational/process mindset via workflow automation"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.32214399857522225,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.08800000000000001,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.04832159978628334,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.27132159978628334,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4394959021",
+        "job_title": "Operations Manager",
+        "ai_score": 0.35,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "68fd62e39221ed8917ceab2b94655932e613ac654d5a6eea66705eb0183c4641",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Ops Manager role need hands-on operations leadership, process/people management, and onsite execution; profile show data/marketing analytics skills with weak evidence for managing operations teams or running day-to-day ops.",
+        "reranker_key_risks": [
+          "Core Ops Manager skills missing or not evidenced (people management, scheduling, SOP ownership, vendor/logistics, onsite execution)",
+          "Target role misaligned (Data Analyst vs Operations Manager)",
+          "Seniority/practical readiness unclear for managing operations function end-to-end"
+        ],
+        "reranker_matched_strengths": [
+          "Performance analysis and KPI reporting",
+          "Workflow automation and process measurement",
+          "SQL/Python data analysis for decision support",
+          "Market/consumer/competitor insights"
+        ],
+        "must_have_match": 0.5,
+        "vector_similarity": -0.2493296208935984,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.13999999999999999,
+          "must_have_match": 0.1,
+          "vector_similarity": -0.037399443134039756,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.26260055686596023,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      }
+    ],
+    "dropped_or_changed_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manufacturing-associate-partner-deutschlandweit-at-infosys-consulting-4415387000?trk=public_jobs_topcard-title",
+        "job_title": "Manufacturing Associate Partner- Deutschlandweit",
+        "ai_score": 0.22,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "505b6ea6855cb9d8932fe86fa60e7a021d93637f8e1222a7f4a2af8ca772f6ed",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need lead management/manufacturing consulting plus AI, Industry 4.0, digital transformation, business development, proposal development; candidate show data analytics/marketing analysis but no proof of consulting, manufacturing domain, ...[truncated]",
+        "reranker_key_risks": [
+          "Missing core required skills: management consulting, manufacturing consulting, Industry 4.0, digital transformation, business development, proposal development",
+          "Seniority mismatch: role require lead consulting readiness; profile read IC data analyst/marketing",
+          "Role misalignment: target Data Analyst vs onsite manufacturing associate partner consulting role"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis with Python and SQL",
+          "Business analytics and insight generation",
+          "Market/consumer/competitor research and performance analysis"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.20497447122623616,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.08800000000000001,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.030746170683935422,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.12874617068393543,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manager-customer-support-at-jobgether-4416263291?trk=public_jobs_topcard-title",
+        "job_title": "Manager, Customer Support",
+        "ai_score": 0.26,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "694147449f51de2c11561f30fc47ae3ca88bd5de14aed5584f492e95c4e1b9f7",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows strong ticket/data analysis-adjacent skills (SQL/Python/performance analysis) but lacks evidence for core customer support management requirements (csat, fcr, nps, sla management, operational performance management, root cau...[truncated]",
+        "reranker_key_risks": [
+          "No demonstrated csat/fcr/nps ownership or reporting",
+          "No evidence of sla management or support operations performance management",
+          "No clear root cause analysis in customer support context",
+          "Role mismatch: candidate targeting data analyst, job is customer support manager",
+          "Seniority/readiness gap for managing customer support function"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis using SQL and Python",
+          "Performance analysis and insight generation",
+          "Business intelligence and decision support",
+          "Workflow automation applicable to support ops reporting"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.19780219743544916,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.10400000000000001,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.029670329615317372,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.19367032961531738,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manager-product-operations-support-logistics-rider-at-delivery-hero-4415019899?trk=public_jobs_topcard-title",
+        "job_title": "Manager, Product Operations Support - (Logistics, Rider)",
+        "ai_score": 0.32,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "8dc86aed6b37b7d6566645b7b028c1685bb0ba13636d21547aae1538a86a74dd",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows data analysis (SQL/Python) but lacks evidence for required ai agents/ai tools/Jira use and target role misaligns with senior product operations support (logistics/rider).",
+        "reranker_key_risks": [
+          "No stated experience with ai agents",
+          "No stated experience with ai tools",
+          "No stated Jira experience",
+          "Role mismatch: candidate targets Data Analyst vs product operations support manager",
+          "Seniority/readiness unclear for senior ops management in logistics/rider domain"
+        ],
+        "reranker_matched_strengths": [
+          "SQL and Python for analysis and workflow automation",
+          "Business analytics and performance/insight reporting",
+          "E-commerce/retail/consumer domain exposure"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.18677044265116186,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.128,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.028015566397674278,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.16601556639767429,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-global-operations-m-w-d-at-dsj-global-4415681741?trk=public_jobs_topcard-title",
+        "job_title": "Head of global Operations (m/w/d)",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "a206666cc90361e2dc5d1bc86709b82f370297ab07b12e7e76ea8895436d40df",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need lead global operations skills (budget/capacity/resource planning, supply chain, EHS, quality, on-time delivery, transformation) but candidate profile show data/marketing analytics skills with no evidence running operations org or o...[truncated]",
+        "reranker_key_risks": [
+          "Missing/unsupported core skills: budget planning, capacity planning, cost management, supply chain management, EHS, quality management, on-time delivery",
+          "Seniority mismatch: role require lead head-of-operations experience not shown",
+          "Role alignment mismatch: candidate target Data Analyst not operations management leader",
+          "Evidence gap for operational excellence and transformation management ownership"
+        ],
+        "reranker_matched_strengths": [
+          "Data-driven decision making via SQL/Python analytics",
+          "Performance analysis and decision support",
+          "Process/workflow automation support for process optimization"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.173409059679912,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.026011358951986797,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.1080113589519868,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/operations-manager-at-c-m-travel-recruitment-4415930294?trk=public_jobs_topcard-title",
+        "job_title": "Operations Manager",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "9edda702c3312018bca061c70d1ca5f345910647eee9ecc178cb174de39e7b92",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need senior operations manager with GDS (prefer Sabre) experience, but candidate profile show data analyst/marketing analytics skills with no evidence of GDS or Sabre and role alignment mismatch.",
+        "reranker_key_risks": [
+          "No GDS experience shown (core required skill gap)",
+          "No Sabre experience shown (preferred skill gap)",
+          "Role mismatch: operations management vs data analyst target/background",
+          "Seniority mismatch: no clear senior operations leadership evidence",
+          "Domain mismatch: travel distribution/airline systems not indicated"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis and performance reporting (SQL, Python)",
+          "Workflow/process automation and decision support"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.13991067816914804,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.020986601725372204,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.10298660172537219,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4405992963",
+        "job_title": "Operations Manager (m/w/d)",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c92d6171ccbca1de0bc207f26646341b54e8f26a3429c7a4d185bda4bfbe54fd",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate strong in SQL/Python analytics but lacks evidence for required cegid, retail IT systems, and senior onsite operations management skills, with role target misaligned to operations manager.",
+        "reranker_key_risks": [
+          "No cegid experience shown",
+          "No retail IT systems operations experience shown",
+          "Seniority mismatch: senior operations management not evidenced",
+          "Role mismatch: candidate targets data analyst, not operations management",
+          "Onsite operations readiness not evidenced"
+        ],
+        "reranker_matched_strengths": [
+          "IT skills (general) via Python/SQL/workflow automation",
+          "Microsoft Excel adjacency via data analysis/business analytics",
+          "Retail/consumer goods domain exposure"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.1344182958358144,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.02016274437537216,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.16716274437537218,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/produktionsleiter-%E2%80%93-surface-protection-m-w-d-at-maas-aviation-4416646881?trk=public_jobs_topcard-title",
+        "job_title": "Produktionsleiter – Surface Protection (m/w/d)",
+        "ai_score": 0.08,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "9d4f793d825972353d9c1d0030fe4692af25b9b9c3a36334c6f6fc1ed9f50f1b",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need production management, surface protection processes, ISO 14001, QA, safety standards, resource planning; candidate show data analytics/marketing skills, no evidence for core operations/production requirements.",
+        "reranker_key_risks": [
+          "No surface protection process experience shown",
+          "No ISO 14001 evidence",
+          "No production management/resource planning experience shown",
+          "No QA/safety standards ownership shown",
+          "Role mismatch: candidate target data analyst, job operations production leader onsite",
+          "No aerospace domain evidence"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis for performance tracking",
+          "Workflow automation support",
+          "Decision support/insight generation"
+        ],
+        "must_have_match": 0.14285714285714285,
+        "vector_similarity": 0.10132059458604038,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.032,
+          "must_have_match": 0.02857142857142857,
+          "vector_similarity": 0.015198089187906057,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.13576951775933466,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/group-product-manager-logistics-routing-dispatch-optimization-at-delivery-hero-4401423303?trk=public_jobs_topcard-title",
+        "job_title": "Group Product Manager - (Logistics,  Routing & Dispatch Optimization)",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "e144bc7f59f1887875905439714ea635af3160be1c231a890ec89bd9381953c6",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show data analysis, SQL/Python, analytics work but lack evidence for b2b product development, product management, experimentation, people management, plus senior GPM logistics/routing/dispatch domain mismatch.",
+        "reranker_key_risks": [
+          "No demonstrated product management or b2b product development ownership",
+          "No experimentation/AB testing track record shown",
+          "No people management evidence for group product manager scope",
+          "Seniority mismatch: analyst profile vs senior GPM",
+          "Domain mismatch: logistics routing/dispatch optimization not evidenced"
+        ],
+        "reranker_matched_strengths": [
+          "Data-driven decision making via SQL/Python analytics",
+          "Business intelligence and performance analysis",
+          "Insight generation and decision support"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.0936848670655898,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.01405273005983847,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.1360527300598385,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/restaurant-onboarding-specialist-m-f-x-at-wolt-4414700375?trk=public_jobs_topcard-title",
+        "job_title": "Restaurant Onboarding Specialist (m/f/x)",
+        "ai_score": 0.32,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "001fb09c5e06127457808b949a85657448ed1fb3c32dc3c0eb16b720b742d0de",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need onsite Restaurant Onboarding Specialist with project management, but candidate profile center on data analytics (SQL/Python) with weak evidence of onboarding/customer success project management and role mismatch.",
+        "reranker_key_risks": [
+          "Required skill project management not clearly evidenced with delivery ownership, timelines, stakeholders, or tooling",
+          "Role mismatch: candidate target Data Analyst vs customer_success onboarding specialist",
+          "No explicit restaurant onboarding, customer success, or onsite operations experience"
+        ],
+        "reranker_matched_strengths": [
+          "Some cross-functional coordination implied from marketing and product/commercial analysis work",
+          "Process/workflow automation mindset could support structured onboarding tasks"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.08207967323050533,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.128,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.0123119509845758,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.20031195098457583,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4242058782",
+        "job_title": "Business Development Manager (Physical Presence)",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "4582fddeafa4996e6715e4d3d4b36db9483f5b5b555fa611b60643075d6419f4",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate profile centers on data analytics (SQL/Python/BI) with no clear evidence of required field sales, negotiation, or outbound sales experience for onsite junior business development manager role.",
+        "reranker_key_risks": [
+          "Missing core required skills: field sales",
+          "Missing core required skills: negotiation",
+          "Missing core required skills: outbound sales",
+          "Target role and career focus (Data Analyst) misaligned with business development manager job family",
+          "No explicit onsite field-sales readiness evidence"
+        ],
+        "reranker_matched_strengths": [
+          "Market and competitor research exposure that could support sales messaging",
+          "Go-to-market and commercial analysis background adjacent to business development"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.06558205693125092,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.009837308539687638,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.19183730853968764,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4405817071",
+        "job_title": "RETAIL PERFORMANCE & OPERATIONS MANAGER – CENTRAL EUROPE",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "57721216c63db756836c09359a44a75c0c646387f2f60cd835b7a94082b79f5b",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Profile strong data analytics (SQL/Python, BI, performance analysis) but lacks evidence for core retail operations requirements like BOH ops, inventory/stock management, facilities, compliance auditing, procurement, vendor management, workf...[truncated]",
+        "reranker_key_risks": [
+          "Missing core operations skills: BOH operations, inventory/stock management, workforce scheduling",
+          "No evidence of compliance auditing, internal controls, cost control, budgeting ownership",
+          "No evidence of facilities management, procurement, vendor management",
+          "Role misalignment: candidate targeting Data Analyst vs operations management role"
+        ],
+        "reranker_matched_strengths": [
+          "Reporting and performance analysis",
+          "Data analysis with SQL and Python",
+          "Business intelligence and insight generation",
+          "Market/consumer research relevant to retail domain"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.061323677381994755,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.009198551607299214,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.20619855160729925,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/revenue-strategy-operations-manager-at-wolt-4405038786?trk=public_jobs_topcard-title",
+        "job_title": "Revenue Strategy & Operations Manager",
+        "ai_score": 0.33,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "31309dec9ea3bcd112478c5e8902142d0f7067336615a5833e64f2ca87c944fe",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show strong SQL/Python analytics but no evidence for core RevOps needs: Salesforce/CRM implementation, data cleansing in CRM context, KPI/OKR ops, performance tracking systems, rollout management, or sales compensation design.",
+        "reranker_key_risks": [
+          "Missing Salesforce and CRM implementation evidence",
+          "No sales compensation design background",
+          "No rollout/program management track record for org-wide ops changes",
+          "Role mismatch: target Data Analyst vs senior onsite Revenue Strategy & Operations Manager"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis and performance analysis",
+          "Business intelligence and insight generation",
+          "Market/consumer research and decision support"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.050216013260942875,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.132,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.007532401989141431,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.14953240198914144,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4412073810",
+        "job_title": "Head of Operations (m/w/d)",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "b4c3c3971c02949e28b8aeb98c8b7a4a1bc395bb3f7a3431ce27088ed20441ee",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Profile centers on data analysis/BI and marketing analytics with no evidence of core Head of Operations responsibilities (ops leadership, process ownership, cross-functional execution, KPI/OKR ops management, scaling teams), creating major ...[truncated]",
+        "reranker_key_risks": [
+          "Target role Data Analyst misaligned with Head of Operations role family",
+          "No demonstrated operations management leadership or team ownership at lead level",
+          "Missing evidence for core ops competencies (process design, operational execution, budgeting/resource planning, vendor/supply chain/service ops)",
+          "Recent roles (R&D Staff, Brand Marketing Executive) not direct ops management track"
+        ],
+        "reranker_matched_strengths": [
+          "SQL/Python analytics for KPI tracking and performance analysis",
+          "Business intelligence and decision-support mindset",
+          "Domain exposure to retail/consumer goods/e-commerce and go-to-market analytics"
+        ],
+        "must_have_match": 0.5,
+        "vector_similarity": 0.0237101334372183,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.0,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.1,
+          "vector_similarity": 0.003556520015582745,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.0
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 0.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.21555652001558276,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-supply-chain-management-at-barrington-james-4415380548?trk=public_jobs_topcard-title",
+        "job_title": "Head of Supply Chain Management",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "8b305e9ec9d38fdc8ae69e74110ac847e5704c0f5adaea13360825624a8fc1ef",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need lead supply chain head with ERP implementation/systems, inventory control, logistics, planning, warehousing, process improvement; candidate show data analytics/marketing background with no evidence for core supply chain/ERP leaders...[truncated]",
+        "reranker_key_risks": [
+          "No ERP implementation or ERP systems experience shown",
+          "No inventory control, logistics, warehousing, or supply chain planning evidence",
+          "Seniority mismatch: role require lead/head operations ownership",
+          "Role mismatch: candidate target Data Analyst, job Head of Supply Chain Management"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis for performance tracking and decision support",
+          "Process/workflow automation potential via Python/SQL"
+        ],
+        "must_have_match": 0.125,
+        "vector_similarity": 0.016629662418468413,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.025,
+          "vector_similarity": 0.002494449362770262,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.10949444936277028,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413600413",
+        "job_title": "(Senior) Operations Manager (m/f/d)",
+        "ai_score": 0.33,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "3447c3ade7ae0c48942adcbf8b3389cdb29a19bc5b211b9394c4a1b7d864f27c",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show SQL, analytics, BI work but miss most required ops stack (CRM, ERP, WMS, project mgmt tools, Power BI/Tableau, Google Workspace/Microsoft Office) and role target mismatch vs onsite mid Operations Manager.",
+        "reranker_key_risks": [
+          "No evidence for CRM",
+          "No evidence for ERP",
+          "No evidence for WMS",
+          "No evidence for Microsoft Power BI",
+          "No evidence for Tableau",
+          "No evidence for project management software",
+          "Target role Data Analyst not Operations Manager; readiness risk",
+          "Ops management execution experience not shown"
+        ],
+        "reranker_matched_strengths": [
+          "SQL skill",
+          "Data analysis and business intelligence background",
+          "Performance analysis and decision support experience",
+          "Domain exposure to retail/consumer goods/e-commerce"
+        ],
+        "must_have_match": 0.1111111111111111,
+        "vector_similarity": -0.030721721798923414,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.132,
+          "must_have_match": 0.022222222222222223,
+          "vector_similarity": -0.004608258269838512,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.20961396395238374,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/supply-chain-director-m-w-d-at-redcare-pharmacy-4416093062?trk=public_jobs_topcard-title",
+        "job_title": "Supply Chain Director (m/w/d)",
+        "ai_score": 0.26,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "d8adf704304fe02d943c0f3683ac343cd76da62e423f49572f4d4fc5591f9a56",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows strong data analysis (Python/SQL/BI) but lacks clear evidence for demand planning, supply planning, stakeholder management at director level, and team leadership required for Supply Chain Director role.",
+        "reranker_key_risks": [
+          "No evidenced demand planning experience",
+          "No evidenced supply planning experience",
+          "Seniority mismatch: lead/director supply chain leadership not shown",
+          "Role mismatch: target role Data Analyst vs Supply Chain Director",
+          "Stakeholder management evidence weak/implicit, not explicit cross-functional supply chain ownership"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis (Python, SQL, BI, performance analysis)",
+          "Insight generation and decision support",
+          "Consumer/market research and commercial analysis in retail/consumer goods context"
+        ],
+        "must_have_match": 0.4,
+        "vector_similarity": -0.04371956928997751,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.10400000000000001,
+          "must_have_match": 0.08000000000000002,
+          "vector_similarity": -0.006557935393496626,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.1874420646065034,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/director-of-operations-at-rotaract-club-of-tata-institute-of-social-sciences-tuljapur-4416128626?trk=public_jobs_topcard-title",
+        "job_title": "Director of Operations",
+        "ai_score": 0.32,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "99981f907c5d01a3ab61920c283434ddb4cce5cc3aa70039c81b7cd7d483f9f6",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows data analytics (SQL/Python, performance analysis) but lacks clear evidence for required ERP, KPI monitoring operations ownership, Microsoft Office Suite proficiency, and project management tools for senior Director of Operat...[truncated]",
+        "reranker_key_risks": [
+          "No ERP experience shown",
+          "No explicit KPI monitoring/operations management ownership shown",
+          "No Microsoft Office Suite evidence",
+          "No project management tools evidence",
+          "Role mismatch: target Data Analyst vs senior Director of Operations",
+          "Seniority/practical readiness gap for operations leadership"
+        ],
+        "reranker_matched_strengths": [
+          "Performance analysis and insight generation (adjacent to KPI monitoring)",
+          "Data analysis tooling (SQL, Python) useful for ops reporting",
+          "Business intelligence and decision support experience"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": -0.04456076485250118,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.128,
+          "must_have_match": 0.0,
+          "vector_similarity": -0.006684114727875177,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.13131588527212482,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/finance-assistant-remote-at-360dialog-4416244424?trk=public_jobs_topcard-title",
+        "job_title": "Finance Assistant | Remote",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "35a9fa74272b6a1f74a84f6a75aca8d21d599b36fe52aacfc74df829a0c7c5e6",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need Google Workspace, Microsoft Office finance assistant skills; candidate show data analyst (SQL/Python) with no evidence for required office tools or finance systems (Datev/Adyen/Stripe) and role misalign.",
+        "reranker_key_risks": [
+          "No evidence for Google Workspace",
+          "No evidence for Microsoft Office",
+          "No finance accounting experience (HGB/IFRS, bookkeeping) shown",
+          "No experience with preferred tools (Datev, Adyen, Stripe, Getmoss, Zoho, Workable, WhatsApp Business API)",
+          "Target role data analyst vs job finance assistant misalign"
+        ],
+        "reranker_matched_strengths": [
+          "Strong data analysis (SQL, Python)",
+          "Business reporting/insight generation may transfer to finance support",
+          "Junior-level readiness plausible"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": -0.05173947367662038,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": -0.007760921051493057,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.21423907894850697,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/director-of-food-and-beverage-at-kerry-robert-associates-4403774212?trk=public_jobs_topcard-title",
+        "job_title": "Director of Food And Beverage",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "e7d996dc241967ddbae3082e54311d76e95a5276ef0b8a71c0807f48461ad503",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate data-analytics background shows little evidence for core Director Food And Beverage requirements like multi-outlet operations management, guest experience design, compliance/safety/risk management, budgeting/financial management, ...[truncated]",
+        "reranker_key_risks": [
+          "No demonstrated budgeting, financial management, or investment planning ownership",
+          "No evidence of compliance management, safety management, or risk management in F&B operations",
+          "No multi-outlet operations management or guest experience design leadership experience",
+          "Seniority mismatch: senior director role vs analyst track and recent marketing/R&D roles",
+          "Role misalignment: target role Data Analyst vs job family food_beverage_management onsite leadership"
+        ],
+        "reranker_matched_strengths": [
+          "Performance analysis and insight generation (transferable to financial reporting)",
+          "Market and consumer research (transferable to guest experience initiatives)",
+          "Business analytics and decision support (transferable to planning support)"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": -0.054350317553158764,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.0,
+          "vector_similarity": -0.008152547632973814,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.0738474523670262,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manufacturing-operations-manager-at-european-tech-recruit-4416254580?trk=public_jobs_topcard-title",
+        "job_title": "Manufacturing Operations Manager",
+        "ai_score": 0.12,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "cb252761523491b388b678b039248942db4c00dc555315235bc86e6dbb4f9526",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate data analyst skills (SQL/Python/BI/marketing analytics) not match senior onsite semiconductor manufacturing ops manager needs (ASIC/MEMS process tech, packaging/testing/yield, external fab/assembly, S&OP/supply planning, mass prod...[truncated]",
+        "reranker_key_risks": [
+          "No evidence ASIC/MEMS process technologies, semiconductor manufacturing, packaging, testing, yield improvement",
+          "No evidence manufacturing operations management, fabless/external manufacturing management, assembly, equipment lifecycle management",
+          "No evidence S&OP, demand planning, supply planning, supplier relationship management, delivery optimization",
+          "Seniority mismatch: background not show ops engineering leadership or mass production ramp/product transfers/qualification"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis for performance tracking",
+          "Performance analysis and decision support",
+          "Workflow/process improvement mindset"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": -0.07485973086521468,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.048,
+          "must_have_match": 0.0,
+          "vector_similarity": -0.0112289596297822,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.0467710403702178,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      }
+    ],
+    "inputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/dock-tech-at-christie-lites-4415510746?trk=public_jobs_topcard-title",
+        "job_title": "Dock Tech",
+        "ai_score": 0.22,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "85c7772198c0133e2f4f97c1ebbd813a113c95eaeb666f98fa3969ae8e77c12e",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need computer literacy, Microsoft SharePoint, Nexus for onsite junior Dock Tech operations; candidate show data analytics (SQL/Python) but no evidence SharePoint or Nexus use and role target misaligned.",
+        "reranker_key_risks": [
+          "No evidence Microsoft SharePoint experience",
+          "No evidence Nexus experience",
+          "Role mismatch: candidate targets Data Analyst vs Dock Tech operations",
+          "Practical readiness unclear for onsite dock/operations workflows"
+        ],
+        "reranker_matched_strengths": [
+          "Computer literacy from analytics tooling (SQL/Python)",
+          "Operational/process mindset via workflow automation"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.32214399857522225,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.08800000000000001,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.04832159978628334,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.27132159978628334,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/client-operations-representative-at-viva-com-4394620714?trk=public_jobs_topcard-title",
+        "job_title": "Client Operations Representative",
+        "ai_score": 0.45,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "f75cae93e920559ac7e075bd9a53ba374736012a3ff7b83dc3844f51a1eb5e5e",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show strong performance analysis and data/insight work (SQL/Python/BI) but weak evidence for core client-ops tasks like lead intake triage, client record maintenance, merchant onboarding, payment acceptance setup, and client-facin...[truncated]",
+        "reranker_key_risks": [
+          "No clear evidence of maintaining client records in company database/CRM workflows",
+          "No clear evidence of lead intake triage and assignment ownership",
+          "No evidence of merchant onboarding support or payment acceptance setup support",
+          "Target role (Data Analyst) misaligned with junior onsite client operations role; may lack readiness for client-facing ops cadence"
+        ],
+        "reranker_matched_strengths": [
+          "Account performance monitoring and analysis (performance analysis, BI, insight generation)",
+          "Cross-functional collaboration (implied via R&D and go-to-market work)",
+          "Identifying commercial requirements to craft solutions (product & commercial analysis, concept validation)"
+        ],
+        "must_have_match": 0.125,
+        "vector_similarity": 0.22997208032773653,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.18000000000000002,
+          "must_have_match": 0.025,
+          "vector_similarity": 0.034495812049160475,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.34949581204916047,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manufacturing-associate-partner-deutschlandweit-at-infosys-consulting-4415387000?trk=public_jobs_topcard-title",
+        "job_title": "Manufacturing Associate Partner- Deutschlandweit",
+        "ai_score": 0.22,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "505b6ea6855cb9d8932fe86fa60e7a021d93637f8e1222a7f4a2af8ca772f6ed",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need lead management/manufacturing consulting plus AI, Industry 4.0, digital transformation, business development, proposal development; candidate show data analytics/marketing analysis but no proof of consulting, manufacturing domain, ...[truncated]",
+        "reranker_key_risks": [
+          "Missing core required skills: management consulting, manufacturing consulting, Industry 4.0, digital transformation, business development, proposal development",
+          "Seniority mismatch: role require lead consulting readiness; profile read IC data analyst/marketing",
+          "Role misalignment: target Data Analyst vs onsite manufacturing associate partner consulting role"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis with Python and SQL",
+          "Business analytics and insight generation",
+          "Market/consumer/competitor research and performance analysis"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.20497447122623616,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.08800000000000001,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.030746170683935422,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.12874617068393543,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manager-customer-support-at-jobgether-4416263291?trk=public_jobs_topcard-title",
+        "job_title": "Manager, Customer Support",
+        "ai_score": 0.26,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "694147449f51de2c11561f30fc47ae3ca88bd5de14aed5584f492e95c4e1b9f7",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows strong ticket/data analysis-adjacent skills (SQL/Python/performance analysis) but lacks evidence for core customer support management requirements (csat, fcr, nps, sla management, operational performance management, root cau...[truncated]",
+        "reranker_key_risks": [
+          "No demonstrated csat/fcr/nps ownership or reporting",
+          "No evidence of sla management or support operations performance management",
+          "No clear root cause analysis in customer support context",
+          "Role mismatch: candidate targeting data analyst, job is customer support manager",
+          "Seniority/readiness gap for managing customer support function"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis using SQL and Python",
+          "Performance analysis and insight generation",
+          "Business intelligence and decision support",
+          "Workflow automation applicable to support ops reporting"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.19780219743544916,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.10400000000000001,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.029670329615317372,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.19367032961531738,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manager-product-operations-support-logistics-rider-at-delivery-hero-4415019899?trk=public_jobs_topcard-title",
+        "job_title": "Manager, Product Operations Support - (Logistics, Rider)",
+        "ai_score": 0.32,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "8dc86aed6b37b7d6566645b7b028c1685bb0ba13636d21547aae1538a86a74dd",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows data analysis (SQL/Python) but lacks evidence for required ai agents/ai tools/Jira use and target role misaligns with senior product operations support (logistics/rider).",
+        "reranker_key_risks": [
+          "No stated experience with ai agents",
+          "No stated experience with ai tools",
+          "No stated Jira experience",
+          "Role mismatch: candidate targets Data Analyst vs product operations support manager",
+          "Seniority/readiness unclear for senior ops management in logistics/rider domain"
+        ],
+        "reranker_matched_strengths": [
+          "SQL and Python for analysis and workflow automation",
+          "Business analytics and performance/insight reporting",
+          "E-commerce/retail/consumer domain exposure"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.18677044265116186,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.128,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.028015566397674278,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.16601556639767429,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-global-operations-m-w-d-at-dsj-global-4415681741?trk=public_jobs_topcard-title",
+        "job_title": "Head of global Operations (m/w/d)",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "a206666cc90361e2dc5d1bc86709b82f370297ab07b12e7e76ea8895436d40df",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need lead global operations skills (budget/capacity/resource planning, supply chain, EHS, quality, on-time delivery, transformation) but candidate profile show data/marketing analytics skills with no evidence running operations org or o...[truncated]",
+        "reranker_key_risks": [
+          "Missing/unsupported core skills: budget planning, capacity planning, cost management, supply chain management, EHS, quality management, on-time delivery",
+          "Seniority mismatch: role require lead head-of-operations experience not shown",
+          "Role alignment mismatch: candidate target Data Analyst not operations management leader",
+          "Evidence gap for operational excellence and transformation management ownership"
+        ],
+        "reranker_matched_strengths": [
+          "Data-driven decision making via SQL/Python analytics",
+          "Performance analysis and decision support",
+          "Process/workflow automation support for process optimization"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.173409059679912,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.026011358951986797,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.1080113589519868,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/operations-manager-at-c-m-travel-recruitment-4415930294?trk=public_jobs_topcard-title",
+        "job_title": "Operations Manager",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "9edda702c3312018bca061c70d1ca5f345910647eee9ecc178cb174de39e7b92",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need senior operations manager with GDS (prefer Sabre) experience, but candidate profile show data analyst/marketing analytics skills with no evidence of GDS or Sabre and role alignment mismatch.",
+        "reranker_key_risks": [
+          "No GDS experience shown (core required skill gap)",
+          "No Sabre experience shown (preferred skill gap)",
+          "Role mismatch: operations management vs data analyst target/background",
+          "Seniority mismatch: no clear senior operations leadership evidence",
+          "Domain mismatch: travel distribution/airline systems not indicated"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis and performance reporting (SQL, Python)",
+          "Workflow/process automation and decision support"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.13991067816914804,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.020986601725372204,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.10298660172537219,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4405992963",
+        "job_title": "Operations Manager (m/w/d)",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c92d6171ccbca1de0bc207f26646341b54e8f26a3429c7a4d185bda4bfbe54fd",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate strong in SQL/Python analytics but lacks evidence for required cegid, retail IT systems, and senior onsite operations management skills, with role target misaligned to operations manager.",
+        "reranker_key_risks": [
+          "No cegid experience shown",
+          "No retail IT systems operations experience shown",
+          "Seniority mismatch: senior operations management not evidenced",
+          "Role mismatch: candidate targets data analyst, not operations management",
+          "Onsite operations readiness not evidenced"
+        ],
+        "reranker_matched_strengths": [
+          "IT skills (general) via Python/SQL/workflow automation",
+          "Microsoft Excel adjacency via data analysis/business analytics",
+          "Retail/consumer goods domain exposure"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.1344182958358144,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.02016274437537216,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.16716274437537218,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4416600250",
+        "job_title": "Human Resources Assistant | Remote",
+        "ai_score": 0.38,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "071831b788f6a4d97f18b9f1169c55e6ed650f2dea9573aa3fb726131d8f8c5f",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows strong analytics (SQL, Python) but lacks clear evidence for core required skills data entry, Google Sheets, Microsoft Excel, plus target role misaligned with junior HR assistant.",
+        "reranker_key_risks": [
+          "No explicit Google Sheets experience shown",
+          "No explicit Microsoft Excel experience shown",
+          "Data entry skill not evidenced",
+          "Role family mismatch (data analyst vs human resources assistant)",
+          "Seniority/interest mismatch with HR assistant work"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis and reporting mindset",
+          "Process/workflow automation experience",
+          "Attention to performance/insight generation"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.11608678901624933,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.15200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.017413018352437398,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.2794130183524374,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/produktionsleiter-%E2%80%93-surface-protection-m-w-d-at-maas-aviation-4416646881?trk=public_jobs_topcard-title",
+        "job_title": "Produktionsleiter – Surface Protection (m/w/d)",
+        "ai_score": 0.08,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "9d4f793d825972353d9c1d0030fe4692af25b9b9c3a36334c6f6fc1ed9f50f1b",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need production management, surface protection processes, ISO 14001, QA, safety standards, resource planning; candidate show data analytics/marketing skills, no evidence for core operations/production requirements.",
+        "reranker_key_risks": [
+          "No surface protection process experience shown",
+          "No ISO 14001 evidence",
+          "No production management/resource planning experience shown",
+          "No QA/safety standards ownership shown",
+          "Role mismatch: candidate target data analyst, job operations production leader onsite",
+          "No aerospace domain evidence"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis for performance tracking",
+          "Workflow automation support",
+          "Decision support/insight generation"
+        ],
+        "must_have_match": 0.14285714285714285,
+        "vector_similarity": 0.10132059458604038,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.032,
+          "must_have_match": 0.02857142857142857,
+          "vector_similarity": 0.015198089187906057,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.13576951775933466,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/group-product-manager-logistics-routing-dispatch-optimization-at-delivery-hero-4401423303?trk=public_jobs_topcard-title",
+        "job_title": "Group Product Manager - (Logistics,  Routing & Dispatch Optimization)",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "e144bc7f59f1887875905439714ea635af3160be1c231a890ec89bd9381953c6",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show data analysis, SQL/Python, analytics work but lack evidence for b2b product development, product management, experimentation, people management, plus senior GPM logistics/routing/dispatch domain mismatch.",
+        "reranker_key_risks": [
+          "No demonstrated product management or b2b product development ownership",
+          "No experimentation/AB testing track record shown",
+          "No people management evidence for group product manager scope",
+          "Seniority mismatch: analyst profile vs senior GPM",
+          "Domain mismatch: logistics routing/dispatch optimization not evidenced"
+        ],
+        "reranker_matched_strengths": [
+          "Data-driven decision making via SQL/Python analytics",
+          "Business intelligence and performance analysis",
+          "Insight generation and decision support"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.0936848670655898,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.01405273005983847,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.1360527300598385,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/restaurant-onboarding-specialist-m-f-x-at-wolt-4414700375?trk=public_jobs_topcard-title",
+        "job_title": "Restaurant Onboarding Specialist (m/f/x)",
+        "ai_score": 0.32,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "001fb09c5e06127457808b949a85657448ed1fb3c32dc3c0eb16b720b742d0de",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need onsite Restaurant Onboarding Specialist with project management, but candidate profile center on data analytics (SQL/Python) with weak evidence of onboarding/customer success project management and role mismatch.",
+        "reranker_key_risks": [
+          "Required skill project management not clearly evidenced with delivery ownership, timelines, stakeholders, or tooling",
+          "Role mismatch: candidate target Data Analyst vs customer_success onboarding specialist",
+          "No explicit restaurant onboarding, customer success, or onsite operations experience"
+        ],
+        "reranker_matched_strengths": [
+          "Some cross-functional coordination implied from marketing and product/commercial analysis work",
+          "Process/workflow automation mindset could support structured onboarding tasks"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.08207967323050533,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.128,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.0123119509845758,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.20031195098457583,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4242058782",
+        "job_title": "Business Development Manager (Physical Presence)",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "4582fddeafa4996e6715e4d3d4b36db9483f5b5b555fa611b60643075d6419f4",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate profile centers on data analytics (SQL/Python/BI) with no clear evidence of required field sales, negotiation, or outbound sales experience for onsite junior business development manager role.",
+        "reranker_key_risks": [
+          "Missing core required skills: field sales",
+          "Missing core required skills: negotiation",
+          "Missing core required skills: outbound sales",
+          "Target role and career focus (Data Analyst) misaligned with business development manager job family",
+          "No explicit onsite field-sales readiness evidence"
+        ],
+        "reranker_matched_strengths": [
+          "Market and competitor research exposure that could support sales messaging",
+          "Go-to-market and commercial analysis background adjacent to business development"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.06558205693125092,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.009837308539687638,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.19183730853968764,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4405817071",
+        "job_title": "RETAIL PERFORMANCE & OPERATIONS MANAGER – CENTRAL EUROPE",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "57721216c63db756836c09359a44a75c0c646387f2f60cd835b7a94082b79f5b",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Profile strong data analytics (SQL/Python, BI, performance analysis) but lacks evidence for core retail operations requirements like BOH ops, inventory/stock management, facilities, compliance auditing, procurement, vendor management, workf...[truncated]",
+        "reranker_key_risks": [
+          "Missing core operations skills: BOH operations, inventory/stock management, workforce scheduling",
+          "No evidence of compliance auditing, internal controls, cost control, budgeting ownership",
+          "No evidence of facilities management, procurement, vendor management",
+          "Role misalignment: candidate targeting Data Analyst vs operations management role"
+        ],
+        "reranker_matched_strengths": [
+          "Reporting and performance analysis",
+          "Data analysis with SQL and Python",
+          "Business intelligence and insight generation",
+          "Market/consumer research relevant to retail domain"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.061323677381994755,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.009198551607299214,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.20619855160729925,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/revenue-strategy-operations-manager-at-wolt-4405038786?trk=public_jobs_topcard-title",
+        "job_title": "Revenue Strategy & Operations Manager",
+        "ai_score": 0.33,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "31309dec9ea3bcd112478c5e8902142d0f7067336615a5833e64f2ca87c944fe",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show strong SQL/Python analytics but no evidence for core RevOps needs: Salesforce/CRM implementation, data cleansing in CRM context, KPI/OKR ops, performance tracking systems, rollout management, or sales compensation design.",
+        "reranker_key_risks": [
+          "Missing Salesforce and CRM implementation evidence",
+          "No sales compensation design background",
+          "No rollout/program management track record for org-wide ops changes",
+          "Role mismatch: target Data Analyst vs senior onsite Revenue Strategy & Operations Manager"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis and performance analysis",
+          "Business intelligence and insight generation",
+          "Market/consumer research and decision support"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.050216013260942875,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.132,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.007532401989141431,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.14953240198914144,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/sales-performance-senior-lead-x-f-m-at-doctolib-4407405606?trk=public_jobs_topcard-title",
+        "job_title": "Sales Performance Senior Lead (x/f/m)",
+        "ai_score": 0.46,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c86b2bc789e9aa5169e030bc1be6de0c1b2f62242269e34edb6b5e0a879703cd",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows data analysis strength (SQL/Python, performance analysis) but lacks clear evidence for required AI agents/AI workflows/AI fluency plus Excel/reporting depth and senior-lead readiness for sales performance role.",
+        "reranker_key_risks": [
+          "No explicit AI agents, AI workflows, or AI fluency evidence",
+          "Excel and reporting not explicitly evidenced",
+          "Preferred stack gaps (HubSpot, Metabase, Salesforce, Tableau) not listed",
+          "Seniority mismatch: lead-level sales performance senior lead vs data analyst target and mixed recent roles"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis (SQL, Python)",
+          "Performance analysis and insight generation",
+          "Business intelligence/business analytics orientation",
+          "Marketing/consumer/competitor analysis domain overlap with sales performance"
+        ],
+        "must_have_match": 0.16666666666666666,
+        "vector_similarity": 0.04359408910510072,
+        "title_relevance": 1.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.18400000000000002,
+          "must_have_match": 0.03333333333333333,
+          "vector_similarity": 0.006539113365765108,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.33387244669909844,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4363043608",
+        "job_title": "Brand Manager – Graduate Entry (m/f/d)",
+        "ai_score": 0.58,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "a01126401fb621fdd7c3a2f0779de2ebf5eccf702a919bef6b9b65e04141572d",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows brand marketing, market/consumer research, competitor analysis, go-to-market support, but core role target and strongest evidence skew data analytics (SQL/Python) vs junior brand manager ownership and brand-building executio...[truncated]",
+        "reranker_key_risks": [
+          "Role misalignment: target role Data Analyst, not brand management",
+          "Missing explicit evidence of brand strategy development, positioning, and end-to-end brand campaigns",
+          "Graduate-entry brand manager may expect marketing execution depth beyond analytics tooling",
+          "Hybrid/location preference unknown"
+        ],
+        "reranker_matched_strengths": [
+          "Brand marketing experience (Brand Marketing Executive)",
+          "Market research, consumer research, competitor analysis",
+          "Insight generation and performance analysis to support decisions",
+          "Product/commercial analysis and go-to-market exposure",
+          "Category management and new product development support"
+        ],
+        "must_have_match": 0.5,
+        "vector_similarity": 0.036682927052700605,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.23199999999999998,
+          "must_have_match": 0.1,
+          "vector_similarity": 0.005502439057905091,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.47250243905790507,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4412073810",
+        "job_title": "Head of Operations (m/w/d)",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "b4c3c3971c02949e28b8aeb98c8b7a4a1bc395bb3f7a3431ce27088ed20441ee",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Profile centers on data analysis/BI and marketing analytics with no evidence of core Head of Operations responsibilities (ops leadership, process ownership, cross-functional execution, KPI/OKR ops management, scaling teams), creating major ...[truncated]",
+        "reranker_key_risks": [
+          "Target role Data Analyst misaligned with Head of Operations role family",
+          "No demonstrated operations management leadership or team ownership at lead level",
+          "Missing evidence for core ops competencies (process design, operational execution, budgeting/resource planning, vendor/supply chain/service ops)",
+          "Recent roles (R&D Staff, Brand Marketing Executive) not direct ops management track"
+        ],
+        "reranker_matched_strengths": [
+          "SQL/Python analytics for KPI tracking and performance analysis",
+          "Business intelligence and decision-support mindset",
+          "Domain exposure to retail/consumer goods/e-commerce and go-to-market analytics"
+        ],
+        "must_have_match": 0.5,
+        "vector_similarity": 0.0237101334372183,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.0,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.1,
+          "vector_similarity": 0.003556520015582745,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.0
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 0.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.21555652001558276,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-supply-chain-management-at-barrington-james-4415380548?trk=public_jobs_topcard-title",
+        "job_title": "Head of Supply Chain Management",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "8b305e9ec9d38fdc8ae69e74110ac847e5704c0f5adaea13360825624a8fc1ef",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Job need lead supply chain head with ERP implementation/systems, inventory control, logistics, planning, warehousing, process improvement; candidate show data analytics/marketing background with no evidence for core supply chain/ERP leaders...[truncated]",
+        "reranker_key_risks": [
+          "No ERP implementation or ERP systems experience shown",
+          "No inventory control, logistics, warehousing, or supply chain planning evidence",
+          "Seniority mismatch: role require lead/head operations ownership",
+          "Role mismatch: candidate target Data Analyst, job Head of Supply Chain Management"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis for performance tracking and decision support",
+          "Process/workflow automation potential via Python/SQL"
+        ],
+        "must_have_match": 0.125,
+        "vector_similarity": 0.016629662418468413,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.025,
+          "vector_similarity": 0.002494449362770262,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.10949444936277028,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413600413",
+        "job_title": "(Senior) Operations Manager (m/f/d)",
+        "ai_score": 0.33,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "3447c3ade7ae0c48942adcbf8b3389cdb29a19bc5b211b9394c4a1b7d864f27c",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show SQL, analytics, BI work but miss most required ops stack (CRM, ERP, WMS, project mgmt tools, Power BI/Tableau, Google Workspace/Microsoft Office) and role target mismatch vs onsite mid Operations Manager.",
+        "reranker_key_risks": [
+          "No evidence for CRM",
+          "No evidence for ERP",
+          "No evidence for WMS",
+          "No evidence for Microsoft Power BI",
+          "No evidence for Tableau",
+          "No evidence for project management software",
+          "Target role Data Analyst not Operations Manager; readiness risk",
+          "Ops management execution experience not shown"
+        ],
+        "reranker_matched_strengths": [
+          "SQL skill",
+          "Data analysis and business intelligence background",
+          "Performance analysis and decision support experience",
+          "Domain exposure to retail/consumer goods/e-commerce"
+        ],
+        "must_have_match": 0.1111111111111111,
+        "vector_similarity": -0.030721721798923414,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.132,
+          "must_have_match": 0.022222222222222223,
+          "vector_similarity": -0.004608258269838512,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.20961396395238374,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      }
+    ],
+    "settings_refs": [
+      "ranking_weights",
+      "preference_fit_weights",
+      "missing_value_defaults",
+      "fit_label_thresholds",
+      "pipeline.final_top_n",
+      "prompts.ranking.ai_score.prompt_id"
+    ]
+  }
+}

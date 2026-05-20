@@ -1,0 +1,4690 @@
+{
+  "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+  "stage_id": "rule_filter",
+  "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+  "created_at": "2026-05-20T12:29:12.770856+00:00",
+  "stage_artifact": {
+    "stage_id": "rule_filter",
+    "stage": "rule_filter",
+    "status": "completed",
+    "stage_result": {
+      "stage_id": "rule_filter",
+      "status": "completed",
+      "stage_version": "1.0.0",
+      "output": {
+        "passed_jobs": 41,
+        "rejected_jobs": 0
+      },
+      "evidence": {
+        "input_counts": {
+          "enriched_jobs": 41
+        },
+        "decision_summary": {
+          "reject_reason_counts": {},
+          "mark_code_counts": {
+            "domain_not_preferred": 35
+          },
+          "selected_filters": [
+            "seniority_mismatch",
+            "location_type_excluded",
+            "contract_type_excluded",
+            "experience_level_excluded"
+          ]
+        }
+      },
+      "validation": {
+        "checks": [],
+        "summary": {
+          "status": "completed"
+        }
+      },
+      "decision": "pass",
+      "policy_version": "policy.rule_filter.v1",
+      "trace_context": {
+        "trace_id": "df221014f1613dce788843bc83016266",
+        "span_id": "e4c88e14663bbbcf",
+        "parent_span_id": "180bf1f000c1db8f"
+      }
+    },
+    "input_counts": {
+      "enriched_jobs": 41
+    },
+    "output_counts": {
+      "passed_jobs": 41,
+      "rejected_jobs": 0
+    },
+    "decision_summary": {
+      "reject_reason_counts": {},
+      "mark_code_counts": {
+        "domain_not_preferred": 35
+      },
+      "selected_filters": [
+        "seniority_mismatch",
+        "location_type_excluded",
+        "contract_type_excluded",
+        "experience_level_excluded"
+      ]
+    },
+    "outputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/teamlead-logistics-at-envalior-4402113214?trk=public_jobs_topcard-title",
+        "job_title": "Teamlead Logistics",
+        "company": "Envalior",
+        "location_type": "onsite",
+        "seniority": "lead",
+        "required_skills": [
+          "Knowledge of logistics regulations and standards (GefStoffV, GüKG, KrWG, GewAbfV, AVV)"
+        ],
+        "required_skills_canonical": [
+          "gefstoffv",
+          "gükg",
+          "krwg",
+          "gewabfv",
+          "avv"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Strong knowledge of logistics regulations and standards, such as GefStoffV, GüKG, KrWG, GewAbfV, and AVV",
+            "canonical": "gefstoffv",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Strong knowledge of logistics regulations and standards, such as GefStoffV, GüKG, KrWG, GewAbfV, and AVV",
+            "canonical": "gükg",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Strong knowledge of logistics regulations and standards, such as GefStoffV, GüKG, KrWG, GewAbfV, and AVV",
+            "canonical": "krwg",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Strong knowledge of logistics regulations and standards, such as GefStoffV, GüKG, KrWG, GewAbfV, and AVV",
+            "canonical": "gewabfv",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Strong knowledge of logistics regulations and standards, such as GefStoffV, GüKG, KrWG, GewAbfV, and AVV",
+            "canonical": "avv",
+            "confidence": 0.93
+          }
+        ],
+        "preferred_skills": [
+          "Cost controlling",
+          "SAP PM (R/3)"
+        ],
+        "preferred_skills_canonical": [
+          "cost controlling",
+          "sap pm",
+          "sap r/3"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Experience in cost controlling and SAP PM (R/3) is an advantage",
+            "canonical": "cost controlling",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Experience in cost controlling and SAP PM (R/3) is an advantage",
+            "canonical": "sap pm",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Experience in cost controlling and SAP PM (R/3) is an advantage",
+            "canonical": "sap r/3",
+            "confidence": 0.85
+          }
+        ],
+        "responsibilities": [
+          "Lead logistics department for compounding area to ensure reliable, compliant, efficient internal logistics supporting production targets",
+          "Own internal logistics processes and systems including raw material supply and mixture creation using LOOP",
+          "Drive continuous process improvement and process optimization with cross-functional approaches",
+          "Lead and develop team of ~25 employees (foremen, warehouse staff, chemical operators)",
+          "Act as deputy to plant management within compounding area, supporting operational and organizational decisions",
+          "Ensure compliance with legal regulations and internal requirements including occupational safety, production, and logistics standards",
+          "Collaborate with production leadership to secure plant availability and achieve production goals",
+          "Support initiatives to reduce process waste (packaging materials, raw materials, finished goods)"
+        ],
+        "domain": "industrial manufacturing (high-performance engineering materials/chemicals)",
+        "tech_stack": [
+          "LOOP",
+          "SAP PM",
+          "SAP R/3"
+        ],
+        "years_experience_min": 3,
+        "keywords": [
+          "internal logistics",
+          "compounding operations",
+          "raw material supply",
+          "mixture creation",
+          "continuous improvement",
+          "process optimization",
+          "occupational safety",
+          "GefStoffV",
+          "GüKG",
+          "KrWG",
+          "GewAbfV",
+          "AVV",
+          "SAP PM",
+          "SAP R/3",
+          "cost controlling",
+          "warehouse operations",
+          "production availability",
+          "waste reduction"
+        ],
+        "job_family": "logistics_operations",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:20:26.488473+00:00",
+        "raw_job_fingerprint": "eca3cae859302a728234ae015665530b27ed1706a2f8e941155d01ffbae9614a",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "industrial manufacturing (high-performance engineering materials/chemicals)",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/group-product-manager-logistics-routing-dispatch-optimization-at-delivery-hero-4401423303?trk=public_jobs_topcard-title",
+        "job_title": "Group Product Manager - (Logistics,  Routing & Dispatch Optimization)",
+        "company": "Delivery Hero",
+        "location_type": "hybrid",
+        "seniority": "senior",
+        "required_skills": [
+          "Product management",
+          "People management",
+          "B2B product development",
+          "Data-driven decision making",
+          "Experimentation"
+        ],
+        "required_skills_canonical": [
+          "product management",
+          "people management",
+          "b2b product development",
+          "data-driven decision making",
+          "experimentation"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "6+ years of experience in product management",
+            "canonical": "product management",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "4+ years of experience as a people manager",
+            "canonical": "people management",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Previous experience in conceptualizing B2B product solutions",
+            "canonical": "b2b product development",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "a mindset for data-driven decision making",
+            "canonical": "data-driven decision making",
+            "confidence": 0.83
+          },
+          {
+            "raw_text": "including experimentation and guardrails",
+            "canonical": "experimentation",
+            "confidence": 0.78
+          }
+        ],
+        "responsibilities": [
+          "Own overall product and data science direction and priorities for routing and dispatch optimization",
+          "Lead, support, and develop Product Managers across routing operations, dispatch intelligence, adaptive dispatching, and optimization guardrails",
+          "Create alignment across teams while enabling PM autonomy and trade-offs between delivery time, cost efficiency, rider experience, and system reliability",
+          "Guide safe rollout of routing and dispatch capabilities across markets, including experimentation and guardrails",
+          "Work closely with engineering, data science, and operations partners to align on goals and execution",
+          "Act as main product contact for senior stakeholders and communicate progress, impact, and risks to Director and VP-level stakeholders"
+        ],
+        "domain": "last-mile delivery logistics",
+        "years_experience_min": 6,
+        "keywords": [
+          "routing",
+          "dispatch",
+          "routing optimization",
+          "dispatch optimization",
+          "last-mile delivery",
+          "logistics",
+          "real-time decisioning",
+          "dispatch intelligence",
+          "adaptive dispatching",
+          "optimization guardrails",
+          "B2B products",
+          "experimentation"
+        ],
+        "job_family": "product_management",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "experimentation",
+            "matches": true,
+            "alias": "including experimentation and guardrails",
+            "canonical": "experimentation",
+            "confidence": 0.78
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:20:38.397901+00:00",
+        "raw_job_fingerprint": "edf3ae4f16bf2a7d68ea14c95fc11ac062e5d301cfcc0b327d40fb9bab54f180",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "last-mile delivery logistics",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/director-of-operations-at-rotaract-club-of-tata-institute-of-social-sciences-tuljapur-4416128626?trk=public_jobs_topcard-title",
+        "job_title": "Director of Operations",
+        "company": "Rotaract Club of Tata Institute of Social Sciences, Tuljapur",
+        "location_type": "hybrid",
+        "seniority": "senior",
+        "required_skills": [
+          "Proficiency in Microsoft Office Suite",
+          "Familiarity with ERP tools",
+          "Familiarity with project management tools"
+        ],
+        "required_skills_canonical": [
+          "microsoft office suite",
+          "erp",
+          "project management tools",
+          "kpi monitoring"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Proficiency in Microsoft Office Suite",
+            "canonical": "microsoft office suite",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "familiarity with ERP or project management tools",
+            "canonical": "erp",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "familiarity with ERP or project management tools",
+            "canonical": "project management tools",
+            "confidence": 0.75
+          },
+          {
+            "raw_text": "Monitor key performance indicators (KPIs) and operational metrics",
+            "canonical": "kpi monitoring",
+            "confidence": 0.72
+          }
+        ],
+        "responsibilities": [
+          "Oversee and manage company day-to-day operations for efficiency, productivity, alignment with strategic goals",
+          "Develop and implement operational strategies, policies, procedures to drive business performance",
+          "Monitor KPIs and operational metrics; identify improvement areas",
+          "Lead and mentor department managers; ensure coordination and execution across functions",
+          "Collaborate with senior leadership; plan and execute business growth initiatives",
+          "Manage budgets, resources, vendor relationships for operational excellence and cost-effectiveness",
+          "Ensure compliance with company standards, legal regulations, safety requirements"
+        ],
+        "tech_stack": [
+          "Microsoft Office Suite",
+          "ERP",
+          "Project management tools"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "operations management",
+          "operational strategy",
+          "policies and procedures",
+          "KPI",
+          "operational metrics",
+          "process improvement",
+          "cross-functional leadership",
+          "budget management",
+          "vendor management",
+          "compliance",
+          "ERP",
+          "project management tools",
+          "Microsoft Office Suite"
+        ],
+        "job_family": "operations_management",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:20:49.761345+00:00",
+        "raw_job_fingerprint": "b9c0b925dd702509fb4a248b39e65b6f6ba5ba3b7093063a48afccf6f0cd306d",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-supply-chain-management-at-barrington-james-4415380548?trk=public_jobs_topcard-title",
+        "job_title": "Head of Supply Chain Management",
+        "company": "Barrington James",
+        "location_type": "hybrid",
+        "seniority": "lead",
+        "required_skills": [
+          "Supply chain operations",
+          "Logistics",
+          "Warehousing",
+          "Supply chain planning",
+          "ERP systems",
+          "ERP implementation",
+          "Inventory control",
+          "Process improvement"
+        ],
+        "required_skills_canonical": [
+          "supply chain operations",
+          "logistics",
+          "warehousing",
+          "supply chain planning",
+          "erp systems",
+          "erp implementation",
+          "inventory control",
+          "process improvement"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Lead day-to-day supply chain operations across logistics, warehousing and planning",
+            "canonical": "supply chain operations",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Lead day-to-day supply chain operations across logistics, warehousing and planning",
+            "canonical": "logistics",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Lead day-to-day supply chain operations across logistics, warehousing and planning",
+            "canonical": "warehousing",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Lead day-to-day supply chain operations across logistics, warehousing and planning",
+            "canonical": "supply chain planning",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Support operational improvements across ERP / IT systems implementation",
+            "canonical": "erp systems",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Support operational improvements across ERP / IT systems implementation",
+            "canonical": "erp implementation",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Improve supply visibility, inventory control and logistics performance",
+            "canonical": "inventory control",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Improve supply visibility, inventory control and logistics performance",
+            "canonical": "logistics",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Drive process improvements across the wider supply chain function",
+            "canonical": "process improvement",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Experience working with ERP systems / implementations",
+            "canonical": "erp systems",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Experience working with ERP systems / implementations",
+            "canonical": "erp implementation",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong logistics and warehouse understanding",
+            "canonical": "logistics",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong logistics and warehouse understanding",
+            "canonical": "warehousing",
+            "confidence": 0.9
+          }
+        ],
+        "responsibilities": [
+          "Lead day-to-day supply chain operations across logistics, warehousing, and planning",
+          "Support operational improvements across ERP/IT systems implementation",
+          "Work closely with manufacturing and site leadership teams",
+          "Improve supply visibility, inventory control, and logistics performance",
+          "Support hands-on warehouse and operational environment",
+          "Drive process improvements across wider supply chain function"
+        ],
+        "domain": "chemical manufacturing",
+        "tech_stack": [
+          "ERP systems"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "Supply chain",
+          "Supply chain operations",
+          "Logistics",
+          "Warehousing",
+          "Planning",
+          "ERP",
+          "ERP implementation",
+          "Inventory control",
+          "Process improvement",
+          "Chemical manufacturing",
+          "API manufacturing"
+        ],
+        "job_family": "supply_chain",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:21:06.382939+00:00",
+        "raw_job_fingerprint": "859f4d3ee3bf6cdde816f1a2ddba3de043b69f8b5594bc76e0352502c2c4b0d2",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "chemical manufacturing",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manager-product-operations-support-logistics-rider-at-delivery-hero-4415019899?trk=public_jobs_topcard-title",
+        "job_title": "Manager, Product Operations Support - (Logistics, Rider)",
+        "company": "Delivery Hero",
+        "location_type": "hybrid",
+        "seniority": "senior",
+        "required_skills": [
+          "AI tools",
+          "AI agents",
+          "Jira"
+        ],
+        "required_skills_canonical": [
+          "ai tools",
+          "ai agents",
+          "jira"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "pushing hard on AI tooling and agents to automate triage, investigation, and coordination workflows",
+            "canonical": "ai tools",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "pushing hard on AI tooling and agents to automate triage, investigation, and coordination workflows",
+            "canonical": "ai agents",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Jira-native: you manage work, track issues, and report on progress inside Jira as a matter of course",
+            "canonical": "jira",
+            "confidence": 0.96
+          }
+        ],
+        "responsibilities": [
+          "Lead, coach, develop 4 Product Support Specialists; set performance standards; raise output quality and speed",
+          "Own, improve core operating metrics: ticket resolution time (bugs, change requests) and rollout velocity across markets",
+          "Redesign team processes: audit current processes, find inefficiencies, introduce scalable ways of working",
+          "Apply AI tooling/agents to automate triage, investigation, coordination workflows; replace manual effort with systems",
+          "Oversee first-line support quality for regional operations: distinguish bugs vs misconfigurations; route validated issues to engineering with full context; handle change requests with alignment before execution",
+          "Drive cross-functional alignment with product and engineering on process improvements and support integration into product development/release cycle",
+          "Lead product rollouts across ~70 countries: project planning, stakeholder alignment, execution infrastructure for predictable fast launches"
+        ],
+        "domain": "on-demand delivery logistics",
+        "tech_stack": [
+          "Jira",
+          "AI tools",
+          "AI agents"
+        ],
+        "years_experience_min": 4,
+        "keywords": [
+          "product operations",
+          "product support",
+          "technical support",
+          "logistics",
+          "last-mile delivery",
+          "rider app",
+          "dispatch algorithms",
+          "workforce management system",
+          "payments tools",
+          "bug triage",
+          "incident investigation",
+          "root cause analysis",
+          "process improvement",
+          "automation",
+          "product rollouts",
+          "change requests",
+          "Jira",
+          "AI agents"
+        ],
+        "job_family": "product_operations",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:21:16.923050+00:00",
+        "raw_job_fingerprint": "bd3f3b5f7e5de960c991e4e4bb8f7350071ae6892cd5450c027a8a368229981f",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "on-demand delivery logistics",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-global-operations-m-w-d-at-dsj-global-4415681741?trk=public_jobs_topcard-title",
+        "job_title": "Head of global Operations (m/w/d)",
+        "company": "DSJ Global",
+        "location_type": "onsite",
+        "seniority": "lead",
+        "required_skills": [
+          "Operations",
+          "Supply Chain Management",
+          "Operational Excellence",
+          "EHS",
+          "Budgetplanung",
+          "Ressourcenplanung",
+          "Kapazitätsplanung",
+          "datenbasierte Entscheidungsfindung",
+          "Transformationsprozesse",
+          "Prozessoptimierung",
+          "Qualitätsmanagement",
+          "Kostenmanagement",
+          "Liefertreue"
+        ],
+        "required_skills_canonical": [
+          "operations management",
+          "supply chain management",
+          "operational excellence",
+          "quality management",
+          "cost management",
+          "on-time delivery",
+          "ehs",
+          "budget planning",
+          "resource planning",
+          "capacity planning",
+          "data-driven decision making",
+          "transformation management",
+          "process optimization"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Globale Verantwortung für Operations und Supply Chain Management",
+            "canonical": "operations management",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Globale Verantwortung für Operations und Supply Chain Management",
+            "canonical": "supply chain management",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Implementierung operativer Exzellenz in Bezug auf Qualität, Kosten, Liefertreue und EHS",
+            "canonical": "operational excellence",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Implementierung operativer Exzellenz in Bezug auf Qualität, Kosten, Liefertreue und EHS",
+            "canonical": "quality management",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Implementierung operativer Exzellenz in Bezug auf Qualität, Kosten, Liefertreue und EHS",
+            "canonical": "cost management",
+            "confidence": 0.74
+          },
+          {
+            "raw_text": "Implementierung operativer Exzellenz in Bezug auf Qualität, Kosten, Liefertreue und EHS",
+            "canonical": "on-time delivery",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "Implementierung operativer Exzellenz in Bezug auf Qualität, Kosten, Liefertreue und EHS",
+            "canonical": "ehs",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Budget-, Ressourcen- und Kapazitätsplanung im Einklang mit der Unternehmensstrategie",
+            "canonical": "budget planning",
+            "confidence": 0.77
+          },
+          {
+            "raw_text": "Budget-, Ressourcen- und Kapazitätsplanung im Einklang mit der Unternehmensstrategie",
+            "canonical": "resource planning",
+            "confidence": 0.74
+          },
+          {
+            "raw_text": "Budget-, Ressourcen- und Kapazitätsplanung im Einklang mit der Unternehmensstrategie",
+            "canonical": "capacity planning",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Hohe Kompetenz in datenbasierter Entscheidungsfindung sowie Transformationsprozessen",
+            "canonical": "data-driven decision making",
+            "confidence": 0.76
+          },
+          {
+            "raw_text": "Hohe Kompetenz in datenbasierter Entscheidungsfindung sowie Transformationsprozessen",
+            "canonical": "transformation management",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "stetige Optimierung von Prozessen",
+            "canonical": "process optimization",
+            "confidence": 0.78
+          }
+        ],
+        "responsibilities": [
+          "Globale Verantwortung für Operations und Supply Chain Management im Bereich Chemie",
+          "Führung und Weiterentwicklung mehrerer internationaler Standorte",
+          "Enge Zusammenarbeit mit Produktion am Standort in Hessen (Präsenz, operative Nähe, aktives Mitgestalten)",
+          "Identifikation und Umsetzung von Wachstumschancen sowie Einführung neuer Technologien",
+          "Sicherstellung Einhaltung internationaler Standards, Richtlinien, regulatorischer Vorgaben",
+          "Implementierung operativer Exzellenz (Qualität, Kosten, Liefertreue, EHS)",
+          "Budget-, Ressourcen- und Kapazitätsplanung im Einklang mit Unternehmensstrategie",
+          "Förderung Talententwicklung, Wissensaufbau, kollaborative Arbeitskultur",
+          "Zusammenarbeit mit internationalen Schnittstellen zur Prozessoptimierung",
+          "Mitgestaltung langfristiger Unternehmensstrategie"
+        ],
+        "domain": "chemical manufacturing",
+        "years_experience_min": 10,
+        "keywords": [
+          "Global Operations",
+          "Operations Management",
+          "Supply Chain Management",
+          "Operational Excellence",
+          "EHS",
+          "Qualität",
+          "Kosten",
+          "Liefertreue",
+          "Budgetplanung",
+          "Kapazitätsplanung",
+          "Ressourcenplanung",
+          "Prozessoptimierung",
+          "Transformationsprozesse",
+          "Datenbasierte Entscheidungsfindung",
+          "Internationale Standorte",
+          "Produktion"
+        ],
+        "job_family": "operations_management",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "process optimization",
+            "matches": true,
+            "alias": "stetige optimierung von prozessen",
+            "canonical": "process optimization",
+            "confidence": 0.78
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:21:50.770843+00:00",
+        "raw_job_fingerprint": "ce1e7f92b7801554988450a6803e0a1cd6587ea64a9ff693600446408607721f",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "chemical manufacturing",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-pricing-analyst-product-operations-global-pricing-at-delivery-hero-4397268650?trk=public_jobs_topcard-title",
+        "job_title": "Senior Pricing Analyst, Product Operations (Global Pricing)",
+        "company": "Delivery Hero",
+        "location_type": "hybrid",
+        "seniority": "mid",
+        "required_skills": [
+          "BigQuery",
+          "SQL",
+          "Python",
+          "GitHub",
+          "applied statistics",
+          "A/B testing",
+          "price elasticity modeling"
+        ],
+        "required_skills_canonical": [
+          "google bigquery",
+          "sql",
+          "python",
+          "git",
+          "applied statistics",
+          "a/b testing",
+          "price elasticity modeling"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Mastery of BigQuery and SQL is essential",
+            "canonical": "google bigquery",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "Mastery of BigQuery and SQL is essential",
+            "canonical": "sql",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "ability to build Python-based modeling pipelines",
+            "canonical": "python",
+            "confidence": 0.94
+          },
+          {
+            "raw_text": "experience with GitHub",
+            "canonical": "git",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Strong grasp of applied statistics",
+            "canonical": "applied statistics",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "specifically for A/B testing",
+            "canonical": "a/b testing",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "price elasticity modeling",
+            "canonical": "price elasticity modeling",
+            "confidence": 0.93
+          }
+        ],
+        "preferred_skills": [
+          "Airflow",
+          "Google Analytics",
+          "Amplitude",
+          "Tableau"
+        ],
+        "preferred_skills_canonical": [
+          "tableau",
+          "apache airflow",
+          "google analytics",
+          "amplitude"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Build accessible, creative, and engaging data visualizations in Tableau/BigQuery",
+            "canonical": "tableau",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Experience with Airflow for data pipeline management",
+            "canonical": "apache airflow",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "familiarity with Google Analytics/Amplitude to track the customer checkout funnel",
+            "canonical": "google analytics",
+            "confidence": 0.91
+          },
+          {
+            "raw_text": "familiarity with Google Analytics/Amplitude to track the customer checkout funnel",
+            "canonical": "amplitude",
+            "confidence": 0.91
+          }
+        ],
+        "responsibilities": [
+          "Own business case for new pricing product requirements and build predictive models to estimate feature impact on key metrics (e.g., GPO, Conversion Rate, Order Frequency)",
+          "Lead testing efforts and rollout analysis for new pricing features; compare actual vs forecast performance; identify value leakage and recommend pivots",
+          "Partner with Global Marketing and Regional Ops to translate business goals into actionable product requirements and prioritize initiatives",
+          "Monitor global fee structure health and support day-to-day pricing product operations; answer end-user questions on pricing strategy setup",
+          "Build data visualizations in Tableau/BigQuery and own value tracker aggregating incremental revenue from pricing features across regions",
+          "Own data catalog for pricing dimensions/metrics/KPIs and collaborate with Data Engineering/Product to ensure experiment and pricing data correctly logged and scalable"
+        ],
+        "domain": "e-commerce",
+        "tech_stack": [
+          "BigQuery",
+          "SQL",
+          "Python",
+          "GitHub",
+          "Tableau",
+          "Airflow",
+          "Google Analytics",
+          "Amplitude"
+        ],
+        "years_experience_min": 3,
+        "keywords": [
+          "pricing analytics",
+          "product operations",
+          "global pricing",
+          "predictive modeling",
+          "forecasting",
+          "business case modeling",
+          "unit economics",
+          "A/B testing",
+          "price elasticity",
+          "Tableau",
+          "BigQuery",
+          "SQL",
+          "Python",
+          "Airflow",
+          "Google Analytics",
+          "Amplitude",
+          "data governance",
+          "data catalog",
+          "rollout analysis",
+          "feature impact modeling"
+        ],
+        "job_family": "analytics",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "git",
+            "matches": true,
+            "alias": "experience with github",
+            "canonical": "git",
+            "confidence": 0.93
+          },
+          {
+            "must_have_skill": "a/b testing",
+            "matches": true,
+            "alias": "specifically for a/b testing",
+            "canonical": "a/b testing",
+            "confidence": 0.95
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:22:08.477088+00:00",
+        "raw_job_fingerprint": "a4982cfc21872e932f41045bf525298e4ba2e57135988d5bd7978f319c6d4f99",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4405992963",
+        "job_title": "Operations Manager (m/w/d)",
+        "company": "Hermès",
+        "location_type": "onsite",
+        "seniority": "senior",
+        "required_skills": [
+          "Sehr gute Excel- und IT-Kenntnisse",
+          "Sehr gute Kenntnisse von Einzelhandels-IT-Systemen (z. B. CEGID)"
+        ],
+        "required_skills_canonical": [
+          "microsoft excel",
+          "it skills",
+          "cegid",
+          "retail it systems"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Sehr gute Excel- und IT-Kenntnisse",
+            "canonical": "microsoft excel",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Sehr gute Excel- und IT-Kenntnisse",
+            "canonical": "it skills",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "Sehr gute Kenntnisse von Einzelhandels-IT-Systemen (z. B. CEGID)",
+            "canonical": "cegid",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Sehr gute Kenntnisse von Einzelhandels-IT-Systemen (z. B. CEGID)",
+            "canonical": "retail it systems",
+            "confidence": 0.75
+          }
+        ],
+        "responsibilities": [
+          "Steuerung und Koordination administrativer Backoffice-Tätigkeiten (Wareneingangsbuchungen, Kassenvorbereitungen, Rechnungsprüfung, After-Sales-Prozesse)",
+          "Führung und Unterstützung Logistik- und Administrationsteams; Organisation und Priorisierung täglicher Aufgaben",
+          "Reporting operativer Themen und bestandsbezogener KPIs an Store-Leitung und Managementteam",
+          "Planung, Vorbereitung, Durchführung Inventuren und Stichprobenzählungen; Sicherstellung Genauigkeit und Compliance",
+          "Entwicklung und Umsetzung Maßnahmen zur Verbesserung Inventurergebnisse, Bestandsgenauigkeit, Lagerprozesse",
+          "Unterstützung Store Manager bei Überwachung Lagerbestände und Vorbereitung Bestellungen",
+          "Schnittstelle zu Customer Service Center, Zentrale München, Mutterkonzern zu Bestand, After-Sales, operativen Themen",
+          "Operative Unterstützung Verkaufs- und After-Sales-Aktivitäten bei Bedarf",
+          "Sicherstellung kontinuierliche Bestandsgenauigkeit zwischen System- und physischen Beständen; Organisation Ordnung Lagerbereiche nach Richtlinien",
+          "Management Wartungs- und Instandhaltungsmaßnahmen; Umsetzung operativer Projekte im Store"
+        ],
+        "domain": "retail",
+        "tech_stack": [
+          "Microsoft Excel",
+          "CEGID"
+        ],
+        "years_experience_min": 6,
+        "keywords": [
+          "store operations",
+          "backoffice",
+          "inventory management",
+          "stock accuracy",
+          "warehouse organization",
+          "after-sales",
+          "KPI reporting",
+          "inventory counts",
+          "cycle counting",
+          "compliance",
+          "retail IT systems",
+          "maintenance management",
+          "operational projects"
+        ],
+        "job_family": "operations_management",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:22:22.093100+00:00",
+        "raw_job_fingerprint": "a93d0c37baf62bdc0c6a2e4f8bcd369d9d976002795a74982e668d711057ecad",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4405817071",
+        "job_title": "RETAIL PERFORMANCE & OPERATIONS MANAGER – CENTRAL EUROPE",
+        "company": "CELINE",
+        "location_type": "onsite",
+        "seniority": "mid",
+        "required_skills": [
+          "Stock management",
+          "Store inventories planning and execution",
+          "BOH operations optimization (stock management and space usage)",
+          "Omnichannel retail operations",
+          "Operational excellence and process optimization",
+          "Store opening/closing coordination",
+          "Training store teams on store operations and stock management",
+          "Facilities maintenance coordination with vendors/subcontractors",
+          "Internal control and compliance audit action-plan follow-up",
+          "Traffic and team planning (workforce scheduling)",
+          "Operational cost monitoring and optimization",
+          "Inventory/ordering management for non-merchandise items (packaging, uniforms, store tools, stationery)",
+          "Budgeting, oversight, and reporting (non-merchandise items)",
+          "Cross-functional project execution"
+        ],
+        "required_skills_canonical": [
+          "stock management",
+          "inventory management",
+          "inventory auditing",
+          "back-of-house (boh) operations",
+          "space optimization",
+          "omnichannel retail operations",
+          "store openings and closures",
+          "training",
+          "facilities management",
+          "vendor management",
+          "internal controls",
+          "compliance auditing",
+          "workforce scheduling",
+          "cost control",
+          "procurement",
+          "budgeting",
+          "reporting"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Ensure impeccable stock management in all stores.",
+            "canonical": "stock management",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Plan and conduct all stores inventories to ensure exceptional stock accuracy.",
+            "canonical": "inventory management",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Plan and conduct all stores inventories to ensure exceptional stock accuracy.",
+            "canonical": "inventory auditing",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Uphold BOH operations integrity; optimize stock management and space usage",
+            "canonical": "back-of-house (boh) operations",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Uphold BOH operations integrity; optimize stock management and space usage",
+            "canonical": "space optimization",
+            "confidence": 0.74
+          },
+          {
+            "raw_text": "Foster an omni-channel approach to performance and organization in stores",
+            "canonical": "omnichannel retail operations",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Oversee all stores opening or closing in your market.",
+            "canonical": "store openings and closures",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Train store teams on store operations and stock management practices.",
+            "canonical": "training",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "Oversee maintenance of store facilities ... and liaise with subcontractors/vendors for upkeep.",
+            "canonical": "facilities management",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Oversee maintenance of store facilities ... and liaise with subcontractors/vendors for upkeep.",
+            "canonical": "vendor management",
+            "confidence": 0.76
+          },
+          {
+            "raw_text": "Oversee and ensure follow-up in action plans on internal control & compliance audits",
+            "canonical": "internal controls",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Oversee and ensure follow-up in action plans on internal control & compliance audits",
+            "canonical": "compliance auditing",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Ensure an optimized match to traffic and team planning in stores",
+            "canonical": "workforce scheduling",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Support the Retail Director in monitoring operational costs and identifying optimization opportunities",
+            "canonical": "cost control",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Manage and maintain the inventory, ordering, and accessibility of all non-merchandise products",
+            "canonical": "inventory management",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Manage and maintain the inventory, ordering, and accessibility of all non-merchandise products",
+            "canonical": "procurement",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "Ensure proper budgeting, oversight, and reporting of non-merchandise items",
+            "canonical": "budgeting",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Ensure proper budgeting, oversight, and reporting of non-merchandise items",
+            "canonical": "reporting",
+            "confidence": 0.74
+          }
+        ],
+        "responsibilities": [
+          "Ensure stock management across stores; drive stock accuracy",
+          "Plan and conduct store inventories",
+          "Uphold BOH operations integrity; optimize stock management and space usage with EME Operations/Performance",
+          "Drive omnichannel approach to store performance and organization",
+          "Execute regional operational projects and business initiatives",
+          "Oversee store openings and closures in market",
+          "Train store teams on operations and stock management practices",
+          "Oversee store facilities maintenance; coordinate with vendors/subcontractors",
+          "Partner with retail management to drive network performance",
+          "Support cross-functional initiatives (cross-selling, local client focus, clienteling support)",
+          "Follow up action plans from internal control and compliance audits; ensure policy/standard alignment",
+          "Optimize traffic-to-staffing match via team planning",
+          "Monitor operational costs; identify optimization opportunities",
+          "Manage non-merchandise inventory and ordering (packaging, uniforms, tools, stationery) with standards compliance",
+          "Manage budgeting/oversight/reporting for non-merchandise items with Finance",
+          "Collaborate with Operations & Performance, Retail, Supply Chain, CRM, Finance"
+        ],
+        "domain": "retail",
+        "years_experience_min": 5,
+        "keywords": [
+          "retail operations",
+          "operational excellence",
+          "process optimization",
+          "inventory management",
+          "stock management",
+          "BOH operations",
+          "omnichannel retail",
+          "compliance audits",
+          "internal controls",
+          "workforce scheduling",
+          "cost control",
+          "vendor management",
+          "facilities management",
+          "project management",
+          "training"
+        ],
+        "job_family": "operations_management",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:22:52.491954+00:00",
+        "raw_job_fingerprint": "6c071a012e61c80e80ba63f23ec0e1d47a5f2bffbc9fd76106c06da08b051f67",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/vice-president-speciality-business-europe-at-glenmark-europe-4411147011?trk=public_jobs_topcard-title",
+        "job_title": "Vice President - Speciality Business (Europe)",
+        "company": "Glenmark Europe",
+        "location_type": "onsite",
+        "seniority": "lead",
+        "required_skills": [
+          "P&L leadership",
+          "Commercial strategy",
+          "Market trend and competitive landscape analysis",
+          "Portfolio strategy",
+          "Product lifecycle management",
+          "Market access",
+          "Field force effectiveness",
+          "Commercial analytics",
+          "CRM optimization",
+          "Launch excellence / product launches",
+          "Budget planning",
+          "Resource allocation",
+          "Demand forecasting",
+          "Inventory management",
+          "Pricing and reimbursement"
+        ],
+        "required_skills_canonical": [
+          "p&l management",
+          "competitive analysis",
+          "market trend analysis",
+          "portfolio management",
+          "product lifecycle management",
+          "market access",
+          "sales force effectiveness",
+          "commercial analytics",
+          "crm optimization",
+          "budget planning",
+          "resource allocation",
+          "demand forecasting",
+          "inventory management",
+          "pricing",
+          "reimbursement"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Own and drive the P&L for the Europe speciality business",
+            "canonical": "p&l management",
+            "confidence": 0.91
+          },
+          {
+            "raw_text": "Analyze market trends, competitive landscape",
+            "canonical": "competitive analysis",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Analyze market trends, competitive landscape",
+            "canonical": "market trend analysis",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Define and drive portfolio strategy, managing product lifecycles from pre-launch through maturity",
+            "canonical": "portfolio management",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Define and drive portfolio strategy, managing product lifecycles from pre-launch through maturity",
+            "canonical": "product lifecycle management",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Identify capability gaps (e.g., market access, field force effectiveness, analytics)",
+            "canonical": "market access",
+            "confidence": 0.87
+          },
+          {
+            "raw_text": "Identify capability gaps (e.g., market access, field force effectiveness, analytics)",
+            "canonical": "sales force effectiveness",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Identify capability gaps (e.g., market access, field force effectiveness, analytics)",
+            "canonical": "commercial analytics",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Drive sales force effectiveness, commercial analytics, and CRM optimization",
+            "canonical": "sales force effectiveness",
+            "confidence": 0.87
+          },
+          {
+            "raw_text": "Drive sales force effectiveness, commercial analytics, and CRM optimization",
+            "canonical": "commercial analytics",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Drive sales force effectiveness, commercial analytics, and CRM optimization",
+            "canonical": "crm optimization",
+            "confidence": 0.83
+          },
+          {
+            "raw_text": "Own budget planning, resource allocation",
+            "canonical": "budget planning",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Own budget planning, resource allocation",
+            "canonical": "resource allocation",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "ensure effective demand forecasting and inventory management",
+            "canonical": "demand forecasting",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "ensure effective demand forecasting and inventory management",
+            "canonical": "inventory management",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Sound understanding of European healthcare systems, pricing, and reimbursement dynamics",
+            "canonical": "pricing",
+            "confidence": 0.79
+          },
+          {
+            "raw_text": "Sound understanding of European healthcare systems, pricing, and reimbursement dynamics",
+            "canonical": "reimbursement",
+            "confidence": 0.8
+          }
+        ],
+        "preferred_skills": [
+          "Omni-channel"
+        ],
+        "preferred_skills_canonical": [
+          "omnichannel marketing"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Strong grasp of commercial excellence levers (field force effectiveness, omni-channel, analytics)",
+            "canonical": "omnichannel marketing",
+            "confidence": 0.78
+          }
+        ],
+        "responsibilities": [
+          "Own and drive P&L for Europe specialty business; deliver revenue growth, profitability",
+          "Develop and execute commercial strategies; build long-term business plans for EU portfolio",
+          "Analyze market trends, competitive landscape, therapeutic advancements; find growth opportunities",
+          "Define portfolio strategy; manage product lifecycles from pre-launch to maturity",
+          "Identify capability gaps (market access, field force effectiveness, analytics); drive scalable regional solutions",
+          "Lead specialty product launches; align sales, marketing, market access to business objectives",
+          "Build and scale commercial teams across sales, marketing, digital",
+          "Drive sales force effectiveness, commercial analytics, CRM optimization",
+          "Collaborate with Regulatory Affairs, Medical Affairs, R&D, Manufacturing for commercialization",
+          "Manage external stakeholders: KOLs, payers, patient advocacy groups, HTA/government bodies",
+          "Own budget planning, resource allocation; hit revenue/profit targets",
+          "Monitor country performance vs KPIs; partner with country managers to improve outcomes",
+          "Work with supply chain/operations on demand forecasting, inventory management",
+          "Ensure compliance with regulatory/legal/company policies; oversee promotional material review"
+        ],
+        "domain": "pharmaceuticals",
+        "tech_stack": [
+          "CRM"
+        ],
+        "years_experience_min": 15,
+        "keywords": [
+          "P&L",
+          "commercial strategy",
+          "specialty pharmaceuticals",
+          "Respiratory",
+          "Dermatology",
+          "Oncology",
+          "product launch",
+          "portfolio management",
+          "product lifecycle management",
+          "market access",
+          "pricing",
+          "reimbursement",
+          "commercial analytics",
+          "CRM optimization",
+          "sales force effectiveness",
+          "omnichannel",
+          "demand forecasting",
+          "inventory management",
+          "HTA",
+          "KOL"
+        ],
+        "job_family": "sales_marketing",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:23:18.415920+00:00",
+        "raw_job_fingerprint": "6cb0e51393ce8c5d73bcdf8e5fe734d3b7700716a74835290bd507437d0ff4c7",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "pharmaceuticals",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/revenue-strategy-operations-manager-at-wolt-4405038786?trk=public_jobs_topcard-title",
+        "job_title": "Revenue Strategy & Operations Manager",
+        "company": "Wolt",
+        "location_type": "onsite",
+        "seniority": "senior",
+        "required_skills": [
+          "Salesforce/CRM implementation as a single system of record",
+          "Setting strategy and translating it into OKRs and KPIs",
+          "Performance tracking (cockpits)",
+          "Data cleanup",
+          "Phased system and operational rollouts"
+        ],
+        "required_skills_canonical": [
+          "salesforce",
+          "crm implementation",
+          "okrs",
+          "kpis",
+          "sales compensation design",
+          "performance tracking",
+          "rollout management",
+          "data cleansing"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "experience with Salesforce/CRM implementation as a single system of record",
+            "canonical": "salesforce",
+            "confidence": 0.94
+          },
+          {
+            "raw_text": "experience with Salesforce/CRM implementation as a single system of record",
+            "canonical": "crm implementation",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strength in setting strategy and translating it into OKRs and KPIs",
+            "canonical": "okrs",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strength in setting strategy and translating it into OKRs and KPIs",
+            "canonical": "kpis",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Experience standardizing incentive models, variable pay structures, and performance tracking (cockpits)",
+            "canonical": "sales compensation design",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Experience standardizing incentive models, variable pay structures, and performance tracking (cockpits)",
+            "canonical": "performance tracking",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Proven ability to manage phased system and operational rollouts",
+            "canonical": "rollout management",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "In the first 3-6 months, focus on data cleanup",
+            "canonical": "data cleansing",
+            "confidence": 0.8
+          }
+        ],
+        "responsibilities": [
+          "Build operational vision and lead phased execution to transition Commerce Platform into standard commercial products",
+          "Align processes across Sales, Account Management, and Merchant Ops to unlock scalable growth",
+          "Drive execution roadmap to move from limited-scope active sales to full-scale standard commercial motion",
+          "Align CP sales structures to marketplace standards and rollout priorities",
+          "Collaborate with Selection Intelligence, Central team, and Sales/AM teams for hitlists, troubleshooting, and post-activation support",
+          "Lead data cleanup and structural alignment; set guardrails, targets, KPIs; remove internal friction",
+          "Scale rollout globally within 6–12 months",
+          "Report progress to senior management; manage stakeholder communication; identify scalability improvements",
+          "Perform ad hoc analysis and commercial support; build frameworks, guidelines, guardrails"
+        ],
+        "domain": "last-mile delivery / commerce marketplace",
+        "tech_stack": [
+          "Salesforce",
+          "CRM"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "revenue operations",
+          "sales strategy",
+          "sales operations",
+          "commercial operations",
+          "CRM implementation",
+          "Salesforce",
+          "OKRs",
+          "KPIs",
+          "data cleansing",
+          "rollout management",
+          "account management",
+          "merchant operations",
+          "enterprise sales",
+          "SMB sales",
+          "sales compensation",
+          "variable pay"
+        ],
+        "job_family": "revenue_operations",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:23:36.352198+00:00",
+        "raw_job_fingerprint": "d2099310a94974d3e152f00bf80e982afef05ce24e851626106a04f79438fa57",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "last-mile delivery / commerce marketplace",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413988739",
+        "job_title": "Multi-Site Operations Specialist (m/w/d)",
+        "company": "roadsurfer",
+        "location_type": "onsite",
+        "seniority": "junior",
+        "responsibilities": [
+          "Travel to different stations in North Germany to support where needed",
+          "Support station team with daily tasks",
+          "Customer handover: greet customers at pickup and drop-off, ensure good experience",
+          "Exterior and interior cleaning of campers",
+          "Contribute ideas, participate in new projects, help shape work environment"
+        ],
+        "domain": "campervan rental / travel",
+        "years_experience_min": 0,
+        "keywords": [
+          "multi-site operations",
+          "station support",
+          "customer service",
+          "campervan rental",
+          "fleet cleaning",
+          "traveling role",
+          "pickup and drop-off"
+        ],
+        "job_family": "operations",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:23:41.727289+00:00",
+        "raw_job_fingerprint": "e21620e1a90f5e28af201263e68ec8fcf810eeb60ec386e4e9d89fe15af92488",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "campervan rental / travel",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413983843",
+        "job_title": "Task Force Operations Manager  (m/w/d)",
+        "company": "roadsurfer",
+        "location_type": "onsite",
+        "seniority": "mid",
+        "responsibilities": [
+          "Travel to different stations in North Germany to provide support where needed",
+          "Support station team with daily tasks",
+          "Ensure customers have positive experience during camper pickup and drop-off",
+          "Handle exterior and interior cleaning of campers",
+          "Contribute ideas and participate in new projects to shape work environment"
+        ],
+        "domain": "travel arrangements",
+        "years_experience_min": 0,
+        "keywords": [
+          "task force",
+          "operations manager",
+          "station support",
+          "campervan rental",
+          "customer service",
+          "cleaning",
+          "traveling role",
+          "North Germany",
+          "roadsurfer"
+        ],
+        "job_family": "operations",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:23:47.191122+00:00",
+        "raw_job_fingerprint": "40643b4b0db59a12baf9053b8d0d3966f3b38ba13e8ba589767862f515c72c72",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "travel arrangements",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manufacturing-operations-manager-at-european-tech-recruit-4416254580?trk=public_jobs_topcard-title",
+        "job_title": "Manufacturing Operations Manager",
+        "company": "European Tech Recruit",
+        "location_type": "onsite",
+        "seniority": "senior",
+        "required_skills": [
+          "manufacturing operations management",
+          "continuous improvement",
+          "operational strategy",
+          "supply chain optimization",
+          "product ramp-up",
+          "cost reduction",
+          "delivery optimization",
+          "supplier relationship management",
+          "yield improvement",
+          "process optimization",
+          "external manufacturing management",
+          "operations engineering leadership",
+          "product and process improvement",
+          "product transfers",
+          "qualification",
+          "equipment lifecycle management",
+          "mass production ramp-up",
+          "Sales & Operations Planning (S&OP)",
+          "demand planning",
+          "supply planning",
+          "performance target management (on-time delivery, yield, productivity)",
+          "MEMS",
+          "ASIC",
+          "fabless operations",
+          "MEMS process technologies",
+          "ASIC process technologies",
+          "semiconductor manufacturing",
+          "packaging",
+          "assembly",
+          "testing"
+        ],
+        "required_skills_canonical": [
+          "manufacturing operations management",
+          "continuous improvement",
+          "operational strategy",
+          "supply chain optimization",
+          "product ramp-up",
+          "cost reduction",
+          "delivery optimization",
+          "supplier relationship management",
+          "yield improvement",
+          "process optimization",
+          "external manufacturing management",
+          "operations engineering leadership",
+          "product and process improvement",
+          "product transfers",
+          "qualification",
+          "equipment lifecycle management",
+          "mass production ramp-up",
+          "sales & operations planning (s&op)",
+          "demand planning",
+          "supply planning",
+          "performance target management (on-time delivery, yield, productivity)",
+          "mems",
+          "asic",
+          "fabless operations",
+          "mems process technologies",
+          "asic process technologies",
+          "semiconductor manufacturing",
+          "packaging",
+          "assembly",
+          "testing"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "lead the manufacturing operations and drive continuous improvement",
+            "canonical": "manufacturing operations management",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "lead the manufacturing operations and drive continuous improvement",
+            "canonical": "continuous improvement",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Define, implement, and drive operational strategies",
+            "canonical": "operational strategy",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "optimising the supply chain",
+            "canonical": "supply chain optimization",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "enhance product ramp-up",
+            "canonical": "product ramp-up",
+            "confidence": 0.77
+          },
+          {
+            "raw_text": "reduce costs",
+            "canonical": "cost reduction",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "optimize delivery",
+            "canonical": "delivery optimization",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "strengthening our supplier relationships",
+            "canonical": "supplier relationship management",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "Proven track record in driving yield improvement",
+            "canonical": "yield improvement",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Proven track record in driving ... process optimization",
+            "canonical": "process optimization",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "managing external manufacturing",
+            "canonical": "external manufacturing management",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Lead the Operations Engineering team",
+            "canonical": "operations engineering leadership",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "driving product and process improvements",
+            "canonical": "product and process improvement",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Oversee key projects related to ... product transfers",
+            "canonical": "product transfers",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Oversee key projects related to ... qualification",
+            "canonical": "qualification",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Oversee key projects related to ... equipment lifecycle management",
+            "canonical": "equipment lifecycle management",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Oversee key projects related to ... mass production ramp-up",
+            "canonical": "mass production ramp-up",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Sales & Operations Planning (S&OP): Lead the S&OP team",
+            "canonical": "sales & operations planning (s&op)",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "develop and optimize a robust global demand and supply plan",
+            "canonical": "demand planning",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "develop and optimize a robust global demand and supply plan",
+            "canonical": "supply planning",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "setting and achieving ... performance targets for on-time delivery, yield, and productivity",
+            "canonical": "performance target management (on-time delivery, yield, productivity)",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "including expertise in MEMS, ASICs, and fabless operations",
+            "canonical": "mems",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "including expertise in MEMS, ASICs, and fabless operations",
+            "canonical": "asic",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "including expertise in MEMS, ASICs, and fabless operations",
+            "canonical": "fabless operations",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong technical understanding of MEMS and ASIC process technologies",
+            "canonical": "mems process technologies",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong technical understanding of MEMS and ASIC process technologies",
+            "canonical": "asic process technologies",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong technical understanding of ... semiconductor manufacturing (including packaging, assembly, and testing)",
+            "canonical": "semiconductor manufacturing",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "including packaging, assembly, and testing",
+            "canonical": "packaging",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "including packaging, assembly, and testing",
+            "canonical": "assembly",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "including packaging, assembly, and testing",
+            "canonical": "testing",
+            "confidence": 0.88
+          }
+        ],
+        "responsibilities": [
+          "Define and drive operational strategy to improve ramp-up, cost, delivery, efficiency, supplier relationships",
+          "Run day-to-day internal and external manufacturing operations to meet demand; set targets for on-time delivery, yield, productivity",
+          "Lead Operations Engineering; drive product/process improvements with R&D",
+          "Oversee process optimization, product transfers, qualification, equipment lifecycle management, mass production ramp-up",
+          "Lead S&OP; build global demand/supply plan aligned to forecasts",
+          "Partner cross-functionally (sales, marketing, planning, engineering, quality, procurement, legal) on manufacturing strategy",
+          "Lead and mentor multi-site teams (Germany, Netherlands)"
+        ],
+        "domain": "semiconductor manufacturing",
+        "tech_stack": [
+          "Sales & Operations Planning (S&OP)",
+          "MEMS",
+          "ASIC",
+          "fabless operations",
+          "packaging",
+          "assembly",
+          "testing"
+        ],
+        "years_experience_min": 10,
+        "keywords": [
+          "manufacturing operations",
+          "operations manager",
+          "semiconductor",
+          "sensors",
+          "continuous improvement",
+          "operational excellence",
+          "supply chain",
+          "yield improvement",
+          "process optimization",
+          "external manufacturing",
+          "S&OP",
+          "demand planning",
+          "supply planning",
+          "MEMS",
+          "ASIC",
+          "fabless",
+          "product transfer",
+          "qualification",
+          "equipment lifecycle management",
+          "ramp-up",
+          "packaging",
+          "assembly",
+          "testing"
+        ],
+        "job_family": "manufacturing_operations",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "supply chain optimization",
+            "matches": true,
+            "alias": "optimising the supply chain",
+            "canonical": "supply chain optimization",
+            "confidence": 0.78
+          },
+          {
+            "must_have_skill": "product ramp-up",
+            "matches": true,
+            "alias": "enhance product ramp-up",
+            "canonical": "product ramp-up",
+            "confidence": 0.77
+          },
+          {
+            "must_have_skill": "cost reduction",
+            "matches": true,
+            "alias": "reduce costs",
+            "canonical": "cost reduction",
+            "confidence": 0.72
+          },
+          {
+            "must_have_skill": "delivery optimization",
+            "matches": true,
+            "alias": "optimize delivery",
+            "canonical": "delivery optimization",
+            "confidence": 0.72
+          },
+          {
+            "must_have_skill": "supplier relationship management",
+            "matches": true,
+            "alias": "strengthening our supplier relationships",
+            "canonical": "supplier relationship management",
+            "confidence": 0.72
+          },
+          {
+            "must_have_skill": "external manufacturing management",
+            "matches": true,
+            "alias": "managing external manufacturing",
+            "canonical": "external manufacturing management",
+            "confidence": 0.86
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:24:20.909152+00:00",
+        "raw_job_fingerprint": "a038bcd679c93117d85b79e8da3f4273d4923fcb87440c28b84747f9c93db535",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "semiconductor manufacturing",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/client-operations-representative-at-viva-com-4394620714?trk=public_jobs_topcard-title",
+        "job_title": "Client Operations Representative",
+        "company": "Viva.com",
+        "location_type": "onsite",
+        "seniority": "junior",
+        "required_skills": [
+          "Lead intake triage and assignment",
+          "Merchant onboarding support",
+          "Payment acceptance setup support",
+          "Account performance monitoring and analysis",
+          "Maintaining client records in company database",
+          "Identifying customer technical and commercial requirements to craft solutions",
+          "Phone and video meeting presentations",
+          "Cross-functional collaboration"
+        ],
+        "preferred_skills": [
+          "Interest in AI-powered tools",
+          "Openness to working in AI-enhanced environments"
+        ],
+        "responsibilities": [
+          "Assess and assign incoming leads to appropriate team",
+          "Manage and assist merchants with onboarding process and payment acceptance setup",
+          "Promote existing and new company services to potential merchants",
+          "Monitor active merchants post-activation to ensure seamless collaboration",
+          "Act as touchpoint between internal departments to support effective use of internal systems and processes",
+          "Enter and maintain up to date client information in company database and keep records",
+          "Monitor and analyze account performance to drive growth",
+          "Collaborate with internal teams to ensure seamless service delivery"
+        ],
+        "domain": "fintech",
+        "years_experience_min": 0,
+        "keywords": [
+          "client operations",
+          "merchant onboarding",
+          "payments",
+          "payment acceptance",
+          "lead management",
+          "account performance",
+          "client database",
+          "internal systems",
+          "omnichannel payments",
+          "Tap on Any Device",
+          "AI-powered tools"
+        ],
+        "job_family": "operations",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:24:30.946798+00:00",
+        "raw_job_fingerprint": "32cecb2cd4def7e8e8110fb98c533c7882f9fe78c40b893d0f6a0067346af159",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "fintech",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4048085589",
+        "job_title": "(Junior) Consultant (w/m/d) Banking & Financial Institutions",
+        "company": "Horváth",
+        "location_type": "hybrid",
+        "seniority": "junior",
+        "required_skills": [
+          "Excel",
+          "Word",
+          "PowerPoint"
+        ],
+        "required_skills_canonical": [
+          "microsoft excel",
+          "microsoft word",
+          "microsoft powerpoint"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Umgang mit gängigen Office-Programmen (Excel, Word, PowerPoint)",
+            "canonical": "microsoft excel",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Umgang mit gängigen Office-Programmen (Excel, Word, PowerPoint)",
+            "canonical": "microsoft word",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Umgang mit gängigen Office-Programmen (Excel, Word, PowerPoint)",
+            "canonical": "microsoft powerpoint",
+            "confidence": 0.95
+          }
+        ],
+        "responsibilities": [
+          "Unterstützung Beratung Kunden in erfahrenem Team",
+          "Erarbeiten maßgeschneiderter Lösungen für Banking & Financial Institutions Kunden",
+          "Mitarbeit an übergreifenden Themen (Publikationen, Entwicklung neuer Themenfelder, neue Tools)",
+          "Übernahme Verantwortung für Teilbereiche innerhalb Projekte",
+          "Pflege persönlicher Kundenkontakt"
+        ],
+        "domain": "banking",
+        "tech_stack": [
+          "Microsoft Excel",
+          "Microsoft Word",
+          "Microsoft PowerPoint"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "Banking",
+          "Financial Institutions",
+          "Managementberatung",
+          "Unternehmensberatung",
+          "Operations Banking",
+          "Organisation",
+          "Geschäftsmodellentwicklung",
+          "Excel",
+          "Word",
+          "PowerPoint"
+        ],
+        "job_family": "consulting",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:24:40.779327+00:00",
+        "raw_job_fingerprint": "3a5d80d48ed9999c85c7662ff5e0a059179966097248e59557790ab98891f8bf",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "banking",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4394959021",
+        "job_title": "Operations Manager",
+        "company": "Hard Rock Cafe",
+        "location_type": "onsite",
+        "seniority": "mid",
+        "responsibilities": [
+          "Manage departmental P&L expense lines as designated by General Manager",
+          "Support cafe senior leadership in upholding brand standards and core values while meeting business objectives",
+          "Demonstrate financial comprehension of cafe budget and P&L",
+          "Mentor and coach hourly staff into brand ambassadors and customer service stewards",
+          "Manage labor schedules aligned to budget and forecast models",
+          "Run department and/or cost center",
+          "Partner across departments to execute systems and processes delivering products and services to brand standards",
+          "Support senior management building highly functional hourly team with shared vision and values",
+          "Execute brand standards in Rock Shop and drive retail sales growth through staff and guest interaction",
+          "Foster guest-first customer service culture",
+          "Execute guest satisfaction standards meeting or exceeding brand standards via objective ranking system",
+          "Observe service standards to ensure guest expectations upheld",
+          "Engage with guests regarding music (current and past)",
+          "Support senior management attracting and retaining top talent and placing people for maximum impact",
+          "Define goals and expectations using performance review tools and hold team accountable",
+          "Support staff development and advancement along career paths",
+          "Serve as Learning Coach developing, implementing, executing learning and developmental programs to drive continuous improvement and retention"
+        ],
+        "domain": "restaurants",
+        "years_experience_min": 0,
+        "keywords": [
+          "Operations Manager",
+          "P&L",
+          "budget",
+          "expense lines",
+          "labor scheduling",
+          "forecast models",
+          "cost center",
+          "brand standards",
+          "core values",
+          "customer service",
+          "guest satisfaction",
+          "retail sales",
+          "Rock Shop",
+          "performance review",
+          "staff development",
+          "learning and development",
+          "employee retention"
+        ],
+        "job_family": "operations_management",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:24:51.901454+00:00",
+        "raw_job_fingerprint": "05a4a4609494cce7244678bad35aca5be3999f4f5d63b56612febc14859adb4b",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "restaurants",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4383804472",
+        "job_title": "Office Management",
+        "company": "Tacto",
+        "location_type": "onsite",
+        "seniority": "mid",
+        "required_skills": [
+          "Microsoft Excel"
+        ],
+        "required_skills_canonical": [
+          "microsoft excel"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Excel",
+            "canonical": "microsoft excel",
+            "confidence": 0.9
+          }
+        ],
+        "responsibilities": [
+          "Own office experience end-to-end; keep office clean, organized, well-stocked; run daily checks; fix issues; coordinate building management, cleaning service",
+          "Manage vendors and service providers; single point of contact for landlord, Hausmeister, cleaning, maintenance; coordinate; ensure smooth operations",
+          "Monitor stock levels; manage supply room; ensure team supplies and equipment available (snacks, coffee, laptops, headphones)",
+          "Handle office-related requests for employees; respond quickly and reliably",
+          "Plan moments and celebrations (birthdays, work anniversaries, new hires)",
+          "Organize team events (monthly culture events, quarterly events); align on vision and budget with Finance & Operations, Chief of Staff"
+        ],
+        "domain": "industrial procurement / manufacturing",
+        "tech_stack": [
+          "Microsoft Excel"
+        ],
+        "years_experience_min": 2,
+        "keywords": [
+          "office management",
+          "office operations",
+          "vendor management",
+          "facilities coordination",
+          "event coordination",
+          "team events",
+          "stock management",
+          "supply room",
+          "building management",
+          "cleaning service",
+          "maintenance coordination",
+          "procurement",
+          "manufacturing",
+          "industrial procurement"
+        ],
+        "job_family": "operations",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "microsoft excel",
+            "matches": true,
+            "alias": "excel",
+            "canonical": "microsoft excel",
+            "confidence": 0.9
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:25:03.300291+00:00",
+        "raw_job_fingerprint": "610f4f0520aaeb74ff71b1aa8ac9d9384b1687a69a59c2babbd53a707b14104f",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "industrial procurement / manufacturing",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/restaurant-onboarding-specialist-m-f-x-at-wolt-4414700375?trk=public_jobs_topcard-title",
+        "job_title": "Restaurant Onboarding Specialist (m/f/x)",
+        "company": "Wolt",
+        "location_type": "onsite",
+        "seniority": "mid",
+        "required_skills": [
+          "Project management"
+        ],
+        "required_skills_canonical": [
+          "project management"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Strong project management skills, from planning to execution.",
+            "canonical": "project management",
+            "confidence": 0.93
+          }
+        ],
+        "responsibilities": [
+          "Own onboarding experience for high-profile restaurant partners, ensure each step meets standards",
+          "Lead, deliver projects improving onboarding efficiency, scalability, partner-friendliness",
+          "Act main point contact during onboarding, train partners on tools, share best practices",
+          "Work with sales, operations, account management for smooth handover, strong start",
+          "Monitor quality, partner satisfaction first months, solve problems early",
+          "Use data, insights spot growth opportunities, recommend improvements",
+          "Ensure venue content, visuals accurate, engaging, aligned with brand",
+          "Share know-how, help newer onboarding colleagues grow"
+        ],
+        "domain": "food delivery",
+        "years_experience_min": 0,
+        "keywords": [
+          "restaurant onboarding",
+          "partner onboarding",
+          "account management",
+          "partner operations",
+          "project management",
+          "partner training",
+          "quality assurance",
+          "partner satisfaction",
+          "data insights",
+          "content accuracy"
+        ],
+        "job_family": "customer_success",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:25:13.053043+00:00",
+        "raw_job_fingerprint": "83172de473aed3ea6c9aebce414b9527c5a75329c40dcf2967b8a21372162620",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "food delivery",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417044893",
+        "job_title": "Project and Office Coordinator (m/f/d)",
+        "company": "Aroundtown",
+        "location_type": "hybrid",
+        "seniority": "mid",
+        "required_skills": [
+          "Proficiency in MS Office Suite (Word, Excel, PowerPoint, Outlook) or similar tools"
+        ],
+        "required_skills_canonical": [
+          "microsoft office",
+          "microsoft word",
+          "microsoft excel",
+          "microsoft powerpoint",
+          "microsoft outlook"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "MS Office Suite (Word, Excel, PowerPoint, Outlook)",
+            "canonical": "microsoft office",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "MS Office Suite (Word, Excel, PowerPoint, Outlook)",
+            "canonical": "microsoft word",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "MS Office Suite (Word, Excel, PowerPoint, Outlook)",
+            "canonical": "microsoft excel",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "MS Office Suite (Word, Excel, PowerPoint, Outlook)",
+            "canonical": "microsoft powerpoint",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "MS Office Suite (Word, Excel, PowerPoint, Outlook)",
+            "canonical": "microsoft outlook",
+            "confidence": 0.95
+          }
+        ],
+        "responsibilities": [
+          "Support project managers in planning, tracking, and monitoring project progress",
+          "Prepare project documentation, meeting agendas, minutes, and reports",
+          "Assist in coordinating deadlines, deliverables, and communication between internal and external stakeholders",
+          "Ensure projects remain on schedule by following up on action items",
+          "Manage day-to-day administrative tasks of office",
+          "Serve as first point of contact for general inquiries and correspondence",
+          "Maintain filing systems (digital and physical) and ensure accurate record-keeping",
+          "Oversee office supplies and liaise with vendors for procurement and services",
+          "Arrange and coordinate travel logistics (flights, hotels, transportation) for executives",
+          "Organize conferences, meetings, and company events (venue, catering, materials, itineraries)",
+          "Manage calendars, schedule meetings, and support executives with organizational tasks",
+          "Draft and format correspondence, presentations, and reports",
+          "Support onboarding of new team members and coordinate internal communications"
+        ],
+        "domain": "real estate",
+        "tech_stack": [
+          "Microsoft Word",
+          "Microsoft Excel",
+          "Microsoft PowerPoint",
+          "Microsoft Outlook",
+          "Microsoft Office"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "project coordination",
+          "project support",
+          "office coordination",
+          "office administration",
+          "travel management",
+          "event management",
+          "meeting minutes",
+          "project documentation",
+          "calendar management",
+          "Microsoft Office",
+          "Word",
+          "Excel",
+          "PowerPoint",
+          "Outlook",
+          "record keeping",
+          "filing systems",
+          "vendor management",
+          "procurement"
+        ],
+        "job_family": "project_management",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:25:28.661652+00:00",
+        "raw_job_fingerprint": "ea41d4731eb9c83afbbb051847854960d62d02c453f2d17cd45589e1d97db530",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "real estate",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ],
+        "filter_outcome": "pass"
+      }
+    ],
+    "dropped_or_changed_sample": [],
+    "inputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/teamlead-logistics-at-envalior-4402113214?trk=public_jobs_topcard-title",
+        "job_title": "Teamlead Logistics",
+        "company": "Envalior",
+        "location_type": "onsite",
+        "seniority": "lead",
+        "required_skills": [
+          "Knowledge of logistics regulations and standards (GefStoffV, GüKG, KrWG, GewAbfV, AVV)"
+        ],
+        "required_skills_canonical": [
+          "gefstoffv",
+          "gükg",
+          "krwg",
+          "gewabfv",
+          "avv"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Strong knowledge of logistics regulations and standards, such as GefStoffV, GüKG, KrWG, GewAbfV, and AVV",
+            "canonical": "gefstoffv",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Strong knowledge of logistics regulations and standards, such as GefStoffV, GüKG, KrWG, GewAbfV, and AVV",
+            "canonical": "gükg",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Strong knowledge of logistics regulations and standards, such as GefStoffV, GüKG, KrWG, GewAbfV, and AVV",
+            "canonical": "krwg",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Strong knowledge of logistics regulations and standards, such as GefStoffV, GüKG, KrWG, GewAbfV, and AVV",
+            "canonical": "gewabfv",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Strong knowledge of logistics regulations and standards, such as GefStoffV, GüKG, KrWG, GewAbfV, and AVV",
+            "canonical": "avv",
+            "confidence": 0.93
+          }
+        ],
+        "preferred_skills": [
+          "Cost controlling",
+          "SAP PM (R/3)"
+        ],
+        "preferred_skills_canonical": [
+          "cost controlling",
+          "sap pm",
+          "sap r/3"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Experience in cost controlling and SAP PM (R/3) is an advantage",
+            "canonical": "cost controlling",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Experience in cost controlling and SAP PM (R/3) is an advantage",
+            "canonical": "sap pm",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Experience in cost controlling and SAP PM (R/3) is an advantage",
+            "canonical": "sap r/3",
+            "confidence": 0.85
+          }
+        ],
+        "responsibilities": [
+          "Lead logistics department for compounding area to ensure reliable, compliant, efficient internal logistics supporting production targets",
+          "Own internal logistics processes and systems including raw material supply and mixture creation using LOOP",
+          "Drive continuous process improvement and process optimization with cross-functional approaches",
+          "Lead and develop team of ~25 employees (foremen, warehouse staff, chemical operators)",
+          "Act as deputy to plant management within compounding area, supporting operational and organizational decisions",
+          "Ensure compliance with legal regulations and internal requirements including occupational safety, production, and logistics standards",
+          "Collaborate with production leadership to secure plant availability and achieve production goals",
+          "Support initiatives to reduce process waste (packaging materials, raw materials, finished goods)"
+        ],
+        "domain": "industrial manufacturing (high-performance engineering materials/chemicals)",
+        "tech_stack": [
+          "LOOP",
+          "SAP PM",
+          "SAP R/3"
+        ],
+        "years_experience_min": 3,
+        "keywords": [
+          "internal logistics",
+          "compounding operations",
+          "raw material supply",
+          "mixture creation",
+          "continuous improvement",
+          "process optimization",
+          "occupational safety",
+          "GefStoffV",
+          "GüKG",
+          "KrWG",
+          "GewAbfV",
+          "AVV",
+          "SAP PM",
+          "SAP R/3",
+          "cost controlling",
+          "warehouse operations",
+          "production availability",
+          "waste reduction"
+        ],
+        "job_family": "logistics_operations",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:20:26.488473+00:00",
+        "raw_job_fingerprint": "eca3cae859302a728234ae015665530b27ed1706a2f8e941155d01ffbae9614a",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/group-product-manager-logistics-routing-dispatch-optimization-at-delivery-hero-4401423303?trk=public_jobs_topcard-title",
+        "job_title": "Group Product Manager - (Logistics,  Routing & Dispatch Optimization)",
+        "company": "Delivery Hero",
+        "location_type": "hybrid",
+        "seniority": "senior",
+        "required_skills": [
+          "Product management",
+          "People management",
+          "B2B product development",
+          "Data-driven decision making",
+          "Experimentation"
+        ],
+        "required_skills_canonical": [
+          "product management",
+          "people management",
+          "b2b product development",
+          "data-driven decision making",
+          "experimentation"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "6+ years of experience in product management",
+            "canonical": "product management",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "4+ years of experience as a people manager",
+            "canonical": "people management",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Previous experience in conceptualizing B2B product solutions",
+            "canonical": "b2b product development",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "a mindset for data-driven decision making",
+            "canonical": "data-driven decision making",
+            "confidence": 0.83
+          },
+          {
+            "raw_text": "including experimentation and guardrails",
+            "canonical": "experimentation",
+            "confidence": 0.78
+          }
+        ],
+        "responsibilities": [
+          "Own overall product and data science direction and priorities for routing and dispatch optimization",
+          "Lead, support, and develop Product Managers across routing operations, dispatch intelligence, adaptive dispatching, and optimization guardrails",
+          "Create alignment across teams while enabling PM autonomy and trade-offs between delivery time, cost efficiency, rider experience, and system reliability",
+          "Guide safe rollout of routing and dispatch capabilities across markets, including experimentation and guardrails",
+          "Work closely with engineering, data science, and operations partners to align on goals and execution",
+          "Act as main product contact for senior stakeholders and communicate progress, impact, and risks to Director and VP-level stakeholders"
+        ],
+        "domain": "last-mile delivery logistics",
+        "years_experience_min": 6,
+        "keywords": [
+          "routing",
+          "dispatch",
+          "routing optimization",
+          "dispatch optimization",
+          "last-mile delivery",
+          "logistics",
+          "real-time decisioning",
+          "dispatch intelligence",
+          "adaptive dispatching",
+          "optimization guardrails",
+          "B2B products",
+          "experimentation"
+        ],
+        "job_family": "product_management",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "experimentation",
+            "matches": true,
+            "alias": "including experimentation and guardrails",
+            "canonical": "experimentation",
+            "confidence": 0.78
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:20:38.397901+00:00",
+        "raw_job_fingerprint": "edf3ae4f16bf2a7d68ea14c95fc11ac062e5d301cfcc0b327d40fb9bab54f180",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/director-of-operations-at-rotaract-club-of-tata-institute-of-social-sciences-tuljapur-4416128626?trk=public_jobs_topcard-title",
+        "job_title": "Director of Operations",
+        "company": "Rotaract Club of Tata Institute of Social Sciences, Tuljapur",
+        "location_type": "hybrid",
+        "seniority": "senior",
+        "required_skills": [
+          "Proficiency in Microsoft Office Suite",
+          "Familiarity with ERP tools",
+          "Familiarity with project management tools"
+        ],
+        "required_skills_canonical": [
+          "microsoft office suite",
+          "erp",
+          "project management tools",
+          "kpi monitoring"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Proficiency in Microsoft Office Suite",
+            "canonical": "microsoft office suite",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "familiarity with ERP or project management tools",
+            "canonical": "erp",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "familiarity with ERP or project management tools",
+            "canonical": "project management tools",
+            "confidence": 0.75
+          },
+          {
+            "raw_text": "Monitor key performance indicators (KPIs) and operational metrics",
+            "canonical": "kpi monitoring",
+            "confidence": 0.72
+          }
+        ],
+        "responsibilities": [
+          "Oversee and manage company day-to-day operations for efficiency, productivity, alignment with strategic goals",
+          "Develop and implement operational strategies, policies, procedures to drive business performance",
+          "Monitor KPIs and operational metrics; identify improvement areas",
+          "Lead and mentor department managers; ensure coordination and execution across functions",
+          "Collaborate with senior leadership; plan and execute business growth initiatives",
+          "Manage budgets, resources, vendor relationships for operational excellence and cost-effectiveness",
+          "Ensure compliance with company standards, legal regulations, safety requirements"
+        ],
+        "tech_stack": [
+          "Microsoft Office Suite",
+          "ERP",
+          "Project management tools"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "operations management",
+          "operational strategy",
+          "policies and procedures",
+          "KPI",
+          "operational metrics",
+          "process improvement",
+          "cross-functional leadership",
+          "budget management",
+          "vendor management",
+          "compliance",
+          "ERP",
+          "project management tools",
+          "Microsoft Office Suite"
+        ],
+        "job_family": "operations_management",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:20:49.761345+00:00",
+        "raw_job_fingerprint": "b9c0b925dd702509fb4a248b39e65b6f6ba5ba3b7093063a48afccf6f0cd306d",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-supply-chain-management-at-barrington-james-4415380548?trk=public_jobs_topcard-title",
+        "job_title": "Head of Supply Chain Management",
+        "company": "Barrington James",
+        "location_type": "hybrid",
+        "seniority": "lead",
+        "required_skills": [
+          "Supply chain operations",
+          "Logistics",
+          "Warehousing",
+          "Supply chain planning",
+          "ERP systems",
+          "ERP implementation",
+          "Inventory control",
+          "Process improvement"
+        ],
+        "required_skills_canonical": [
+          "supply chain operations",
+          "logistics",
+          "warehousing",
+          "supply chain planning",
+          "erp systems",
+          "erp implementation",
+          "inventory control",
+          "process improvement"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Lead day-to-day supply chain operations across logistics, warehousing and planning",
+            "canonical": "supply chain operations",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Lead day-to-day supply chain operations across logistics, warehousing and planning",
+            "canonical": "logistics",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Lead day-to-day supply chain operations across logistics, warehousing and planning",
+            "canonical": "warehousing",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Lead day-to-day supply chain operations across logistics, warehousing and planning",
+            "canonical": "supply chain planning",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Support operational improvements across ERP / IT systems implementation",
+            "canonical": "erp systems",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Support operational improvements across ERP / IT systems implementation",
+            "canonical": "erp implementation",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Improve supply visibility, inventory control and logistics performance",
+            "canonical": "inventory control",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Improve supply visibility, inventory control and logistics performance",
+            "canonical": "logistics",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Drive process improvements across the wider supply chain function",
+            "canonical": "process improvement",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Experience working with ERP systems / implementations",
+            "canonical": "erp systems",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Experience working with ERP systems / implementations",
+            "canonical": "erp implementation",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong logistics and warehouse understanding",
+            "canonical": "logistics",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong logistics and warehouse understanding",
+            "canonical": "warehousing",
+            "confidence": 0.9
+          }
+        ],
+        "responsibilities": [
+          "Lead day-to-day supply chain operations across logistics, warehousing, and planning",
+          "Support operational improvements across ERP/IT systems implementation",
+          "Work closely with manufacturing and site leadership teams",
+          "Improve supply visibility, inventory control, and logistics performance",
+          "Support hands-on warehouse and operational environment",
+          "Drive process improvements across wider supply chain function"
+        ],
+        "domain": "chemical manufacturing",
+        "tech_stack": [
+          "ERP systems"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "Supply chain",
+          "Supply chain operations",
+          "Logistics",
+          "Warehousing",
+          "Planning",
+          "ERP",
+          "ERP implementation",
+          "Inventory control",
+          "Process improvement",
+          "Chemical manufacturing",
+          "API manufacturing"
+        ],
+        "job_family": "supply_chain",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:21:06.382939+00:00",
+        "raw_job_fingerprint": "859f4d3ee3bf6cdde816f1a2ddba3de043b69f8b5594bc76e0352502c2c4b0d2",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manager-product-operations-support-logistics-rider-at-delivery-hero-4415019899?trk=public_jobs_topcard-title",
+        "job_title": "Manager, Product Operations Support - (Logistics, Rider)",
+        "company": "Delivery Hero",
+        "location_type": "hybrid",
+        "seniority": "senior",
+        "required_skills": [
+          "AI tools",
+          "AI agents",
+          "Jira"
+        ],
+        "required_skills_canonical": [
+          "ai tools",
+          "ai agents",
+          "jira"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "pushing hard on AI tooling and agents to automate triage, investigation, and coordination workflows",
+            "canonical": "ai tools",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "pushing hard on AI tooling and agents to automate triage, investigation, and coordination workflows",
+            "canonical": "ai agents",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Jira-native: you manage work, track issues, and report on progress inside Jira as a matter of course",
+            "canonical": "jira",
+            "confidence": 0.96
+          }
+        ],
+        "responsibilities": [
+          "Lead, coach, develop 4 Product Support Specialists; set performance standards; raise output quality and speed",
+          "Own, improve core operating metrics: ticket resolution time (bugs, change requests) and rollout velocity across markets",
+          "Redesign team processes: audit current processes, find inefficiencies, introduce scalable ways of working",
+          "Apply AI tooling/agents to automate triage, investigation, coordination workflows; replace manual effort with systems",
+          "Oversee first-line support quality for regional operations: distinguish bugs vs misconfigurations; route validated issues to engineering with full context; handle change requests with alignment before execution",
+          "Drive cross-functional alignment with product and engineering on process improvements and support integration into product development/release cycle",
+          "Lead product rollouts across ~70 countries: project planning, stakeholder alignment, execution infrastructure for predictable fast launches"
+        ],
+        "domain": "on-demand delivery logistics",
+        "tech_stack": [
+          "Jira",
+          "AI tools",
+          "AI agents"
+        ],
+        "years_experience_min": 4,
+        "keywords": [
+          "product operations",
+          "product support",
+          "technical support",
+          "logistics",
+          "last-mile delivery",
+          "rider app",
+          "dispatch algorithms",
+          "workforce management system",
+          "payments tools",
+          "bug triage",
+          "incident investigation",
+          "root cause analysis",
+          "process improvement",
+          "automation",
+          "product rollouts",
+          "change requests",
+          "Jira",
+          "AI agents"
+        ],
+        "job_family": "product_operations",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:21:16.923050+00:00",
+        "raw_job_fingerprint": "bd3f3b5f7e5de960c991e4e4bb8f7350071ae6892cd5450c027a8a368229981f",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-global-operations-m-w-d-at-dsj-global-4415681741?trk=public_jobs_topcard-title",
+        "job_title": "Head of global Operations (m/w/d)",
+        "company": "DSJ Global",
+        "location_type": "onsite",
+        "seniority": "lead",
+        "required_skills": [
+          "Operations",
+          "Supply Chain Management",
+          "Operational Excellence",
+          "EHS",
+          "Budgetplanung",
+          "Ressourcenplanung",
+          "Kapazitätsplanung",
+          "datenbasierte Entscheidungsfindung",
+          "Transformationsprozesse",
+          "Prozessoptimierung",
+          "Qualitätsmanagement",
+          "Kostenmanagement",
+          "Liefertreue"
+        ],
+        "required_skills_canonical": [
+          "operations management",
+          "supply chain management",
+          "operational excellence",
+          "quality management",
+          "cost management",
+          "on-time delivery",
+          "ehs",
+          "budget planning",
+          "resource planning",
+          "capacity planning",
+          "data-driven decision making",
+          "transformation management",
+          "process optimization"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Globale Verantwortung für Operations und Supply Chain Management",
+            "canonical": "operations management",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Globale Verantwortung für Operations und Supply Chain Management",
+            "canonical": "supply chain management",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Implementierung operativer Exzellenz in Bezug auf Qualität, Kosten, Liefertreue und EHS",
+            "canonical": "operational excellence",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Implementierung operativer Exzellenz in Bezug auf Qualität, Kosten, Liefertreue und EHS",
+            "canonical": "quality management",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Implementierung operativer Exzellenz in Bezug auf Qualität, Kosten, Liefertreue und EHS",
+            "canonical": "cost management",
+            "confidence": 0.74
+          },
+          {
+            "raw_text": "Implementierung operativer Exzellenz in Bezug auf Qualität, Kosten, Liefertreue und EHS",
+            "canonical": "on-time delivery",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "Implementierung operativer Exzellenz in Bezug auf Qualität, Kosten, Liefertreue und EHS",
+            "canonical": "ehs",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Budget-, Ressourcen- und Kapazitätsplanung im Einklang mit der Unternehmensstrategie",
+            "canonical": "budget planning",
+            "confidence": 0.77
+          },
+          {
+            "raw_text": "Budget-, Ressourcen- und Kapazitätsplanung im Einklang mit der Unternehmensstrategie",
+            "canonical": "resource planning",
+            "confidence": 0.74
+          },
+          {
+            "raw_text": "Budget-, Ressourcen- und Kapazitätsplanung im Einklang mit der Unternehmensstrategie",
+            "canonical": "capacity planning",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Hohe Kompetenz in datenbasierter Entscheidungsfindung sowie Transformationsprozessen",
+            "canonical": "data-driven decision making",
+            "confidence": 0.76
+          },
+          {
+            "raw_text": "Hohe Kompetenz in datenbasierter Entscheidungsfindung sowie Transformationsprozessen",
+            "canonical": "transformation management",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "stetige Optimierung von Prozessen",
+            "canonical": "process optimization",
+            "confidence": 0.78
+          }
+        ],
+        "responsibilities": [
+          "Globale Verantwortung für Operations und Supply Chain Management im Bereich Chemie",
+          "Führung und Weiterentwicklung mehrerer internationaler Standorte",
+          "Enge Zusammenarbeit mit Produktion am Standort in Hessen (Präsenz, operative Nähe, aktives Mitgestalten)",
+          "Identifikation und Umsetzung von Wachstumschancen sowie Einführung neuer Technologien",
+          "Sicherstellung Einhaltung internationaler Standards, Richtlinien, regulatorischer Vorgaben",
+          "Implementierung operativer Exzellenz (Qualität, Kosten, Liefertreue, EHS)",
+          "Budget-, Ressourcen- und Kapazitätsplanung im Einklang mit Unternehmensstrategie",
+          "Förderung Talententwicklung, Wissensaufbau, kollaborative Arbeitskultur",
+          "Zusammenarbeit mit internationalen Schnittstellen zur Prozessoptimierung",
+          "Mitgestaltung langfristiger Unternehmensstrategie"
+        ],
+        "domain": "chemical manufacturing",
+        "years_experience_min": 10,
+        "keywords": [
+          "Global Operations",
+          "Operations Management",
+          "Supply Chain Management",
+          "Operational Excellence",
+          "EHS",
+          "Qualität",
+          "Kosten",
+          "Liefertreue",
+          "Budgetplanung",
+          "Kapazitätsplanung",
+          "Ressourcenplanung",
+          "Prozessoptimierung",
+          "Transformationsprozesse",
+          "Datenbasierte Entscheidungsfindung",
+          "Internationale Standorte",
+          "Produktion"
+        ],
+        "job_family": "operations_management",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "process optimization",
+            "matches": true,
+            "alias": "stetige optimierung von prozessen",
+            "canonical": "process optimization",
+            "confidence": 0.78
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:21:50.770843+00:00",
+        "raw_job_fingerprint": "ce1e7f92b7801554988450a6803e0a1cd6587ea64a9ff693600446408607721f",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-pricing-analyst-product-operations-global-pricing-at-delivery-hero-4397268650?trk=public_jobs_topcard-title",
+        "job_title": "Senior Pricing Analyst, Product Operations (Global Pricing)",
+        "company": "Delivery Hero",
+        "location_type": "hybrid",
+        "seniority": "mid",
+        "required_skills": [
+          "BigQuery",
+          "SQL",
+          "Python",
+          "GitHub",
+          "applied statistics",
+          "A/B testing",
+          "price elasticity modeling"
+        ],
+        "required_skills_canonical": [
+          "google bigquery",
+          "sql",
+          "python",
+          "git",
+          "applied statistics",
+          "a/b testing",
+          "price elasticity modeling"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Mastery of BigQuery and SQL is essential",
+            "canonical": "google bigquery",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "Mastery of BigQuery and SQL is essential",
+            "canonical": "sql",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "ability to build Python-based modeling pipelines",
+            "canonical": "python",
+            "confidence": 0.94
+          },
+          {
+            "raw_text": "experience with GitHub",
+            "canonical": "git",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Strong grasp of applied statistics",
+            "canonical": "applied statistics",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "specifically for A/B testing",
+            "canonical": "a/b testing",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "price elasticity modeling",
+            "canonical": "price elasticity modeling",
+            "confidence": 0.93
+          }
+        ],
+        "preferred_skills": [
+          "Airflow",
+          "Google Analytics",
+          "Amplitude",
+          "Tableau"
+        ],
+        "preferred_skills_canonical": [
+          "tableau",
+          "apache airflow",
+          "google analytics",
+          "amplitude"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Build accessible, creative, and engaging data visualizations in Tableau/BigQuery",
+            "canonical": "tableau",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Experience with Airflow for data pipeline management",
+            "canonical": "apache airflow",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "familiarity with Google Analytics/Amplitude to track the customer checkout funnel",
+            "canonical": "google analytics",
+            "confidence": 0.91
+          },
+          {
+            "raw_text": "familiarity with Google Analytics/Amplitude to track the customer checkout funnel",
+            "canonical": "amplitude",
+            "confidence": 0.91
+          }
+        ],
+        "responsibilities": [
+          "Own business case for new pricing product requirements and build predictive models to estimate feature impact on key metrics (e.g., GPO, Conversion Rate, Order Frequency)",
+          "Lead testing efforts and rollout analysis for new pricing features; compare actual vs forecast performance; identify value leakage and recommend pivots",
+          "Partner with Global Marketing and Regional Ops to translate business goals into actionable product requirements and prioritize initiatives",
+          "Monitor global fee structure health and support day-to-day pricing product operations; answer end-user questions on pricing strategy setup",
+          "Build data visualizations in Tableau/BigQuery and own value tracker aggregating incremental revenue from pricing features across regions",
+          "Own data catalog for pricing dimensions/metrics/KPIs and collaborate with Data Engineering/Product to ensure experiment and pricing data correctly logged and scalable"
+        ],
+        "domain": "e-commerce",
+        "tech_stack": [
+          "BigQuery",
+          "SQL",
+          "Python",
+          "GitHub",
+          "Tableau",
+          "Airflow",
+          "Google Analytics",
+          "Amplitude"
+        ],
+        "years_experience_min": 3,
+        "keywords": [
+          "pricing analytics",
+          "product operations",
+          "global pricing",
+          "predictive modeling",
+          "forecasting",
+          "business case modeling",
+          "unit economics",
+          "A/B testing",
+          "price elasticity",
+          "Tableau",
+          "BigQuery",
+          "SQL",
+          "Python",
+          "Airflow",
+          "Google Analytics",
+          "Amplitude",
+          "data governance",
+          "data catalog",
+          "rollout analysis",
+          "feature impact modeling"
+        ],
+        "job_family": "analytics",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "git",
+            "matches": true,
+            "alias": "experience with github",
+            "canonical": "git",
+            "confidence": 0.93
+          },
+          {
+            "must_have_skill": "a/b testing",
+            "matches": true,
+            "alias": "specifically for a/b testing",
+            "canonical": "a/b testing",
+            "confidence": 0.95
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:22:08.477088+00:00",
+        "raw_job_fingerprint": "a4982cfc21872e932f41045bf525298e4ba2e57135988d5bd7978f319c6d4f99",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4405992963",
+        "job_title": "Operations Manager (m/w/d)",
+        "company": "Hermès",
+        "location_type": "onsite",
+        "seniority": "senior",
+        "required_skills": [
+          "Sehr gute Excel- und IT-Kenntnisse",
+          "Sehr gute Kenntnisse von Einzelhandels-IT-Systemen (z. B. CEGID)"
+        ],
+        "required_skills_canonical": [
+          "microsoft excel",
+          "it skills",
+          "cegid",
+          "retail it systems"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Sehr gute Excel- und IT-Kenntnisse",
+            "canonical": "microsoft excel",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Sehr gute Excel- und IT-Kenntnisse",
+            "canonical": "it skills",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "Sehr gute Kenntnisse von Einzelhandels-IT-Systemen (z. B. CEGID)",
+            "canonical": "cegid",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Sehr gute Kenntnisse von Einzelhandels-IT-Systemen (z. B. CEGID)",
+            "canonical": "retail it systems",
+            "confidence": 0.75
+          }
+        ],
+        "responsibilities": [
+          "Steuerung und Koordination administrativer Backoffice-Tätigkeiten (Wareneingangsbuchungen, Kassenvorbereitungen, Rechnungsprüfung, After-Sales-Prozesse)",
+          "Führung und Unterstützung Logistik- und Administrationsteams; Organisation und Priorisierung täglicher Aufgaben",
+          "Reporting operativer Themen und bestandsbezogener KPIs an Store-Leitung und Managementteam",
+          "Planung, Vorbereitung, Durchführung Inventuren und Stichprobenzählungen; Sicherstellung Genauigkeit und Compliance",
+          "Entwicklung und Umsetzung Maßnahmen zur Verbesserung Inventurergebnisse, Bestandsgenauigkeit, Lagerprozesse",
+          "Unterstützung Store Manager bei Überwachung Lagerbestände und Vorbereitung Bestellungen",
+          "Schnittstelle zu Customer Service Center, Zentrale München, Mutterkonzern zu Bestand, After-Sales, operativen Themen",
+          "Operative Unterstützung Verkaufs- und After-Sales-Aktivitäten bei Bedarf",
+          "Sicherstellung kontinuierliche Bestandsgenauigkeit zwischen System- und physischen Beständen; Organisation Ordnung Lagerbereiche nach Richtlinien",
+          "Management Wartungs- und Instandhaltungsmaßnahmen; Umsetzung operativer Projekte im Store"
+        ],
+        "domain": "retail",
+        "tech_stack": [
+          "Microsoft Excel",
+          "CEGID"
+        ],
+        "years_experience_min": 6,
+        "keywords": [
+          "store operations",
+          "backoffice",
+          "inventory management",
+          "stock accuracy",
+          "warehouse organization",
+          "after-sales",
+          "KPI reporting",
+          "inventory counts",
+          "cycle counting",
+          "compliance",
+          "retail IT systems",
+          "maintenance management",
+          "operational projects"
+        ],
+        "job_family": "operations_management",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:22:22.093100+00:00",
+        "raw_job_fingerprint": "a93d0c37baf62bdc0c6a2e4f8bcd369d9d976002795a74982e668d711057ecad",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4405817071",
+        "job_title": "RETAIL PERFORMANCE & OPERATIONS MANAGER – CENTRAL EUROPE",
+        "company": "CELINE",
+        "location_type": "onsite",
+        "seniority": "mid",
+        "required_skills": [
+          "Stock management",
+          "Store inventories planning and execution",
+          "BOH operations optimization (stock management and space usage)",
+          "Omnichannel retail operations",
+          "Operational excellence and process optimization",
+          "Store opening/closing coordination",
+          "Training store teams on store operations and stock management",
+          "Facilities maintenance coordination with vendors/subcontractors",
+          "Internal control and compliance audit action-plan follow-up",
+          "Traffic and team planning (workforce scheduling)",
+          "Operational cost monitoring and optimization",
+          "Inventory/ordering management for non-merchandise items (packaging, uniforms, store tools, stationery)",
+          "Budgeting, oversight, and reporting (non-merchandise items)",
+          "Cross-functional project execution"
+        ],
+        "required_skills_canonical": [
+          "stock management",
+          "inventory management",
+          "inventory auditing",
+          "back-of-house (boh) operations",
+          "space optimization",
+          "omnichannel retail operations",
+          "store openings and closures",
+          "training",
+          "facilities management",
+          "vendor management",
+          "internal controls",
+          "compliance auditing",
+          "workforce scheduling",
+          "cost control",
+          "procurement",
+          "budgeting",
+          "reporting"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Ensure impeccable stock management in all stores.",
+            "canonical": "stock management",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Plan and conduct all stores inventories to ensure exceptional stock accuracy.",
+            "canonical": "inventory management",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Plan and conduct all stores inventories to ensure exceptional stock accuracy.",
+            "canonical": "inventory auditing",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Uphold BOH operations integrity; optimize stock management and space usage",
+            "canonical": "back-of-house (boh) operations",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Uphold BOH operations integrity; optimize stock management and space usage",
+            "canonical": "space optimization",
+            "confidence": 0.74
+          },
+          {
+            "raw_text": "Foster an omni-channel approach to performance and organization in stores",
+            "canonical": "omnichannel retail operations",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Oversee all stores opening or closing in your market.",
+            "canonical": "store openings and closures",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Train store teams on store operations and stock management practices.",
+            "canonical": "training",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "Oversee maintenance of store facilities ... and liaise with subcontractors/vendors for upkeep.",
+            "canonical": "facilities management",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Oversee maintenance of store facilities ... and liaise with subcontractors/vendors for upkeep.",
+            "canonical": "vendor management",
+            "confidence": 0.76
+          },
+          {
+            "raw_text": "Oversee and ensure follow-up in action plans on internal control & compliance audits",
+            "canonical": "internal controls",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Oversee and ensure follow-up in action plans on internal control & compliance audits",
+            "canonical": "compliance auditing",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Ensure an optimized match to traffic and team planning in stores",
+            "canonical": "workforce scheduling",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Support the Retail Director in monitoring operational costs and identifying optimization opportunities",
+            "canonical": "cost control",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Manage and maintain the inventory, ordering, and accessibility of all non-merchandise products",
+            "canonical": "inventory management",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Manage and maintain the inventory, ordering, and accessibility of all non-merchandise products",
+            "canonical": "procurement",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "Ensure proper budgeting, oversight, and reporting of non-merchandise items",
+            "canonical": "budgeting",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Ensure proper budgeting, oversight, and reporting of non-merchandise items",
+            "canonical": "reporting",
+            "confidence": 0.74
+          }
+        ],
+        "responsibilities": [
+          "Ensure stock management across stores; drive stock accuracy",
+          "Plan and conduct store inventories",
+          "Uphold BOH operations integrity; optimize stock management and space usage with EME Operations/Performance",
+          "Drive omnichannel approach to store performance and organization",
+          "Execute regional operational projects and business initiatives",
+          "Oversee store openings and closures in market",
+          "Train store teams on operations and stock management practices",
+          "Oversee store facilities maintenance; coordinate with vendors/subcontractors",
+          "Partner with retail management to drive network performance",
+          "Support cross-functional initiatives (cross-selling, local client focus, clienteling support)",
+          "Follow up action plans from internal control and compliance audits; ensure policy/standard alignment",
+          "Optimize traffic-to-staffing match via team planning",
+          "Monitor operational costs; identify optimization opportunities",
+          "Manage non-merchandise inventory and ordering (packaging, uniforms, tools, stationery) with standards compliance",
+          "Manage budgeting/oversight/reporting for non-merchandise items with Finance",
+          "Collaborate with Operations & Performance, Retail, Supply Chain, CRM, Finance"
+        ],
+        "domain": "retail",
+        "years_experience_min": 5,
+        "keywords": [
+          "retail operations",
+          "operational excellence",
+          "process optimization",
+          "inventory management",
+          "stock management",
+          "BOH operations",
+          "omnichannel retail",
+          "compliance audits",
+          "internal controls",
+          "workforce scheduling",
+          "cost control",
+          "vendor management",
+          "facilities management",
+          "project management",
+          "training"
+        ],
+        "job_family": "operations_management",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:22:52.491954+00:00",
+        "raw_job_fingerprint": "6c071a012e61c80e80ba63f23ec0e1d47a5f2bffbc9fd76106c06da08b051f67",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/vice-president-speciality-business-europe-at-glenmark-europe-4411147011?trk=public_jobs_topcard-title",
+        "job_title": "Vice President - Speciality Business (Europe)",
+        "company": "Glenmark Europe",
+        "location_type": "onsite",
+        "seniority": "lead",
+        "required_skills": [
+          "P&L leadership",
+          "Commercial strategy",
+          "Market trend and competitive landscape analysis",
+          "Portfolio strategy",
+          "Product lifecycle management",
+          "Market access",
+          "Field force effectiveness",
+          "Commercial analytics",
+          "CRM optimization",
+          "Launch excellence / product launches",
+          "Budget planning",
+          "Resource allocation",
+          "Demand forecasting",
+          "Inventory management",
+          "Pricing and reimbursement"
+        ],
+        "required_skills_canonical": [
+          "p&l management",
+          "competitive analysis",
+          "market trend analysis",
+          "portfolio management",
+          "product lifecycle management",
+          "market access",
+          "sales force effectiveness",
+          "commercial analytics",
+          "crm optimization",
+          "budget planning",
+          "resource allocation",
+          "demand forecasting",
+          "inventory management",
+          "pricing",
+          "reimbursement"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Own and drive the P&L for the Europe speciality business",
+            "canonical": "p&l management",
+            "confidence": 0.91
+          },
+          {
+            "raw_text": "Analyze market trends, competitive landscape",
+            "canonical": "competitive analysis",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Analyze market trends, competitive landscape",
+            "canonical": "market trend analysis",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Define and drive portfolio strategy, managing product lifecycles from pre-launch through maturity",
+            "canonical": "portfolio management",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Define and drive portfolio strategy, managing product lifecycles from pre-launch through maturity",
+            "canonical": "product lifecycle management",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Identify capability gaps (e.g., market access, field force effectiveness, analytics)",
+            "canonical": "market access",
+            "confidence": 0.87
+          },
+          {
+            "raw_text": "Identify capability gaps (e.g., market access, field force effectiveness, analytics)",
+            "canonical": "sales force effectiveness",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Identify capability gaps (e.g., market access, field force effectiveness, analytics)",
+            "canonical": "commercial analytics",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Drive sales force effectiveness, commercial analytics, and CRM optimization",
+            "canonical": "sales force effectiveness",
+            "confidence": 0.87
+          },
+          {
+            "raw_text": "Drive sales force effectiveness, commercial analytics, and CRM optimization",
+            "canonical": "commercial analytics",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Drive sales force effectiveness, commercial analytics, and CRM optimization",
+            "canonical": "crm optimization",
+            "confidence": 0.83
+          },
+          {
+            "raw_text": "Own budget planning, resource allocation",
+            "canonical": "budget planning",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Own budget planning, resource allocation",
+            "canonical": "resource allocation",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "ensure effective demand forecasting and inventory management",
+            "canonical": "demand forecasting",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "ensure effective demand forecasting and inventory management",
+            "canonical": "inventory management",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Sound understanding of European healthcare systems, pricing, and reimbursement dynamics",
+            "canonical": "pricing",
+            "confidence": 0.79
+          },
+          {
+            "raw_text": "Sound understanding of European healthcare systems, pricing, and reimbursement dynamics",
+            "canonical": "reimbursement",
+            "confidence": 0.8
+          }
+        ],
+        "preferred_skills": [
+          "Omni-channel"
+        ],
+        "preferred_skills_canonical": [
+          "omnichannel marketing"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Strong grasp of commercial excellence levers (field force effectiveness, omni-channel, analytics)",
+            "canonical": "omnichannel marketing",
+            "confidence": 0.78
+          }
+        ],
+        "responsibilities": [
+          "Own and drive P&L for Europe specialty business; deliver revenue growth, profitability",
+          "Develop and execute commercial strategies; build long-term business plans for EU portfolio",
+          "Analyze market trends, competitive landscape, therapeutic advancements; find growth opportunities",
+          "Define portfolio strategy; manage product lifecycles from pre-launch to maturity",
+          "Identify capability gaps (market access, field force effectiveness, analytics); drive scalable regional solutions",
+          "Lead specialty product launches; align sales, marketing, market access to business objectives",
+          "Build and scale commercial teams across sales, marketing, digital",
+          "Drive sales force effectiveness, commercial analytics, CRM optimization",
+          "Collaborate with Regulatory Affairs, Medical Affairs, R&D, Manufacturing for commercialization",
+          "Manage external stakeholders: KOLs, payers, patient advocacy groups, HTA/government bodies",
+          "Own budget planning, resource allocation; hit revenue/profit targets",
+          "Monitor country performance vs KPIs; partner with country managers to improve outcomes",
+          "Work with supply chain/operations on demand forecasting, inventory management",
+          "Ensure compliance with regulatory/legal/company policies; oversee promotional material review"
+        ],
+        "domain": "pharmaceuticals",
+        "tech_stack": [
+          "CRM"
+        ],
+        "years_experience_min": 15,
+        "keywords": [
+          "P&L",
+          "commercial strategy",
+          "specialty pharmaceuticals",
+          "Respiratory",
+          "Dermatology",
+          "Oncology",
+          "product launch",
+          "portfolio management",
+          "product lifecycle management",
+          "market access",
+          "pricing",
+          "reimbursement",
+          "commercial analytics",
+          "CRM optimization",
+          "sales force effectiveness",
+          "omnichannel",
+          "demand forecasting",
+          "inventory management",
+          "HTA",
+          "KOL"
+        ],
+        "job_family": "sales_marketing",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:23:18.415920+00:00",
+        "raw_job_fingerprint": "6cb0e51393ce8c5d73bcdf8e5fe734d3b7700716a74835290bd507437d0ff4c7",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/revenue-strategy-operations-manager-at-wolt-4405038786?trk=public_jobs_topcard-title",
+        "job_title": "Revenue Strategy & Operations Manager",
+        "company": "Wolt",
+        "location_type": "onsite",
+        "seniority": "senior",
+        "required_skills": [
+          "Salesforce/CRM implementation as a single system of record",
+          "Setting strategy and translating it into OKRs and KPIs",
+          "Performance tracking (cockpits)",
+          "Data cleanup",
+          "Phased system and operational rollouts"
+        ],
+        "required_skills_canonical": [
+          "salesforce",
+          "crm implementation",
+          "okrs",
+          "kpis",
+          "sales compensation design",
+          "performance tracking",
+          "rollout management",
+          "data cleansing"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "experience with Salesforce/CRM implementation as a single system of record",
+            "canonical": "salesforce",
+            "confidence": 0.94
+          },
+          {
+            "raw_text": "experience with Salesforce/CRM implementation as a single system of record",
+            "canonical": "crm implementation",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strength in setting strategy and translating it into OKRs and KPIs",
+            "canonical": "okrs",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strength in setting strategy and translating it into OKRs and KPIs",
+            "canonical": "kpis",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Experience standardizing incentive models, variable pay structures, and performance tracking (cockpits)",
+            "canonical": "sales compensation design",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Experience standardizing incentive models, variable pay structures, and performance tracking (cockpits)",
+            "canonical": "performance tracking",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Proven ability to manage phased system and operational rollouts",
+            "canonical": "rollout management",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "In the first 3-6 months, focus on data cleanup",
+            "canonical": "data cleansing",
+            "confidence": 0.8
+          }
+        ],
+        "responsibilities": [
+          "Build operational vision and lead phased execution to transition Commerce Platform into standard commercial products",
+          "Align processes across Sales, Account Management, and Merchant Ops to unlock scalable growth",
+          "Drive execution roadmap to move from limited-scope active sales to full-scale standard commercial motion",
+          "Align CP sales structures to marketplace standards and rollout priorities",
+          "Collaborate with Selection Intelligence, Central team, and Sales/AM teams for hitlists, troubleshooting, and post-activation support",
+          "Lead data cleanup and structural alignment; set guardrails, targets, KPIs; remove internal friction",
+          "Scale rollout globally within 6–12 months",
+          "Report progress to senior management; manage stakeholder communication; identify scalability improvements",
+          "Perform ad hoc analysis and commercial support; build frameworks, guidelines, guardrails"
+        ],
+        "domain": "last-mile delivery / commerce marketplace",
+        "tech_stack": [
+          "Salesforce",
+          "CRM"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "revenue operations",
+          "sales strategy",
+          "sales operations",
+          "commercial operations",
+          "CRM implementation",
+          "Salesforce",
+          "OKRs",
+          "KPIs",
+          "data cleansing",
+          "rollout management",
+          "account management",
+          "merchant operations",
+          "enterprise sales",
+          "SMB sales",
+          "sales compensation",
+          "variable pay"
+        ],
+        "job_family": "revenue_operations",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:23:36.352198+00:00",
+        "raw_job_fingerprint": "d2099310a94974d3e152f00bf80e982afef05ce24e851626106a04f79438fa57",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413988739",
+        "job_title": "Multi-Site Operations Specialist (m/w/d)",
+        "company": "roadsurfer",
+        "location_type": "onsite",
+        "seniority": "junior",
+        "responsibilities": [
+          "Travel to different stations in North Germany to support where needed",
+          "Support station team with daily tasks",
+          "Customer handover: greet customers at pickup and drop-off, ensure good experience",
+          "Exterior and interior cleaning of campers",
+          "Contribute ideas, participate in new projects, help shape work environment"
+        ],
+        "domain": "campervan rental / travel",
+        "years_experience_min": 0,
+        "keywords": [
+          "multi-site operations",
+          "station support",
+          "customer service",
+          "campervan rental",
+          "fleet cleaning",
+          "traveling role",
+          "pickup and drop-off"
+        ],
+        "job_family": "operations",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:23:41.727289+00:00",
+        "raw_job_fingerprint": "e21620e1a90f5e28af201263e68ec8fcf810eeb60ec386e4e9d89fe15af92488",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413983843",
+        "job_title": "Task Force Operations Manager  (m/w/d)",
+        "company": "roadsurfer",
+        "location_type": "onsite",
+        "seniority": "mid",
+        "responsibilities": [
+          "Travel to different stations in North Germany to provide support where needed",
+          "Support station team with daily tasks",
+          "Ensure customers have positive experience during camper pickup and drop-off",
+          "Handle exterior and interior cleaning of campers",
+          "Contribute ideas and participate in new projects to shape work environment"
+        ],
+        "domain": "travel arrangements",
+        "years_experience_min": 0,
+        "keywords": [
+          "task force",
+          "operations manager",
+          "station support",
+          "campervan rental",
+          "customer service",
+          "cleaning",
+          "traveling role",
+          "North Germany",
+          "roadsurfer"
+        ],
+        "job_family": "operations",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:23:47.191122+00:00",
+        "raw_job_fingerprint": "40643b4b0db59a12baf9053b8d0d3966f3b38ba13e8ba589767862f515c72c72",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manufacturing-operations-manager-at-european-tech-recruit-4416254580?trk=public_jobs_topcard-title",
+        "job_title": "Manufacturing Operations Manager",
+        "company": "European Tech Recruit",
+        "location_type": "onsite",
+        "seniority": "senior",
+        "required_skills": [
+          "manufacturing operations management",
+          "continuous improvement",
+          "operational strategy",
+          "supply chain optimization",
+          "product ramp-up",
+          "cost reduction",
+          "delivery optimization",
+          "supplier relationship management",
+          "yield improvement",
+          "process optimization",
+          "external manufacturing management",
+          "operations engineering leadership",
+          "product and process improvement",
+          "product transfers",
+          "qualification",
+          "equipment lifecycle management",
+          "mass production ramp-up",
+          "Sales & Operations Planning (S&OP)",
+          "demand planning",
+          "supply planning",
+          "performance target management (on-time delivery, yield, productivity)",
+          "MEMS",
+          "ASIC",
+          "fabless operations",
+          "MEMS process technologies",
+          "ASIC process technologies",
+          "semiconductor manufacturing",
+          "packaging",
+          "assembly",
+          "testing"
+        ],
+        "required_skills_canonical": [
+          "manufacturing operations management",
+          "continuous improvement",
+          "operational strategy",
+          "supply chain optimization",
+          "product ramp-up",
+          "cost reduction",
+          "delivery optimization",
+          "supplier relationship management",
+          "yield improvement",
+          "process optimization",
+          "external manufacturing management",
+          "operations engineering leadership",
+          "product and process improvement",
+          "product transfers",
+          "qualification",
+          "equipment lifecycle management",
+          "mass production ramp-up",
+          "sales & operations planning (s&op)",
+          "demand planning",
+          "supply planning",
+          "performance target management (on-time delivery, yield, productivity)",
+          "mems",
+          "asic",
+          "fabless operations",
+          "mems process technologies",
+          "asic process technologies",
+          "semiconductor manufacturing",
+          "packaging",
+          "assembly",
+          "testing"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "lead the manufacturing operations and drive continuous improvement",
+            "canonical": "manufacturing operations management",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "lead the manufacturing operations and drive continuous improvement",
+            "canonical": "continuous improvement",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Define, implement, and drive operational strategies",
+            "canonical": "operational strategy",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "optimising the supply chain",
+            "canonical": "supply chain optimization",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "enhance product ramp-up",
+            "canonical": "product ramp-up",
+            "confidence": 0.77
+          },
+          {
+            "raw_text": "reduce costs",
+            "canonical": "cost reduction",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "optimize delivery",
+            "canonical": "delivery optimization",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "strengthening our supplier relationships",
+            "canonical": "supplier relationship management",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "Proven track record in driving yield improvement",
+            "canonical": "yield improvement",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Proven track record in driving ... process optimization",
+            "canonical": "process optimization",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "managing external manufacturing",
+            "canonical": "external manufacturing management",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Lead the Operations Engineering team",
+            "canonical": "operations engineering leadership",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "driving product and process improvements",
+            "canonical": "product and process improvement",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Oversee key projects related to ... product transfers",
+            "canonical": "product transfers",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Oversee key projects related to ... qualification",
+            "canonical": "qualification",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Oversee key projects related to ... equipment lifecycle management",
+            "canonical": "equipment lifecycle management",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Oversee key projects related to ... mass production ramp-up",
+            "canonical": "mass production ramp-up",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Sales & Operations Planning (S&OP): Lead the S&OP team",
+            "canonical": "sales & operations planning (s&op)",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "develop and optimize a robust global demand and supply plan",
+            "canonical": "demand planning",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "develop and optimize a robust global demand and supply plan",
+            "canonical": "supply planning",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "setting and achieving ... performance targets for on-time delivery, yield, and productivity",
+            "canonical": "performance target management (on-time delivery, yield, productivity)",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "including expertise in MEMS, ASICs, and fabless operations",
+            "canonical": "mems",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "including expertise in MEMS, ASICs, and fabless operations",
+            "canonical": "asic",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "including expertise in MEMS, ASICs, and fabless operations",
+            "canonical": "fabless operations",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong technical understanding of MEMS and ASIC process technologies",
+            "canonical": "mems process technologies",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong technical understanding of MEMS and ASIC process technologies",
+            "canonical": "asic process technologies",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong technical understanding of ... semiconductor manufacturing (including packaging, assembly, and testing)",
+            "canonical": "semiconductor manufacturing",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "including packaging, assembly, and testing",
+            "canonical": "packaging",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "including packaging, assembly, and testing",
+            "canonical": "assembly",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "including packaging, assembly, and testing",
+            "canonical": "testing",
+            "confidence": 0.88
+          }
+        ],
+        "responsibilities": [
+          "Define and drive operational strategy to improve ramp-up, cost, delivery, efficiency, supplier relationships",
+          "Run day-to-day internal and external manufacturing operations to meet demand; set targets for on-time delivery, yield, productivity",
+          "Lead Operations Engineering; drive product/process improvements with R&D",
+          "Oversee process optimization, product transfers, qualification, equipment lifecycle management, mass production ramp-up",
+          "Lead S&OP; build global demand/supply plan aligned to forecasts",
+          "Partner cross-functionally (sales, marketing, planning, engineering, quality, procurement, legal) on manufacturing strategy",
+          "Lead and mentor multi-site teams (Germany, Netherlands)"
+        ],
+        "domain": "semiconductor manufacturing",
+        "tech_stack": [
+          "Sales & Operations Planning (S&OP)",
+          "MEMS",
+          "ASIC",
+          "fabless operations",
+          "packaging",
+          "assembly",
+          "testing"
+        ],
+        "years_experience_min": 10,
+        "keywords": [
+          "manufacturing operations",
+          "operations manager",
+          "semiconductor",
+          "sensors",
+          "continuous improvement",
+          "operational excellence",
+          "supply chain",
+          "yield improvement",
+          "process optimization",
+          "external manufacturing",
+          "S&OP",
+          "demand planning",
+          "supply planning",
+          "MEMS",
+          "ASIC",
+          "fabless",
+          "product transfer",
+          "qualification",
+          "equipment lifecycle management",
+          "ramp-up",
+          "packaging",
+          "assembly",
+          "testing"
+        ],
+        "job_family": "manufacturing_operations",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "supply chain optimization",
+            "matches": true,
+            "alias": "optimising the supply chain",
+            "canonical": "supply chain optimization",
+            "confidence": 0.78
+          },
+          {
+            "must_have_skill": "product ramp-up",
+            "matches": true,
+            "alias": "enhance product ramp-up",
+            "canonical": "product ramp-up",
+            "confidence": 0.77
+          },
+          {
+            "must_have_skill": "cost reduction",
+            "matches": true,
+            "alias": "reduce costs",
+            "canonical": "cost reduction",
+            "confidence": 0.72
+          },
+          {
+            "must_have_skill": "delivery optimization",
+            "matches": true,
+            "alias": "optimize delivery",
+            "canonical": "delivery optimization",
+            "confidence": 0.72
+          },
+          {
+            "must_have_skill": "supplier relationship management",
+            "matches": true,
+            "alias": "strengthening our supplier relationships",
+            "canonical": "supplier relationship management",
+            "confidence": 0.72
+          },
+          {
+            "must_have_skill": "external manufacturing management",
+            "matches": true,
+            "alias": "managing external manufacturing",
+            "canonical": "external manufacturing management",
+            "confidence": 0.86
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:24:20.909152+00:00",
+        "raw_job_fingerprint": "a038bcd679c93117d85b79e8da3f4273d4923fcb87440c28b84747f9c93db535",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/client-operations-representative-at-viva-com-4394620714?trk=public_jobs_topcard-title",
+        "job_title": "Client Operations Representative",
+        "company": "Viva.com",
+        "location_type": "onsite",
+        "seniority": "junior",
+        "required_skills": [
+          "Lead intake triage and assignment",
+          "Merchant onboarding support",
+          "Payment acceptance setup support",
+          "Account performance monitoring and analysis",
+          "Maintaining client records in company database",
+          "Identifying customer technical and commercial requirements to craft solutions",
+          "Phone and video meeting presentations",
+          "Cross-functional collaboration"
+        ],
+        "preferred_skills": [
+          "Interest in AI-powered tools",
+          "Openness to working in AI-enhanced environments"
+        ],
+        "responsibilities": [
+          "Assess and assign incoming leads to appropriate team",
+          "Manage and assist merchants with onboarding process and payment acceptance setup",
+          "Promote existing and new company services to potential merchants",
+          "Monitor active merchants post-activation to ensure seamless collaboration",
+          "Act as touchpoint between internal departments to support effective use of internal systems and processes",
+          "Enter and maintain up to date client information in company database and keep records",
+          "Monitor and analyze account performance to drive growth",
+          "Collaborate with internal teams to ensure seamless service delivery"
+        ],
+        "domain": "fintech",
+        "years_experience_min": 0,
+        "keywords": [
+          "client operations",
+          "merchant onboarding",
+          "payments",
+          "payment acceptance",
+          "lead management",
+          "account performance",
+          "client database",
+          "internal systems",
+          "omnichannel payments",
+          "Tap on Any Device",
+          "AI-powered tools"
+        ],
+        "job_family": "operations",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:24:30.946798+00:00",
+        "raw_job_fingerprint": "32cecb2cd4def7e8e8110fb98c533c7882f9fe78c40b893d0f6a0067346af159",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4048085589",
+        "job_title": "(Junior) Consultant (w/m/d) Banking & Financial Institutions",
+        "company": "Horváth",
+        "location_type": "hybrid",
+        "seniority": "junior",
+        "required_skills": [
+          "Excel",
+          "Word",
+          "PowerPoint"
+        ],
+        "required_skills_canonical": [
+          "microsoft excel",
+          "microsoft word",
+          "microsoft powerpoint"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Umgang mit gängigen Office-Programmen (Excel, Word, PowerPoint)",
+            "canonical": "microsoft excel",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Umgang mit gängigen Office-Programmen (Excel, Word, PowerPoint)",
+            "canonical": "microsoft word",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Umgang mit gängigen Office-Programmen (Excel, Word, PowerPoint)",
+            "canonical": "microsoft powerpoint",
+            "confidence": 0.95
+          }
+        ],
+        "responsibilities": [
+          "Unterstützung Beratung Kunden in erfahrenem Team",
+          "Erarbeiten maßgeschneiderter Lösungen für Banking & Financial Institutions Kunden",
+          "Mitarbeit an übergreifenden Themen (Publikationen, Entwicklung neuer Themenfelder, neue Tools)",
+          "Übernahme Verantwortung für Teilbereiche innerhalb Projekte",
+          "Pflege persönlicher Kundenkontakt"
+        ],
+        "domain": "banking",
+        "tech_stack": [
+          "Microsoft Excel",
+          "Microsoft Word",
+          "Microsoft PowerPoint"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "Banking",
+          "Financial Institutions",
+          "Managementberatung",
+          "Unternehmensberatung",
+          "Operations Banking",
+          "Organisation",
+          "Geschäftsmodellentwicklung",
+          "Excel",
+          "Word",
+          "PowerPoint"
+        ],
+        "job_family": "consulting",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:24:40.779327+00:00",
+        "raw_job_fingerprint": "3a5d80d48ed9999c85c7662ff5e0a059179966097248e59557790ab98891f8bf",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4394959021",
+        "job_title": "Operations Manager",
+        "company": "Hard Rock Cafe",
+        "location_type": "onsite",
+        "seniority": "mid",
+        "responsibilities": [
+          "Manage departmental P&L expense lines as designated by General Manager",
+          "Support cafe senior leadership in upholding brand standards and core values while meeting business objectives",
+          "Demonstrate financial comprehension of cafe budget and P&L",
+          "Mentor and coach hourly staff into brand ambassadors and customer service stewards",
+          "Manage labor schedules aligned to budget and forecast models",
+          "Run department and/or cost center",
+          "Partner across departments to execute systems and processes delivering products and services to brand standards",
+          "Support senior management building highly functional hourly team with shared vision and values",
+          "Execute brand standards in Rock Shop and drive retail sales growth through staff and guest interaction",
+          "Foster guest-first customer service culture",
+          "Execute guest satisfaction standards meeting or exceeding brand standards via objective ranking system",
+          "Observe service standards to ensure guest expectations upheld",
+          "Engage with guests regarding music (current and past)",
+          "Support senior management attracting and retaining top talent and placing people for maximum impact",
+          "Define goals and expectations using performance review tools and hold team accountable",
+          "Support staff development and advancement along career paths",
+          "Serve as Learning Coach developing, implementing, executing learning and developmental programs to drive continuous improvement and retention"
+        ],
+        "domain": "restaurants",
+        "years_experience_min": 0,
+        "keywords": [
+          "Operations Manager",
+          "P&L",
+          "budget",
+          "expense lines",
+          "labor scheduling",
+          "forecast models",
+          "cost center",
+          "brand standards",
+          "core values",
+          "customer service",
+          "guest satisfaction",
+          "retail sales",
+          "Rock Shop",
+          "performance review",
+          "staff development",
+          "learning and development",
+          "employee retention"
+        ],
+        "job_family": "operations_management",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:24:51.901454+00:00",
+        "raw_job_fingerprint": "05a4a4609494cce7244678bad35aca5be3999f4f5d63b56612febc14859adb4b",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4383804472",
+        "job_title": "Office Management",
+        "company": "Tacto",
+        "location_type": "onsite",
+        "seniority": "mid",
+        "required_skills": [
+          "Microsoft Excel"
+        ],
+        "required_skills_canonical": [
+          "microsoft excel"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Excel",
+            "canonical": "microsoft excel",
+            "confidence": 0.9
+          }
+        ],
+        "responsibilities": [
+          "Own office experience end-to-end; keep office clean, organized, well-stocked; run daily checks; fix issues; coordinate building management, cleaning service",
+          "Manage vendors and service providers; single point of contact for landlord, Hausmeister, cleaning, maintenance; coordinate; ensure smooth operations",
+          "Monitor stock levels; manage supply room; ensure team supplies and equipment available (snacks, coffee, laptops, headphones)",
+          "Handle office-related requests for employees; respond quickly and reliably",
+          "Plan moments and celebrations (birthdays, work anniversaries, new hires)",
+          "Organize team events (monthly culture events, quarterly events); align on vision and budget with Finance & Operations, Chief of Staff"
+        ],
+        "domain": "industrial procurement / manufacturing",
+        "tech_stack": [
+          "Microsoft Excel"
+        ],
+        "years_experience_min": 2,
+        "keywords": [
+          "office management",
+          "office operations",
+          "vendor management",
+          "facilities coordination",
+          "event coordination",
+          "team events",
+          "stock management",
+          "supply room",
+          "building management",
+          "cleaning service",
+          "maintenance coordination",
+          "procurement",
+          "manufacturing",
+          "industrial procurement"
+        ],
+        "job_family": "operations",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "microsoft excel",
+            "matches": true,
+            "alias": "excel",
+            "canonical": "microsoft excel",
+            "confidence": 0.9
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:25:03.300291+00:00",
+        "raw_job_fingerprint": "610f4f0520aaeb74ff71b1aa8ac9d9384b1687a69a59c2babbd53a707b14104f",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/restaurant-onboarding-specialist-m-f-x-at-wolt-4414700375?trk=public_jobs_topcard-title",
+        "job_title": "Restaurant Onboarding Specialist (m/f/x)",
+        "company": "Wolt",
+        "location_type": "onsite",
+        "seniority": "mid",
+        "required_skills": [
+          "Project management"
+        ],
+        "required_skills_canonical": [
+          "project management"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Strong project management skills, from planning to execution.",
+            "canonical": "project management",
+            "confidence": 0.93
+          }
+        ],
+        "responsibilities": [
+          "Own onboarding experience for high-profile restaurant partners, ensure each step meets standards",
+          "Lead, deliver projects improving onboarding efficiency, scalability, partner-friendliness",
+          "Act main point contact during onboarding, train partners on tools, share best practices",
+          "Work with sales, operations, account management for smooth handover, strong start",
+          "Monitor quality, partner satisfaction first months, solve problems early",
+          "Use data, insights spot growth opportunities, recommend improvements",
+          "Ensure venue content, visuals accurate, engaging, aligned with brand",
+          "Share know-how, help newer onboarding colleagues grow"
+        ],
+        "domain": "food delivery",
+        "years_experience_min": 0,
+        "keywords": [
+          "restaurant onboarding",
+          "partner onboarding",
+          "account management",
+          "partner operations",
+          "project management",
+          "partner training",
+          "quality assurance",
+          "partner satisfaction",
+          "data insights",
+          "content accuracy"
+        ],
+        "job_family": "customer_success",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:25:13.053043+00:00",
+        "raw_job_fingerprint": "83172de473aed3ea6c9aebce414b9527c5a75329c40dcf2967b8a21372162620",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417044893",
+        "job_title": "Project and Office Coordinator (m/f/d)",
+        "company": "Aroundtown",
+        "location_type": "hybrid",
+        "seniority": "mid",
+        "required_skills": [
+          "Proficiency in MS Office Suite (Word, Excel, PowerPoint, Outlook) or similar tools"
+        ],
+        "required_skills_canonical": [
+          "microsoft office",
+          "microsoft word",
+          "microsoft excel",
+          "microsoft powerpoint",
+          "microsoft outlook"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "MS Office Suite (Word, Excel, PowerPoint, Outlook)",
+            "canonical": "microsoft office",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "MS Office Suite (Word, Excel, PowerPoint, Outlook)",
+            "canonical": "microsoft word",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "MS Office Suite (Word, Excel, PowerPoint, Outlook)",
+            "canonical": "microsoft excel",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "MS Office Suite (Word, Excel, PowerPoint, Outlook)",
+            "canonical": "microsoft powerpoint",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "MS Office Suite (Word, Excel, PowerPoint, Outlook)",
+            "canonical": "microsoft outlook",
+            "confidence": 0.95
+          }
+        ],
+        "responsibilities": [
+          "Support project managers in planning, tracking, and monitoring project progress",
+          "Prepare project documentation, meeting agendas, minutes, and reports",
+          "Assist in coordinating deadlines, deliverables, and communication between internal and external stakeholders",
+          "Ensure projects remain on schedule by following up on action items",
+          "Manage day-to-day administrative tasks of office",
+          "Serve as first point of contact for general inquiries and correspondence",
+          "Maintain filing systems (digital and physical) and ensure accurate record-keeping",
+          "Oversee office supplies and liaise with vendors for procurement and services",
+          "Arrange and coordinate travel logistics (flights, hotels, transportation) for executives",
+          "Organize conferences, meetings, and company events (venue, catering, materials, itineraries)",
+          "Manage calendars, schedule meetings, and support executives with organizational tasks",
+          "Draft and format correspondence, presentations, and reports",
+          "Support onboarding of new team members and coordinate internal communications"
+        ],
+        "domain": "real estate",
+        "tech_stack": [
+          "Microsoft Word",
+          "Microsoft Excel",
+          "Microsoft PowerPoint",
+          "Microsoft Outlook",
+          "Microsoft Office"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "project coordination",
+          "project support",
+          "office coordination",
+          "office administration",
+          "travel management",
+          "event management",
+          "meeting minutes",
+          "project documentation",
+          "calendar management",
+          "Microsoft Office",
+          "Word",
+          "Excel",
+          "PowerPoint",
+          "Outlook",
+          "record keeping",
+          "filing systems",
+          "vendor management",
+          "procurement"
+        ],
+        "job_family": "project_management",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-20T12:25:28.661652+00:00",
+        "raw_job_fingerprint": "ea41d4731eb9c83afbbb051847854960d62d02c453f2d17cd45589e1d97db530",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "fresh_enrichment"
+      }
+    ]
+  }
+}

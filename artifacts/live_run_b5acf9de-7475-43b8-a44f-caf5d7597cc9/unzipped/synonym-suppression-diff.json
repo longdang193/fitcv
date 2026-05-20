@@ -1,0 +1,175 @@
+{
+  "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+  "schema_version": "synonym_suppression_diff_v1",
+  "created_at": "2026-05-20T12:31:57.410696+00:00",
+  "suggested_pairs_total": 78,
+  "suppressed_pairs_total": 36,
+  "generated_pairs_total": 27,
+  "suppressed_pairs": [
+    {
+      "field": "role_family",
+      "alias": "logistics operations",
+      "canonical": "logistics_operations"
+    },
+    {
+      "field": "role_family",
+      "alias": "product management",
+      "canonical": "product_management"
+    },
+    {
+      "field": "role_family",
+      "alias": "operations management",
+      "canonical": "operations_management"
+    },
+    {
+      "field": "domain",
+      "alias": "chemical manufacturing, transportation, logistics, supply chain and storage, and biotechnology research",
+      "canonical": "chemical manufacturing"
+    },
+    {
+      "field": "role_family",
+      "alias": "supply chain",
+      "canonical": "supply_chain"
+    },
+    {
+      "field": "role_family",
+      "alias": "product operations",
+      "canonical": "product_operations"
+    },
+    {
+      "field": "domain",
+      "alias": "pharmaceutical manufacturing",
+      "canonical": "pharmaceuticals"
+    },
+    {
+      "field": "role_family",
+      "alias": "sales marketing",
+      "canonical": "sales_marketing"
+    },
+    {
+      "field": "role_family",
+      "alias": "revenue operations",
+      "canonical": "revenue_operations"
+    },
+    {
+      "field": "domain",
+      "alias": "semiconductor manufacturing, computers and electronics manufacturing, and appliances, electrical, and electronics manufacturing",
+      "canonical": "semiconductor manufacturing"
+    }
+  ],
+  "generated_pairs": [
+    {
+      "alias": "business consulting and services",
+      "canonical": "banking"
+    },
+    {
+      "alias": "it services and it consulting",
+      "canonical": "business messaging saas"
+    },
+    {
+      "alias": "retail luxury goods and jewelry",
+      "canonical": "retail"
+    },
+    {
+      "alias": "software development",
+      "canonical": "food delivery"
+    },
+    {
+      "alias": "software development and it services and it consulting",
+      "canonical": "e-commerce"
+    },
+    {
+      "alias": "technology, information and internet",
+      "canonical": "fintech"
+    },
+    {
+      "alias": "travel arrangements",
+      "canonical": "business travel"
+    },
+    {
+      "alias": "specifically for a/b testing",
+      "canonical": "a/b testing"
+    },
+    {
+      "alias": "experience with github",
+      "canonical": "git"
+    },
+    {
+      "alias": "background in facility management",
+      "canonical": "facility management"
+    },
+    {
+      "alias": "managing external manufacturing",
+      "canonical": "external manufacturing management"
+    },
+    {
+      "alias": "headcount-analysen",
+      "canonical": "headcount analysis"
+    },
+    {
+      "alias": "prozess engineering",
+      "canonical": "process engineering"
+    },
+    {
+      "alias": "updating editorial calendars",
+      "canonical": "editorial calendar management"
+    },
+    {
+      "alias": "you own the reporting",
+      "canonical": "reporting"
+    },
+    {
+      "alias": "assisting with video scripts",
+      "canonical": "video scripting"
+    },
+    {
+      "alias": "including experimentation and guardrails",
+      "canonical": "experimentation"
+    },
+    {
+      "alias": "optimising the supply chain",
+      "canonical": "supply chain optimization"
+    },
+    {
+      "alias": "stetige optimierung von prozessen",
+      "canonical": "process optimization"
+    },
+    {
+      "alias": "enhance product ramp-up",
+      "canonical": "product ramp-up"
+    },
+    {
+      "alias": "basic computer skills",
+      "canonical": "computer literacy"
+    },
+    {
+      "alias": "optimize delivery",
+      "canonical": "delivery optimization"
+    },
+    {
+      "alias": "reduce costs",
+      "canonical": "cost reduction"
+    },
+    {
+      "alias": "strengthening our supplier relationships",
+      "canonical": "supplier relationship management"
+    },
+    {
+      "alias": "track channel performance",
+      "canonical": "social media analytics"
+    },
+    {
+      "alias": "lückenlose digitale personalakten",
+      "canonical": "digital personnel files"
+    },
+    {
+      "alias": "familiarity with relevant tools",
+      "canonical": "subtitling tools"
+    }
+  ],
+  "suppression_source": "run_effective_skill_synonyms",
+  "pre_run_global_map_fingerprint": null,
+  "run_overlay_fingerprint": null,
+  "mapping_suggestions_fingerprint": "f5d3846d96f958ad201cd9dd663586c17805779ab0c835996b52e697ca782bf4",
+  "proposal_input_bundle_fingerprint": "26321a030769b204bd5474b326fcda9f443c540030fb5376c228533a6015edaa"
+}

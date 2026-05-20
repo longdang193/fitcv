@@ -1,0 +1,317 @@
+{
+  "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+  "stage_id": "normalize",
+  "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+  "created_at": "2026-05-20T12:29:12.770856+00:00",
+  "stage_artifact": {
+    "stage_id": "normalize",
+    "stage": "normalize",
+    "status": "completed",
+    "stage_result": {
+      "stage_id": "normalize",
+      "status": "completed",
+      "stage_version": "1.0.0",
+      "output": {
+        "normalized_jobs": 41,
+        "deduplicated_jobs": 8
+      },
+      "evidence": {
+        "input_counts": {
+          "raw_jobs": 49
+        },
+        "decision_summary": {
+          "dedupe_reason_counts": {
+            "near_duplicate_job_posting": 8
+          }
+        }
+      },
+      "validation": {
+        "checks": [],
+        "summary": {
+          "status": "completed"
+        }
+      },
+      "decision": "pass",
+      "policy_version": "policy.normalize.v1",
+      "trace_context": {
+        "trace_id": "ff6398773838e1d743bca046160f53ab",
+        "span_id": "5d0bb518fa41c191",
+        "parent_span_id": "ab9a6caeea21dad7"
+      }
+    },
+    "input_counts": {
+      "raw_jobs": 49
+    },
+    "output_counts": {
+      "normalized_jobs": 41,
+      "deduplicated_jobs": 8
+    },
+    "decision_summary": {
+      "dedupe_reason_counts": {
+        "near_duplicate_job_posting": 8
+      }
+    },
+    "outputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/teamlead-logistics-at-envalior-4402113214?trk=public_jobs_topcard-title",
+        "job_title": "Teamlead Logistics",
+        "company": "Envalior"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/group-product-manager-logistics-routing-dispatch-optimization-at-delivery-hero-4401423303?trk=public_jobs_topcard-title",
+        "job_title": "Group Product Manager - (Logistics,  Routing & Dispatch Optimization)",
+        "company": "Delivery Hero"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/director-of-operations-at-rotaract-club-of-tata-institute-of-social-sciences-tuljapur-4416128626?trk=public_jobs_topcard-title",
+        "job_title": "Director of Operations",
+        "company": "Rotaract Club of Tata Institute of Social Sciences, Tuljapur"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-supply-chain-management-at-barrington-james-4415380548?trk=public_jobs_topcard-title",
+        "job_title": "Head of Supply Chain Management",
+        "company": "Barrington James"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manager-product-operations-support-logistics-rider-at-delivery-hero-4415019899?trk=public_jobs_topcard-title",
+        "job_title": "Manager, Product Operations Support - (Logistics, Rider)",
+        "company": "Delivery Hero"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-global-operations-m-w-d-at-dsj-global-4415681741?trk=public_jobs_topcard-title",
+        "job_title": "Head of global Operations (m/w/d)",
+        "company": "DSJ Global"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-pricing-analyst-product-operations-global-pricing-at-delivery-hero-4397268650?trk=public_jobs_topcard-title",
+        "job_title": "Senior Pricing Analyst, Product Operations (Global Pricing)",
+        "company": "Delivery Hero"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4405992963",
+        "job_title": "Operations Manager (m/w/d)",
+        "company": "Hermès"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4405817071",
+        "job_title": "RETAIL PERFORMANCE & OPERATIONS MANAGER – CENTRAL EUROPE",
+        "company": "CELINE"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/vice-president-speciality-business-europe-at-glenmark-europe-4411147011?trk=public_jobs_topcard-title",
+        "job_title": "Vice President - Speciality Business (Europe)",
+        "company": "Glenmark Europe"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/revenue-strategy-operations-manager-at-wolt-4405038786?trk=public_jobs_topcard-title",
+        "job_title": "Revenue Strategy & Operations Manager",
+        "company": "Wolt"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413988739",
+        "job_title": "Multi-Site Operations Specialist (m/w/d)",
+        "company": "roadsurfer"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413983843",
+        "job_title": "Task Force Operations Manager  (m/w/d)",
+        "company": "roadsurfer"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manufacturing-operations-manager-at-european-tech-recruit-4416254580?trk=public_jobs_topcard-title",
+        "job_title": "Manufacturing Operations Manager",
+        "company": "European Tech Recruit"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/client-operations-representative-at-viva-com-4394620714?trk=public_jobs_topcard-title",
+        "job_title": "Client Operations Representative",
+        "company": "Viva.com"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4048085589",
+        "job_title": "(Junior) Consultant (w/m/d) Banking & Financial Institutions",
+        "company": "Horváth"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4394959021",
+        "job_title": "Operations Manager",
+        "company": "Hard Rock Cafe"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4383804472",
+        "job_title": "Office Management",
+        "company": "Tacto"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/restaurant-onboarding-specialist-m-f-x-at-wolt-4414700375?trk=public_jobs_topcard-title",
+        "job_title": "Restaurant Onboarding Specialist (m/f/x)",
+        "company": "Wolt"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417044893",
+        "job_title": "Project and Office Coordinator (m/f/d)",
+        "company": "Aroundtown"
+      }
+    ],
+    "dropped_or_changed_sample": [
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413993132",
+        "job_title": "Task Force Operations Manager  (m/w/d)",
+        "company": "roadsurfer",
+        "change_type": "deduplicated_before_enrichment",
+        "dedupe_reason": "near_duplicate_job_posting"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413994108",
+        "job_title": "Task Force Operations Manager  (m/w/d)",
+        "company": "roadsurfer",
+        "change_type": "deduplicated_before_enrichment",
+        "dedupe_reason": "near_duplicate_job_posting"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413989738",
+        "job_title": "Multi-Site Operations Specialist (m/w/d)",
+        "company": "roadsurfer",
+        "change_type": "deduplicated_before_enrichment",
+        "dedupe_reason": "near_duplicate_job_posting"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413978891",
+        "job_title": "Multi-Site Operations Specialist (m/w/d)",
+        "company": "roadsurfer",
+        "change_type": "deduplicated_before_enrichment",
+        "dedupe_reason": "near_duplicate_job_posting"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413994088",
+        "job_title": "Multi-Site Operations Specialist (m/w/d)",
+        "company": "roadsurfer",
+        "change_type": "deduplicated_before_enrichment",
+        "dedupe_reason": "near_duplicate_job_posting"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/supply-chain-director-m-w-d-at-redcare-pharmacy-4416076951?trk=public_jobs_topcard-title",
+        "job_title": "Supply Chain Director (m/w/d)",
+        "company": "Redcare Pharmacy",
+        "change_type": "deduplicated_before_enrichment",
+        "dedupe_reason": "near_duplicate_job_posting"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413994109",
+        "job_title": "Task Force Operations Manager  (m/w/d)",
+        "company": "roadsurfer",
+        "change_type": "deduplicated_before_enrichment",
+        "dedupe_reason": "near_duplicate_job_posting"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/supply-chain-director-m-w-d-at-redcare-pharmacy-4416073983?trk=public_jobs_topcard-title",
+        "job_title": "Supply Chain Director (m/w/d)",
+        "company": "Redcare Pharmacy",
+        "change_type": "deduplicated_before_enrichment",
+        "dedupe_reason": "near_duplicate_job_posting"
+      }
+    ],
+    "inputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/teamlead-logistics-at-envalior-4402113214?trk=public_jobs_topcard-title",
+        "job_title": "Teamlead Logistics",
+        "company": "Envalior"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/group-product-manager-logistics-routing-dispatch-optimization-at-delivery-hero-4401423303?trk=public_jobs_topcard-title",
+        "job_title": "Group Product Manager - (Logistics,  Routing & Dispatch Optimization)",
+        "company": "Delivery Hero"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/director-of-operations-at-rotaract-club-of-tata-institute-of-social-sciences-tuljapur-4416128626?trk=public_jobs_topcard-title",
+        "job_title": "Director of Operations",
+        "company": "Rotaract Club of Tata Institute of Social Sciences, Tuljapur"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-supply-chain-management-at-barrington-james-4415380548?trk=public_jobs_topcard-title",
+        "job_title": "Head of Supply Chain Management",
+        "company": "Barrington James"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manager-product-operations-support-logistics-rider-at-delivery-hero-4415019899?trk=public_jobs_topcard-title",
+        "job_title": "Manager, Product Operations Support - (Logistics, Rider)",
+        "company": "Delivery Hero"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-global-operations-m-w-d-at-dsj-global-4415681741?trk=public_jobs_topcard-title",
+        "job_title": "Head of global Operations (m/w/d)",
+        "company": "DSJ Global"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-pricing-analyst-product-operations-global-pricing-at-delivery-hero-4397268650?trk=public_jobs_topcard-title",
+        "job_title": "Senior Pricing Analyst, Product Operations (Global Pricing)",
+        "company": "Delivery Hero"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4405992963",
+        "job_title": "Operations Manager (m/w/d)",
+        "company": "Hermès"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4405817071",
+        "job_title": "RETAIL PERFORMANCE & OPERATIONS MANAGER – CENTRAL EUROPE",
+        "company": "CELINE"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/vice-president-speciality-business-europe-at-glenmark-europe-4411147011?trk=public_jobs_topcard-title",
+        "job_title": "Vice President - Speciality Business (Europe)",
+        "company": "Glenmark Europe"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/revenue-strategy-operations-manager-at-wolt-4405038786?trk=public_jobs_topcard-title",
+        "job_title": "Revenue Strategy & Operations Manager",
+        "company": "Wolt"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413988739",
+        "job_title": "Multi-Site Operations Specialist (m/w/d)",
+        "company": "roadsurfer"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413983843",
+        "job_title": "Task Force Operations Manager  (m/w/d)",
+        "company": "roadsurfer"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/manufacturing-operations-manager-at-european-tech-recruit-4416254580?trk=public_jobs_topcard-title",
+        "job_title": "Manufacturing Operations Manager",
+        "company": "European Tech Recruit"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413993132",
+        "job_title": "Task Force Operations Manager  (m/w/d)",
+        "company": "roadsurfer"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/client-operations-representative-at-viva-com-4394620714?trk=public_jobs_topcard-title",
+        "job_title": "Client Operations Representative",
+        "company": "Viva.com"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4048085589",
+        "job_title": "(Junior) Consultant (w/m/d) Banking & Financial Institutions",
+        "company": "Horváth"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4394959021",
+        "job_title": "Operations Manager",
+        "company": "Hard Rock Cafe"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4383804472",
+        "job_title": "Office Management",
+        "company": "Tacto"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/restaurant-onboarding-specialist-m-f-x-at-wolt-4414700375?trk=public_jobs_topcard-title",
+        "job_title": "Restaurant Onboarding Specialist (m/f/x)",
+        "company": "Wolt"
+      }
+    ]
+  }
+}

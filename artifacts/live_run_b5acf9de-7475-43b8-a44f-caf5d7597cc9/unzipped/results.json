@@ -1,0 +1,3139 @@
+{
+  "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+  "results": [
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413988739",
+      "job_title": "Multi-Site Operations Specialist (m/w/d)",
+      "company": "roadsurfer",
+      "location_type": "onsite",
+      "seniority": "junior",
+      "job_family": "operations",
+      "domain": "campervan rental / travel",
+      "pipeline_status": "ranked_blocked_by_reranker_fit",
+      "deterministic_outcome": "blocked",
+      "stage_owned_subreason": "blocked_by_reranker_fit",
+      "source_stage": "cv_analysis",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "campervan rental / travel",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.287301775935844,
+        "ai_score": 0.28,
+        "vector_score": -0.23132149376104025,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "653ee7ed9aa893df22511c3244d106969da199315b29382d4723c7b8c86e85d9"
+      },
+      "cv_analysis": {
+        "status": "blocked_by_reranker_fit",
+        "analysis_reuse_status": "not_run_reranker_skip",
+        "analysis_input_fingerprint": null
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 6,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4416600250",
+      "job_title": "Human Resources Assistant | Remote",
+      "company": "RecruitLytics Hire",
+      "location_type": "remote",
+      "seniority": "junior",
+      "job_family": "human_resources",
+      "domain": "human_resources",
+      "pipeline_status": "ranked_blocked_by_reranker_fit",
+      "deterministic_outcome": "blocked",
+      "stage_owned_subreason": "blocked_by_reranker_fit",
+      "source_stage": "cv_analysis",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "human_resources",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.2794130183524374,
+        "ai_score": 0.38,
+        "vector_score": 0.11608678901624933,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "071831b788f6a4d97f18b9f1169c55e6ed650f2dea9573aa3fb726131d8f8c5f"
+      },
+      "cv_analysis": {
+        "status": "blocked_by_reranker_fit",
+        "analysis_reuse_status": "not_run_reranker_skip",
+        "analysis_input_fingerprint": null
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 7,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413983843",
+      "job_title": "Task Force Operations Manager  (m/w/d)",
+      "company": "roadsurfer",
+      "location_type": "onsite",
+      "seniority": "mid",
+      "job_family": "operations",
+      "domain": "travel arrangements",
+      "pipeline_status": "ranked_blocked_by_reranker_fit",
+      "deterministic_outcome": "blocked",
+      "stage_owned_subreason": "blocked_by_reranker_fit",
+      "source_stage": "cv_analysis",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "travel arrangements",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.2722182934628352,
+        "ai_score": 0.33,
+        "vector_score": -0.13187804358109864,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "3f43924b24e24130fddbed4e4ecede405a7d178ae7c1e77fb4792b91f72ada5b"
+      },
+      "cv_analysis": {
+        "status": "blocked_by_reranker_fit",
+        "analysis_reuse_status": "not_run_reranker_skip",
+        "analysis_input_fingerprint": null
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 8,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/dock-tech-at-christie-lites-4415510746?trk=public_jobs_topcard-title",
+      "job_title": "Dock Tech",
+      "company": "Christie Lites",
+      "location_type": "onsite",
+      "seniority": "junior",
+      "job_family": "operations",
+      "domain": "logistics",
+      "pipeline_status": "ranked_blocked_by_reranker_fit",
+      "deterministic_outcome": "blocked",
+      "stage_owned_subreason": "blocked_by_reranker_fit",
+      "source_stage": "cv_analysis",
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.27132159978628334,
+        "ai_score": 0.22,
+        "vector_score": 0.32214399857522225,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "85c7772198c0133e2f4f97c1ebbd813a113c95eaeb666f98fa3969ae8e77c12e"
+      },
+      "cv_analysis": {
+        "status": "blocked_by_reranker_fit",
+        "analysis_reuse_status": "not_run_reranker_skip",
+        "analysis_input_fingerprint": null
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 9,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4394959021",
+      "job_title": "Operations Manager",
+      "company": "Hard Rock Cafe",
+      "location_type": "onsite",
+      "seniority": "mid",
+      "job_family": "operations_management",
+      "domain": "restaurants",
+      "pipeline_status": "ranked_blocked_by_reranker_fit",
+      "deterministic_outcome": "blocked",
+      "stage_owned_subreason": "blocked_by_reranker_fit",
+      "source_stage": "cv_analysis",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "restaurants",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.26260055686596023,
+        "ai_score": 0.35,
+        "vector_score": -0.2493296208935984,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "68fd62e39221ed8917ceab2b94655932e613ac654d5a6eea66705eb0183c4641"
+      },
+      "cv_analysis": {
+        "status": "blocked_by_reranker_fit",
+        "analysis_reuse_status": "not_run_reranker_skip",
+        "analysis_input_fingerprint": null
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 10,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4363043608",
+      "job_title": "Brand Manager – Graduate Entry (m/f/d)",
+      "company": "Procter & Gamble",
+      "location_type": "hybrid",
+      "seniority": "junior",
+      "job_family": "brand_management",
+      "domain": "consumer goods",
+      "pipeline_status": "ranked_no_cv",
+      "deterministic_outcome": "not_applicable",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.47250243905790507,
+        "ai_score": 0.58,
+        "vector_score": 0.036682927052700605,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "a01126401fb621fdd7c3a2f0779de2ebf5eccf702a919bef6b9b65e04141572d"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "33688e5227cf71d9305fb228839ecf675a9fdfd9b17df9b9cc8b10f5fccbdb5d"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "review_required",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 1,
+      "cv": null,
+      "hitl_review_required": true,
+      "hitl_review_reason": "Policy acceptance blocked (policy_required_ratio_fail): policy_required_ratio_below_threshold. Manual review required.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-20T12:29:11.294544+00:00",
+      "hitl_review_note": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/senior-pricing-analyst-product-operations-global-pricing-at-delivery-hero-4397268650?trk=public_jobs_topcard-title",
+      "job_title": "Senior Pricing Analyst, Product Operations (Global Pricing)",
+      "company": "Delivery Hero",
+      "location_type": "hybrid",
+      "seniority": "mid",
+      "job_family": "analytics",
+      "domain": "e-commerce",
+      "pipeline_status": "ranked_no_cv",
+      "deterministic_outcome": "not_applicable",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.43273670312287726,
+        "ai_score": 0.46,
+        "vector_score": -0.14651721727605616,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "61d5c88d42169d77b98da291f8f3f2ea0a2bb119618e5a93afc0312db1c48f1e"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "0f8e1c17a410d83219ed714d7e3c03af72123cf6760e396b5f67191dbd0b3635"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "review_required",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 2,
+      "cv": null,
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: A/B testing, GitHub, applied statistics, price elasticity modeling. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-20T12:29:11.294544+00:00",
+      "hitl_review_note": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/client-operations-representative-at-viva-com-4394620714?trk=public_jobs_topcard-title",
+      "job_title": "Client Operations Representative",
+      "company": "Viva.com",
+      "location_type": "onsite",
+      "seniority": "junior",
+      "job_family": "operations",
+      "domain": "fintech",
+      "pipeline_status": "ranked_no_cv",
+      "deterministic_outcome": "not_applicable",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "fintech",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.34949581204916047,
+        "ai_score": 0.45,
+        "vector_score": 0.22997208032773653,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "f75cae93e920559ac7e075bd9a53ba374736012a3ff7b83dc3844f51a1eb5e5e"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "c120c233f38f0eb1bf534ffa50b760b6ebb23c9b93f7e4b2b0b723a3149b9a25"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "review_required",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 3,
+      "cv": null,
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: Identifying customer technical and commercial requirements to craft solutions, Lead intake triage and assignment, Maintaining client records in company database, Merchant onboarding support, Payment acceptance setup support, Phone and video meeting presentations. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-20T12:29:11.294544+00:00",
+      "hitl_review_note": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/sales-performance-senior-lead-x-f-m-at-doctolib-4407405606?trk=public_jobs_topcard-title",
+      "job_title": "Sales Performance Senior Lead (x/f/m)",
+      "company": "Doctolib",
+      "location_type": "hybrid",
+      "seniority": "lead",
+      "job_family": "analytics",
+      "domain": "healthcare",
+      "pipeline_status": "ranked_no_cv",
+      "deterministic_outcome": "rejected",
+      "stage_owned_subreason": "validation_failed",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "healthcare",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.33387244669909844,
+        "ai_score": 0.46,
+        "vector_score": 0.04359408910510072,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c86b2bc789e9aa5169e030bc1be6de0c1b2f62242269e34edb6b5e0a879703cd"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "9a4658981e8510c57373904e0bc3ae71efd282b3f59a828c9949a476a477d0b7"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "validation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "failed"
+        }
+      },
+      "rank": 4,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4407414538",
+      "job_title": "Revenue Operations",
+      "company": "Tacto",
+      "location_type": "onsite",
+      "seniority": "senior",
+      "job_family": "revenue_operations",
+      "domain": "manufacturing",
+      "pipeline_status": "ranked_no_cv",
+      "deterministic_outcome": "not_applicable",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "manufacturing",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.31692311511703336,
+        "ai_score": 0.62,
+        "vector_score": -0.05162367699755543,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "39b55141a69d9e4c5b13cfecb9d65ee4eb9ac6bebc0a73d30a0fe5a422a26e38"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "2a71070390648e9823573f27e4bd5df8082f5295d57b6ae71ec7e51508ee8325"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "review_required",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 5,
+      "cv": null,
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: Microsoft Excel. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-20T12:29:11.294544+00:00",
+      "hitl_review_note": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4048085589",
+      "job_title": "(Junior) Consultant (w/m/d) Banking & Financial Institutions",
+      "company": "Horváth",
+      "location_type": "hybrid",
+      "seniority": "junior",
+      "job_family": "consulting",
+      "domain": "banking",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "banking",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.2193808334985152,
+        "ai_score": 0.33,
+        "vector_score": -0.1507944433432321,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "454ca0fd01ce63718a4c748405234f15afde463231c5cbbaab90d3d24517b69e"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4412073810",
+      "job_title": "Head of Operations (m/w/d)",
+      "company": "DODO",
+      "location_type": null,
+      "seniority": "lead",
+      "job_family": "operations_management",
+      "domain": "last-mile logistics",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "last-mile logistics",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.21555652001558276,
+        "ai_score": 0.28,
+        "vector_score": 0.0237101334372183,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "b4c3c3971c02949e28b8aeb98c8b7a4a1bc395bb3f7a3431ce27088ed20441ee"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/finance-assistant-remote-at-360dialog-4416244424?trk=public_jobs_topcard-title",
+      "job_title": "Finance Assistant | Remote",
+      "company": "360Dialog",
+      "location_type": "remote",
+      "seniority": "junior",
+      "job_family": "finance_accounting",
+      "domain": "business messaging saas",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "business messaging saas",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.21423907894850697,
+        "ai_score": 0.28,
+        "vector_score": -0.05173947367662038,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "35a9fa74272b6a1f74a84f6a75aca8d21d599b36fe52aacfc74df829a0c7c5e6"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413600413",
+      "job_title": "(Senior) Operations Manager (m/f/d)",
+      "company": "Buying Labs",
+      "location_type": "onsite",
+      "seniority": "mid",
+      "job_family": "operations_management",
+      "domain": "retail (premium consumer goods / fashion)",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "retail (premium consumer goods / fashion)",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.20961396395238374,
+        "ai_score": 0.33,
+        "vector_score": -0.030721721798923414,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "3447c3ade7ae0c48942adcbf8b3389cdb29a19bc5b211b9394c4a1b7d864f27c"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4405817071",
+      "job_title": "RETAIL PERFORMANCE & OPERATIONS MANAGER – CENTRAL EUROPE",
+      "company": "CELINE",
+      "location_type": "onsite",
+      "seniority": "mid",
+      "job_family": "operations_management",
+      "domain": "retail",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.20619855160729925,
+        "ai_score": 0.28,
+        "vector_score": 0.061323677381994755,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "57721216c63db756836c09359a44a75c0c646387f2f60cd835b7a94082b79f5b"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/restaurant-onboarding-specialist-m-f-x-at-wolt-4414700375?trk=public_jobs_topcard-title",
+      "job_title": "Restaurant Onboarding Specialist (m/f/x)",
+      "company": "Wolt",
+      "location_type": "onsite",
+      "seniority": "mid",
+      "job_family": "customer_success",
+      "domain": "food delivery",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "food delivery",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.20031195098457583,
+        "ai_score": 0.32,
+        "vector_score": 0.08207967323050533,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "001fb09c5e06127457808b949a85657448ed1fb3c32dc3c0eb16b720b742d0de"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/manager-customer-support-at-jobgether-4416263291?trk=public_jobs_topcard-title",
+      "job_title": "Manager, Customer Support",
+      "company": "Jobgether",
+      "location_type": "remote",
+      "seniority": "mid",
+      "job_family": "customer_support_management",
+      "domain": "hospitality technology",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "hospitality technology",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.19367032961531738,
+        "ai_score": 0.26,
+        "vector_score": 0.19780219743544916,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "694147449f51de2c11561f30fc47ae3ca88bd5de14aed5584f492e95c4e1b9f7"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4242058782",
+      "job_title": "Business Development Manager (Physical Presence)",
+      "company": "Revolut",
+      "location_type": "onsite",
+      "seniority": "junior",
+      "job_family": "business_development",
+      "domain": "fintech",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "fintech",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.19183730853968764,
+        "ai_score": 0.18,
+        "vector_score": 0.06558205693125092,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "4582fddeafa4996e6715e4d3d4b36db9483f5b5b555fa611b60643075d6419f4"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/supply-chain-director-m-w-d-at-redcare-pharmacy-4416093062?trk=public_jobs_topcard-title",
+      "job_title": "Supply Chain Director (m/w/d)",
+      "company": "Redcare Pharmacy",
+      "location_type": "hybrid",
+      "seniority": "lead",
+      "job_family": "supply_chain",
+      "domain": "e-commerce pharmacy",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "e-commerce pharmacy",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.1874420646065034,
+        "ai_score": 0.26,
+        "vector_score": -0.04371956928997751,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "d8adf704304fe02d943c0f3683ac343cd76da62e423f49572f4d4fc5591f9a56"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/event-coordinator-at-generis-4391152465?trk=public_jobs_topcard-title",
+      "job_title": "Event Coordinator",
+      "company": "Generis",
+      "location_type": "hybrid",
+      "seniority": "junior",
+      "job_family": "event_management",
+      "domain": "b2b events and conferences",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "b2b events and conferences",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.1732904587470262,
+        "ai_score": 0.22,
+        "vector_score": -0.16473027501982557,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "d2033645e92d34af39e720f9272e76655f709d5eeb391c4d73ede963e49f02c8"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4405992963",
+      "job_title": "Operations Manager (m/w/d)",
+      "company": "Hermès",
+      "location_type": "onsite",
+      "seniority": "senior",
+      "job_family": "operations_management",
+      "domain": "retail",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.16716274437537218,
+        "ai_score": 0.28,
+        "vector_score": 0.1344182958358144,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c92d6171ccbca1de0bc207f26646341b54e8f26a3429c7a4d185bda4bfbe54fd"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/manager-product-operations-support-logistics-rider-at-delivery-hero-4415019899?trk=public_jobs_topcard-title",
+      "job_title": "Manager, Product Operations Support - (Logistics, Rider)",
+      "company": "Delivery Hero",
+      "location_type": "hybrid",
+      "seniority": "senior",
+      "job_family": "product_operations",
+      "domain": "on-demand delivery logistics",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "on-demand delivery logistics",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.16601556639767429,
+        "ai_score": 0.32,
+        "vector_score": 0.18677044265116186,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "8dc86aed6b37b7d6566645b7b028c1685bb0ba13636d21547aae1538a86a74dd"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/junior-social-media-content-manager-at-spire-4384168261?trk=public_jobs_topcard-title",
+      "job_title": "Junior Social Media & Content Manager",
+      "company": "Spire",
+      "location_type": "hybrid",
+      "seniority": "junior",
+      "job_family": "marketing",
+      "domain": "space technology",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "space technology",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.1528196681602821,
+        "ai_score": 0.22,
+        "vector_score": -0.30120221226478605,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "6a013ffc4f9a657b9f91a1101a4d5f2e2c782f4b47b1bae85660c87b36e4deef"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/revenue-strategy-operations-manager-at-wolt-4405038786?trk=public_jobs_topcard-title",
+      "job_title": "Revenue Strategy & Operations Manager",
+      "company": "Wolt",
+      "location_type": "onsite",
+      "seniority": "senior",
+      "job_family": "revenue_operations",
+      "domain": "last-mile delivery / commerce marketplace",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "last-mile delivery / commerce marketplace",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.14953240198914144,
+        "ai_score": 0.33,
+        "vector_score": 0.050216013260942875,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "31309dec9ea3bcd112478c5e8902142d0f7067336615a5833e64f2ca87c944fe"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4417044893",
+      "job_title": "Project and Office Coordinator (m/f/d)",
+      "company": "Aroundtown",
+      "location_type": "hybrid",
+      "seniority": "mid",
+      "job_family": "project_management",
+      "domain": "real estate",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "real estate",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.14785514409834255,
+        "ai_score": 0.28,
+        "vector_score": -0.16096570601104984,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "849505885998462d538090c1ba0aef91d85ecef0fc2b4e3991e43d77a4c8adc9"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/group-product-manager-logistics-routing-dispatch-optimization-at-delivery-hero-4401423303?trk=public_jobs_topcard-title",
+      "job_title": "Group Product Manager - (Logistics,  Routing & Dispatch Optimization)",
+      "company": "Delivery Hero",
+      "location_type": "hybrid",
+      "seniority": "senior",
+      "job_family": "product_management",
+      "domain": "last-mile delivery logistics",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "last-mile delivery logistics",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.1360527300598385,
+        "ai_score": 0.28,
+        "vector_score": 0.0936848670655898,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "e144bc7f59f1887875905439714ea635af3160be1c231a890ec89bd9381953c6"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/produktionsleiter-%E2%80%93-surface-protection-m-w-d-at-maas-aviation-4416646881?trk=public_jobs_topcard-title",
+      "job_title": "Produktionsleiter – Surface Protection (m/w/d)",
+      "company": "MAAS Aviation",
+      "location_type": "onsite",
+      "seniority": "mid",
+      "job_family": "operations_management",
+      "domain": "aerospace",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "aerospace",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.13576951775933466,
+        "ai_score": 0.08,
+        "vector_score": 0.10132059458604038,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "9d4f793d825972353d9c1d0030fe4692af25b9b9c3a36334c6f6fc1ed9f50f1b"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4383804472",
+      "job_title": "Office Management",
+      "company": "Tacto",
+      "location_type": "onsite",
+      "seniority": "mid",
+      "job_family": "operations",
+      "domain": "industrial procurement / manufacturing",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "industrial procurement / manufacturing",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.13452600070381077,
+        "ai_score": 0.22,
+        "vector_score": -0.08982666197459506,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "8879fd0dccfda087ae09f41f92a5cd48ab8f1478c16950b31436d55b660118d7"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/director-of-operations-at-rotaract-club-of-tata-institute-of-social-sciences-tuljapur-4416128626?trk=public_jobs_topcard-title",
+      "job_title": "Director of Operations",
+      "company": "Rotaract Club of Tata Institute of Social Sciences, Tuljapur",
+      "location_type": "hybrid",
+      "seniority": "senior",
+      "job_family": "operations_management",
+      "domain": null,
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.13131588527212482,
+        "ai_score": 0.32,
+        "vector_score": -0.04456076485250118,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "99981f907c5d01a3ab61920c283434ddb4cce5cc3aa70039c81b7cd7d483f9f6"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/manufacturing-associate-partner-deutschlandweit-at-infosys-consulting-4415387000?trk=public_jobs_topcard-title",
+      "job_title": "Manufacturing Associate Partner- Deutschlandweit",
+      "company": "Infosys Consulting",
+      "location_type": "onsite",
+      "seniority": "lead",
+      "job_family": "management_consulting",
+      "domain": "manufacturing",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "manufacturing",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.12874617068393543,
+        "ai_score": 0.22,
+        "vector_score": 0.20497447122623616,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "505b6ea6855cb9d8932fe86fa60e7a021d93637f8e1222a7f4a2af8ca772f6ed"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/global-people-operations-manager-w-m-d-at-vivenu-4415384094?trk=public_jobs_topcard-title",
+      "job_title": "Global People Operations Manager (w/m/d)",
+      "company": "vivenu",
+      "location_type": "onsite",
+      "seniority": "mid",
+      "job_family": "people_operations",
+      "domain": "live entertainment",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "live entertainment",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.11603295116353043,
+        "ai_score": 0.15,
+        "vector_score": -0.12168508748122582,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "7b0df0f5dcd0e1a50f81cf077ee15682821e57c2c362ce3b3f4c0e1271f49e06"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/head-of-supply-chain-management-at-barrington-james-4415380548?trk=public_jobs_topcard-title",
+      "job_title": "Head of Supply Chain Management",
+      "company": "Barrington James",
+      "location_type": "hybrid",
+      "seniority": "lead",
+      "job_family": "supply_chain",
+      "domain": "chemical manufacturing",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "chemical manufacturing",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.10949444936277028,
+        "ai_score": 0.18,
+        "vector_score": 0.016629662418468413,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "8b305e9ec9d38fdc8ae69e74110ac847e5704c0f5adaea13360825624a8fc1ef"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/head-of-global-operations-m-w-d-at-dsj-global-4415681741?trk=public_jobs_topcard-title",
+      "job_title": "Head of global Operations (m/w/d)",
+      "company": "DSJ Global",
+      "location_type": "onsite",
+      "seniority": "lead",
+      "job_family": "operations_management",
+      "domain": "chemical manufacturing",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "chemical manufacturing",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.1080113589519868,
+        "ai_score": 0.18,
+        "vector_score": 0.173409059679912,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "a206666cc90361e2dc5d1bc86709b82f370297ab07b12e7e76ea8895436d40df"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/operations-manager-at-c-m-travel-recruitment-4415930294?trk=public_jobs_topcard-title",
+      "job_title": "Operations Manager",
+      "company": "C&M Travel Recruitment",
+      "location_type": "hybrid",
+      "seniority": "senior",
+      "job_family": "operations_management",
+      "domain": "business travel",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "business travel",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.10298660172537219,
+        "ai_score": 0.18,
+        "vector_score": 0.13991067816914804,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "9edda702c3312018bca061c70d1ca5f345910647eee9ecc178cb174de39e7b92"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/vice-president-speciality-business-europe-at-glenmark-europe-4411147011?trk=public_jobs_topcard-title",
+      "job_title": "Vice President - Speciality Business (Europe)",
+      "company": "Glenmark Europe",
+      "location_type": "onsite",
+      "seniority": "lead",
+      "job_family": "sales_marketing",
+      "domain": "pharmaceuticals",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "pharmaceuticals",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.09837404003597694,
+        "ai_score": 0.26,
+        "vector_score": -0.1930619553157094,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "30b65e0908bda970c11ec5defad2a4d18fa2a133f52365cd6f486f51f0f138c2"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/director-of-food-and-beverage-at-kerry-robert-associates-4403774212?trk=public_jobs_topcard-title",
+      "job_title": "Director of Food And Beverage",
+      "company": "Kerry Robert Associates",
+      "location_type": "onsite",
+      "seniority": "senior",
+      "job_family": "food_beverage_management",
+      "domain": "hospitality",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "hospitality",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.0738474523670262,
+        "ai_score": 0.18,
+        "vector_score": -0.054350317553158764,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "e7d996dc241967ddbae3082e54311d76e95a5276ef0b8a71c0807f48461ad503"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4216739019",
+      "job_title": "Transcription / Subtitling Specialist (Freelance)",
+      "company": "ElevenLabs",
+      "location_type": "remote",
+      "seniority": "mid",
+      "job_family": "operations",
+      "domain": "media & entertainment",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "media & entertainment",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.05296564966483856,
+        "ai_score": 0.08,
+        "vector_score": -0.26022900223440965,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "abe3ca0da9461f2f005ca4eaa9dda8066e4345b1182ce9376da161cb4d998044"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/manufacturing-operations-manager-at-european-tech-recruit-4416254580?trk=public_jobs_topcard-title",
+      "job_title": "Manufacturing Operations Manager",
+      "company": "European Tech Recruit",
+      "location_type": "onsite",
+      "seniority": "senior",
+      "job_family": "manufacturing_operations",
+      "domain": "semiconductor manufacturing",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "semiconductor manufacturing",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.0467710403702178,
+        "ai_score": 0.12,
+        "vector_score": -0.07485973086521468,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "cb252761523491b388b678b039248942db4c00dc555315235bc86e6dbb4f9526"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/group-operations-director-at-holger-l%C3%BCking-partner-4417053559?trk=public_jobs_topcard-title",
+      "job_title": "Group Operations Director",
+      "company": "Holger Lüking & Partner",
+      "location_type": "onsite",
+      "seniority": "lead",
+      "job_family": "operations_management",
+      "domain": "manufacturing",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "manufacturing",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.04545500656823607,
+        "ai_score": 0.12,
+        "vector_score": -0.08363328954509291,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "af9850f23604092c88e20c447404e603166ea4a71ee8fcf0f16589c0fc05490b"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/facilities-operations-manager-at-mindspace-4415458301?trk=public_jobs_topcard-title",
+      "job_title": "Facilities Operations Manager",
+      "company": "Mindspace",
+      "location_type": "onsite",
+      "seniority": "senior",
+      "job_family": "facility_management",
+      "domain": "coworking / flexible workspace",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "coworking / flexible workspace",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.028096472218064196,
+        "ai_score": 0.08,
+        "vector_score": -0.09269018521290537,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "52304cb54e7068becc91ba5828c03b94efc4daeece46476b9c618822a70c7db2"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/teamlead-logistics-at-envalior-4402113214?trk=public_jobs_topcard-title",
+      "job_title": "Teamlead Logistics",
+      "company": "Envalior",
+      "location_type": "onsite",
+      "seniority": "lead",
+      "job_family": "logistics_operations",
+      "domain": "industrial manufacturing (high-performance engineering materials/chemicals)",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "industrial manufacturing (high-performance engineering materials/chemicals)",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.027645082800661372,
+        "ai_score": 0.12,
+        "vector_score": -0.20236611466225754,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "0046270bede9c68234423ae0a96356aaf0fa2132253e10f26878065c6cb778c2"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413993132",
+      "job_title": "Task Force Operations Manager  (m/w/d)",
+      "company": "roadsurfer",
+      "location_type": null,
+      "seniority": null,
+      "job_family": null,
+      "domain": null,
+      "pipeline_status": "deduplicated_before_enrichment",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [
+        "near_duplicate_job_posting"
+      ],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": null,
+        "ai_score": null,
+        "vector_score": null,
+        "fit_label": null,
+        "ai_score_reuse_status": null,
+        "ai_score_input_fingerprint": null
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "not_applicable",
+          "advanced_to_scoring": false
+        },
+        "primary_fit": {
+          "source": null,
+          "label": null
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413994108",
+      "job_title": "Task Force Operations Manager  (m/w/d)",
+      "company": "roadsurfer",
+      "location_type": null,
+      "seniority": null,
+      "job_family": null,
+      "domain": null,
+      "pipeline_status": "deduplicated_before_enrichment",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [
+        "near_duplicate_job_posting"
+      ],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": null,
+        "ai_score": null,
+        "vector_score": null,
+        "fit_label": null,
+        "ai_score_reuse_status": null,
+        "ai_score_input_fingerprint": null
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "not_applicable",
+          "advanced_to_scoring": false
+        },
+        "primary_fit": {
+          "source": null,
+          "label": null
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413989738",
+      "job_title": "Multi-Site Operations Specialist (m/w/d)",
+      "company": "roadsurfer",
+      "location_type": null,
+      "seniority": null,
+      "job_family": null,
+      "domain": null,
+      "pipeline_status": "deduplicated_before_enrichment",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [
+        "near_duplicate_job_posting"
+      ],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": null,
+        "ai_score": null,
+        "vector_score": null,
+        "fit_label": null,
+        "ai_score_reuse_status": null,
+        "ai_score_input_fingerprint": null
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "not_applicable",
+          "advanced_to_scoring": false
+        },
+        "primary_fit": {
+          "source": null,
+          "label": null
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413978891",
+      "job_title": "Multi-Site Operations Specialist (m/w/d)",
+      "company": "roadsurfer",
+      "location_type": null,
+      "seniority": null,
+      "job_family": null,
+      "domain": null,
+      "pipeline_status": "deduplicated_before_enrichment",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [
+        "near_duplicate_job_posting"
+      ],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": null,
+        "ai_score": null,
+        "vector_score": null,
+        "fit_label": null,
+        "ai_score_reuse_status": null,
+        "ai_score_input_fingerprint": null
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "not_applicable",
+          "advanced_to_scoring": false
+        },
+        "primary_fit": {
+          "source": null,
+          "label": null
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413994088",
+      "job_title": "Multi-Site Operations Specialist (m/w/d)",
+      "company": "roadsurfer",
+      "location_type": null,
+      "seniority": null,
+      "job_family": null,
+      "domain": null,
+      "pipeline_status": "deduplicated_before_enrichment",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [
+        "near_duplicate_job_posting"
+      ],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": null,
+        "ai_score": null,
+        "vector_score": null,
+        "fit_label": null,
+        "ai_score_reuse_status": null,
+        "ai_score_input_fingerprint": null
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "not_applicable",
+          "advanced_to_scoring": false
+        },
+        "primary_fit": {
+          "source": null,
+          "label": null
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/supply-chain-director-m-w-d-at-redcare-pharmacy-4416076951?trk=public_jobs_topcard-title",
+      "job_title": "Supply Chain Director (m/w/d)",
+      "company": "Redcare Pharmacy",
+      "location_type": null,
+      "seniority": null,
+      "job_family": null,
+      "domain": null,
+      "pipeline_status": "deduplicated_before_enrichment",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [
+        "near_duplicate_job_posting"
+      ],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": null,
+        "ai_score": null,
+        "vector_score": null,
+        "fit_label": null,
+        "ai_score_reuse_status": null,
+        "ai_score_input_fingerprint": null
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "not_applicable",
+          "advanced_to_scoring": false
+        },
+        "primary_fit": {
+          "source": null,
+          "label": null
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413994109",
+      "job_title": "Task Force Operations Manager  (m/w/d)",
+      "company": "roadsurfer",
+      "location_type": null,
+      "seniority": null,
+      "job_family": null,
+      "domain": null,
+      "pipeline_status": "deduplicated_before_enrichment",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [
+        "near_duplicate_job_posting"
+      ],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": null,
+        "ai_score": null,
+        "vector_score": null,
+        "fit_label": null,
+        "ai_score_reuse_status": null,
+        "ai_score_input_fingerprint": null
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "not_applicable",
+          "advanced_to_scoring": false
+        },
+        "primary_fit": {
+          "source": null,
+          "label": null
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/supply-chain-director-m-w-d-at-redcare-pharmacy-4416073983?trk=public_jobs_topcard-title",
+      "job_title": "Supply Chain Director (m/w/d)",
+      "company": "Redcare Pharmacy",
+      "location_type": null,
+      "seniority": null,
+      "job_family": null,
+      "domain": null,
+      "pipeline_status": "deduplicated_before_enrichment",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [
+        "near_duplicate_job_posting"
+      ],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": null,
+        "ai_score": null,
+        "vector_score": null,
+        "fit_label": null,
+        "ai_score_reuse_status": null,
+        "ai_score_input_fingerprint": null
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "not_applicable",
+          "advanced_to_scoring": false
+        },
+        "primary_fit": {
+          "source": null,
+          "label": null
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    }
+  ]
+}

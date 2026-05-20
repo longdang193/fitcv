@@ -174,6 +174,21 @@
             >
             Select
           </label>
+          <label style="display:inline-flex;align-items:center;gap:0.35rem">
+            <span class="meta">Choose Action</span>
+            <select
+              name="proposal_action__{{ item.proposal_id }}"
+              form="synonym-batch-form"
+              data-synonym-row-action="true"
+              data-recommended-action="{{ item.recommended_action or '' }}"
+            >
+              <option value="">Use Batch Action</option>
+              <option value="approve">Approve</option>
+              <option value="defer">Defer</option>
+              <option value="reject">Reject</option>
+              <option value="reopen_pending">Reopen Pending</option>
+            </select>
+          </label>
         </div>
         {% endif %}
       </div>
@@ -243,6 +258,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const pendingSelections = () => Array.from(
     document.querySelectorAll('input[type="checkbox"][name="proposal_id"][data-synonym-selectable="true"]')
   );
+  const pendingRowActions = () => Array.from(
+    document.querySelectorAll('select[data-synonym-row-action="true"]')
+  );
   const refreshSelectedCount = () => {
     if (!synonymSelectedCount) return;
     const selected = pendingSelections().filter((cb) => cb.checked).length;
@@ -250,17 +268,28 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const applyRecommendations = () => {
-    const action = batchActionSelect ? String(batchActionSelect.value || '').trim() : '';
-    let selected = 0;
-    pendingSelections().forEach((checkboxEl) => {
-      const recommended = (checkboxEl.getAttribute('data-recommended-action') || '').trim();
-      checkboxEl.checked = !!(action && recommended === action);
-      if (checkboxEl.checked) selected += 1;
+    const validActions = new Set(['approve', 'defer', 'reject']);
+    const counts = { approve: 0, defer: 0, reject: 0, unfilled: 0 };
+    const selectionMap = new Map(
+      pendingSelections().map((checkboxEl) => [String(checkboxEl.value || ''), checkboxEl])
+    );
+    pendingRowActions().forEach((selectEl) => {
+      const recommended = String(selectEl.getAttribute('data-recommended-action') || '').trim();
+      if (!validActions.has(recommended)) {
+        counts.unfilled += 1;
+        return;
+      }
+      selectEl.value = recommended;
+      counts[recommended] += 1;
+      const proposalId = String(selectEl.name || '').replace('proposal_action__', '');
+      const checkboxEl = selectionMap.get(proposalId);
+      if (checkboxEl) checkboxEl.checked = true;
     });
+    const selected = pendingSelections().filter((cb) => cb.checked).length;
     refreshSelectedCount();
     if (modeStatus) modeStatus.textContent = selected > 0
-      ? `AI assist selected ${selected} recommended row(s) for action "${action}".`
-      : (action ? `AI assist found no rows recommending "${action}".` : 'Choose batch action first, then run AI assist.');
+      ? `AI assist prefilled actions: approve=${counts.approve}, defer=${counts.defer}, reject=${counts.reject}, no_recommendation=${counts.unfilled}. Selected: ${selected}.`
+      : `AI assist found no rows with actionable recommendations. no_recommendation=${counts.unfilled}.`;
   };
   const syncActor = () => {
     const actor = actorInput ? String(actorInput.value || '').trim() : '';

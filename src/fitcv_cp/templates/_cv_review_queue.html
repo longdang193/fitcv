@@ -21,7 +21,13 @@
       <span>Allow closure with zero accepted CV artifacts</span>
     </label>
     <span class="meta">Apply One Action to Selected Jobs</span>
-    <button class="btn-secondary" type="submit">Apply to Selected Jobs</button>
+    <button
+      class="btn-secondary"
+      type="submit"
+      form="hitl-batch-form"
+      formaction="/admin/runs/{{ run.run_id }}/cv-review-batch-action"
+      formmethod="post"
+    >Apply to Selected Jobs</button>
     <span class="meta">Select one or more rows below.</span>
   </form>
   <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin:-0.35rem 0 0.75rem 0">
@@ -42,7 +48,14 @@
         <div style="min-width:0">
           {% if item.pending %}
           <label style="display:inline-flex;align-items:center;gap:0.35rem;margin-bottom:0.35rem">
-            <input type="checkbox" name="review_item_id" value="{{ item.review_item_id or '' }}" form="hitl-batch-form" data-hitl-selectable="true" data-has-job-url="{{ 'true' if item.job_url else 'false' }}">
+            <input
+              type="checkbox"
+              name="{{ 'review_item_id' if item.review_item_id else 'job_url' }}"
+              value="{{ item.review_item_id if item.review_item_id else item.job_url }}"
+              form="hitl-batch-form"
+              data-hitl-selectable="true"
+              data-has-job-url="{{ 'true' if item.job_url else 'false' }}"
+            >
             <span class="meta">Select</span>
           </label>
           {% endif %}
@@ -119,7 +132,7 @@
   const clearAllBtn = document.getElementById('hitl-clear-all-btn');
   const batchForm = document.getElementById('hitl-batch-form');
   const selectedCount = document.getElementById('hitl-selected-count');
-  const selectableCheckboxes = () => Array.from(document.querySelectorAll('input[type="checkbox"][name="review_item_id"][data-hitl-selectable="true"]'));
+  const selectableCheckboxes = () => Array.from(document.querySelectorAll('input[type="checkbox"][data-hitl-selectable="true"]'));
 
   const refreshSelectedCount = () => {
     if (!selectedCount) return;

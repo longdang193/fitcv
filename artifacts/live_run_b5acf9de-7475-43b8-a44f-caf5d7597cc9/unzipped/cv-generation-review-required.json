@@ -1,0 +1,88 @@
+{
+  "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+  "schema_version": "cv_generation_review_required_v1",
+  "rows": [
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4363043608",
+      "job_title": "Brand Manager – Graduate Entry (m/f/d)",
+      "reason_code": "policy_required_ratio_fail",
+      "review_target": "other",
+      "operator_prompt": "Review this CV outcome and choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Policy acceptance blocked (policy_required_ratio_fail): policy_required_ratio_below_threshold. Manual review required.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/senior-pricing-analyst-product-operations-global-pricing-at-delivery-hero-4397268650?trk=public_jobs_topcard-title",
+      "job_title": "Senior Pricing Analyst, Product Operations (Global Pricing)",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (GitHub, applied statistics, A/B testing, price elasticity modeling), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "GitHub",
+        "applied statistics",
+        "A/B testing",
+        "price elasticity modeling"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: A/B testing, GitHub, applied statistics, price elasticity modeling. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/client-operations-representative-at-viva-com-4394620714?trk=public_jobs_topcard-title",
+      "job_title": "Client Operations Representative",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (Lead intake triage and assignment, Merchant onboarding support, Payment acceptance setup support, Maintaining client records in company database, Identifying customer technical and commercial requirements to craft solutions, Phone and video meeting presentations), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "Lead intake triage and assignment",
+        "Merchant onboarding support",
+        "Payment acceptance setup support",
+        "Maintaining client records in company database",
+        "Identifying customer technical and commercial requirements to craft solutions",
+        "Phone and video meeting presentations"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: Identifying customer technical and commercial requirements to craft solutions, Lead intake triage and assignment, Maintaining client records in company database, Merchant onboarding support, Payment acceptance setup support, Phone and video meeting presentations. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4407414538",
+      "job_title": "Revenue Operations",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (Microsoft Excel), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "Microsoft Excel"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: Microsoft Excel. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    }
+  ]
+}

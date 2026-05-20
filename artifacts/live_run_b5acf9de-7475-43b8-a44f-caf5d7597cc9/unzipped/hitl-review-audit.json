@@ -1,0 +1,140 @@
+{
+  "schema_version": "hitl_review_audit_v1",
+  "run_id": "b5acf9de-7475-43b8-a44f-caf5d7597cc9",
+  "status": "succeeded",
+  "summary": {
+    "review_required_total": 4,
+    "pending_total": 0,
+    "actions_total": 4,
+    "closure_mode": "all_review_rows_terminal",
+    "resolution_totals": {
+      "approved_as_is": 4
+    },
+    "accepted_cv_total": 4,
+    "requires_no_accepted_ack": false
+  },
+  "queue_items": [
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4363043608",
+      "review_item_id": "ri_0ce6e598ef1cabd3cf5e",
+      "missing_job_url": false,
+      "job_title": "Brand Manager – Graduate Entry (m/f/d)",
+      "fit_classification": "stretch",
+      "reason": "Policy acceptance blocked (policy_required_ratio_fail): policy_required_ratio_below_threshold. Manual review required.",
+      "action": "approve_as_is",
+      "action_at": "2026-05-20T12:29:11.294544+00:00",
+      "action_at_display": "2026-05-20 12:29 UTC",
+      "action_by": "admin",
+      "resolution_status": "approved_as_is",
+      "pending": false,
+      "cv_markdown_preview": "# LONG DANG\n**Brand Manager — Graduate Entry | Brand marketing, consumer research, portfolio performance**\n\n## Summary\nBrand marketing professional with experience driving portfolio performance through brand audit, product audit, sales analysis, market intelligence, and brand health tracking. Led consumer research programs (focus group discussions, consumer panel analysis, sensory testing, concept testing, mystery shopping) to validate concepts and support launch decisions. Strong cross-functional collaboration across go-to-market work, launch planning, and post-launch performance reporting.\n\n## Education\n\n### Bachelor's Degree — Foreign Trade University (2015-09–2019-09)\n*International Business*\n\n### Master of Science — Otto von Guericke University Magdeburg (2024-10–Present)\n*Operations Research and Business Analytics*\n\n## Experience\n\n### Brand Marketing Executive — Long Hung ITS (2019-06–2021-06)\n\n- Conducted brand audit and product audit by integrating sales analysis, retail audit, fieldwork findings, brand health tracking, consumer panel analysis, and market intelligence to evaluate portfolio analysis and identify growth opportunities.\n- Designed and executed consumer research programs (focus group discussions, sensory testing, simulated test markets, mystery shopping) for concept validation and launch decisions across juice, tea, and energy drink products.\n- Delivered campaign analytics and performance reporting using audience segmentation, audience insights, social listening, and media planning inputs to support integrated campaign decisions and brand lift analysis.\n\n### R&D Staff — KOKUYO Vietnam Trading (2021-09–2023-09)\n\n- Managed new product development end-to-end: market research, concept validation, packaging development, pre-production qa, sales enablement, launch planning, product launch, and post-launch performance review.\n- Ran data analysis-driven market research using competitor analysis, customer insights, distributor feedback, and sales data to prioritize opportunities via portfolio prioritization and support portfolio expansion.\n- Coordinated cross-functional collaboration and stakeholder management to standardize SOP development and workflow standardization for commercialization and process improvement.\n\n## Skills\nbrand audit, product audit, brand health tracking, consumer research, consumer panel analysis, focus group discussions, sen\n...[truncated in review queue]",
+      "cv_preview_available": true,
+      "last_regenerated_at": null,
+      "regenerated_draft_fingerprint": null,
+      "regeneration_job_id": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/client-operations-representative-at-viva-com-4394620714?trk=public_jobs_topcard-title",
+      "review_item_id": "ri_c2049e1f9b454ff909e7",
+      "missing_job_url": false,
+      "job_title": "Client Operations Representative",
+      "fit_classification": "stretch",
+      "reason": "Unsupported requirements require review: Identifying customer technical and commercial requirements to craft solutions, Lead intake triage and assignment, Maintaining client records in company database, Merchant onboarding support, Payment acceptance setup support, Phone and video meeting presentations. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "action": "approve_as_is",
+      "action_at": "2026-05-20T12:29:11.294544+00:00",
+      "action_at_display": "2026-05-20 12:29 UTC",
+      "action_by": "admin",
+      "resolution_status": "approved_as_is",
+      "pending": false,
+      "cv_markdown_preview": "# LONG DANG\n**Client Operations Representative — Account Performance Analysis, Cross-Functional Collaboration**\n\n## Summary\nClient-facing operations, performance analysis background from product, brand, analytics roles. Track post-launch and portfolio performance using sales data, customer insights, competitor analysis. Drive execution via cross-functional collaboration, workflow standardization, process improvement across stakeholders.\n\n## Education\n\n### Bachelor's Degree — Foreign Trade University (2015-09–2019-09)\n*International Business*\n\n### Master of Science — Otto von Guericke University Magdeburg (2024-10–Present)\n*Operations Research and Business Analytics*\n\n## Experience\n\n### R&D Staff — KOKUYO Vietnam Trading (2021-09–2023-09)\n\n- Managed end-to-end new product development from market research, concept validation to packaging development, pre-production QA, sales enablement, launch planning, post-launch performance review.\n- Conducted data-driven market research using trend analysis, competitor benchmarking, customer insights, distributor feedback, sales data to prioritize product opportunities.\n- Standardized workflows via SOP development, process standardization, cross-functional coordination to improve execution consistency across launch stages.\n- Monitored product performance post-launch using data analysis to inform portfolio prioritization, portfolio expansion decisions.\n\n### Brand Marketing Executive — Long Hung ITS (2019-06–2021-06)\n\n- Audited brand and product performance by integrating sales analysis, fieldwork findings, retail audit, brand health tracking, consumer panel analysis, industry reports.\n- Designed research studies (focus group discussions, sensory testing, concept testing, mystery shopping) to validate concepts, inform launch decisions.\n- Delivered performance reporting, campaign analytics using audience insights, social listening signals to support optimization decisions.\n\n## Skills\ndata analysis, performance reporting, sales analysis, portfolio analysis, brand health tracking, campaign analytics, competitor analysis, market research, market intelligence, customer insights, audience insights, social listening, cross-functional collaboration, cross-functional coordination, stakeholder management, workflow standardization, process standardization, process improvement, sop development, launch planning, quality control, pre-prod\n...[truncated in review queue]",
+      "cv_preview_available": true,
+      "last_regenerated_at": null,
+      "regenerated_draft_fingerprint": null,
+      "regeneration_job_id": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4407414538",
+      "review_item_id": "ri_56f19d94fa7d240f1785",
+      "missing_job_url": false,
+      "job_title": "Revenue Operations",
+      "fit_classification": "stretch",
+      "reason": "Unsupported requirements require review: Microsoft Excel. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "action": "approve_as_is",
+      "action_at": "2026-05-20T12:29:11.294544+00:00",
+      "action_at_display": "2026-05-20 12:29 UTC",
+      "action_by": "admin",
+      "resolution_status": "approved_as_is",
+      "pending": false,
+      "cv_markdown_preview": "# LONG DANG\n**Revenue Operations**\n\n## Summary\nRevenue operations-focused analyst with strength in reporting, data analysis, market research, and cross-functional stakeholder management. Built data-driven workflows for opportunity prioritization, launch planning, sales enablement, and post-launch performance review; also designed analytics pipelines that produce governed, decision-ready datasets for reporting and monitoring.\n\n## Education\n\n### Bachelor's Degree — Foreign Trade University (2015-09–2019-09)\n*International Business*\n\n### Master of Science — Otto von Guericke University Magdeburg (2024-10–Present)\n*Operations Research and Business Analytics*\n\n## Experience\n\n### R&D Staff — KOKUYO Vietnam Trading (2021-09–2023-09)\n\n- Managed end-to-end new product development from market research and concept validation to packaging development, pre-production QA, sales enablement, launch planning, and post-launch performance review.\n- Conducted data-driven market research using trend analysis, competitor analysis, customer insights, distributor feedback, and sales data to identify unmet needs and prioritize product opportunities.\n- Standardized workflows and SOP development across cross-functional coordination to improve launch execution and stakeholder alignment.\n- Supported reporting needs through structured data analysis of market signals and post-launch performance to inform portfolio prioritization and category growth decisions.\n\n## Skills\ndata analysis, market research, customer insights, competitor analysis, portfolio prioritization, sales enablement, launch planning, product launch, go-to-market strategy, stakeholder management, cross-functional collaboration, cross-functional coordination, process standardization, sop development, workflow standardization, process improvement, revenue growth, sql, python, google bigquery, bruin, pipeline orchestration, data engineering, data modeling, machine learning, analytics engineering\n\n## Certifications\n\n## Projects\n\n### Ecommerce Analytics Bruin\n- Designed staged bruin pipeline that transforms GA4 ecommerce source data in google bigquery into reusable analytical datasets for reporting, monitoring, and downstream consumption.\n- Used machine learning via google bigquery ML to add in-warehouse training and scoring outputs into analytics workflow for analysis beyond reporting.\n- Centralized business logic into warehou\n...[truncated in review queue]",
+      "cv_preview_available": true,
+      "last_regenerated_at": null,
+      "regenerated_draft_fingerprint": null,
+      "regeneration_job_id": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/senior-pricing-analyst-product-operations-global-pricing-at-delivery-hero-4397268650?trk=public_jobs_topcard-title",
+      "review_item_id": "ri_1f7f94c262438d9f6298",
+      "missing_job_url": false,
+      "job_title": "Senior Pricing Analyst, Product Operations (Global Pricing)",
+      "fit_classification": "stretch",
+      "reason": "Unsupported requirements require review: A/B testing, GitHub, applied statistics, price elasticity modeling. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "action": "approve_as_is",
+      "action_at": "2026-05-20T12:29:11.294544+00:00",
+      "action_at_display": "2026-05-20 12:29 UTC",
+      "action_by": "admin",
+      "resolution_status": "approved_as_is",
+      "pending": false,
+      "cv_markdown_preview": "# LONG DANG\n**Analytics Engineer / Analyst (BigQuery, SQL, Python)**\n\n## Summary\nAnalytics engineer / analyst building warehouse-first analytics workflows using Google BigQuery, SQL, Python. Experience designing modular transformation layers, semantic-serving paths, in-warehouse ML outputs, observability layers for trusted reporting. Background in product, portfolio, market, sales analysis supporting commercial decisions across consumer goods.\n\n## Education\n\n### Bachelor's Degree — Foreign Trade University (International Business) (2015-09–2019-09)\n\n### Master of Science — Otto von Guericke University Magdeburg (Operations Research and Business Analytics) (2024-10–Present)\n\n## Experience\n\n### R&D Staff — KOKUYO Vietnam Trading (2021-09–2023-09)\n\n- Managed end-to-end new product development from market research, concept validation, packaging development, pre-production QA, sales enablement, launch planning, post-launch performance review.\n- Ran data analysis for product strategy using trend analysis, competitor analysis, customer insights, distributor feedback, sales analysis to prioritize portfolio opportunities.\n\n### Brand Marketing Executive — Long Hung ITS (2019-06–2021-06)\n\n- Conducted brand audit, product audit by integrating sales analysis, retail audit, brand health tracking, consumer panel analysis, market intelligence to evaluate portfolio performance, find growth opportunities.\n- Designed consumer research programs (focus group discussions, sensory testing, mystery shopping, concept testing, concept validation) to validate concepts, support launch decisions.\n- Delivered campaign analytics, performance reporting using audience insights, audience segmentation, media planning, media optimization, brand lift analysis, social listening.\n\n## Skills\ngoogle bigquery, sql, python, data analysis, data engineering, data modeling, analytics engineering, duckdb, machine learning, azure machine learning, machine learning pipelines, mlops, mlflow, hyperparameter tuning, data validation, model registry, model deployment, monitoring, drift detection, online inference, docker, pytest, yaml configuration, system design, workflow standardization, portfolio analysis, portfolio management, portfolio prioritization, portfolio expansion, market research, market intelligence, competitor analysis, customer insights, product strategy, category management, category growth, co\n...[truncated in review queue]",
+      "cv_preview_available": true,
+      "last_regenerated_at": null,
+      "regenerated_draft_fingerprint": null,
+      "regeneration_job_id": null
+    }
+  ],
+  "actions": [
+    {
+      "review_item_id": "ri_0ce6e598ef1cabd3cf5e",
+      "job_url": "https://www.linkedin.com/jobs/view/4363043608",
+      "action": "approve_as_is",
+      "resolution_status": "approved_as_is",
+      "artifact_finalized": true,
+      "artifact_version_id": "20e6d477-4b6e-4371-a42c-4658bd9cef0d",
+      "actor": "admin",
+      "note": null,
+      "created_at": "2026-05-20T12:29:11.294544+00:00"
+    },
+    {
+      "review_item_id": "ri_c2049e1f9b454ff909e7",
+      "job_url": "https://de.linkedin.com/jobs/view/client-operations-representative-at-viva-com-4394620714?trk=public_jobs_topcard-title",
+      "action": "approve_as_is",
+      "resolution_status": "approved_as_is",
+      "artifact_finalized": true,
+      "artifact_version_id": "0ebcb5cd-3981-4f65-bc73-0d95f71d4608",
+      "actor": "admin",
+      "note": null,
+      "created_at": "2026-05-20T12:29:11.294544+00:00"
+    },
+    {
+      "review_item_id": "ri_56f19d94fa7d240f1785",
+      "job_url": "https://www.linkedin.com/jobs/view/4407414538",
+      "action": "approve_as_is",
+      "resolution_status": "approved_as_is",
+      "artifact_finalized": true,
+      "artifact_version_id": "f5d78c25-99d6-41c8-99b4-2a5d5e078aea",
+      "actor": "admin",
+      "note": null,
+      "created_at": "2026-05-20T12:29:11.294544+00:00"
+    },
+    {
+      "review_item_id": "ri_1f7f94c262438d9f6298",
+      "job_url": "https://de.linkedin.com/jobs/view/senior-pricing-analyst-product-operations-global-pricing-at-delivery-hero-4397268650?trk=public_jobs_topcard-title",
+      "action": "approve_as_is",
+      "resolution_status": "approved_as_is",
+      "artifact_finalized": true,
+      "artifact_version_id": "29fc7607-e3ef-41d8-9fb9-c78b5b5ceee9",
+      "actor": "admin",
+      "note": null,
+      "created_at": "2026-05-20T12:29:11.294544+00:00"
+    }
+  ]
+}

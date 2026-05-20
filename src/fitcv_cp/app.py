@@ -3675,6 +3675,32 @@ def _persist_global_skill_synonyms_map(mappings: dict[str, str]) -> None:
     path.write_text(_build_synonym_overlay_yaml(mappings), encoding="utf-8")
 
 
+def _canonical_variants_for_compare(value: str) -> set[str]:
+    normalized = " ".join(str(value or "").strip().lower().split())
+    if not normalized:
+        return set()
+    variants: set[str] = {normalized}
+    if normalized.endswith(")") and "(" in normalized:
+        head, tail = normalized.rsplit("(", 1)
+        head = " ".join(head.strip().split())
+        paren = " ".join(tail[:-1].strip().split())
+        if head:
+            variants.add(head)
+        if paren:
+            variants.add(paren)
+        if head and paren:
+            acronym = "".join(part[0] for part in head.split() if part and part[0].isalnum())
+            if acronym and paren == acronym:
+                variants.add(acronym)
+    return {item for item in variants if item}
+
+def _canonicals_equivalent_for_promotion(current: str, proposed: str) -> bool:
+    current_variants = _canonical_variants_for_compare(current)
+    proposed_variants = _canonical_variants_for_compare(proposed)
+    if not current_variants or not proposed_variants:
+        return False
+    return bool(current_variants & proposed_variants)
+
 def _build_promote_global_preview(
     *,
     run: PipelineRun,
@@ -3761,7 +3787,7 @@ def _build_promote_global_preview(
             row["reason"] = "new_alias"
             counts["add"] += 1
             counts["new_aliases"] += 1
-        elif current == canonical:
+        elif _canonicals_equivalent_for_promotion(current, canonical):
             row["diff_type"] = "skip"
             row["reason"] = "already_present"
             counts["skip"] += 1
@@ -4401,14 +4427,10 @@ def _timeline_stage_summary_message(
                 f"{concurrency_suffix}"
             )
         if phase == "batch_progress":
-            elapsed = payload.get("elapsed_secs")
-            beats = payload.get("heartbeat_count")
             return (
                 "Enrich in progress: "
                 f"fresh={fresh_total if fresh_total is not None else '—'}, "
-                f"reused={reused_total if reused_total is not None else '—'}, "
-                f"elapsed={elapsed if elapsed is not None else '—'}s, "
-                f"heartbeat={beats if beats is not None else '—'}"
+                f"reused={reused_total if reused_total is not None else '—'}"
                 f"{concurrency_suffix}"
             )
         if phase == "batch_done":
@@ -4589,8 +4611,6 @@ def _collapse_timeline_noise(events: list[RunEvent]) -> list[tuple[RunEvent, int
             heartbeat_interval = payload.get("heartbeat_interval_secs")
             fresh_jobs_total = payload.get("fresh_jobs_total")
             reused_jobs_total = payload.get("reused_jobs_total")
-            elapsed_secs = payload.get("elapsed_secs")
-            heartbeat_count = payload.get("heartbeat_count")
             fresh_rows_total = payload.get("fresh_rows_total")
             return (
                 stage,
@@ -4600,8 +4620,6 @@ def _collapse_timeline_noise(events: list[RunEvent]) -> list[tuple[RunEvent, int
                         "phase": phase,
                         "fresh_jobs_total": fresh_jobs_total,
                         "reused_jobs_total": reused_jobs_total,
-                        "elapsed_secs": elapsed_secs,
-                        "heartbeat_count": heartbeat_count,
                         "fresh_rows_total": fresh_rows_total,
                         "heartbeat_interval_secs": heartbeat_interval,
                         "enrich_concurrency_effective": enrich_concurrency,
@@ -8216,10 +8234,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
         batch_action = str(form.get("batch_action") or "").strip()
         if selected_ids:
-            if batch_action not in valid_actions:
-                raise HTTPException(status_code=422, detail="Select a valid batch action")
             for proposal_id in selected_ids:
-                decisions.append(SynonymBatchDecision(proposal_id=proposal_id, action=batch_action))
+                row_action = str(form.get(f"proposal_action__{proposal_id}") or "").strip()
+                resolved_action = row_action if row_action in valid_actions else batch_action
+                if resolved_action not in valid_actions:
+                    continue
+                decisions.append(SynonymBatchDecision(proposal_id=proposal_id, action=resolved_action))
         else:
             # Backward-compat fallback for older UI payload shape.
             for key, raw_value in form.multi_items():
@@ -8313,7 +8333,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "synonym_batch_failed": failed,
                 }
             )
-            return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
+            return RedirectResponse(f"/admin/runs/{run_id}/synonym-proposals/promote-review?{query}", status_code=303)
 
         if applied > 0:
             _persist_synonym_proposal_payload(
@@ -8354,7 +8374,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_batch_failed": failed,
             }
         )
-        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
+        return RedirectResponse(f"/admin/runs/{run_id}/synonym-proposals/promote-review?{query}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/apply-approved-to-run")
     async def admin_run_synonym_proposals_apply_approved_to_run(
@@ -9744,3 +9764,4 @@ def _run_to_dict(run: PipelineRun) -> dict:
 def _is_hitl_resolution_pending(resolution_status: str | None) -> bool:
     normalized = str(resolution_status or "").strip().lower() or "pending"
     return normalized not in _HITL_TERMINAL_RESOLUTION_STATUSES
+

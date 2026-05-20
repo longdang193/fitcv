@@ -1,13 +1,16 @@
 skill_synonyms:
   about you: about you advertising
   advanced proficiency in sql: sql
+  ahrefs/semrush: ahrefs
   airflow: apache airflow
   amazon: amazon advertising
   analysis of performance: marketing analytics
   anspruch an "clean code": clean code
+  api businesses: api platforms
   architecting complex data models: data modeling
   attribution tooling: marketing attribution
   audio: audio technology
+  ausrichtung auf budget-vorgaben: budget management
   aws: amazon web services
   azure: microsoft azure
   backend-anwendungen: backend development
@@ -26,6 +29,7 @@ skill_synonyms:
   create execution roadmaps: project roadmap planning
   data vault und 3nf: data vault
   dbt core: dbt
+  deal structures: deal structuring
   deep content seo expertise: seo
   define go-to-market strategies: go-to-market strategy
   design and execute campaigns: campaign management
@@ -43,12 +47,15 @@ skill_synonyms:
   erfahrungen im anforderungsmanagement: requirements management
   erste erfahrung im projektmanagement: project management
   erstellung von forecasts: forecasting
+  erstellung von präsentationen: präsentationserstellung
   evaluate pricing: pricing analysis
   excel: microsoft excel
+  experience building partner programs: partner program management
   experience in ai: artificial intelligence
   familiarity with ... databases: databases
   familiarity with ... excel: microsoft excel
   familiarity with data modeling: data modeling
+  familiarity with developer tools: developer tools
   flatfiles: flat files
   flowcharts: flowcharting
   focus on lead generation: lead generation
@@ -65,8 +72,10 @@ skill_synonyms:
   grundkenntnisse in photoshop: adobe photoshop
   gtm strategy: go-to-market (gtm) strategy
   hands-on campaign management experience: campaign management
+  hubspot or equivalent crm/ma: crm
   ideally hubspot: hubspot
   idealweise im programmatic advertising: programmatic advertising
+  idealweise motion design: motion design
   improve roas and margin: roas optimization
   inbound: inbound marketing
   including scalable logos: logo design
@@ -75,6 +84,8 @@ skill_synonyms:
   k8s: kubernetes
   kafka: apache kafka
   kenntnisse in der datenbankmodellierung: data modeling
+  knowledge of seo/geo basics: geo
+  landing pages: landing page optimization
   large language models: genai
   leading a marketing team: marketing team leadership
   llm: genai
@@ -82,16 +93,19 @@ skill_synonyms:
   looker studio: looker
   lookerstudio: looker
   low-code/no-code platforms: low-code development
+  margin impact: margin analysis
   meta: meta ads
   meta library: meta ad library
   ml: machine learning
   nlp: natural language processing
   nosql-datenbanksystemen: nosql databases
+  oder video-editing: video-editing
   ooh: out-of-home advertising
   otto: otto advertising
   outbound: outbound marketing
   paid social: paid social advertising
   partitioning strategies: data partitioning
+  personal care product manufacturing: beauty / personal care
   pg: postgresql
   postgres: postgresql
   power automate: microsoft power automate
@@ -102,6 +116,7 @@ skill_synonyms:
   product launch activations: product launch activation
   proficient in microsoft powerpoint: microsoft powerpoint
   project management through data: project management
+  promotion-projekte: promotion-management
   prompt engineering: genai
   pull salesforce reports: salesforce
   quality assurance: quality assurance (qa)
@@ -116,6 +131,7 @@ skill_synonyms:
   set okrs: okrs
   sharepoint: microsoft sharepoint
   social media ads: social media advertising
+  software development and it services and it consulting: design software
   solid project management skills: project management
   sowie jira und confluence: confluence
   spark: apache spark
