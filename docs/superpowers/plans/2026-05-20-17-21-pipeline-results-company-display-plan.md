@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: in_progress
+status: completed
 template_id: implementation-plan
 name: pipeline-results-and-bookmarks-company-display-format-alignment
 parent_thread: workstream-operator-control-plane.operator-control-plane-run-detail-truth
@@ -132,9 +132,9 @@ Tests verify the exact format and fallback behavior for both pages, including mi
 - [x] Step 3: capture residual risks and handoff notes
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k bookmark`
-- [ ] `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py`
-- [ ] `python scripts/hooks/run_validator.py --fast`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "bookmark or primary_label or company_location_label"` (executed and passed)
+- [x] `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py` (executed and passed)
+- [x] `python scripts/hooks/run_validator.py --fast` (executed; blocked by unrelated telemetry artifacts; deferred to telemetry lane owner per explicit user decision)
 
 **Exit Criteria:**
 - requested display contract is validated and ready for execution handoff
