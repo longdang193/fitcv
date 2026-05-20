@@ -115,6 +115,7 @@ from fitcv.ranking import (
     rank_jobs,
     store_final_ranking,
 )
+from fitcv.ranking_contract import fit_label_from_score
 from fitcv.rule_filter import (
     apply_pre_enrichment_global_filters,
     apply_rule_filters,
@@ -1560,17 +1561,6 @@ def _repair_candidate_name_placeholder(
     return repaired_structured_cv, repaired_markdown
 
 
-def _fit_label_from_ai_score(score: float, config: dict[str, Any]) -> str:
-    thresholds = dict(config.get("fit_label_thresholds") or {})
-    strong_threshold = float(thresholds.get("strong", 0.70))
-    stretch_threshold = float(thresholds.get("stretch", 0.40))
-    if score >= strong_threshold:
-        return "strong"
-    if score >= stretch_threshold:
-        return "stretch"
-    return "skip"
-
-
 def _resolve_layer4_fit(
     job: dict[str, Any],
     gap_fit: str | None,
@@ -1585,7 +1575,7 @@ def _resolve_layer4_fit(
     raw_ai_score = job.get("ai_score")
     if raw_ai_score is None:
         return "skip"
-    return _fit_label_from_ai_score(float(raw_ai_score), config)
+    return fit_label_from_score(float(raw_ai_score), config)
 
 
 def _shortlist_status_for_export_row(

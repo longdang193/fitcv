@@ -18,7 +18,6 @@ lifecycle:
 import json
 import hashlib
 import logging
-import os
 import re
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -36,17 +35,18 @@ from fitcv.config import (
     sqlite_mode_enabled,
 )
 from fitcv.contracts import RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION
+from fitcv.persistence import build_bigquery_client, get_local_sqlite_path
 from fitcv.prompts import render_prompt
+from fitcv.ranking_contract import (
+    DEFAULT_FIT_LABEL_STRONG_THRESHOLD,
+    DEFAULT_FIT_LABEL_STRETCH_THRESHOLD,
+    VALID_FIT_LABELS,
+    fit_label_from_score,
+)
 
 logger = logging.getLogger(__name__)
 
 # ── constants ─────────────────────────────────────────────────────────────────
-
-_VALID_FIT_LABELS = frozenset({"strong", "stretch", "skip"})
-
-_DEFAULT_STRONG_THRESHOLD = 0.70
-_DEFAULT_STRETCH_THRESHOLD = 0.40
-
 
 def _extract_openai_responses_text(body: dict[str, Any]) -> str:
     """Extract assistant text from OpenAI-compatible /responses payloads."""
