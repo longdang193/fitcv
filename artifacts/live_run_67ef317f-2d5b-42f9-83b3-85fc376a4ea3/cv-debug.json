@@ -1,0 +1,1751 @@
+{
+  "run_id": "67ef317f-2d5b-42f9-83b3-85fc376a4ea3",
+  "status": "succeeded",
+  "debug_schema_version": "cv_generation_debug_v3",
+  "run_mode": "run_all",
+  "run_mode_label": "Run All",
+  "created_at": "2026-05-20T08:07:55.784028+00:00",
+  "ranked_jobs_total": 3,
+  "debug_records_captured": 3,
+  "attempted_generation_jobs_total": 3,
+  "non_attempted_ranked_jobs_total": 0,
+  "omission_reason_counts": {},
+  "snapshot_complete": true,
+  "debug_records": [
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+      "status": "generation_failed",
+      "ranking_fit_label": "stretch",
+      "reranker_fit_label": "stretch",
+      "fit_classification": "stretch",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "generation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "Python",
+          "SQL",
+          "pandas",
+          "NumPy",
+          "SciPy",
+          "scikit-learn",
+          "statsmodels",
+          "Matplotlib",
+          "Seaborn",
+          "statistical analysis",
+          "machine learning",
+          "feature engineering",
+          "predictive modeling",
+          "GenAI",
+          "LLMs",
+          "RAG",
+          "prompt engineering",
+          "vector databases",
+          "MLOps",
+          "model deployment",
+          "TensorFlow",
+          "PyTorch",
+          "LangChain"
+        ],
+        "responsibilities": [
+          "Design original computational data science problems simulating real-world analytical workflows",
+          "Create Python-based problems using standard data science libraries",
+          "Develop problems requiring data processing, statistical analysis, feature engineering, predictive modeling, insight extraction",
+          "Ensure problems computationally intensive and not solvable manually within reasonable timeframes",
+          "Create deterministic, reproducible problems (fixed random seeds when needed)",
+          "Design end-to-end problems across data science pipeline (ingestion, cleaning, EDA, modeling, validation, deployment considerations)",
+          "Incorporate big data processing scenarios requiring scalable computational approaches",
+          "Verify solutions in Python using statistical methods",
+          "Document problem statements with realistic business context and provide verified correct answers",
+          "Create training prompts and refine model responses for AI projects"
+        ],
+        "job_family": "data_science",
+        "domain": "artificial intelligence",
+        "location_type": "remote"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[0]",
+          "name": "Senior Data Engineer — Acme Analytics GmbH",
+          "matched_channels": [
+            "required_skill_support",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "required_skill_support",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.105263,
+              "semantic": 0.383382,
+              "combined": 0.188699
+            },
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.243672,
+              "combined": 0.146203
+            },
+            "responsibility_alignment": {
+              "lexical": 0.051282,
+              "semantic": 0.312717,
+              "combined": 0.247358
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 34,
+                "reused": 408
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[2]",
+          "name": "Open-Source dbt Package for Marketing Attribution",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.105263,
+              "semantic": 0.608312,
+              "combined": 0.256178
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 34,
+                "reused": 408
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[2]",
+          "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+          "matched_channels": [
+            "role_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment"
+          ],
+          "channel_subscores": {
+            "role_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.350416,
+              "combined": 0.140167
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 34,
+                "reused": 408
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[1]",
+          "name": "Data Engineer — Fintech Startup GmbH",
+          "matched_channels": [
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "channel_subscores": {
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.502854,
+              "combined": 0.301712
+            },
+            "responsibility_alignment": {
+              "lexical": 0.064103,
+              "semantic": 0.330178,
+              "combined": 0.263659
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 34,
+                "reused": 408
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[6]",
+          "name": "Won 2nd place at TU Munich University Hackathon (2017).",
+          "matched_channels": [
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment"
+          ],
+          "channel_subscores": {
+            "responsibility_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.402441,
+              "combined": 0.30183
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 34,
+                "reused": 408
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "fallback_used": false,
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 11,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_1",
+          "proj_3",
+          "ach_3",
+          "exp_2",
+          "ach_7"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "exp_3",
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[2]",
+            "name": "Junior Data Analyst — RetailCo AG",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.157895,
+                "semantic": 0.438346,
+                "combined": 0.24203
+              },
+              "role_alignment": {
+                "lexical": 0.142857,
+                "semantic": 0.07793,
+                "combined": 0.116886
+              }
+            }
+          },
+          {
+            "evidence_id": "proj_2",
+            "evidence_type": "project_entry",
+            "source_ref": "projects[1]",
+            "name": "Real-Time Fraud Detection on AWS",
+            "matched_channels": [
+              "required_skill_support",
+              "domain_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.105263,
+                "semantic": 0.465737,
+                "combined": 0.213405
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.185241,
+                "combined": 0.111145
+              }
+            }
+          },
+          {
+            "evidence_id": "proj_1",
+            "evidence_type": "project_entry",
+            "source_ref": "projects[0]",
+            "name": "FitCV — AI-Powered CV Generation Pipeline",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.142857,
+                "semantic": 0.13503,
+                "combined": 0.139726
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility_alignment": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain_alignment": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 32,
+              "reused": 20
+            },
+            "job_context": {
+              "fresh": 34,
+              "reused": 408
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "Python",
+          "SQL",
+          "pandas"
+        ],
+        "partial": [
+          {
+            "required": "machine learning",
+            "candidate": "BigQuery ML",
+            "canonical": "machine learning"
+          },
+          {
+            "required": "GenAI",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          },
+          {
+            "required": "LLMs",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          },
+          {
+            "required": "RAG",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          },
+          {
+            "required": "prompt engineering",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          },
+          {
+            "required": "vector databases",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          }
+        ],
+        "missing": [
+          "NumPy",
+          "SciPy",
+          "scikit-learn",
+          "statsmodels",
+          "Matplotlib",
+          "Seaborn",
+          "statistical analysis",
+          "feature engineering",
+          "predictive modeling",
+          "MLOps",
+          "model deployment",
+          "TensorFlow",
+          "PyTorch",
+          "LangChain"
+        ],
+        "matchable_required_count": 23,
+        "ignored_for_fit": [],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": null,
+      "validation_initial": null,
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": null,
+      "markdown_final": null,
+      "enabled_sections": [
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Languages"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md",
+      "outcome_reason": null,
+      "error": {
+        "stage": "generation",
+        "message": "[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
+      },
+      "review_required_reason_code": null,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_builtin_gemini",
+        "provider": "vertexai_gemini",
+        "model": "gemini-2.5-flash"
+      }
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+      "job_title": "Data Analyst - Data Quality",
+      "status": "generation_failed",
+      "ranking_fit_label": "stretch",
+      "reranker_fit_label": "stretch",
+      "fit_classification": "stretch",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "generation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "SQL",
+          "BI Tools (MicroStrategy, PowerBI)",
+          "Datenvisualisierung",
+          "Anforderungsmanagement",
+          "Data Vault",
+          "3NF",
+          "Jira",
+          "Confluence",
+          "Data Quality (Maßnahmen, Prozesse, DQ-Reports)",
+          "Testing (ganzheitliches Testing neuer Artefakte)",
+          "Workshops (Auftragsklärung, Anforderungsspezifikation)"
+        ],
+        "responsibilities": [
+          "Versorgen Facheinheiten mit relevanten Daten und Insights (Business Intelligence)",
+          "Umsetzen fachliche Anforderungen Bereich Privatkunden (Produktentwicklung, Vertrieb, technische Weiterentwicklung Bankprodukte)",
+          "Sparringspartner Product Owner; Workshops für Auftragsklärung und Anforderungsspezifikation",
+          "Analysieren interne und externe Datenquellen; definieren/implementieren Data-Quality-Maßnahmen und -Prozesse",
+          "Brücke zwischen regulatorischen Business-Anforderungen und technischer Implementierung; begleiten Umsetzung und ganzheitliches Testing neuer Artefakte und DQ-Reports",
+          "Enge Kooperation mit Data Engineers und Expert*innen (Data Governance, Datenqualität, Compliance, Datenschutz)",
+          "Arbeiten mit modernem Toolstack in agilem Setup",
+          "Aktiv in Data Analyst Community; Wissen teilen; up to date bleiben"
+        ],
+        "job_family": "analytics",
+        "domain": "banking",
+        "location_type": "hybrid"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[2]",
+          "name": "Junior Data Analyst — RetailCo AG",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "responsibility_alignment",
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.111111,
+              "semantic": 0.208964,
+              "combined": 0.140467
+            },
+            "role_alignment": {
+              "lexical": 1.0,
+              "semantic": 0.0,
+              "combined": 0.6
+            },
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.174443,
+              "combined": 0.104666
+            },
+            "responsibility_alignment": {
+              "lexical": 0.041096,
+              "semantic": 0.421289,
+              "combined": 0.326241
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 22,
+                "reused": 264
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[2]",
+          "name": "Open-Source dbt Package for Marketing Attribution",
+          "matched_channels": [
+            "required_skill_support",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.111111,
+              "semantic": 0.154224,
+              "combined": 0.124045
+            },
+            "responsibility_alignment": {
+              "lexical": 0.013699,
+              "semantic": 0.297132,
+              "combined": 0.226273
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 22,
+                "reused": 264
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[0]",
+          "name": "Reduced reporting latency by 40% by rebuilding GA4 → BigQuery pipeline with dbt.",
+          "matched_channels": [
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment"
+          ],
+          "channel_subscores": {
+            "responsibility_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.332838,
+              "combined": 0.249628
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 22,
+                "reused": 264
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[1]",
+          "name": "Data Engineer — Fintech Startup GmbH",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "domain_alignment",
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.111111,
+              "semantic": 0.342972,
+              "combined": 0.180669
+            },
+            "role_alignment": {
+              "lexical": 0.333333,
+              "semantic": 0.343272,
+              "combined": 0.337309
+            },
+            "domain_alignment": {
+              "lexical": 0.5,
+              "semantic": 0.0,
+              "combined": 0.2
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 22,
+                "reused": 264
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[0]",
+          "name": "FitCV — AI-Powered CV Generation Pipeline",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.0,
+              "semantic": 0.463421,
+              "combined": 0.139026
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 22,
+                "reused": 264
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "fallback_used": false,
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 9,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_3",
+          "proj_3",
+          "ach_1",
+          "exp_2",
+          "proj_1"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "exp_1",
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "Senior Data Engineer — Acme Analytics GmbH",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.333333,
+                "semantic": 0.0,
+                "combined": 0.2
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.060184,
+                "combined": 0.236111
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_6",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[5]",
+            "name": "150+ GitHub stars on open-source dbt marketing attribution package.",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.270799,
+                "combined": 0.203099
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_2",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Enabled real-time dashboard updates under 30 seconds via Pub/Sub → Dataflow streaming architecture.",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.340488,
+                "combined": 0.136195
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility_alignment": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain_alignment": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 32,
+              "reused": 20
+            },
+            "job_context": {
+              "fresh": 22,
+              "reused": 264
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "SQL",
+          "BI Tools (MicroStrategy, PowerBI)",
+          "Data Quality (Maßnahmen, Prozesse, DQ-Reports)"
+        ],
+        "partial": [],
+        "missing": [
+          "Datenvisualisierung",
+          "Anforderungsmanagement",
+          "Data Vault",
+          "3NF",
+          "Jira",
+          "Confluence",
+          "Testing (ganzheitliches Testing neuer Artefakte)",
+          "Workshops (Auftragsklärung, Anforderungsspezifikation)"
+        ],
+        "matchable_required_count": 11,
+        "ignored_for_fit": [],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": null,
+      "validation_initial": null,
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": null,
+      "markdown_final": null,
+      "enabled_sections": [
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Languages"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md",
+      "outcome_reason": null,
+      "error": {
+        "stage": "generation",
+        "message": "[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
+      },
+      "review_required_reason_code": null,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_builtin_gemini",
+        "provider": "vertexai_gemini",
+        "model": "gemini-2.5-flash"
+      }
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+      "job_title": "Data Analyst - Retail Banking",
+      "status": "generation_failed",
+      "ranking_fit_label": "stretch",
+      "reranker_fit_label": "stretch",
+      "fit_classification": "stretch",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "generation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "Anforderungsmanagement",
+          "SQL",
+          "Python",
+          "BI Tools (MicroStrategy, PowerBI)",
+          "Git",
+          "Data Vault",
+          "3NF",
+          "Amazon Redshift",
+          "Jira",
+          "Confluence"
+        ],
+        "responsibilities": [
+          "Work Business Intelligence team; supply business units relevant data, insights",
+          "Support private customer domain requirements for product development, sales, technical improvement of banking products (giro accounts, brokerage, loans)",
+          "Act sparring partner for Product Owner; run workshops for request clarification, requirements specification",
+          "Analyze internal, external data sources; define/implement business rules/logic for data integration into Cloud Data Platform",
+          "Bridge business requirements and technical implementation; support delivery; test new artefacts",
+          "Cooperate with Data Engineers and experts in data architecture, data modeling, data governance, data quality, data protection",
+          "Use modern tool stack; work agile",
+          "Contribute to Data Analyst community; share knowledge; stay up to date"
+        ],
+        "job_family": "analytics",
+        "domain": "banking",
+        "location_type": "hybrid"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[2]",
+          "name": "Junior Data Analyst — RetailCo AG",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "responsibility_alignment",
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.181818,
+              "semantic": 0.335749,
+              "combined": 0.227998
+            },
+            "role_alignment": {
+              "lexical": 1.0,
+              "semantic": 0.0,
+              "combined": 0.6
+            },
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.174443,
+              "combined": 0.104666
+            },
+            "responsibility_alignment": {
+              "lexical": 0.054795,
+              "semantic": 0.329616,
+              "combined": 0.26091
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 24,
+                "reused": 288
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[5]",
+          "name": "150+ GitHub stars on open-source dbt marketing attribution package.",
+          "matched_channels": [
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment"
+          ],
+          "channel_subscores": {
+            "responsibility_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.479094,
+              "combined": 0.359321
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 24,
+                "reused": 288
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[0]",
+          "name": "FitCV — AI-Powered CV Generation Pipeline",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.090909,
+              "semantic": 0.463421,
+              "combined": 0.202663
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 24,
+                "reused": 288
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[0]",
+          "name": "Senior Data Engineer — Acme Analytics GmbH",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "domain_alignment",
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.181818,
+              "semantic": 0.238761,
+              "combined": 0.198901
+            },
+            "role_alignment": {
+              "lexical": 0.25,
+              "semantic": 0.241093,
+              "combined": 0.246437
+            },
+            "domain_alignment": {
+              "lexical": 0.5,
+              "semantic": 0.060184,
+              "combined": 0.236111
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 24,
+                "reused": 288
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[3]",
+          "name": "Cut compute costs by 35% by migrating legacy Spark jobs to Dataproc Serverless.",
+          "matched_channels": [
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment"
+          ],
+          "channel_subscores": {
+            "responsibility_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.443097,
+              "combined": 0.332323
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 24,
+                "reused": 288
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "fallback_used": false,
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 9,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_3",
+          "ach_6",
+          "proj_1",
+          "exp_1",
+          "ach_4"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "exp_2",
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Data Engineer — Fintech Startup GmbH",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.181818,
+                "semantic": 0.342972,
+                "combined": 0.230164
+              },
+              "role_alignment": {
+                "lexical": 0.25,
+                "semantic": 0.060083,
+                "combined": 0.174033
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.0,
+                "combined": 0.2
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_5",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[4]",
+            "name": "Achieved 94% precision and 91% recall on fraud detection model in production.",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.362739,
+                "combined": 0.272054
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_2",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Enabled real-time dashboard updates under 30 seconds via Pub/Sub → Dataflow streaming architecture.",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.340488,
+                "combined": 0.136195
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility_alignment": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain_alignment": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 32,
+              "reused": 20
+            },
+            "job_context": {
+              "fresh": 24,
+              "reused": 288
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "SQL",
+          "Python",
+          "BI Tools (MicroStrategy, PowerBI)",
+          "Git"
+        ],
+        "partial": [],
+        "missing": [
+          "Anforderungsmanagement",
+          "Data Vault",
+          "3NF",
+          "Amazon Redshift",
+          "Jira",
+          "Confluence"
+        ],
+        "matchable_required_count": 10,
+        "ignored_for_fit": [],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": null,
+      "validation_initial": null,
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": null,
+      "markdown_final": null,
+      "enabled_sections": [
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Languages"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md",
+      "outcome_reason": null,
+      "error": {
+        "stage": "generation",
+        "message": "[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
+      },
+      "review_required_reason_code": null,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_builtin_gemini",
+        "provider": "vertexai_gemini",
+        "model": "gemini-2.5-flash"
+      }
+    }
+  ],
+  "agentic_live_trace": {
+    "run_id": "67ef317f-2d5b-42f9-83b3-85fc376a4ea3",
+    "trace_schema_version": "agentic_step_trace_run_v1",
+    "trace_family": "agentic_step_trace",
+    "step_id": "cv_generation",
+    "late_stage_mode": {
+      "late_stage_mode": "agentic",
+      "agentic_late_stage_enabled": true,
+      "mode_source": "cv.agentic_late_stage.unified_runtime",
+      "agentic_status": "completed"
+    },
+    "trace_status": "partial",
+    "trace_summary": {
+      "records_total": 3,
+      "present_records": 0,
+      "attempted_generation_jobs_total": 3
+    },
+    "records": [],
+    "degradation": {
+      "reason": "missing_job_trace_records"
+    },
+    "artifact_refs": {
+      "cv_debug_artifact": "cv-debug.json",
+      "stage_artifact": "cv_generation.json"
+    }
+  },
+  "cv_analysis_trace": {
+    "run_id": "67ef317f-2d5b-42f9-83b3-85fc376a4ea3",
+    "trace_schema_version": "agentic_step_trace_run_v1",
+    "trace_family": "agentic_step_trace",
+    "step_id": "cv_analysis",
+    "late_stage_mode": {
+      "late_stage_mode": "agentic",
+      "agentic_late_stage_enabled": true,
+      "mode_source": "cv.agentic_late_stage.unified_runtime",
+      "agentic_status": "completed"
+    },
+    "trace_status": "completed",
+    "trace_summary": {
+      "records_total": 3,
+      "present_records": 3,
+      "attempted_analysis_jobs_total": 3
+    },
+    "records": [
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "trace_status": "completed",
+        "record_id": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "status": "ready_for_generation",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "cv.agentic_late_stage.enabled"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "analysis",
+            "attempt_status": "ready_for_generation",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "analysis_input_fingerprint": "e28e40a48287bab541f28a5656f4060cf0f7384b1ba7e649ecf8281290aecff3",
+          "required_skills_count": 23,
+          "preferred_skills_count": 0,
+          "responsibilities_count": 10
+        },
+        "output_summary": {
+          "selected_evidence_count": 5,
+          "fallback_used": false,
+          "requirement_coverage_count": 23,
+          "section_confidence_present": true
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null,
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "not_attempted",
+            "attempted": false
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_analysis.json"
+        }
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "trace_status": "completed",
+        "record_id": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+        "status": "ready_for_generation",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "cv.agentic_late_stage.enabled"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "analysis",
+            "attempt_status": "ready_for_generation",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "analysis_input_fingerprint": "d8ef2a1664ec6b5b8c50ca5b394d2695007d8af3f8a465d73b909e3031a59163",
+          "required_skills_count": 11,
+          "preferred_skills_count": 0,
+          "responsibilities_count": 8
+        },
+        "output_summary": {
+          "selected_evidence_count": 5,
+          "fallback_used": false,
+          "requirement_coverage_count": 11,
+          "section_confidence_present": true
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null,
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "not_attempted",
+            "attempted": false
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_analysis.json"
+        }
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "trace_status": "completed",
+        "record_id": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "status": "ready_for_generation",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "cv.agentic_late_stage.enabled"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "analysis",
+            "attempt_status": "ready_for_generation",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "analysis_input_fingerprint": "be81dbb60d9bda3f038980b938daaeebb5a6e300abe308c8a954f6b4e2d3cc59",
+          "required_skills_count": 10,
+          "preferred_skills_count": 0,
+          "responsibilities_count": 8
+        },
+        "output_summary": {
+          "selected_evidence_count": 5,
+          "fallback_used": false,
+          "requirement_coverage_count": 10,
+          "section_confidence_present": true
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null,
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "not_attempted",
+            "attempted": false
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_analysis.json"
+        }
+      }
+    ],
+    "degradation": {},
+    "artifact_refs": {
+      "cv_debug_artifact": "cv-debug.json",
+      "stage_artifact": "cv_analysis.json"
+    }
+  }
+}

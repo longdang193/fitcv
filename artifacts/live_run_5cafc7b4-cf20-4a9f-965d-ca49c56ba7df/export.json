@@ -1,0 +1,56 @@
+{
+  "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+  "results": [
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+      "company": "Mindrift",
+      "location_type": "remote",
+      "seniority": "senior",
+      "job_family": "data_science",
+      "domain": "artificial intelligence",
+      "pipeline_status": "ranked_no_cv",
+      "deterministic_outcome": "rejected",
+      "stage_owned_subreason": "generation_failed",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.33118730585989403,
+        "ai_score": 0.46,
+        "vector_score": -0.172961820583163,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "reused_exact_match",
+        "ai_score_input_fingerprint": "27d8a35022b73546c91968e06b2bfb51f2ec2805eb1f55c901dc9f4748984111"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "reused_exact_match",
+        "analysis_input_fingerprint": "e28e40a48287bab541f28a5656f4060cf0f7384b1ba7e649ecf8281290aecff3"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "generation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 1,
+      "cv": null
+    }
+  ]
+}

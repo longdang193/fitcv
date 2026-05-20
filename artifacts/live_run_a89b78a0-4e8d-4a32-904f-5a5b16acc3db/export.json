@@ -1,0 +1,204 @@
+{
+  "run_id": "a89b78a0-4e8d-4a32-904f-5a5b16acc3db",
+  "results": [
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+      "company": "Mindrift",
+      "location_type": "remote",
+      "seniority": "senior",
+      "job_family": "data_science",
+      "domain": "artificial intelligence",
+      "pipeline_status": "ranked_no_cv",
+      "deterministic_outcome": "rejected",
+      "stage_owned_subreason": "generation_failed",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.33118730585989403,
+        "ai_score": 0.46,
+        "vector_score": -0.172961820583163,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "reused_exact_match",
+        "ai_score_input_fingerprint": "27d8a35022b73546c91968e06b2bfb51f2ec2805eb1f55c901dc9f4748984111"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "reused_exact_match",
+        "analysis_input_fingerprint": "e28e40a48287bab541f28a5656f4060cf0f7384b1ba7e649ecf8281290aecff3"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "generation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 1,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
+      "job_title": "Junior Credit Decisions Analyst (m/f/d)",
+      "company": "YouLend",
+      "location_type": "onsite",
+      "seniority": "junior",
+      "job_family": "analytics",
+      "domain": "fintech",
+      "pipeline_status": "rejected_after_enrichment",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [
+        "location_type_excluded"
+      ],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": null,
+        "ai_score": null,
+        "vector_score": null,
+        "fit_label": null,
+        "ai_score_reuse_status": null,
+        "ai_score_input_fingerprint": null
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "not_applicable",
+          "advanced_to_scoring": false
+        },
+        "primary_fit": {
+          "source": null,
+          "label": null
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/internship-data-analytics-m-f-x-at-finn-4064488192?trk=public_jobs_topcard-title",
+      "job_title": "Internship - Data & Analytics (m/f/x)",
+      "company": "FINN",
+      "location_type": "hybrid",
+      "seniority": "junior",
+      "job_family": "analytics",
+      "domain": "automotive mobility / car subscription",
+      "pipeline_status": "rejected_after_enrichment",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [
+        "contract_type_excluded",
+        "experience_level_excluded"
+      ],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": null,
+        "ai_score": null,
+        "vector_score": null,
+        "fit_label": null,
+        "ai_score_reuse_status": null,
+        "ai_score_input_fingerprint": null
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "not_applicable",
+          "advanced_to_scoring": false
+        },
+        "primary_fit": {
+          "source": null,
+          "label": null
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122046?trk=public_jobs_topcard-title",
+      "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+      "company": "Mindrift",
+      "location_type": null,
+      "seniority": null,
+      "job_family": null,
+      "domain": null,
+      "pipeline_status": "deduplicated_before_enrichment",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [
+        "near_duplicate_job_posting"
+      ],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": null,
+        "ai_score": null,
+        "vector_score": null,
+        "fit_label": null,
+        "ai_score_reuse_status": null,
+        "ai_score_input_fingerprint": null
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "not_applicable",
+          "advanced_to_scoring": false
+        },
+        "primary_fit": {
+          "source": null,
+          "label": null
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    }
+  ]
+}

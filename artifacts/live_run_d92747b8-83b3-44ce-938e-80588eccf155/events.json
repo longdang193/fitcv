@@ -1,0 +1,65 @@
+[
+  {
+    "run_id": "d92747b8-83b3-44ce-938e-80588eccf155",
+    "event_id": "d0bb177b-3dd6-41a6-abc2-508584ebadb0",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=d92747b8-83b3-44ce-938e-80588eccf155]",
+    "created_at": "2026-05-20T07:34:44.882841+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"2df9f02c53c8405ce23eb7fe6984146b\", \"span_id\": \"aa424bcc0d1318fe\", \"parent_span_id\": \"244fec58d3b5bc87\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "d92747b8-83b3-44ce-938e-80588eccf155",
+    "event_id": "714e449e-14c1-4de1-8014-296635847cee",
+    "stage": "layer1_normalize",
+    "level": "info",
+    "message": "Normalization dedupe: kept 6 of 6 jobs, removed 0 duplicate(s)",
+    "created_at": "2026-05-20T07:34:45.045110+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"231f0350396e5726f1d66e88b1147f8d\", \"span_id\": \"38599df8ec00962e\", \"parent_span_id\": \"4e5ef75e9706af7a\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "d92747b8-83b3-44ce-938e-80588eccf155",
+    "event_id": "b924cb6a-d628-457a-be2f-a7c13694ebe4",
+    "stage": "layer1b_pre_filter",
+    "level": "info",
+    "message": "Pre-enrichment filter: 6 pass, 0 rejected",
+    "created_at": "2026-05-20T07:34:45.244675+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"c64cf855830c1011f2b9f791c151da16\", \"span_id\": \"3bb3b8981ce45c60\", \"parent_span_id\": \"0cab3be18ff73130\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "d92747b8-83b3-44ce-938e-80588eccf155",
+    "event_id": "e811df1e-e84a-46dd-b908-cad4cffb57ef",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich heartbeat: {'phase': 'batch_start', 'fresh_jobs_total': 6, 'reused_jobs_total': 0, 'heartbeat_interval_secs': 15}",
+    "created_at": "2026-05-20T07:34:45.304827+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"09fca9dd5f42e18a5a4e7204711f7613\", \"span_id\": \"4299f5cbdc7feb46\", \"parent_span_id\": \"b51762c21d021a2a\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "d92747b8-83b3-44ce-938e-80588eccf155",
+    "event_id": "1ab00dd2-8123-4984-ab25-f9c3899efe4e",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich heartbeat: {'phase': 'batch_progress', 'fresh_jobs_total': 6, 'reused_jobs_total': 0, 'heartbeat_count': 1, 'elapsed_secs': 15, 'heartbeat_interval_secs': 15}",
+    "created_at": "2026-05-20T07:35:00.318761+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"fbcd49688c2d4db87401356ae83cfee2\", \"span_id\": \"bc49c04363672819\", \"parent_span_id\": \"460569ab0cf01fb3\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "d92747b8-83b3-44ce-938e-80588eccf155",
+    "event_id": "65157b88-7e9f-40e2-953a-4dad7bab91d3",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich heartbeat: {'phase': 'batch_progress', 'fresh_jobs_total': 6, 'reused_jobs_total': 0, 'heartbeat_count': 2, 'elapsed_secs': 30, 'heartbeat_interval_secs': 15}",
+    "created_at": "2026-05-20T07:35:15.336075+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"27fff789b1968857a42183a7d482c7b9\", \"span_id\": \"a09323fbf06c74ba\", \"parent_span_id\": \"26f089b977d7e2e7\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "d92747b8-83b3-44ce-938e-80588eccf155",
+    "event_id": "b1863880-397d-4ffe-9f12-5fb69894f3d5",
+    "stage": "pipeline_failed",
+    "level": "error",
+    "message": "[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond",
+    "created_at": "2026-05-20T07:35:28.976256+00:00",
+    "payload_json": null
+  }
+]

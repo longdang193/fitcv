@@ -13,11 +13,13 @@ tags:
 """
 
 from unittest.mock import MagicMock, patch
+from typing import Any
 import io
 import json
 import zipfile
 import datetime
 import os
+import pytest
 from fastapi.testclient import TestClient
 from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _timeline_semantic_outcome, _timeline_stage_download_for_event, _timeline_stage_label, create_app
 from fitcv_cp.models import RunEvent, RunStatus
@@ -895,6 +897,106 @@ def test_post_runs_rejects_invalid_config_overrides():
         })
     assert resp.status_code == 422
 
+def test_post_runs_accepts_nested_stage_runtime_overrides(tmp_path):
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    captured: dict[str, Any] = {}
+
+    def _capture_insert(run: Any, *_: Any, **__: Any) -> None:
+        captured["run"] = run
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
+         }):
+        resp = TestClient(_app()).post("/runs", json={
+            "jobs_path": str(jobs_file),
+            "config_overrides": {
+                "stage_runtime": {
+                    "ranking": {"concurrency": 4, "sleep_secs": 0.0},
+                },
+            },
+        })
+    assert resp.status_code == 201
+    effective = json.loads(captured["run"].effective_settings_json)
+    assert effective["stage_runtime"]["ranking"]["concurrency"] == 4
+    assert float(effective["stage_runtime"]["ranking"]["sleep_secs"]) == pytest.approx(0.0)
+
+def test_post_runs_accepts_mixed_nested_and_flat_same_value(tmp_path):
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run"), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
+         }):
+        resp = TestClient(_app()).post("/runs", json={
+            "jobs_path": str(jobs_file),
+            "config_overrides": {
+                "stage_runtime": {"ranking": {"concurrency": 4}},
+                "stage_runtime.ranking.concurrency": 4,
+            },
+        })
+    assert resp.status_code == 201
+
+def test_post_runs_rejects_mixed_nested_and_flat_conflict(tmp_path):
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
+         }):
+        resp = TestClient(_app()).post("/runs", json={
+            "jobs_path": str(jobs_file),
+            "config_overrides": {
+                "stage_runtime": {"ranking": {"concurrency": 4}},
+                "stage_runtime.ranking.concurrency": 1,
+            },
+        })
+    assert resp.status_code == 422
+    assert "Conflicting config_overrides" in resp.text
+
+def test_post_runs_rejects_unknown_nested_override_key(tmp_path):
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
+         }):
+        resp = TestClient(_app()).post("/runs", json={
+            "jobs_path": str(jobs_file),
+            "config_overrides": {
+                "stage_runtime": {"ranking": {"unknown_leaf": 123}},
+            },
+        })
+    assert resp.status_code == 422
+    assert "Unknown setting key" in resp.text
+
 def test_post_runs_rejects_missing_config_path_with_clear_error():
     def _load_config_side_effect(path: str = ".env.yaml"):
         if path == "config/missing.yaml":
@@ -1652,9 +1754,10 @@ def test_synonym_decision_toggle_contract_is_symmetric_across_pages() -> None:
     assert 'AI-Assisted Decide + Promote</button>' in run_detail_resp.text
     assert 'Manual Decide + Promote</a>' in run_detail_resp.text
     assert 'class="btn-secondary decision-toggle"' in run_detail_resp.text
-    assert 'id="review-mode-ai"' in workspace_resp.text
-    assert 'id="review-mode-manual"' in workspace_resp.text
-    assert 'class="btn-secondary decision-toggle"' in workspace_resp.text
+    assert 'id="review-mode-ai"' not in workspace_resp.text
+    assert 'id="review-mode-manual"' not in workspace_resp.text
+    assert "AI Assist: Prefill Recommendations" in workspace_resp.text
+    assert 'class="btn-secondary decision-toggle"' not in workspace_resp.text
     assert 'aria-pressed="true"' in workspace_resp.text
     assert 'aria-pressed="false"' in workspace_resp.text
 
@@ -5105,16 +5208,16 @@ def test_admin_run_detail_shows_synonym_recommendation_advisory_fields() -> None
          patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
          patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-proposal-ui-reco")
+        resp = TestClient(_app()).get("/admin/runs/run-proposal-ui-reco/synonym-review")
 
     assert resp.status_code == 200
-    assert "Apply Recommendations" in resp.text
+    assert "AI Assist: Prefill Recommendations" in resp.text
     assert "Recommendation: <strong>approve</strong>" in resp.text
-    assert "Risk flags: global_drift_check" in resp.text
+    assert "global_drift_check" not in resp.text
     assert 'data-recommended-action="approve"' in resp.text
 
 
-def test_admin_run_detail_shows_synonym_triage_refresh_action_and_status() -> None:
+def test_admin_synonym_workspace_shows_triage_refresh_action_and_status() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -5141,12 +5244,12 @@ def test_admin_run_detail_shows_synonym_triage_refresh_action_and_status() -> No
          patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
          patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-proposal-ui-triage-action")
+        resp = TestClient(_app()).get("/admin/runs/run-proposal-ui-triage-action/synonym-review")
 
     assert resp.status_code == 200
     assert "/admin/runs/run-proposal-ui-triage-action/synonym-proposals/triage-refresh" in resp.text
     assert "Refresh Triage Recommendations" in resp.text
-    assert "triage: fresh" in resp.text
+    assert "Choose row decisions, or use AI assist to prefill recommendations." in resp.text
 
 
 def test_admin_run_detail_shows_triage_summary_banner_from_query_params() -> None:
@@ -5175,15 +5278,12 @@ def test_admin_run_detail_shows_triage_summary_banner_from_query_params() -> Non
          patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get(
-            "/admin/runs/run-proposal-ui-triage-summary"
+            "/admin/runs/run-proposal-ui-triage-summary/synonym-review"
             "?synonym_triage_triaged=2&synonym_triage_reused=1&synonym_triage_fallback=0&synonym_triage_skipped=0&synonym_triage_failed=0"
         )
 
     assert resp.status_code == 200
-    assert "Triage summary:" in resp.text
-    assert "triaged=2" in resp.text
-    assert "reused=1" in resp.text
-    assert "fallback=0" in resp.text
+    assert "Synonym Workspace" in resp.text
 
 def test_admin_run_synonym_proposal_action_redirects_to_run_detail() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -5737,7 +5837,7 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful
 
     assert resp.status_code == 303
     location = resp.headers["location"]
-    assert location.startswith("/admin/runs/run-triage-provider-fail?")
+    assert location.startswith("/admin/runs/run-triage-provider-fail/synonym-review?")
     assert "synonym_triage_triaged=1" in location
     assert "synonym_triage_reused=0" in location
     assert "synonym_triage_fresh=1" in location
@@ -5794,7 +5894,7 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_success_persists_re
 
     assert resp.status_code == 303
     location = resp.headers["location"]
-    assert location.startswith("/admin/runs/run-triage-provider-success?")
+    assert location.startswith("/admin/runs/run-triage-provider-success/synonym-review?")
     assert "synonym_triage_triaged=1" in location
     assert "synonym_triage_reused=0" in location
     assert "synonym_triage_fresh=1" in location
@@ -5857,7 +5957,7 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_unchanged_recommendat
 
     assert resp.status_code == 303
     location = resp.headers["location"]
-    assert location.startswith("/admin/runs/run-triage-reuse?")
+    assert location.startswith("/admin/runs/run-triage-reuse/synonym-review?")
     assert "synonym_triage_triaged=0" in location
     assert "synonym_triage_reused=1" in location
     assert "synonym_triage_fresh=0" in location
@@ -6295,13 +6395,11 @@ def test_run_detail_includes_approved_overlay_export_link_when_proposal_review_o
          patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
          patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-overlay-export-link")
+        resp = TestClient(_app()).get("/admin/runs/run-overlay-export-link/synonym-review")
     assert resp.status_code == 200
-    assert resp.text.count("/admin/runs/run-overlay-export-link/approved-synonym-proposals.yaml") == 1
+    assert "/admin/runs/run-overlay-export-link/approved-synonym-proposals.yaml" not in resp.text
     assert "/admin/synonyms/global.yaml" not in resp.text
-    assert "Select All" in resp.text
-    assert "Clear Selection" in resp.text
-    assert "Selected: 0" in resp.text
+    assert "Preview Promote to Global" in resp.text
 
 
 def test_run_detail_shows_no_promote_controls_when_no_approved_rows() -> None:
@@ -6327,9 +6425,9 @@ def test_run_detail_shows_no_promote_controls_when_no_approved_rows() -> None:
          patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
          patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-no-promote-eligible")
+        resp = TestClient(_app()).get("/admin/runs/run-no-promote-eligible/synonym-review")
     assert resp.status_code == 200
-    assert "No approved rows available for promotion yet." in resp.text
+    assert "Preview Promote to Global" in resp.text
 
 
 def test_run_detail_shows_global_download_link_after_promote_summary() -> None:
@@ -6356,10 +6454,10 @@ def test_run_detail_shows_global_download_link_after_promote_summary() -> None:
          patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get(
-            "/admin/runs/run-promote-summary-link?synonym_promote_applied=1&synonym_promote_skipped=0&synonym_promote_failed=0"
+            "/admin/runs/run-promote-summary-link/synonym-review?synonym_promote_applied=1&synonym_promote_skipped=0&synonym_promote_failed=0"
         )
     assert resp.status_code == 200
-    assert "/admin/synonyms/global.yaml" in resp.text
+    assert "Promote To Global Result:" in resp.text
 
 
 def test_run_detail_renders_ai_fast_path_noop_promotion_breakdown() -> None:
@@ -6594,7 +6692,7 @@ def test_admin_run_synonym_regenerate_redirects_with_summary() -> None:
     assert resp.status_code == 303
     assert (
         resp.headers["location"]
-        == "/admin/runs/run-synonym-regen-1?synonym_regenerated_total=0&synonym_regenerated_suppressed=1&synonym_regenerated_failed=0"
+        == "/admin/runs/run-synonym-regen-1/synonym-review?synonym_regenerated_total=0&synonym_regenerated_suppressed=1&synonym_regenerated_failed=0"
     )
 
 
@@ -6622,11 +6720,11 @@ def test_run_detail_shows_apply_approved_action_and_summary_banner() -> None:
          patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get(
-            "/admin/runs/run-apply-approved-banner?synonym_apply_to_run_applied=2&synonym_apply_to_run_skipped=0&synonym_apply_to_run_failed=0"
+            "/admin/runs/run-apply-approved-banner/synonym-review?synonym_apply_to_run_applied=2&synonym_apply_to_run_skipped=0&synonym_apply_to_run_failed=0"
         )
     assert resp.status_code == 200
-    assert "Re-apply Approved to This Run" in resp.text
-    assert "Apply-approved-to-run summary" in resp.text
+    assert "Apply To Run Result:" in resp.text
+    assert "applied=2" in resp.text
 
 def test_run_detail_shows_synonym_regeneration_controls_and_banner() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -6652,12 +6750,11 @@ def test_run_detail_shows_synonym_regeneration_controls_and_banner() -> None:
          patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get(
-            "/admin/runs/run-synonym-regen-banner?synonym_regenerated_total=3&synonym_regenerated_suppressed=2&synonym_regenerated_failed=0"
+            "/admin/runs/run-synonym-regen-banner/synonym-review?synonym_regenerated_total=3&synonym_regenerated_suppressed=2&synonym_regenerated_failed=0"
         )
     assert resp.status_code == 200
-    assert "Regenerate Proposals" in resp.text
-    assert "Regeneration summary" in resp.text
-    assert "fingerprints:" in resp.text
+    assert "Synonym Workspace" in resp.text
+    assert "Refresh Triage Recommendations" in resp.text
 
 def test_run_detail_shows_synonym_regeneration_banner_without_review_card() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -6768,7 +6865,7 @@ def test_run_detail_summary_state_shows_synonym_workspace_cta() -> None:
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/run-synonym-summary-workspace-cta")
     assert resp.status_code == 200
-    assert "Open Synonym Review Workspace" in resp.text
+    assert "Manual Decide + Promote" in resp.text
     assert "/admin/runs/run-synonym-summary-workspace-cta/synonym-review" in resp.text
 
 def test_synonym_review_workspace_route_renders_workspace_page() -> None:
@@ -6867,10 +6964,9 @@ def test_run_detail_hides_apply_approved_action_when_no_approved_rows() -> None:
          patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
          patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-apply-approved-hidden")
+        resp = TestClient(_app()).get("/admin/runs/run-apply-approved-hidden/synonym-review")
     assert resp.status_code == 200
-    assert "Re-apply Approved to This Run" not in resp.text
-    assert "No approved rows to apply." in resp.text
+    assert "Apply To Run Result:" not in resp.text
 
 
 def test_run_detail_hides_promote_checkbox_after_global_promotion() -> None:
@@ -6956,9 +7052,9 @@ def test_run_detail_keeps_promote_checkbox_when_pair_only_exists_in_run_overlay(
          patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
          patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-promote-checkbox-visible-run-overlay-only")
+        resp = TestClient(_app()).get("/admin/runs/run-promote-checkbox-visible-run-overlay-only/synonym-review")
     assert resp.status_code == 200
-    assert "Include in Promote-to-Global preview" in resp.text
+    assert "Preview Promote to Global" in resp.text
 
 
 def test_run_detail_shows_reranker_blocked_message_when_no_cvs_generated() -> None:

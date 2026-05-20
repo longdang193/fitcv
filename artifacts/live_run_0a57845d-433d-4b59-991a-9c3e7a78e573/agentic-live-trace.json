@@ -1,0 +1,26 @@
+{
+  "run_id": "0a57845d-433d-4b59-991a-9c3e7a78e573",
+  "trace_schema_version": "agentic_step_trace_run_v1",
+  "trace_family": "agentic_step_trace",
+  "step_id": "cv_generation",
+  "late_stage_mode": {
+    "late_stage_mode": "agentic",
+    "agentic_late_stage_enabled": true,
+    "mode_source": "cv.agentic_late_stage.unified_runtime",
+    "agentic_status": "completed"
+  },
+  "trace_status": "partial",
+  "trace_summary": {
+    "records_total": 3,
+    "present_records": 0,
+    "attempted_generation_jobs_total": 3
+  },
+  "records": [],
+  "degradation": {
+    "reason": "missing_job_trace_records"
+  },
+  "artifact_refs": {
+    "cv_debug_artifact": "cv-debug.json",
+    "stage_artifact": "cv_generation.json"
+  }
+}

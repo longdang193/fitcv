@@ -76,12 +76,6 @@
 {% if show_inline_review_queue %}
 {% include "_cv_review_queue.html" %}
 {% elif show_review_queue_cta %}
-{% set show_agentic_runtime_alignment = (
-  agentic_runtime_drift.status != 'not_applicable'
-  or agentic_runtime_drift.actual_provider
-  or agentic_runtime_drift.actual_model
-) %}
-{% if show_agentic_runtime_alignment %}
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
     <div>
@@ -100,7 +94,6 @@
     <span class="meta">Review One by One or use batch actions on dedicated page.</span>
   </div>
 </div>
-{% endif %}
 {% endif %}
 {% endif %}
 
@@ -473,7 +466,7 @@
   </div>
   <div class="kv">
     <span class="k">Dead-lettered Events</span><span class="v">{{ event_delivery_health.count }}</span>
-    <span class="k">Last Dead-letter Timestamp</span><span class="v">{{ event_delivery_health.last_failed_at_display or '—' }}</span>
+    <span class="k">Last Dead-letter Timestamp</span><span class="v">{% if event_delivery_health.last_failed_at %}{{ event_delivery_health.last_failed_at }}{% else %}{{ event_delivery_health.last_failed_at_display or '—' }}{% endif %}</span>
     <span class="k">Degradation Reason</span><span class="v"><code>{{ event_delivery_health.last_degradation_reason or '—' }}</code></span>
     <span class="k">Max Retry Attempts</span><span class="v">{{ event_delivery_health.max_retry_attempts or 0 }}</span>
     <span class="k">Dead-letter Path</span><span class="v"><code>{{ event_delivery_health.dead_letter_path }}</code></span>

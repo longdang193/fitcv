@@ -39,7 +39,10 @@ from fitcv.agentic_cv_analysis import (
 )
 from fitcv.candidate_name_policy import is_candidate_name_placeholder, resolved_candidate_profile_name
 from fitcv.config import get_cv_generation_model
-from fitcv.runtime_routing import build_langgraph_env_overrides
+from fitcv.runtime_routing import (
+    build_langgraph_env_overrides,
+    resolve_cv_generation_runtime_provenance,
+)
 from fitcv.cv_generator import (
     _normalize_structured_cv,
     _resolve_template_path,
@@ -1182,11 +1185,10 @@ def generate_from_analysis(
     )
     gap_summary = _augmented_gap_summary_from_analysis(analysis_record)
     fit = str(fit_classification or "skip")
-    fallback_runtime_provenance = {
-        "runtime_path": "fitcv_builtin_gemini",
-        "provider": "vertexai_gemini",
-        "model": get_cv_generation_model(config),
-    }
+    fallback_runtime_provenance = resolve_cv_generation_runtime_provenance(
+        config,
+        default_model=get_cv_generation_model(config),
+    )
     structured_cv_initial = None
     validation_initial = None
     repair_attempt = _empty_repair_attempt()

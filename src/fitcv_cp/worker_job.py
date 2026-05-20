@@ -76,6 +76,7 @@ from fitcv_cp.run_artifact_contracts import (
     run_mode_label,
     string_or_none,
 )
+from fitcv_cp.review_identity import ensure_review_item_id
 
 logger = logging.getLogger(__name__)
 _MAX_DEBUG_MARKDOWN_CHARS = 4000
@@ -616,9 +617,15 @@ def _build_cv_generation_debug_payload(
         _truncate_large_fields(record)
         for record in list(summary.get("cv_generation_debug_records") or [])
     ]
-    for record in debug_records:
+    for idx, record in enumerate(debug_records):
         if not isinstance(record, dict):
             continue
+        if str(record.get("status") or "").strip() == "review_required":
+            ensure_review_item_id(
+                run_id=run_id,
+                record=record,
+                fallback_index=idx + 1,
+            )
         ranking_fit_label = record.get("ranking_fit_label")
         reranker_fit_label = record.get("reranker_fit_label")
         if ranking_fit_label is None and reranker_fit_label is not None:

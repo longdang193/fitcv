@@ -1,0 +1,3921 @@
+{
+  "run_id": "a89b78a0-4e8d-4a32-904f-5a5b16acc3db",
+  "status": "succeeded",
+  "artifact_schema_version": "stage_transition_artifacts_run_v1",
+  "created_at": "2026-05-20T08:04:54.476460+00:00",
+  "snapshot_complete": true,
+  "degradation_reason": "",
+  "artifacts": {
+    "schema_version": "stage_transition_artifacts_v6",
+    "stages": {
+      "normalize": {
+        "stage_id": "normalize",
+        "stage": "normalize",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "normalize",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "normalized_jobs": 3,
+            "deduplicated_jobs": 1
+          },
+          "evidence": {
+            "input_counts": {
+              "raw_jobs": 4
+            },
+            "decision_summary": {
+              "dedupe_reason_counts": {
+                "near_duplicate_job_posting": 1
+              }
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.normalize.v1",
+          "trace_context": {
+            "trace_id": "ff6398773838e1d743bca046160f53ab",
+            "span_id": "5d0bb518fa41c191",
+            "parent_span_id": "ab9a6caeea21dad7"
+          }
+        },
+        "input_counts": {
+          "raw_jobs": 4
+        },
+        "output_counts": {
+          "normalized_jobs": 3,
+          "deduplicated_jobs": 1
+        },
+        "decision_summary": {
+          "dedupe_reason_counts": {
+            "near_duplicate_job_posting": 1
+          }
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "company": "Mindrift"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
+            "job_title": "Junior Credit Decisions Analyst (m/f/d)",
+            "company": "YouLend"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/internship-data-analytics-m-f-x-at-finn-4064488192?trk=public_jobs_topcard-title",
+            "job_title": "Internship - Data & Analytics (m/f/x)",
+            "company": "FINN"
+          }
+        ],
+        "dropped_or_changed_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122046?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "company": "Mindrift",
+            "change_type": "deduplicated_before_enrichment",
+            "dedupe_reason": "near_duplicate_job_posting"
+          }
+        ],
+        "inputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "company": "Mindrift"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122046?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "company": "Mindrift"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
+            "job_title": "Junior Credit Decisions Analyst (m/f/d)",
+            "company": "YouLend"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/internship-data-analytics-m-f-x-at-finn-4064488192?trk=public_jobs_topcard-title",
+            "job_title": "Internship - Data & Analytics (m/f/x)",
+            "company": "FINN"
+          }
+        ]
+      },
+      "enrich": {
+        "stage_id": "enrich",
+        "stage": "enrich",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "enrich",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "enriched_jobs": 3,
+            "pre_enrichment_rejected_jobs": 0
+          },
+          "evidence": {
+            "input_counts": {
+              "normalized_jobs": 3,
+              "jobs_entering_enrichment": 3
+            },
+            "decision_summary": {
+              "candidate_profile_summary": {
+                "effective_target_role": "Data Engineer",
+                "effective_role_families": [
+                  "data_engineering",
+                  "analytics"
+                ],
+                "effective_domains": [
+                  "data_engineering",
+                  "analytics",
+                  "data_science",
+                  "ml_engineering"
+                ],
+                "preference_sources": {
+                  "location_types": "explicit_yaml",
+                  "locations": "explicit_yaml",
+                  "domains": "explicit_yaml",
+                  "seniority_target": "explicit_yaml",
+                  "salary_range": "explicit_yaml",
+                  "notice_period": "explicit_yaml",
+                  "exclude_contract_types": "explicit_yaml",
+                  "exclude_experience_levels": "explicit_yaml",
+                  "target_role": "inferred_recent_experience",
+                  "role_families": "inferred_role_family_map"
+                },
+                "skills_sample": [
+                  "Python",
+                  "SQL",
+                  "Scala",
+                  "Bash",
+                  "GCP"
+                ]
+              },
+              "enrich_prompt_id": "enrich.extraction.v1",
+              "enrich_prompt_version": "v1",
+              "enrich_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\enrich_extraction_v1.md",
+              "enrich_prompt_model": "gemini-2.5-flash",
+              "reused_rows": 3,
+              "fresh_rows": 0,
+              "total_enriched_rows": 3
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.enrich.v1",
+          "trace_context": {
+            "trace_id": "0c0a5967c7dd40168bdf81c09f762402",
+            "span_id": "49f0d7286941ac2b",
+            "parent_span_id": "93caed83e676fdc5"
+          }
+        },
+        "input_counts": {
+          "normalized_jobs": 3,
+          "jobs_entering_enrichment": 3
+        },
+        "output_counts": {
+          "enriched_jobs": 3,
+          "pre_enrichment_rejected_jobs": 0
+        },
+        "decision_summary": {
+          "candidate_profile_summary": {
+            "effective_target_role": "Data Engineer",
+            "effective_role_families": [
+              "data_engineering",
+              "analytics"
+            ],
+            "effective_domains": [
+              "data_engineering",
+              "analytics",
+              "data_science",
+              "ml_engineering"
+            ],
+            "preference_sources": {
+              "location_types": "explicit_yaml",
+              "locations": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml",
+              "salary_range": "explicit_yaml",
+              "notice_period": "explicit_yaml",
+              "exclude_contract_types": "explicit_yaml",
+              "exclude_experience_levels": "explicit_yaml",
+              "target_role": "inferred_recent_experience",
+              "role_families": "inferred_role_family_map"
+            },
+            "skills_sample": [
+              "Python",
+              "SQL",
+              "Scala",
+              "Bash",
+              "GCP"
+            ]
+          },
+          "enrich_prompt_id": "enrich.extraction.v1",
+          "enrich_prompt_version": "v1",
+          "enrich_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\enrich_extraction_v1.md",
+          "enrich_prompt_model": "gemini-2.5-flash",
+          "reused_rows": 3,
+          "fresh_rows": 0,
+          "total_enriched_rows": 3
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "company": "Mindrift",
+            "location_type": "remote",
+            "seniority": "senior",
+            "required_skills": [
+              "Python",
+              "SQL",
+              "pandas",
+              "NumPy",
+              "SciPy",
+              "scikit-learn",
+              "statsmodels",
+              "Matplotlib",
+              "Seaborn",
+              "statistical analysis",
+              "machine learning",
+              "feature engineering",
+              "predictive modeling",
+              "GenAI",
+              "LLMs",
+              "RAG",
+              "prompt engineering",
+              "vector databases",
+              "MLOps",
+              "model deployment",
+              "TensorFlow",
+              "PyTorch",
+              "LangChain"
+            ],
+            "required_skills_canonical": [
+              "python",
+              "pandas",
+              "numpy",
+              "scipy",
+              "scikit-learn",
+              "statsmodels",
+              "matplotlib",
+              "seaborn",
+              "statistical analysis",
+              "machine learning",
+              "feature engineering",
+              "predictive modeling",
+              "sql",
+              "genai",
+              "mlops",
+              "model deployment",
+              "tensorflow",
+              "pytorch",
+              "langchain"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "python",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "pandas",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "numpy",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "scipy",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "scikit-learn",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "statsmodels",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Create problems requiring Python programming to solve (using pandas, numpy, scipy, sklearn, statsmodels, matplotlib, seaborn)",
+                "canonical": "matplotlib",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Create problems requiring Python programming to solve (using pandas, numpy, scipy, sklearn, statsmodels, matplotlib, seaborn)",
+                "canonical": "seaborn",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "expert in statistical analysis and machine learning",
+                "canonical": "statistical analysis",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "expert in statistical analysis and machine learning",
+                "canonical": "machine learning",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "Develop problems requiring non-trivial reasoning chains in data processing, statistical analysis, feature engineering, predictive modeling",
+                "canonical": "feature engineering",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "Develop problems requiring non-trivial reasoning chains in data processing, statistical analysis, feature engineering, predictive modeling",
+                "canonical": "predictive modeling",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "proficient in SQL and database operations for data manipulation and analysis",
+                "canonical": "sql",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "good understanding of MLOps practices and model deployment workflows",
+                "canonical": "mlops",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "good understanding of MLOps practices and model deployment workflows",
+                "canonical": "model deployment",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "knowledge of modern frameworks (TensorFlow, PyTorch, LangChain)",
+                "canonical": "tensorflow",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "knowledge of modern frameworks (TensorFlow, PyTorch, LangChain)",
+                "canonical": "pytorch",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "knowledge of modern frameworks (TensorFlow, PyTorch, LangChain)",
+                "canonical": "langchain",
+                "confidence": 0.98
+              }
+            ],
+            "responsibilities": [
+              "Design original computational data science problems simulating real-world analytical workflows",
+              "Create Python-based problems using standard data science libraries",
+              "Develop problems requiring data processing, statistical analysis, feature engineering, predictive modeling, insight extraction",
+              "Ensure problems computationally intensive and not solvable manually within reasonable timeframes",
+              "Create deterministic, reproducible problems (fixed random seeds when needed)",
+              "Design end-to-end problems across data science pipeline (ingestion, cleaning, EDA, modeling, validation, deployment considerations)",
+              "Incorporate big data processing scenarios requiring scalable computational approaches",
+              "Verify solutions in Python using statistical methods",
+              "Document problem statements with realistic business context and provide verified correct answers",
+              "Create training prompts and refine model responses for AI projects"
+            ],
+            "domain": "artificial intelligence",
+            "tech_stack": [
+              "Python",
+              "SQL",
+              "pandas",
+              "NumPy",
+              "SciPy",
+              "scikit-learn",
+              "statsmodels",
+              "Matplotlib",
+              "Seaborn",
+              "TensorFlow",
+              "PyTorch",
+              "LangChain",
+              "LLMs",
+              "RAG",
+              "vector databases"
+            ],
+            "years_experience_min": 5,
+            "keywords": [
+              "Data Science AI Trainer",
+              "computational data science problems",
+              "Python",
+              "SQL",
+              "pandas",
+              "NumPy",
+              "SciPy",
+              "scikit-learn",
+              "statsmodels",
+              "Matplotlib",
+              "Seaborn",
+              "statistical analysis",
+              "machine learning",
+              "feature engineering",
+              "predictive modeling",
+              "MLOps",
+              "model deployment",
+              "LLMs",
+              "RAG",
+              "prompt engineering",
+              "vector databases",
+              "TensorFlow",
+              "PyTorch",
+              "LangChain",
+              "EDA",
+              "data ingestion",
+              "data cleaning",
+              "model validation"
+            ],
+            "job_family": "data_science",
+            "enrichment_version": "v1",
+            "enrichment_model": "gemini-2.5-flash",
+            "enriched_at": "2026-05-19T16:57:30.206706+00:00",
+            "raw_job_fingerprint": "6303d8735ae5e8567a4a97a09f7045a07c34bac32d300cad56826fb823a22581",
+            "enrich_contract_fingerprint": "2bd73cd33177bfe3078c0cc01720a99dd2dfbd3cd5b0c35f11e590e9ac577aca",
+            "enrich_reuse_status": "reused_cached_enrichment"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
+            "job_title": "Junior Credit Decisions Analyst (m/f/d)",
+            "company": "YouLend",
+            "location_type": "onsite",
+            "seniority": "junior",
+            "required_skills": [
+              "Excel"
+            ],
+            "required_skills_canonical": [
+              "microsoft excel"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "Proficiency in Excel is a prerequisite",
+                "canonical": "microsoft excel",
+                "confidence": 0.98
+              }
+            ],
+            "preferred_skills": [
+              "SQL",
+              "Python",
+              "R"
+            ],
+            "preferred_skills_canonical": [
+              "sql",
+              "python",
+              "r"
+            ],
+            "preferred_skill_entities": [
+              {
+                "raw_text": "experience handling large datasets (e.g., SQL, Python, R)",
+                "canonical": "sql",
+                "confidence": 0.92
+              },
+              {
+                "raw_text": "experience handling large datasets (e.g., SQL, Python, R)",
+                "canonical": "python",
+                "confidence": 0.92
+              },
+              {
+                "raw_text": "experience handling large datasets (e.g., SQL, Python, R)",
+                "canonical": "r",
+                "confidence": 0.9
+              }
+            ],
+            "responsibilities": [
+              "Assess repayment capacity and risk profiles by analyzing financial data, financial statements, and revenue/payment data",
+              "Decide terms of financing offers (amount, duration, price), balancing risk with growth",
+              "Manage KYC checks and onboarding/compliance risks using third-party systems",
+              "Work with other teams to improve risk engine and internal workflows",
+              "Process credit applications for new and existing customers applying for Merchant Cash Advances (MCAs)"
+            ],
+            "domain": "fintech",
+            "tech_stack": [
+              "Microsoft Excel",
+              "SQL",
+              "Python",
+              "R"
+            ],
+            "years_experience_min": 1,
+            "years_experience_max": 2,
+            "keywords": [
+              "credit assessment",
+              "credit decisioning",
+              "underwriting",
+              "risk profiling",
+              "financial statements analysis",
+              "KYC",
+              "onboarding risk",
+              "compliance risk",
+              "Merchant Cash Advance",
+              "MCA",
+              "risk engine",
+              "SME financing"
+            ],
+            "job_family": "analytics",
+            "enrichment_version": "v1",
+            "enrichment_model": "gemini-2.5-flash",
+            "enriched_at": "2026-05-19T16:57:54.618209+00:00",
+            "raw_job_fingerprint": "3b22e1e6ddd10157cc8972252a432832e406cd1146b2bbe8344eec833f51ca03",
+            "enrich_contract_fingerprint": "2bd73cd33177bfe3078c0cc01720a99dd2dfbd3cd5b0c35f11e590e9ac577aca",
+            "enrich_reuse_status": "reused_cached_enrichment"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/internship-data-analytics-m-f-x-at-finn-4064488192?trk=public_jobs_topcard-title",
+            "job_title": "Internship - Data & Analytics (m/f/x)",
+            "company": "FINN",
+            "location_type": "hybrid",
+            "seniority": "junior",
+            "required_skills": [
+              "SQL"
+            ],
+            "required_skills_canonical": [
+              "sql"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "Solid experience working with SQL.",
+                "canonical": "sql",
+                "confidence": 0.96
+              }
+            ],
+            "preferred_skills": [
+              "Python",
+              "R",
+              "Java",
+              "Looker",
+              "Tableau",
+              "BI tools",
+              "dbt",
+              "BigQuery"
+            ],
+            "preferred_skills_canonical": [
+              "looker",
+              "tableau",
+              "business intelligence (bi) tools",
+              "dbt",
+              "google bigquery"
+            ],
+            "preferred_skill_entities": [
+              {
+                "raw_text": "Experience with Looker, Tableau (or other BI tools) is a plus.",
+                "canonical": "looker",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "Experience with Looker, Tableau (or other BI tools) is a plus.",
+                "canonical": "tableau",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "Experience with Looker, Tableau (or other BI tools) is a plus.",
+                "canonical": "business intelligence (bi) tools",
+                "confidence": 0.75
+              },
+              {
+                "raw_text": "educate them to become independent using and analyzing data with the tools that you learn to use (e.g. dbt, BigQuery, Looker).",
+                "canonical": "dbt",
+                "confidence": 0.7
+              },
+              {
+                "raw_text": "educate them to become independent using and analyzing data with the tools that you learn to use (e.g. dbt, BigQuery, Looker).",
+                "canonical": "google bigquery",
+                "confidence": 0.7
+              }
+            ],
+            "responsibilities": [
+              "Take responsibility for enabling data-driven decisions via measurable objectives and insightful analytics",
+              "Execute robust analyses, deliver actionable insights, and support implementing measures across departments",
+              "Drive initiatives at intersection of Data and Business Development based on insights",
+              "Question and improve existing processes by proposing improvements for efficiency",
+              "Support team to expand analytical skills and educate on using data tools (e.g. dbt, BigQuery, Looker)",
+              "Independently drive own projects with critical and immediate impact"
+            ],
+            "domain": "automotive mobility / car subscription",
+            "tech_stack": [
+              "SQL",
+              "dbt",
+              "BigQuery",
+              "Looker",
+              "Tableau",
+              "Python",
+              "R",
+              "Java"
+            ],
+            "years_experience_min": 0,
+            "keywords": [
+              "data analytics",
+              "actionable insights",
+              "data-driven decisions",
+              "SQL",
+              "dbt",
+              "BigQuery",
+              "Looker",
+              "Tableau",
+              "BI tools",
+              "Python",
+              "R",
+              "Java",
+              "business development",
+              "process improvement"
+            ],
+            "job_family": "analytics",
+            "enrichment_version": "v1",
+            "enrichment_model": "gemini-2.5-flash",
+            "enriched_at": "2026-05-19T16:58:30.411919+00:00",
+            "raw_job_fingerprint": "76496395daaa6b774c97a533bbd3dc8cda6dff139cda5b40ee7d97661f7ba32e",
+            "enrich_contract_fingerprint": "2bd73cd33177bfe3078c0cc01720a99dd2dfbd3cd5b0c35f11e590e9ac577aca",
+            "enrich_reuse_status": "reused_cached_enrichment"
+          }
+        ],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "company": "Mindrift"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
+            "job_title": "Junior Credit Decisions Analyst (m/f/d)",
+            "company": "YouLend"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/internship-data-analytics-m-f-x-at-finn-4064488192?trk=public_jobs_topcard-title",
+            "job_title": "Internship - Data & Analytics (m/f/x)",
+            "company": "FINN"
+          }
+        ]
+      },
+      "rule_filter": {
+        "stage_id": "rule_filter",
+        "stage": "rule_filter",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "rule_filter",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "passed_jobs": 1,
+            "rejected_jobs": 2
+          },
+          "evidence": {
+            "input_counts": {
+              "enriched_jobs": 3
+            },
+            "decision_summary": {
+              "reject_reason_counts": {
+                "location_type_excluded": 1,
+                "contract_type_excluded": 1,
+                "experience_level_excluded": 1
+              },
+              "mark_code_counts": {},
+              "selected_filters": [
+                "seniority_mismatch",
+                "location_type_excluded",
+                "contract_type_excluded",
+                "experience_level_excluded"
+              ]
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.rule_filter.v1",
+          "trace_context": {
+            "trace_id": "df221014f1613dce788843bc83016266",
+            "span_id": "e4c88e14663bbbcf",
+            "parent_span_id": "180bf1f000c1db8f"
+          }
+        },
+        "input_counts": {
+          "enriched_jobs": 3
+        },
+        "output_counts": {
+          "passed_jobs": 1,
+          "rejected_jobs": 2
+        },
+        "decision_summary": {
+          "reject_reason_counts": {
+            "location_type_excluded": 1,
+            "contract_type_excluded": 1,
+            "experience_level_excluded": 1
+          },
+          "mark_code_counts": {},
+          "selected_filters": [
+            "seniority_mismatch",
+            "location_type_excluded",
+            "contract_type_excluded",
+            "experience_level_excluded"
+          ]
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "company": "Mindrift",
+            "location_type": "remote",
+            "seniority": "senior",
+            "required_skills": [
+              "Python",
+              "SQL",
+              "pandas",
+              "NumPy",
+              "SciPy",
+              "scikit-learn",
+              "statsmodels",
+              "Matplotlib",
+              "Seaborn",
+              "statistical analysis",
+              "machine learning",
+              "feature engineering",
+              "predictive modeling",
+              "GenAI",
+              "LLMs",
+              "RAG",
+              "prompt engineering",
+              "vector databases",
+              "MLOps",
+              "model deployment",
+              "TensorFlow",
+              "PyTorch",
+              "LangChain"
+            ],
+            "required_skills_canonical": [
+              "python",
+              "pandas",
+              "numpy",
+              "scipy",
+              "scikit-learn",
+              "statsmodels",
+              "matplotlib",
+              "seaborn",
+              "statistical analysis",
+              "machine learning",
+              "feature engineering",
+              "predictive modeling",
+              "sql",
+              "genai",
+              "mlops",
+              "model deployment",
+              "tensorflow",
+              "pytorch",
+              "langchain"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "python",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "pandas",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "numpy",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "scipy",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "scikit-learn",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "statsmodels",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Create problems requiring Python programming to solve (using pandas, numpy, scipy, sklearn, statsmodels, matplotlib, seaborn)",
+                "canonical": "matplotlib",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Create problems requiring Python programming to solve (using pandas, numpy, scipy, sklearn, statsmodels, matplotlib, seaborn)",
+                "canonical": "seaborn",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "expert in statistical analysis and machine learning",
+                "canonical": "statistical analysis",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "expert in statistical analysis and machine learning",
+                "canonical": "machine learning",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "Develop problems requiring non-trivial reasoning chains in data processing, statistical analysis, feature engineering, predictive modeling",
+                "canonical": "feature engineering",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "Develop problems requiring non-trivial reasoning chains in data processing, statistical analysis, feature engineering, predictive modeling",
+                "canonical": "predictive modeling",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "proficient in SQL and database operations for data manipulation and analysis",
+                "canonical": "sql",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "good understanding of MLOps practices and model deployment workflows",
+                "canonical": "mlops",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "good understanding of MLOps practices and model deployment workflows",
+                "canonical": "model deployment",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "knowledge of modern frameworks (TensorFlow, PyTorch, LangChain)",
+                "canonical": "tensorflow",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "knowledge of modern frameworks (TensorFlow, PyTorch, LangChain)",
+                "canonical": "pytorch",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "knowledge of modern frameworks (TensorFlow, PyTorch, LangChain)",
+                "canonical": "langchain",
+                "confidence": 0.98
+              }
+            ],
+            "responsibilities": [
+              "Design original computational data science problems simulating real-world analytical workflows",
+              "Create Python-based problems using standard data science libraries",
+              "Develop problems requiring data processing, statistical analysis, feature engineering, predictive modeling, insight extraction",
+              "Ensure problems computationally intensive and not solvable manually within reasonable timeframes",
+              "Create deterministic, reproducible problems (fixed random seeds when needed)",
+              "Design end-to-end problems across data science pipeline (ingestion, cleaning, EDA, modeling, validation, deployment considerations)",
+              "Incorporate big data processing scenarios requiring scalable computational approaches",
+              "Verify solutions in Python using statistical methods",
+              "Document problem statements with realistic business context and provide verified correct answers",
+              "Create training prompts and refine model responses for AI projects"
+            ],
+            "domain": "artificial intelligence",
+            "tech_stack": [
+              "Python",
+              "SQL",
+              "pandas",
+              "NumPy",
+              "SciPy",
+              "scikit-learn",
+              "statsmodels",
+              "Matplotlib",
+              "Seaborn",
+              "TensorFlow",
+              "PyTorch",
+              "LangChain",
+              "LLMs",
+              "RAG",
+              "vector databases"
+            ],
+            "years_experience_min": 5,
+            "keywords": [
+              "Data Science AI Trainer",
+              "computational data science problems",
+              "Python",
+              "SQL",
+              "pandas",
+              "NumPy",
+              "SciPy",
+              "scikit-learn",
+              "statsmodels",
+              "Matplotlib",
+              "Seaborn",
+              "statistical analysis",
+              "machine learning",
+              "feature engineering",
+              "predictive modeling",
+              "MLOps",
+              "model deployment",
+              "LLMs",
+              "RAG",
+              "prompt engineering",
+              "vector databases",
+              "TensorFlow",
+              "PyTorch",
+              "LangChain",
+              "EDA",
+              "data ingestion",
+              "data cleaning",
+              "model validation"
+            ],
+            "job_family": "data_science",
+            "enrichment_version": "v1",
+            "enrichment_model": "gemini-2.5-flash",
+            "enriched_at": "2026-05-19T16:57:30.206706+00:00",
+            "raw_job_fingerprint": "6303d8735ae5e8567a4a97a09f7045a07c34bac32d300cad56826fb823a22581",
+            "enrich_contract_fingerprint": "2bd73cd33177bfe3078c0cc01720a99dd2dfbd3cd5b0c35f11e590e9ac577aca",
+            "enrich_reuse_status": "reused_cached_enrichment",
+            "filter_outcome": "pass"
+          }
+        ],
+        "dropped_or_changed_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
+            "filter_outcome": "reject",
+            "reasons": [
+              "location_type_excluded"
+            ],
+            "change_type": "rejected_after_enrichment"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/internship-data-analytics-m-f-x-at-finn-4064488192?trk=public_jobs_topcard-title",
+            "filter_outcome": "reject",
+            "reasons": [
+              "contract_type_excluded",
+              "experience_level_excluded"
+            ],
+            "change_type": "rejected_after_enrichment"
+          }
+        ],
+        "inputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "company": "Mindrift",
+            "location_type": "remote",
+            "seniority": "senior",
+            "required_skills": [
+              "Python",
+              "SQL",
+              "pandas",
+              "NumPy",
+              "SciPy",
+              "scikit-learn",
+              "statsmodels",
+              "Matplotlib",
+              "Seaborn",
+              "statistical analysis",
+              "machine learning",
+              "feature engineering",
+              "predictive modeling",
+              "GenAI",
+              "LLMs",
+              "RAG",
+              "prompt engineering",
+              "vector databases",
+              "MLOps",
+              "model deployment",
+              "TensorFlow",
+              "PyTorch",
+              "LangChain"
+            ],
+            "required_skills_canonical": [
+              "python",
+              "pandas",
+              "numpy",
+              "scipy",
+              "scikit-learn",
+              "statsmodels",
+              "matplotlib",
+              "seaborn",
+              "statistical analysis",
+              "machine learning",
+              "feature engineering",
+              "predictive modeling",
+              "sql",
+              "genai",
+              "mlops",
+              "model deployment",
+              "tensorflow",
+              "pytorch",
+              "langchain"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "python",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "pandas",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "numpy",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "scipy",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "scikit-learn",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "statsmodels",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Create problems requiring Python programming to solve (using pandas, numpy, scipy, sklearn, statsmodels, matplotlib, seaborn)",
+                "canonical": "matplotlib",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Create problems requiring Python programming to solve (using pandas, numpy, scipy, sklearn, statsmodels, matplotlib, seaborn)",
+                "canonical": "seaborn",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "expert in statistical analysis and machine learning",
+                "canonical": "statistical analysis",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "expert in statistical analysis and machine learning",
+                "canonical": "machine learning",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "Develop problems requiring non-trivial reasoning chains in data processing, statistical analysis, feature engineering, predictive modeling",
+                "canonical": "feature engineering",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "Develop problems requiring non-trivial reasoning chains in data processing, statistical analysis, feature engineering, predictive modeling",
+                "canonical": "predictive modeling",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "proficient in SQL and database operations for data manipulation and analysis",
+                "canonical": "sql",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "good understanding of MLOps practices and model deployment workflows",
+                "canonical": "mlops",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "good understanding of MLOps practices and model deployment workflows",
+                "canonical": "model deployment",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "knowledge of modern frameworks (TensorFlow, PyTorch, LangChain)",
+                "canonical": "tensorflow",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "knowledge of modern frameworks (TensorFlow, PyTorch, LangChain)",
+                "canonical": "pytorch",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "knowledge of modern frameworks (TensorFlow, PyTorch, LangChain)",
+                "canonical": "langchain",
+                "confidence": 0.98
+              }
+            ],
+            "responsibilities": [
+              "Design original computational data science problems simulating real-world analytical workflows",
+              "Create Python-based problems using standard data science libraries",
+              "Develop problems requiring data processing, statistical analysis, feature engineering, predictive modeling, insight extraction",
+              "Ensure problems computationally intensive and not solvable manually within reasonable timeframes",
+              "Create deterministic, reproducible problems (fixed random seeds when needed)",
+              "Design end-to-end problems across data science pipeline (ingestion, cleaning, EDA, modeling, validation, deployment considerations)",
+              "Incorporate big data processing scenarios requiring scalable computational approaches",
+              "Verify solutions in Python using statistical methods",
+              "Document problem statements with realistic business context and provide verified correct answers",
+              "Create training prompts and refine model responses for AI projects"
+            ],
+            "domain": "artificial intelligence",
+            "tech_stack": [
+              "Python",
+              "SQL",
+              "pandas",
+              "NumPy",
+              "SciPy",
+              "scikit-learn",
+              "statsmodels",
+              "Matplotlib",
+              "Seaborn",
+              "TensorFlow",
+              "PyTorch",
+              "LangChain",
+              "LLMs",
+              "RAG",
+              "vector databases"
+            ],
+            "years_experience_min": 5,
+            "keywords": [
+              "Data Science AI Trainer",
+              "computational data science problems",
+              "Python",
+              "SQL",
+              "pandas",
+              "NumPy",
+              "SciPy",
+              "scikit-learn",
+              "statsmodels",
+              "Matplotlib",
+              "Seaborn",
+              "statistical analysis",
+              "machine learning",
+              "feature engineering",
+              "predictive modeling",
+              "MLOps",
+              "model deployment",
+              "LLMs",
+              "RAG",
+              "prompt engineering",
+              "vector databases",
+              "TensorFlow",
+              "PyTorch",
+              "LangChain",
+              "EDA",
+              "data ingestion",
+              "data cleaning",
+              "model validation"
+            ],
+            "job_family": "data_science",
+            "enrichment_version": "v1",
+            "enrichment_model": "gemini-2.5-flash",
+            "enriched_at": "2026-05-19T16:57:30.206706+00:00",
+            "raw_job_fingerprint": "6303d8735ae5e8567a4a97a09f7045a07c34bac32d300cad56826fb823a22581",
+            "enrich_contract_fingerprint": "2bd73cd33177bfe3078c0cc01720a99dd2dfbd3cd5b0c35f11e590e9ac577aca",
+            "enrich_reuse_status": "reused_cached_enrichment"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
+            "job_title": "Junior Credit Decisions Analyst (m/f/d)",
+            "company": "YouLend",
+            "location_type": "onsite",
+            "seniority": "junior",
+            "required_skills": [
+              "Excel"
+            ],
+            "required_skills_canonical": [
+              "microsoft excel"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "Proficiency in Excel is a prerequisite",
+                "canonical": "microsoft excel",
+                "confidence": 0.98
+              }
+            ],
+            "preferred_skills": [
+              "SQL",
+              "Python",
+              "R"
+            ],
+            "preferred_skills_canonical": [
+              "sql",
+              "python",
+              "r"
+            ],
+            "preferred_skill_entities": [
+              {
+                "raw_text": "experience handling large datasets (e.g., SQL, Python, R)",
+                "canonical": "sql",
+                "confidence": 0.92
+              },
+              {
+                "raw_text": "experience handling large datasets (e.g., SQL, Python, R)",
+                "canonical": "python",
+                "confidence": 0.92
+              },
+              {
+                "raw_text": "experience handling large datasets (e.g., SQL, Python, R)",
+                "canonical": "r",
+                "confidence": 0.9
+              }
+            ],
+            "responsibilities": [
+              "Assess repayment capacity and risk profiles by analyzing financial data, financial statements, and revenue/payment data",
+              "Decide terms of financing offers (amount, duration, price), balancing risk with growth",
+              "Manage KYC checks and onboarding/compliance risks using third-party systems",
+              "Work with other teams to improve risk engine and internal workflows",
+              "Process credit applications for new and existing customers applying for Merchant Cash Advances (MCAs)"
+            ],
+            "domain": "fintech",
+            "tech_stack": [
+              "Microsoft Excel",
+              "SQL",
+              "Python",
+              "R"
+            ],
+            "years_experience_min": 1,
+            "years_experience_max": 2,
+            "keywords": [
+              "credit assessment",
+              "credit decisioning",
+              "underwriting",
+              "risk profiling",
+              "financial statements analysis",
+              "KYC",
+              "onboarding risk",
+              "compliance risk",
+              "Merchant Cash Advance",
+              "MCA",
+              "risk engine",
+              "SME financing"
+            ],
+            "job_family": "analytics",
+            "enrichment_version": "v1",
+            "enrichment_model": "gemini-2.5-flash",
+            "enriched_at": "2026-05-19T16:57:54.618209+00:00",
+            "raw_job_fingerprint": "3b22e1e6ddd10157cc8972252a432832e406cd1146b2bbe8344eec833f51ca03",
+            "enrich_contract_fingerprint": "2bd73cd33177bfe3078c0cc01720a99dd2dfbd3cd5b0c35f11e590e9ac577aca",
+            "enrich_reuse_status": "reused_cached_enrichment"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/internship-data-analytics-m-f-x-at-finn-4064488192?trk=public_jobs_topcard-title",
+            "job_title": "Internship - Data & Analytics (m/f/x)",
+            "company": "FINN",
+            "location_type": "hybrid",
+            "seniority": "junior",
+            "required_skills": [
+              "SQL"
+            ],
+            "required_skills_canonical": [
+              "sql"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "Solid experience working with SQL.",
+                "canonical": "sql",
+                "confidence": 0.96
+              }
+            ],
+            "preferred_skills": [
+              "Python",
+              "R",
+              "Java",
+              "Looker",
+              "Tableau",
+              "BI tools",
+              "dbt",
+              "BigQuery"
+            ],
+            "preferred_skills_canonical": [
+              "looker",
+              "tableau",
+              "business intelligence (bi) tools",
+              "dbt",
+              "google bigquery"
+            ],
+            "preferred_skill_entities": [
+              {
+                "raw_text": "Experience with Looker, Tableau (or other BI tools) is a plus.",
+                "canonical": "looker",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "Experience with Looker, Tableau (or other BI tools) is a plus.",
+                "canonical": "tableau",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "Experience with Looker, Tableau (or other BI tools) is a plus.",
+                "canonical": "business intelligence (bi) tools",
+                "confidence": 0.75
+              },
+              {
+                "raw_text": "educate them to become independent using and analyzing data with the tools that you learn to use (e.g. dbt, BigQuery, Looker).",
+                "canonical": "dbt",
+                "confidence": 0.7
+              },
+              {
+                "raw_text": "educate them to become independent using and analyzing data with the tools that you learn to use (e.g. dbt, BigQuery, Looker).",
+                "canonical": "google bigquery",
+                "confidence": 0.7
+              }
+            ],
+            "responsibilities": [
+              "Take responsibility for enabling data-driven decisions via measurable objectives and insightful analytics",
+              "Execute robust analyses, deliver actionable insights, and support implementing measures across departments",
+              "Drive initiatives at intersection of Data and Business Development based on insights",
+              "Question and improve existing processes by proposing improvements for efficiency",
+              "Support team to expand analytical skills and educate on using data tools (e.g. dbt, BigQuery, Looker)",
+              "Independently drive own projects with critical and immediate impact"
+            ],
+            "domain": "automotive mobility / car subscription",
+            "tech_stack": [
+              "SQL",
+              "dbt",
+              "BigQuery",
+              "Looker",
+              "Tableau",
+              "Python",
+              "R",
+              "Java"
+            ],
+            "years_experience_min": 0,
+            "keywords": [
+              "data analytics",
+              "actionable insights",
+              "data-driven decisions",
+              "SQL",
+              "dbt",
+              "BigQuery",
+              "Looker",
+              "Tableau",
+              "BI tools",
+              "Python",
+              "R",
+              "Java",
+              "business development",
+              "process improvement"
+            ],
+            "job_family": "analytics",
+            "enrichment_version": "v1",
+            "enrichment_model": "gemini-2.5-flash",
+            "enriched_at": "2026-05-19T16:58:30.411919+00:00",
+            "raw_job_fingerprint": "76496395daaa6b774c97a533bbd3dc8cda6dff139cda5b40ee7d97661f7ba32e",
+            "enrich_contract_fingerprint": "2bd73cd33177bfe3078c0cc01720a99dd2dfbd3cd5b0c35f11e590e9ac577aca",
+            "enrich_reuse_status": "reused_cached_enrichment"
+          }
+        ]
+      },
+      "shortlist": {
+        "stage_id": "shortlist",
+        "stage": "shortlist",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "shortlist",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "raw_vector_rows": 1,
+            "raw_vector_unique_jobs": 1,
+            "raw_vector_hits": 1,
+            "scoring_shortlist_jobs": 1,
+            "backfilled_jobs": 0,
+            "retrieval_anomalies": 0,
+            "embedding_reused_jobs": 0,
+            "embedding_fresh_jobs": 1,
+            "embedding_total_jobs": 1
+          },
+          "evidence": {
+            "input_counts": {
+              "passed_jobs": 1
+            },
+            "decision_summary": {
+              "candidate_query_text": "Candidate: Senior Data Engineer\nRecent roles: Senior Data Engineer, Data Engineer, Junior Data Analyst\nRole families: data_engineering, analytics\nSkills: Python, SQL, Scala, Bash, GCP, AWS, Docker / Kubernetes, Terraform, Apache Spark, dbt,...[truncated]",
+              "candidate_query_components": {
+                "headline": "Senior Data Engineer",
+                "recent_roles": [
+                  "Senior Data Engineer",
+                  "Data Engineer",
+                  "Junior Data Analyst"
+                ],
+                "role_family_hints": [
+                  "data_engineering",
+                  "analytics"
+                ],
+                "flattened_skill_sample": [
+                  "Python",
+                  "SQL",
+                  "Scala",
+                  "Bash",
+                  "GCP",
+                  "AWS",
+                  "Docker / Kubernetes",
+                  "Terraform",
+                  "Apache Spark",
+                  "dbt",
+                  "Apache Airflow",
+                  "Apache Kafka",
+                  "Data Modeling",
+                  "Looker",
+                  "Power BI"
+                ],
+                "domain_hints": [
+                  "data_engineering",
+                  "analytics",
+                  "data_science",
+                  "ml_engineering"
+                ]
+              },
+              "candidate_query_reuse_status": "reused_cached_query_embedding",
+              "candidate_query_signature": "a6e389aa24e3f4ff0b23fcff9789863989fa862b025467199ecf72470fef466c",
+              "candidate_query_contract_fingerprint": "cd6d61b88b4c74541a6e1b158bb4162eb538c8cb0f865ae9860642977c2ed4b3",
+              "quality_metrics": {
+                "backfill_rate": 0.0,
+                "backfilled_jobs_total": 0,
+                "scoring_shortlisted_jobs_total": 1
+              },
+              "vector_search_top_n": 50,
+              "jobs_not_returned_in_raw_hits": 0,
+              "embedding_reused_jobs": 0,
+              "embedding_fresh_jobs": 1,
+              "embedding_total_jobs": 1,
+              "raw_shortlist_anomaly_urls": [],
+              "backfilled_job_urls": []
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.shortlist.v1",
+          "trace_context": {
+            "trace_id": "cbd9ab472e74a9f0497c68965f42365d",
+            "span_id": "c9e89c2a3800a751",
+            "parent_span_id": "4efadc643f68c2dc"
+          }
+        },
+        "input_counts": {
+          "passed_jobs": 1
+        },
+        "output_counts": {
+          "raw_vector_rows": 1,
+          "raw_vector_unique_jobs": 1,
+          "raw_vector_hits": 1,
+          "scoring_shortlist_jobs": 1,
+          "backfilled_jobs": 0,
+          "retrieval_anomalies": 0,
+          "embedding_reused_jobs": 0,
+          "embedding_fresh_jobs": 1,
+          "embedding_total_jobs": 1
+        },
+        "decision_summary": {
+          "candidate_query_text": "Candidate: Senior Data Engineer\nRecent roles: Senior Data Engineer, Data Engineer, Junior Data Analyst\nRole families: data_engineering, analytics\nSkills: Python, SQL, Scala, Bash, GCP, AWS, Docker / Kubernetes, Terraform, Apache Spark, dbt,...[truncated]",
+          "candidate_query_components": {
+            "headline": "Senior Data Engineer",
+            "recent_roles": [
+              "Senior Data Engineer",
+              "Data Engineer",
+              "Junior Data Analyst"
+            ],
+            "role_family_hints": [
+              "data_engineering",
+              "analytics"
+            ],
+            "flattened_skill_sample": [
+              "Python",
+              "SQL",
+              "Scala",
+              "Bash",
+              "GCP",
+              "AWS",
+              "Docker / Kubernetes",
+              "Terraform",
+              "Apache Spark",
+              "dbt",
+              "Apache Airflow",
+              "Apache Kafka",
+              "Data Modeling",
+              "Looker",
+              "Power BI"
+            ],
+            "domain_hints": [
+              "data_engineering",
+              "analytics",
+              "data_science",
+              "ml_engineering"
+            ]
+          },
+          "candidate_query_reuse_status": "reused_cached_query_embedding",
+          "candidate_query_signature": "a6e389aa24e3f4ff0b23fcff9789863989fa862b025467199ecf72470fef466c",
+          "candidate_query_contract_fingerprint": "cd6d61b88b4c74541a6e1b158bb4162eb538c8cb0f865ae9860642977c2ed4b3",
+          "quality_metrics": {
+            "backfill_rate": 0.0,
+            "backfilled_jobs_total": 0,
+            "scoring_shortlisted_jobs_total": 1
+          },
+          "vector_search_top_n": 50,
+          "jobs_not_returned_in_raw_hits": 0,
+          "embedding_reused_jobs": 0,
+          "embedding_fresh_jobs": 1,
+          "embedding_total_jobs": 1,
+          "raw_shortlist_anomaly_urls": [],
+          "backfilled_job_urls": []
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "vector_similarity": -0.172961820583163,
+            "vector_rank": 1,
+            "shortlist_origin": "vector_search",
+            "shortlist_outcome": "returned_by_vector_search",
+            "raw_hit_present": true,
+            "retrieval_anomaly_present": false,
+            "embedding_reuse_status": "fresh_embedding",
+            "embedding_input_signature": "a52c75904a9b6ff42f0db3991c8c24f2ff2b7f65f437ef168e216d28b779b318",
+            "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+          }
+        ],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "company": "Mindrift",
+            "location_type": "remote",
+            "seniority": "senior",
+            "required_skills": [
+              "Python",
+              "SQL",
+              "pandas",
+              "NumPy",
+              "SciPy",
+              "scikit-learn",
+              "statsmodels",
+              "Matplotlib",
+              "Seaborn",
+              "statistical analysis",
+              "machine learning",
+              "feature engineering",
+              "predictive modeling",
+              "GenAI",
+              "LLMs",
+              "RAG",
+              "prompt engineering",
+              "vector databases",
+              "MLOps",
+              "model deployment",
+              "TensorFlow",
+              "PyTorch",
+              "LangChain"
+            ],
+            "required_skills_canonical": [
+              "python",
+              "pandas",
+              "numpy",
+              "scipy",
+              "scikit-learn",
+              "statsmodels",
+              "matplotlib",
+              "seaborn",
+              "statistical analysis",
+              "machine learning",
+              "feature engineering",
+              "predictive modeling",
+              "sql",
+              "genai",
+              "mlops",
+              "model deployment",
+              "tensorflow",
+              "pytorch",
+              "langchain"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "python",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "pandas",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "numpy",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "scipy",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "scikit-learn",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "proficient in python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "statsmodels",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Create problems requiring Python programming to solve (using pandas, numpy, scipy, sklearn, statsmodels, matplotlib, seaborn)",
+                "canonical": "matplotlib",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Create problems requiring Python programming to solve (using pandas, numpy, scipy, sklearn, statsmodels, matplotlib, seaborn)",
+                "canonical": "seaborn",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "expert in statistical analysis and machine learning",
+                "canonical": "statistical analysis",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "expert in statistical analysis and machine learning",
+                "canonical": "machine learning",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "Develop problems requiring non-trivial reasoning chains in data processing, statistical analysis, feature engineering, predictive modeling",
+                "canonical": "feature engineering",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "Develop problems requiring non-trivial reasoning chains in data processing, statistical analysis, feature engineering, predictive modeling",
+                "canonical": "predictive modeling",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "proficient in SQL and database operations for data manipulation and analysis",
+                "canonical": "sql",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+                "canonical": "genai",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "good understanding of MLOps practices and model deployment workflows",
+                "canonical": "mlops",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "good understanding of MLOps practices and model deployment workflows",
+                "canonical": "model deployment",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "knowledge of modern frameworks (TensorFlow, PyTorch, LangChain)",
+                "canonical": "tensorflow",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "knowledge of modern frameworks (TensorFlow, PyTorch, LangChain)",
+                "canonical": "pytorch",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "knowledge of modern frameworks (TensorFlow, PyTorch, LangChain)",
+                "canonical": "langchain",
+                "confidence": 0.98
+              }
+            ],
+            "responsibilities": [
+              "Design original computational data science problems simulating real-world analytical workflows",
+              "Create Python-based problems using standard data science libraries",
+              "Develop problems requiring data processing, statistical analysis, feature engineering, predictive modeling, insight extraction",
+              "Ensure problems computationally intensive and not solvable manually within reasonable timeframes",
+              "Create deterministic, reproducible problems (fixed random seeds when needed)",
+              "Design end-to-end problems across data science pipeline (ingestion, cleaning, EDA, modeling, validation, deployment considerations)",
+              "Incorporate big data processing scenarios requiring scalable computational approaches",
+              "Verify solutions in Python using statistical methods",
+              "Document problem statements with realistic business context and provide verified correct answers",
+              "Create training prompts and refine model responses for AI projects"
+            ],
+            "domain": "artificial intelligence",
+            "tech_stack": [
+              "Python",
+              "SQL",
+              "pandas",
+              "NumPy",
+              "SciPy",
+              "scikit-learn",
+              "statsmodels",
+              "Matplotlib",
+              "Seaborn",
+              "TensorFlow",
+              "PyTorch",
+              "LangChain",
+              "LLMs",
+              "RAG",
+              "vector databases"
+            ],
+            "years_experience_min": 5,
+            "keywords": [
+              "Data Science AI Trainer",
+              "computational data science problems",
+              "Python",
+              "SQL",
+              "pandas",
+              "NumPy",
+              "SciPy",
+              "scikit-learn",
+              "statsmodels",
+              "Matplotlib",
+              "Seaborn",
+              "statistical analysis",
+              "machine learning",
+              "feature engineering",
+              "predictive modeling",
+              "MLOps",
+              "model deployment",
+              "LLMs",
+              "RAG",
+              "prompt engineering",
+              "vector databases",
+              "TensorFlow",
+              "PyTorch",
+              "LangChain",
+              "EDA",
+              "data ingestion",
+              "data cleaning",
+              "model validation"
+            ],
+            "job_family": "data_science",
+            "enrichment_version": "v1",
+            "enrichment_model": "gemini-2.5-flash",
+            "enriched_at": "2026-05-19T16:57:30.206706+00:00",
+            "raw_job_fingerprint": "6303d8735ae5e8567a4a97a09f7045a07c34bac32d300cad56826fb823a22581",
+            "enrich_contract_fingerprint": "2bd73cd33177bfe3078c0cc01720a99dd2dfbd3cd5b0c35f11e590e9ac577aca",
+            "enrich_reuse_status": "reused_cached_enrichment"
+          }
+        ],
+        "settings_refs": [
+          "pipeline.vector_search_top_n"
+        ]
+      },
+      "ranking": {
+        "stage_id": "ranking",
+        "stage": "ranking",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "ranking",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "ranked_jobs": 1,
+            "final_top_n": 10
+          },
+          "evidence": {
+            "input_counts": {
+              "ai_scores": 1,
+              "ranking_inputs": 1
+            },
+            "decision_summary": {
+              "ranking_fit_label_counts": {
+                "stretch": 1
+              },
+              "quality_metrics": {
+                "label_distribution": {
+                  "strong_count": 0,
+                  "stretch_count": 1,
+                  "skip_count": 0,
+                  "strong_rate": 0.0,
+                  "stretch_rate": 1.0,
+                  "skip_rate": 0.0,
+                  "total_scored": 1
+                }
+              },
+              "reuse_metrics": {
+                "reused_ai_scores": 1,
+                "fresh_ai_scores": 0,
+                "total_ai_scores": 1
+              },
+              "ranking_prompt_id": "ranking.ai_score.v1",
+              "ranking_prompt_version": "v1",
+              "ranking_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\ranking_ai_score_v1.md",
+              "ai_score_model": "gemini-2.5-flash",
+              "configured_ranking_weights": {
+                "ai_score": 0.4,
+                "must_have_match": 0.2,
+                "vector_similarity": 0.15,
+                "title_relevance": 0.1,
+                "seniority_fit": 0.1,
+                "preference_fit": 0.05
+              },
+              "configured_missing_value_defaults": {
+                "ai_score": 0.0,
+                "must_have_match": 0.5,
+                "vector_similarity": 0.0,
+                "title_relevance": 0.5,
+                "seniority_fit": 0.5,
+                "preference_fit": 0.5
+              },
+              "configured_preference_fit_weights": {
+                "domain": 0.5,
+                "role_family": 0.3,
+                "location_type": 0.2
+              },
+              "configured_fit_label_thresholds": {
+                "strong": 0.7,
+                "stretch": 0.4
+              },
+              "zero_weight_features": [],
+              "contributing_features": [
+                "ai_score",
+                "must_have_match",
+                "vector_similarity",
+                "title_relevance",
+                "seniority_fit",
+                "preference_fit"
+              ],
+              "candidate_preference_resolution": {
+                "preferences": {
+                  "location_types": [
+                    "remote",
+                    "hybrid"
+                  ],
+                  "locations": [
+                    "berlin",
+                    "munich",
+                    "remote"
+                  ],
+                  "domains": [
+                    "data_engineering",
+                    "analytics",
+                    "data_science",
+                    "ml_engineering"
+                  ],
+                  "seniority_target": "senior",
+                  "salary_range": "€80,000 — €100,000",
+                  "notice_period": "3 months",
+                  "exclude_contract_types": [
+                    "internship"
+                  ],
+                  "exclude_experience_levels": [
+                    "internship",
+                    "entry level"
+                  ]
+                },
+                "inferred_preferences": {
+                  "target_role": "Data Engineer",
+                  "role_families": [
+                    "data_engineering",
+                    "analytics"
+                  ]
+                },
+                "effective_preferences": {
+                  "location_types": [
+                    "remote",
+                    "hybrid"
+                  ],
+                  "locations": [
+                    "berlin",
+                    "munich",
+                    "remote"
+                  ],
+                  "domains": [
+                    "data_engineering",
+                    "analytics",
+                    "data_science",
+                    "ml_engineering"
+                  ],
+                  "seniority_target": "senior",
+                  "salary_range": "€80,000 — €100,000",
+                  "notice_period": "3 months",
+                  "exclude_contract_types": [
+                    "internship"
+                  ],
+                  "exclude_experience_levels": [
+                    "internship",
+                    "entry level"
+                  ],
+                  "target_role": "Data Engineer",
+                  "role_families": [
+                    "data_engineering",
+                    "analytics"
+                  ]
+                },
+                "preference_sources": {
+                  "location_types": "explicit_yaml",
+                  "locations": "explicit_yaml",
+                  "domains": "explicit_yaml",
+                  "seniority_target": "explicit_yaml",
+                  "salary_range": "explicit_yaml",
+                  "notice_period": "explicit_yaml",
+                  "exclude_contract_types": "explicit_yaml",
+                  "exclude_experience_levels": "explicit_yaml",
+                  "target_role": "inferred_recent_experience",
+                  "role_families": "inferred_role_family_map"
+                }
+              }
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.ranking.v1",
+          "trace_context": {
+            "trace_id": "828e9141559e004a554983d1c297e2eb",
+            "span_id": "ed89e5ac86bb4383",
+            "parent_span_id": "68adce1cbf7f3036"
+          }
+        },
+        "input_counts": {
+          "ai_scores": 1,
+          "ranking_inputs": 1
+        },
+        "output_counts": {
+          "ranked_jobs": 1,
+          "final_top_n": 10
+        },
+        "decision_summary": {
+          "ranking_fit_label_counts": {
+            "stretch": 1
+          },
+          "quality_metrics": {
+            "label_distribution": {
+              "strong_count": 0,
+              "stretch_count": 1,
+              "skip_count": 0,
+              "strong_rate": 0.0,
+              "stretch_rate": 1.0,
+              "skip_rate": 0.0,
+              "total_scored": 1
+            }
+          },
+          "reuse_metrics": {
+            "reused_ai_scores": 1,
+            "fresh_ai_scores": 0,
+            "total_ai_scores": 1
+          },
+          "ranking_prompt_id": "ranking.ai_score.v1",
+          "ranking_prompt_version": "v1",
+          "ranking_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\ranking_ai_score_v1.md",
+          "ai_score_model": "gemini-2.5-flash",
+          "configured_ranking_weights": {
+            "ai_score": 0.4,
+            "must_have_match": 0.2,
+            "vector_similarity": 0.15,
+            "title_relevance": 0.1,
+            "seniority_fit": 0.1,
+            "preference_fit": 0.05
+          },
+          "configured_missing_value_defaults": {
+            "ai_score": 0.0,
+            "must_have_match": 0.5,
+            "vector_similarity": 0.0,
+            "title_relevance": 0.5,
+            "seniority_fit": 0.5,
+            "preference_fit": 0.5
+          },
+          "configured_preference_fit_weights": {
+            "domain": 0.5,
+            "role_family": 0.3,
+            "location_type": 0.2
+          },
+          "configured_fit_label_thresholds": {
+            "strong": 0.7,
+            "stretch": 0.4
+          },
+          "zero_weight_features": [],
+          "contributing_features": [
+            "ai_score",
+            "must_have_match",
+            "vector_similarity",
+            "title_relevance",
+            "seniority_fit",
+            "preference_fit"
+          ],
+          "candidate_preference_resolution": {
+            "preferences": {
+              "location_types": [
+                "remote",
+                "hybrid"
+              ],
+              "locations": [
+                "berlin",
+                "munich",
+                "remote"
+              ],
+              "domains": [
+                "data_engineering",
+                "analytics",
+                "data_science",
+                "ml_engineering"
+              ],
+              "seniority_target": "senior",
+              "salary_range": "€80,000 — €100,000",
+              "notice_period": "3 months",
+              "exclude_contract_types": [
+                "internship"
+              ],
+              "exclude_experience_levels": [
+                "internship",
+                "entry level"
+              ]
+            },
+            "inferred_preferences": {
+              "target_role": "Data Engineer",
+              "role_families": [
+                "data_engineering",
+                "analytics"
+              ]
+            },
+            "effective_preferences": {
+              "location_types": [
+                "remote",
+                "hybrid"
+              ],
+              "locations": [
+                "berlin",
+                "munich",
+                "remote"
+              ],
+              "domains": [
+                "data_engineering",
+                "analytics",
+                "data_science",
+                "ml_engineering"
+              ],
+              "seniority_target": "senior",
+              "salary_range": "€80,000 — €100,000",
+              "notice_period": "3 months",
+              "exclude_contract_types": [
+                "internship"
+              ],
+              "exclude_experience_levels": [
+                "internship",
+                "entry level"
+              ],
+              "target_role": "Data Engineer",
+              "role_families": [
+                "data_engineering",
+                "analytics"
+              ]
+            },
+            "preference_sources": {
+              "location_types": "explicit_yaml",
+              "locations": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml",
+              "salary_range": "explicit_yaml",
+              "notice_period": "explicit_yaml",
+              "exclude_contract_types": "explicit_yaml",
+              "exclude_experience_levels": "explicit_yaml",
+              "target_role": "inferred_recent_experience",
+              "role_families": "inferred_role_family_map"
+            }
+          }
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "ai_score": 0.46,
+            "ai_score_reuse_status": "reused_exact_match",
+            "ai_score_input_fingerprint": "27d8a35022b73546c91968e06b2bfb51f2ec2805eb1f55c901dc9f4748984111",
+            "reranker_parser_status": "ok",
+            "reranker_score_reasoning": "Candidate strong Python/SQL and data engineering stack, but missing or unproven core data-science requirements like ML modeling, feature engineering, genai/langchain, stats/statistical analysis, and PyTorch/TensorFlow/scikit-learn deploymen...[truncated]",
+            "reranker_key_risks": [
+              "No evidence for feature engineering or predictive modeling/ML (scikit-learn, statsmodels, scipy)",
+              "No evidence for genai or LangChain",
+              "No evidence for PyTorch or TensorFlow",
+              "Limited evidence for statistical analysis and visualization stack (matplotlib, seaborn, numpy/pandas usage)"
+            ],
+            "reranker_matched_strengths": [
+              "Python",
+              "SQL",
+              "Cloud (GCP, AWS)",
+              "Docker / Kubernetes",
+              "MLOps-adjacent tooling (Airflow, Terraform, dbt, Spark)"
+            ],
+            "must_have_match": 0.2631578947368421,
+            "vector_similarity": -0.172961820583163,
+            "title_relevance": 0.0,
+            "seniority_fit": 1.0,
+            "preference_fit": 0.41000000000000003,
+            "feature_contributions": {
+              "ai_score": 0.18400000000000002,
+              "must_have_match": 0.05263157894736842,
+              "vector_similarity": -0.02594427308747445,
+              "title_relevance": 0.0,
+              "seniority_fit": 0.1,
+              "preference_fit": 0.020500000000000004
+            },
+            "preference_fit_components": {
+              "domain": 0.0,
+              "role_family": 0.7,
+              "location_type": 1.0
+            },
+            "effective_target_role": "Data Engineer",
+            "effective_role_families": [
+              "data_engineering",
+              "analytics"
+            ],
+            "effective_domains": [
+              "data_engineering",
+              "analytics",
+              "data_science",
+              "ml_engineering"
+            ],
+            "preference_sources": {
+              "location_types": "explicit_yaml",
+              "locations": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml",
+              "salary_range": "explicit_yaml",
+              "notice_period": "explicit_yaml",
+              "exclude_contract_types": "explicit_yaml",
+              "exclude_experience_levels": "explicit_yaml",
+              "target_role": "inferred_recent_experience",
+              "role_families": "inferred_role_family_map"
+            },
+            "final_score": 0.33118730585989403,
+            "ranking_fit_label": "stretch",
+            "shortlist_origin": "vector_search"
+          }
+        ],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "ai_score": 0.46,
+            "ai_score_reuse_status": "reused_exact_match",
+            "ai_score_input_fingerprint": "27d8a35022b73546c91968e06b2bfb51f2ec2805eb1f55c901dc9f4748984111",
+            "reranker_parser_status": "ok",
+            "reranker_score_reasoning": "Candidate strong Python/SQL and data engineering stack, but missing or unproven core data-science requirements like ML modeling, feature engineering, genai/langchain, stats/statistical analysis, and PyTorch/TensorFlow/scikit-learn deploymen...[truncated]",
+            "reranker_key_risks": [
+              "No evidence for feature engineering or predictive modeling/ML (scikit-learn, statsmodels, scipy)",
+              "No evidence for genai or LangChain",
+              "No evidence for PyTorch or TensorFlow",
+              "Limited evidence for statistical analysis and visualization stack (matplotlib, seaborn, numpy/pandas usage)"
+            ],
+            "reranker_matched_strengths": [
+              "Python",
+              "SQL",
+              "Cloud (GCP, AWS)",
+              "Docker / Kubernetes",
+              "MLOps-adjacent tooling (Airflow, Terraform, dbt, Spark)"
+            ],
+            "must_have_match": 0.2631578947368421,
+            "vector_similarity": -0.172961820583163,
+            "title_relevance": 0.0,
+            "seniority_fit": 1.0,
+            "preference_fit": 0.41000000000000003,
+            "feature_contributions": {
+              "ai_score": 0.18400000000000002,
+              "must_have_match": 0.05263157894736842,
+              "vector_similarity": -0.02594427308747445,
+              "title_relevance": 0.0,
+              "seniority_fit": 0.1,
+              "preference_fit": 0.020500000000000004
+            },
+            "preference_fit_components": {
+              "domain": 0.0,
+              "role_family": 0.7,
+              "location_type": 1.0
+            },
+            "effective_target_role": "Data Engineer",
+            "effective_role_families": [
+              "data_engineering",
+              "analytics"
+            ],
+            "effective_domains": [
+              "data_engineering",
+              "analytics",
+              "data_science",
+              "ml_engineering"
+            ],
+            "preference_sources": {
+              "location_types": "explicit_yaml",
+              "locations": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml",
+              "salary_range": "explicit_yaml",
+              "notice_period": "explicit_yaml",
+              "exclude_contract_types": "explicit_yaml",
+              "exclude_experience_levels": "explicit_yaml",
+              "target_role": "inferred_recent_experience",
+              "role_families": "inferred_role_family_map"
+            },
+            "final_score": 0.33118730585989403,
+            "ranking_fit_label": "stretch",
+            "shortlist_origin": "vector_search"
+          }
+        ],
+        "settings_refs": [
+          "ranking_weights",
+          "preference_fit_weights",
+          "missing_value_defaults",
+          "fit_label_thresholds",
+          "pipeline.final_top_n",
+          "prompts.ranking.ai_score.prompt_id"
+        ]
+      },
+      "cv_analysis": {
+        "stage_id": "cv_analysis",
+        "stage": "cv_analysis",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "cv_analysis",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "blocked_by_reranker_fit": 0,
+            "ready_for_generation": 1,
+            "skipped_fit_gate": 0,
+            "analysis_failed": 0
+          },
+          "evidence": {
+            "input_counts": {
+              "ranked_jobs": 1
+            },
+            "decision_summary": {
+              "analysis_records_captured": 1,
+              "quality_metrics": {
+                "blocked_by_reranker_fit_rate": 0.0,
+                "skip_rate": 0.0,
+                "ready_for_generation_rate": 1.0,
+                "analysis_failed_rate": 0.0,
+                "blocked_by_reranker_fit": 0,
+                "skipped_fit_gate": 0,
+                "ready_for_generation": 1,
+                "analysis_failed": 0,
+                "total_processed": 1
+              },
+              "reuse_metrics": {
+                "analysis_rows_executed": 1,
+                "reused_analysis_rows": 1,
+                "fresh_analysis_rows": 0,
+                "blocked_before_analysis_rows": 0,
+                "analysis_reuse_rate": 1.0
+              },
+              "evidence_top_k": 5,
+              "effective_channel_pool_size": 4,
+              "selected_evidence_total": 5,
+              "merged_candidate_pool_total": 16
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.cv_analysis.v1",
+          "trace_context": {
+            "trace_id": "9ae468f055ee7c2f6ca4f91352666bb1",
+            "span_id": "e1d84820f9f77247",
+            "parent_span_id": "60ef7e7862be0552"
+          }
+        },
+        "input_counts": {
+          "ranked_jobs": 1
+        },
+        "output_counts": {
+          "blocked_by_reranker_fit": 0,
+          "ready_for_generation": 1,
+          "skipped_fit_gate": 0,
+          "analysis_failed": 0
+        },
+        "decision_summary": {
+          "analysis_records_captured": 1,
+          "quality_metrics": {
+            "blocked_by_reranker_fit_rate": 0.0,
+            "skip_rate": 0.0,
+            "ready_for_generation_rate": 1.0,
+            "analysis_failed_rate": 0.0,
+            "blocked_by_reranker_fit": 0,
+            "skipped_fit_gate": 0,
+            "ready_for_generation": 1,
+            "analysis_failed": 0,
+            "total_processed": 1
+          },
+          "reuse_metrics": {
+            "analysis_rows_executed": 1,
+            "reused_analysis_rows": 1,
+            "fresh_analysis_rows": 0,
+            "blocked_before_analysis_rows": 0,
+            "analysis_reuse_rate": 1.0
+          },
+          "evidence_top_k": 5,
+          "effective_channel_pool_size": 4,
+          "selected_evidence_total": 5,
+          "merged_candidate_pool_total": 16
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "status": "ready_for_generation",
+            "stage_owned_subreason": "ready_for_generation",
+            "source_stage": "cv_analysis",
+            "analysis_reuse_status": "reused_exact_match",
+            "analysis_input_fingerprint": "e28e40a48287bab541f28a5656f4060cf0f7384b1ba7e649ecf8281290aecff3",
+            "ranking_fit_label": "stretch",
+            "fit_classification": "stretch",
+            "evidence_used": [
+              {
+                "evidence_type": "experience_entry",
+                "source_ref": "experiences[0]",
+                "name": "Senior Data Engineer — Acme Analytics GmbH",
+                "matched_channels": [
+                  "required_skill_support",
+                  "domain_alignment",
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "responsibility_alignment",
+                  "required_skill_support",
+                  "domain_alignment"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.105263,
+                    "semantic": 0.383382,
+                    "combined": 0.188699
+                  },
+                  "domain_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.243672,
+                    "combined": 0.146203
+                  },
+                  "responsibility_alignment": {
+                    "lexical": 0.051282,
+                    "semantic": 0.312717,
+                    "combined": 0.247358
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "project_entry",
+                "source_ref": "projects[2]",
+                "name": "Open-Source dbt Package for Marketing Attribution",
+                "matched_channels": [
+                  "required_skill_support"
+                ],
+                "selection_reasons": [
+                  "required_skill_support"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.105263,
+                    "semantic": 0.608312,
+                    "combined": 0.256178
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "achievement",
+                "source_ref": "achievements[2]",
+                "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+                "matched_channels": [
+                  "role_alignment"
+                ],
+                "selection_reasons": [
+                  "role_alignment"
+                ],
+                "channel_subscores": {
+                  "role_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.350416,
+                    "combined": 0.140167
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "experience_entry",
+                "source_ref": "experiences[1]",
+                "name": "Data Engineer — Fintech Startup GmbH",
+                "matched_channels": [
+                  "domain_alignment",
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "domain_alignment",
+                  "responsibility_alignment"
+                ],
+                "channel_subscores": {
+                  "domain_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.502854,
+                    "combined": 0.301712
+                  },
+                  "responsibility_alignment": {
+                    "lexical": 0.064103,
+                    "semantic": 0.330178,
+                    "combined": 0.263659
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "achievement",
+                "source_ref": "achievements[6]",
+                "name": "Won 2nd place at TU Munich University Hackathon (2017).",
+                "matched_channels": [
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "responsibility_alignment"
+                ],
+                "channel_subscores": {
+                  "responsibility_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.402441,
+                    "combined": 0.30183
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              }
+            ],
+            "evidence_selection_summary": {
+              "channel_counts": {
+                "required_skill_support": 4,
+                "role_alignment": 4,
+                "domain_alignment": 4,
+                "responsibility_alignment": 4
+              },
+              "fallback_used": false,
+              "effective_channel_pool_size": 4,
+              "merged_pool_size": 16,
+              "deduped_pool_size": 11,
+              "selected_evidence_count": 5,
+              "selected_evidence_ids": [
+                "exp_1",
+                "proj_3",
+                "ach_3",
+                "exp_2",
+                "ach_7"
+              ],
+              "unselected_top_candidates": [
+                {
+                  "evidence_id": "exp_3",
+                  "evidence_type": "experience_entry",
+                  "source_ref": "experiences[2]",
+                  "name": "Junior Data Analyst — RetailCo AG",
+                  "matched_channels": [
+                    "required_skill_support",
+                    "role_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "required_skill_support": {
+                      "lexical": 0.157895,
+                      "semantic": 0.438346,
+                      "combined": 0.24203
+                    },
+                    "role_alignment": {
+                      "lexical": 0.142857,
+                      "semantic": 0.07793,
+                      "combined": 0.116886
+                    }
+                  }
+                },
+                {
+                  "evidence_id": "proj_2",
+                  "evidence_type": "project_entry",
+                  "source_ref": "projects[1]",
+                  "name": "Real-Time Fraud Detection on AWS",
+                  "matched_channels": [
+                    "required_skill_support",
+                    "domain_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "required_skill_support": {
+                      "lexical": 0.105263,
+                      "semantic": 0.465737,
+                      "combined": 0.213405
+                    },
+                    "domain_alignment": {
+                      "lexical": 0.0,
+                      "semantic": 0.185241,
+                      "combined": 0.111145
+                    }
+                  }
+                },
+                {
+                  "evidence_id": "proj_1",
+                  "evidence_type": "project_entry",
+                  "source_ref": "projects[0]",
+                  "name": "FitCV — AI-Powered CV Generation Pipeline",
+                  "matched_channels": [
+                    "role_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "role_alignment": {
+                      "lexical": 0.142857,
+                      "semantic": 0.13503,
+                      "combined": 0.139726
+                    }
+                  }
+                }
+              ],
+              "hybrid_alignment": {
+                "required_skill_support": {
+                  "lexical_weight": 0.7,
+                  "semantic_weight": 0.3
+                },
+                "role_alignment": {
+                  "lexical_weight": 0.6,
+                  "semantic_weight": 0.4
+                },
+                "responsibility_alignment": {
+                  "lexical_weight": 0.25,
+                  "semantic_weight": 0.75
+                },
+                "domain_alignment": {
+                  "lexical_weight": 0.4,
+                  "semantic_weight": 0.6
+                }
+              },
+              "semantic_alignment": {
+                "enabled": true,
+                "semantic_methods": {
+                  "required_skill_support": "embedding_similarity",
+                  "role_alignment": "embedding_similarity",
+                  "responsibility_alignment": "embedding_similarity",
+                  "domain_alignment": "embedding_similarity"
+                },
+                "reuse_state": {
+                  "candidate_evidence": "mixed_fresh_and_reused",
+                  "job_context": "mixed_fresh_and_reused"
+                },
+                "embedding_counts": {
+                  "candidate_evidence": {
+                    "fresh": 32,
+                    "reused": 20
+                  },
+                  "job_context": {
+                    "fresh": 34,
+                    "reused": 408
+                  }
+                }
+              }
+            },
+            "gap_summary": {
+              "matched": [
+                "Python",
+                "SQL",
+                "pandas"
+              ],
+              "partial": [
+                {
+                  "required": "machine learning",
+                  "candidate": "BigQuery ML",
+                  "canonical": "machine learning"
+                },
+                {
+                  "required": "GenAI",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                },
+                {
+                  "required": "LLMs",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                },
+                {
+                  "required": "RAG",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                },
+                {
+                  "required": "prompt engineering",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                },
+                {
+                  "required": "vector databases",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                }
+              ],
+              "missing": [
+                "NumPy",
+                "SciPy",
+                "scikit-learn",
+                "statsmodels",
+                "Matplotlib",
+                "Seaborn",
+                "statistical analysis",
+                "feature engineering",
+                "predictive modeling",
+                "MLOps",
+                "model deployment",
+                "TensorFlow",
+                "PyTorch",
+                "LangChain"
+              ],
+              "matchable_required_count": 23,
+              "ignored_for_fit": [],
+              "years_risk": false,
+              "overclaim_risk": []
+            }
+          }
+        ],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "ai_score": 0.46,
+            "ai_score_reuse_status": "reused_exact_match",
+            "ai_score_input_fingerprint": "27d8a35022b73546c91968e06b2bfb51f2ec2805eb1f55c901dc9f4748984111",
+            "reranker_parser_status": "ok",
+            "reranker_score_reasoning": "Candidate strong Python/SQL and data engineering stack, but missing or unproven core data-science requirements like ML modeling, feature engineering, genai/langchain, stats/statistical analysis, and PyTorch/TensorFlow/scikit-learn deploymen...[truncated]",
+            "reranker_key_risks": [
+              "No evidence for feature engineering or predictive modeling/ML (scikit-learn, statsmodels, scipy)",
+              "No evidence for genai or LangChain",
+              "No evidence for PyTorch or TensorFlow",
+              "Limited evidence for statistical analysis and visualization stack (matplotlib, seaborn, numpy/pandas usage)"
+            ],
+            "reranker_matched_strengths": [
+              "Python",
+              "SQL",
+              "Cloud (GCP, AWS)",
+              "Docker / Kubernetes",
+              "MLOps-adjacent tooling (Airflow, Terraform, dbt, Spark)"
+            ],
+            "must_have_match": 0.2631578947368421,
+            "vector_similarity": -0.172961820583163,
+            "title_relevance": 0.0,
+            "seniority_fit": 1.0,
+            "preference_fit": 0.41000000000000003,
+            "feature_contributions": {
+              "ai_score": 0.18400000000000002,
+              "must_have_match": 0.05263157894736842,
+              "vector_similarity": -0.02594427308747445,
+              "title_relevance": 0.0,
+              "seniority_fit": 0.1,
+              "preference_fit": 0.020500000000000004
+            },
+            "preference_fit_components": {
+              "domain": 0.0,
+              "role_family": 0.7,
+              "location_type": 1.0
+            },
+            "effective_target_role": "Data Engineer",
+            "effective_role_families": [
+              "data_engineering",
+              "analytics"
+            ],
+            "effective_domains": [
+              "data_engineering",
+              "analytics",
+              "data_science",
+              "ml_engineering"
+            ],
+            "preference_sources": {
+              "location_types": "explicit_yaml",
+              "locations": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml",
+              "salary_range": "explicit_yaml",
+              "notice_period": "explicit_yaml",
+              "exclude_contract_types": "explicit_yaml",
+              "exclude_experience_levels": "explicit_yaml",
+              "target_role": "inferred_recent_experience",
+              "role_families": "inferred_role_family_map"
+            },
+            "final_score": 0.33118730585989403,
+            "ranking_fit_label": "stretch",
+            "shortlist_origin": "vector_search"
+          }
+        ],
+        "settings_refs": [
+          "pipeline.evidence_top_k",
+          "cv_analysis.semantic_alignment.enabled",
+          "cv_analysis.semantic_alignment.model",
+          "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+          "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+          "cv_analysis.semantic_alignment.role_lexical_weight",
+          "cv_analysis.semantic_alignment.role_semantic_weight",
+          "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+          "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+          "cv_analysis.semantic_alignment.domain_lexical_weight",
+          "cv_analysis.semantic_alignment.domain_semantic_weight",
+          "cv_analysis.semantic_alignment.channel_pool_size"
+        ],
+        "late_stage_mode": {
+          "late_stage_mode": "agentic",
+          "agentic_late_stage_enabled": true,
+          "mode_source": "cv.agentic_late_stage.unified_runtime",
+          "agentic_status": "completed"
+        }
+      },
+      "cv_generation": {
+        "stage_id": "cv_generation",
+        "stage": "cv_generation",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "cv_generation",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "accepted": 0,
+            "review_required": 0,
+            "validation_failed": 0,
+            "generation_failed": 1,
+            "persistence_failed": 0
+          },
+          "evidence": {
+            "input_counts": {
+              "analysis_ready_jobs": 1
+            },
+            "decision_summary": {
+              "debug_records_captured": 1,
+              "analysis_ready_jobs_total": 1,
+              "quality_metrics": {
+                "validation_fail_rate": 0.0,
+                "accepted_rate": 0.0,
+                "review_required_rate": 0.0,
+                "generation_failed_rate": 1.0,
+                "persistence_failed_rate": 0.0,
+                "accepted": 0,
+                "review_required": 0,
+                "validation_failed": 0,
+                "generation_failed": 1,
+                "persistence_failed": 0,
+                "total_attempted": 1
+              },
+              "cv_generation_model": "gemini-2.5-flash",
+              "cv_generation_provider": "vertexai_gemini",
+              "cv_prompt_id": "cv_generation.structured_write.v1",
+              "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md"
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.cv_generation.v1",
+          "trace_context": {
+            "trace_id": "35aa9c3c4ed352b2304cbfdc6adc216d",
+            "span_id": "2805a2eff0154cb7",
+            "parent_span_id": "e8a51cdb7da32189"
+          }
+        },
+        "input_counts": {
+          "analysis_ready_jobs": 1
+        },
+        "output_counts": {
+          "accepted": 0,
+          "review_required": 0,
+          "validation_failed": 0,
+          "generation_failed": 1,
+          "persistence_failed": 0
+        },
+        "decision_summary": {
+          "debug_records_captured": 1,
+          "analysis_ready_jobs_total": 1,
+          "quality_metrics": {
+            "validation_fail_rate": 0.0,
+            "accepted_rate": 0.0,
+            "review_required_rate": 0.0,
+            "generation_failed_rate": 1.0,
+            "persistence_failed_rate": 0.0,
+            "accepted": 0,
+            "review_required": 0,
+            "validation_failed": 0,
+            "generation_failed": 1,
+            "persistence_failed": 0,
+            "total_attempted": 1
+          },
+          "cv_generation_model": "gemini-2.5-flash",
+          "cv_generation_provider": "vertexai_gemini",
+          "cv_prompt_id": "cv_generation.structured_write.v1",
+          "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md"
+        },
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "change_type": "generation_failed",
+            "deterministic_outcome": "rejected",
+            "stage_owned_subreason": "generation_failed",
+            "source_stage": "cv_generation",
+            "ranking_fit_label": "stretch",
+            "fit_classification": "stretch",
+            "analysis_input_summary": {
+              "required_skills": [
+                "Python",
+                "SQL",
+                "pandas",
+                "NumPy",
+                "SciPy",
+                "scikit-learn",
+                "statsmodels",
+                "Matplotlib",
+                "Seaborn",
+                "statistical analysis",
+                "machine learning",
+                "feature engineering",
+                "predictive modeling",
+                "GenAI",
+                "LLMs",
+                "RAG",
+                "prompt engineering",
+                "vector databases",
+                "MLOps",
+                "model deployment",
+                "TensorFlow",
+                "PyTorch",
+                "LangChain"
+              ],
+              "responsibilities": [
+                "Design original computational data science problems simulating real-world analytical workflows",
+                "Create Python-based problems using standard data science libraries",
+                "Develop problems requiring data processing, statistical analysis, feature engineering, predictive modeling, insight extraction",
+                "Ensure problems computationally intensive and not solvable manually within reasonable timeframes",
+                "Create deterministic, reproducible problems (fixed random seeds when needed)",
+                "Design end-to-end problems across data science pipeline (ingestion, cleaning, EDA, modeling, validation, deployment considerations)",
+                "Incorporate big data processing scenarios requiring scalable computational approaches",
+                "Verify solutions in Python using statistical methods",
+                "Document problem statements with realistic business context and provide verified correct answers",
+                "Create training prompts and refine model responses for AI projects"
+              ],
+              "job_family": "data_science",
+              "domain": "artificial intelligence",
+              "location_type": "remote"
+            },
+            "evidence_used": [
+              {
+                "evidence_type": "experience_entry",
+                "source_ref": "experiences[0]",
+                "name": "Senior Data Engineer — Acme Analytics GmbH",
+                "matched_channels": [
+                  "required_skill_support",
+                  "domain_alignment",
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "responsibility_alignment",
+                  "required_skill_support",
+                  "domain_alignment"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.105263,
+                    "semantic": 0.383382,
+                    "combined": 0.188699
+                  },
+                  "domain_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.243672,
+                    "combined": 0.146203
+                  },
+                  "responsibility_alignment": {
+                    "lexical": 0.051282,
+                    "semantic": 0.312717,
+                    "combined": 0.247358
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "project_entry",
+                "source_ref": "projects[2]",
+                "name": "Open-Source dbt Package for Marketing Attribution",
+                "matched_channels": [
+                  "required_skill_support"
+                ],
+                "selection_reasons": [
+                  "required_skill_support"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.105263,
+                    "semantic": 0.608312,
+                    "combined": 0.256178
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "achievement",
+                "source_ref": "achievements[2]",
+                "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+                "matched_channels": [
+                  "role_alignment"
+                ],
+                "selection_reasons": [
+                  "role_alignment"
+                ],
+                "channel_subscores": {
+                  "role_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.350416,
+                    "combined": 0.140167
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "experience_entry",
+                "source_ref": "experiences[1]",
+                "name": "Data Engineer — Fintech Startup GmbH",
+                "matched_channels": [
+                  "domain_alignment",
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "domain_alignment",
+                  "responsibility_alignment"
+                ],
+                "channel_subscores": {
+                  "domain_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.502854,
+                    "combined": 0.301712
+                  },
+                  "responsibility_alignment": {
+                    "lexical": 0.064103,
+                    "semantic": 0.330178,
+                    "combined": 0.263659
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "achievement",
+                "source_ref": "achievements[6]",
+                "name": "Won 2nd place at TU Munich University Hackathon (2017).",
+                "matched_channels": [
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "responsibility_alignment"
+                ],
+                "channel_subscores": {
+                  "responsibility_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.402441,
+                    "combined": 0.30183
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              }
+            ],
+            "evidence_selection_summary": {
+              "channel_counts": {
+                "required_skill_support": 4,
+                "role_alignment": 4,
+                "domain_alignment": 4,
+                "responsibility_alignment": 4
+              },
+              "fallback_used": false,
+              "effective_channel_pool_size": 4,
+              "merged_pool_size": 16,
+              "deduped_pool_size": 11,
+              "selected_evidence_count": 5,
+              "selected_evidence_ids": [
+                "exp_1",
+                "proj_3",
+                "ach_3",
+                "exp_2",
+                "ach_7"
+              ],
+              "unselected_top_candidates": [
+                {
+                  "evidence_id": "exp_3",
+                  "evidence_type": "experience_entry",
+                  "source_ref": "experiences[2]",
+                  "name": "Junior Data Analyst — RetailCo AG",
+                  "matched_channels": [
+                    "required_skill_support",
+                    "role_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "required_skill_support": {
+                      "lexical": 0.157895,
+                      "semantic": 0.438346,
+                      "combined": 0.24203
+                    },
+                    "role_alignment": {
+                      "lexical": 0.142857,
+                      "semantic": 0.07793,
+                      "combined": 0.116886
+                    }
+                  }
+                },
+                {
+                  "evidence_id": "proj_2",
+                  "evidence_type": "project_entry",
+                  "source_ref": "projects[1]",
+                  "name": "Real-Time Fraud Detection on AWS",
+                  "matched_channels": [
+                    "required_skill_support",
+                    "domain_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "required_skill_support": {
+                      "lexical": 0.105263,
+                      "semantic": 0.465737,
+                      "combined": 0.213405
+                    },
+                    "domain_alignment": {
+                      "lexical": 0.0,
+                      "semantic": 0.185241,
+                      "combined": 0.111145
+                    }
+                  }
+                },
+                {
+                  "evidence_id": "proj_1",
+                  "evidence_type": "project_entry",
+                  "source_ref": "projects[0]",
+                  "name": "FitCV — AI-Powered CV Generation Pipeline",
+                  "matched_channels": [
+                    "role_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "role_alignment": {
+                      "lexical": 0.142857,
+                      "semantic": 0.13503,
+                      "combined": 0.139726
+                    }
+                  }
+                }
+              ],
+              "hybrid_alignment": {
+                "required_skill_support": {
+                  "lexical_weight": 0.7,
+                  "semantic_weight": 0.3
+                },
+                "role_alignment": {
+                  "lexical_weight": 0.6,
+                  "semantic_weight": 0.4
+                },
+                "responsibility_alignment": {
+                  "lexical_weight": 0.25,
+                  "semantic_weight": 0.75
+                },
+                "domain_alignment": {
+                  "lexical_weight": 0.4,
+                  "semantic_weight": 0.6
+                }
+              },
+              "semantic_alignment": {
+                "enabled": true,
+                "semantic_methods": {
+                  "required_skill_support": "embedding_similarity",
+                  "role_alignment": "embedding_similarity",
+                  "responsibility_alignment": "embedding_similarity",
+                  "domain_alignment": "embedding_similarity"
+                },
+                "reuse_state": {
+                  "candidate_evidence": "mixed_fresh_and_reused",
+                  "job_context": "mixed_fresh_and_reused"
+                },
+                "embedding_counts": {
+                  "candidate_evidence": {
+                    "fresh": 32,
+                    "reused": 20
+                  },
+                  "job_context": {
+                    "fresh": 34,
+                    "reused": 408
+                  }
+                }
+              }
+            },
+            "gap_summary": {
+              "matched": [
+                "Python",
+                "SQL",
+                "pandas"
+              ],
+              "partial": [
+                {
+                  "required": "machine learning",
+                  "candidate": "BigQuery ML",
+                  "canonical": "machine learning"
+                },
+                {
+                  "required": "GenAI",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                },
+                {
+                  "required": "LLMs",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                },
+                {
+                  "required": "RAG",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                },
+                {
+                  "required": "prompt engineering",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                },
+                {
+                  "required": "vector databases",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                }
+              ],
+              "missing": [
+                "NumPy",
+                "SciPy",
+                "scikit-learn",
+                "statsmodels",
+                "Matplotlib",
+                "Seaborn",
+                "statistical analysis",
+                "feature engineering",
+                "predictive modeling",
+                "MLOps",
+                "model deployment",
+                "TensorFlow",
+                "PyTorch",
+                "LangChain"
+              ],
+              "matchable_required_count": 23,
+              "ignored_for_fit": [],
+              "years_risk": false,
+              "overclaim_risk": []
+            },
+            "repair_attempt": {
+              "performed": false,
+              "missing_sections": []
+            },
+            "enabled_sections": [
+              "Summary",
+              "Education",
+              "Experience",
+              "Skills",
+              "Certifications",
+              "Projects",
+              "Languages"
+            ],
+            "cv_generation_model": "gemini-2.5-flash",
+            "cv_prompt_id": "cv_generation.structured_write.v1",
+            "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md",
+            "error": {
+              "stage": "generation",
+              "message": "OpenAI-compatible CV generation routing requires API key in env."
+            }
+          }
+        ],
+        "inputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "status": "ready_for_generation",
+            "stage_owned_subreason": "ready_for_generation",
+            "source_stage": "cv_analysis",
+            "analysis_reuse_status": "reused_exact_match",
+            "analysis_input_fingerprint": "e28e40a48287bab541f28a5656f4060cf0f7384b1ba7e649ecf8281290aecff3",
+            "ranking_fit_label": "stretch",
+            "fit_classification": "stretch",
+            "evidence_used": [
+              {
+                "evidence_type": "experience_entry",
+                "source_ref": "experiences[0]",
+                "name": "Senior Data Engineer — Acme Analytics GmbH",
+                "matched_channels": [
+                  "required_skill_support",
+                  "domain_alignment",
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "responsibility_alignment",
+                  "required_skill_support",
+                  "domain_alignment"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.105263,
+                    "semantic": 0.383382,
+                    "combined": 0.188699
+                  },
+                  "domain_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.243672,
+                    "combined": 0.146203
+                  },
+                  "responsibility_alignment": {
+                    "lexical": 0.051282,
+                    "semantic": 0.312717,
+                    "combined": 0.247358
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "project_entry",
+                "source_ref": "projects[2]",
+                "name": "Open-Source dbt Package for Marketing Attribution",
+                "matched_channels": [
+                  "required_skill_support"
+                ],
+                "selection_reasons": [
+                  "required_skill_support"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.105263,
+                    "semantic": 0.608312,
+                    "combined": 0.256178
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "achievement",
+                "source_ref": "achievements[2]",
+                "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+                "matched_channels": [
+                  "role_alignment"
+                ],
+                "selection_reasons": [
+                  "role_alignment"
+                ],
+                "channel_subscores": {
+                  "role_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.350416,
+                    "combined": 0.140167
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "experience_entry",
+                "source_ref": "experiences[1]",
+                "name": "Data Engineer — Fintech Startup GmbH",
+                "matched_channels": [
+                  "domain_alignment",
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "domain_alignment",
+                  "responsibility_alignment"
+                ],
+                "channel_subscores": {
+                  "domain_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.502854,
+                    "combined": 0.301712
+                  },
+                  "responsibility_alignment": {
+                    "lexical": 0.064103,
+                    "semantic": 0.330178,
+                    "combined": 0.263659
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "achievement",
+                "source_ref": "achievements[6]",
+                "name": "Won 2nd place at TU Munich University Hackathon (2017).",
+                "matched_channels": [
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "responsibility_alignment"
+                ],
+                "channel_subscores": {
+                  "responsibility_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.402441,
+                    "combined": 0.30183
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 32,
+                      "reused": 20
+                    },
+                    "job_context": {
+                      "fresh": 34,
+                      "reused": 408
+                    }
+                  }
+                }
+              }
+            ],
+            "evidence_selection_summary": {
+              "channel_counts": {
+                "required_skill_support": 4,
+                "role_alignment": 4,
+                "domain_alignment": 4,
+                "responsibility_alignment": 4
+              },
+              "fallback_used": false,
+              "effective_channel_pool_size": 4,
+              "merged_pool_size": 16,
+              "deduped_pool_size": 11,
+              "selected_evidence_count": 5,
+              "selected_evidence_ids": [
+                "exp_1",
+                "proj_3",
+                "ach_3",
+                "exp_2",
+                "ach_7"
+              ],
+              "unselected_top_candidates": [
+                {
+                  "evidence_id": "exp_3",
+                  "evidence_type": "experience_entry",
+                  "source_ref": "experiences[2]",
+                  "name": "Junior Data Analyst — RetailCo AG",
+                  "matched_channels": [
+                    "required_skill_support",
+                    "role_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "required_skill_support": {
+                      "lexical": 0.157895,
+                      "semantic": 0.438346,
+                      "combined": 0.24203
+                    },
+                    "role_alignment": {
+                      "lexical": 0.142857,
+                      "semantic": 0.07793,
+                      "combined": 0.116886
+                    }
+                  }
+                },
+                {
+                  "evidence_id": "proj_2",
+                  "evidence_type": "project_entry",
+                  "source_ref": "projects[1]",
+                  "name": "Real-Time Fraud Detection on AWS",
+                  "matched_channels": [
+                    "required_skill_support",
+                    "domain_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "required_skill_support": {
+                      "lexical": 0.105263,
+                      "semantic": 0.465737,
+                      "combined": 0.213405
+                    },
+                    "domain_alignment": {
+                      "lexical": 0.0,
+                      "semantic": 0.185241,
+                      "combined": 0.111145
+                    }
+                  }
+                },
+                {
+                  "evidence_id": "proj_1",
+                  "evidence_type": "project_entry",
+                  "source_ref": "projects[0]",
+                  "name": "FitCV — AI-Powered CV Generation Pipeline",
+                  "matched_channels": [
+                    "role_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "role_alignment": {
+                      "lexical": 0.142857,
+                      "semantic": 0.13503,
+                      "combined": 0.139726
+                    }
+                  }
+                }
+              ],
+              "hybrid_alignment": {
+                "required_skill_support": {
+                  "lexical_weight": 0.7,
+                  "semantic_weight": 0.3
+                },
+                "role_alignment": {
+                  "lexical_weight": 0.6,
+                  "semantic_weight": 0.4
+                },
+                "responsibility_alignment": {
+                  "lexical_weight": 0.25,
+                  "semantic_weight": 0.75
+                },
+                "domain_alignment": {
+                  "lexical_weight": 0.4,
+                  "semantic_weight": 0.6
+                }
+              },
+              "semantic_alignment": {
+                "enabled": true,
+                "semantic_methods": {
+                  "required_skill_support": "embedding_similarity",
+                  "role_alignment": "embedding_similarity",
+                  "responsibility_alignment": "embedding_similarity",
+                  "domain_alignment": "embedding_similarity"
+                },
+                "reuse_state": {
+                  "candidate_evidence": "mixed_fresh_and_reused",
+                  "job_context": "mixed_fresh_and_reused"
+                },
+                "embedding_counts": {
+                  "candidate_evidence": {
+                    "fresh": 32,
+                    "reused": 20
+                  },
+                  "job_context": {
+                    "fresh": 34,
+                    "reused": 408
+                  }
+                }
+              }
+            },
+            "gap_summary": {
+              "matched": [
+                "Python",
+                "SQL",
+                "pandas"
+              ],
+              "partial": [
+                {
+                  "required": "machine learning",
+                  "candidate": "BigQuery ML",
+                  "canonical": "machine learning"
+                },
+                {
+                  "required": "GenAI",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                },
+                {
+                  "required": "LLMs",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                },
+                {
+                  "required": "RAG",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                },
+                {
+                  "required": "prompt engineering",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                },
+                {
+                  "required": "vector databases",
+                  "candidate": "Vertex AI",
+                  "canonical": "genai"
+                }
+              ],
+              "missing": [
+                "NumPy",
+                "SciPy",
+                "scikit-learn",
+                "statsmodels",
+                "Matplotlib",
+                "Seaborn",
+                "statistical analysis",
+                "feature engineering",
+                "predictive modeling",
+                "MLOps",
+                "model deployment",
+                "TensorFlow",
+                "PyTorch",
+                "LangChain"
+              ],
+              "matchable_required_count": 23,
+              "ignored_for_fit": [],
+              "years_risk": false,
+              "overclaim_risk": []
+            }
+          }
+        ],
+        "settings_refs": [
+          "cv.generation.model",
+          "prompts.cv_generation.structured_write.prompt_id"
+        ],
+        "late_stage_mode": {
+          "late_stage_mode": "agentic",
+          "agentic_late_stage_enabled": true,
+          "mode_source": "cv.agentic_late_stage.unified_runtime",
+          "agentic_status": "completed"
+        }
+      }
+    }
+  }
+}

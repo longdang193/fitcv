@@ -2147,6 +2147,10 @@ def _normalize_hitl_resolution_status(action_name: str | None, explicit_status: 
         return "regeneration_requested"
     return "pending"
 
+def _is_hitl_resolution_pending(resolution_status: str | None) -> bool:
+    normalized = str(resolution_status or "").strip().lower() or "pending"
+    return normalized not in _HITL_TERMINAL_RESOLUTION_STATUSES
+
 
 def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
     payload = _load_run_cv_generation_debug_payload(run)
@@ -2193,7 +2197,7 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
                 "action_at_display": _format_compact_utc_timestamp((action or {}).get("created_at")),
                 "action_by": str((action or {}).get("actor") or "").strip() or None,
                 "resolution_status": resolution_status,
-                "pending": resolution_status not in _HITL_TERMINAL_RESOLUTION_STATUSES,
+                "pending": _is_hitl_resolution_pending(resolution_status),
                 "cv_markdown_preview": markdown_preview or None,
                 "cv_preview_available": bool(markdown_preview),
                 "last_regenerated_at": _format_compact_utc_timestamp(record.get("last_regenerated_at")),
@@ -4228,7 +4232,7 @@ def _build_enriched_tab_context(
     if normalized_filter not in {"all", "passed", "rejected", "unknown"}:
         normalized_filter = "all"
     normalized_query = str(query or "").strip().lower()
-    filtered_rows: list[dict[str, Any]] = []
+    filter_scoped_rows: list[dict[str, Any]] = []
     for job in enriched_jobs:
         job_url = str(job.get("job_url") or "")
         filter_result = filter_results_by_job_url.get(job_url, {})
@@ -4239,6 +4243,10 @@ def _build_enriched_tab_context(
             continue
         if normalized_filter == "unknown" and passed is not None:
             continue
+        filter_scoped_rows.append(job)
+
+    filtered_rows: list[dict[str, Any]] = []
+    for job in filter_scoped_rows:
         if normalized_query:
             haystack = " ".join(
                 str(job.get(field) or "").lower()
@@ -4248,6 +4256,7 @@ def _build_enriched_tab_context(
                 continue
         filtered_rows.append(job)
 
+    nav_pager = _paginate_rows(filter_scoped_rows, page=page, page_size=page_size)
     pager = _paginate_rows(filtered_rows, page=page, page_size=page_size)
     visible_rows = filtered_rows[pager["start"]:pager["end"]]
     return {
@@ -4261,15 +4270,15 @@ def _build_enriched_tab_context(
         "enriched_rejected_count": enriched_rejected_count,
         "enriched_total_count": len(enriched_jobs),
         "enriched_filtered_total_count": pager["total"],
-        "enriched_current_page": pager["current_page"],
-        "enriched_total_pages": pager["total_pages"],
+        "enriched_current_page": nav_pager["current_page"],
+        "enriched_total_pages": nav_pager["total_pages"],
         "enriched_page_size": page_size,
         "enriched_page_start": pager["start"] + 1 if pager["total"] else 0,
         "enriched_page_end": pager["end"],
         "enriched_filter": normalized_filter,
         "enriched_query": query,
-        "enriched_has_prev": pager["current_page"] > 1,
-        "enriched_has_next": pager["current_page"] < pager["total_pages"],
+        "enriched_has_prev": nav_pager["current_page"] > 1,
+        "enriched_has_next": nav_pager["current_page"] < nav_pager["total_pages"],
     }
 
 
@@ -4949,7 +4958,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "helper": "Canonical runtime pacing and concurrency controls grouped by stage.",
                     "submit_kind": "section",
                     "submit_slug": "timing",
-                    "save_label": "Save Runtime Throughput Settings",
+                    "save_label": "Save Timing Settings",
                     "keys": canonical_runtime_throughput_keys,
                     "group_by_stage": True,
                 },
@@ -5673,9 +5682,62 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         active_settings = load_active_settings(bq=bq, project=project, dataset=dataset)
 
+        def _normalize_trigger_overrides(raw_overrides: dict[str, Any]) -> dict[str, Any]:
+            """Accept flat or nested trigger overrides and normalize to dot-path leaves.
+
+            Supports canonical flat keys (`stage_runtime.enrich.concurrency`) and
+            nested payloads (`{"stage_runtime": {"enrich": {"concurrency": 2}}}`).
+            Raises 422-style ValueError when conflicting duplicate paths are provided.
+            """
+            normalized: dict[str, Any] = {}
+
+            def _flatten(prefix: str, value: Any) -> None:
+                if isinstance(value, dict):
+                    for child_key, child_value in value.items():
+                        child_name = str(child_key or "").strip()
+                        if not child_name:
+                            continue
+                        next_prefix = f"{prefix}.{child_name}" if prefix else child_name
+                        _flatten(next_prefix, child_value)
+                    return
+                existing = normalized.get(prefix, None)
+                if prefix in normalized and existing != value:
+                    raise ValueError(
+                        "Conflicting config_overrides for key "
+                        f"{prefix!r}: got both {existing!r} and {value!r}"
+                    )
+                normalized[prefix] = value
+
+            for raw_key, raw_value in dict(raw_overrides or {}).items():
+                key = str(raw_key or "").strip()
+                if not key:
+                    continue
+                if "." in key:
+                    if key in normalized and normalized[key] != raw_value:
+                        raise ValueError(
+                            "Conflicting config_overrides for key "
+                            f"{key!r}: got both {normalized[key]!r} and {raw_value!r}"
+                        )
+                    normalized[key] = raw_value
+                    continue
+                if isinstance(raw_value, dict):
+                    _flatten(key, raw_value)
+                    continue
+                if key in normalized and normalized[key] != raw_value:
+                    raise ValueError(
+                        "Conflicting config_overrides for key "
+                        f"{key!r}: got both {normalized[key]!r} and {raw_value!r}"
+                    )
+                normalized[key] = raw_value
+            return normalized
+
         # Coerce and validate per-run overrides using the same schema
         coerced_overrides: dict[str, Any] = {}
-        for k, v in config_overrides.items():
+        try:
+            normalized_overrides = _normalize_trigger_overrides(config_overrides)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+        for k, v in normalized_overrides.items():
             try:
                 coerced_overrides[k] = coerce_value(k, v)
             except KeyError:
@@ -5774,8 +5836,55 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         except FileNotFoundError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         active_settings = load_active_settings(bq=bq, project=project, dataset=dataset)
+        def _normalize_trigger_overrides(raw_overrides: dict[str, Any]) -> dict[str, Any]:
+            normalized: dict[str, Any] = {}
+
+            def _flatten(prefix: str, value: Any) -> None:
+                if isinstance(value, dict):
+                    for child_key, child_value in value.items():
+                        child_name = str(child_key or "").strip()
+                        if not child_name:
+                            continue
+                        next_prefix = f"{prefix}.{child_name}" if prefix else child_name
+                        _flatten(next_prefix, child_value)
+                    return
+                existing = normalized.get(prefix, None)
+                if prefix in normalized and existing != value:
+                    raise ValueError(
+                        "Conflicting config_overrides for key "
+                        f"{prefix!r}: got both {existing!r} and {value!r}"
+                    )
+                normalized[prefix] = value
+
+            for raw_key, raw_value in dict(raw_overrides or {}).items():
+                key = str(raw_key or "").strip()
+                if not key:
+                    continue
+                if "." in key:
+                    if key in normalized and normalized[key] != raw_value:
+                        raise ValueError(
+                            "Conflicting config_overrides for key "
+                            f"{key!r}: got both {normalized[key]!r} and {raw_value!r}"
+                        )
+                    normalized[key] = raw_value
+                    continue
+                if isinstance(raw_value, dict):
+                    _flatten(key, raw_value)
+                    continue
+                if key in normalized and normalized[key] != raw_value:
+                    raise ValueError(
+                        "Conflicting config_overrides for key "
+                        f"{key!r}: got both {normalized[key]!r} and {raw_value!r}"
+                    )
+                normalized[key] = raw_value
+            return normalized
+
         coerced_overrides: dict[str, Any] = {}
-        for k, v in config_overrides.items():
+        try:
+            normalized_overrides = _normalize_trigger_overrides(config_overrides)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+        for k, v in normalized_overrides.items():
             try:
                 coerced_overrides[k] = coerce_value(k, v)
             except KeyError:
@@ -6705,6 +6814,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
     @app.post("/admin/runs/{run_id}/synonym-overlay")
     async def admin_upload_run_synonym_overlay(
+        request: Request,
         run_id: str,
         overlay_upload_scope: str = Form("combined"),
         synonym_overlay_file: UploadFile = File(...),
@@ -7393,31 +7503,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
-        if payload.action == "regenerate_once":
-            append_event(
-                RunEvent(
-                    run_id=run_id,
-                    event_id=str(uuid.uuid4()),
-                    stage="cv_regenerate_once_requested",
-                    level="info",
-                    message="Regenerate-once requested from review queue",
-                    created_at=now,
-                    payload_json=_json.dumps(
-                        {
-                            "job_url": payload.job_url,
-                            "job_title": target_record.get("job_title"),
-                            "actor": payload.actor,
-                            "note": payload.note,
-                            "queue_job_id": regeneration_job_id,
-                        },
-                        ensure_ascii=False,
-                    ),
-                ),
-                bq,
-                project=project,
-                dataset=dataset,
-            )
-
         updated_run = dataclasses.replace(
             run,
             cv_generation_debug_json=_json.dumps(debug_payload, ensure_ascii=False),
@@ -7597,7 +7682,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 str(latest.get("action") or "").strip() or None,
                 str(latest.get("resolution_status") or "").strip() or None,
             )
-            if latest_resolution in _HITL_TERMINAL_RESOLUTION_STATUSES:
+            if not _is_hitl_resolution_pending(latest_resolution):
                 skipped += 1
                 continue
             finalized_version_id: str | None = None

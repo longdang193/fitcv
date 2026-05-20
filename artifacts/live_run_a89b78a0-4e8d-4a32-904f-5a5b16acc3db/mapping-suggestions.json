@@ -1,0 +1,51 @@
+{
+  "run_id": "a89b78a0-4e8d-4a32-904f-5a5b16acc3db",
+  "mapping_suggestions_schema_version": "mapping_suggestions_v1",
+  "created_at": "2026-05-20T08:04:54.476460+00:00",
+  "suggestions": [
+    {
+      "run_id": "a89b78a0-4e8d-4a32-904f-5a5b16acc3db",
+      "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "it services and it consulting",
+      "canonical": "artificial intelligence",
+      "field": "domain"
+    },
+    {
+      "run_id": "a89b78a0-4e8d-4a32-904f-5a5b16acc3db",
+      "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "data science",
+      "canonical": "data_science",
+      "field": "role_family"
+    },
+    {
+      "run_id": "a89b78a0-4e8d-4a32-904f-5a5b16acc3db",
+      "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
+      "job_title": "Junior Credit Decisions Analyst (m/f/d)",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "it services and it consulting",
+      "canonical": "fintech",
+      "field": "domain"
+    },
+    {
+      "run_id": "a89b78a0-4e8d-4a32-904f-5a5b16acc3db",
+      "job_url": "https://de.linkedin.com/jobs/view/internship-data-analytics-m-f-x-at-finn-4064488192?trk=public_jobs_topcard-title",
+      "job_title": "Internship - Data & Analytics (m/f/x)",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "motor vehicle manufacturing and technology, information and internet",
+      "canonical": "automotive mobility / car subscription",
+      "field": "domain"
+    }
+  ]
+}

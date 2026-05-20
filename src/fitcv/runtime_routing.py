@@ -20,6 +20,8 @@ from typing import Any
 
 from fitcv.config import get_cv_generation_model, resolve_model_routing_part
 
+_OPENAI_COMPATIBLE_PROVIDERS = {"openai", "openai_compatible", "9router"}
+
 
 @dataclass(frozen=True)
 class CvGenerationRouting:
@@ -77,3 +79,49 @@ def resolve_openai_compatible_api_key() -> str:
         str(os.environ.get("OPENAI_API_KEY") or "").strip()
         or str(os.environ.get("OPENAI_COMPATIBLE_API_KEY") or "").strip()
     )
+
+
+def resolve_cv_generation_runtime_provenance(
+    config: dict[str, Any],
+    *,
+    default_model: str | None = None,
+) -> dict[str, Any]:
+    """Return truthful runtime provenance aligned to resolved routing."""
+    fallback_model = str(default_model or "").strip()
+    try:
+        routing = resolve_cv_generation_routing(config)
+    except Exception:
+        return {
+            "runtime_path": "fitcv_cv_generation_builtin",
+            "provider": "fitcv_builtin",
+            "model": fallback_model or None,
+        }
+    provider = str(routing.provider or "").strip().lower() or "fitcv_builtin"
+    model = str(routing.model or "").strip() or fallback_model or None
+    runtime_path = (
+        "fitcv_cv_generation_openai_compatible"
+        if provider in _OPENAI_COMPATIBLE_PROVIDERS
+        else "fitcv_cv_generation_builtin"
+    )
+    return {
+        "runtime_path": runtime_path,
+        "provider": provider,
+        "model": model,
+    }
+
+
+def validate_cv_generation_routing_ready(config: dict[str, Any]) -> None:
+    """Raise when resolved CV-generation routing lacks required runtime inputs."""
+    routing = resolve_cv_generation_routing(config)
+    provider = str(routing.provider or "").strip().lower()
+    if provider in _OPENAI_COMPATIBLE_PROVIDERS:
+        if not str(routing.base_url or "").strip():
+            raise RuntimeError(
+                "OpenAI-compatible CV generation routing requires provider base_url in control-plane config."
+            )
+        if not str(routing.model or "").strip():
+            raise RuntimeError(
+                "cv_generation_structured_write model must be configured in control-plane model_routing.parts."
+            )
+        if not resolve_openai_compatible_api_key():
+            raise RuntimeError("OpenAI-compatible CV generation routing requires API key in env.")

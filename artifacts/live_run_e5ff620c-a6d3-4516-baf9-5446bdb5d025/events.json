@@ -1,0 +1,56 @@
+[
+  {
+    "run_id": "e5ff620c-a6d3-4516-baf9-5446bdb5d025",
+    "event_id": "7e82a00d-7dab-437e-996e-ec1c58a4915c",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=e5ff620c-a6d3-4516-baf9-5446bdb5d025]",
+    "created_at": "2026-05-20T07:34:45.034023+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"391eb86435422625e6c843143e9c1230\", \"span_id\": \"b16f5d39d95d09ac\", \"parent_span_id\": \"c235dc53d326ae3b\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "e5ff620c-a6d3-4516-baf9-5446bdb5d025",
+    "event_id": "b87ee3e9-c00b-490e-b33b-8357a6c0b365",
+    "stage": "layer1_normalize",
+    "level": "info",
+    "message": "Normalization dedupe: kept 6 of 6 jobs, removed 0 duplicate(s)",
+    "created_at": "2026-05-20T07:34:45.110226+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"4d2354f518862fc1ad8c5f4c5dc17133\", \"span_id\": \"5fb1bf2f53a1f286\", \"parent_span_id\": \"69f5424ce12c9932\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "e5ff620c-a6d3-4516-baf9-5446bdb5d025",
+    "event_id": "45b42c97-4b96-4795-b422-96706c85f906",
+    "stage": "layer1b_pre_filter",
+    "level": "info",
+    "message": "Pre-enrichment filter: 6 pass, 0 rejected",
+    "created_at": "2026-05-20T07:34:45.291321+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"f245af9e5ddd87fae21ad09db9d690a0\", \"span_id\": \"1ec0f7713da44faa\", \"parent_span_id\": \"85bf6f50cf59986d\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "e5ff620c-a6d3-4516-baf9-5446bdb5d025",
+    "event_id": "acf430cf-8072-4e33-8380-eaef3de0ec49",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich heartbeat: {'phase': 'batch_start', 'fresh_jobs_total': 6, 'reused_jobs_total': 0, 'heartbeat_interval_secs': 15}",
+    "created_at": "2026-05-20T07:34:45.334476+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"0ca39e23bed2ffeb51aa6829db7fa0dd\", \"span_id\": \"ac947604023024b1\", \"parent_span_id\": \"f904e9ccde08eb96\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "e5ff620c-a6d3-4516-baf9-5446bdb5d025",
+    "event_id": "db4e3cb7-9400-44ab-8239-6c8efe8643d6",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich heartbeat: {'phase': 'batch_progress', 'fresh_jobs_total': 6, 'reused_jobs_total': 0, 'heartbeat_count': 1, 'elapsed_secs': 15, 'heartbeat_interval_secs': 15}",
+    "created_at": "2026-05-20T07:35:00.350328+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"039bf208f62d1878db5007185a23912d\", \"span_id\": \"3b454dd32760ce1e\", \"parent_span_id\": \"0f4121bbd79cb74c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "e5ff620c-a6d3-4516-baf9-5446bdb5d025",
+    "event_id": "c19dc3de-fbbd-494a-972c-3b996f9df486",
+    "stage": "pipeline_failed",
+    "level": "error",
+    "message": "[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond",
+    "created_at": "2026-05-20T07:35:07.679753+00:00",
+    "payload_json": null
+  }
+]

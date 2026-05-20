@@ -834,6 +834,53 @@ def test_worker_persists_cv_generation_debug_coverage_accounting():
     assert payload["omission_reason_counts"] == {"skipped_fit_gate": 1}
     assert payload["snapshot_complete"] is True
 
+def test_worker_persists_review_item_id_for_review_required_debug_rows():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.run_mode = "run_all"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r1",
+        "total_jobs": 2,
+        "passed_filter": 2,
+        "ranked": 2,
+        "cvs_generated": 0,
+        "cv_generation_debug_records": [
+            {
+                "job_url": "",
+                "job_title": "Missing URL Role",
+                "rank": 1,
+                "status": "review_required",
+                "ranking_fit_label": "strong",
+                "fit_classification": "strong",
+                "decision_chain": {},
+                "evidence_used": [],
+                "gap_summary": {"missing": ["sql"]},
+                "structured_cv_initial": {"schema_version": "cv_doc_v1"},
+                "validation_initial": {"valid": True, "missing_sections": [], "grounding_violations": [], "skill_violations": [], "warnings": []},
+                "repair_attempt": {"performed": False, "missing_sections": []},
+                "structured_cv_final": {"schema_version": "cv_doc_v1"},
+                "markdown_final": "# CV",
+                "error": {"message": "Manual review required."},
+            },
+        ],
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_cv_generation_debug") as mock_store_debug:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    payload = json.loads(mock_store_debug.call_args.args[1])
+    assert payload["debug_records"][0]["status"] == "review_required"
+    assert str(payload["debug_records"][0].get("review_item_id") or "").startswith("ri_")
+
 
 def test_worker_persists_cv_generation_debug_coverage_for_reranker_blocked_rows():
     """@proves trigger_run_management.reranker-fit-authority

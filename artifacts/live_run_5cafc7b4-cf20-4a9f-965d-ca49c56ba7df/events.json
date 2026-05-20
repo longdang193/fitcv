@@ -1,0 +1,236 @@
+[
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "d6d21472-766c-486d-a2c4-c8a070bc8af8",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=5cafc7b4-cf20-4a9f-965d-ca49c56ba7df]",
+    "created_at": "2026-05-20T08:58:34.795522+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"b663992116c9c6ae91261f1c797ac037\", \"span_id\": \"f7940123d3533d9f\", \"parent_span_id\": \"8e358ee34a9bb1ab\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "d6431ac1-02d6-44d5-bfca-67c588297f62",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=5cafc7b4-cf20-4a9f-965d-ca49c56ba7df]",
+    "created_at": "2026-05-20T08:58:34.830840+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"b663992116c9c6ae91261f1c797ac037\", \"span_id\": \"f7940123d3533d9f\", \"parent_span_id\": \"8e358ee34a9bb1ab\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "f889c00e-a97d-4852-889a-7559c7a9406b",
+    "stage": "layer1_normalize",
+    "level": "info",
+    "message": "Normalization dedupe: kept 1 of 1 jobs, removed 0 duplicate(s)",
+    "created_at": "2026-05-20T08:58:34.831413+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"6800bd845d931752938b1dc45727e5bf\", \"span_id\": \"f79f6f49be007cc9\", \"parent_span_id\": \"a63ddb34a823fc3f\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "9d750f46-1f3d-42b7-99da-1a3f7966885c",
+    "stage": "layer1_normalize",
+    "level": "info",
+    "message": "Normalization dedupe: kept 1 of 1 jobs, removed 0 duplicate(s)",
+    "created_at": "2026-05-20T08:58:34.853036+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"6800bd845d931752938b1dc45727e5bf\", \"span_id\": \"f79f6f49be007cc9\", \"parent_span_id\": \"a63ddb34a823fc3f\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "d8a7b1cf-08ca-4997-abf2-218a7c9f386f",
+    "stage": "layer1b_pre_filter",
+    "level": "info",
+    "message": "Pre-enrichment filter: 1 pass, 0 rejected",
+    "created_at": "2026-05-20T08:58:34.951642+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"836891bca2e280e3181890c164f4d5bc\", \"span_id\": \"2de4e2e8712a0d65\", \"parent_span_id\": \"0d161be3d210681d\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "f5e999f8-8917-4abb-89a8-6b9f8662e0d3",
+    "stage": "layer1b_pre_filter",
+    "level": "info",
+    "message": "Pre-enrichment filter: 1 pass, 0 rejected",
+    "created_at": "2026-05-20T08:58:34.959839+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"836891bca2e280e3181890c164f4d5bc\", \"span_id\": \"2de4e2e8712a0d65\", \"parent_span_id\": \"0d161be3d210681d\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "c2fe9579-4502-4d84-99f4-f0fdad16d4fb",
+    "stage": "layer1_jobs",
+    "level": "info",
+    "message": "Ingested 1 jobs, enriched 1 (after pre-filter; fresh=0, reused=1)",
+    "created_at": "2026-05-20T08:58:34.982748+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"1f9ce5bf8e205d0061caaf7597e41484\", \"span_id\": \"5d79d34c822a4c53\", \"parent_span_id\": \"b838c89e74a1e499\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "78c7f4c9-6ef4-46ed-91a9-1a62c338a42a",
+    "stage": "layer1_jobs",
+    "level": "info",
+    "message": "Ingested 1 jobs, enriched 1 (after pre-filter; fresh=0, reused=1)",
+    "created_at": "2026-05-20T08:58:34.993780+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"1f9ce5bf8e205d0061caaf7597e41484\", \"span_id\": \"5d79d34c822a4c53\", \"parent_span_id\": \"b838c89e74a1e499\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "2057b91d-6b85-41a5-a9e6-b9ae2c0c3275",
+    "stage": "layer2_candidate",
+    "level": "info",
+    "message": "Candidate profile loaded",
+    "created_at": "2026-05-20T08:58:35.073295+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"57c5ea09ec4329271901de788bb6f541\", \"span_id\": \"be83abb29b4f7e8c\", \"parent_span_id\": \"b722c387254a2593\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "58d14cab-75ca-4b16-a88e-5a82743c576e",
+    "stage": "layer2_candidate",
+    "level": "info",
+    "message": "Candidate profile loaded",
+    "created_at": "2026-05-20T08:58:35.080412+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"57c5ea09ec4329271901de788bb6f541\", \"span_id\": \"be83abb29b4f7e8c\", \"parent_span_id\": \"b722c387254a2593\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "e6319032-f982-4eca-bc90-10a4254390db",
+    "stage": "layer3_filter",
+    "level": "info",
+    "message": "1 passed rule filter",
+    "created_at": "2026-05-20T08:58:35.086227+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"7f45cc501edee723f27e0796b1aa4958\", \"span_id\": \"ed333aca8139fd2e\", \"parent_span_id\": \"6e18058e0ca0d32d\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "388b8bfe-b8cd-4d02-bdd1-5e56844c49cb",
+    "stage": "layer3_filter",
+    "level": "info",
+    "message": "1 passed rule filter",
+    "created_at": "2026-05-20T08:58:35.087412+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"7f45cc501edee723f27e0796b1aa4958\", \"span_id\": \"ed333aca8139fd2e\", \"parent_span_id\": \"6e18058e0ca0d32d\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "57aa6fd1-2c35-482e-933e-8ba990beda57",
+    "stage": "layer3_shortlist",
+    "level": "info",
+    "message": "Vector shortlist: 1 raw hits",
+    "created_at": "2026-05-20T08:58:35.205032+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"fd475003bfd5967053e4fbdfde16ca81\", \"span_id\": \"e652de359e2a4689\", \"parent_span_id\": \"da42518dd2fdc056\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "3c895d11-5090-43e0-a6d9-0f9b4e7d748f",
+    "stage": "layer3_shortlist",
+    "level": "info",
+    "message": "Vector shortlist: 1 raw hits",
+    "created_at": "2026-05-20T08:58:35.215896+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"fd475003bfd5967053e4fbdfde16ca81\", \"span_id\": \"e652de359e2a4689\", \"parent_span_id\": \"da42518dd2fdc056\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "57530d25-f351-4c87-993d-22709e87b620",
+    "stage": "layer3_ai_score",
+    "level": "info",
+    "message": "AI scored: 1 jobs",
+    "created_at": "2026-05-20T08:58:35.305562+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"031cc96f847ecbadc8e744fe1446ac7d\", \"span_id\": \"55f9802075102eec\", \"parent_span_id\": \"7ca643d64bdb1216\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "123aa3e0-4c87-4e96-8daf-489dfce5fed2",
+    "stage": "layer3_ranking",
+    "level": "info",
+    "message": "Final ranking: top 1 jobs",
+    "created_at": "2026-05-20T08:58:35.314427+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"7f23e835723e7dc594ab69221bbb167f\", \"span_id\": \"31ae279c42e2c710\", \"parent_span_id\": \"4423eba61ef255db\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "42b50238-1c25-4a8d-8669-abc30f130e37",
+    "stage": "layer3_ai_score",
+    "level": "info",
+    "message": "AI scored: 1 jobs",
+    "created_at": "2026-05-20T08:58:35.315690+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"031cc96f847ecbadc8e744fe1446ac7d\", \"span_id\": \"55f9802075102eec\", \"parent_span_id\": \"7ca643d64bdb1216\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "c631b1ea-bda1-4f3d-b4ea-7749c162400f",
+    "stage": "layer3_ranking",
+    "level": "info",
+    "message": "Final ranking: top 1 jobs",
+    "created_at": "2026-05-20T08:58:35.324680+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"7f23e835723e7dc594ab69221bbb167f\", \"span_id\": \"31ae279c42e2c710\", \"parent_span_id\": \"4423eba61ef255db\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "0c226075-216a-4fbb-b652-7e6da89bffda",
+    "stage": "layer4_cv_analysis_invoked",
+    "level": "info",
+    "message": "CV analysis invoked for 1 ranked job(s)",
+    "created_at": "2026-05-20T08:58:35.425889+00:00",
+    "payload_json": "{\"event_name\": \"cv_analysis_invoked\", \"event_family\": \"invocation\", \"source_stage\": \"cv_analysis\", \"event_status\": \"started\", \"deterministic_outcome\": null, \"fallback_used\": false, \"provenance\": {\"late_stage_mode\": \"agentic\", \"cv_analysis_concurrency_effective\": 3}, \"input_snapshot\": {\"ranked_jobs\": 1, \"cv_analysis_concurrency_configured\": 3}, \"artifact_refs\": {\"stage_id\": \"cv_analysis\"}, \"trace_context\": {\"trace_id\": \"609fd95aa7712ec6c8452104ac395265\", \"span_id\": \"1e88df3e53f0bcbe\", \"parent_span_id\": \"1a35edd7d7eed6dd\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "ea999b07-b065-4fe5-8b8e-15ea2947a161",
+    "stage": "layer4_cv_analysis_invoked",
+    "level": "info",
+    "message": "CV analysis invoked for 1 ranked job(s)",
+    "created_at": "2026-05-20T08:58:35.433812+00:00",
+    "payload_json": "{\"event_name\": \"cv_analysis_invoked\", \"event_family\": \"invocation\", \"source_stage\": \"cv_analysis\", \"event_status\": \"started\", \"deterministic_outcome\": null, \"fallback_used\": false, \"provenance\": {\"late_stage_mode\": \"agentic\", \"cv_analysis_concurrency_effective\": 3}, \"input_snapshot\": {\"ranked_jobs\": 1, \"cv_analysis_concurrency_configured\": 3}, \"artifact_refs\": {\"stage_id\": \"cv_analysis\"}, \"trace_context\": {\"trace_id\": \"609fd95aa7712ec6c8452104ac395265\", \"span_id\": \"1e88df3e53f0bcbe\", \"parent_span_id\": \"1a35edd7d7eed6dd\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "8a5a1b41-160b-4018-a968-b6706379efe9",
+    "stage": "layer4_cv_analysis",
+    "level": "info",
+    "message": "CV analysis complete: 1 ready, 0 blocked by reranker, 0 skipped, 0 failed",
+    "created_at": "2026-05-20T08:58:35.450838+00:00",
+    "payload_json": "{\"event_name\": \"cv_analysis_decision\", \"event_family\": \"decision\", \"source_stage\": \"cv_analysis\", \"event_status\": \"completed\", \"deterministic_outcome\": null, \"fallback_used\": false, \"stage_owned_subreason\": \"stage_summary\", \"input_snapshot\": {\"ranked_jobs\": 1, \"cv_analysis_concurrency_configured\": 3}, \"output_snapshot\": {\"ready_for_generation\": 1, \"blocked_by_reranker_fit\": 0, \"skipped_fit_gate\": 0, \"analysis_failed\": 0, \"cv_analysis_concurrency_effective\": 3}, \"artifact_refs\": {\"stage_id\": \"cv_analysis\"}, \"latency_ms\": 17, \"trace_context\": {\"trace_id\": \"ffef47959bd035e4011e2737e58d3f50\", \"span_id\": \"e37f5f4bdf807416\", \"parent_span_id\": \"dae0fcb73e6504e0\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "33270486-396e-47be-aba0-60571310b1dc",
+    "stage": "layer4_cv_analysis",
+    "level": "info",
+    "message": "CV analysis complete: 1 ready, 0 blocked by reranker, 0 skipped, 0 failed",
+    "created_at": "2026-05-20T08:58:35.460620+00:00",
+    "payload_json": "{\"event_name\": \"cv_analysis_decision\", \"event_family\": \"decision\", \"source_stage\": \"cv_analysis\", \"event_status\": \"completed\", \"deterministic_outcome\": null, \"fallback_used\": false, \"stage_owned_subreason\": \"stage_summary\", \"input_snapshot\": {\"ranked_jobs\": 1, \"cv_analysis_concurrency_configured\": 3}, \"output_snapshot\": {\"ready_for_generation\": 1, \"blocked_by_reranker_fit\": 0, \"skipped_fit_gate\": 0, \"analysis_failed\": 0, \"cv_analysis_concurrency_effective\": 3}, \"artifact_refs\": {\"stage_id\": \"cv_analysis\"}, \"latency_ms\": 34, \"trace_context\": {\"trace_id\": \"ffef47959bd035e4011e2737e58d3f50\", \"span_id\": \"e37f5f4bdf807416\", \"parent_span_id\": \"dae0fcb73e6504e0\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "3cbde718-fbe0-4db9-af9a-24e1e0eb003a",
+    "stage": "layer4_cv_error",
+    "level": "error",
+    "message": "CV generation preflight failed: OpenAI-compatible CV generation routing requires API key in env.",
+    "created_at": "2026-05-20T08:58:35.560405+00:00",
+    "payload_json": "{\"event_name\": \"cv_generation_preflight_failed\", \"event_family\": \"decision\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": \"rejected\", \"fallback_used\": false, \"stage_owned_subreason\": \"generation_failed\", \"output_snapshot\": {\"error_stage\": \"configuration\"}, \"artifact_refs\": {\"stage_id\": \"cv_generation\"}, \"trace_context\": {\"trace_id\": \"3f2cac0e4f7cebcc91bafce2986b35f7\", \"span_id\": \"c440f2554ee60477\", \"parent_span_id\": \"0590be767f6cf818\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "98200d62-9f87-4d90-b9ec-6728ce7466e7",
+    "stage": "layer4_cv_error",
+    "level": "error",
+    "message": "CV generation preflight failed: OpenAI-compatible CV generation routing requires API key in env.",
+    "created_at": "2026-05-20T08:58:35.576161+00:00",
+    "payload_json": "{\"event_name\": \"cv_generation_preflight_failed\", \"event_family\": \"decision\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": \"rejected\", \"fallback_used\": false, \"stage_owned_subreason\": \"generation_failed\", \"output_snapshot\": {\"error_stage\": \"configuration\"}, \"artifact_refs\": {\"stage_id\": \"cv_generation\"}, \"trace_context\": {\"trace_id\": \"3f2cac0e4f7cebcc91bafce2986b35f7\", \"span_id\": \"c440f2554ee60477\", \"parent_span_id\": \"0590be767f6cf818\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "3cb8783f-c6ec-47ee-b682-6ff3fbe3147a",
+    "stage": "pipeline_complete",
+    "level": "info",
+    "message": "{'run_id': '5cafc7b4-cf20-4a9f-965d-ca49c56ba7df', 'total_jobs': 1, 'passed_filter': 1, 'ranked': 1, 'cvs_generated': 0, 'quality_summary': {'acceptance_review_failure': {'accepted': 0, 'review_required': 0, 'validation_failed': 0, 'generation_failed': 1, 'persistence_failed': 0, 'accepted_rate': 0.0, 'review_required_rate': 0.0, 'failure_rate': 1.0}, 'analysis_to_generation_conversion': {'ready_for_generation': 1, 'generation_attempted': 1, 'conversion_rate': 1.0}, 'retry_counts': {'total_retry_count': 0, 'attempted_jobs': 1}}}",
+    "created_at": "2026-05-20T08:58:35.585714+00:00",
+    "payload_json": "{\"event_name\": \"pipeline_complete\", \"event_family\": \"summary\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": null, \"fallback_used\": false, \"input_snapshot\": {\"total_jobs\": 1, \"passed_filter\": 1, \"ranked\": 1}, \"output_snapshot\": {\"cvs_generated\": 0, \"quality_summary\": {\"acceptance_review_failure\": {\"accepted\": 0, \"review_required\": 0, \"validation_failed\": 0, \"generation_failed\": 1, \"persistence_failed\": 0, \"accepted_rate\": 0.0, \"review_required_rate\": 0.0, \"failure_rate\": 1.0}, \"analysis_to_generation_conversion\": {\"ready_for_generation\": 1, \"generation_attempted\": 1, \"conversion_rate\": 1.0}, \"retry_counts\": {\"total_retry_count\": 0, \"attempted_jobs\": 1}}}, \"trace_context\": {\"trace_id\": \"de886b1b8da3d346b9a213ee4b1cacdb\", \"span_id\": \"34d3c6cc5053928a\", \"parent_span_id\": \"8fcf8d8cf4ce4929\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "5cafc7b4-cf20-4a9f-965d-ca49c56ba7df",
+    "event_id": "105a3b67-c7c6-4541-a67b-ffccc2716973",
+    "stage": "pipeline_complete",
+    "level": "info",
+    "message": "{'run_id': '5cafc7b4-cf20-4a9f-965d-ca49c56ba7df', 'total_jobs': 1, 'passed_filter': 1, 'ranked': 1, 'cvs_generated': 0, 'quality_summary': {'acceptance_review_failure': {'accepted': 0, 'review_required': 0, 'validation_failed': 0, 'generation_failed': 1, 'persistence_failed': 0, 'accepted_rate': 0.0, 'review_required_rate': 0.0, 'failure_rate': 1.0}, 'analysis_to_generation_conversion': {'ready_for_generation': 1, 'generation_attempted': 1, 'conversion_rate': 1.0}, 'retry_counts': {'total_retry_count': 0, 'attempted_jobs': 1}}}",
+    "created_at": "2026-05-20T08:58:35.592286+00:00",
+    "payload_json": "{\"event_name\": \"pipeline_complete\", \"event_family\": \"summary\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": null, \"fallback_used\": false, \"input_snapshot\": {\"total_jobs\": 1, \"passed_filter\": 1, \"ranked\": 1}, \"output_snapshot\": {\"cvs_generated\": 0, \"quality_summary\": {\"acceptance_review_failure\": {\"accepted\": 0, \"review_required\": 0, \"validation_failed\": 0, \"generation_failed\": 1, \"persistence_failed\": 0, \"accepted_rate\": 0.0, \"review_required_rate\": 0.0, \"failure_rate\": 1.0}, \"analysis_to_generation_conversion\": {\"ready_for_generation\": 1, \"generation_attempted\": 1, \"conversion_rate\": 1.0}, \"retry_counts\": {\"total_retry_count\": 0, \"attempted_jobs\": 1}}}, \"trace_context\": {\"trace_id\": \"de886b1b8da3d346b9a213ee4b1cacdb\", \"span_id\": \"34d3c6cc5053928a\", \"parent_span_id\": \"8fcf8d8cf4ce4929\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  }
+]

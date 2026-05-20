@@ -120,6 +120,8 @@ from fitcv.rule_filter import (
     apply_rule_filters,
     store_filter_results,
 )
+from fitcv.runtime_routing import resolve_cv_generation_runtime_provenance
+from fitcv.runtime_routing import validate_cv_generation_routing_ready
 from fitcv.tracker import create_cv_version_record, store_cv_version
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
 from fitcv.telemetry import (
@@ -2116,31 +2118,13 @@ def _default_cv_generation_runtime_provenance(
 
 
 def _non_agentic_cv_generation_runtime_provenance(
+    config: dict[str, Any],
     cv_generation_model: str | None,
 ) -> dict[str, Any]:
-    default_provenance = _default_cv_generation_runtime_provenance(cv_generation_model)
-    try:
-        routing = resolve_model_routing_part(
-            "cv_generation_structured_write",
-            model_fallback=str(cv_generation_model or "").strip(),
-        )
-    except Exception:
-        return default_provenance
-    provider = str(routing.get("provider") or "").strip().lower()
-    routed_model = str(routing.get("model") or "").strip()
-    resolved_model = routed_model or str(cv_generation_model or "").strip()
-    if not provider:
-        return default_provenance
-    runtime_path = (
-        "fitcv_cv_generation_openai_compatible"
-        if provider in {"openai", "openai_compatible", "9router"}
-        else "fitcv_cv_generation_builtin"
+    return resolve_cv_generation_runtime_provenance(
+        config,
+        default_model=str(cv_generation_model or "").strip() or None,
     )
-    return {
-        "runtime_path": runtime_path,
-        "provider": provider,
-        "model": resolved_model or None,
-    }
 
 
 def _normalize_review_required_reason_code(
@@ -4639,6 +4623,69 @@ def run_pipeline(
             record for record in cv_analysis_results
             if str(record.get("status") or "") == "ready_for_generation"
         ]
+        if generation_ready_records:
+            try:
+                validate_cv_generation_routing_ready(config)
+            except RuntimeError as exc:
+                preflight_error = str(exc)
+                for analysis_record in generation_ready_records:
+                    job = dict(analysis_record.get("job_snapshot") or {})
+                    fit = str(analysis_record.get("fit_classification") or "skip")
+                    evidence = list(analysis_record.get("evidence_payload") or [])
+                    evidence_used = _build_debug_evidence_used(evidence)
+                    evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
+                    analysis_input_summary = _build_cv_generation_analysis_input_summary(job)
+                    runtime_provenance = _non_agentic_cv_generation_runtime_provenance(
+                        config,
+                        cv_generation_model_value,
+                    )
+                    debug_record = _build_cv_generation_debug_record(
+                        job=job,
+                        status="generation_failed",
+                        fit_classification=fit,
+                        evidence_used=evidence_used,
+                        evidence_selection_summary=evidence_selection_summary,
+                        analysis_input_summary=analysis_input_summary,
+                        gap_summary=analysis_record.get("gap_summary"),
+                        structured_cv_initial=None,
+                        validation_initial=None,
+                        repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
+                        structured_cv_final=None,
+                        markdown_final=None,
+                        enabled_sections=enabled_cv_sections,
+                        cv_generation_model=cv_generation_model_value,
+                        runtime_provenance=runtime_provenance,
+                        cv_prompt_id=cv_prompt_id_value,
+                        cv_prompt_template_path=cv_prompt_template_path_value,
+                        error={
+                            "stage": "configuration",
+                            "message": preflight_error,
+                        },
+                        agentic_live_trace=None,
+                    )
+                    cv_generation_debug_records.append(debug_record)
+                    _emit_cv_generation_item_observation(
+                        run_id=run_id,
+                        analysis_record=analysis_record,
+                        debug_record=debug_record,
+                    )
+                if reporter is not None:
+                    reporter.emit(
+                        "layer4_cv_error",
+                        "error",
+                        f"CV generation preflight failed: {preflight_error}",
+                        _bounded_event_payload(
+                            event_name="cv_generation_preflight_failed",
+                            event_family="decision",
+                            source_stage="cv_generation",
+                            event_status="completed",
+                            deterministic_outcome="rejected",
+                            stage_owned_subreason="generation_failed",
+                            output_snapshot={"error_stage": "configuration"},
+                            artifact_refs={"stage_id": "cv_generation"},
+                        ),
+                    )  # type: ignore[union-attr]
+                generation_ready_records = []
         indexed_generation_ready_records = list(enumerate(generation_ready_records))
         configured_cv_generation_concurrency = get_stage_runtime_concurrency(
             config,
@@ -4677,6 +4724,7 @@ def run_pipeline(
         def _initialize_cv_generation_runtime_state(work_item: dict[str, Any]) -> dict[str, Any]:
             job = dict(work_item["job"])
             job_runtime_provenance: dict[str, Any] | None = _non_agentic_cv_generation_runtime_provenance(
+                config,
                 cv_generation_model_value
             )
             return {

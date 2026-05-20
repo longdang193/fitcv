@@ -138,6 +138,14 @@ def _run_inline_cv_regenerate_once(
             note=note,
         )
         _INLINE_JOB_STATUS[job_id] = "finished"
+    except ValueError as exc:
+        # Test harness can enqueue inline follow-up work after mocked run scope ends.
+        # Treat missing run as terminal/no-op instead of leaking thread exceptions.
+        if str(exc) == "run_not_found":
+            _INLINE_JOB_STATUS[job_id] = "missing_run"
+            return
+        _INLINE_JOB_STATUS[job_id] = "failed"
+        raise
     except Exception:
         _INLINE_JOB_STATUS[job_id] = "failed"
         raise

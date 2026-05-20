@@ -1,0 +1,213 @@
+{
+  "run_id": "ab65b128-b153-44d2-b526-dbafc99be867",
+  "synonym_proposals_schema_version": "synonym_proposals_v1",
+  "created_at": "2026-05-20T07:33:04.536776+00:00",
+  "proposal_generation_status": "generated",
+  "persistence_status": "persisted",
+  "proposals": [
+    {
+      "proposal_id": "synprop-fc4712260d07",
+      "run_id": "ab65b128-b153-44d2-b526-dbafc99be867",
+      "field": "domain",
+      "alias": "it services and it consulting",
+      "canonical": "artificial intelligence",
+      "candidate_aliases": [
+        "it services and it consulting"
+      ],
+      "candidate_canonicals": [
+        "artificial intelligence",
+        "fintech"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 2,
+        "distinct_canonical_count": 2
+      },
+      "evidence_summary": {
+        "occurrence_count": 2,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
+            "job_title": "Junior Credit Decisions Analyst (m/f/d)",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "fintech"
+        ]
+      },
+      "proposal_status": "deferred",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "ab65b128-b153-44d2-b526-dbafc99be867",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "defer",
+          "from_status": "proposed_unreviewed",
+          "to_status": "deferred",
+          "acted_by": "system",
+          "acted_at": "2026-05-20T07:33:04.676085+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-20T07:33:04.676085+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "65c09e46ed2927b3ba351a07453df7010643ba6ae34144ccde875dea5ef4ff85"
+      }
+    }
+  ],
+  "synonym_proposals_trace": {
+    "run_id": "ab65b128-b153-44d2-b526-dbafc99be867",
+    "trace_schema_version": "agentic_step_trace_run_v1",
+    "trace_family": "agentic_step_trace",
+    "step_id": "synonym_proposals",
+    "created_at": "2026-05-20T07:33:04.536776+00:00",
+    "trace_status": "completed",
+    "trace_summary": {
+      "records_total": 1,
+      "present_records": 1,
+      "proposal_count": 1,
+      "suppressed_as_already_global_count": 4,
+      "generated_for_review_count": 1,
+      "suppressed_count_by_field": {
+        "role_family": 1,
+        "domain": 2,
+        "skill": 4
+      },
+      "suppressed_reason_counts_by_field": {
+        "role_family": {
+          "insufficient_non_skill_support": 1
+        },
+        "domain": {
+          "insufficient_non_skill_support": 2
+        },
+        "skill": {
+          "already_global_exact": 4
+        }
+      },
+      "suppression_source": "run_effective_skill_synonyms",
+      "triage_recommendation_generated_total": 1,
+      "triage_recommendation_reused_total": 0,
+      "triage_recommendation_fresh_total": 1,
+      "triage_recommendation_suppressed_total": 0,
+      "triage_recommendation_reuse_reason": "reuse_enabled",
+      "triage_recommendation_fingerprint": "06d50da2002bea45cf6df2649fd03ca86aff2652292e75a6590d47d43460b422",
+      "auto_apply_recommendation_applied": 1,
+      "auto_apply_recommendation_skipped": 0,
+      "auto_apply_recommendation_failed": 0,
+      "auto_apply_recommendation_reason_counts": {},
+      "auto_promote_global_applied": 0,
+      "auto_promote_global_skipped": 0,
+      "auto_promote_global_failed": 0,
+      "auto_promote_global_skip_reason": "disabled"
+    },
+    "records": [
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-fc4712260d07",
+        "scope_type": "alias",
+        "scope_key": "it services and it consulting",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "it services and it consulting",
+          "candidate_canonicals_count": 2
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      }
+    ],
+    "degradation": {},
+    "artifact_refs": {
+      "proposal_artifact": "synonym-proposals.json",
+      "stage_artifact": "enrich.json"
+    },
+    "suppression_examples": [
+      {
+        "field": "role_family",
+        "alias": "data science",
+        "canonical": "data_science"
+      },
+      {
+        "field": "domain",
+        "alias": "motor vehicle manufacturing and technology, information and internet",
+        "canonical": "automotive mobility / car subscription"
+      },
+      {
+        "field": "skill",
+        "alias": "redshift",
+        "canonical": "amazon redshift"
+      },
+      {
+        "field": "skill",
+        "alias": "sowie jira und confluence",
+        "canonical": "confluence"
+      },
+      {
+        "field": "skill",
+        "alias": "strong sql skills",
+        "canonical": "sql"
+      },
+      {
+        "field": "skill",
+        "alias": "support pricing analysis",
+        "canonical": "pricing analysis"
+      },
+      {
+        "field": "domain",
+        "alias": "non-profit organizations and primary and secondary education",
+        "canonical": "telecommunications"
+      }
+    ]
+  }
+}
