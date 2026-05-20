@@ -141,7 +141,6 @@ def _load_latest_job_embedding_metadata(
     if not job_urls:
         return {}
 
-    url_list = ", ".join(f"'{url}'" for url in job_urls)
     sql = f"""
 SELECT
   job_url,
@@ -159,11 +158,18 @@ FROM (
       ORDER BY created_at DESC, chunk_text DESC, job_url DESC
     ) AS rn
   FROM `{table_ref}`
-  WHERE chunk_type = '{JOB_SUMMARY_CHUNK_TYPE}' AND job_url IN ({url_list})
+  WHERE chunk_type = '{JOB_SUMMARY_CHUNK_TYPE}' AND job_url IN UNNEST(@job_urls)
 )
 WHERE rn = 1
 """.strip()
-    rows = client.query(sql).result()
+    from google.cloud import bigquery  # type: ignore[import-untyped]
+
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ArrayQueryParameter("job_urls", "STRING", job_urls),
+        ]
+    )
+    rows = client.query(sql, job_config=job_config).result()
     metadata: dict[str, dict[str, str]] = {}
     for row in rows:
         job_url = _normalize_summary_scalar(getattr(row, "job_url", ""))

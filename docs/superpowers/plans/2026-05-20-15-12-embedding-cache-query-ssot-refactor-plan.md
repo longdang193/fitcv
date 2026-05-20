@@ -48,12 +48,12 @@ Implementation evidence confirms scope stays within RA-01 targets and does not a
 - no expanded scope beyond RA-01
 
 **Steps:**
-- [ ] Step 1: confirm `_load_latest_job_embedding_metadata` current SQL construction and output shape
-- [ ] Step 2: map existing tests asserting `embed_and_store_jobs` reuse/fresh behavior
-- [ ] Step 3: enumerate fields and statuses that must remain invariant after patch
+- [x] Step 1: confirm `_load_latest_job_embedding_metadata` current SQL construction and output shape
+- [x] Step 2: map existing tests asserting `embed_and_store_jobs` reuse/fresh behavior
+- [x] Step 3: enumerate fields and statuses that must remain invariant after patch
 
 **Verification:**
-- [ ] invariants checklist recorded in implementation notes and matched to spec
+- [x] invariants checklist recorded in implementation notes and matched to spec
 
 **Exit Criteria:**
 - bounded edit contract is explicit and implementation-ready
@@ -73,13 +73,13 @@ Implementation evidence confirms scope stays within RA-01 targets and does not a
 - BigQuery parameter API pattern chosen and syntax validated against repo conventions
 
 **Steps:**
-- [ ] Step 1: replace direct `job_urls` SQL interpolation with parameterized query path
-- [ ] Step 2: preserve query semantics (latest row tie logic, selected columns, normalization behavior)
-- [ ] Step 3: keep function signature and return shape unchanged for callers
+- [x] Step 1: replace direct `job_urls` SQL interpolation with parameterized query path
+- [x] Step 2: preserve query semantics (latest row tie logic, selected columns, normalization behavior)
+- [x] Step 3: keep function signature and return shape unchanged for callers
 
 **Verification:**
-- [ ] code inspection confirms no direct URL interpolation remains in lookup SQL path
-- [ ] static review confirms unchanged output dictionary schema
+- [x] code inspection confirms no direct URL interpolation remains in lookup SQL path
+- [x] static review confirms unchanged output dictionary schema
 
 **Exit Criteria:**
 - parameterized lookup implemented with no public behavior contract changes
@@ -99,12 +99,12 @@ Implementation evidence confirms scope stays within RA-01 targets and does not a
 - existing test style preserved
 
 **Steps:**
-- [ ] Step 1: add/adjust test asserting apostrophe-containing job URL path remains safe and functional
-- [ ] Step 2: assert mixed reused/fresh flow still yields expected statuses and insert count
-- [ ] Step 3: avoid brittle SQL-string snapshot assertions; validate behavior and query-parameter intent
+- [x] Step 1: add/adjust test asserting apostrophe-containing job URL path remains safe and functional
+- [x] Step 2: assert mixed reused/fresh flow still yields expected statuses and insert count
+- [x] Step 3: avoid brittle SQL-string snapshot assertions; validate behavior and query-parameter intent
 
 **Verification:**
-- [ ] targeted test run for `tests/test_embeddings.py` passes
+- [x] targeted test run for `tests/test_embeddings.py` passes
 
 **Exit Criteria:**
 - tests prove RA-01 acceptance criteria and invariants
@@ -123,9 +123,9 @@ Implementation evidence confirms scope stays within RA-01 targets and does not a
 - Tasks 1-3 complete
 
 **Steps:**
-- [ ] Step 1: run required fast validators and targeted tests
-- [ ] Step 2: confirm changed-file scope stays within RA-01 targets
-- [ ] Step 3: record rollback plan (revert only RA-01 diff) and residual follow-on items (RA-02..RA-05)
+- [ ] Step 1: run required fast validators and targeted tests (targeted tests pass; validator blocked by pre-existing unrelated spec/doc drift)
+- [x] Step 2: confirm changed-file scope stays within RA-01 targets
+- [x] Step 3: record rollback plan (revert only RA-01 diff) and residual follow-on items (RA-02..RA-05)
 
 **Verification:**
 - [ ] `python scripts/hooks/run_validator.py --fast`

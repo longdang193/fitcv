@@ -284,7 +284,9 @@ def test_embed_and_store_jobs_returns_zero_for_empty_batch(
 @patch("google.cloud.bigquery.Client")
 @patch("google.oauth2.service_account.Credentials.from_service_account_file")
 @patch("fitcv.embeddings.generate_embedding")
+@patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False)
 def test_embed_and_store_jobs_does_not_delete_existing_rows_before_insert(
+    mock_sqlite_mode_enabled: object,
     mock_generate_embedding: object,
     mock_from_service_account_file: object,
     mock_bigquery_client: object,
@@ -306,6 +308,7 @@ def test_embed_and_store_jobs_does_not_delete_existing_rows_before_insert(
 
     assert inserted == 1
     client.query.assert_called_once()
+    assert client.query.call_args.kwargs.get("job_config") is not None
     assert "DELETE" not in client.query.call_args.args[0]
     client.insert_rows_json.assert_called_once()
 
@@ -313,7 +316,9 @@ def test_embed_and_store_jobs_does_not_delete_existing_rows_before_insert(
 @patch("google.cloud.bigquery.Client")
 @patch("google.oauth2.service_account.Credentials.from_service_account_file")
 @patch("fitcv.embeddings.generate_embedding")
+@patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False)
 def test_embed_and_store_jobs_reuses_matching_latest_embeddings_and_only_inserts_misses(
+    mock_sqlite_mode_enabled: object,
     mock_generate_embedding: object,
     mock_from_service_account_file: object,
     mock_bigquery_client: object,
@@ -391,6 +396,37 @@ def test_embed_and_store_jobs_reuses_matching_latest_embeddings_and_only_inserts
     assert jobs[0]["embedding_contract_fingerprint"] == contract["fingerprint"]
     assert jobs[1]["embedding_reuse_status"] == FRESH_EMBEDDING_STATUS
     assert jobs[1]["embedding_contract_fingerprint"] == contract["fingerprint"]
+
+
+@patch("google.cloud.bigquery.Client")
+@patch("google.oauth2.service_account.Credentials.from_service_account_file")
+@patch("fitcv.embeddings.generate_embedding")
+@patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False)
+def test_embed_and_store_jobs_handles_apostrophe_url_in_metadata_lookup(
+    mock_sqlite_mode_enabled: object,
+    mock_generate_embedding: object,
+    mock_from_service_account_file: object,
+    mock_bigquery_client: object,
+) -> None:
+    from fitcv.embeddings import embed_and_store_jobs
+
+    client = mock_bigquery_client.return_value
+    client.insert_rows_json.return_value = []
+    client.query.return_value.result.return_value = []
+    mock_generate_embedding.return_value = [0.1, 0.2]
+
+    config = {
+        "gcp_project": "fitcv-test",
+        "bigquery_dataset": "fitcv",
+        "service_account_key": "/tmp/fake.json",
+    }
+    jobs = [{"job_url": "https://example.com/o'hara", "title": "DE", "required_skills": []}]
+
+    inserted = embed_and_store_jobs(jobs, config)
+
+    assert inserted == 1
+    assert client.query.call_count == 1
+    assert "UNNEST(@job_urls)" in client.query.call_args.args[0]
 
 
 # ── integration tests (require GOOGLE_APPLICATION_CREDENTIALS) ────────────────
