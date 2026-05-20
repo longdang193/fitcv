@@ -47,6 +47,9 @@ from fitcv.ranking_contract import (
 logger = logging.getLogger(__name__)
 
 # ── constants ─────────────────────────────────────────────────────────────────
+_DEFAULT_STRONG_THRESHOLD = DEFAULT_FIT_LABEL_STRONG_THRESHOLD
+_DEFAULT_STRETCH_THRESHOLD = DEFAULT_FIT_LABEL_STRETCH_THRESHOLD
+_VALID_FIT_LABELS = VALID_FIT_LABELS
 
 def _extract_openai_responses_text(body: dict[str, Any]) -> str:
     """Extract assistant text from OpenAI-compatible /responses payloads."""
@@ -552,3 +555,4 @@ def store_ai_scores(
     errors = client.insert_rows_json(table_ref, rows)
     if errors:
         raise RuntimeError(f"BigQuery insert errors for ai_score_results: {errors}")
+
