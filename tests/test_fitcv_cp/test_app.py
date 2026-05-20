@@ -222,10 +222,10 @@ def test_timeline_stage_summary_message_includes_concurrency_for_applicable_stag
         created_at=ts,
         payload_json=json.dumps({"output_snapshot": {"cv_generation_concurrency_effective": 2}}),
     )
-    assert "concurrency=2" in _timeline_stage_summary_message(enrich_event, {})
-    assert "concurrency=4" in _timeline_stage_summary_message(ranking_event, {})
-    assert "concurrency=3" in _timeline_stage_summary_message(cv_analysis_event, {})
-    assert "concurrency=2" in _timeline_stage_summary_message(cv_gen_event, {})
+    assert "concurrency 2" in _timeline_stage_summary_message(enrich_event, {})
+    assert "concurrency 4" in _timeline_stage_summary_message(ranking_event, {})
+    assert "concurrency 3" in _timeline_stage_summary_message(cv_analysis_event, {})
+    assert "concurrency 2" in _timeline_stage_summary_message(cv_gen_event, {})
 
 def test_synonym_decision_ledger_marks_reviewed_rows_as_decision_applied() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -5953,8 +5953,8 @@ def test_synonym_management_mode_includes_new_automation_flags_with_defaults() -
     )
     mode = _synonym_management_mode(run)
     assert mode["apply_to_run_enabled"] is False
-    assert mode["auto_apply_recommendation_enabled"] is False
-    assert mode["auto_promote_global_enabled"] is False
+    assert mode["auto_apply_recommendation_enabled"] is True
+    assert mode["auto_promote_global_enabled"] is True
     assert mode["auto_accept_ai_action_enabled"] is True
 
 def test_admin_run_synonym_proposals_regenerate_blocked_when_propose_disabled() -> None:

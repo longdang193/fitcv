@@ -141,7 +141,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "synonym_management.apply_to_run_enabled",
         "type": "bool",
-        "default": False,
+        "default": True,
         "label": "Synonym Apply-to-Run (Manual Capability Gate)",
         "description": "Manual capability gate. Allows run-scoped synonym review actions and apply-approved-to-run overlay writes. This setting does not auto-apply decisions.",
         "group": "agentic",
@@ -151,7 +151,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "synonym_management.promote_global_enabled",
         "type": "bool",
-        "default": False,
+        "default": True,
         "label": "Synonym Promote-Global (Manual Capability Gate)",
         "description": "Manual capability gate. Allows promotion of approved synonym proposals into the global synonym map. This setting does not auto-promote.",
         "group": "agentic",
@@ -181,7 +181,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "synonym_management.auto_apply_recommendation_enabled",
         "type": "bool",
-        "default": False,
+        "default": True,
         "label": "Auto Apply Recommendation (Automatic Execution)",
         "description": "Automation policy: automatically apply recommended synonym proposal actions after triage refresh when safety checks pass. Requires Synonym Apply-to-Run Enabled.",
         "group": "agentic",
@@ -191,7 +191,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "synonym_management.auto_promote_global_enabled",
         "type": "bool",
-        "default": False,
+        "default": True,
         "label": "Auto Promote to Global (Automatic Execution)",
         "description": "Automation policy: automatically promote approved synonym proposals to global map after validation and conflict checks pass. Requires Synonym Promote-Global Enabled.",
         "group": "agentic",
@@ -324,7 +324,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.enrich.sleep_secs",
         "type": "float",
-        "default": 1.0,
+        "default": 0.0,
         "label": "API Delay: Enrichment Stage",
         "description": "Canonical delay between enrich-stage API calls for shared throttling.",
         "group": "timing",
@@ -333,7 +333,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.enrich.batch_size",
         "type": "int",
-        "default": 10,
+        "default": 20,
         "label": "Batch Size: Enrichment Stage",
         "description": "Canonical enrich-stage batch size before each scheduling boundary.",
         "group": "timing",
@@ -342,7 +342,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.enrich.concurrency",
         "type": "int",
-        "default": 1,
+        "default": 4,
         "label": "Concurrency: Enrichment Stage",
         "description": "Canonical enrich-stage concurrent batch worker count.",
         "group": "timing",
@@ -351,7 +351,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.ranking.sleep_secs",
         "type": "float",
-        "default": 0.5,
+        "default": 0.0,
         "label": "API Delay: Ranking Stage",
         "description": "Canonical delay between ranking-stage AI scoring calls.",
         "group": "timing",
@@ -360,7 +360,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.ranking.concurrency",
         "type": "int",
-        "default": 1,
+        "default": 4,
         "label": "Concurrency: Ranking Stage",
         "description": "Canonical ranking-stage concurrent AI scoring worker count.",
         "group": "timing",
@@ -378,7 +378,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.cv_analysis.concurrency",
         "type": "int",
-        "default": 1,
+        "default": 4,
         "label": "Concurrency: CV Analysis Stage",
         "description": "Canonical cv_analysis stage concurrent worker count.",
         "group": "timing",
@@ -396,7 +396,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.cv_generation.concurrency",
         "type": "int",
-        "default": 1,
+        "default": 4,
         "label": "Concurrency: CV Generation Stage",
         "description": "Canonical cv_generation stage concurrent worker count.",
         "group": "timing",
@@ -405,7 +405,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "enrichment_sleep_secs",
         "type": "float",
-        "default": 1.0,
+        "default": 0.0,
         "label": "API Delay: Data Enrichment",
         "description": "Seconds to wait between calls to the web scraping/enrichment API to avoid rate limiting.",
         "group": "timing",
@@ -415,7 +415,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "rerank_sleep_secs",
         "type": "float",
-        "default": 0.5,
+        "default": 0.0,
         "label": "API Delay: AI Reranking",
         "description": "Seconds to wait between concurrent/sequential LLM calls during candidate scoring.",
         "group": "timing",
@@ -425,7 +425,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "enrichment_batch_size",
         "type": "int",
-        "default": 10,
+        "default": 20,
         "label": "Enrichment Batch Size",
         "description": "How many jobs each enrich worker batch handles at once before the next scheduling boundary.",
         "group": "timing",
@@ -435,7 +435,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "enrichment_concurrency",
         "type": "int",
-        "default": 1,
+        "default": 4,
         "label": "Enrichment Concurrency",
         "description": "How many enrich batches may run concurrently. Higher values can improve throughput, but the stage still uses shared rate limiting so gains are not linear.",
         "group": "timing",

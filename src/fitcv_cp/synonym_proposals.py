@@ -29,8 +29,8 @@ _SYNONYM_MANAGEMENT_DEFAULTS: dict[str, bool] = {
     "promote_global_enabled": True,
     "auto_triage_recommendation_enabled": True,
     "triage_recommendation_reuse_enabled": True,
-    "auto_apply_recommendation_enabled": False,
-    "auto_promote_global_enabled": False,
+    "auto_apply_recommendation_enabled": True,
+    "auto_promote_global_enabled": True,
     "auto_accept_ai_action_enabled": True,
 }
 

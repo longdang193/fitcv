@@ -24,7 +24,9 @@ embedding_model: text-embedding-005
 
 # ── Enrichment (Task 4) ────────────────────────────────────────────────────────
 enrichment_version: v1
-enrichment_sleep_secs: 1.0             # sleep between Gemini calls (free-tier: 1 req/s)
+enrichment_sleep_secs: 0.0             # default: no enforced delay between enrichment calls
+enrichment_batch_size: 20              # default enrichment batch size
+enrichment_concurrency: 4              # default enrichment parallel workers
 
 # ── Embeddings (Task 6) ────────────────────────────────────────────────────────
 embedding_batch_size: 100
@@ -48,4 +50,24 @@ retrieval_strategy: job_summary_v1     # stored in vector_shortlist.retrieval_st
 
 # ── AI reranking (Task 9) ──────────────────────────────────────────────────────
 rerank_top_n: 50                       # max shortlisted jobs sent to AI reranking
-rerank_sleep_secs: 0.5                 # sleep between Vertex AI scoring calls
+rerank_sleep_secs: 0.0                 # default: no enforced delay between ranking calls
+
+stage_runtime:
+  enrich:
+    sleep_secs: 0.0
+    batch_size: 20
+    concurrency: 4
+  ranking:
+    sleep_secs: 0.0
+    concurrency: 4
+  cv_analysis:
+    concurrency: 4
+  cv_generation:
+    concurrency: 4
+
+synonym_management:
+  apply_to_run_enabled: true
+  promote_global_enabled: true
+  triage_recommendation_reuse_enabled: true
+  auto_apply_recommendation_enabled: true
+  auto_promote_global_enabled: true
