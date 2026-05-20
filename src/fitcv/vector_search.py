@@ -203,7 +203,7 @@ def build_candidate_query_components(
         if len(role_family_hints) >= DEFAULT_ROLE_FAMILY_HINT_COUNT:
             break
     if len(role_family_hints) < DEFAULT_ROLE_FAMILY_HINT_COUNT:
-        inferred_target_family = infer_role_family(target_role)
+        inferred_target_family = infer_role_family(target_role, config=config)
         if inferred_target_family:
             _append_unique_text(role_family_hints, inferred_target_family, seen_role_families)
     if len(role_family_hints) < DEFAULT_ROLE_FAMILY_HINT_COUNT:
@@ -212,6 +212,7 @@ def build_candidate_query_components(
             inferred_family = infer_role_family(
                 str(experience.get("role") or ""),
                 explicit_family=explicit_family or None,
+                config=config,
             )
             if inferred_family:
                 _append_unique_text(role_family_hints, inferred_family, seen_role_families)

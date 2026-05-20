@@ -19,7 +19,7 @@ import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import yaml
 
@@ -163,9 +163,7 @@ def load_profile_yaml(path: str | Path) -> dict[str, Any]:
         raise FileNotFoundError(f"Candidate profile not found: {file_path}")
     with open(file_path, encoding="utf-8") as f:
         loaded = yaml.safe_load(f)
-    if not isinstance(loaded, dict):
-        raise ValueError(f"Candidate profile must be a YAML object, got {type(loaded).__name__}")
-    return _normalize_profile_alignment_metadata(cast(dict[str, Any], loaded))
+    return _validate_profile_payload(loaded, "YAML")
 
 
 def load_profile_json_text(payload: str) -> dict[str, Any]:
@@ -465,13 +463,22 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
         return errors  # ID checks require sections; bail early
 
     # ── 2. ID uniqueness ──────────────────────────────────────────────────────
-    all_ids: list[str] = (
-        [str(e.get("id", "")) for e in profile.get("experiences", [])]
-        + [str(p.get("id", "")) for p in profile.get("projects", [])]
-        + [str(a.get("id", "")) for a in profile.get("achievements", [])]
-        + [str(cert.get("id", "")) for cert in profile.get("certifications", [])]
-        + [str(ed.get("id", "")) for ed in profile.get("education", [])]
-    )
+    all_ids: list[str] = []
+    for item in profile.get("experiences", []):
+        if isinstance(item, dict):
+            all_ids.append(str(item.get("id", "")))
+    for item in profile.get("projects", []):
+        if isinstance(item, dict):
+            all_ids.append(str(item.get("id", "")))
+    for item in profile.get("achievements", []):
+        if isinstance(item, dict):
+            all_ids.append(str(item.get("id", "")))
+    for item in profile.get("certifications", []):
+        if isinstance(item, dict):
+            all_ids.append(str(item.get("id", "")))
+    for item in profile.get("education", []):
+        if isinstance(item, dict):
+            all_ids.append(str(item.get("id", "")))
     seen_ids: set[str] = set()
     for id_val in all_ids:
         if not id_val:
@@ -484,12 +491,18 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
     # ── 3. dangling evidence_refs ─────────────────────────────────────────────
     known_ids: set[str] = set(all_ids)
     for skill in profile.get("skills", []):
+        if not isinstance(skill, dict):
+            errors.append(f"Invalid skill entry type: {type(skill).__name__}")
+            continue
         for ref in skill.get("evidence_refs", []):
             if ref not in known_ids:
                 errors.append(
                     f"Dangling evidence_ref '{ref}' in skill '{skill.get('name', '?')}'"
                 )
     for ach in profile.get("achievements", []):
+        if not isinstance(ach, dict):
+            errors.append(f"Invalid achievement entry type: {type(ach).__name__}")
+            continue
         for ref in ach.get("evidence_refs", []):
             if ref not in known_ids:
                 errors.append(
@@ -568,8 +581,12 @@ def prepare_profile_rows(profile: dict[str, Any]) -> dict[str, list[dict[str, An
     # ── candidate_experiences (1 row per bullet) ──────────────────────────────
     experience_rows: list[dict[str, Any]] = []
     for exp in profile.get("experiences", []):
+        if not isinstance(exp, dict):
+            continue
         exp_id = str(exp.get("id", ""))
         for idx, bullet in enumerate(exp.get("bullets", [])):
+            if not isinstance(bullet, dict):
+                continue
             experience_rows.append({
                 "exp_id":           exp_id,
                 "role":             exp.get("role", ""),
@@ -585,41 +602,51 @@ def prepare_profile_rows(profile: dict[str, Any]) -> dict[str, list[dict[str, An
             })
 
     # ── candidate_projects ────────────────────────────────────────────────────
-    project_rows: list[dict[str, Any]] = [
-        {
+    project_rows: list[dict[str, Any]] = []
+    for proj in profile.get("projects", []):
+        if not isinstance(proj, dict):
+            continue
+        project_rows.append({
             "project_id":     str(proj.get("id", "")),
             "name":           proj.get("name", ""),
             "skills":         proj.get("skills", []),
             "business_value": proj.get("business_value", ""),
             "evidence":       proj.get("evidence", ""),
             "updated_at":     now,
-        }
-        for proj in profile.get("projects", [])
-    ]
+        })
 
     # ── candidate_skills ──────────────────────────────────────────────────────
-    skill_rows: list[dict[str, Any]] = [
-        {
-            "skill_name":    str(skill.get("name", "")),
-            "level":         skill.get("level", ""),
-            "years":         skill.get("years"),
-            "evidence_refs": skill.get("evidence_refs", []),
-            "updated_at":    now,
-        }
-        for skill in profile.get("skills", [])
-    ]
+    skill_rows: list[dict[str, Any]] = []
+    for skill in profile.get("skills", []):
+        if isinstance(skill, dict):
+            skill_rows.append({
+                "skill_name":    str(skill.get("name", "")),
+                "level":         skill.get("level", ""),
+                "years":         skill.get("years"),
+                "evidence_refs": skill.get("evidence_refs", []),
+                "updated_at":    now,
+            })
+        else:
+            skill_rows.append({
+                "skill_name":    str(skill or ""),
+                "level":         "",
+                "years":         None,
+                "evidence_refs": [],
+                "updated_at":    now,
+            })
 
     # ── candidate_achievements ────────────────────────────────────────────────
-    achievement_rows: list[dict[str, Any]] = [
-        {
+    achievement_rows: list[dict[str, Any]] = []
+    for ach in profile.get("achievements", []):
+        if not isinstance(ach, dict):
+            continue
+        achievement_rows.append({
             "achievement_id": str(ach.get("id", "")),
             "text":           ach.get("text", ""),
             "category":       ach.get("category", ""),
             "evidence_refs":  ach.get("evidence_refs", []),
             "updated_at":     now,
-        }
-        for ach in profile.get("achievements", [])
-    ]
+        })
 
     return {
         "profile":      profile_rows,

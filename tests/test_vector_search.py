@@ -129,6 +129,61 @@ def test_build_candidate_query_components_bound_skill_count() -> None:
 
     assert components["flattened_skills"] == ["SQL", "Python", "BigQuery"]
 
+def test_build_candidate_query_components_uses_config_for_inferred_role_family() -> None:
+    profile = {
+        "headline": "ML Engineer",
+        "skills": [],
+        "preferences": {"target_role": "Machine Learning Engineer"},
+        "experiences": [],
+        "projects": [],
+    }
+    config = {
+        "role_taxonomy": {
+            "canonical_role_by_alias": {
+                "machine learning engineer": "machine learning engineer",
+            },
+            "role_family_by_role": {
+                "machine learning engineer": "ml_platform",
+            },
+        }
+    }
+
+    components = build_candidate_query_components(profile, config)
+
+    assert components["role_family_hints"] == ["ml_platform"]
+
+def test_build_candidate_query_components_uses_configless_fallback_for_inferred_role_family() -> None:
+    profile = {
+        "headline": "ML Engineer",
+        "skills": [],
+        "preferences": {"target_role": "Machine Learning Engineer"},
+        "experiences": [],
+        "projects": [],
+    }
+
+    components = build_candidate_query_components(profile, {})
+
+    assert components["role_family_hints"] == ["ml_engineering"]
+
+def test_build_candidate_query_components_role_family_hint_order_is_stable() -> None:
+    profile = {
+        "headline": "Data Leader",
+        "skills": [],
+        "preferences": {
+            "target_role": "Data Analyst",
+            "role_families": ["analytics", "data_engineering"],
+        },
+        "experiences": [
+            {"role": "Machine Learning Engineer"},
+            {"role": "Data Scientist"},
+        ],
+        "projects": [],
+    }
+
+    components = build_candidate_query_components(profile, {})
+
+    assert components["role_family_hints"] == ["analytics", "data_engineering", "ml_engineering"]
+
 
 def test_build_candidate_query_text_includes_preferred_domains() -> None:
     profile = {

@@ -255,9 +255,10 @@ def _normalize_text_list(values: Any) -> list[str]:
         text = _normalize_optional_text(value)
         if not text:
             continue
-        if text in seen_values:
+        lowered = text.lower()
+        if lowered in seen_values:
             continue
-        seen_values.add(text)
+        seen_values.add(lowered)
         normalized.append(text)
     return normalized
 

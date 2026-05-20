@@ -13,6 +13,8 @@ from fitcv.candidate import (
     prepare_profile_rows,
     validate_profile,
 )
+import fitcv.candidate as candidate_module
+import fitcv.evidence as evidence_module
 
 
 _VALID_PROFILE_DICT: dict = {
@@ -40,6 +42,12 @@ def test_load_profile_yaml_has_required_sections(sample_profile_path: Path) -> N
 def test_load_profile_yaml_raises_for_missing_file() -> None:
     with pytest.raises(FileNotFoundError):
         load_profile_yaml(Path("/nonexistent/profile.yaml"))
+
+def test_load_profile_yaml_validates_required_sections(tmp_path: Path) -> None:
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text("skills: []\nprojects: []\nachievements: []\npreferences: {}\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="validation failed"):
+        load_profile_yaml(profile_path)
 
 
 # ── validate_profile ────────────────────────────────────────────────────────────
@@ -116,6 +124,28 @@ def test_validate_profile_accepts_education_evidence_ref() -> None:
     }
     errors = validate_profile(profile)
     assert errors == [], f"Unexpected errors: {errors}"
+
+def test_validate_profile_rejects_invalid_skill_entry_type() -> None:
+    profile = {
+        "experiences": [{"id": "exp_1", "bullets": []}],
+        "projects": [],
+        "achievements": [],
+        "skills": ["SQL"],
+        "preferences": {},
+    }
+    errors = validate_profile(profile)
+    assert any("Invalid skill entry type" in e for e in errors)
+
+def test_validate_profile_rejects_invalid_achievement_entry_type() -> None:
+    profile = {
+        "experiences": [{"id": "exp_1", "bullets": []}],
+        "projects": [],
+        "achievements": ["Won prize"],
+        "skills": [],
+        "preferences": {},
+    }
+    errors = validate_profile(profile)
+    assert any("Invalid achievement entry type" in e for e in errors)
 
 
 # ── flatten_skills ────────────────────────────────────────────────────────────
@@ -257,6 +287,33 @@ def test_prepare_profile_rows_skills_has_skill_name(sample_profile_path: Path) -
     profile = load_profile_yaml(sample_profile_path)
     rows = prepare_profile_rows(profile)
     assert all("skill_name" in row for row in rows["skills"])
+
+def test_prepare_profile_rows_supports_string_skills() -> None:
+    profile = {
+        "name": "Candidate",
+        "headline": "",
+        "summary": "",
+        "preferences": {},
+        "experiences": [],
+        "projects": [],
+        "skills": ["SQL"],
+        "achievements": [],
+    }
+    rows = prepare_profile_rows(profile)
+    assert rows["skills"] == [{
+        "skill_name": "SQL",
+        "level": "",
+        "years": None,
+        "evidence_refs": [],
+        "updated_at": rows["skills"][0]["updated_at"],
+    }]
+
+def test_normalize_text_list_case_insensitive_parity_candidate_vs_evidence() -> None:
+    values = [" Banking ", "banking", "BANKING", "", "  "]
+    candidate_values = candidate_module._normalize_text_list(values)
+    evidence_values = evidence_module._normalize_text_list(values)
+    assert candidate_values == ["banking"]
+    assert [v.lower() for v in evidence_values] == candidate_values
 
 
 def test_prepare_profile_rows_achievements_has_text(sample_profile_path: Path) -> None:
