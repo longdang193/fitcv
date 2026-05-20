@@ -280,6 +280,7 @@
               {% else %}
               <form method="post" action="/admin/runs/{{ run.run_id }}/bookmarks/save" style="display:inline">
                 <input type="hidden" name="job_id" value="{{ cv.job_id or '' }}">
+                <input type="hidden" name="version_id" value="{{ cv.version_id or '' }}">
                 <input type="hidden" name="title" value="{{ cv.job_title or job_title_by_url.get(cv.job_url) or 'View Job' }}">
                 <input type="hidden" name="url" value="{{ cv.job_url }}">
                 <input type="hidden" name="fit_classification" value="{{ cv.fit_classification }}">

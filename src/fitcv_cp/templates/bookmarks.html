@@ -15,11 +15,12 @@
         <a class="truncate-link job-title-link" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.title }} ↗</a>
         <div class="meta">
           {% if item.company %}{{ item.company }}{% endif %}{% if item.company and item.location %} · {% endif %}{% if item.location %}{{ item.location }}{% endif %}
-          {% if item.fit_classification %} · <strong>{{ item.fit_classification }}</strong>{% endif %}
+          {% if item.fit_classification_display %}{% if item.company or item.location %} · {% endif %}<span class="badge {{ item.fit_classification_badge_class }}">{{ item.fit_classification_display }}</span>{% endif %}
         </div>
-        <div class="meta">Saved: {{ item.saved_at }}{% if item.source_run_id %} · Run <code>{{ item.source_run_id }}</code>{% endif %}</div>
+        <div class="meta">Saved: {{ item.saved_at_display }}{% if item.source_run_id %} · Run <code>{{ item.source_run_id }}</code>{% endif %}</div>
       </div>
       <div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap">
+        {% if item.version_id %}<a href="/admin/cvs/{{ item.version_id }}/download" class="btn-secondary">⬇ Download Markdown</a>{% endif %}
         {% if item.source_run_id %}<a href="/admin/runs/{{ item.source_run_id }}" class="btn-secondary">Open Run</a>{% endif %}
         <form method="post" action="/admin/bookmarks/delete" style="display:inline">
           <input type="hidden" name="bookmark_key" value="{{ item.bookmark_key }}">

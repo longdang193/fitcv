@@ -10795,6 +10795,7 @@ def test_run_detail_generated_outputs_render_bookmark_action():
         resp = TestClient(_app()).get("/admin/runs/run-bookmark-row")
     assert resp.status_code == 200
     assert 'action="/admin/runs/run-bookmark-row/bookmarks/save"' in resp.text
+    assert 'name="version_id" value="cv-bookmark-1"' in resp.text
     assert "☆" in resp.text
 
 
@@ -10826,6 +10827,7 @@ def test_run_bookmark_save_redirects_to_run_detail():
     assert resp.status_code == 303
     assert resp.headers["location"] == "/admin/runs/run-bookmark-save"
     upsert_mock.assert_called_once()
+    assert upsert_mock.call_args.kwargs["snapshot"] == {"version_id": None}
 
 
 def test_admin_bookmarks_page_and_delete_flow():
@@ -10841,7 +10843,7 @@ def test_admin_bookmarks_page_and_delete_flow():
             "source_run_id": "run-1",
             "source": "pipeline_results",
             "saved_at": "2026-05-20T16:00:00+00:00",
-            "snapshot": {},
+            "snapshot": {"version_id": "cv-1"},
         }
     ]
     with patch("fitcv_cp.app.list_bookmarked_jobs", return_value=bookmarks):
@@ -10849,6 +10851,9 @@ def test_admin_bookmarks_page_and_delete_flow():
     assert page_resp.status_code == 200
     assert "Bookmarked Jobs" in page_resp.text
     assert "Role 1" in page_resp.text
+    assert "20.05.2026 18:00 CEST" in page_resp.text
+    assert 'class="badge badge-info">stretch<' in page_resp.text
+    assert 'href="/admin/cvs/cv-1/download"' in page_resp.text
     assert 'action="/admin/bookmarks/delete"' in page_resp.text
 
     with patch("fitcv_cp.app.delete_bookmarked_job", return_value=True) as delete_mock:

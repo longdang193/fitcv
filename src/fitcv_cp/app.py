@@ -27,6 +27,7 @@ import zipfile
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 from urllib.parse import urlencode, urlparse
+from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
@@ -129,6 +130,7 @@ ORCHESTRATION_ADAPTER = get_orchestration_adapter()
 _RUN_SUBMISSION_CACHE: dict[str, RunSubmission] = {}
 _CP_STORE: ControlPlaneStore | None = None
 logger = logging.getLogger(__name__)
+GERMANY_TZ = ZoneInfo("Europe/Berlin")
 
 
 class OutputAvailability(TypedDict):
@@ -2142,10 +2144,18 @@ def _format_compact_utc_timestamp(value: Any) -> str | None:
         parsed = datetime.datetime.fromisoformat(normalized)
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=datetime.timezone.utc)
-        utc_value = parsed.astimezone(datetime.timezone.utc)
-        return utc_value.strftime("%Y-%m-%d %H:%M UTC")
+        germany_value = parsed.astimezone(GERMANY_TZ)
+        return germany_value.strftime("%d.%m.%Y %H:%M %Z")
     except ValueError:
         return raw
+
+def _fit_classification_badge_class(value: str | None) -> str:
+    normalized = str(value or "").strip().lower()
+    if normalized in {"stretch", "strong"}:
+        return "badge-info"
+    if normalized in {"target", "good"}:
+        return "badge-success"
+    return "badge-neutral"
 
 _HITL_TERMINAL_RESOLUTION_STATUSES = {
     "approved_as_is",
@@ -7747,6 +7757,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         url = str(form.get("url") or "").strip()
         if not title or not url:
             raise HTTPException(status_code=422, detail="Bookmark requires title and url")
+        version_id = str(form.get("version_id") or "").strip() or None
         upsert_bookmarked_job(
             job_id=job_id,
             title=title,
@@ -7756,6 +7767,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             fit_classification=str(form.get("fit_classification") or "").strip() or None,
             source_run_id=run_id,
             source=str(form.get("source") or "").strip() or "pipeline_results",
+            snapshot={"version_id": version_id},
         )
         redirect_to = _safe_admin_redirect_target(
             str(form.get("redirect_to") or ""),
@@ -7785,11 +7797,22 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     @app.get("/admin/bookmarks", response_class=HTMLResponse)
     def admin_bookmarks(request: Request) -> HTMLResponse:
         bookmarks = list_bookmarked_jobs()
+        bookmarks_view: list[dict[str, Any]] = []
+        for item in bookmarks:
+            row = dict(item)
+            fit_classification = str(row.get("fit_classification") or "").strip()
+            snapshot = dict(row.get("snapshot") or {})
+            version_id = str(snapshot.get("version_id") or "").strip() or None
+            row["saved_at_display"] = _format_compact_utc_timestamp(row.get("saved_at")) or "—"
+            row["fit_classification_display"] = fit_classification.lower() if fit_classification else None
+            row["fit_classification_badge_class"] = _fit_classification_badge_class(fit_classification)
+            row["version_id"] = version_id
+            bookmarks_view.append(row)
         return templates.TemplateResponse(
             request=request,
             name="bookmarks.html",
             context={
-                "bookmarks": bookmarks,
+                "bookmarks": bookmarks_view,
             },
         )
 
