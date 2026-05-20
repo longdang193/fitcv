@@ -910,6 +910,13 @@ async function lifecycleAction(runId, action, btn) {
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  {% if output_availability.state == 'available' %}
+  const pipelineResultsCard = document.getElementById('generated-outputs');
+  const runOverviewCard = document.getElementById('run-overview-core');
+  if (pipelineResultsCard && runOverviewCard && pipelineResultsCard !== runOverviewCard.previousElementSibling) {
+    runOverviewCard.parentNode.insertBefore(pipelineResultsCard, runOverviewCard);
+  }
+  {% endif %}
   window.setTimeout(() => ensureTabLoaded('enriched'), 50);
   const promoteSelectAllBtn = document.getElementById('promote-select-all-btn');
   const promoteClearAllBtn = document.getElementById('promote-clear-all-btn');
