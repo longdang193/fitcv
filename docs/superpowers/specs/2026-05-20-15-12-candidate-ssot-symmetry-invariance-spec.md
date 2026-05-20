@@ -5,7 +5,6 @@ status: proposed
 template_id: detailed-specification
 name: candidate-module-ssot-symmetry-invariance-refactor
 parent_thread: workstream-fitcv-semantic-spine.semantic-spine-phase-2-source-of-truth-boundary
-parent_workstream: workstream-fitcv-semantic-spine
 targets:
   - src/fitcv/candidate.py
   - tests/test_candidate.py
@@ -246,4 +245,5 @@ Invariant IDs:
 - none
 Spec needed: yes
 Plan needed: yes
+
 
