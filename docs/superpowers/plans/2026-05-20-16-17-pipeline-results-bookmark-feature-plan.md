@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: pipeline-results-bookmark-stars-and-cross-run-bookmarks-implementation
 parent_thread: workstream-operator-control-plane.operator-control-plane-run-detail-truth
@@ -55,12 +55,12 @@ Automated tests cover row rendering/toggle endpoints, persistence semantics, and
 - stable bookmark identity rule selected (`job_id` preferred + deterministic fallback)
 
 **Steps:**
-- [ ] Step 1: add bookmark record schema/API (`upsert`, `delete`, `list`, `exists`) with idempotent semantics
-- [ ] Step 2: persist required snapshot fields (`title`, `company`, `location`, `url`, `run_id/source`, `saved_at`)
-- [ ] Step 3: add/update sqlite-backed tests for duplicate save, remove, and restart persistence behavior
+- [x] Step 1: add bookmark record schema/API (`upsert`, `delete`, `list`, `exists`) with idempotent semantics
+- [x] Step 2: persist required snapshot fields (`title`, `company`, `location`, `url`, `run_id/source`, `saved_at`)
+- [x] Step 3: add/update sqlite-backed tests for duplicate save, remove, and restart persistence behavior
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_settings_store_sqlite.py -k bookmark`
+- [x] `pytest tests/test_fitcv_cp/test_settings_store_sqlite.py -k bookmark`
 
 **Exit Criteria:**
 - persistence API is deterministic, idempotent, and fully test-covered for core CRUD behavior
@@ -82,12 +82,12 @@ Automated tests cover row rendering/toggle endpoints, persistence semantics, and
 - run-detail generated-output rows provide sufficient identity/context fields for toggle actions
 
 **Steps:**
-- [ ] Step 1: add route handlers/endpoints for bookmark save/remove from run-detail rows
-- [ ] Step 2: render star control inside Pipeline Results row action cluster with saved/unsaved visual state
-- [ ] Step 3: keep legacy actions intact and add test assertions for star presence + unchanged download/link behavior
+- [x] Step 1: add route handlers/endpoints for bookmark save/remove from run-detail rows
+- [x] Step 2: render star control inside Pipeline Results row action cluster with saved/unsaved visual state
+- [x] Step 3: keep legacy actions intact and add test assertions for star presence + unchanged download/link behavior
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py`
+- [x] `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py`
 
 **Exit Criteria:**
 - each generated-output row supports bookmark toggle with no regression to existing actions
@@ -109,12 +109,12 @@ Automated tests cover row rendering/toggle endpoints, persistence semantics, and
 - bookmarks list API available from persistence layer
 
 **Steps:**
-- [ ] Step 1: add bookmarks-page route backed by persistent bookmark list query (default sort `saved_at desc`)
-- [ ] Step 2: implement page rendering for list rows, remove action, source link, and empty state
-- [ ] Step 3: add navigation affordance to reach bookmarks page from existing admin/run surfaces
+- [x] Step 1: add bookmarks-page route backed by persistent bookmark list query (default sort `saved_at desc`)
+- [x] Step 2: implement page rendering for list rows, remove action, source link, and empty state
+- [x] Step 3: add navigation affordance to reach bookmarks page from existing admin/run surfaces
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k bookmark`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k bookmark`
 
 **Exit Criteria:**
 - dedicated bookmarks page available, stable, and powered only by persisted bookmark records
@@ -135,14 +135,14 @@ Automated tests cover row rendering/toggle endpoints, persistence semantics, and
 - Tasks 1-3 complete
 
 **Steps:**
-- [ ] Step 1: run targeted bookmark/store/run-detail/page test subset
-- [ ] Step 2: run broader FitCV control-plane regression subset touching run detail and settings store
-- [ ] Step 3: capture final validation results and residual risk notes for execution handoff/closeout
+- [x] Step 1: run targeted bookmark/store/run-detail/page test subset
+- [x] Step 2: run broader FitCV control-plane regression subset touching run detail and settings store
+- [x] Step 3: capture final validation results and residual risk notes for execution handoff/closeout
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_settings_store_sqlite.py -k bookmark`
-- [ ] `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py`
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "bookmark or pipeline results"`
+- [x] `pytest tests/test_fitcv_cp/test_settings_store_sqlite.py -k bookmark`
+- [x] `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "bookmark or pipeline results"`
 
 **Exit Criteria:**
 - all required tests pass and evidence is recorded for implementation completion gate

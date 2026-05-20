@@ -10743,6 +10743,125 @@ def test_run_detail_cv_versions_fallback_when_no_title():
     assert "View Job" in resp.text
 
 
+def test_run_detail_generated_outputs_render_bookmark_action():
+    import datetime as _dt
+    import json as _json
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    cv = {
+        "version_id": "cv-bookmark-1",
+        "job_url": "https://jobs.example.com/bookmark-1",
+        "fit_classification": "strong",
+        "generated_at": _dt.datetime.now(_dt.timezone.utc),
+    }
+    enriched = [{
+        "job_url": "https://jobs.example.com/bookmark-1",
+        "title": "Bookmarked Role",
+        "domain": "data",
+        "job_family": "engineering",
+        "required_skills": [],
+        "location_type": "remote",
+        "seniority": "senior",
+    }]
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://jobs.example.com/bookmark-1",
+                "job_title": "Bookmarked Role",
+                "pipeline_status": "ranked_with_cv",
+            }
+        ]
+    })
+    run_with_cv = PipelineRun(
+        run_id="run-bookmark-row",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
+        cvs_generated=1,
+        results_export_json=export_payload,
+    )
+    patches = _run_detail_patches(
+        cv_versions=[cv],
+        enriched_jobs=enriched,
+        filter_results=[{"job_url": "https://jobs.example.com/bookmark-1", "passed": True, "reasons": []}],
+        results_export_json=export_payload,
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), \
+         patch("fitcv_cp.app.is_job_bookmarked", return_value=False), \
+         patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-bookmark-row")
+    assert resp.status_code == 200
+    assert 'action="/admin/runs/run-bookmark-row/bookmarks/save"' in resp.text
+    assert "☆" in resp.text
+
+
+def test_run_bookmark_save_redirects_to_run_detail():
+    import datetime as _dt
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-bookmark-save",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.upsert_bookmarked_job", return_value="url:https://jobs.example.com/1") as upsert_mock:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-bookmark-save/bookmarks/save",
+            data={
+                "title": "Role 1",
+                "url": "https://jobs.example.com/1",
+                "fit_classification": "STRETCH",
+                "source": "pipeline_results",
+            },
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/admin/runs/run-bookmark-save"
+    upsert_mock.assert_called_once()
+
+
+def test_admin_bookmarks_page_and_delete_flow():
+    bookmarks = [
+        {
+            "bookmark_key": "url:https://jobs.example.com/1",
+            "job_id": None,
+            "title": "Role 1",
+            "company": "Acme",
+            "location": "Remote",
+            "url": "https://jobs.example.com/1",
+            "fit_classification": "STRETCH",
+            "source_run_id": "run-1",
+            "source": "pipeline_results",
+            "saved_at": "2026-05-20T16:00:00+00:00",
+            "snapshot": {},
+        }
+    ]
+    with patch("fitcv_cp.app.list_bookmarked_jobs", return_value=bookmarks):
+        page_resp = TestClient(_app()).get("/admin/bookmarks")
+    assert page_resp.status_code == 200
+    assert "Bookmarked Jobs" in page_resp.text
+    assert "Role 1" in page_resp.text
+    assert 'action="/admin/bookmarks/delete"' in page_resp.text
+
+    with patch("fitcv_cp.app.delete_bookmarked_job", return_value=True) as delete_mock:
+        delete_resp = TestClient(_app()).post(
+            "/admin/bookmarks/delete",
+            data={"bookmark_key": "url:https://jobs.example.com/1"},
+            follow_redirects=False,
+        )
+    assert delete_resp.status_code == 303
+    assert delete_resp.headers["location"] == "/admin/bookmarks"
+    delete_mock.assert_called_once_with("url:https://jobs.example.com/1")
+
+
 def test_run_detail_zero_cvs_and_zero_ranked_shows_ranking_threshold_message():
     """@proves inspection_debugging.ranking-diagnostics"""
     import datetime as _dt

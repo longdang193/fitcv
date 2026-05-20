@@ -105,7 +105,16 @@ from fitcv_cp.settings_schema import (
     settings_schema_with_runtime_defaults,
     validate_settings,
 )
-from fitcv_cp.settings_store import load_active_settings, save_setting, save_settings_group
+from fitcv_cp.settings_store import (
+    bookmark_key_for_job,
+    delete_bookmarked_job,
+    is_job_bookmarked,
+    list_bookmarked_jobs,
+    load_active_settings,
+    save_setting,
+    save_settings_group,
+    upsert_bookmarked_job,
+)
 from fitcv_cp.synonym_proposals import (
     apply_synonym_management_defaults,
     build_synonym_proposals_payload,
@@ -4233,6 +4242,23 @@ def _job_title_by_url_from_results_rows(rows: list[dict[str, Any]]) -> dict[str,
     }
 
 
+def _bookmark_destination_for_request(request: Request, run_id: str) -> str:
+    referer = str(request.headers.get("referer") or "").strip()
+    if referer.startswith("http://") or referer.startswith("https://"):
+        parsed = urlparse(referer)
+        if parsed.path.startswith("/admin/runs/") or parsed.path.startswith("/admin/bookmarks"):
+            suffix = f"?{parsed.query}" if parsed.query else ""
+            return f"{parsed.path}{suffix}"
+    return f"/admin/runs/{run_id}"
+
+
+def _safe_admin_redirect_target(candidate: str | None, *, fallback: str) -> str:
+    path = str(candidate or "").strip()
+    if path.startswith("/admin/"):
+        return path
+    return fallback
+
+
 def _coerce_positive_int(value: Any, *, default: int, minimum: int = 1, maximum: int = 200) -> int:
     try:
         parsed = int(value)
@@ -7601,8 +7627,29 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 }
             )
         cv_versions = list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
-        output_availability = _build_output_availability(run, cv_versions)
         results_rows = _results_export_rows(run)
+        job_title_by_url = _job_title_by_url_from_results_rows(results_rows)
+        cv_versions_with_bookmarks: list[dict[str, Any]] = []
+        for cv in cv_versions:
+            if not isinstance(cv, dict):
+                continue
+            row = dict(cv)
+            job_url = str(row.get("job_url") or "").strip()
+            job_title = str(job_title_by_url.get(job_url) or "View Job")
+            bookmark_key = bookmark_key_for_job(
+                job_id=str(row.get("job_id") or "").strip() or None,
+                url=job_url or None,
+                title=job_title,
+            )
+            row["bookmark_key"] = bookmark_key
+            row["job_title"] = job_title
+            row["bookmarked"] = is_job_bookmarked(
+                job_id=str(row.get("job_id") or "").strip() or None,
+                url=job_url or None,
+                title=job_title,
+            )
+            cv_versions_with_bookmarks.append(row)
+        output_availability = _build_output_availability(run, cv_versions)
         ranked_cv_outcome_summary = _build_ranked_cv_outcome_summary(results_rows)
         cv_generation_failure_reason_summary = _build_cv_generation_failure_reason_summary(run)
         reranker_blocked_ranked_count = sum(
@@ -7610,7 +7657,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             for row in results_rows
             if str(row.get("pipeline_status") or "").strip() == "ranked_blocked_by_reranker_fit"
         )
-        job_title_by_url = _job_title_by_url_from_results_rows(results_rows)
         run_export_links = _build_run_export_links(run)
         agentic_runtime_drift = _run_agentic_runtime_drift_summary(run)
         hitl_review_queue = _build_hitl_review_queue(run)
@@ -7645,7 +7691,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "events": timeline_events,
                 "timeline_has_more": len(events) > timeline_limit,
                 "timeline_next_limit": min(timeline_limit + 25, 200),
-                "cv_versions": cv_versions,
+                "cv_versions": cv_versions_with_bookmarks,
                 "output_availability": output_availability,
                 "stage_quality_metrics": stage_quality_metrics,
                 "stage_quality_metric_rows": stage_quality_metric_rows,
@@ -7689,6 +7735,76 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "stage_result_summary_rows": stage_result_summary_rows,
             }
         )
+
+    @app.post("/admin/runs/{run_id}/bookmarks/save")
+    async def admin_run_bookmark_save(request: Request, run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        form = await request.form()
+        job_id = str(form.get("job_id") or "").strip() or None
+        title = str(form.get("title") or "").strip()
+        url = str(form.get("url") or "").strip()
+        if not title or not url:
+            raise HTTPException(status_code=422, detail="Bookmark requires title and url")
+        upsert_bookmarked_job(
+            job_id=job_id,
+            title=title,
+            company=str(form.get("company") or "").strip() or None,
+            location=str(form.get("location") or "").strip() or None,
+            url=url,
+            fit_classification=str(form.get("fit_classification") or "").strip() or None,
+            source_run_id=run_id,
+            source=str(form.get("source") or "").strip() or "pipeline_results",
+        )
+        redirect_to = _safe_admin_redirect_target(
+            str(form.get("redirect_to") or ""),
+            fallback=_bookmark_destination_for_request(request, run_id),
+        )
+        return RedirectResponse(url=redirect_to, status_code=303)
+
+    @app.post("/admin/runs/{run_id}/bookmarks/delete")
+    async def admin_run_bookmark_delete(request: Request, run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        form = await request.form()
+        bookmark_key = str(form.get("bookmark_key") or "").strip()
+        if not bookmark_key:
+            job_id = str(form.get("job_id") or "").strip() or None
+            title = str(form.get("title") or "").strip() or None
+            url = str(form.get("url") or "").strip() or None
+            bookmark_key = bookmark_key_for_job(job_id=job_id, url=url, title=title)
+        delete_bookmarked_job(bookmark_key)
+        redirect_to = _safe_admin_redirect_target(
+            str(form.get("redirect_to") or ""),
+            fallback=_bookmark_destination_for_request(request, run_id),
+        )
+        return RedirectResponse(url=redirect_to, status_code=303)
+
+    @app.get("/admin/bookmarks", response_class=HTMLResponse)
+    def admin_bookmarks(request: Request) -> HTMLResponse:
+        bookmarks = list_bookmarked_jobs()
+        return templates.TemplateResponse(
+            request=request,
+            name="bookmarks.html",
+            context={
+                "bookmarks": bookmarks,
+            },
+        )
+
+    @app.post("/admin/bookmarks/delete")
+    async def admin_bookmarks_delete(request: Request) -> Response:
+        form = await request.form()
+        bookmark_key = str(form.get("bookmark_key") or "").strip()
+        if not bookmark_key:
+            raise HTTPException(status_code=422, detail="bookmark_key is required")
+        delete_bookmarked_job(bookmark_key)
+        redirect_to = _safe_admin_redirect_target(
+            str(form.get("redirect_to") or ""),
+            fallback="/admin/bookmarks",
+        )
+        return RedirectResponse(url=redirect_to, status_code=303)
 
     @app.get("/admin/runs/{run_id}/review-queue", response_class=HTMLResponse)
     def admin_run_review_queue(request: Request, run_id: str) -> HTMLResponse:

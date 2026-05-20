@@ -114,3 +114,82 @@ def test_local_settings_save_recovers_after_first_disk_io_error(tmp_path, monkey
 
     active = ss.load_active_settings(bq=None, project="local", dataset="local")
     assert active["pipeline.final_top_n"] == 15
+
+
+def test_bookmark_upsert_delete_and_exists(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+
+    key = ss.upsert_bookmarked_job(
+        job_id="job-1",
+        title="Data Engineer",
+        company="Acme",
+        location="Remote",
+        url="https://example.com/jobs/1",
+        fit_classification="STRETCH",
+        source_run_id="run-1",
+        source="pipeline_results",
+    )
+
+    assert key == "job_id:job-1"
+    assert ss.is_job_bookmarked(
+        job_id="job-1",
+        title="Data Engineer",
+        url="https://example.com/jobs/1",
+    )
+
+    removed = ss.delete_bookmarked_job(key)
+    assert removed is True
+    assert not ss.is_job_bookmarked(
+        job_id="job-1",
+        title="Data Engineer",
+        url="https://example.com/jobs/1",
+    )
+
+
+def test_bookmark_upsert_is_idempotent_for_same_identity(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+
+    ss.upsert_bookmarked_job(
+        job_id="job-2",
+        title="Analyst",
+        company="A",
+        location="Berlin",
+        url="https://example.com/jobs/2",
+        fit_classification="STRETCH",
+        source_run_id="run-1",
+        source="pipeline_results",
+    )
+    ss.upsert_bookmarked_job(
+        job_id="job-2",
+        title="Analyst Updated",
+        company="A2",
+        location="Berlin",
+        url="https://example.com/jobs/2",
+        fit_classification="GOOD",
+        source_run_id="run-2",
+        source="pipeline_results",
+    )
+
+    items = ss.list_bookmarked_jobs()
+    assert len(items) == 1
+    assert items[0]["title"] == "Analyst Updated"
+    assert items[0]["fit_classification"] == "GOOD"
+    assert items[0]["source_run_id"] == "run-2"
+
+
+def test_bookmark_persists_across_module_reload(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    ss.upsert_bookmarked_job(
+        job_id=None,
+        title="Product Manager",
+        company="Contoso",
+        location="Munich",
+        url="https://example.com/jobs/3",
+        source_run_id="run-3",
+        source="pipeline_results",
+    )
+
+    items = ss.list_bookmarked_jobs()
+    assert len(items) == 1
+    assert items[0]["title"] == "Product Manager"
+    assert items[0]["snapshot"]["source_run_id"] == "run-3"

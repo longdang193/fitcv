@@ -51,7 +51,7 @@ def test_run_detail_template_mentions_output_availability_contract() -> None:
     content = open(template_path, encoding="utf-8").read()
     assert 'id="outputs-action"' not in content
     assert 'id="run-overview-core"' in content
-    assert "<h3 style=\"margin:0 0 0.35rem\">Synonym Proposal Review</h3>" in content
+    assert "<h3 style=\"margin:0\">Synonyms (List Entities)</h3>" in content
     assert "<h3>Pipeline Results</h3>" in content
     assert "<h2>Event Timeline</h2>" in content
     assert "<h3 style=\"margin:0 0 0.85rem\">Artifacts</h3>" in content
@@ -66,7 +66,7 @@ def test_run_detail_template_enforces_canonical_section_order_and_no_overview_du
     content = open(template_path, encoding="utf-8").read()
     assert content.count(">Run Overview</h3>") == 1
     overview_pos = content.index(">Run Overview</h3>")
-    synonym_pos = content.index(">Synonym Proposal Review</h3>")
+    synonym_pos = content.index(">Synonyms (List Entities)</h3>")
     pipeline_pos = content.index(">Pipeline Results</h3>")
     timeline_pos = content.index(">Event Timeline</h2>")
     artifacts_pos = content.index('id="artifacts"')
@@ -100,6 +100,8 @@ def test_overview_core_excludes_diagnostic_only_snippets() -> None:
     assert "overlay={{ synonym_fingerprints.run_overlay_fingerprint" not in overview_block
     assert "suggestions={{ synonym_fingerprints.mapping_suggestions_fingerprint" not in overview_block
     assert '/admin/cvs/{{ cv.version_id }}/download' in content
+    assert '/admin/runs/{{ run.run_id }}/bookmarks/save' in content
+    assert '/admin/runs/{{ run.run_id }}/bookmarks/delete' in content
     assert 'href="#generated-outputs"' not in content
 
 

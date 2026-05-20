@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Bookmarks — FitCV Admin{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Bookmarked Jobs</h1>
+  <a href="/admin/runs" class="btn-secondary">← All Runs</a>
+</div>
+
+<div class="card">
+  {% if bookmarks %}
+  <div style="display:flex;flex-direction:column;gap:0.75rem">
+    {% for item in bookmarks %}
+    <div class="cv-row">
+      <div style="display:flex;flex-direction:column;gap:0.2rem;min-width:0">
+        <a class="truncate-link job-title-link" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.title }} ↗</a>
+        <div class="meta">
+          {% if item.company %}{{ item.company }}{% endif %}{% if item.company and item.location %} · {% endif %}{% if item.location %}{{ item.location }}{% endif %}
+          {% if item.fit_classification %} · <strong>{{ item.fit_classification }}</strong>{% endif %}
+        </div>
+        <div class="meta">Saved: {{ item.saved_at }}{% if item.source_run_id %} · Run <code>{{ item.source_run_id }}</code>{% endif %}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap">
+        {% if item.source_run_id %}<a href="/admin/runs/{{ item.source_run_id }}" class="btn-secondary">Open Run</a>{% endif %}
+        <form method="post" action="/admin/bookmarks/delete" style="display:inline">
+          <input type="hidden" name="bookmark_key" value="{{ item.bookmark_key }}">
+          <input type="hidden" name="redirect_to" value="/admin/bookmarks">
+          <button type="submit" class="btn-secondary" title="Remove bookmark">★ Remove</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="meta">No bookmarked jobs yet. Save jobs from Pipeline Results to see them here.</div>
+  {% endif %}
+</div>
+{% endblock %}

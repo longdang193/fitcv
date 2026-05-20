@@ -48,6 +48,25 @@ def _ensure_local_pipeline_settings_table(conn: sqlite3.Connection) -> None:
         """
     )
 
+def _ensure_local_bookmarked_jobs_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS bookmarked_jobs (
+            bookmark_key TEXT PRIMARY KEY,
+            job_id TEXT,
+            title TEXT NOT NULL,
+            company TEXT,
+            location TEXT,
+            url TEXT NOT NULL,
+            fit_classification TEXT,
+            source_run_id TEXT,
+            source TEXT,
+            snapshot_json TEXT NOT NULL,
+            saved_at TEXT NOT NULL
+        )
+        """
+    )
+
 def _is_recoverable_sqlite_error(exc: sqlite3.Error) -> bool:
     message = str(exc).lower()
     return (
@@ -141,6 +160,225 @@ def _load_local_settings_rows() -> list[sqlite3.Row]:
                 return []
             raise
     return []
+
+
+def _normalize_bookmark_key(
+    *,
+    job_id: str | None,
+    url: str | None,
+    title: str | None,
+    company: str | None,
+    location: str | None,
+) -> str:
+    if job_id and str(job_id).strip():
+        return f"job_id:{str(job_id).strip()}"
+    if url and str(url).strip():
+        return f"url:{str(url).strip()}"
+    fallback_parts = [
+        str(title or "").strip().lower(),
+        str(company or "").strip().lower(),
+        str(location or "").strip().lower(),
+    ]
+    fallback = "|".join(fallback_parts)
+    if fallback.strip("|"):
+        return f"fallback:{fallback}"
+    raise ValueError("bookmark identity requires job_id, url, or title/company/location fallback")
+
+
+def bookmark_key_for_job(
+    *,
+    job_id: str | None,
+    url: str | None,
+    title: str | None,
+    company: str | None = None,
+    location: str | None = None,
+) -> str:
+    return _normalize_bookmark_key(
+        job_id=job_id,
+        url=url,
+        title=title,
+        company=company,
+        location=location,
+    )
+
+
+def upsert_bookmarked_job(
+    *,
+    job_id: str | None,
+    title: str,
+    url: str,
+    company: str | None = None,
+    location: str | None = None,
+    fit_classification: str | None = None,
+    source_run_id: str | None = None,
+    source: str | None = None,
+    snapshot: dict[str, Any] | None = None,
+    saved_at: str | None = None,
+) -> str:
+    bookmark_key = _normalize_bookmark_key(
+        job_id=job_id,
+        url=url,
+        title=title,
+        company=company,
+        location=location,
+    )
+    timestamp = saved_at or datetime.datetime.now(datetime.timezone.utc).isoformat()
+    snapshot_payload = {
+        "bookmark_key": bookmark_key,
+        "job_id": job_id,
+        "title": title,
+        "company": company,
+        "location": location,
+        "url": url,
+        "fit_classification": fit_classification,
+        "source_run_id": source_run_id,
+        "source": source,
+        "saved_at": timestamp,
+    }
+    if snapshot:
+        snapshot_payload.update(snapshot)
+    db_path = _local_sqlite_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path, timeout=30) as conn:
+        _ensure_local_bookmarked_jobs_table(conn)
+        conn.execute(
+            """
+            INSERT INTO bookmarked_jobs (
+                bookmark_key,
+                job_id,
+                title,
+                company,
+                location,
+                url,
+                fit_classification,
+                source_run_id,
+                source,
+                snapshot_json,
+                saved_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(bookmark_key) DO UPDATE SET
+                job_id=excluded.job_id,
+                title=excluded.title,
+                company=excluded.company,
+                location=excluded.location,
+                url=excluded.url,
+                fit_classification=excluded.fit_classification,
+                source_run_id=excluded.source_run_id,
+                source=excluded.source,
+                snapshot_json=excluded.snapshot_json,
+                saved_at=excluded.saved_at
+            """,
+            (
+                bookmark_key,
+                str(job_id).strip() if job_id else None,
+                str(title).strip(),
+                str(company).strip() if company else None,
+                str(location).strip() if location else None,
+                str(url).strip(),
+                str(fit_classification).strip() if fit_classification else None,
+                str(source_run_id).strip() if source_run_id else None,
+                str(source).strip() if source else None,
+                json.dumps(snapshot_payload),
+                timestamp,
+            ),
+        )
+        conn.commit()
+    return bookmark_key
+
+
+def delete_bookmarked_job(bookmark_key: str) -> bool:
+    db_path = _local_sqlite_path()
+    if not db_path.exists():
+        return False
+    with sqlite3.connect(db_path, timeout=30) as conn:
+        _ensure_local_bookmarked_jobs_table(conn)
+        cursor = conn.execute(
+            "DELETE FROM bookmarked_jobs WHERE bookmark_key = ?",
+            (str(bookmark_key).strip(),),
+        )
+        conn.commit()
+        return int(cursor.rowcount or 0) > 0
+
+
+def list_bookmarked_jobs() -> list[dict[str, Any]]:
+    db_path = _local_sqlite_path()
+    if not db_path.exists():
+        return []
+    with sqlite3.connect(db_path, timeout=30) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_local_bookmarked_jobs_table(conn)
+        rows = conn.execute(
+            """
+            SELECT
+                bookmark_key,
+                job_id,
+                title,
+                company,
+                location,
+                url,
+                fit_classification,
+                source_run_id,
+                source,
+                snapshot_json,
+                saved_at
+            FROM bookmarked_jobs
+            ORDER BY saved_at DESC, bookmark_key ASC
+            """
+        ).fetchall()
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        snapshot_raw = row["snapshot_json"]
+        snapshot = {}
+        if snapshot_raw:
+            try:
+                snapshot = json.loads(str(snapshot_raw))
+            except (TypeError, json.JSONDecodeError):
+                snapshot = {}
+        result.append(
+            {
+                "bookmark_key": str(row["bookmark_key"]),
+                "job_id": str(row["job_id"]) if row["job_id"] is not None else None,
+                "title": str(row["title"]),
+                "company": str(row["company"]) if row["company"] is not None else None,
+                "location": str(row["location"]) if row["location"] is not None else None,
+                "url": str(row["url"]),
+                "fit_classification": (
+                    str(row["fit_classification"]) if row["fit_classification"] is not None else None
+                ),
+                "source_run_id": str(row["source_run_id"]) if row["source_run_id"] is not None else None,
+                "source": str(row["source"]) if row["source"] is not None else None,
+                "saved_at": str(row["saved_at"]),
+                "snapshot": snapshot,
+            }
+        )
+    return result
+
+
+def is_job_bookmarked(
+    *,
+    job_id: str | None,
+    url: str | None,
+    title: str | None,
+    company: str | None = None,
+    location: str | None = None,
+) -> bool:
+    bookmark_key = _normalize_bookmark_key(
+        job_id=job_id,
+        url=url,
+        title=title,
+        company=company,
+        location=location,
+    )
+    db_path = _local_sqlite_path()
+    if not db_path.exists():
+        return False
+    with sqlite3.connect(db_path, timeout=30) as conn:
+        _ensure_local_bookmarked_jobs_table(conn)
+        row = conn.execute(
+            "SELECT 1 FROM bookmarked_jobs WHERE bookmark_key = ? LIMIT 1",
+            (bookmark_key,),
+        ).fetchone()
+    return row is not None
 
 
 def save_setting(
