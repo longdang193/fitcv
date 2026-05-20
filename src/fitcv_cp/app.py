@@ -8188,20 +8188,40 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if not isinstance(payload, dict):
             raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
         if not selected_ids:
-            # Default selection must mirror workspace visibility:
-            # rows already present in global map are filtered out in review queue.
-            queue = _build_synonym_proposal_review_queue(run)
-            queue_items = [item for item in list(queue.get("items") or []) if isinstance(item, dict)]
-            selected_ids = [
-                str(item.get("proposal_id") or "").strip()
-                for item in queue_items
-                if str(item.get("status") or "").strip() == "approved_for_run_overlay"
-            ]
+            proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
+            approved_ids: list[str] = []
+            approved_rows: list[dict[str, Any]] = []
+            for item in proposals:
+                if str(item.get("proposal_status") or "").strip() != "approved_for_run_overlay":
+                    continue
+                proposal_id = str(item.get("proposal_id") or "").strip()
+                if not proposal_id:
+                    continue
+                approved_ids.append(proposal_id)
+                approved_rows.append(item)
+            if not approved_ids:
+                query = urlencode(
+                    {
+                        "synonym_promote_preview_status": "no_approved",
+                    }
+                )
+                return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
+            global_map = _load_global_skill_synonyms_map()
+            for item in approved_rows:
+                proposal_id = str(item.get("proposal_id") or "").strip()
+                alias = str(item.get("alias") or "").strip().lower()
+                canonical = str(item.get("canonical") or "").strip().lower()
+                if not proposal_id or not alias or not canonical:
+                    continue
+                # Default preview should focus on promotable deltas.
+                if str(global_map.get(alias) or "").strip().lower() == canonical:
+                    continue
+                selected_ids.append(proposal_id)
             selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
         if not selected_ids:
             query = urlencode(
                 {
-                    "synonym_promote_preview_status": "no_approved",
+                    "synonym_promote_preview_status": "no_promotable",
                 }
             )
             return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)

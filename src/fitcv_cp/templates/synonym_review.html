@@ -71,6 +71,11 @@
     No approved proposals available to preview promotion.
   </div>
   {% endif %}
+  {% if request.query_params.get("synonym_promote_preview_status") == "no_promotable" %}
+  <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    No promotable proposals available; selected approved mappings are already present globally.
+  </div>
+  {% endif %}
 
   <div class="meta" style="margin-bottom:0.85rem">
     Choose row decisions, or use AI assist to prefill recommendations. Review selections, then submit batch.

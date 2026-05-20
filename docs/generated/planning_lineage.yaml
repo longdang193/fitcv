@@ -403,6 +403,7 @@ workstreams:
     specs:
     - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
     - docs/superpowers/specs/2026-05-19-23-16-cv-review-regenerate-once-spec.md
+    - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
     plans:
     - docs/superpowers/plans/2026-05-19-23-19-cv-review-regenerate-once-implementation-plan.md
     derived_completion: completed
