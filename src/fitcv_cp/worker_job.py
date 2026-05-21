@@ -1200,40 +1200,65 @@ def _run_synonym_automation_for_payload(
             fresh_count += 1
             triaged_count += 1
 
-        append_event(
-            RunEvent(
-                run_id=run_id,
-                event_id=str(uuid.uuid4()),
-                stage="synonym_proposal_triage_completed",
-                level="info",
-                message=(
-                    "Synonym triage refresh completed: "
-                    f"triaged={triaged_count}, reused={reused_count}, "
-                    f"fallback={fallback_count}, skipped={skipped_count}, failed={failed_count}"
+        event_payload = {
+            "triaged_count": triaged_count,
+            "reused_count": reused_count,
+            "fresh_count": fresh_count,
+            "fallback_count": fallback_count,
+            "skipped_count": skipped_count,
+            "failed_count": failed_count,
+            "reuse_reason": reuse_reason,
+            "auto_triage_recommendation_enabled": bool(mode.get("auto_triage_recommendation_enabled")),
+            "triage_recommendation_reuse_enabled": bool(mode.get("triage_recommendation_reuse_enabled")),
+            "provider": "fitcv_builtin",
+            "model": "synonym_triage_v1",
+            "wire_api": "builtin",
+        }
+        event_fingerprint = hashlib.sha256(
+            json.dumps(event_payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+        last_fingerprint = str(trace_summary.get("triage_recommendation_event_fingerprint") or "").strip()
+        already_emitted = False
+        if event_fingerprint == last_fingerprint:
+            already_emitted = True
+        else:
+            try:
+                prior_events = get_events(run_id, bq, project=project, dataset=dataset)
+            except Exception:
+                prior_events = []
+            for prior_event in reversed(prior_events):
+                if str(prior_event.stage or "").strip() != "synonym_proposal_triage_completed":
+                    continue
+                try:
+                    prior_payload = json.loads(str(prior_event.payload_json or "{}"))
+                except Exception:
+                    prior_payload = {}
+                prior_fp = hashlib.sha256(
+                    json.dumps(dict(prior_payload), sort_keys=True, ensure_ascii=False).encode("utf-8")
+                ).hexdigest()
+                if prior_fp == event_fingerprint:
+                    already_emitted = True
+                break
+        if not already_emitted:
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="synonym_proposal_triage_completed",
+                    level="info",
+                    message=(
+                        "Synonym triage refresh completed: "
+                        f"triaged={triaged_count}, reused={reused_count}, "
+                        f"fallback={fallback_count}, skipped={skipped_count}, failed={failed_count}"
+                    ),
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                    payload_json=json.dumps(event_payload, ensure_ascii=False),
                 ),
-                created_at=datetime.datetime.now(datetime.timezone.utc),
-                payload_json=json.dumps(
-                    {
-                        "triaged_count": triaged_count,
-                        "reused_count": reused_count,
-                        "fresh_count": fresh_count,
-                        "fallback_count": fallback_count,
-                        "skipped_count": skipped_count,
-                        "failed_count": failed_count,
-                        "reuse_reason": reuse_reason,
-                        "auto_triage_recommendation_enabled": bool(mode.get("auto_triage_recommendation_enabled")),
-                        "triage_recommendation_reuse_enabled": bool(mode.get("triage_recommendation_reuse_enabled")),
-                        "provider": "fitcv_builtin",
-                        "model": "synonym_triage_v1",
-                        "wire_api": "builtin",
-                    },
-                    ensure_ascii=False,
-                ),
-            ),
-            bq,
-            project=project,
-            dataset=dataset,
-        )
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+        trace_summary["triage_recommendation_event_fingerprint"] = event_fingerprint
 
     auto_apply_counts = {"applied": 0, "skipped": 0, "failed": 0, "reason_counts": {}}
     if bool(mode.get("auto_apply_recommendation_enabled")) and bool(mode.get("apply_to_run_enabled")):

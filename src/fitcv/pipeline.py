@@ -5951,14 +5951,8 @@ def run_pipeline(
                                 )
                         continue
                     fit = str(agentic_outcome["fit"] or fit)
-                    deferred_reporter_payload = cast(dict[str, Any] | None, agentic_outcome.get("deferred_reporter_payload"))
-                    if deferred_reporter_payload is not None and reporter is not None:
-                        reporter.emit(
-                            str(deferred_reporter_payload.get("channel") or "layer4_cv_generation_result"),
-                            str(deferred_reporter_payload.get("level") or "info"),
-                            str(deferred_reporter_payload.get("message") or ""),
-                            cast(dict[str, Any], deferred_reporter_payload.get("payload") or {}),
-                        )  # type: ignore[union-attr]
+                    # For terminal non-deferred outcomes, emit exactly one normalized result
+                    # event via downstream handlers to avoid stale duplicate rows in timeline.
                     analysis_input_summary = cast(dict[str, Any], agentic_outcome["analysis_input_summary"])
                     evidence_used = cast(list[dict[str, Any]], agentic_outcome["evidence_used"])
                     evidence_selection_summary = cast(dict[str, Any], agentic_outcome["evidence_selection_summary"])

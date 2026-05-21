@@ -4839,6 +4839,18 @@ def _timeline_stage_summary_message(
         )
         raw_distribution = decision.get("label_distribution")
         distribution: dict[str, Any] = dict(raw_distribution) if isinstance(raw_distribution, dict) else {}
+        raw_reuse_metrics = decision.get("reuse_metrics")
+        reuse_metrics: dict[str, Any] = dict(raw_reuse_metrics) if isinstance(raw_reuse_metrics, dict) else {}
+        if not reuse_metrics:
+            output_summary = dict(payload_output.get("cv_analysis_decision_summary") or {})
+            candidate = output_summary.get("reuse_metrics")
+            if isinstance(candidate, dict):
+                reuse_metrics = dict(candidate)
+        if not reuse_metrics:
+            output_summary = dict(payload_output.get("ranking_decision_summary") or {})
+            candidate = output_summary.get("reuse_metrics")
+            if isinstance(candidate, dict):
+                reuse_metrics = dict(candidate)
         details = []
         if ranked is not None:
             details.append(f"{ranked} ranked")
@@ -4857,6 +4869,8 @@ def _timeline_stage_summary_message(
                     ("strong", distribution.get("strong_count")),
                     ("stretch", distribution.get("stretch_count")),
                     ("skip", distribution.get("skip_count")),
+                    ("reused", reuse_metrics.get("reused_ai_scores")),
+                    ("fresh", reuse_metrics.get("fresh_ai_scores")),
                 ],
             )
     if event.stage == "layer3_ai_score":
@@ -4884,6 +4898,8 @@ def _timeline_stage_summary_message(
             payload_output.get("cv_analysis_concurrency_effective"),
             outputs.get("cv_analysis_concurrency_effective"),
         )
+        raw_reuse_metrics = decision.get("reuse_metrics")
+        reuse_metrics: dict[str, Any] = dict(raw_reuse_metrics) if isinstance(raw_reuse_metrics, dict) else {}
         if ready is not None and blocked is not None and skipped is not None and failed is not None:
             details: list[tuple[str, Any]] = [
                 ("scope", "ranked jobs"),
@@ -4891,6 +4907,8 @@ def _timeline_stage_summary_message(
                 ("blocked", blocked),
                 ("skipped", skipped),
                 ("failed", failed),
+                ("reused", reuse_metrics.get("reused_analysis_rows")),
+                ("fresh", reuse_metrics.get("fresh_analysis_rows")),
             ]
             if cv_analysis_concurrency is not None:
                 details.append(("concurrency", cv_analysis_concurrency))
@@ -8551,37 +8569,38 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
-        append_event(
-            RunEvent(
-                run_id=run_id,
-                event_id=str(uuid.uuid4()),
-                stage="cv_review_batch_action",
-                level="info",
-                message=(
-                    "CV review batch action applied: "
-                    f"action={action}, applied={applied}, skipped={skipped}, failed={failed}, finalized={finalized}, missing_draft={failed_missing_draft}, persist_failed={failed_persist}, truncated_draft={failed_truncated_draft}"
+        if applied > 0 or failed > 0:
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="cv_review_batch_action",
+                    level="info",
+                    message=(
+                        "CV review batch action applied: "
+                        f"action={action}, applied={applied}, skipped={skipped}, failed={failed}, finalized={finalized}, missing_draft={failed_missing_draft}, persist_failed={failed_persist}, truncated_draft={failed_truncated_draft}"
+                    ),
+                    created_at=now,
+                    payload_json=_json.dumps(
+                        {
+                            "action": action,
+                            "applied": applied,
+                            "skipped": skipped,
+                            "failed": failed,
+                            "finalized": finalized,
+                            "regeneration_requested": regeneration_requested,
+                            "failed_missing_draft": failed_missing_draft,
+                            "failed_persist": failed_persist,
+                            "failed_truncated_draft": failed_truncated_draft,
+                            "selected_count": len(selected_selectors),
+                        },
+                        ensure_ascii=False,
+                    ),
                 ),
-                created_at=now,
-                payload_json=_json.dumps(
-                    {
-                        "action": action,
-                        "applied": applied,
-                        "skipped": skipped,
-                        "failed": failed,
-                        "finalized": finalized,
-                        "regeneration_requested": regeneration_requested,
-                        "failed_missing_draft": failed_missing_draft,
-                        "failed_persist": failed_persist,
-                        "failed_truncated_draft": failed_truncated_draft,
-                        "selected_count": len(selected_selectors),
-                    },
-                    ensure_ascii=False,
-                ),
-            ),
-            bq,
-            project=project,
-            dataset=dataset,
-        )
+                bq,
+                project=project,
+                dataset=dataset,
+            )
         if action == "regenerate_once":
             append_event(
                 RunEvent(
