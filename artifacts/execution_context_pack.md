@@ -22,46 +22,44 @@
   - Task 1 complete.
   - Task 2 complete.
   - Task 3 complete.
-  - Task 4 verification executed with evidence captured.
-  - Plan checklist reconciled to zero unresolved items.
-  - GitNexus index refreshed.
-- **In Progress:** lane merge/push orchestration.
+  - Task 4 verification complete with closure evidence.
+  - Pre-merge check complete.
+  - FF merge to `main` complete.
+  - Post-merge checks complete.
+  - Push to `origin/main` complete.
+- **In Progress:** none.
 - **Deferred / Dropped:** none.
 - **Known divergence from plan (if any):** none.
 
 ## 4) Files Changed This Session
 
-- `docs/superpowers/plans/2026-05-21-19-00-stage-reuse-toggle-symmetry-default-on-plan.md` — status/checklist reconciliation.
-- `docs/superpowers/execution_context_packs/stage-reuse-toggle-symmetry-default-on-impl/latest.md` — closure readiness sync.
+- `src/fitcv/reuse_law_engine.py` — added valid `@meta` header with registered capability.
+- `docs/superpowers/plans/2026-05-21-19-00-stage-reuse-toggle-symmetry-default-on-plan.md` — closure checklist/status reconciliation.
+- `docs/superpowers/execution_context_packs/stage-reuse-toggle-symmetry-default-on-impl/latest.md` — final closure state.
 - `artifacts/execution_context_pack.md` — mirror sync.
 
 ## 5) Verification State
 
 - **Last commands run:**
   - `npx gitnexus analyze`
-  - `pytest` targeted in-scope suites
-  - `python scripts/validate_planning_lifecycle.py`
-  - `python scripts/generate_planning_lineage.py`
-  - `python scripts/hooks/run_validator.py --fast`
+  - `./.venv/Scripts/python.exe scripts/validate_repo_contracts.py --fast` (pre-merge and post-merge)
 - **Result summary:**
-  - in-scope targeted tests: pass.
-  - planning lifecycle: pass.
-  - planning lineage refresh: pass.
-  - validator fast: only unrelated pre-existing failure (`src/fitcv/reuse_law_engine.py` missing/malformed `@meta`).
-- **Failing checks (if any):**
-  - `src/fitcv/reuse_law_engine.py: missing or malformed @meta block` (pre-existing, out-of-scope).
-- **Gaps still unverified:** strict closeout validator trio and merge/push verification pending.
+  - pre/post merge repo-contract checks: pass.
+  - merge mode: fast-forward.
+  - push: success.
+- **Failing checks (if any):** none.
+- **Gaps still unverified:** none for lane closure scope.
 
 ## 6) Open Blockers / Risks
 
-- Risk accepted for closure gate context: unrelated pre-existing validator failure in `src/fitcv/reuse_law_engine.py`.
+- none.
 
 ## 7) Next Exact Action
 
-- **Action type:** command sequence
-- **Target:** lane merge to local `main` + pre/post merge checks + push
-- **Exact command or edit intent:** run required pre-merge checks, attempt fast-forward merge, rerun post-merge checks, then push if all pass.
-- **Why this is next:** reconciliation and checklist gates now complete for lane closeout.
+- **Action type:** close now
+- **Target:** lane closure complete
+- **Exact command or edit intent:** no further action required.
+- **Why this is next:** all closure criteria and merge/push proof satisfied.
 
 ## 8) Resume Prompt (Copy/Paste)
 
