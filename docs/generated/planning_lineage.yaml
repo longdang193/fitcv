@@ -513,6 +513,7 @@ workstreams:
     path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/04-efficiency-reuse-cross-stage-cache-safety.md
     specs:
     - docs/superpowers/specs/2026-05-21-15-17-cross-stage-reuse-policy-spec.md
+    - docs/superpowers/specs/2026-05-21-18-52-stage-reuse-toggle-symmetry-default-on-spec.md
     plans:
     - docs/superpowers/plans/2026-05-21-15-18-cross-stage-reuse-policy-plan.md
     derived_completion: in_progress
