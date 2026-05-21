@@ -4,15 +4,14 @@ artifact_type: spec
 status: proposed
 template_id: detailed-specification
 name: cross-stage-reuse-policy-symmetry-and-ssot
-parent_workstream: none
+parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-cross-stage-cache-safety
 targets:
   - src/fitcv/pipeline.py
   - src/fitcv/pipeline_stage_runner.py
   - src/fitcv_cp/settings_schema.py
   - src/fitcv_cp/app.py
   - config/runtime/pipeline.yaml
-related_features:
-  - none
+related_features: []
 related_stages:
   - enrich
   - shortlist

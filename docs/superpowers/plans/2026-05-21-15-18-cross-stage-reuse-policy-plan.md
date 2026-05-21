@@ -4,7 +4,7 @@ artifact_type: plan
 status: proposed
 template_id: implementation-plan
 name: cross-stage-reuse-policy-implementation
-parent_workstream: none
+parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-cross-stage-cache-safety
 parent_spec: docs/superpowers/specs/2026-05-21-15-17-cross-stage-reuse-policy-spec.md
 targets:
   - src/fitcv/pipeline.py
@@ -15,8 +15,7 @@ targets:
   - config/runtime/pipeline.yaml
   - tests/test_pipeline.py
   - tests/test_fitcv_cp/test_app.py
-related_features:
-  - none
+related_features: []
 related_stages:
   - enrich
   - shortlist

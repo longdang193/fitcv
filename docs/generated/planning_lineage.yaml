@@ -511,6 +511,8 @@ workstreams:
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-cross-stage-cache-safety
     status: proposed
     path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/04-efficiency-reuse-cross-stage-cache-safety.md
-    specs: []
-    plans: []
-    derived_completion: not_started
+    specs:
+    - docs/superpowers/specs/2026-05-21-15-17-cross-stage-reuse-policy-spec.md
+    plans:
+    - docs/superpowers/plans/2026-05-21-15-18-cross-stage-reuse-policy-plan.md
+    derived_completion: in_progress
