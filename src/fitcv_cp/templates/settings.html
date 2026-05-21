@@ -481,13 +481,13 @@
       <div class="settings-field-description">{{ entry.description }}</div>
       <div class="badge-row">
         <span class="badge-chip">Stage: {{ item.decision_stage | replace('_', ' ') | title }}</span>
-        <span class="badge-chip">Control Surface: {{ item.decision_control_surface | replace('_', ' ') | title }}</span>
-        <span class="badge-chip">Decision Area: {{ item.decision_area | replace('_', ' ') | title }}</span>
-        <span class="badge-chip">Runtime-used: {{ "Yes" if ia.runtime_used else "No" }}</span>
-        <span class="badge-chip">Metadata-only: {{ "Yes" if ia.metadata_only else "No" }}</span>
+            <span class="badge-chip">Control Type: {{ item.decision_control_surface | replace('_', ' ') | title }}</span>
+            <span class="badge-chip">Decision Type: {{ item.decision_area | replace('_', ' ') | title }}</span>
+            <span class="badge-chip">Used at runtime: {{ "Yes" if ia.runtime_used else "No" }}</span>
+            <span class="badge-chip">Info only: {{ "Yes" if ia.metadata_only else "No" }}</span>
         {% if item.compatibility_alias_for %}
-          <span class="badge-chip">Compatibility alias for: {{ item.compatibility_alias_for }}</span>
-          <span class="badge-chip">Migration status: compatibility-readonly</span>
+          <span class="badge-chip">Alias for: {{ item.compatibility_alias_for }}</span>
+          <span class="badge-chip">Migration: read-only alias</span>
         {% endif %}
         {% if item.compatibility_aliases %}
           <span class="badge-chip">Legacy aliases: {{ item.compatibility_aliases | join(', ') }}</span>
@@ -496,30 +496,30 @@
       </div>
     </div>
     <div class="settings-field-meta">
-      <span>Current: <span class="current-value">{{ item.effective_display }}</span></span>
-      <span>Source: {{ item.current_source_label }}</span>
-      <span>Owner: {{ item.owner_label }}</span>
-      <span>Active: {{ item.active_label }}</span>
+      <span>Current value: <span class="current-value">{{ item.effective_display }}</span></span>
+      <span>Value source: {{ item.current_source_label }}</span>
+      <span>Owned by: {{ item.owner_label }}</span>
+      <span>Used in this run: {{ item.active_label }}</span>
       <div class="settings-field-help">
         <details>
-          <summary>Help</summary>
+          <summary>Why this matters</summary>
           <div class="settings-field-help-body">
-            <span><strong>What:</strong> {{ entry.label }}</span>
-            <span><strong>Effect:</strong> {{ entry.description }}</span>
+            <span><strong>Setting:</strong> {{ entry.label }}</span>
+            <span><strong>Impact:</strong> {{ entry.description }}</span>
             <span><strong>Applies when:</strong> {{ ia.applies_when }}</span>
-            <span><strong>Dependencies:</strong> Backend settings validation and stage-specific consumers.</span>
-            <span><strong>Configured vs runtime:</strong> This row shows configured defaults; runtime may gate or override effective behavior. Check <strong>Active</strong> state and run-scoped <code>settings-used.json</code> for what executed.</span>
-            <span><strong>Default source:</strong> {{ entry.config_path | join('.') }}</span>
-            <span><strong>Observed in:</strong> settings registry/runtime consumers</span>
+            <span><strong>Depends on:</strong> Related stage rules and runtime guards.</span>
+            <span><strong>Configured vs runtime:</strong> This is your configured value. Runtime guards may still change effective behavior. Check <strong>Used in this run</strong> and run-scoped <code>settings-used.json</code>.</span>
+            <span><strong>Default key path:</strong> {{ entry.config_path | join('.') }}</span>
+            <span><strong>Used by:</strong> Runtime pipeline stages and settings consumers.</span>
           </div>
         </details>
         {% if item.compatibility_alias_for %}
         <details>
-          <summary>Legacy Compatibility</summary>
+          <summary>Legacy Mapping</summary>
           <div class="settings-field-help-body">
-            <span><strong>Canonical owner:</strong> <code>{{ item.compatibility_alias_for }}</code></span>
-            <span><strong>Status:</strong> Read-only alias (non-authoritative)</span>
-            <span><strong>Save behavior:</strong> Alias key is not submitted; canonical key remains single write path.</span>
+            <span><strong>Canonical setting:</strong> <code>{{ item.compatibility_alias_for }}</code></span>
+            <span><strong>Status:</strong> Read-only alias</span>
+            <span><strong>Save behavior:</strong> Only canonical setting is saved.</span>
           </div>
         </details>
         {% endif %}
@@ -532,58 +532,58 @@
 <div class="page-header">
   <div>
     <h1>Pipeline Settings</h1>
-    <p class="meta">Changes apply to future runs only. Runtime throughput uses one canonical editable surface with legacy compatibility shown as read-only mapping.</p>
+    <p class="meta">Changes here affect future runs only. Runtime guards can still adjust effective behavior during execution.</p>
   </div>
 </div>
 
 <div class="settings-shell">
   {% if error %}
     <div class="error-box">
-      <strong>Validation error</strong>
+      <strong>Can’t save yet</strong>
       <span>{{ error }}</span>
     </div>
   {% endif %}
   <section class="settings-readiness">
     <div class="settings-readiness-head">
-      <div class="settings-readiness-title">Settings Status</div>
+      <div class="settings-readiness-title">Readiness</div>
       <div class="settings-decision-item-meta">
         {% if settings_readiness_summary.needs_review_count > 0 %}
-          {{ settings_readiness_summary.needs_review_count }} setting(s) need review before next run.
+          {{ settings_readiness_summary.needs_review_count }} setting(s) need attention before next run.
         {% else %}
-          No blocking settings.
+          No required actions right now.
         {% endif %}
       </div>
     </div>
   </section>
   <section class="settings-decision-board">
     <div class="axis-row">
-      <span class="axis-label">Decision View</span>
-      <button type="button" class="axis-chip" data-complexity-filter="basic" aria-pressed="true">Basic</button>
-      <button type="button" class="axis-chip" data-complexity-filter="advanced" aria-pressed="false">Advanced</button>
+      <span class="axis-label">View Level</span>
+      <button type="button" class="axis-chip" data-complexity-filter="basic" aria-pressed="true">Simple</button>
+      <button type="button" class="axis-chip" data-complexity-filter="advanced" aria-pressed="false">Detailed</button>
       <button type="button" class="axis-chip" data-complexity-filter="all" aria-pressed="false">All</button>
     </div>
     <div class="axis-row">
-      <span class="axis-label">Stage</span>
+      <span class="axis-label">Pipeline Stage</span>
       <button type="button" class="axis-chip" data-stage-filter="all" aria-pressed="true">All</button>
       {% for scope in settings_stage_scopes %}
         <button type="button" class="axis-chip" data-stage-filter="{{ scope.id }}" aria-pressed="false">{{ scope.title }}</button>
       {% endfor %}
     </div>
     <div class="axis-row">
-      <span class="axis-label">Control Surface</span>
+      <span class="axis-label">Control Type</span>
       <button type="button" class="axis-chip" data-control-surface-filter="all" aria-pressed="true">All</button>
       {% for surface in settings_control_surface_filters %}
         <button type="button" class="axis-chip" data-control-surface-filter="{{ surface.id }}" aria-pressed="false">{{ surface.title }}</button>
       {% endfor %}
     </div>
     <div class="settings-decision-item-meta">
-      Use filters to focus decisions. Advanced diagnostics stay hidden in Basic.
+      Use filters to narrow settings. Detailed view shows technical fields.
     </div>
   </section>
   <section class="settings-toolbar">
-    <input class="settings-search" type="search" id="settings-search" placeholder="Search settings..." aria-label="Search settings">
-    <div class="settings-global-summary" data-global-dirty-summary="settings-page">All sections saved</div>
-    <div class="settings-decision-item-meta is-filter-hidden" id="empty-filter-state">No settings match filters. Reset filter chips.</div>
+    <input class="settings-search" type="search" id="settings-search" placeholder="Search by name, effect, or key..." aria-label="Search settings">
+    <div class="settings-global-summary" data-global-dirty-summary="settings-page">All changes saved</div>
+    <div class="settings-decision-item-meta is-filter-hidden" id="empty-filter-state">No matches. Clear filters or search.</div>
   </section>
   {% for section in settings_page_task_sections %}
     <section class="task-section" data-task-section="{{ section.id }}" id="task-{{ section.id }}">
@@ -593,9 +593,9 @@
           <div class="task-section-helper">{{ section.helper }}</div>
           {% if section.id == "agentic" %}
             <div class="settings-decision-item-meta" style="margin-top:0.4rem">
-              Manual Capability Gate controls permission. Automatic Execution controls policy.
-              If automation is ON while prerequisite gate is OFF, save flow will require explicit choice:
-              enable prerequisite and continue, or keep automation OFF.
+              Gate = permission. Automation = automatic action policy.
+              States: OFF/OFF (disabled), ON/OFF (manual only), ON/ON (manual + automatic).
+              OFF/ON is invalid and blocked on save. Choose: enable gate, or keep automation OFF.
             </div>
           {% endif %}
         </div>
@@ -632,7 +632,7 @@
                 <form id="{{ card.form_id }}" method="post" action="{{ card.action }}" data-dirty-card="{{ card.form_id }}" data-guarded-save="{{ 'true' if card.guarded_save else 'false' }}">
                   {% if card.error_message %}
                     <div class="error-box" style="margin-top:1rem">
-                      <strong>Validation error</strong>
+                      <strong>Can’t save yet</strong>
                       <span>{{ card.error_message }}</span>
                     </div>
                   {% endif %}
@@ -656,9 +656,9 @@
                   </div>
                   <div class="sub-card-footer">
                     <div class="settings-card-status" data-dirty-summary="{{ card.form_id }}">
-                      {% if card.dirty_count == 0 %}No changes{% elif card.dirty_count == 1 %}1 unsaved edit{% else %}{{ card.dirty_count }} unsaved edits{% endif %}
+                      {% if card.dirty_count == 0 %}No unsaved changes{% elif card.dirty_count == 1 %}1 unsaved change{% else %}{{ card.dirty_count }} unsaved changes{% endif %}
                     </div>
-                    <button type="button" class="btn-secondary" data-reset-form="{{ card.form_id }}">Use Defaults</button>
+                    <button type="button" class="btn-secondary" data-reset-form="{{ card.form_id }}">Reset to defaults</button>
                     <button type="submit" class="btn-section">{{ card.save_label }}</button>
                   </div>
                 </form>
@@ -673,12 +673,12 @@
                   <div class="settings-panel-helper">{{ card.helper }}</div>
                 </div>
                 <div class="settings-card-status" data-dirty-summary="{{ card.form_id }}">
-                  {% if card.dirty_count == 0 %}No changes{% elif card.dirty_count == 1 %}1 unsaved edit{% else %}{{ card.dirty_count }} unsaved edits{% endif %}
+                  {% if card.dirty_count == 0 %}No unsaved changes{% elif card.dirty_count == 1 %}1 unsaved change{% else %}{{ card.dirty_count }} unsaved changes{% endif %}
                 </div>
               </div>
               {% if card.error_message %}
                 <div class="error-box">
-                  <strong>Validation error</strong>
+                  <strong>Can’t save yet</strong>
                   <span>{{ card.error_message }}</span>
                 </div>
               {% endif %}
@@ -688,8 +688,8 @@
                     <div class="composition-matrix">
                       <div class="composition-matrix-header">
                         <div>Section</div>
-                        <div>Current</div>
-                        <div>Edit</div>
+                        <div>Current value</div>
+                        <div>Change</div>
                       </div>
                       {% for item in card.entries %}
                         {% set entry = item.entry %}
@@ -698,7 +698,7 @@
                             <div class="composition-row-title">{{ entry.label | replace('Include ', '') }}</div>
                             <div class="composition-row-helper">{{ entry.description }}</div>
                           </div>
-                          <div class="composition-current">{{ "Included" if item.effective_value else "Hidden" }}</div>
+                          <div class="composition-current">{{ "Included" if item.effective_value else "Excluded" }}</div>
                           <div class="composition-toggle">
                             {{ render_field_control(item, settings_metadata_note) }}
                           </div>
@@ -723,7 +723,7 @@
                   {% endif %}
                 </div>
                 <div class="sub-card-footer">
-                  <button type="button" class="btn-secondary" data-reset-form="{{ card.form_id }}">Use Defaults</button>
+                  <button type="button" class="btn-secondary" data-reset-form="{{ card.form_id }}">Reset to defaults</button>
                   <button type="submit" class="btn-section">{{ card.save_label }}</button>
                 </div>
               </form>
@@ -736,13 +736,13 @@
   <section class="task-section" data-task-section="danger-zone" id="task-danger-zone">
     <div class="task-section-header">
       <div>
-        <div class="task-section-title">Danger Zone</div>
-        <div class="task-section-helper">Rare/high-impact settings. Review carefully before saving.</div>
+        <div class="task-section-title">High-Impact Settings</div>
+        <div class="task-section-helper">Changes here can strongly affect ranking, filtering, and output quality. Update carefully.</div>
       </div>
     </div>
     <div class="task-section-grid">
       <div class="settings-global-summary">
-        {{ settings_danger_zone_keys | length }} key(s) flagged as danger-zone:
+        {{ settings_danger_zone_keys | length }} high-impact setting(s):
         <code>{{ settings_danger_zone_keys | join(', ') }}</code>
       </div>
     </div>
@@ -842,9 +842,9 @@
     const dirtyCount = Array.from(rows).filter((row) => row.dataset.dirty === 'true').length;
     const summary = document.querySelector('[data-dirty-summary="' + form.id + '"]');
     if (summary) {
-      if (dirtyCount === 0) summary.textContent = 'No changes';
-      else if (dirtyCount === 1) summary.textContent = '1 unsaved edit';
-      else summary.textContent = dirtyCount + ' unsaved edits';
+      if (dirtyCount === 0) summary.textContent = 'No unsaved changes';
+      else if (dirtyCount === 1) summary.textContent = '1 unsaved change';
+      else summary.textContent = dirtyCount + ' unsaved changes';
     }
     updateGlobalDirtySummary();
     updateWeightsTotal();
@@ -859,9 +859,9 @@
       const hasDirtyRow = form.querySelector('[data-entry-key][data-dirty="true"]') !== null;
       if (hasDirtyRow) dirtyForms += 1;
     });
-    if (dirtyForms === 0) summary.textContent = 'All sections saved';
-    else if (dirtyForms === 1) summary.textContent = '1 section has unsaved edits';
-    else summary.textContent = dirtyForms + ' sections have unsaved edits';
+    if (dirtyForms === 0) summary.textContent = 'All changes saved';
+    else if (dirtyForms === 1) summary.textContent = '1 section has unsaved changes';
+    else summary.textContent = dirtyForms + ' sections have unsaved changes';
   }
 
   function entryMatchesFilters(row) {
@@ -980,7 +980,7 @@
 
     if (autoApplyEnabled && !applyGateChecked) {
       const enablePrereq = window.confirm(
-        'Auto Apply requires Synonym Apply-to-Run gate.\n\nOK: Enable prerequisite and continue.\nCancel: Keep Auto Apply OFF.'
+        'Auto Apply needs Apply-to-Run gate ON.\n\nOK: Enable gate and continue.\nCancel: Keep Auto Apply OFF.'
       );
       if (enablePrereq) {
         ensureHiddenFlag(form, '__enable_prereq_apply_to_run', 'true');
@@ -991,7 +991,7 @@
 
     if (autoPromoteEnabled && !promoteGateChecked) {
       const enablePrereq = window.confirm(
-        'Auto Promote requires Synonym Promote-Global gate.\n\nOK: Enable prerequisite and continue.\nCancel: Keep Auto Promote OFF.'
+        'Auto Promote needs Promote-Global gate ON.\n\nOK: Enable gate and continue.\nCancel: Keep Auto Promote OFF.'
       );
       if (enablePrereq) {
         ensureHiddenFlag(form, '__enable_prereq_promote_global', 'true');
@@ -1085,11 +1085,11 @@
         const issues = runPreflightGuardrails(form);
         if (issues.length > 0) {
           event.preventDefault();
-          window.alert('Pre-save guardrail:\n- ' + issues.join('\n- '));
+          window.alert('Please fix before saving:\n- ' + issues.join('\n- '));
           return;
         }
         if (form.dataset.guardedSave === 'true') {
-          const ok = window.confirm('This section includes high-impact settings. Continue save?');
+          const ok = window.confirm('This section has high-impact settings. Save changes now?');
           if (!ok) event.preventDefault();
         }
       });

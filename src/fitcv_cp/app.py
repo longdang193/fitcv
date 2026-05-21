@@ -4524,6 +4524,7 @@ def _timeline_stage_summary_message(
             return _format_message(
                 "Enrich starting",
                 [
+                    ("scope", "jobs"),
                     ("fresh", fresh_total),
                     ("reused", reused_total),
                     ("concurrency", concurrency),
@@ -4533,6 +4534,7 @@ def _timeline_stage_summary_message(
             return _format_message(
                 "Enrich in progress",
                 [
+                    ("scope", "jobs"),
                     ("fresh", fresh_total),
                     ("reused", reused_total),
                     ("concurrency", concurrency),
@@ -4543,6 +4545,7 @@ def _timeline_stage_summary_message(
             return _format_message(
                 "Enrich complete",
                 [
+                    ("scope", "jobs"),
                     ("fresh rows", fresh_rows_total),
                     ("fresh", fresh_total),
                     ("reused", reused_total),
@@ -4568,7 +4571,7 @@ def _timeline_stage_summary_message(
         if ranked_jobs is not None:
             details.append(f"{ranked_jobs} ranked job(s)")
         if cv_analysis_concurrency is not None:
-            details.append(f"concurrency={cv_analysis_concurrency}")
+            details.append(f"concurrency {cv_analysis_concurrency}")
         if details:
             return f"CV analysis invoked: {', '.join(details)}"
     if event.stage == "layer4_cv_generation_started":
@@ -4638,9 +4641,9 @@ def _timeline_stage_summary_message(
         if rejected is not None:
             details.append(f"{rejected} rejected before enrich")
         if fresh is not None:
-            details.append(f"fresh={fresh}")
+            details.append(f"fresh {fresh}")
         if reused is not None:
-            details.append(f"reused={reused}")
+            details.append(f"reused {reused}")
         if details:
             return _format_message(
                 "Enrich complete",
@@ -4684,11 +4687,11 @@ def _timeline_stage_summary_message(
         if ranked is not None:
             details.append(f"{ranked} ranked")
         if ranking_concurrency is not None:
-            details.append(f"concurrency={ranking_concurrency}")
+            details.append(f"concurrency {ranking_concurrency}")
         for key, label in (("strong_count", "strong"), ("stretch_count", "stretch"), ("skip_count", "skip")):
             count = distribution.get(key)
             if count is not None:
-                details.append(f"{label}={count}")
+                details.append(f"{label} {count}")
         if details:
             return _format_message(
                 "Ranking complete",
@@ -4707,7 +4710,7 @@ def _timeline_stage_summary_message(
         if ai_scored is not None:
             details.append(f"{ai_scored} jobs")
         if ranking_concurrency is not None:
-            details.append(f"concurrency={ranking_concurrency}")
+            details.append(f"concurrency {ranking_concurrency}")
         if details:
             return _format_message(
                 "AI scored",
@@ -4727,6 +4730,7 @@ def _timeline_stage_summary_message(
         )
         if ready is not None and blocked is not None and skipped is not None and failed is not None:
             details: list[tuple[str, Any]] = [
+                ("scope", "ranked jobs"),
                 ("ready", ready),
                 ("blocked", blocked),
                 ("skipped", skipped),
@@ -4740,11 +4744,22 @@ def _timeline_stage_summary_message(
             )
     if event.stage == "synonym_proposal_triage_completed":
         return _format_message(
-            "Synonym triage decision",
+            "Synonym triage complete",
             [
+                ("scope", "proposals"),
                 ("triaged", payload.get("triaged_count")),
                 ("reused", payload.get("reused_count")),
                 ("fallback", payload.get("fallback_count")),
+                ("skipped", payload.get("skipped_count")),
+                ("failed", payload.get("failed_count")),
+            ],
+        )
+    if event.stage == "synonym_proposal_auto_apply_completed":
+        return _format_message(
+            "Synonym auto-apply complete",
+            [
+                ("scope", "proposals"),
+                ("applied", payload.get("applied_count")),
                 ("skipped", payload.get("skipped_count")),
                 ("failed", payload.get("failed_count")),
             ],
