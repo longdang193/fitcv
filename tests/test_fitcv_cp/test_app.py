@@ -1755,7 +1755,7 @@ def test_admin_run_detail_shows_inline_review_queue_controls_when_pending_at_thr
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/run-review-queue-threshold-inline")
     assert resp.status_code == 200
-    assert "Apply One Action to Selected Jobs" in resp.text
+    assert "Apply one action to selected jobs." in resp.text
     assert "Apply to Selected Jobs" in resp.text
     assert "Select All" in resp.text
     assert "Clear All" in resp.text
@@ -1792,7 +1792,7 @@ def test_admin_review_queue_page_renders_shared_controls_and_back_link() -> None
         resp = TestClient(_app()).get("/admin/runs/run-review-queue-page/review-queue")
     assert resp.status_code == 200
     assert "← Back to Run Detail" in resp.text
-    assert "Apply One Action to Selected Jobs" in resp.text
+    assert "Apply one action to selected jobs." in resp.text
     assert "Apply to Selected Jobs" in resp.text
     assert "Select All" in resp.text
     assert "Clear All" in resp.text
@@ -1837,6 +1837,16 @@ def test_admin_review_queue_resolved_rows_render_locked_non_actionable_state() -
     assert "Row is resolved." in resp.text
     assert 'action="/admin/runs/run-review-queue-resolved-lock/cv-review-action"' not in resp.text
     assert 'name="job_url" value="https://example.com/job-1" form="hitl-batch-form" data-hitl-selectable="true"' not in resp.text
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        run_detail_resp = TestClient(_app()).get("/admin/runs/run-review-queue-resolved-lock")
+    assert run_detail_resp.status_code == 200
+    assert "Row is resolved." not in run_detail_resp.text
+    assert "No pending review rows shown here. Open dedicated review queue page for resolved history." in run_detail_resp.text
 
 def test_synonym_decision_toggle_contract_is_symmetric_across_pages() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus

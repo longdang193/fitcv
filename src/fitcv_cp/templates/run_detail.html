@@ -74,7 +74,9 @@
 
 {% if hitl_review_queue.total_review_required and hitl_review_queue.total_review_required > 0 %}
 {% if show_inline_review_queue %}
+{% with show_resolved_rows=false %}
 {% include "_cv_review_queue.html" %}
+{% endwith %}
 {% elif show_review_queue_cta %}
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">

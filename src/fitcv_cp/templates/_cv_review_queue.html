@@ -8,27 +8,33 @@
     </div>
     <span class="badge badge-info">{{ hitl_review_queue.actions_count }} action(s) logged</span>
   </div>
-  <form id="hitl-batch-form" method="post" action="/admin/runs/{{ run.run_id }}/cv-review-batch-action" style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.85rem">
-    <select name="action">
-      <option value="approve_as_is">Batch Accept Draft As Final CV</option>
-      <option value="regenerate_once">Batch Regenerate Once</option>
-      <option value="reject">Batch Reject</option>
-    </select>
-    <input type="text" name="actor" value="admin" placeholder="actor (optional)" style="min-width:10rem">
-    <input type="text" name="note" placeholder="note (optional)" style="min-width:14rem">
-    <label class="meta" style="display:inline-flex;align-items:center;gap:0.35rem">
-      <input type="checkbox" name="confirm_no_accepted_cv_closure" value="true">
-      <span>Allow closure with zero accepted CV artifacts</span>
-    </label>
-    <span class="meta">Apply One Action to Selected Jobs</span>
-    <button
-      class="btn-secondary"
-      type="submit"
-      form="hitl-batch-form"
-      formaction="/admin/runs/{{ run.run_id }}/cv-review-batch-action"
-      formmethod="post"
-    >Apply to Selected Jobs</button>
-    <span class="meta">Select one or more rows below.</span>
+  <form id="hitl-batch-form" method="post" action="/admin/runs/{{ run.run_id }}/cv-review-batch-action" style="display:flex;flex-direction:column;gap:0.55rem;margin-bottom:0.85rem">
+    <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+      <select name="action">
+        <option value="approve_as_is">Batch Accept Draft As Final CV</option>
+        <option value="regenerate_once">Batch Regenerate Once</option>
+        <option value="reject">Batch Reject</option>
+      </select>
+      <input type="text" name="actor" value="admin" placeholder="actor (optional)" style="min-width:10rem">
+      <input type="text" name="note" placeholder="note (optional)" style="min-width:14rem">
+    </div>
+    <div style="display:flex;align-items:center;gap:0.7rem;flex-wrap:wrap">
+      <label class="meta" style="display:inline-flex;align-items:center;gap:0.35rem">
+        <input type="checkbox" name="confirm_no_accepted_cv_closure" value="true">
+        <span>Allow closure with zero accepted CV artifacts</span>
+      </label>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+      <span class="meta">Apply one action to selected jobs.</span>
+      <button
+        class="btn-secondary"
+        type="submit"
+        form="hitl-batch-form"
+        formaction="/admin/runs/{{ run.run_id }}/cv-review-batch-action"
+        formmethod="post"
+      >Apply to Selected Jobs</button>
+      <span class="meta">Select one or more rows below.</span>
+    </div>
   </form>
   <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin:-0.35rem 0 0.75rem 0">
     <button class="btn-secondary" id="hitl-select-all-btn" type="button">Select All</button>
@@ -41,8 +47,20 @@
     All review-required rows are terminal, but no accepted CV artifact exists yet. Check the batch-form confirmation to close intentionally.
   </div>
   {% endif %}
+  {% set include_resolved_rows = show_resolved_rows if show_resolved_rows is defined else true %}
+  {% set visible_items = [] %}
+  {% for item in hitl_review_queue.queue_items %}
+    {% if include_resolved_rows or item.pending %}
+      {% set _ = visible_items.append(item) %}
+    {% endif %}
+  {% endfor %}
   <div style="display:flex;flex-direction:column;gap:0.85rem">
-    {% for item in hitl_review_queue.queue_items %}
+    {% if not visible_items %}
+    <div class="meta" style="padding:0.6rem 0.7rem;border:1px dashed var(--border);border-radius:0.55rem">
+      No pending review rows shown here. Open dedicated review queue page for resolved history.
+    </div>
+    {% endif %}
+    {% for item in visible_items %}
     <div class="sub-card" style="padding:0.8rem">
       <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:flex-start;column-gap:0.75rem;row-gap:0.35rem">
         <div style="min-width:0">
@@ -86,9 +104,11 @@
       <div style="margin-top:0.55rem">
         <div class="meta" style="font-weight:600;margin-bottom:0.25rem">CV Draft Preview</div>
         {% if item.cv_preview_available %}
-        <details>
-          <summary class="meta" style="cursor:pointer">Show generated CV markdown</summary>
-          <pre style="margin-top:0.4rem;white-space:pre-wrap;word-break:break-word;background:var(--bg-soft);border:1px solid var(--border);border-radius:0.5rem;padding:0.6rem;max-height:16rem;overflow:auto">{{ item.cv_markdown_preview }}</pre>
+        <details class="cv-preview-details">
+          <summary class="meta cv-preview-summary">Show generated CV markdown</summary>
+          <div class="cv-preview-wrap">
+            <pre class="cv-preview-markdown">{{ item.cv_markdown_preview }}</pre>
+          </div>
         </details>
         {% else %}
         <div class="meta">No generated CV markdown is available for this review item yet. Use regenerate once to produce a fresh draft.</div>
@@ -172,3 +192,38 @@
   refreshSelectedCount();
 })();
 </script>
+
+<style>
+.cv-preview-details {
+  margin-top: 0.25rem;
+}
+
+.cv-preview-summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.cv-preview-wrap {
+  margin-top: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+.cv-preview-markdown {
+  margin: 0;
+  padding: 0.75rem 0.8rem;
+  max-height: 18rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+  font-size: 0.86rem;
+  letter-spacing: 0.01em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  background:
+    linear-gradient(transparent 27px, rgba(255, 255, 255, 0.04) 28px) 0 0 / 100% 28px;
+}
+</style>
