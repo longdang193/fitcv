@@ -6190,11 +6190,11 @@ def run_pipeline(
                 },
             }
             reporter.emit(
-                "pipeline_complete",
+                "pipeline_compute_complete",
                 "info",
                 str(event_summary),
                 _bounded_event_payload(
-                    event_name="pipeline_complete",
+                    event_name="pipeline_compute_complete",
                     event_family="summary",
                     source_stage="cv_generation",
                     event_status="completed",

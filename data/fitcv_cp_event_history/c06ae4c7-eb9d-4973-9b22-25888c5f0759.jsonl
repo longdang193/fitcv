@@ -1,0 +1,1 @@
+{"run_id": "c06ae4c7-eb9d-4973-9b22-25888c5f0759", "event_id": "00b2ba6e-31b4-4b4c-99bd-6961f89e71f1", "stage": "snapshot_persist_failed", "level": "warning", "message": "stage_progress snapshot persistence failed: unable to open database file", "payload_json": null, "created_at": "2026-05-21T11:45:23.927897+00:00"}

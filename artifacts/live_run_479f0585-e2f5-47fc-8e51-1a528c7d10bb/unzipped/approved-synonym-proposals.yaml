@@ -1,0 +1,48 @@
+skill_synonyms:
+  ai/ml-ansätze: machine learning
+  airbyte connectors: airbyte
+  airflow dags: apache airflow
+  analyze large-scale datasets: large-scale data analysis
+  any exposure to ci/cd: ci/cd
+  apps script preferred: google apps script
+  bigquery ideal: google bigquery
+  bigquery transformations: google bigquery
+  cloudbasierten umgebungen: cloud environments
+  code reviews in git/github: git
+  conduct basic online research: online research
+  conduct rigorous eda: exploratory data analysis
+  conducting market analysis: market analysis
+  container: containers
+  data integration technologies: data integration
+  dbt models: dbt
+  du kennst reverse etl: reverse etl
+  enterprise governance frameworks: data governance
+  evaluation frameworks: model evaluation
+  experience with dbt: dbt
+  expert proficiency in fastapi: fastapi
+  expert proficiency in pandas: pandas
+  expert proficiency in scikit-learn: scikit-learn
+  familiarity with python: python
+  generating and analyzing reports: reporting
+  idealerweise auch reporting-standards: reporting standards
+  im deployment: model deployment
+  moderner data-science-methodik: data science methods
+  own our ... pipelines: data pipelines
+  own our data models: data modeling
+  own our warehouse: data warehousing
+  own the llmops pipeline: llmops
+  pipeline development: data pipelines
+  planst unsere liquidität: liquidity planning
+  proficiency in microsoft excel: microsoft excel
+  programming experience in java: java
+  quality oversight: quality management
+  regression modelling: regression modeling
+  sicherstellung der datenqualität: data quality
+  steuerst unsere zahlungsströme: cash management
+  strategic resource planning: resource planning
+  strong foundation in probability: probability
+  strong python: python
+  superset: apache superset
+  tool use: tool use (llm agents)
+  training infrastructure: ml training infrastructure
+  weiterentwicklung der modelle: financial modeling

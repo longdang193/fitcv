@@ -1,0 +1,295 @@
+{
+  "run_id": "9d693a17-ee19-4466-97a5-a56c1fb1bf80",
+  "schema_version": "synonym_suppression_diff_v1",
+  "created_at": "2026-05-21T11:09:37.385959+00:00",
+  "suggested_pairs_total": 90,
+  "suppressed_pairs_total": 18,
+  "generated_pairs_total": 57,
+  "suppressed_pairs": [
+    {
+      "field": "skill",
+      "alias": "power bi",
+      "canonical": "microsoft power bi"
+    },
+    {
+      "field": "domain",
+      "alias": "data infrastructure and analytics, it system data services, and software development",
+      "canonical": "healthcare"
+    },
+    {
+      "field": "role_family",
+      "alias": "data science",
+      "canonical": "data_science"
+    },
+    {
+      "field": "role_family",
+      "alias": "data engineering",
+      "canonical": "data_engineering"
+    },
+    {
+      "field": "domain",
+      "alias": "international trade and development",
+      "canonical": "industrial trade and supply chain (materials procurement/logistics)"
+    },
+    {
+      "field": "role_family",
+      "alias": "ml engineering",
+      "canonical": "ml_engineering"
+    },
+    {
+      "field": "domain",
+      "alias": "software development and advertising services",
+      "canonical": "advertising technology"
+    },
+    {
+      "field": "domain",
+      "alias": "financial services and insurance",
+      "canonical": "insurance"
+    },
+    {
+      "field": "role_family",
+      "alias": "business operations",
+      "canonical": "business_operations"
+    },
+    {
+      "field": "domain",
+      "alias": "utilities and environmental services",
+      "canonical": "energy & utilities"
+    }
+  ],
+  "generated_pairs": [
+    {
+      "alias": "internet marketplace platforms",
+      "canonical": "affiliate_marketing"
+    },
+    {
+      "alias": "it services and it consulting",
+      "canonical": "enterprise software (sap)"
+    },
+    {
+      "alias": "motor vehicle manufacturing",
+      "canonical": "automotive"
+    },
+    {
+      "alias": "software development",
+      "canonical": "e-commerce"
+    },
+    {
+      "alias": "technology, information and internet",
+      "canonical": "advertising_technology"
+    },
+    {
+      "alias": "strong python",
+      "canonical": "python"
+    },
+    {
+      "alias": "airbyte connectors",
+      "canonical": "airbyte"
+    },
+    {
+      "alias": "airflow dags",
+      "canonical": "apache airflow"
+    },
+    {
+      "alias": "bigquery transformations",
+      "canonical": "google bigquery"
+    },
+    {
+      "alias": "dbt models",
+      "canonical": "dbt"
+    },
+    {
+      "alias": "du kennst reverse etl",
+      "canonical": "reverse etl"
+    },
+    {
+      "alias": "experience with dbt",
+      "canonical": "dbt"
+    },
+    {
+      "alias": "expert proficiency in fastapi",
+      "canonical": "fastapi"
+    },
+    {
+      "alias": "expert proficiency in pandas",
+      "canonical": "pandas"
+    },
+    {
+      "alias": "expert proficiency in scikit-learn",
+      "canonical": "scikit-learn"
+    },
+    {
+      "alias": "proficiency in microsoft excel",
+      "canonical": "microsoft excel"
+    },
+    {
+      "alias": "programming experience in java",
+      "canonical": "java"
+    },
+    {
+      "alias": "superset",
+      "canonical": "apache superset"
+    },
+    {
+      "alias": "regression modelling",
+      "canonical": "regression modeling"
+    },
+    {
+      "alias": "bigquery ideal",
+      "canonical": "google bigquery"
+    },
+    {
+      "alias": "own the llmops pipeline",
+      "canonical": "llmops"
+    },
+    {
+      "alias": "any exposure to ci/cd",
+      "canonical": "ci/cd"
+    },
+    {
+      "alias": "code reviews in git/github",
+      "canonical": "git"
+    },
+    {
+      "alias": "expert proficiency in pytorch/tensorflow",
+      "canonical": "pytorch"
+    },
+    {
+      "alias": "familiarity with python",
+      "canonical": "python"
+    },
+    {
+      "alias": "sicherstellung der datenqualität",
+      "canonical": "data quality"
+    },
+    {
+      "alias": "strong foundation in probability",
+      "canonical": "probability"
+    },
+    {
+      "alias": "own our data models",
+      "canonical": "data modeling"
+    },
+    {
+      "alias": "tool use",
+      "canonical": "tool use (llm agents)"
+    },
+    {
+      "alias": "apps script preferred",
+      "canonical": "google apps script"
+    },
+    {
+      "alias": "evaluation frameworks",
+      "canonical": "model evaluation"
+    },
+    {
+      "alias": "own our ... pipelines",
+      "canonical": "data pipelines"
+    },
+    {
+      "alias": "pipeline development",
+      "canonical": "data pipelines"
+    },
+    {
+      "alias": "strategic resource planning",
+      "canonical": "resource planning"
+    },
+    {
+      "alias": "training infrastructure",
+      "canonical": "ml training infrastructure"
+    },
+    {
+      "alias": "conduct rigorous eda",
+      "canonical": "exploratory data analysis"
+    },
+    {
+      "alias": "conducting market analysis",
+      "canonical": "market analysis"
+    },
+    {
+      "alias": "moderner data-science-methodik",
+      "canonical": "data science methods"
+    },
+    {
+      "alias": "planst unsere liquidität",
+      "canonical": "liquidity planning"
+    },
+    {
+      "alias": "weiterentwicklung der modelle",
+      "canonical": "financial modeling"
+    },
+    {
+      "alias": "analyze large-scale datasets",
+      "canonical": "large-scale data analysis"
+    },
+    {
+      "alias": "data integration technologies",
+      "canonical": "data integration"
+    },
+    {
+      "alias": "own our warehouse",
+      "canonical": "data warehousing"
+    },
+    {
+      "alias": "enterprise governance frameworks",
+      "canonical": "data governance"
+    },
+    {
+      "alias": "cloudbasierten umgebungen",
+      "canonical": "cloud environments"
+    },
+    {
+      "alias": "container",
+      "canonical": "containers"
+    },
+    {
+      "alias": "ai/ml-ansätze",
+      "canonical": "machine learning"
+    },
+    {
+      "alias": "conduct basic online research",
+      "canonical": "online research"
+    },
+    {
+      "alias": "generating and analyzing reports",
+      "canonical": "reporting"
+    },
+    {
+      "alias": "quality oversight",
+      "canonical": "quality management"
+    },
+    {
+      "alias": "data visualization/exploration tools",
+      "canonical": "data exploration"
+    },
+    {
+      "alias": "idealerweise auch reporting-standards",
+      "canonical": "reporting standards"
+    },
+    {
+      "alias": "im deployment",
+      "canonical": "model deployment"
+    },
+    {
+      "alias": "steuerst unsere zahlungsströme",
+      "canonical": "cash management"
+    },
+    {
+      "alias": "database concepts",
+      "canonical": "databases"
+    },
+    {
+      "alias": "mcps",
+      "canonical": "mcp"
+    },
+    {
+      "alias": "modern data stack orchestration",
+      "canonical": "data orchestration"
+    }
+  ],
+  "suppression_source": "run_effective_skill_synonyms",
+  "pre_run_global_map_fingerprint": null,
+  "run_overlay_fingerprint": null,
+  "mapping_suggestions_fingerprint": "7ca64236ac465206ac3f71e17c9504769f873df4f6117a3b81020e6f1cde8bdd",
+  "proposal_input_bundle_fingerprint": "9cb3094dda4d496c8a7b04cf9ab423c05e6b2d9b5ae553acd125b41f9aaf2693"
+}

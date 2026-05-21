@@ -1,0 +1,1035 @@
+{
+  "run_id": "9d693a17-ee19-4466-97a5-a56c1fb1bf80",
+  "trace_schema_version": "agentic_step_trace_run_v1",
+  "trace_family": "agentic_step_trace",
+  "step_id": "cv_analysis",
+  "late_stage_mode": {
+    "late_stage_mode": "agentic",
+    "agentic_late_stage_enabled": true,
+    "mode_source": "cv.agentic_late_stage.unified_runtime",
+    "agentic_status": "completed"
+  },
+  "trace_status": "completed",
+  "trace_summary": {
+    "records_total": 15,
+    "present_records": 15,
+    "attempted_analysis_jobs_total": 13
+  },
+  "records": [
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://www.linkedin.com/jobs/view/4408002822",
+      "scope_type": "job",
+      "scope_key": "https://www.linkedin.com/jobs/view/4408002822",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "fb59b4ad255125effb51608fa236dc398c3bb4179647358ddc230a54d54c7f38",
+        "required_skills_count": 5,
+        "preferred_skills_count": 0,
+        "responsibilities_count": 5
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 5,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://www.linkedin.com/jobs/view/4408283177",
+      "scope_type": "job",
+      "scope_key": "https://www.linkedin.com/jobs/view/4408283177",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "015cb263c113c813674c9e2b6f449ca41dc3ab9ecfe20219dd160411f8acd754",
+        "required_skills_count": 12,
+        "preferred_skills_count": 0,
+        "responsibilities_count": 5
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 12,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://de.linkedin.com/jobs/view/data-analyst-entry-level-junior-at-encephal-statistics-department-of-ramanujan-college-university-of-delhi-4416513379?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-entry-level-junior-at-encephal-statistics-department-of-ramanujan-college-university-of-delhi-4416513379?trk=public_jobs_topcard-title",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "02fa3473e61e9e55414fc3c5ec67a8408af6391a3f59fceda6fec096e3c31d21",
+        "required_skills_count": 5,
+        "preferred_skills_count": 4,
+        "responsibilities_count": 10
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 5,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://de.linkedin.com/jobs/view/junior-researcher-at-premier-business-solution-4413675925?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/junior-researcher-at-premier-business-solution-4413675925?trk=public_jobs_topcard-title",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "95f9a8fd9c233e181faa70615401b23fc15dae6c3bc90c3b0abe071071212218",
+        "required_skills_count": 2,
+        "preferred_skills_count": 0,
+        "responsibilities_count": 4
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 2,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://de.linkedin.com/jobs/view/research-assistant-at-rotaract-club-of-mount-aureol-4413669821?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/research-assistant-at-rotaract-club-of-mount-aureol-4413669821?trk=public_jobs_topcard-title",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "b690f13a6bb9b7212109969f248e4756501db33cc953c8b95f3d5da8e994d51e",
+        "required_skills_count": 7,
+        "preferred_skills_count": 2,
+        "responsibilities_count": 10
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 7,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://www.linkedin.com/jobs/view/4417429648",
+      "scope_type": "job",
+      "scope_key": "https://www.linkedin.com/jobs/view/4417429648",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "a7af440f0be2f89abe5917c1259d2ac9cbc80adf63cc7b3a0b03c66fded8a264",
+        "required_skills_count": 6,
+        "preferred_skills_count": 5,
+        "responsibilities_count": 6
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 6,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://de.linkedin.com/jobs/view/data-entry-clerk-at-premier-enerji-4413688119?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/data-entry-clerk-at-premier-enerji-4413688119?trk=public_jobs_topcard-title",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "29b62e2bd22ea49a34761f63dc7f2713e0a4c7958f5318cc806402eeea51cda1",
+        "required_skills_count": 4,
+        "preferred_skills_count": 0,
+        "responsibilities_count": 4
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 4,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://www.linkedin.com/jobs/view/4376523337",
+      "scope_type": "job",
+      "scope_key": "https://www.linkedin.com/jobs/view/4376523337",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "ecd0ca097607b5a9dc10841a6539d88377ef0c360b776cdb175c645fcc6cdf37",
+        "required_skills_count": 3,
+        "preferred_skills_count": 2,
+        "responsibilities_count": 8
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 3,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://www.linkedin.com/jobs/view/4417319055",
+      "scope_type": "job",
+      "scope_key": "https://www.linkedin.com/jobs/view/4417319055",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "d49ec19710683ea12d78ff79a5490c547bedbe07104ed184e50cc047c20c20a1",
+        "required_skills_count": 5,
+        "preferred_skills_count": 7,
+        "responsibilities_count": 6
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 5,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://www.linkedin.com/jobs/view/4413658848",
+      "scope_type": "job",
+      "scope_key": "https://www.linkedin.com/jobs/view/4413658848",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "3ee5939fe667c69aa7ac6c2381e2a869b546e13a5897854da3262a4f0ea70831",
+        "required_skills_count": 1,
+        "preferred_skills_count": 2,
+        "responsibilities_count": 6
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 1,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://www.linkedin.com/jobs/view/4417347776",
+      "scope_type": "job",
+      "scope_key": "https://www.linkedin.com/jobs/view/4417347776",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "2133bc9de327c5c4d17c10cc6065f456aa883eb96aad3f5911d1d3ceafc5169e",
+        "required_skills_count": 25,
+        "preferred_skills_count": 0,
+        "responsibilities_count": 8
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 25,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://de.linkedin.com/jobs/view/senior-data-analyst-at-jobgether-4416398047?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/senior-data-analyst-at-jobgether-4416398047?trk=public_jobs_topcard-title",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "53ffb076bb0dcedf924ca46a53b46a49a861ee5a5aeb48fcde0c7022907a6979",
+        "required_skills_count": 19,
+        "preferred_skills_count": 1,
+        "responsibilities_count": 8
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 19,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.unified_runtime"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "blocked_by_reranker_fit",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": null
+      },
+      "output_summary": {
+        "selected_evidence_count": 0,
+        "fallback_used": false
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "record_id": "https://www.linkedin.com/jobs/view/4386390764",
+      "scope_type": "job",
+      "scope_key": "https://www.linkedin.com/jobs/view/4386390764",
+      "status": "blocked_by_reranker_fit",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://de.linkedin.com/jobs/view/data-scientist-%E2%80%93-analytics-statistics-bi-%E2%82%AC130-000-at-findr-4417486502?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/data-scientist-%E2%80%93-analytics-statistics-bi-%E2%82%AC130-000-at-findr-4417486502?trk=public_jobs_topcard-title",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "dbf794e687d027d158c81ae845f1b22cde2977008f130f38632bf9eeed5e15f9",
+        "required_skills_count": 6,
+        "preferred_skills_count": 4,
+        "responsibilities_count": 8
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 6,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.unified_runtime"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "blocked_by_reranker_fit",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": null
+      },
+      "output_summary": {
+        "selected_evidence_count": 0,
+        "fallback_used": false
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "record_id": "https://www.linkedin.com/jobs/view/4417477507",
+      "scope_type": "job",
+      "scope_key": "https://www.linkedin.com/jobs/view/4417477507",
+      "status": "blocked_by_reranker_fit",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    }
+  ],
+  "degradation": {},
+  "artifact_refs": {
+    "cv_debug_artifact": "cv-debug.json",
+    "stage_artifact": "cv_analysis.json"
+  }
+}

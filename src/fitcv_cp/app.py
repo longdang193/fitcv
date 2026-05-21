@@ -66,6 +66,7 @@ from fitcv_cp.bq_store import (
     update_run_synonym_proposals,
     update_run_orchestration_binding, update_run_queue_job_id, update_run_status,
     update_run_cv_generation_debug,
+    update_run_results_export,
     insert_cv_version_row,
 )
 import fitcv_cp.bq_store as bq_store_module
@@ -407,6 +408,24 @@ def update_run_cv_generation_debug(
         dataset=dataset,
     )
 
+def update_run_results_export_snapshot(
+    run_id: str,
+    results_export_json: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    # ControlPlaneStore has no dedicated results_export mutator yet.
+    # Persist via canonical store module path.
+    bq_store_module.update_run_results_export(
+        run_id,
+        results_export_json,
+        bq,
+        project=project,
+        dataset=dataset,
+    )
+
 def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset: str) -> list[Any]:
     if _CP_STORE is not None:
         return _CP_STORE.insert_cv_version_row(row)
@@ -702,6 +721,7 @@ TIMELINE_STAGE_DOWNLOADS: dict[str, str] = {
     "layer4_cv_analysis": "cv_analysis",
     "layer4_cv_analysis_skip": "cv_analysis",
     "pipeline_complete": "cv_generation",
+    "pipeline_compute_complete": "cv_generation",
     "layer4_cv_skip": "cv_analysis",
     "layer4_cv_validation_failed": "cv_generation",
 }
@@ -832,7 +852,14 @@ def _resolve_jobs_path_snapshot(jobs_path: str) -> tuple[str, str]:
         raise HTTPException(status_code=422, detail="jobs_path required for path mode")
     path_file = Path(normalized_jobs_path)
     if not path_file.exists():
-        raise HTTPException(status_code=422, detail=f"Jobs file not found: {normalized_jobs_path}")
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Jobs file not found: {normalized_jobs_path}. "
+                "In Docker use container-visible paths (for example: data/<file>.json), "
+                "not host-absolute paths."
+            ),
+        )
     try:
         raw_text = path_file.read_text(encoding="utf-8")
     except OSError as exc:
@@ -980,6 +1007,7 @@ TIMELINE_STAGE_LABELS: dict[str, str] = {
     "layer4_cv_generation_invoked": "CV Generation",
     "layer4_cv_validation_failed": "CV Generation",
     "pipeline_complete": "CV Generation",
+    "pipeline_compute_complete": "CV Generation",
     "stage_checkpoint": "Checkpoint",
     "manual_continue_requested": "Manual Continue",
     "pipeline_failed": "Pipeline",
@@ -994,6 +1022,7 @@ TIMELINE_STAGE_DOWNLOADABLE_EVENTS: set[str] = {
     "layer4_cv_analysis",
     "layer4_cv_validation_failed",
     "pipeline_complete",
+    "pipeline_compute_complete",
 }
 NEGATIVE_METRIC_LABEL_MARKERS = (
     "Backfill Rate",
@@ -2683,8 +2712,112 @@ def _results_export_rows_with_hitl_audit(run: PipelineRun) -> list[dict[str, Any
             row_copy["hitl_review_actor"] = str(latest_action.get("actor") or "").strip() or None
             row_copy["hitl_review_action_at"] = str(latest_action.get("created_at") or "").strip() or None
             row_copy["hitl_review_note"] = str(latest_action.get("note") or "").strip() or None
+            row_copy["hitl_review_artifact_version_id"] = str(latest_action.get("artifact_version_id") or "").strip() or None
         enriched_rows.append(row_copy)
     return enriched_rows
+
+def _persist_post_hitl_closure_artifact_reconciliation(
+    *,
+    run_id: str,
+    run: PipelineRun,
+    closure_payload: dict[str, Any],
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> None:
+    summary = dict(closure_payload.get("summary") or {})
+    accepted_total = int(summary.get("accepted_cv_total") or 0)
+    pending_total = int(summary.get("pending_total") or 0)
+    fresh_run = get_run(run_id, bq, project=project, dataset=dataset) or run
+
+    export_payload = _load_json_object(fresh_run.results_export_json)
+    rows = list((export_payload or {}).get("results") or [])
+    actions = [
+        item
+        for item in list(closure_payload.get("actions") or [])
+        if isinstance(item, dict)
+    ]
+    approved_by_job_url: dict[str, str | None] = {}
+    for action in actions:
+        action_name = str(action.get("action") or "").strip().lower()
+        if action_name not in {"approve", "approve_as_is"}:
+            continue
+        job_url = str(action.get("job_url") or "").strip()
+        if not job_url:
+            continue
+        artifact_version_id = str(action.get("artifact_version_id") or "").strip() or None
+        approved_by_job_url[job_url] = artifact_version_id
+
+    if rows and approved_by_job_url:
+        reconciled_rows: list[dict[str, Any]] = []
+        for row in rows:
+            row_copy = dict(row)
+            job_url = str(row_copy.get("job_url") or "").strip()
+            if job_url in approved_by_job_url:
+                cv_payload = row_copy.get("cv")
+                if not isinstance(cv_payload, dict):
+                    cv_payload = {}
+                cv_payload = dict(cv_payload)
+                cv_payload["status"] = "accepted"
+                version_id = str(approved_by_job_url.get(job_url) or "").strip()
+                if version_id:
+                    cv_payload["version_id"] = version_id
+                row_copy["cv"] = cv_payload
+                row_copy["pipeline_status"] = "ranked_with_cv"
+                row_copy["deterministic_outcome"] = "accepted"
+                decision_chain = row_copy.get("decision_chain")
+                if not isinstance(decision_chain, dict):
+                    decision_chain = {}
+                cv_generation_chain = decision_chain.get("cv_generation")
+                if not isinstance(cv_generation_chain, dict):
+                    cv_generation_chain = {}
+                cv_generation_chain["status"] = "accepted"
+                cv_generation_chain["attempted"] = True
+                decision_chain["cv_generation"] = cv_generation_chain
+                row_copy["decision_chain"] = decision_chain
+            reconciled_rows.append(row_copy)
+        payload = dict(export_payload or {})
+        payload["run_id"] = run_id
+        payload["results"] = reconciled_rows
+        update_run_results_export_snapshot(
+            run_id,
+            _json.dumps(payload, ensure_ascii=False),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+
+    stage_payload = _load_stage_transition_artifacts_payload(fresh_run)
+    if not stage_payload:
+        return
+    artifacts = stage_payload.get("artifacts")
+    if not isinstance(artifacts, dict):
+        return
+    stages = artifacts.get("stages")
+    if not isinstance(stages, dict):
+        return
+    cv_generation_stage = stages.get("cv_generation")
+    if not isinstance(cv_generation_stage, dict):
+        return
+
+    output_counts = cv_generation_stage.get("output_counts")
+    if isinstance(output_counts, dict):
+        output_counts["accepted"] = accepted_total
+        output_counts["review_required"] = pending_total
+    stage_result = cv_generation_stage.get("stage_result")
+    if isinstance(stage_result, dict):
+        out = stage_result.get("output")
+        if isinstance(out, dict):
+            out["accepted"] = accepted_total
+            out["review_required"] = pending_total
+
+    update_run_stage_transition_artifacts(
+        run_id,
+        _json.dumps(stage_payload, ensure_ascii=False),
+        bq,
+        project=project,
+        dataset=dataset,
+    )
 
 def _run_agentic_runtime_drift_summary(run: PipelineRun) -> dict[str, Any]:
     late_stage_mode = _load_run_late_stage_mode_payload(run)
@@ -4487,7 +4620,7 @@ def _timeline_semantic_outcome(event: RunEvent, payload: dict[str, Any]) -> str:
         return "unexpected_failure"
     if stage_owned_subreason == "review_required" or deterministic_outcome == "review_required":
         return "requires_review"
-    if stage == "pipeline_complete":
+    if stage in {"pipeline_complete", "pipeline_compute_complete"}:
         return "summary"
     return "normal_progress"
 def _timeline_stage_summary_message(
@@ -4613,6 +4746,46 @@ def _timeline_stage_summary_message(
                 ("job", job_url or None),
                 ("outcome", outcome),
                 ("concurrency", cv_generation_concurrency),
+            ],
+        )
+    if event.stage == "synonym_proposal_triage_completed":
+        return _format_message(
+            "Synonym triage complete",
+            [
+                ("scope", "proposals"),
+                ("triaged", payload.get("triaged_count")),
+                ("reused", payload.get("reused_count")),
+                ("fallback", payload.get("fallback_count")),
+                ("skipped", payload.get("skipped_count")),
+                ("failed", payload.get("failed_count")),
+            ],
+        )
+    if event.stage == "synonym_proposal_auto_apply_completed":
+        return _format_message(
+            "Synonym auto-apply complete",
+            [
+                ("scope", "proposals"),
+                ("applied", payload.get("applied_count")),
+                ("skipped", payload.get("skipped_count")),
+                ("failed", payload.get("failed_count")),
+            ],
+        )
+    if event.stage == "cv_review_batch_action":
+        return _format_message(
+            "CV review batch decision",
+            [
+                ("action", payload.get("action")),
+                ("applied", payload.get("applied")),
+                ("skipped", payload.get("skipped")),
+                ("failed", payload.get("failed")),
+            ],
+        )
+    if event.stage == "cv_review_completed":
+        return _format_message(
+            "CV review complete",
+            [
+                ("resolved", payload.get("resolved_count")),
+                ("run marked succeeded", payload.get("run_marked_succeeded")),
             ],
         )
     stage_id = _timeline_stage_download_for_event(event.stage)
@@ -4742,46 +4915,6 @@ def _timeline_stage_summary_message(
                 "CV analysis complete",
                 details,
             )
-    if event.stage == "synonym_proposal_triage_completed":
-        return _format_message(
-            "Synonym triage complete",
-            [
-                ("scope", "proposals"),
-                ("triaged", payload.get("triaged_count")),
-                ("reused", payload.get("reused_count")),
-                ("fallback", payload.get("fallback_count")),
-                ("skipped", payload.get("skipped_count")),
-                ("failed", payload.get("failed_count")),
-            ],
-        )
-    if event.stage == "synonym_proposal_auto_apply_completed":
-        return _format_message(
-            "Synonym auto-apply complete",
-            [
-                ("scope", "proposals"),
-                ("applied", payload.get("applied_count")),
-                ("skipped", payload.get("skipped_count")),
-                ("failed", payload.get("failed_count")),
-            ],
-        )
-    if event.stage == "cv_review_batch_action":
-        return _format_message(
-            "CV review batch decision",
-            [
-                ("action", payload.get("action")),
-                ("applied", payload.get("applied")),
-                ("skipped", payload.get("skipped")),
-                ("failed", payload.get("failed")),
-            ],
-        )
-    if event.stage == "cv_review_completed":
-        return _format_message(
-            "CV review complete",
-            [
-                ("resolved", payload.get("resolved_count")),
-                ("run marked succeeded", payload.get("run_marked_succeeded")),
-            ],
-        )
     if event.stage == "layer4_cv_validation_failed":
         job_url = str(payload.get("job_url") or "").strip()
         semantic_outcome = _timeline_semantic_outcome(event, payload)
@@ -4792,7 +4925,7 @@ def _timeline_stage_summary_message(
         if job_url:
             return f"CV validation failed ({qualifier}) for {job_url}"
         return f"CV validation failed ({qualifier})"
-    if event.stage == "pipeline_complete":
+    if event.stage in {"pipeline_complete", "pipeline_compute_complete"}:
         accepted = outputs.get("accepted")
         validation_failed = outputs.get("validation_failed")
         generation_failed = outputs.get("generation_failed")
@@ -8240,6 +8373,18 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     status=RunStatus.SUCCEEDED,
                     checkpoint_status="completed",
                 )
+            )
+            _persist_post_hitl_closure_artifact_reconciliation(
+                run_id=run_id,
+                run=dataclasses.replace(
+                    updated_run,
+                    status=RunStatus.SUCCEEDED,
+                    checkpoint_status="completed",
+                ),
+                closure_payload=closure_payload,
+                bq=bq,
+                project=project,
+                dataset=dataset,
             )
             append_event(
                 RunEvent(
