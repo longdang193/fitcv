@@ -118,19 +118,15 @@ def _warn_or_fail_langgraph_override_drift() -> None:
     logger.warning(message)
 
 def _ensure_safe_local_execution_mode() -> None:
-    """Default to inline execution on Windows when execution mode is unset.
-
-    Windows + RQ worker (Python 3.13) is a frequent unstable path due
-    multiprocessing fork-context assumptions in rq scheduler imports.
-    """
+    """Default to queue execution on Windows when execution mode is unset."""
     if os.name != "nt":
         return
     raw = str(os.environ.get("FITCV_CP_INLINE_EXECUTION", "") or "").strip().lower()
     if raw:
         return
-    os.environ["FITCV_CP_INLINE_EXECUTION"] = "1"
+    os.environ["FITCV_CP_INLINE_EXECUTION"] = "0"
     logger.warning(
-        "FITCV_CP_INLINE_EXECUTION was unset on Windows; defaulted to inline mode to avoid queue worker instability."
+        "FITCV_CP_INLINE_EXECUTION was unset on Windows; defaulted to queue mode (inline disabled)."
     )
 
 
