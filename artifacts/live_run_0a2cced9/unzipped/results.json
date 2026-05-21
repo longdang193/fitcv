@@ -1,0 +1,2443 @@
+{
+  "run_id": "0a2cced9-09fa-4ed7-baee-55b7369a25d4",
+  "results": [
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4386390764",
+      "job_title": "Data Scientist",
+      "company": "JD.COM",
+      "location_type": null,
+      "seniority": "mid",
+      "job_family": "data_science",
+      "domain": "e-commerce",
+      "pipeline_status": "ranked_blocked_by_reranker_fit",
+      "deterministic_outcome": "blocked",
+      "stage_owned_subreason": "blocked_by_reranker_fit",
+      "source_stage": "cv_analysis",
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.34722976212128537,
+        "ai_score": 0.35,
+        "vector_score": 0.13153174747523544,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "4a21333af216c19f2d379e3e925afe31466a899379aa313b6eed1dbace49b890"
+      },
+      "cv_analysis": {
+        "status": "blocked_by_reranker_fit",
+        "analysis_reuse_status": "not_run_reranker_skip",
+        "analysis_input_fingerprint": null
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 11,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/research-consultant-public-sector-m-f-d-at-predictby-4417479502?trk=public_jobs_topcard-title",
+      "job_title": "Research Consultant Public Sector (m/f/d)",
+      "company": "PredictBy",
+      "location_type": "hybrid",
+      "seniority": "mid",
+      "job_family": "analytics",
+      "domain": "public sector",
+      "pipeline_status": "ranked_blocked_by_reranker_fit",
+      "deterministic_outcome": "blocked",
+      "stage_owned_subreason": "blocked_by_reranker_fit",
+      "source_stage": "cv_analysis",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "public sector",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.337561236163013,
+        "ai_score": 0.32,
+        "vector_score": 0.33040824108675315,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "e4a177a029c0a5093b043db6eab6c86baa23213050836109b52baed48f8fed0b"
+      },
+      "cv_analysis": {
+        "status": "blocked_by_reranker_fit",
+        "analysis_reuse_status": "not_run_reranker_skip",
+        "analysis_input_fingerprint": null
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 12,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/senior-data-analyst-at-jobgether-4416398047?trk=public_jobs_topcard-title",
+      "job_title": "Senior Data Analyst",
+      "company": "Jobgether",
+      "location_type": "remote",
+      "seniority": "mid",
+      "job_family": "analytics",
+      "domain": "performance marketing",
+      "pipeline_status": "ranked_blocked_by_reranker_fit",
+      "deterministic_outcome": "blocked",
+      "stage_owned_subreason": "blocked_by_reranker_fit",
+      "source_stage": "cv_analysis",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "performance marketing",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.32308722759139724,
+        "ai_score": 0.36,
+        "vector_score": 0.01613707283153738,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "5b463336102e205d89998f689abd88bfb0ba9c96da2a10eab71f5c046b39c69d"
+      },
+      "cv_analysis": {
+        "status": "blocked_by_reranker_fit",
+        "analysis_reuse_status": "not_run_reranker_skip",
+        "analysis_input_fingerprint": null
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 13,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/strategic-finance-analyst-fp-a-m-w-d-at-octopus-energy-4416369761?trk=public_jobs_topcard-title",
+      "job_title": "Strategic Finance Analyst (FP&A) (m/w/d)",
+      "company": "Octopus Energy",
+      "location_type": "onsite",
+      "seniority": "junior",
+      "job_family": "analytics",
+      "domain": "energy utilities / renewable energy",
+      "pipeline_status": "ranked_blocked_by_reranker_fit",
+      "deterministic_outcome": "blocked",
+      "stage_owned_subreason": "blocked_by_reranker_fit",
+      "source_stage": "cv_analysis",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "energy utilities / renewable energy",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.31867508946524553,
+        "ai_score": 0.28,
+        "vector_score": -0.022166070231696672,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "96dcd3cbac6ca1c414ebadbb06c1d356625e14b6372762c6558cb5351a30a431"
+      },
+      "cv_analysis": {
+        "status": "blocked_by_reranker_fit",
+        "analysis_reuse_status": "not_run_reranker_skip",
+        "analysis_input_fingerprint": null
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 15,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4408002822",
+      "job_title": "Internship Teamsports Apparel",
+      "company": "PUMA Group",
+      "location_type": "onsite",
+      "seniority": "junior",
+      "job_family": "analytics",
+      "domain": "sportswear retail",
+      "pipeline_status": "ranked_with_cv",
+      "deterministic_outcome": "accepted",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "sportswear retail",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.5371138739212741,
+        "ai_score": 0.74,
+        "vector_score": -0.059240840524839376,
+        "fit_label": "strong",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "38097d550264833e53f112ab2404cae8030995c6a3e8dc982dfec6c9c9033936"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "8bcf21ade1411b6cc7e42eef1a2305d510e41a6d5d8d932b946aaaba3030fc51"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "strong"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "accepted",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 1,
+      "cv": {
+        "status": "accepted",
+        "version_id": "160adf09-c0bc-4a22-ab9f-2920f248907a"
+      },
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: Conducting market analysis, Develop and refine impactful presentations, Generating and analyzing reports, Interpret data and generate insights through data-driven analysis, Maintain and update product-related data within PUMA systems. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": true,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-21T12:54:56.331423+00:00",
+      "hitl_review_note": null,
+      "hitl_review_artifact_version_id": "160adf09-c0bc-4a22-ab9f-2920f248907a"
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/research-assistant-at-rotaract-club-of-mount-aureol-4413669821?trk=public_jobs_topcard-title",
+      "job_title": "Research Assistant",
+      "company": "Rotaract Club of Mount Aureol",
+      "location_type": null,
+      "seniority": "junior",
+      "job_family": "analytics",
+      "domain": null,
+      "pipeline_status": "ranked_no_cv",
+      "deterministic_outcome": "rejected",
+      "stage_owned_subreason": "validation_failed",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.4970470289383142,
+        "ai_score": 0.62,
+        "vector_score": 0.3269801929220948,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "a24cd1c7256f32e5bd52bd566d75602e147214ad54bef12350904b8a492d45bb"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "4493823d1fb964c678e0bfdb074c021a02b691a2f1eab0895975aac0837be73e"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "validation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "failed"
+        }
+      },
+      "rank": 2,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4417319055",
+      "job_title": "Data Scientist* Inputmanagement",
+      "company": "BarmeniaGothaer",
+      "location_type": "hybrid",
+      "seniority": "junior",
+      "job_family": "data_science",
+      "domain": "insurance",
+      "pipeline_status": "ranked_with_cv",
+      "deterministic_outcome": "accepted",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "insurance",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.4709352085863042,
+        "ai_score": 0.46,
+        "vector_score": 0.34623472390869425,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "b6f8b2a3d58a7cdf6e9deb00f2e1534a75f6e2cc6db36a6fe6b53a74bcbc07ff"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "c9bdd4e6cbcd7fa8db3b81eb6cf314dc9ab01562d09ff77dbc3c8e48ede74bec"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "accepted",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 3,
+      "cv": {
+        "status": "accepted",
+        "version_id": "df9b0e6b-ba2d-4635-8763-189de3c35903"
+      },
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: Analyse und Bewertung von Machbarkeit, Nutzen und Kosten von KI-Initiativen (einschließlich PoCs), Data-Science-Methodik, Generative AI, NLP. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": true,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-21T12:54:56.331423+00:00",
+      "hitl_review_note": null,
+      "hitl_review_artifact_version_id": "df9b0e6b-ba2d-4635-8763-189de3c35903"
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4417429648",
+      "job_title": "Research Analyst",
+      "company": "Alignerr",
+      "location_type": "remote",
+      "seniority": "junior",
+      "job_family": "analytics",
+      "domain": "artificial_intelligence",
+      "pipeline_status": "ranked_with_cv",
+      "deterministic_outcome": "accepted",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "artificial_intelligence",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.4473725073163266,
+        "ai_score": 0.52,
+        "vector_score": 0.19581671544217702,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c3c9a1e3fe1d85be1aba2eae6155ef1fd7cf6d5aec00bdba9493eaac8de54914"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "12091e0e380c768386b77b9bf57467c2047ae76393a829330789f705706073db"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "accepted",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 4,
+      "cv": {
+        "status": "accepted",
+        "version_id": "95c94642-41dd-4e6b-bb63-11e78a7b1d3a"
+      },
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: Cross-reference AI outputs against authoritative, reliable sources, Document findings in structured formats, Flag inaccuracies, outdated data, and unsupported claims with clear documentation, Rate accuracy and reliability of AI responses using structured evaluation rubrics, Research topics online to verify AI-generated claims. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": true,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-21T12:54:56.331423+00:00",
+      "hitl_review_note": null,
+      "hitl_review_artifact_version_id": "95c94642-41dd-4e6b-bb63-11e78a7b1d3a"
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/junior-researcher-at-premier-business-solution-4413675925?trk=public_jobs_topcard-title",
+      "job_title": "Junior Researcher",
+      "company": "Premier Business Solution",
+      "location_type": "remote",
+      "seniority": "junior",
+      "job_family": "analytics",
+      "domain": null,
+      "pipeline_status": "ranked_with_cv",
+      "deterministic_outcome": "accepted",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.4466642230037239,
+        "ai_score": 0.62,
+        "vector_score": -0.07557184664184106,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "087cb330d12fa3f8275ee55d10160babfcb379de848ccfeb4085c2ca5f34863f"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "cb9c94a91f520aed2e65c11d5a228abcfdf8d25b7e7af7c05b9c73be8ec7a300"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "accepted",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 5,
+      "cv": {
+        "status": "accepted",
+        "version_id": "52141f0d-89ce-4bc0-b4d4-15fa67ea4f32"
+      },
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: Basic computer or mobile phone skills, Basic online research. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": true,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-21T12:54:56.331423+00:00",
+      "hitl_review_note": null,
+      "hitl_review_artifact_version_id": "52141f0d-89ce-4bc0-b4d4-15fa67ea4f32"
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-entry-level-junior-at-encephal-statistics-department-of-ramanujan-college-university-of-delhi-4416513379?trk=public_jobs_topcard-title",
+      "job_title": "Data Analyst (Entry-Level / Junior)",
+      "company": "Encephal: Statistics Department of Ramanujan College, University Of Delhi",
+      "location_type": null,
+      "seniority": "junior",
+      "job_family": "analytics",
+      "domain": null,
+      "pipeline_status": "ranked_with_cv",
+      "deterministic_outcome": "accepted",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.4466547610633429,
+        "ai_score": 0.53,
+        "vector_score": 0.23103174042228566,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "86837db6cffbfe9a840d954f6d3a414f4ac938d872e8c5003418d9a679105391"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "631b5dced989170b3c4efa22dbb1e8a90efae7e1d13ee5dc267a981e50707293"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "accepted",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 6,
+      "cv": {
+        "status": "accepted",
+        "version_id": "7ca71d32-c90b-49d5-aeef-0c906cb01df9"
+      },
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: Microsoft Excel. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": true,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-21T12:54:56.331423+00:00",
+      "hitl_review_note": null,
+      "hitl_review_artifact_version_id": "7ca71d32-c90b-49d5-aeef-0c906cb01df9"
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4408283177",
+      "job_title": "Market Analysis Internship",
+      "company": "Motorola Solutions",
+      "location_type": "onsite",
+      "seniority": "junior",
+      "job_family": "analytics",
+      "domain": "public safety communications",
+      "pipeline_status": "ranked_with_cv",
+      "deterministic_outcome": "accepted",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "public safety communications",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.38943148691413476,
+        "ai_score": 0.46,
+        "vector_score": -0.030456753905768668,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "ff6e59083c624d02dbf3a45fa05248171f7b12e68e7f781e159814f1d82e9ef3"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "0baa4839e562e2a8701ff6fa9c015b918e13fee3125f2f76802c49182b553f74"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "accepted",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 7,
+      "cv": {
+        "status": "accepted",
+        "version_id": "8a592aae-a394-4c56-9f2a-f35f63a0d542"
+      },
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: Google Sheets, Google Suite, MS Excel, Microsoft Office, PowerPoint. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": true,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-21T12:54:56.331423+00:00",
+      "hitl_review_note": null,
+      "hitl_review_artifact_version_id": "8a592aae-a394-4c56-9f2a-f35f63a0d542"
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-entry-clerk-at-premier-enerji-4413688119?trk=public_jobs_topcard-title",
+      "job_title": "Data Entry Clerk",
+      "company": "Premier Enerji",
+      "location_type": "remote",
+      "seniority": "junior",
+      "job_family": null,
+      "domain": null,
+      "pipeline_status": "ranked_with_cv",
+      "deterministic_outcome": "accepted",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.3848895418804448,
+        "ai_score": 0.48,
+        "vector_score": 0.21926361253629803,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "6bd0bda006c2f49046ebec2aa1daa0b3025f013bc6ab91d3b7b923aec206675c"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "5025ba487c2052612c2ff51669ae2bd43b1da2822de966ff30d42437946d328d"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "accepted",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 8,
+      "cv": {
+        "status": "accepted",
+        "version_id": "9d6c1c5c-ece9-4eec-b117-ec21929409f5"
+      },
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: Basic computer or mobile phone skills, Maintain simple records and spreadsheets, Review data for accuracy. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": true,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-21T12:54:56.331423+00:00",
+      "hitl_review_note": null,
+      "hitl_review_artifact_version_id": "9d6c1c5c-ece9-4eec-b117-ec21929409f5"
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4417347776",
+      "job_title": "Data Analyst (m/w/d)",
+      "company": "happyhotel",
+      "location_type": "hybrid",
+      "seniority": "senior",
+      "job_family": "analytics",
+      "domain": "saas",
+      "pipeline_status": "ranked_with_cv",
+      "deterministic_outcome": "accepted",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.3834730949438216,
+        "ai_score": 0.5,
+        "vector_score": 0.08785984864508482,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "7bd2d4f20bbfe9a270955c9351753d74ea520b6a0df66a53f26f0194a8c454a6"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "40c111b8c95324adf735824fc8ec5039996d4c9e540a8d8a1a4ed2a75cfea6ed"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "accepted",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 9,
+      "cv": {
+        "status": "accepted",
+        "version_id": "7146f1f1-3e70-4d08-88b9-9cb38a56b4c5"
+      },
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: Anomaly detection, CTEs, Data governance, Data sharing, Data transformation, Excel. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": true,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-21T12:54:56.331423+00:00",
+      "hitl_review_note": null,
+      "hitl_review_artifact_version_id": "7146f1f1-3e70-4d08-88b9-9cb38a56b4c5"
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413658848",
+      "job_title": "Business Analyst",
+      "company": "Haystack",
+      "location_type": "hybrid",
+      "seniority": "junior",
+      "job_family": "analytics",
+      "domain": "banking",
+      "pipeline_status": "ranked_with_cv",
+      "deterministic_outcome": "accepted",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "banking",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.38329828530651744,
+        "ai_score": 0.52,
+        "vector_score": -0.23134476462321693,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "95d55f708a5fdd5aba9bcfac213f8b3af3c9f58aec2ee4ccbda1ddea7024e6f4"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "9b36dfac5792b2dac83a4e9f1047c0c6ed0c0b842167ab7ff4345edeae347152"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "accepted",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 10,
+      "cv": {
+        "status": "accepted",
+        "version_id": "0d829b70-50dd-4a31-8ffb-80f71d6b00a9"
+      },
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: MS Office, Microsoft Excel, Microsoft PowerPoint, Microsoft Word. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": true,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-21T12:54:56.331423+00:00",
+      "hitl_review_note": null,
+      "hitl_review_artifact_version_id": "0d829b70-50dd-4a31-8ffb-80f71d6b00a9"
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4376523337",
+      "job_title": "Strategic Partnerships Lead, Central and Eastern Europe",
+      "company": "Airbnb",
+      "location_type": "onsite",
+      "seniority": "lead",
+      "job_family": "business_development_partnerships",
+      "domain": "travel_hospitality",
+      "pipeline_status": "ranked_with_cv",
+      "deterministic_outcome": "accepted",
+      "stage_owned_subreason": "review_required",
+      "source_stage": "cv_generation",
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "travel_hospitality",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.3225759961748565,
+        "ai_score": 0.45,
+        "vector_score": 0.2171733078323763,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "ce95cceafbb8b5655321f050dc92bf79fa23357b24a548e03baab82c1073cafd"
+      },
+      "cv_analysis": {
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "a9a58249bb2182fbaa2a9adb36fa1f9c230ae0cadb77fe5b4b62ad7dee060cff"
+      },
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "accepted",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": 14,
+      "cv": {
+        "status": "accepted",
+        "version_id": "2442deff-ea24-4123-a6d1-8364981e3ab6"
+      },
+      "hitl_review_required": true,
+      "hitl_review_reason": "Unsupported requirements require review: Analytical skills, Financial modeling, Project management. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "hitl_review_pending": false,
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": true,
+      "hitl_review_category": "general",
+      "hitl_review_action": "approve_as_is",
+      "hitl_review_actor": "admin",
+      "hitl_review_action_at": "2026-05-21T12:54:56.331423+00:00",
+      "hitl_review_note": null,
+      "hitl_review_artifact_version_id": "2442deff-ea24-4123-a6d1-8364981e3ab6"
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413622012",
+      "job_title": "Junior Data Engineer",
+      "company": "AMBOSS",
+      "location_type": "hybrid",
+      "seniority": "junior",
+      "job_family": "data_engineering",
+      "domain": "healthcare",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "healthcare",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.3071759335003716,
+        "ai_score": 0.48,
+        "vector_score": 0.034506223335810465,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c2abf3a285c7cb1db78492307e96198fd7863ad86fcfaa2c162fbf6cbf201ebf"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4417473980",
+      "job_title": "Data Scientist",
+      "company": "SME Careers",
+      "location_type": "remote",
+      "seniority": "senior",
+      "job_family": "data_science",
+      "domain": "ai data services",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "ai data services",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.2496605086194698,
+        "ai_score": 0.38,
+        "vector_score": -0.010834704441630207,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "027cd4940757a396eb66ea77064b38e8f2c1dbb3704841992794c4185423f320"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-scientist-%E2%80%93-analytics-statistics-bi-%E2%82%AC130-000-at-findr-4417486502?trk=public_jobs_topcard-title",
+      "job_title": "Data Scientist – Analytics, Statistics & BI - €130,000",
+      "company": "Findr",
+      "location_type": "hybrid",
+      "seniority": "senior",
+      "job_family": "data_science",
+      "domain": "healthcare",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "healthcare",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.24895703550087112,
+        "ai_score": 0.46,
+        "vector_score": -0.2548318845396475,
+        "fit_label": "stretch",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "f4b14e29fdd72f3fae417a7be738c541deab14fb05bd03cf683f31d36523903a"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-huzzle-com-4417304971?trk=public_jobs_topcard-title",
+      "job_title": "Data Engineer",
+      "company": "Huzzle.com",
+      "location_type": "onsite",
+      "seniority": "mid",
+      "job_family": "data_engineering",
+      "domain": "enterprise software (sap)",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "enterprise software (sap)",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.23496844183185123,
+        "ai_score": 0.32,
+        "vector_score": 0.04645627887900813,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "e6c04e36e28acb96c3d77420bde996497f417ffe70a9aa603fb1cc93f2cd32ac"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4402878255",
+      "job_title": "Data Scientist",
+      "company": "Adsquare",
+      "location_type": "hybrid",
+      "seniority": "senior",
+      "job_family": "data_science",
+      "domain": "advertising technology",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "advertising technology",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.23360191724793103,
+        "ai_score": 0.28,
+        "vector_score": 0.08715003655483414,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "3fb72580555abaf7a253639ef739a05a17ee66292619eed67550913905d57233"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413606917",
+      "job_title": "Internship – Engineering & Data Analytics in Cloud Systems and Performance Optimization (all genders welcome)",
+      "company": "AUDI AG",
+      "location_type": "onsite",
+      "seniority": "junior",
+      "job_family": "data_engineering",
+      "domain": "automotive",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "automotive",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.22657810186494176,
+        "ai_score": 0.28,
+        "vector_score": -0.19170154312261062,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c24701beb9a42abcff7e24401ab924ea5c4ab728cb1bdbb95ff31d2d9b687334"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4416324617",
+      "job_title": "Director of Data (BI & Analytics)",
+      "company": "Andercore",
+      "location_type": "onsite",
+      "seniority": "lead",
+      "job_family": "analytics",
+      "domain": "international trade and supply chain",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "international trade and supply chain",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.22498010071258362,
+        "ai_score": 0.32,
+        "vector_score": -0.2201326619161095,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "7ae33e8ce0f426441f26298c1ebdbdb8d5974c05879aa8b7f66fbfdf43f1870a"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/senior-genai-data-scientist-at-trust-in-soda-4416170236?trk=public_jobs_topcard-title",
+      "job_title": "Senior GenAI Data Scientist",
+      "company": "Trust In SODA",
+      "location_type": "onsite",
+      "seniority": "senior",
+      "job_family": "data_science",
+      "domain": null,
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.21780371986692887,
+        "ai_score": 0.18,
+        "vector_score": -0.09464186755380782,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "9c4b4f1948872151da3067e086caa672d6488fee66c25b6479a76e790669f64a"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4417477507",
+      "job_title": "Machine Learning Engineer (all genders), Monheim (hybrid)",
+      "company": "Bayer",
+      "location_type": "hybrid",
+      "seniority": "mid",
+      "job_family": "ml_engineering",
+      "domain": "agriculture",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "agriculture",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.21331471184516643,
+        "ai_score": 0.33,
+        "vector_score": -0.10032616345646626,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "f40079c013a9fdb47a1c2a81ab69c2316b18b21b3d527b8a0e785ed3363cd129"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413668252",
+      "job_title": "Data Engineer (m/w/d)",
+      "company": "Ashampoo®",
+      "location_type": "hybrid",
+      "seniority": "mid",
+      "job_family": "data_engineering",
+      "domain": "software",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "software",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.2011523558048992,
+        "ai_score": 0.33,
+        "vector_score": -0.18140853705824808,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "3aaeabdaf764ac295bbd1d17b034c07dde24ca6829defcc2b26883bab11155ff"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/senior-data-scientist-f-m-x-at-auto1-group-4416397554?trk=public_jobs_topcard-title",
+      "job_title": "Senior Data Scientist (f/m/x)",
+      "company": "AUTO1 Group",
+      "location_type": "remote",
+      "seniority": "senior",
+      "job_family": "data_science",
+      "domain": "automotive used-car marketplace",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "automotive used-car marketplace",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.18680335621343827,
+        "ai_score": 0.28,
+        "vector_score": -0.303271742890804,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "6161f752fe42880f4207412d44fbe1e6cff560cd44c1787f18ef88d86f78d6a9"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-zontal-4417481902?trk=public_jobs_topcard-title",
+      "job_title": "Data Engineer",
+      "company": "ZONTAL",
+      "location_type": null,
+      "seniority": "mid",
+      "job_family": "data_engineering",
+      "domain": "healthcare",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "healthcare",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.183457948857364,
+        "ai_score": 0.22,
+        "vector_score": 0.15490484423427825,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "4255e44c5d7af7f70d419fa9bc65d29c44881a8aad7f515d5cc83c33b40b5f71"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/account-executive-at-samba-tv-4377415215?trk=public_jobs_topcard-title",
+      "job_title": "Account Executive",
+      "company": "Samba TV",
+      "location_type": "hybrid",
+      "seniority": "mid",
+      "job_family": "sales",
+      "domain": "advertising_technology",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "advertising_technology",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.16592758703709126,
+        "ai_score": 0.3,
+        "vector_score": -0.09381608641939165,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "b6dbc7091137c516e4c503be089ea9ce8da1b09510b199a8c5ce75475b2f6a3c"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4417349690",
+      "job_title": "Head of Global Data Products (m/f/d)",
+      "company": "Allianz Technology",
+      "location_type": "hybrid",
+      "seniority": "lead",
+      "job_family": "data_engineering",
+      "domain": "insurance",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "insurance",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.16193966490609113,
+        "ai_score": 0.18,
+        "vector_score": 0.2905068569496985,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "0eb6a6070eb16e8ff19e9a44fc7213322db87fbabdf51f013077525fc3ec252b"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-engineer-integration-at-jobgether-4417458133?trk=public_jobs_topcard-title",
+      "job_title": "Data Engineer (Integration)",
+      "company": "Jobgether",
+      "location_type": "remote",
+      "seniority": "mid",
+      "job_family": "data_engineering",
+      "domain": null,
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.14073397722440767,
+        "ai_score": 0.22,
+        "vector_score": -0.1186155904337736,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "0c0cb94eb04b3550e9515885ab251245cc1f90d2b8389682d967c828e4cf06c1"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/ai-research-engineer-agentic-post-training-at-jobgether-4416393656?trk=public_jobs_topcard-title",
+      "job_title": "AI Research Engineer (Agentic Post-training)",
+      "company": "Jobgether",
+      "location_type": "remote",
+      "seniority": null,
+      "job_family": "ml_engineering",
+      "domain": null,
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.13521482755368908,
+        "ai_score": 0.12,
+        "vector_score": 0.18143218369126055,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "aea0d525df4bf9d80be206ec41d7458def274a36f34f4824eda6cdf211548cbe"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/chief-operating-officer-at-jobgether-4416519044?trk=public_jobs_topcard-title",
+      "job_title": "Chief Operating Officer",
+      "company": "Jobgether",
+      "location_type": "remote",
+      "seniority": "lead",
+      "job_family": "operations_management",
+      "domain": "marketing and advertising",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "marketing and advertising",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.12534124728253118,
+        "ai_score": 0.32,
+        "vector_score": -0.2510583514497922,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "583563cc3477c5bf7769d22a3b4e4297b8b7a4371a315f4e4bd00f3db3bbefa2"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413608643",
+      "job_title": "AI Engineer for LLM Ops & Evaluation (m/f/d)",
+      "company": "Auxilius.ai",
+      "location_type": "hybrid",
+      "seniority": "mid",
+      "job_family": "ml_engineering",
+      "domain": "governance, risk and compliance (grc)",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "governance, risk and compliance (grc)",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.1201374134412797,
+        "ai_score": 0.18,
+        "vector_score": -0.14925934898795987,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "0e7db5a68a2298fbb310b5ba773b777e5211af85fe073dfceaff192f21c0a1e3"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/head-of-internal-technology-ai-at-jobgether-4417085054?trk=public_jobs_topcard-title",
+      "job_title": "Head of Internal Technology & AI",
+      "company": "Jobgether",
+      "location_type": "remote",
+      "seniority": "lead",
+      "job_family": "ml_engineering",
+      "domain": "marketplace",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [],
+      "scores": {
+        "final_score": 0.11165602496229052,
+        "ai_score": 0.18,
+        "vector_score": 0.03104016641527017,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "07b8176bd8d92f44f887abe27f93da2ee35fe57557bb4c8736b1a7c787de0be6"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/senior-data-engineer-at-jobgether-4417441908?trk=public_jobs_topcard-title",
+      "job_title": "Senior Data Engineer",
+      "company": "Jobgether",
+      "location_type": "remote",
+      "seniority": "senior",
+      "job_family": "data_engineering",
+      "domain": "energy",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "energy",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.09627611733796815,
+        "ai_score": 0.22,
+        "vector_score": -0.20196874155640293,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "ba56833a9143ed12dfae536f961affaafcd1acf622720e433bbf767240d58f02"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/director-project-management-at-alimentiv-4416325963?trk=public_jobs_topcard-title",
+      "job_title": "Director, Project Management",
+      "company": "Alimentiv",
+      "location_type": "onsite",
+      "seniority": "lead",
+      "job_family": "project_management",
+      "domain": "clinical research (cro)",
+      "pipeline_status": "scored_not_ranked",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "clinical research (cro)",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "final_score": 0.032732023635990704,
+        "ai_score": 0.12,
+        "vector_score": -0.168453175760062,
+        "fit_label": "skip",
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "2d87dd1999562f8da5729af2d217bd41f100a548b99684fc54e7090267653126"
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null
+    }
+  ]
+}

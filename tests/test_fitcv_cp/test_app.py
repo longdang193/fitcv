@@ -6401,6 +6401,204 @@ def test_admin_run_synonym_proposals_triage_refresh_does_not_mutate_status() -> 
     assert captured_statuses
     assert all(status == "in_review" for status in captured_statuses)
 
+def test_synonym_triage_fingerprint_is_stable_across_run_scoped_proposal_ids() -> None:
+    from fitcv_cp.app import _synonym_triage_fingerprint
+
+    runtime = {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "sleep_secs": 0.0,
+        "concurrency": 1,
+    }
+    proposal_a = {
+        "proposal_id": "synprop-run-a",
+        "proposal_identity": "synident-shared",
+        "proposal_status": "proposed_unreviewed",
+        "field": "skill",
+        "alias": "gcp",
+        "canonical": "google cloud",
+        "candidate_canonicals": ["google cloud"],
+    }
+    proposal_b = dict(proposal_a)
+    proposal_b["proposal_id"] = "synprop-run-b"
+
+    fp_a = _synonym_triage_fingerprint(proposal_a, runtime=runtime, overlay_fingerprint=None)
+    fp_b = _synonym_triage_fingerprint(proposal_b, runtime=runtime, overlay_fingerprint=None)
+
+    assert fp_a == fp_b
+
+def test_build_synonym_proposals_payload_reuses_existing_state_by_identity_across_runs() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.synonym_proposals import (
+        build_synonym_proposal_identity,
+        build_synonym_proposals_payload,
+    )
+
+    summary = {
+        "mapping_suggestions": [
+            {
+                "field": "skill",
+                "alias": "gcp",
+                "canonical": "google cloud",
+                "confidence": 0.9,
+                "job_url": "https://example.com/1",
+                "job_title": "Data Analyst",
+            }
+        ]
+    }
+    existing_payload_json = json.dumps(
+        {
+            "run_id": "run-old",
+            "proposals": [
+                {
+                    "proposal_id": "synprop-old",
+                    "proposal_identity": build_synonym_proposal_identity(
+                        field="skill",
+                        alias="gcp",
+                        candidate_canonicals=["google cloud"],
+                        proposal_family="alias_to_canonical_mapping",
+                    ),
+                    "field": "skill",
+                    "alias": "gcp",
+                    "canonical": "google cloud",
+                    "candidate_canonicals": ["google cloud"],
+                    "proposal_family": "alias_to_canonical_mapping",
+                    "proposal_status": "approved_for_run_overlay",
+                    "recommended_action": "approve",
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    payload_json = build_synonym_proposals_payload(
+        run_id="run-new",
+        summary=summary,
+        created_at=datetime.now(timezone.utc),
+        existing_payload_json=existing_payload_json,
+        global_synonyms={},
+    )
+    payload = json.loads(payload_json)
+    proposals = list(payload.get("proposals") or [])
+    assert proposals
+    row = proposals[0]
+    assert row.get("proposal_status") == "approved_for_run_overlay"
+
+def test_admin_run_synonym_proposals_triage_refresh_reuses_when_fingerprint_matches_across_run_ids() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.app import _synonym_triage_fingerprint
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    runtime = {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "sleep_secs": 0.0,
+        "concurrency": 1,
+    }
+    triage_target = {
+        "proposal_id": "proposal-run-new",
+        "proposal_identity": "synident-shared",
+        "proposal_status": "proposed_unreviewed",
+        "field": "skill",
+        "alias": "gcp",
+        "canonical": "google cloud",
+        "candidate_canonicals": ["google cloud"],
+        "confidence": 0.9,
+    }
+    fp = _synonym_triage_fingerprint(triage_target, runtime=runtime, overlay_fingerprint=None)
+    row_with_existing_runtime = dict(triage_target)
+    row_with_existing_runtime["recommendation_runtime"] = {"triage_fingerprint": fp}
+    row_with_existing_runtime["recommended_action"] = "approve"
+
+    run = PipelineRun(
+        run_id="run-triage-reuse",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json='{"synonym_management":{"auto_apply_recommendation_enabled":false}}',
+        synonym_proposals_json=json.dumps({"run_id": "run-triage-reuse", "proposals": [row_with_existing_runtime]}),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"), \
+         patch("fitcv_cp.app.time.sleep") as mock_sleep:
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-reuse/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    location = resp.headers["location"]
+    assert "synonym_triage_reused=1" in location
+    assert "synonym_triage_fresh=0" in location
+    mock_sleep.assert_not_called()
+
+def test_admin_run_synonym_proposals_triage_refresh_recomputes_when_runtime_fingerprint_changes() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.app import _synonym_triage_fingerprint
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    # Baseline fingerprint from old runtime settings.
+    old_runtime = {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "sleep_secs": 0.0,
+        "concurrency": 1,
+    }
+    row = {
+        "proposal_id": "proposal-runtime-change",
+        "proposal_identity": "synident-runtime-change",
+        "proposal_status": "proposed_unreviewed",
+        "field": "skill",
+        "alias": "sql",
+        "canonical": "structured query language",
+        "candidate_canonicals": ["structured query language"],
+        "confidence": 0.9,
+    }
+    old_fp = _synonym_triage_fingerprint(row, runtime=old_runtime, overlay_fingerprint=None)
+    row["recommendation_runtime"] = {"triage_fingerprint": old_fp}
+    row["recommended_action"] = "approve"
+
+    # New runtime setting changes concurrency -> fingerprint mismatch expected.
+    run = PipelineRun(
+        run_id="run-triage-recompute",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json='{"synonym_management":{"auto_apply_recommendation_enabled":false},"stage_runtime":{"cv_analysis":{"concurrency":3}}}',
+        synonym_proposals_json=json.dumps({"run_id": "run-triage-recompute", "proposals": [row]}),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-recompute/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    location = resp.headers["location"]
+    assert "synonym_triage_reused=0" in location
+    assert "synonym_triage_fresh=1" in location
+
 def test_synonym_proposal_review_queue_filters_pairs_already_in_global_synonyms() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone

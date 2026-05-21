@@ -34,6 +34,61 @@ _SYNONYM_MANAGEMENT_DEFAULTS: dict[str, bool] = {
     "auto_accept_ai_action_enabled": True,
 }
 
+def build_synonym_proposal_identity(
+    *,
+    field: str,
+    alias: str,
+    candidate_canonicals: list[str],
+    proposal_family: str,
+) -> str:
+    normalized_field = str(field or "skill").strip().lower() or "skill"
+    normalized_alias = str(alias or "").strip().lower()
+    normalized_family = str(proposal_family or "alias_to_canonical_mapping").strip().lower() or "alias_to_canonical_mapping"
+    normalized_canonicals = sorted(
+        {
+            str(item).strip().lower()
+            for item in list(candidate_canonicals or [])
+            if str(item).strip()
+        }
+    )
+    identity_seed = f"{normalized_field}:{normalized_alias}:{'|'.join(normalized_canonicals)}:{normalized_family}"
+    return f"synident-{hashlib.sha1(identity_seed.encode('utf-8')).hexdigest()[:16]}"
+
+def build_synonym_triage_fingerprint(
+    *,
+    proposal: dict[str, Any],
+    runtime: dict[str, Any],
+    overlay_fingerprint: str | None = None,
+) -> str:
+    payload = {
+        "proposal_identity": str(proposal.get("proposal_identity") or "").strip()
+        or build_synonym_proposal_identity(
+            field=str(proposal.get("field") or "skill"),
+            alias=str(proposal.get("alias") or ""),
+            candidate_canonicals=[str(item) for item in list(proposal.get("candidate_canonicals") or [])],
+            proposal_family=str(proposal.get("proposal_family") or "alias_to_canonical_mapping"),
+        ),
+        "proposal_status": str(proposal.get("proposal_status") or "").strip(),
+        "field": str(proposal.get("field") or "skill").strip().lower(),
+        "alias": str(proposal.get("alias") or "").strip().lower(),
+        "canonical": str(proposal.get("canonical") or "").strip().lower(),
+        "candidate_canonicals": sorted(
+            {
+                str(item).strip().lower()
+                for item in list(proposal.get("candidate_canonicals") or [])
+                if str(item).strip()
+            }
+        ),
+        "provider": str(runtime.get("provider") or "fitcv_builtin").strip().lower(),
+        "model": str(runtime.get("model") or "synonym_triage_v1").strip(),
+        "wire_api": str(runtime.get("wire_api") or "builtin").strip(),
+        "sleep_secs": round(float(runtime.get("sleep_secs") or 0.0), 6),
+        "concurrency": int(runtime.get("concurrency") or 1),
+        "triage_version": "synonym_triage_v1",
+        "overlay_fingerprint": str(overlay_fingerprint or "").strip() or None,
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+
 def resolve_synonym_management_mode(settings_payload: dict[str, Any] | None) -> dict[str, bool]:
     block = dict((settings_payload or {}).get("synonym_management") or {})
     return {
@@ -80,6 +135,7 @@ def build_synonym_proposals_payload(
     global_synonyms: dict[str, str] | None = None,
 ) -> str:
     existing_proposals_by_id: dict[str, dict[str, Any]] = {}
+    existing_proposals_by_identity: dict[str, dict[str, Any]] = {}
     if existing_payload_json:
         try:
             existing_payload = json.loads(existing_payload_json)
@@ -92,6 +148,16 @@ def build_synonym_proposals_payload(
                 proposal_id = str(existing_proposal.get("proposal_id") or "").strip()
                 if proposal_id:
                     existing_proposals_by_id[proposal_id] = existing_proposal
+                proposal_identity = str(existing_proposal.get("proposal_identity") or "").strip()
+                if not proposal_identity:
+                    proposal_identity = build_synonym_proposal_identity(
+                        field=str(existing_proposal.get("field") or "skill"),
+                        alias=str(existing_proposal.get("alias") or ""),
+                        candidate_canonicals=[str(item) for item in list(existing_proposal.get("candidate_canonicals") or [])],
+                        proposal_family=str(existing_proposal.get("proposal_family") or "alias_to_canonical_mapping"),
+                    )
+                if proposal_identity:
+                    existing_proposals_by_identity[proposal_identity] = existing_proposal
 
     grouped: dict[tuple[str, str], dict[str, Any]] = {}
     for suggestion in list(summary.get("mapping_suggestions") or []):
@@ -165,9 +231,19 @@ def build_synonym_proposals_payload(
             if len(suppressed_examples) < 10:
                 suppressed_examples.append({"field": field, "alias": alias, "canonical": primary_canonical})
             continue
-        identity_seed = f"{run_id}:{field}:{alias}:{'|'.join(candidate_canonicals)}:{proposal_family}"
+        proposal_identity = build_synonym_proposal_identity(
+            field=field,
+            alias=alias,
+            candidate_canonicals=candidate_canonicals,
+            proposal_family=proposal_family,
+        )
+        identity_seed = f"{run_id}:{proposal_identity}"
         proposal_id = f"synprop-{hashlib.sha1(identity_seed.encode('utf-8')).hexdigest()[:12]}"
-        existing_proposal = existing_proposals_by_id.get(proposal_id) or {}
+        existing_proposal = (
+            existing_proposals_by_id.get(proposal_id)
+            or existing_proposals_by_identity.get(proposal_identity)
+            or {}
+        )
         global_canonical = normalized_global_synonyms.get(alias) if field == "skill" else None
         if global_canonical and global_canonical == primary_canonical:
             suppressed_as_already_global_count += 1
@@ -180,6 +256,7 @@ def build_synonym_proposals_payload(
         proposals.append(
             {
                 "proposal_id": proposal_id,
+                "proposal_identity": proposal_identity,
                 "run_id": run_id,
                 "field": field,
                 "alias": alias,
@@ -203,6 +280,19 @@ def build_synonym_proposals_payload(
                     "conflicting_canonicals": candidate_canonicals[1:],
                 },
                 "proposal_status": str(existing_proposal.get("proposal_status") or "proposed_unreviewed"),
+                "recommended_action": str(existing_proposal.get("recommended_action") or "").strip() or None,
+                "recommendation_confidence": (
+                    round(float(existing_proposal.get("recommendation_confidence") or 0.0), 3)
+                    if existing_proposal.get("recommendation_confidence") is not None
+                    else None
+                ),
+                "recommendation_rationale": str(existing_proposal.get("recommendation_rationale") or "").strip() or None,
+                "recommendation_risk_flags": [
+                    str(flag).strip()
+                    for flag in list(existing_proposal.get("recommendation_risk_flags") or [])
+                    if str(flag).strip()
+                ],
+                "recommendation_runtime": dict(existing_proposal.get("recommendation_runtime") or {}),
                 "proposal_scope": "run_scoped_overlay_candidate",
                 "proposal_family": proposal_family,
                 "source_artifact_refs": {

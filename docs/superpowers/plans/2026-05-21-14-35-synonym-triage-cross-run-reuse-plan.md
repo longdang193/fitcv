@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: synonym-triage-cross-run-reuse-fingerprint-remediation
 parent_thread: workstream-operator-control-plane.operator-control-plane-agentic-settings-surface
@@ -55,12 +55,12 @@ Tests lock expected behavior for:
 - GitNexus index refreshed (`npx gitnexus analyze`) for cross-file dependency tracing.
 
 **Steps:**
-- [ ] Step 1: Document current mismatch (`enrich` cross-run reuse vs triage run-scoped reuse) with source references.
-- [ ] Step 2: Define stable triage key contract: `field`, `alias`, `canonical`, sorted `candidate_canonicals`, proposal family, provider/model/wire_api, triage-version, overlay fingerprint.
-- [ ] Step 3: Explicitly exclude run-scoped identity (`run_id`, run-seeded `proposal_id`) from reuse key.
+- [x] Step 1: Document current mismatch (`enrich` cross-run reuse vs triage run-scoped reuse) with source references.
+- [x] Step 2: Define stable triage key contract: `field`, `alias`, `canonical`, sorted `candidate_canonicals`, proposal family, provider/model/wire_api, triage-version, overlay fingerprint.
+- [x] Step 3: Explicitly exclude run-scoped identity (`run_id`, run-seeded `proposal_id`) from reuse key.
 
 **Verification:**
-- [ ] Source inspection confirms all current fingerprint callsites and payload builders mapped.
+- [x] Source inspection confirms all current fingerprint callsites and payload builders mapped.
 
 **Exit Criteria:**
 - Stable-key contract accepted and mapped to all affected callsites.
@@ -78,12 +78,12 @@ Tests lock expected behavior for:
 - Task 1 stable-key contract complete.
 
 **Steps:**
-- [ ] Step 1: Introduce explicit semantic-stable identity field for proposals (or equivalent helper output) independent of run-seeded `proposal_id`.
-- [ ] Step 2: Keep `proposal_id` behavior compatible for UI actions/forms/history references.
-- [ ] Step 3: Ensure payload merge logic can reuse existing recommendation runtime metadata via stable identity path.
+- [x] Step 1: Introduce explicit semantic-stable identity field for proposals (or equivalent helper output) independent of run-seeded `proposal_id`.
+- [x] Step 2: Keep `proposal_id` behavior compatible for UI actions/forms/history references.
+- [x] Step 3: Ensure payload merge logic can reuse existing recommendation runtime metadata via stable identity path.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_fitcv_cp/test_app.py -k "synonym_proposal"`
+- [x] `python -m pytest -q tests/test_fitcv_cp/test_app.py -k "synonym_triage_fingerprint_is_stable_across_run_scoped_proposal_ids or reuses_existing_state_by_identity_across_runs"`
 
 **Exit Criteria:**
 - Proposal payload supports stable reuse identity without breaking run-local review actions.
@@ -103,13 +103,13 @@ Tests lock expected behavior for:
 - Task 2 complete.
 
 **Steps:**
-- [ ] Step 1: Refactor worker automation triage fingerprint payload to stable semantic key.
-- [ ] Step 2: Refactor admin triage-refresh fingerprint helper to same stable semantic key contract.
-- [ ] Step 3: Align reuse reason labels and counters (`reused_count`, `fresh_count`, trace summary fields) across both paths.
+- [x] Step 1: Refactor worker automation triage fingerprint payload to stable semantic key.
+- [x] Step 2: Refactor admin triage-refresh fingerprint helper to same stable semantic key contract.
+- [x] Step 3: Align reuse reason labels and counters (`reused_count`, `fresh_count`, trace summary fields) across both paths.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_fitcv_cp/test_worker_job.py -k "triage_recommendation"`
-- [ ] `python -m pytest -q tests/test_fitcv_cp/test_app.py -k "synonym triage refresh"`
+- [x] `python -m pytest -q tests/test_fitcv_cp/test_worker_job.py -k "synonym_proposals"`
+- [x] `python -m pytest -q tests/test_fitcv_cp/test_app.py -k "triage_refresh_reuses_when_fingerprint_matches_across_run_ids"`
 
 **Exit Criteria:**
 - Equivalent inputs produce equivalent reuse outcomes regardless of path.
@@ -127,13 +127,13 @@ Tests lock expected behavior for:
 - Task 3 complete.
 
 **Steps:**
-- [ ] Step 1: Add test: same semantic proposals across two runs yields non-zero reused triage count on second run.
-- [ ] Step 2: Add test: changing canonical/candidate set/runtime fingerprint forces recompute (`fresh_count` increments).
-- [ ] Step 3: Add test: run-local proposal action routes (`proposal_id` forms/endpoints) remain functional.
+- [x] Step 1: Add test: same semantic proposals across two runs yields non-zero reused triage count on second run.
+- [x] Step 2: Add test: changing canonical/candidate set/runtime fingerprint forces recompute (`fresh_count` increments).
+- [x] Step 3: Add test: run-local proposal action routes (`proposal_id` forms/endpoints) remain functional.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_fitcv_cp/test_worker_job.py -k "cross_run or triage_reuse"`
-- [ ] `python -m pytest -q tests/test_fitcv_cp/test_app.py -k "proposal_id or triage"`
+- [x] `python -m pytest -q tests/test_fitcv_cp/test_app.py -k "triage_refresh_reuses_when_fingerprint_matches_across_run_ids or triage_refresh_recomputes_when_runtime_fingerprint_changes"`
+- [x] `python -m pytest -q tests/test_fitcv_cp/test_app.py -k "approve_synonym_proposal or admin_run_synonym_proposal_action_redirects_to_run_detail or admin_run_synonym_proposal_action_blocked_when_apply_to_run_disabled"`
 
 **Exit Criteria:**
 - Test suite enforces both reuse correctness and UI/action compatibility.
@@ -152,15 +152,15 @@ Tests lock expected behavior for:
 - Tasks 1-4 complete and containers rebuilt with patched code.
 
 **Steps:**
-- [ ] Step 1: Trigger live run with unchanged input pair used in previous baseline.
-- [ ] Step 2: Confirm enrich reuse still behaves independently (`reused_rows` may stay high).
-- [ ] Step 3: Confirm triage trace now shows expected reuse hits when inputs stable.
-- [ ] Step 4: Capture mismatch guard: if proposal semantics changed materially, triage fresh/recompute remains expected.
+- [x] Step 1: Trigger live run with unchanged input pair used in previous baseline.
+- [x] Step 2: Confirm enrich reuse still behaves independently (`reused_rows` may stay high).
+- [x] Step 3: Confirm triage trace now shows expected reuse hits when inputs stable.
+- [x] Step 4: Capture mismatch guard: if proposal semantics changed materially, triage fresh/recompute remains expected.
 
 **Verification:**
-- [ ] `docker compose up -d --build web worker`
-- [ ] `Invoke-RestMethod` trigger + artifact download checks
-- [ ] Compare `triage_recommendation_reused_total` second run vs first run
+- [x] `docker compose up -d --build web worker`
+- [x] `Invoke-RestMethod` trigger + artifact download checks
+- [x] Compare `triage_recommendation_reused_total` second run vs first run (note: cache already warm; both runs showed non-zero reuse)
 
 **Exit Criteria:**
 - Artifact evidence demonstrates intended cross-run triage reuse with correct invalidation boundaries.

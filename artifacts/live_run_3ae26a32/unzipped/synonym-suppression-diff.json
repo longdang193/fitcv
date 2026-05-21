@@ -1,0 +1,279 @@
+{
+  "run_id": "3ae26a32-d8b3-449d-8dcd-a01eb37227b9",
+  "schema_version": "synonym_suppression_diff_v1",
+  "created_at": "2026-05-21T12:57:27.531244+00:00",
+  "suggested_pairs_total": 87,
+  "suppressed_pairs_total": 19,
+  "generated_pairs_total": 53,
+  "suppressed_pairs": [
+    {
+      "field": "skill",
+      "alias": "power bi",
+      "canonical": "microsoft power bi"
+    },
+    {
+      "field": "domain",
+      "alias": "data infrastructure and analytics, it system data services, and software development",
+      "canonical": "healthcare"
+    },
+    {
+      "field": "role_family",
+      "alias": "data science",
+      "canonical": "data_science"
+    },
+    {
+      "field": "role_family",
+      "alias": "data engineering",
+      "canonical": "data_engineering"
+    },
+    {
+      "field": "domain",
+      "alias": "international trade and development",
+      "canonical": "international trade and supply chain"
+    },
+    {
+      "field": "role_family",
+      "alias": "ml engineering",
+      "canonical": "ml_engineering"
+    },
+    {
+      "field": "domain",
+      "alias": "software development and advertising services",
+      "canonical": "advertising technology"
+    },
+    {
+      "field": "domain",
+      "alias": "financial services and insurance",
+      "canonical": "insurance"
+    },
+    {
+      "field": "domain",
+      "alias": "it system custom software development",
+      "canonical": "healthcare"
+    },
+    {
+      "field": "role_family",
+      "alias": "operations management",
+      "canonical": "operations_management"
+    }
+  ],
+  "generated_pairs": [
+    {
+      "alias": "internet marketplace platforms",
+      "canonical": "energy"
+    },
+    {
+      "alias": "it services and it consulting",
+      "canonical": "enterprise software (sap)"
+    },
+    {
+      "alias": "motor vehicle manufacturing",
+      "canonical": "automotive"
+    },
+    {
+      "alias": "software development",
+      "canonical": "e-commerce"
+    },
+    {
+      "alias": "technology, information and internet",
+      "canonical": "advertising_technology"
+    },
+    {
+      "alias": "strong python",
+      "canonical": "python"
+    },
+    {
+      "alias": "proficiency in microsoft excel",
+      "canonical": "microsoft excel"
+    },
+    {
+      "alias": "strong proficiency in python",
+      "canonical": "python"
+    },
+    {
+      "alias": "deep expertise in python",
+      "canonical": "python"
+    },
+    {
+      "alias": "experience with dbt",
+      "canonical": "dbt"
+    },
+    {
+      "alias": "expert proficiency in fastapi",
+      "canonical": "fastapi"
+    },
+    {
+      "alias": "expert proficiency in pandas",
+      "canonical": "pandas"
+    },
+    {
+      "alias": "expert proficiency in scikit-learn",
+      "canonical": "scikit-learn"
+    },
+    {
+      "alias": "modern ci/cd pipelines",
+      "canonical": "ci/cd"
+    },
+    {
+      "alias": "programming experience in java",
+      "canonical": "java"
+    },
+    {
+      "alias": "strong foundation in probability",
+      "canonical": "probability"
+    },
+    {
+      "alias": "superset",
+      "canonical": "apache superset"
+    },
+    {
+      "alias": "metabase power user",
+      "canonical": "metabase"
+    },
+    {
+      "alias": "regression modelling",
+      "canonical": "regression modeling"
+    },
+    {
+      "alias": "du kennst reverse etl",
+      "canonical": "reverse etl"
+    },
+    {
+      "alias": "expert proficiency in pytorch/tensorflow",
+      "canonical": "pytorch"
+    },
+    {
+      "alias": "analysierst tiefgreifend unit economics",
+      "canonical": "unit economics analysis"
+    },
+    {
+      "alias": "apps script preferred",
+      "canonical": "google apps script"
+    },
+    {
+      "alias": "bigquery ideal",
+      "canonical": "google bigquery"
+    },
+    {
+      "alias": "code reviews in git/github",
+      "canonical": "git"
+    },
+    {
+      "alias": "conduct rigorous eda",
+      "canonical": "exploratory data analysis (eda)"
+    },
+    {
+      "alias": "distributed system design",
+      "canonical": "distributed systems design"
+    },
+    {
+      "alias": "familiarity with python",
+      "canonical": "python"
+    },
+    {
+      "alias": "own our ... pipelines",
+      "canonical": "data pipelines"
+    },
+    {
+      "alias": "own our data models",
+      "canonical": "data modeling"
+    },
+    {
+      "alias": "own our warehouse",
+      "canonical": "data warehousing"
+    },
+    {
+      "alias": "experience with source verification",
+      "canonical": "source verification"
+    },
+    {
+      "alias": "automatisierten anomalie-erkennungen",
+      "canonical": "anomaly detection"
+    },
+    {
+      "alias": "conduct basic online research",
+      "canonical": "online research"
+    },
+    {
+      "alias": "openai & anthropic llms",
+      "canonical": "anthropic"
+    },
+    {
+      "alias": "for ... anomaly detection",
+      "canonical": "anomaly detection"
+    },
+    {
+      "alias": "for forecasting",
+      "canonical": "forecasting"
+    },
+    {
+      "alias": "kubernetes on azure",
+      "canonical": "microsoft azure"
+    },
+    {
+      "alias": "planst unsere liquidität",
+      "canonical": "liquidity planning"
+    },
+    {
+      "alias": "strategic resource planning",
+      "canonical": "resource planning"
+    },
+    {
+      "alias": "container",
+      "canonical": "containers"
+    },
+    {
+      "alias": "google suite tools",
+      "canonical": "google workspace"
+    },
+    {
+      "alias": "conducting market analysis",
+      "canonical": "market analysis"
+    },
+    {
+      "alias": "familiarity with data governance",
+      "canonical": "data governance"
+    },
+    {
+      "alias": "moderner data-science-methodik",
+      "canonical": "data science methods"
+    },
+    {
+      "alias": "enterprise governance frameworks",
+      "canonical": "data governance"
+    },
+    {
+      "alias": "steuerst unsere zahlungsströme",
+      "canonical": "cash management"
+    },
+    {
+      "alias": "cloudbasierten umgebungen",
+      "canonical": "cloud computing"
+    },
+    {
+      "alias": "data integration technologies",
+      "canonical": "data integration"
+    },
+    {
+      "alias": "generating and analyzing reports",
+      "canonical": "reporting"
+    },
+    {
+      "alias": "exposure to crm/esp platforms",
+      "canonical": "crm platforms"
+    },
+    {
+      "alias": "experience in digital transformation",
+      "canonical": "digital transformation"
+    },
+    {
+      "alias": "familiarity with ai tools",
+      "canonical": "ai tools"
+    }
+  ],
+  "suppression_source": "run_effective_skill_synonyms",
+  "pre_run_global_map_fingerprint": null,
+  "run_overlay_fingerprint": null,
+  "mapping_suggestions_fingerprint": "5bcfc852bfbfcb9586123928ef649711e0bf57d179e09846ddad70a93553c891",
+  "proposal_input_bundle_fingerprint": "63fe85fde29c7793076d93be89b409831af96158134d4ac470f33f8fdf189075"
+}

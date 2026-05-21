@@ -120,6 +120,7 @@ from fitcv_cp.settings_store import (
 from fitcv_cp.synonym_proposals import (
     apply_synonym_management_defaults,
     build_synonym_proposals_payload,
+    build_synonym_triage_fingerprint,
     transition_synonym_proposal_status,
 )
 from fitcv_cp.data_plane import data_plane_contract_payload
@@ -3779,29 +3780,11 @@ def _synonym_triage_fingerprint(
     runtime: dict[str, Any],
     overlay_fingerprint: str | None = None,
 ) -> str:
-    payload = {
-        "proposal_id": str(proposal.get("proposal_id") or "").strip(),
-        "proposal_status": str(proposal.get("proposal_status") or "").strip(),
-        "alias": str(proposal.get("alias") or "").strip().lower(),
-        "canonical": str(proposal.get("canonical") or "").strip().lower(),
-        "confidence": round(float(proposal.get("confidence") or 0.0), 6),
-        "candidate_canonicals": sorted(
-            {
-                str(item).strip().lower()
-                for item in list(proposal.get("candidate_canonicals") or [])
-                if str(item).strip()
-            }
-        ),
-        "provider": str(runtime.get("provider") or "fitcv_builtin").strip().lower(),
-        "model": str(runtime.get("model") or "synonym_triage_v1").strip(),
-        "wire_api": str(runtime.get("wire_api") or "builtin").strip(),
-        "sleep_secs": round(float(runtime.get("sleep_secs") or 0.0), 6),
-        "concurrency": int(runtime.get("concurrency") or 1),
-        "triage_version": "synonym_triage_v1",
-        "overlay_fingerprint": str(overlay_fingerprint or "").strip() or None,
-    }
-    raw = _json.dumps(payload, sort_keys=True, ensure_ascii=False)
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return build_synonym_triage_fingerprint(
+        proposal=proposal,
+        runtime=runtime,
+        overlay_fingerprint=overlay_fingerprint,
+    )
 
 
 def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
@@ -9303,9 +9286,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         fallback_count = 0
         fresh_count = 0
         generated_total = 0
-        reuse_reason = "fingerprint_match"
+        reuse_reason = "reuse_enabled"
         if not bool(mode.get("auto_triage_recommendation_enabled")):
-            reuse_reason = "auto_disabled"
+            reuse_reason = "auto_triage_disabled"
         elif not bool(mode.get("triage_recommendation_reuse_enabled")):
             reuse_reason = "reuse_disabled"
         for idx, proposal in enumerate(proposals):
@@ -9329,6 +9312,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             reuse_enabled = bool(mode.get("triage_recommendation_reuse_enabled"))
             if reuse_enabled and str(runtime_meta.get("triage_fingerprint") or "").strip() == triage_fp:
                 reused_count += 1
+                triaged_count += 1
                 continue
             if reuse_enabled:
                 reuse_reason = "fingerprint_mismatch"

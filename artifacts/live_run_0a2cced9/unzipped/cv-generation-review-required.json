@@ -1,0 +1,232 @@
+{
+  "run_id": "0a2cced9-09fa-4ed7-baee-55b7369a25d4",
+  "schema_version": "cv_generation_review_required_v1",
+  "rows": [
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4408002822",
+      "job_title": "Internship Teamsports Apparel",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (Develop and refine impactful presentations, Generating and analyzing reports, Maintain and update product-related data within PUMA systems, Interpret data and generate insights through data-driven analysis, Conducting market analysis), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "Develop and refine impactful presentations",
+        "Generating and analyzing reports",
+        "Maintain and update product-related data within PUMA systems",
+        "Interpret data and generate insights through data-driven analysis",
+        "Conducting market analysis"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: Conducting market analysis, Develop and refine impactful presentations, Generating and analyzing reports, Interpret data and generate insights through data-driven analysis, Maintain and update product-related data within PUMA systems. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4417319055",
+      "job_title": "Data Scientist* Inputmanagement",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (NLP, Generative AI, Data-Science-Methodik, Analyse und Bewertung von Machbarkeit, Nutzen und Kosten von KI-Initiativen (einschließlich PoCs)), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "NLP",
+        "Generative AI",
+        "Data-Science-Methodik",
+        "Analyse und Bewertung von Machbarkeit, Nutzen und Kosten von KI-Initiativen (einschließlich PoCs)"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: Analyse und Bewertung von Machbarkeit, Nutzen und Kosten von KI-Initiativen (einschließlich PoCs), Data-Science-Methodik, Generative AI, NLP. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4417429648",
+      "job_title": "Research Analyst",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (Research topics online to verify AI-generated claims, Cross-reference AI outputs against authoritative, reliable sources, Flag inaccuracies, outdated data, and unsupported claims with clear documentation, Rate accuracy and reliability of AI responses using structured evaluation rubrics, Document findings in structured formats), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "Research topics online to verify AI-generated claims",
+        "Cross-reference AI outputs against authoritative, reliable sources",
+        "Flag inaccuracies, outdated data, and unsupported claims with clear documentation",
+        "Rate accuracy and reliability of AI responses using structured evaluation rubrics",
+        "Document findings in structured formats"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: Cross-reference AI outputs against authoritative, reliable sources, Document findings in structured formats, Flag inaccuracies, outdated data, and unsupported claims with clear documentation, Rate accuracy and reliability of AI responses using structured evaluation rubrics, Research topics online to verify AI-generated claims. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/junior-researcher-at-premier-business-solution-4413675925?trk=public_jobs_topcard-title",
+      "job_title": "Junior Researcher",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (Basic online research, Basic computer or mobile phone skills), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "Basic online research",
+        "Basic computer or mobile phone skills"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: Basic computer or mobile phone skills, Basic online research. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-entry-level-junior-at-encephal-statistics-department-of-ramanujan-college-university-of-delhi-4416513379?trk=public_jobs_topcard-title",
+      "job_title": "Data Analyst (Entry-Level / Junior)",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (Microsoft Excel), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "Microsoft Excel"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: Microsoft Excel. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4408283177",
+      "job_title": "Market Analysis Internship",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (MS Excel, Google Sheets, PowerPoint, Microsoft Office, Google Suite), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "MS Excel",
+        "Google Sheets",
+        "PowerPoint",
+        "Microsoft Office",
+        "Google Suite"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: Google Sheets, Google Suite, MS Excel, Microsoft Office, PowerPoint. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-entry-clerk-at-premier-enerji-4413688119?trk=public_jobs_topcard-title",
+      "job_title": "Data Entry Clerk",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (Basic computer or mobile phone skills, Maintain simple records and spreadsheets, Review data for accuracy), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "Basic computer or mobile phone skills",
+        "Maintain simple records and spreadsheets",
+        "Review data for accuracy"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: Basic computer or mobile phone skills, Maintain simple records and spreadsheets, Review data for accuracy. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4417347776",
+      "job_title": "Data Analyst (m/w/d)",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (Fivetran, Snowflake, Metabase, dbt, Reverse ETL, Excel), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "Fivetran",
+        "Snowflake",
+        "Metabase",
+        "dbt",
+        "Reverse ETL",
+        "Excel",
+        "Anomaly detection",
+        "Predictive analytics",
+        "Data transformation",
+        "Data governance",
+        "Performance optimization",
+        "Data sharing",
+        "Window functions",
+        "CTEs"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: Anomaly detection, CTEs, Data governance, Data sharing, Data transformation, Excel. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4413658848",
+      "job_title": "Business Analyst",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (MS Office, Microsoft Word, Microsoft Excel, Microsoft PowerPoint), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "MS Office",
+        "Microsoft Word",
+        "Microsoft Excel",
+        "Microsoft PowerPoint"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: MS Office, Microsoft Excel, Microsoft PowerPoint, Microsoft Word. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    },
+    {
+      "job_url": "https://www.linkedin.com/jobs/view/4376523337",
+      "job_title": "Strategic Partnerships Lead, Central and Eastern Europe",
+      "reason_code": "unsupported_requirement_gap",
+      "review_target": "requirements_alignment",
+      "operator_prompt": "Review the generated CV output against required stack coverage (Financial modeling, Analytical skills, Project management), then choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "Financial modeling",
+        "Analytical skills",
+        "Project management"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: Analytical skills, Financial modeling, Project management. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    }
+  ]
+}

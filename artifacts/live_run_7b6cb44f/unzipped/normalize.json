@@ -1,0 +1,256 @@
+{
+  "run_id": "7b6cb44f-5cd6-47b6-8b9b-4e2f4b61ee01",
+  "stage_id": "normalize",
+  "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+  "created_at": "2026-05-21T13:02:24.625409+00:00",
+  "stage_artifact": {
+    "stage_id": "normalize",
+    "stage": "normalize",
+    "status": "completed",
+    "stage_result": {
+      "stage_id": "normalize",
+      "status": "completed",
+      "stage_version": "1.0.0",
+      "output": {
+        "normalized_jobs": 36,
+        "deduplicated_jobs": 0
+      },
+      "evidence": {
+        "input_counts": {
+          "raw_jobs": 36
+        },
+        "decision_summary": {
+          "dedupe_reason_counts": {}
+        }
+      },
+      "validation": {
+        "checks": [],
+        "summary": {
+          "status": "completed"
+        }
+      },
+      "decision": "pass",
+      "policy_version": "policy.normalize.v1",
+      "trace_context": {
+        "trace_id": "ff6398773838e1d743bca046160f53ab",
+        "span_id": "5d0bb518fa41c191",
+        "parent_span_id": "ab9a6caeea21dad7"
+      }
+    },
+    "input_counts": {
+      "raw_jobs": 36
+    },
+    "output_counts": {
+      "normalized_jobs": 36,
+      "deduplicated_jobs": 0
+    },
+    "decision_summary": {
+      "dedupe_reason_counts": {}
+    },
+    "outputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-scientist-%E2%80%93-analytics-statistics-bi-%E2%82%AC130-000-at-findr-4417486502?trk=public_jobs_topcard-title",
+        "job_title": "Data Scientist – Analytics, Statistics & BI - €130,000",
+        "company": "Findr"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-data-scientist-f-m-x-at-auto1-group-4416397554?trk=public_jobs_topcard-title",
+        "job_title": "Senior Data Scientist (f/m/x)",
+        "company": "AUTO1 Group"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/research-assistant-at-rotaract-club-of-mount-aureol-4413669821?trk=public_jobs_topcard-title",
+        "job_title": "Research Assistant",
+        "company": "Rotaract Club of Mount Aureol"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-huzzle-com-4417304971?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer",
+        "company": "Huzzle.com"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-data-analyst-at-jobgether-4416398047?trk=public_jobs_topcard-title",
+        "job_title": "Senior Data Analyst",
+        "company": "Jobgether"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4416324617",
+        "job_title": "Director of Data (BI & Analytics)",
+        "company": "Andercore"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4386390764",
+        "job_title": "Data Scientist",
+        "company": "JD.COM"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-entry-level-junior-at-encephal-statistics-department-of-ramanujan-college-university-of-delhi-4416513379?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst (Entry-Level / Junior)",
+        "company": "Encephal: Statistics Department of Ramanujan College, University Of Delhi"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/junior-researcher-at-premier-business-solution-4413675925?trk=public_jobs_topcard-title",
+        "job_title": "Junior Researcher",
+        "company": "Premier Business Solution"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/ai-research-engineer-agentic-post-training-at-jobgether-4416393656?trk=public_jobs_topcard-title",
+        "job_title": "AI Research Engineer (Agentic Post-training)",
+        "company": "Jobgether"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/account-executive-at-samba-tv-4377415215?trk=public_jobs_topcard-title",
+        "job_title": "Account Executive",
+        "company": "Samba TV"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4402878255",
+        "job_title": "Data Scientist",
+        "company": "Adsquare"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417473980",
+        "job_title": "Data Scientist",
+        "company": "SME Careers"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-internal-technology-ai-at-jobgether-4417085054?trk=public_jobs_topcard-title",
+        "job_title": "Head of Internal Technology & AI",
+        "company": "Jobgether"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417349690",
+        "job_title": "Head of Global Data Products (m/f/d)",
+        "company": "Allianz Technology"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413668252",
+        "job_title": "Data Engineer (m/w/d)",
+        "company": "Ashampoo®"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-zontal-4417481902?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer",
+        "company": "ZONTAL"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413606917",
+        "job_title": "Internship – Engineering & Data Analytics in Cloud Systems and Performance Optimization (all genders welcome)",
+        "company": "AUDI AG"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/chief-operating-officer-at-jobgether-4416519044?trk=public_jobs_topcard-title",
+        "job_title": "Chief Operating Officer",
+        "company": "Jobgether"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/strategic-finance-analyst-fp-a-m-w-d-at-octopus-energy-4416369761?trk=public_jobs_topcard-title",
+        "job_title": "Strategic Finance Analyst (FP&A) (m/w/d)",
+        "company": "Octopus Energy"
+      }
+    ],
+    "dropped_or_changed_sample": [],
+    "inputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-scientist-%E2%80%93-analytics-statistics-bi-%E2%82%AC130-000-at-findr-4417486502?trk=public_jobs_topcard-title",
+        "job_title": "Data Scientist – Analytics, Statistics & BI - €130,000",
+        "company": "Findr"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-data-scientist-f-m-x-at-auto1-group-4416397554?trk=public_jobs_topcard-title",
+        "job_title": "Senior Data Scientist (f/m/x)",
+        "company": "AUTO1 Group"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/research-assistant-at-rotaract-club-of-mount-aureol-4413669821?trk=public_jobs_topcard-title",
+        "job_title": "Research Assistant",
+        "company": "Rotaract Club of Mount Aureol"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-huzzle-com-4417304971?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer",
+        "company": "Huzzle.com"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-data-analyst-at-jobgether-4416398047?trk=public_jobs_topcard-title",
+        "job_title": "Senior Data Analyst",
+        "company": "Jobgether"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4416324617",
+        "job_title": "Director of Data (BI & Analytics)",
+        "company": "Andercore"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4386390764",
+        "job_title": "Data Scientist",
+        "company": "JD.COM"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-entry-level-junior-at-encephal-statistics-department-of-ramanujan-college-university-of-delhi-4416513379?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst (Entry-Level / Junior)",
+        "company": "Encephal: Statistics Department of Ramanujan College, University Of Delhi"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/junior-researcher-at-premier-business-solution-4413675925?trk=public_jobs_topcard-title",
+        "job_title": "Junior Researcher",
+        "company": "Premier Business Solution"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/ai-research-engineer-agentic-post-training-at-jobgether-4416393656?trk=public_jobs_topcard-title",
+        "job_title": "AI Research Engineer (Agentic Post-training)",
+        "company": "Jobgether"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/account-executive-at-samba-tv-4377415215?trk=public_jobs_topcard-title",
+        "job_title": "Account Executive",
+        "company": "Samba TV"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4402878255",
+        "job_title": "Data Scientist",
+        "company": "Adsquare"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417473980",
+        "job_title": "Data Scientist",
+        "company": "SME Careers"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-internal-technology-ai-at-jobgether-4417085054?trk=public_jobs_topcard-title",
+        "job_title": "Head of Internal Technology & AI",
+        "company": "Jobgether"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417349690",
+        "job_title": "Head of Global Data Products (m/f/d)",
+        "company": "Allianz Technology"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413668252",
+        "job_title": "Data Engineer (m/w/d)",
+        "company": "Ashampoo®"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-zontal-4417481902?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer",
+        "company": "ZONTAL"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413606917",
+        "job_title": "Internship – Engineering & Data Analytics in Cloud Systems and Performance Optimization (all genders welcome)",
+        "company": "AUDI AG"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/chief-operating-officer-at-jobgether-4416519044?trk=public_jobs_topcard-title",
+        "job_title": "Chief Operating Officer",
+        "company": "Jobgether"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/strategic-finance-analyst-fp-a-m-w-d-at-octopus-energy-4416369761?trk=public_jobs_topcard-title",
+        "job_title": "Strategic Finance Analyst (FP&A) (m/w/d)",
+        "company": "Octopus Energy"
+      }
+    ]
+  }
+}

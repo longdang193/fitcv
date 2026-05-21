@@ -1,0 +1,4341 @@
+{
+  "run_id": "7b6cb44f-5cd6-47b6-8b9b-4e2f4b61ee01",
+  "stage_id": "shortlist",
+  "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+  "created_at": "2026-05-21T13:02:24.625409+00:00",
+  "stage_artifact": {
+    "stage_id": "shortlist",
+    "stage": "shortlist",
+    "status": "completed",
+    "stage_result": {
+      "stage_id": "shortlist",
+      "status": "completed",
+      "stage_version": "1.0.0",
+      "output": {
+        "raw_vector_rows": 36,
+        "raw_vector_unique_jobs": 36,
+        "raw_vector_hits": 36,
+        "scoring_shortlist_jobs": 36,
+        "backfilled_jobs": 0,
+        "retrieval_anomalies": 0,
+        "embedding_reused_jobs": 0,
+        "embedding_fresh_jobs": 36,
+        "embedding_total_jobs": 36
+      },
+      "evidence": {
+        "input_counts": {
+          "passed_jobs": 36
+        },
+        "decision_summary": {
+          "candidate_query_text": "Candidate: Data Analyst | SQL, Python, Workflow Automation, and Business Analytics\nTarget role: Data Analyst\nRecent roles: R&D Staff, Brand Marketing Executive\nRole families: data analytics, business intelligence, business analytics\nSkills:...[truncated]",
+          "candidate_query_components": {
+            "headline": "Data Analyst | SQL, Python, Workflow Automation, and Business Analytics",
+            "target_role": "Data Analyst",
+            "recent_roles": [
+              "R&D Staff",
+              "Brand Marketing Executive"
+            ],
+            "role_family_hints": [
+              "data analytics",
+              "business intelligence",
+              "business analytics"
+            ],
+            "flattened_skill_sample": [
+              "Python",
+              "SQL",
+              "Data Analysis",
+              "Business Intelligence",
+              "Performance Analysis",
+              "Decision Support Systems",
+              "Insight Generation",
+              "Market Research",
+              "Consumer Research",
+              "Competitor Analysis",
+              "Concept Validation",
+              "Product & Commercial Analysis",
+              "New Product Development",
+              "Category Management",
+              "Go-to-Market"
+            ],
+            "domain_hints": [
+              "retail",
+              "consumer goods",
+              "e-commerce",
+              "technology",
+              "marketing analytics"
+            ]
+          },
+          "candidate_query_reuse_status": "reused_cached_query_embedding",
+          "candidate_query_signature": "ff3d80df35815418b21bd5fab127d64ef98cc3b1fac7068d47fb8f9360c5d704",
+          "candidate_query_contract_fingerprint": "cd6d61b88b4c74541a6e1b158bb4162eb538c8cb0f865ae9860642977c2ed4b3",
+          "quality_metrics": {
+            "backfill_rate": 0.0,
+            "backfilled_jobs_total": 0,
+            "scoring_shortlisted_jobs_total": 36
+          },
+          "vector_search_top_n": 50,
+          "jobs_not_returned_in_raw_hits": 0,
+          "embedding_reused_jobs": 0,
+          "embedding_fresh_jobs": 36,
+          "embedding_total_jobs": 36,
+          "raw_shortlist_anomaly_urls": [],
+          "backfilled_job_urls": []
+        }
+      },
+      "validation": {
+        "checks": [],
+        "summary": {
+          "status": "completed"
+        }
+      },
+      "decision": "pass",
+      "policy_version": "policy.shortlist.v1",
+      "trace_context": {
+        "trace_id": "cbd9ab472e74a9f0497c68965f42365d",
+        "span_id": "c9e89c2a3800a751",
+        "parent_span_id": "4efadc643f68c2dc"
+      }
+    },
+    "input_counts": {
+      "passed_jobs": 36
+    },
+    "output_counts": {
+      "raw_vector_rows": 36,
+      "raw_vector_unique_jobs": 36,
+      "raw_vector_hits": 36,
+      "scoring_shortlist_jobs": 36,
+      "backfilled_jobs": 0,
+      "retrieval_anomalies": 0,
+      "embedding_reused_jobs": 0,
+      "embedding_fresh_jobs": 36,
+      "embedding_total_jobs": 36
+    },
+    "decision_summary": {
+      "candidate_query_text": "Candidate: Data Analyst | SQL, Python, Workflow Automation, and Business Analytics\nTarget role: Data Analyst\nRecent roles: R&D Staff, Brand Marketing Executive\nRole families: data analytics, business intelligence, business analytics\nSkills:...[truncated]",
+      "candidate_query_components": {
+        "headline": "Data Analyst | SQL, Python, Workflow Automation, and Business Analytics",
+        "target_role": "Data Analyst",
+        "recent_roles": [
+          "R&D Staff",
+          "Brand Marketing Executive"
+        ],
+        "role_family_hints": [
+          "data analytics",
+          "business intelligence",
+          "business analytics"
+        ],
+        "flattened_skill_sample": [
+          "Python",
+          "SQL",
+          "Data Analysis",
+          "Business Intelligence",
+          "Performance Analysis",
+          "Decision Support Systems",
+          "Insight Generation",
+          "Market Research",
+          "Consumer Research",
+          "Competitor Analysis",
+          "Concept Validation",
+          "Product & Commercial Analysis",
+          "New Product Development",
+          "Category Management",
+          "Go-to-Market"
+        ],
+        "domain_hints": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics"
+        ]
+      },
+      "candidate_query_reuse_status": "reused_cached_query_embedding",
+      "candidate_query_signature": "ff3d80df35815418b21bd5fab127d64ef98cc3b1fac7068d47fb8f9360c5d704",
+      "candidate_query_contract_fingerprint": "cd6d61b88b4c74541a6e1b158bb4162eb538c8cb0f865ae9860642977c2ed4b3",
+      "quality_metrics": {
+        "backfill_rate": 0.0,
+        "backfilled_jobs_total": 0,
+        "scoring_shortlisted_jobs_total": 36
+      },
+      "vector_search_top_n": 50,
+      "jobs_not_returned_in_raw_hits": 0,
+      "embedding_reused_jobs": 0,
+      "embedding_fresh_jobs": 36,
+      "embedding_total_jobs": 36,
+      "raw_shortlist_anomaly_urls": [],
+      "backfilled_job_urls": []
+    },
+    "outputs_sample": [
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417319055",
+        "job_title": "Data Scientist* Inputmanagement",
+        "vector_similarity": 0.34623472390869425,
+        "vector_rank": 1,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "76a62dad071c5b0d0b81d448871ead8c2db200825cebd6d1678e690533879f80",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/research-consultant-public-sector-m-f-d-at-predictby-4417479502?trk=public_jobs_topcard-title",
+        "job_title": "Research Consultant Public Sector (m/f/d)",
+        "vector_similarity": 0.33040824108675315,
+        "vector_rank": 2,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "ec7d64a68a10a27d3068a393da1dc102ddb89795a3c063989c194f975c462242",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/research-assistant-at-rotaract-club-of-mount-aureol-4413669821?trk=public_jobs_topcard-title",
+        "job_title": "Research Assistant",
+        "vector_similarity": 0.3269801929220948,
+        "vector_rank": 3,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "b3b47f0cd70fba37888f9e1c977c5708b72ec58741c80cfd8f8fc8b9f8b144f5",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417349690",
+        "job_title": "Head of Global Data Products (m/f/d)",
+        "vector_similarity": 0.2905068569496985,
+        "vector_rank": 4,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "6a06e50a5f1bdad12715099a9d9f82800638542fa2ee89ed53d587f8c869cdcb",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-entry-level-junior-at-encephal-statistics-department-of-ramanujan-college-university-of-delhi-4416513379?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst (Entry-Level / Junior)",
+        "vector_similarity": 0.23103174042228566,
+        "vector_rank": 5,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "222a19e0fa9746343ae37e45cac05a7cb632eff780c900b5c38d876898e7bd18",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-entry-clerk-at-premier-enerji-4413688119?trk=public_jobs_topcard-title",
+        "job_title": "Data Entry Clerk",
+        "vector_similarity": 0.21926361253629803,
+        "vector_rank": 6,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "627cabb1c4623a290e9ea6613ad1c6d489b94932e0cf7f0a69c51beb63c7fb6e",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4376523337",
+        "job_title": "Strategic Partnerships Lead, Central and Eastern Europe",
+        "vector_similarity": 0.2171733078323763,
+        "vector_rank": 7,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "b9727bfc9b7bf853764e39340d3d1d0d8560c23384fb88a234d9282989d1ab81",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417429648",
+        "job_title": "Research Analyst",
+        "vector_similarity": 0.19581671544217702,
+        "vector_rank": 8,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "18df3aed30b0e8165c8c8581e50feac83ac055c5e49e2a7486887b4aa3610e21",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/ai-research-engineer-agentic-post-training-at-jobgether-4416393656?trk=public_jobs_topcard-title",
+        "job_title": "AI Research Engineer (Agentic Post-training)",
+        "vector_similarity": 0.18143218369126055,
+        "vector_rank": 9,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "e79e0f4441126b919c9f59bbaecc4d12c3b65530c2491b0b53ac6d981fcd0104",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-zontal-4417481902?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer",
+        "vector_similarity": 0.15490484423427825,
+        "vector_rank": 10,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "7ee45d2eeb578959b6f1cc247e0432a585ef0aaa3f705e83438c05b072c90de7",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4386390764",
+        "job_title": "Data Scientist",
+        "vector_similarity": 0.13153174747523544,
+        "vector_rank": 11,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "d087436cb13af4ef745ae4615564a0b0feca2f973ac7ca4a269089b6de3e519d",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417347776",
+        "job_title": "Data Analyst (m/w/d)",
+        "vector_similarity": 0.08785984864508482,
+        "vector_rank": 12,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "672b6992404bbc3469a1ac9ca3b102fe5bb63345ce31ddf9a8f7fe20e50f97f7",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4402878255",
+        "job_title": "Data Scientist",
+        "vector_similarity": 0.08715003655483414,
+        "vector_rank": 13,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "bf2953c8ea949fa2ac2aceae2ee35b21b0223cc1a5944d2334d23568d0d85d3b",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-huzzle-com-4417304971?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer",
+        "vector_similarity": 0.04645627887900813,
+        "vector_rank": 14,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "c697bc90c45984e3bfac947b5ae8524d07f559ded5c17b9b38c519de51ac4eb1",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413622012",
+        "job_title": "Junior Data Engineer",
+        "vector_similarity": 0.034506223335810465,
+        "vector_rank": 15,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "75f3e4f7c21f70a68e24825ff12d2e7040dd90a5c2c740a61737ce5f26ff2d4f",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-internal-technology-ai-at-jobgether-4417085054?trk=public_jobs_topcard-title",
+        "job_title": "Head of Internal Technology & AI",
+        "vector_similarity": 0.03104016641527017,
+        "vector_rank": 16,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "3e43366513dda2e91970dfd17f0a4a4f112516ff9b64b0b855aed44af8d78e85",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-data-analyst-at-jobgether-4416398047?trk=public_jobs_topcard-title",
+        "job_title": "Senior Data Analyst",
+        "vector_similarity": 0.01613707283153738,
+        "vector_rank": 17,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "0c5422b14f1a30d9930d9d6d2ba7b701fa23e906577219cacfb77d799ddb0489",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417473980",
+        "job_title": "Data Scientist",
+        "vector_similarity": -0.010834704441630207,
+        "vector_rank": 18,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "63da731ecf5532848ed1e266f2f8293dc4e93a295b07df072cab95c44c59e0aa",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/strategic-finance-analyst-fp-a-m-w-d-at-octopus-energy-4416369761?trk=public_jobs_topcard-title",
+        "job_title": "Strategic Finance Analyst (FP&A) (m/w/d)",
+        "vector_similarity": -0.022166070231696672,
+        "vector_rank": 19,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "7d8c41e200c6de4f08e710615729b3c8870afa6ff14e5206aace21229833090d",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4408283177",
+        "job_title": "Market Analysis Internship",
+        "vector_similarity": -0.030456753905768668,
+        "vector_rank": 20,
+        "shortlist_origin": "vector_search",
+        "shortlist_outcome": "returned_by_vector_search",
+        "raw_hit_present": true,
+        "retrieval_anomaly_present": false,
+        "embedding_reuse_status": "fresh_embedding",
+        "embedding_input_signature": "949347709b7a48e9b7d2a5916813aef1c262ab88d69689a1c6beca132694f437",
+        "embedding_contract_fingerprint": "756b5cabccd8406901308ffe8ccdd9dea9cdd02875ac073dd2ad4a795b8a95d8"
+      }
+    ],
+    "dropped_or_changed_sample": [],
+    "inputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-scientist-%E2%80%93-analytics-statistics-bi-%E2%82%AC130-000-at-findr-4417486502?trk=public_jobs_topcard-title",
+        "job_title": "Data Scientist – Analytics, Statistics & BI - €130,000",
+        "company": "Findr",
+        "location_type": "hybrid",
+        "seniority": "senior",
+        "required_skills": [
+          "applied statistics",
+          "hypothesis testing",
+          "regression modelling",
+          "study evaluation",
+          "Python",
+          "SQL",
+          "data warehouses",
+          "BigQuery",
+          "business intelligence (BI)",
+          "Superset / Looker / Power BI",
+          "AI tools"
+        ],
+        "required_skills_canonical": [
+          "applied statistics",
+          "hypothesis testing",
+          "regression modeling",
+          "study evaluation",
+          "python",
+          "data warehouse",
+          "business intelligence (bi)",
+          "apache superset",
+          "looker",
+          "microsoft power bi",
+          "ai tools"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Excellent foundation in applied statistics (hypothesis testing, regression modelling, study evaluation)",
+            "canonical": "applied statistics",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "hypothesis testing",
+            "canonical": "hypothesis testing",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "regression modelling",
+            "canonical": "regression modeling",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "study evaluation",
+            "canonical": "study evaluation",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong Python",
+            "canonical": "python",
+            "confidence": 0.98
+          },
+          {
+            "raw_text": "Experience working with modern data warehouses (BigQuery ideal)",
+            "canonical": "data warehouse",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Experience owning or evolving BI environments (Superset, Looker, Power BI etc.)",
+            "canonical": "business intelligence (bi)",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Superset",
+            "canonical": "apache superset",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Looker",
+            "canonical": "looker",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Power BI",
+            "canonical": "microsoft power bi",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "AI-ready mindset – actively leveraging modern AI tools to improve workflows",
+            "canonical": "ai tools",
+            "confidence": 0.75
+          }
+        ],
+        "preferred_skills": [
+          "BigQuery"
+        ],
+        "preferred_skills_canonical": [
+          "google bigquery"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "BigQuery ideal",
+            "canonical": "google bigquery",
+            "confidence": 0.9
+          }
+        ],
+        "responsibilities": [
+          "Own analytics layer behind live AI platform",
+          "Work with complex behavioural and clinical datasets",
+          "Apply statistical methodologies to identify patterns",
+          "Evaluate study outcomes",
+          "Translate data into insights influencing product and clinical decision-making",
+          "Partner with AI, engineering, product teams",
+          "Drive BI, data quality standards",
+          "Evolve data warehouse environment"
+        ],
+        "domain": "healthcare",
+        "tech_stack": [
+          "Python",
+          "SQL",
+          "BigQuery",
+          "GCP",
+          "Superset",
+          "Looker",
+          "Power BI"
+        ],
+        "years_experience_min": 5,
+        "keywords": [
+          "Data Scientist",
+          "Senior Data Scientist",
+          "Analytics",
+          "Statistics",
+          "Statistical Modelling",
+          "Hypothesis testing",
+          "Regression modelling",
+          "Study evaluation",
+          "Python",
+          "SQL",
+          "BigQuery",
+          "GCP",
+          "Business Intelligence",
+          "Superset",
+          "Looker",
+          "Power BI",
+          "HealthTech",
+          "AI Systems",
+          "data warehouse",
+          "data quality"
+        ],
+        "job_family": "data_science",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "regression modeling",
+            "matches": true,
+            "alias": "regression modelling",
+            "canonical": "regression modeling",
+            "confidence": 0.93
+          },
+          {
+            "must_have_skill": "python",
+            "matches": true,
+            "alias": "strong python",
+            "canonical": "python",
+            "confidence": 0.98
+          },
+          {
+            "must_have_skill": "apache superset",
+            "matches": true,
+            "alias": "superset",
+            "canonical": "apache superset",
+            "confidence": 0.95
+          },
+          {
+            "must_have_skill": "microsoft power bi",
+            "matches": true,
+            "alias": "power bi",
+            "canonical": "microsoft power bi",
+            "confidence": 0.95
+          },
+          {
+            "must_have_skill": "google bigquery",
+            "matches": true,
+            "alias": "bigquery ideal",
+            "canonical": "google bigquery",
+            "confidence": 0.9
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:47:59.429870+00:00",
+        "raw_job_fingerprint": "1eb2c8f028a0fa88fc18b8335db5d621b41f0060f7a25a525518897f6ff63179",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "healthcare",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-data-scientist-f-m-x-at-auto1-group-4416397554?trk=public_jobs_topcard-title",
+        "job_title": "Senior Data Scientist (f/m/x)",
+        "company": "AUTO1 Group",
+        "location_type": "remote",
+        "seniority": "senior",
+        "required_skills": [
+          "Machine learning techniques (traditional ML, neural networks)",
+          "Statistical modeling",
+          "Hypothesis testing",
+          "Experimental design",
+          "A/B testing",
+          "Python",
+          "SQL",
+          "PyTorch",
+          "Keras",
+          "TensorFlow",
+          "Git",
+          "GitHub",
+          "Cloud platforms (AWS, Azure, GCP)",
+          "CI/CD pipelines",
+          "Model deployment to production",
+          "Model monitoring in production",
+          "Data visualization"
+        ],
+        "required_skills_canonical": [
+          "machine learning",
+          "neural networks",
+          "statistical modeling",
+          "hypothesis testing",
+          "experimental design",
+          "a/b testing",
+          "python",
+          "pytorch",
+          "keras",
+          "tensorflow",
+          "git",
+          "model deployment",
+          "model monitoring",
+          "amazon web services",
+          "microsoft azure",
+          "google cloud",
+          "ci/cd"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "machine learning techniques including traditional machine learning and neural network",
+            "canonical": "machine learning",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "machine learning techniques including traditional machine learning and neural network",
+            "canonical": "neural networks",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "statistical modeling",
+            "canonical": "statistical modeling",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "hypothesis testing",
+            "canonical": "hypothesis testing",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "experimental design (including A/B testing)",
+            "canonical": "experimental design",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "experimental design (including A/B testing)",
+            "canonical": "a/b testing",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Deep expertise in Python",
+            "canonical": "python",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "machine learning frameworks (PyTorch, Keras, TensorFlow)",
+            "canonical": "pytorch",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "machine learning frameworks (PyTorch, Keras, TensorFlow)",
+            "canonical": "keras",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "machine learning frameworks (PyTorch, Keras, TensorFlow)",
+            "canonical": "tensorflow",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "code reviews in git/github",
+            "canonical": "git",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "code reviews in git/github",
+            "canonical": "git",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "deploying robust models in production",
+            "canonical": "model deployment",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Monitor and improve model performance in production",
+            "canonical": "model monitoring",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "leveraging cloud platforms (AWS, Azure, GCP)",
+            "canonical": "amazon web services",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "leveraging cloud platforms (AWS, Azure, GCP)",
+            "canonical": "microsoft azure",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "leveraging cloud platforms (AWS, Azure, GCP)",
+            "canonical": "google cloud",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "modern CI/CD pipelines",
+            "canonical": "ci/cd",
+            "confidence": 0.95
+          }
+        ],
+        "responsibilities": [
+          "Lead design, development, deployment of scalable machine learning models for vehicle selling and demand management",
+          "Identify business opportunities; translate requirements into machine learning solutions",
+          "Collaborate with engineering and product teams to deploy data science services into tech infrastructure",
+          "Monitor and improve model performance in production; communicate results; define actionable next steps",
+          "Mentor junior data scientists; set technical direction; ensure best practices"
+        ],
+        "domain": "automotive used-car marketplace",
+        "tech_stack": [
+          "Python",
+          "SQL",
+          "PyTorch",
+          "Keras",
+          "TensorFlow",
+          "Git",
+          "GitHub",
+          "AWS",
+          "Microsoft Azure",
+          "Google Cloud Platform (GCP)",
+          "CI/CD"
+        ],
+        "years_experience_min": 2,
+        "keywords": [
+          "machine learning",
+          "recommendation systems",
+          "personalized recommendation",
+          "dynamic pricing",
+          "demand forecasting",
+          "risk prediction",
+          "statistical modeling",
+          "hypothesis testing",
+          "experimental design",
+          "A/B testing",
+          "model deployment",
+          "production monitoring",
+          "cloud platforms",
+          "CI/CD",
+          "used car market",
+          "automotive"
+        ],
+        "job_family": "data_science",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "python",
+            "matches": true,
+            "alias": "deep expertise in python",
+            "canonical": "python",
+            "confidence": 0.95
+          },
+          {
+            "must_have_skill": "git",
+            "matches": true,
+            "alias": "code reviews in git/github",
+            "canonical": "git",
+            "confidence": 0.9
+          },
+          {
+            "must_have_skill": "ci/cd",
+            "matches": true,
+            "alias": "modern ci/cd pipelines",
+            "canonical": "ci/cd",
+            "confidence": 0.95
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:48:23.086710+00:00",
+        "raw_job_fingerprint": "cd08e65a892407fbf80e1ddf9f3127fcbdecfa0492676c821308386f5e9b9be9",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "automotive used-car marketplace",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/research-assistant-at-rotaract-club-of-mount-aureol-4413669821?trk=public_jobs_topcard-title",
+        "job_title": "Research Assistant",
+        "company": "Rotaract Club of Mount Aureol",
+        "seniority": "junior",
+        "required_skills": [
+          "data collection",
+          "literature review",
+          "background research",
+          "data cleaning",
+          "dataset organization",
+          "qualitative data analysis",
+          "quantitative data analysis",
+          "data validation",
+          "research documentation",
+          "reference management",
+          "spreadsheet proficiency",
+          "working with structured data",
+          "working with unstructured data"
+        ],
+        "required_skills_canonical": [
+          "data collection",
+          "literature review",
+          "background research",
+          "data cleaning",
+          "dataset management",
+          "qualitative data analysis",
+          "quantitative data analysis",
+          "data quality assurance",
+          "research documentation",
+          "reference management",
+          "spreadsheets",
+          "data analysis tools",
+          "structured data",
+          "unstructured data"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Support data collection from primary and secondary research sources",
+            "canonical": "data collection",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Conduct literature reviews and background research",
+            "canonical": "literature review",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Conduct literature reviews and background research",
+            "canonical": "background research",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Organize, clean, and maintain research datasets and materials",
+            "canonical": "data cleaning",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Organize, clean, and maintain research datasets and materials",
+            "canonical": "dataset management",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Assist with qualitative and quantitative data analysis",
+            "canonical": "qualitative data analysis",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Assist with qualitative and quantitative data analysis",
+            "canonical": "quantitative data analysis",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Ensure accuracy, consistency, and reliability of research data",
+            "canonical": "data quality assurance",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Maintain research documentation, references, and databases",
+            "canonical": "research documentation",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Maintain research documentation, references, and databases",
+            "canonical": "reference management",
+            "confidence": 0.74
+          },
+          {
+            "raw_text": "Proficiency with spreadsheets, documents, or basic analysis tools",
+            "canonical": "spreadsheets",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Proficiency with spreadsheets, documents, or basic analysis tools",
+            "canonical": "data analysis tools",
+            "confidence": 0.62
+          },
+          {
+            "raw_text": "Ability to work with structured and unstructured data",
+            "canonical": "structured data",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Ability to work with structured and unstructured data",
+            "canonical": "unstructured data",
+            "confidence": 0.8
+          }
+        ],
+        "responsibilities": [
+          "Support data collection from primary and secondary research sources",
+          "Conduct literature reviews and background research",
+          "Organize, clean, and maintain research datasets and materials",
+          "Assist with qualitative and quantitative data analysis",
+          "Maintain research documentation, references, and databases",
+          "Prepare summaries, reports, and structured research outputs",
+          "Track research activities, tasks, and timelines",
+          "Ensure accuracy, consistency, and reliability of research data",
+          "Follow research methodologies and documentation standards",
+          "Support presentations and research communication materials"
+        ],
+        "tech_stack": [
+          "spreadsheets",
+          "documents",
+          "research databases"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "research assistant",
+          "data collection",
+          "primary research",
+          "secondary research",
+          "literature review",
+          "background research",
+          "data cleaning",
+          "data validation",
+          "qualitative analysis",
+          "quantitative analysis",
+          "structured data",
+          "unstructured data",
+          "research documentation",
+          "reference management",
+          "research database",
+          "reports",
+          "presentations",
+          "research methodologies",
+          "data quality"
+        ],
+        "job_family": "analytics",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:48:43.210633+00:00",
+        "raw_job_fingerprint": "03cefe324a1ce6e3cfc510fdacf0b07965cc5b193e5c00372d31b1e0cf83ab48",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-huzzle-com-4417304971?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer",
+        "company": "Huzzle.com",
+        "location_type": "onsite",
+        "seniority": "mid",
+        "required_skills": [
+          "data engineering",
+          "pipeline development",
+          "schema design",
+          "data modeling",
+          "semi-structured data",
+          "knowledge graphs",
+          "graph databases",
+          "relational modeling",
+          "data quality",
+          "data integrity"
+        ],
+        "required_skills_canonical": [
+          "data engineering",
+          "data pipelines",
+          "schema design",
+          "data modeling",
+          "semi-structured data",
+          "knowledge graphs",
+          "graph databases",
+          "relational modeling",
+          "data quality",
+          "data integrity"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Strong background in data engineering, including pipeline development, schema design, and data modeling",
+            "canonical": "data engineering",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Strong background in data engineering, including pipeline development, schema design, and data modeling",
+            "canonical": "data pipelines",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong background in data engineering, including pipeline development, schema design, and data modeling",
+            "canonical": "schema design",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong background in data engineering, including pipeline development, schema design, and data modeling",
+            "canonical": "data modeling",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Experience working with complex, semi-structured enterprise data",
+            "canonical": "semi-structured data",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Knowledge of graph-based systems (knowledge graphs, graph databases) or relational modeling for complex domains",
+            "canonical": "knowledge graphs",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Knowledge of graph-based systems (knowledge graphs, graph databases) or relational modeling for complex domains",
+            "canonical": "graph databases",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Knowledge of graph-based systems (knowledge graphs, graph databases) or relational modeling for complex domains",
+            "canonical": "relational modeling",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Proven ability to maintain high standards for data quality and reliability",
+            "canonical": "data quality",
+            "confidence": 0.87
+          },
+          {
+            "raw_text": "Ensure high standards of data integrity, consistency, and usability across systems",
+            "canonical": "data integrity",
+            "confidence": 0.84
+          }
+        ],
+        "responsibilities": [
+          "Design and build scalable data layer mapping relationships across SAP projects (configurations, outcomes, domain patterns)",
+          "Own metadata architecture including data labeling, linking, versioning, and queryability",
+          "Develop data pipelines ingesting SAP telemetry and consulting insights into structured datasets",
+          "Collaborate with AI/ML teams to provide signals for model training and inference",
+          "Continuously refine and improve data systems with each customer deployment",
+          "Ensure data integrity, consistency, and usability across systems",
+          "Architect systems for long-term scalability"
+        ],
+        "domain": "enterprise software (sap)",
+        "tech_stack": [
+          "SAP",
+          "knowledge graphs",
+          "graph databases"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "AI Data Engineer",
+          "SAP",
+          "data layer",
+          "metadata architecture",
+          "data labeling",
+          "data linking",
+          "data versioning",
+          "queryability",
+          "data pipelines",
+          "schema design",
+          "data modeling",
+          "semi-structured data",
+          "knowledge graphs",
+          "graph databases",
+          "relational modeling",
+          "data quality",
+          "data integrity",
+          "model training",
+          "inference",
+          "telemetry"
+        ],
+        "job_family": "data_engineering",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:48:59.001948+00:00",
+        "raw_job_fingerprint": "63d54d3f815599a708c1f6a5d270beb991481847a7171ac0286377ae0dd8f925",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "enterprise software (sap)",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-data-analyst-at-jobgether-4416398047?trk=public_jobs_topcard-title",
+        "job_title": "Senior Data Analyst",
+        "company": "Jobgether",
+        "location_type": "remote",
+        "seniority": "mid",
+        "required_skills": [
+          "SQL",
+          "Python",
+          "Google Sheets",
+          "Microsoft Excel",
+          "Power BI",
+          "Looker",
+          "Tableau",
+          "Data pipelines",
+          "Dashboarding",
+          "Forecasting models",
+          "Reporting automation",
+          "Supermetrics",
+          "Google Apps Script",
+          "Meta ads platform",
+          "Google ads platform",
+          "TikTok ads platform"
+        ],
+        "required_skills_canonical": [
+          "python",
+          "google sheets",
+          "microsoft excel",
+          "microsoft power bi",
+          "looker",
+          "tableau",
+          "meta ads platform",
+          "google ads platform",
+          "tiktok ads platform",
+          "dashboarding",
+          "reporting automation",
+          "automated data workflows"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Strong proficiency in SQL, Python, or equivalent tools for data analysis, querying, and pipeline development.",
+            "canonical": "python",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Advanced expertise in Google Sheets and Excel, including complex formulas, automation, and scripting (Apps Script preferred).",
+            "canonical": "google sheets",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Advanced expertise in Google Sheets and Excel, including complex formulas, automation, and scripting (Apps Script preferred).",
+            "canonical": "microsoft excel",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Hands-on experience with BI tools such as Power BI, Looker, Tableau, or comparable platforms.",
+            "canonical": "microsoft power bi",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Hands-on experience with BI tools such as Power BI, Looker, Tableau, or comparable platforms.",
+            "canonical": "looker",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Hands-on experience with BI tools such as Power BI, Looker, Tableau, or comparable platforms.",
+            "canonical": "tableau",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong understanding of marketing and performance data, including familiarity with paid media platforms like Meta, Google, and TikTok.",
+            "canonical": "meta ads platform",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Strong understanding of marketing and performance data, including familiarity with paid media platforms like Meta, Google, and TikTok.",
+            "canonical": "google ads platform",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Strong understanding of marketing and performance data, including familiarity with paid media platforms like Meta, Google, and TikTok.",
+            "canonical": "tiktok ads platform",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Experience building dashboards, reporting systems, and automated data workflows from multiple data sources.",
+            "canonical": "dashboarding",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Experience building dashboards, reporting systems, and automated data workflows from multiple data sources.",
+            "canonical": "reporting automation",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Experience building dashboards, reporting systems, and automated data workflows from multiple data sources.",
+            "canonical": "automated data workflows",
+            "confidence": 0.85
+          }
+        ],
+        "preferred_skills": [
+          "Google Apps Script"
+        ],
+        "preferred_skills_canonical": [
+          "google apps script"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Apps Script preferred",
+            "canonical": "google apps script",
+            "confidence": 0.9
+          }
+        ],
+        "responsibilities": [
+          "Develop and maintain forecasting models for revenue, headcount, and business performance",
+          "Translate historical and operational data into forward-looking insights, identifying risks, trends, and growth opportunities",
+          "Build, maintain, and optimize dashboards using BI tools (Power BI, Looker, Tableau, or similar)",
+          "Design standardized reporting frameworks for marketing, client performance, media spend, and business KPIs",
+          "Automate manual reporting processes by building scalable data pipelines and integrating multiple data sources",
+          "Manage and enhance data workflows using Supermetrics, Google Sheets, and Apps Script",
+          "Ensure data integrity, consistency, and quality across reporting systems and databases",
+          "Design and maintain structured databases to support operations, finance, and performance reporting"
+        ],
+        "domain": "performance marketing",
+        "tech_stack": [
+          "SQL",
+          "Python",
+          "Google Sheets",
+          "Microsoft Excel",
+          "Google Apps Script",
+          "Power BI",
+          "Looker",
+          "Tableau",
+          "Supermetrics",
+          "Meta ads platform",
+          "Google ads platform",
+          "TikTok ads platform"
+        ],
+        "years_experience_min": 3,
+        "years_experience_max": 6,
+        "keywords": [
+          "forecasting models",
+          "revenue forecasting",
+          "headcount forecasting",
+          "KPI reporting",
+          "dashboards",
+          "BI",
+          "SQL",
+          "Python",
+          "Google Sheets",
+          "Excel",
+          "Apps Script",
+          "Power BI",
+          "Looker",
+          "Tableau",
+          "Supermetrics",
+          "data pipelines",
+          "reporting automation",
+          "marketing analytics",
+          "performance marketing",
+          "paid media",
+          "Meta",
+          "Google",
+          "TikTok"
+        ],
+        "job_family": "analytics",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "google apps script",
+            "matches": true,
+            "alias": "apps script preferred",
+            "canonical": "google apps script",
+            "confidence": 0.9
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:49:23.540052+00:00",
+        "raw_job_fingerprint": "904c0faf79f7511b2b1fff684cdb62ffc0aa896bb98c895a963d25d1cff31d11",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "performance marketing",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4416324617",
+        "job_title": "Director of Data (BI & Analytics)",
+        "company": "Andercore",
+        "location_type": "onsite",
+        "seniority": "lead",
+        "required_skills": [
+          "Own our warehouse, models, and BI stack (SQL etc.)",
+          "Own our data models, pipelines, and metrics",
+          "Automated, self-updating dashboards",
+          "Deploy GPT-based or agentic assistants for forecasting, pricing, and anomaly detection",
+          "Define, implement, and track core KPIs",
+          "Guarantee data quality: Clean pipelines, consistent definitions"
+        ],
+        "required_skills_canonical": [
+          "data warehousing",
+          "data modeling",
+          "data pipelines",
+          "dashboarding",
+          "gpt-based assistants",
+          "agentic ai",
+          "forecasting",
+          "anomaly detection",
+          "kpi development",
+          "data quality management"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Own our warehouse",
+            "canonical": "data warehousing",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Own our data models",
+            "canonical": "data modeling",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Own our ... pipelines",
+            "canonical": "data pipelines",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Automated, self-updating dashboards",
+            "canonical": "dashboarding",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "deploy GPT-based or agentic assistants",
+            "canonical": "gpt-based assistants",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "deploy GPT-based or agentic assistants",
+            "canonical": "agentic ai",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "for forecasting",
+            "canonical": "forecasting",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "for ... anomaly detection",
+            "canonical": "anomaly detection",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Define, implement, and track core KPIs",
+            "canonical": "kpi development",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Guarantee data quality: Clean pipelines, consistent definitions",
+            "canonical": "data quality management",
+            "confidence": 0.86
+          }
+        ],
+        "responsibilities": [
+          "Own data warehouse, data models, BI stack, single-source-of-truth visibility",
+          "Translate operational signals into actions for Sales, Operations, Procurement, Finance",
+          "Develop AI-assisted workflows (GPT-based, agentic assistants) for forecasting, pricing, anomaly detection",
+          "Move reporting from descriptive to predictive; automate recurring reports; support daily management decisions",
+          "Define, implement, track core KPIs (GMV, NRM, automation %, order quality)",
+          "Hire, mentor, scale analyst team",
+          "Integrate dashboards into business cadence across Sales, Ops, Finance, Procurement, Product",
+          "Ensure data quality via clean pipelines, consistent definitions, documented production-grade stack"
+        ],
+        "domain": "international trade and supply chain",
+        "tech_stack": [
+          "SQL",
+          "data warehouse",
+          "BI stack",
+          "dashboards",
+          "GPT-based assistants",
+          "agentic AI"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "BI",
+          "analytics",
+          "data warehouse",
+          "data modeling",
+          "SQL",
+          "data pipelines",
+          "dashboards",
+          "KPI",
+          "forecasting",
+          "anomaly detection",
+          "GPT",
+          "agentic AI",
+          "predictive reporting",
+          "data quality"
+        ],
+        "job_family": "analytics",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "data warehousing",
+            "matches": true,
+            "alias": "own our warehouse",
+            "canonical": "data warehousing",
+            "confidence": 0.9
+          },
+          {
+            "must_have_skill": "data modeling",
+            "matches": true,
+            "alias": "own our data models",
+            "canonical": "data modeling",
+            "confidence": 0.9
+          },
+          {
+            "must_have_skill": "data pipelines",
+            "matches": true,
+            "alias": "own our ... pipelines",
+            "canonical": "data pipelines",
+            "confidence": 0.9
+          },
+          {
+            "must_have_skill": "forecasting",
+            "matches": true,
+            "alias": "for forecasting",
+            "canonical": "forecasting",
+            "confidence": 0.85
+          },
+          {
+            "must_have_skill": "anomaly detection",
+            "matches": true,
+            "alias": "for ... anomaly detection",
+            "canonical": "anomaly detection",
+            "confidence": 0.85
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:49:41.238052+00:00",
+        "raw_job_fingerprint": "c0ae3919bcc5d72ebf73df3e3dc6e6a595fe233e00a9e7478af380f1ab13af70",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "international trade and supply chain",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4386390764",
+        "job_title": "Data Scientist",
+        "company": "JD.COM",
+        "seniority": "mid",
+        "required_skills": [
+          "Build predictive models and advanced analytics solutions",
+          "Machine learning models",
+          "Python, R, or Scala",
+          "Data analysis",
+          "Statistical modeling",
+          "TensorFlow, PyTorch, Scikit-learn",
+          "Tableau, Power BI",
+          "A/B testing",
+          "Experimentation design",
+          "Causal inference",
+          "NLP",
+          "AI"
+        ],
+        "required_skills_canonical": [
+          "predictive modeling",
+          "advanced analytics",
+          "machine learning",
+          "python",
+          "r",
+          "scala",
+          "data analysis",
+          "statistical modeling",
+          "tensorflow",
+          "pytorch",
+          "scikit-learn",
+          "tableau",
+          "microsoft power bi",
+          "a/b testing",
+          "experimental design",
+          "causal inference"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Build predictive models and advanced analytics solutions",
+            "canonical": "predictive modeling",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Build predictive models and advanced analytics solutions",
+            "canonical": "advanced analytics",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "develop data-driven insights and machine learning models",
+            "canonical": "machine learning",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Proficiency in Python, R, or Scala",
+            "canonical": "python",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "Proficiency in Python, R, or Scala",
+            "canonical": "r",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "Proficiency in Python, R, or Scala",
+            "canonical": "scala",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "strong skills in data analysis and statistical modeling",
+            "canonical": "data analysis",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "strong skills in data analysis and statistical modeling",
+            "canonical": "statistical modeling",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Experience with ML frameworks (e.g., TensorFlow, PyTorch, Scikit-learn)",
+            "canonical": "tensorflow",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "Experience with ML frameworks (e.g., TensorFlow, PyTorch, Scikit-learn)",
+            "canonical": "pytorch",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "Experience with ML frameworks (e.g., TensorFlow, PyTorch, Scikit-learn)",
+            "canonical": "scikit-learn",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "data visualization tools (e.g., Tableau, Power BI)",
+            "canonical": "tableau",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "data visualization tools (e.g., Tableau, Power BI)",
+            "canonical": "microsoft power bi",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Strong knowledge of A/B testing, experimentation design, and causal inference",
+            "canonical": "a/b testing",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Strong knowledge of A/B testing, experimentation design, and causal inference",
+            "canonical": "experimental design",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Strong knowledge of A/B testing, experimentation design, and causal inference",
+            "canonical": "causal inference",
+            "confidence": 0.92
+          }
+        ],
+        "preferred_skills": [
+          "Personalization",
+          "Recommendation systems",
+          "Spark, Hadoop",
+          "Cloud ML pipelines",
+          "AWS Sagemaker",
+          "GCP Vertex AI",
+          "Azure ML",
+          "NLP",
+          "Computer vision"
+        ],
+        "preferred_skills_canonical": [
+          "personalization",
+          "recommender systems",
+          "apache spark",
+          "apache hadoop",
+          "amazon sagemaker",
+          "google vertex ai",
+          "azure machine learning",
+          "computer vision"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Experience in global e-commerce, personalization, or recommendation systems",
+            "canonical": "personalization",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Experience in global e-commerce, personalization, or recommendation systems",
+            "canonical": "recommender systems",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Familiarity with big data platforms (Spark, Hadoop)",
+            "canonical": "apache spark",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Familiarity with big data platforms (Spark, Hadoop)",
+            "canonical": "apache hadoop",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "cloud ML pipelines (AWS Sagemaker, GCP Vertex AI, or Azure ML)",
+            "canonical": "amazon sagemaker",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "cloud ML pipelines (AWS Sagemaker, GCP Vertex AI, or Azure ML)",
+            "canonical": "google vertex ai",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "cloud ML pipelines (AWS Sagemaker, GCP Vertex AI, or Azure ML)",
+            "canonical": "azure machine learning",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Background in NLP or computer vision applications",
+            "canonical": "computer vision",
+            "confidence": 0.9
+          }
+        ],
+        "responsibilities": [
+          "Build predictive models and advanced analytics solutions to improve personalization, recommendation, and customer segmentation",
+          "Analyze large-scale datasets to identify behavioral trends, business opportunities, and product improvement areas",
+          "Partner with data engineers to ensure clean, reliable, and accessible data for experimentation and model deployment",
+          "Design and run A/B tests to measure impact of algorithms and product features",
+          "Translate technical insights into clear, actionable recommendations for business and product stakeholders",
+          "Apply machine learning, NLP, and AI best practices to e-commerce challenges"
+        ],
+        "domain": "e-commerce",
+        "tech_stack": [
+          "Python",
+          "R",
+          "Scala",
+          "TensorFlow",
+          "PyTorch",
+          "scikit-learn",
+          "Tableau",
+          "Power BI",
+          "Apache Spark",
+          "Apache Hadoop",
+          "Amazon SageMaker",
+          "Google Vertex AI",
+          "Azure Machine Learning"
+        ],
+        "years_experience_min": 3,
+        "keywords": [
+          "data scientist",
+          "machine learning",
+          "predictive modeling",
+          "advanced analytics",
+          "personalization",
+          "recommender systems",
+          "customer segmentation",
+          "A/B testing",
+          "experimentation",
+          "causal inference",
+          "NLP",
+          "computer vision",
+          "Python",
+          "R",
+          "Scala",
+          "TensorFlow",
+          "PyTorch",
+          "scikit-learn",
+          "Tableau",
+          "Power BI",
+          "Spark",
+          "Hadoop",
+          "SageMaker",
+          "Vertex AI",
+          "Azure ML"
+        ],
+        "job_family": "data_science",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:50:11.538293+00:00",
+        "raw_job_fingerprint": "a9c14932ec8aab2f7695fa45c9f2dfe1be1b4287330830c2cc651f854e39b08f",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-entry-level-junior-at-encephal-statistics-department-of-ramanujan-college-university-of-delhi-4416513379?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst (Entry-Level / Junior)",
+        "company": "Encephal: Statistics Department of Ramanujan College, University Of Delhi",
+        "seniority": "junior",
+        "required_skills": [
+          "Microsoft Excel",
+          "SQL"
+        ],
+        "required_skills_canonical": [
+          "microsoft excel"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Proficiency in Microsoft Excel",
+            "canonical": "microsoft excel",
+            "confidence": 0.97
+          }
+        ],
+        "preferred_skills": [
+          "Power BI",
+          "Tableau",
+          "Python",
+          "R"
+        ],
+        "preferred_skills_canonical": [
+          "microsoft power bi",
+          "tableau",
+          "python",
+          "r"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "data visualization tools such as Power BI",
+            "canonical": "microsoft power bi",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "data visualization tools such as Power BI, Tableau",
+            "canonical": "tableau",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Familiarity with Python",
+            "canonical": "python",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Familiarity with Python, R",
+            "canonical": "r",
+            "confidence": 0.9
+          }
+        ],
+        "responsibilities": [
+          "Support data collection, analysis, and reporting activities",
+          "Organize and interpret data from multiple sources",
+          "Identify trends and patterns in data",
+          "Prepare reports, dashboards, and visualizations for stakeholders",
+          "Maintain data accuracy",
+          "Perform data validation",
+          "Monitor key performance indicators (KPIs)",
+          "Assist development of analytical solutions to improve operational efficiency and business performance",
+          "Collaborate with cross-functional teams to understand reporting requirements",
+          "Support process improvements",
+          "Provide actionable insights through structured analysis",
+          "Document data processes",
+          "Contribute to continuous improvement initiatives in data management and reporting practices"
+        ],
+        "tech_stack": [
+          "Microsoft Excel",
+          "SQL",
+          "Power BI",
+          "Tableau",
+          "Python",
+          "R"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "data collection",
+          "data analysis",
+          "reporting",
+          "data extraction",
+          "dashboards",
+          "data visualization",
+          "data validation",
+          "data accuracy",
+          "KPIs",
+          "trend analysis",
+          "pattern identification",
+          "stakeholder reporting",
+          "analytical solutions",
+          "operational efficiency",
+          "structured analysis",
+          "process improvement",
+          "data management",
+          "continuous improvement"
+        ],
+        "job_family": "analytics",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "microsoft excel",
+            "matches": true,
+            "alias": "proficiency in microsoft excel",
+            "canonical": "microsoft excel",
+            "confidence": 0.97
+          },
+          {
+            "must_have_skill": "python",
+            "matches": true,
+            "alias": "familiarity with python",
+            "canonical": "python",
+            "confidence": 0.9
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:50:26.032947+00:00",
+        "raw_job_fingerprint": "7aee55cfa97c1af68d43f9a0afbef91fe20810bfd0d8544a0a5aaf4150e0684b",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/junior-researcher-at-premier-business-solution-4413675925?trk=public_jobs_topcard-title",
+        "job_title": "Junior Researcher",
+        "company": "Premier Business Solution",
+        "location_type": "remote",
+        "seniority": "junior",
+        "required_skills": [
+          "Basic online research",
+          "Basic computer or mobile phone skills"
+        ],
+        "required_skills_canonical": [
+          "online research",
+          "computer skills",
+          "mobile device skills"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Conduct basic online research",
+            "canonical": "online research",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Basic computer or mobile phone skills",
+            "canonical": "computer skills",
+            "confidence": 0.62
+          },
+          {
+            "raw_text": "Basic computer or mobile phone skills",
+            "canonical": "mobile device skills",
+            "confidence": 0.62
+          }
+        ],
+        "responsibilities": [
+          "Conduct basic online research",
+          "Organize simple information and reports",
+          "Support assigned research tasks",
+          "Follow provided instructions"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "online research",
+          "data-related tasks",
+          "reports",
+          "remote",
+          "flexible working hours",
+          "training provided",
+          "entry-level"
+        ],
+        "job_family": "analytics",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "online research",
+            "matches": true,
+            "alias": "conduct basic online research",
+            "canonical": "online research",
+            "confidence": 0.86
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:50:32.491251+00:00",
+        "raw_job_fingerprint": "8cf4d8b025446430f209d8f2e0777ce9649ffec9ad4f8b63b75a755c101861f7",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/ai-research-engineer-agentic-post-training-at-jobgether-4416393656?trk=public_jobs_topcard-title",
+        "job_title": "AI Research Engineer (Agentic Post-training)",
+        "company": "Jobgether",
+        "location_type": "remote",
+        "required_skills": [
+          "large language models",
+          "post-training techniques (fine-tuning, reinforcement learning, instruction tuning)",
+          "distributed training systems (multi-GPU, multi-node)",
+          "large-scale model development",
+          "model reasoning improvement",
+          "tool use",
+          "function calling",
+          "agentic workflows",
+          "multimodal data (text, image, audio)",
+          "data pipelines for AI training",
+          "data curation workflows",
+          "training infrastructure",
+          "evaluation frameworks",
+          "benchmarking systems",
+          "diagnostic systems",
+          "integrating production feedback signals into training loops"
+        ],
+        "required_skills_canonical": [
+          "fine-tuning",
+          "reinforcement learning",
+          "instruction tuning",
+          "distributed training",
+          "multi-gpu training",
+          "multi-node training",
+          "reasoning optimization",
+          "tool use (llm agents)",
+          "function calling",
+          "agentic workflows",
+          "multimodal learning",
+          "text data",
+          "image data",
+          "audio data",
+          "data pipelines"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "post-training techniques such as fine-tuning",
+            "canonical": "fine-tuning",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "post-training techniques such as reinforcement learning",
+            "canonical": "reinforcement learning",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "post-training techniques such as instruction tuning",
+            "canonical": "instruction tuning",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Hands-on experience with distributed training systems and large-scale model development (e.g., multi-GPU or multi-node environments)",
+            "canonical": "distributed training",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Hands-on experience with distributed training systems and large-scale model development (e.g., multi-GPU or multi-node environments)",
+            "canonical": "multi-gpu training",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Hands-on experience with distributed training systems and large-scale model development (e.g., multi-GPU or multi-node environments)",
+            "canonical": "multi-node training",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Demonstrated expertise in improving model reasoning",
+            "canonical": "reasoning optimization",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Demonstrated expertise in improving model ... tool use",
+            "canonical": "tool use (llm agents)",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Demonstrated expertise in improving model ... function calling",
+            "canonical": "function calling",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Demonstrated expertise in improving model ... agentic workflows",
+            "canonical": "agentic workflows",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Experience working with multimodal data (text, image, audio)",
+            "canonical": "multimodal learning",
+            "confidence": 0.87
+          },
+          {
+            "raw_text": "Experience working with multimodal data (text, image, audio)",
+            "canonical": "text data",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Experience working with multimodal data (text, image, audio)",
+            "canonical": "image data",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Experience working with multimodal data (text, image, audio)",
+            "canonical": "audio data",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "building or optimizing data pipelines for AI training",
+            "canonical": "data pipelines",
+            "confidence": 0.86
+          }
+        ],
+        "preferred_skills": [
+          "advanced degree (MS/PhD)",
+          "publications at NeurIPS, ICML, ICLR, ACL, CVPR, ECCV",
+          "open-source contributions (GitHub, Hugging Face)",
+          "multi-agent coordination"
+        ],
+        "preferred_skills_canonical": [
+          "ms",
+          "phd",
+          "neurips",
+          "icml",
+          "iclr",
+          "acl",
+          "cvpr",
+          "eccv",
+          "git",
+          "hugging face",
+          "multi-agent coordination"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "advanced degree (MS/PhD) strongly preferred",
+            "canonical": "ms",
+            "confidence": 0.55
+          },
+          {
+            "raw_text": "advanced degree (MS/PhD) strongly preferred",
+            "canonical": "phd",
+            "confidence": 0.55
+          },
+          {
+            "raw_text": "including publications at top-tier AI conferences (e.g., NeurIPS, ICML, ICLR, ACL, CVPR, ECCV)",
+            "canonical": "neurips",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "including publications at top-tier AI conferences (e.g., NeurIPS, ICML, ICLR, ACL, CVPR, ECCV)",
+            "canonical": "icml",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "including publications at top-tier AI conferences (e.g., NeurIPS, ICML, ICLR, ACL, CVPR, ECCV)",
+            "canonical": "iclr",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "including publications at top-tier AI conferences (e.g., NeurIPS, ICML, ICLR, ACL, CVPR, ECCV)",
+            "canonical": "acl",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "including publications at top-tier AI conferences (e.g., NeurIPS, ICML, ICLR, ACL, CVPR, ECCV)",
+            "canonical": "cvpr",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "including publications at top-tier AI conferences (e.g., NeurIPS, ICML, ICLR, ACL, CVPR, ECCV)",
+            "canonical": "eccv",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "Open-source contributions ... (e.g., GitHub, Hugging Face) is highly valued",
+            "canonical": "git",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Open-source contributions ... (e.g., GitHub, Hugging Face) is highly valued",
+            "canonical": "hugging face",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Improve core model capabilities including ... multi-agent coordination",
+            "canonical": "multi-agent coordination",
+            "confidence": 0.82
+          }
+        ],
+        "responsibilities": [
+          "Conduct end-to-end research and engineering to advance post-training methods for agentic AI systems (tool use, reasoning, autonomous behavior)",
+          "Improve model factuality, instruction following, multi-step reasoning, tool/function calling, and multi-agent coordination",
+          "Design, build, and optimize large-scale post-training pipelines (data curation, training infrastructure, evaluation frameworks)",
+          "Develop benchmarking and diagnostic systems to assess performance, reliability, and deployment readiness",
+          "Integrate real-world feedback signals from production usage into training loops",
+          "Collaborate with research, engineering, and product teams for scalable production integration",
+          "Identify bottlenecks and propose solutions to improve efficiency, reliability, and performance of tool-augmented models"
+        ],
+        "tech_stack": [
+          "large language models (LLMs)",
+          "fine-tuning",
+          "reinforcement learning",
+          "instruction tuning",
+          "distributed training",
+          "multi-GPU training",
+          "multi-node training",
+          "multimodal learning",
+          "data pipelines",
+          "data curation",
+          "evaluation frameworks",
+          "benchmarking",
+          "diagnostic systems",
+          "function calling",
+          "tool use (LLM agents)",
+          "Hugging Face",
+          "GitHub"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "agentic AI",
+          "post-training",
+          "LLM",
+          "tool-augmented models",
+          "function calling",
+          "tool use",
+          "instruction following",
+          "factuality",
+          "multi-step reasoning",
+          "multi-agent coordination",
+          "distributed training",
+          "multi-GPU",
+          "multi-node",
+          "multimodal",
+          "data curation",
+          "training pipelines",
+          "evaluation frameworks",
+          "benchmarking",
+          "diagnostics",
+          "production feedback"
+        ],
+        "job_family": "ml_engineering",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:51:06.771374+00:00",
+        "raw_job_fingerprint": "e6dfc0f0820bcb04232761565a0b357116acfc5b7cd1ed52a41f0546eb0339b3",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/account-executive-at-samba-tv-4377415215?trk=public_jobs_topcard-title",
+        "job_title": "Account Executive",
+        "company": "Samba TV",
+        "location_type": "hybrid",
+        "seniority": "mid",
+        "required_skills": [
+          "Own full sales cycle",
+          "Knowledge of online advertising",
+          "Advertising / digital media / DaaS sales experience (3+ years)",
+          "Prospect, qualify, close, scale advertiser and agency relationships",
+          "Communicate value proposition via email, virtual meetings, in-person presentations",
+          "Develop proposals with account management",
+          "Meet or exceed quarterly sales quotas",
+          "Work cross-functionally to ensure campaign success"
+        ],
+        "preferred_skills": [
+          "Knowledge of TV/online/mobile advertising industry and data",
+          "Existing relationships with media buying decision makers"
+        ],
+        "preferred_skills_canonical": [
+          "cross-platform ad synchronization",
+          "ad retargeting"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "cross-platform ad synchronization and retargeting",
+            "canonical": "cross-platform ad synchronization",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "cross-platform ad synchronization and retargeting",
+            "canonical": "ad retargeting",
+            "confidence": 0.82
+          }
+        ],
+        "responsibilities": [
+          "Own full sales cycle for advertising solutions",
+          "Act as thought partner to agencies and brands on TV, video, marketing strategy using data",
+          "Sell advertising and TV research/analytics solutions to brand advertisers and agencies",
+          "Prospect, qualify, close, scale revenue relationships in territory/vertical",
+          "Communicate offerings and value proposition via email, virtual meetings, in-person presentations",
+          "Collaborate with account management to deliver proposals meeting objectives",
+          "Develop and maintain multi-level relationships within agencies and brands",
+          "Meet/exceed quarterly sales quotas",
+          "Work with internal cross-functional teams to ensure campaign success and partnership growth",
+          "Help develop local marketing initiatives and participate in industry events"
+        ],
+        "domain": "advertising_technology",
+        "years_experience_min": 3,
+        "keywords": [
+          "account executive",
+          "strategic sales",
+          "full sales cycle",
+          "advertising solutions",
+          "online advertising",
+          "digital media",
+          "DaaS",
+          "TV advertising",
+          "video advertising",
+          "agency sales",
+          "brand advertisers",
+          "quota",
+          "prospecting",
+          "pipeline",
+          "proposals",
+          "campaign success",
+          "cross-platform ad synchronization",
+          "retargeting"
+        ],
+        "job_family": "sales",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:48:00.461956+00:00",
+        "raw_job_fingerprint": "ef2a47d904b7d1e027bfb464063d86cc58c6d2497fb309c89c53cc7ea23047d1",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "advertising_technology",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4402878255",
+        "job_title": "Data Scientist",
+        "company": "Adsquare",
+        "location_type": "hybrid",
+        "seniority": "senior",
+        "required_skills": [
+          "Probability",
+          "Inferential Statistics",
+          "Linear Algebra",
+          "Experimental Design",
+          "Python",
+          "pandas",
+          "scikit-learn",
+          "PyTorch",
+          "TensorFlow",
+          "FastAPI",
+          "SQL",
+          "BigQuery",
+          "Athena",
+          "Redshift",
+          "Snowflake",
+          "AWS",
+          "SageMaker",
+          "Lambda",
+          "Exploratory Data Analysis (EDA)",
+          "Experiment design",
+          "Machine learning model development",
+          "Model deployment",
+          "Model monitoring"
+        ],
+        "required_skills_canonical": [
+          "probability",
+          "inferential statistics",
+          "linear algebra",
+          "experimental design",
+          "pandas",
+          "scikit-learn",
+          "pytorch",
+          "tensorflow",
+          "fastapi",
+          "google bigquery",
+          "amazon athena",
+          "amazon redshift",
+          "snowflake",
+          "amazon web services",
+          "amazon sagemaker",
+          "aws lambda",
+          "exploratory data analysis (eda)"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Strong foundation in Probability",
+            "canonical": "probability",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Strong foundation in Inferential Statistics",
+            "canonical": "inferential statistics",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Strong foundation in Linear Algebra",
+            "canonical": "linear algebra",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Strong foundation in Experimental Design",
+            "canonical": "experimental design",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Expert proficiency in pandas",
+            "canonical": "pandas",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Expert proficiency in scikit-learn",
+            "canonical": "scikit-learn",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Expert proficiency in PyTorch/TensorFlow",
+            "canonical": "pytorch",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Expert proficiency in PyTorch/TensorFlow",
+            "canonical": "tensorflow",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Expert proficiency in FastAPI",
+            "canonical": "fastapi",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "SQL (e.g., BigQuery, Athena, Redshift, or Snowflake)",
+            "canonical": "google bigquery",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "SQL (e.g., BigQuery, Athena, Redshift, or Snowflake)",
+            "canonical": "amazon athena",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "SQL (e.g., BigQuery, Athena, Redshift, or Snowflake)",
+            "canonical": "amazon redshift",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "SQL (e.g., BigQuery, Athena, Redshift, or Snowflake)",
+            "canonical": "snowflake",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Experience deploying and monitoring models within AWS (SageMaker, Lambda)",
+            "canonical": "amazon web services",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Experience deploying and monitoring models within AWS (SageMaker, Lambda)",
+            "canonical": "amazon sagemaker",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Experience deploying and monitoring models within AWS (SageMaker, Lambda)",
+            "canonical": "aws lambda",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Conduct rigorous EDA",
+            "canonical": "exploratory data analysis (eda)",
+            "confidence": 0.9
+          }
+        ],
+        "preferred_skills": [
+          "dbt",
+          "Data stack orchestration",
+          "LangChain",
+          "MCPs",
+          "Streamlit",
+          "Programmatic Advertising",
+          "Geospatial/GIS"
+        ],
+        "preferred_skills_canonical": [
+          "dbt",
+          "langchain",
+          "mcps",
+          "streamlit"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Experience with dbt",
+            "canonical": "dbt",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Hands-on experience building LLM-based applications using e.g., LangChain, MCPs, Streamlit",
+            "canonical": "langchain",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Hands-on experience building LLM-based applications using e.g., LangChain, MCPs, Streamlit",
+            "canonical": "mcps",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Hands-on experience building LLM-based applications using e.g., LangChain, MCPs, Streamlit",
+            "canonical": "streamlit",
+            "confidence": 0.92
+          }
+        ],
+        "responsibilities": [
+          "Design, train, deploy machine learning models at scale for location intelligence and audience attributes",
+          "Partner with Data/ML Engineers to integrate, monitor, and productionize models in cloud-native workflows",
+          "Lead R&D initiatives involving LLMs and classical statistical/ML modeling for spatial problems",
+          "Conduct EDA and experiment design to ensure data quality and deliver actionable insights",
+          "Contribute to peer-reviewed publications and stay current in spatial data science"
+        ],
+        "domain": "advertising technology",
+        "tech_stack": [
+          "Python",
+          "SQL",
+          "AWS",
+          "Amazon SageMaker",
+          "Amazon Redshift",
+          "Amazon Athena",
+          "Snowflake",
+          "dbt",
+          "FastAPI",
+          "Docker",
+          "PyTorch",
+          "scikit-learn",
+          "LangChain",
+          "Streamlit",
+          "AWS Lambda",
+          "TensorFlow"
+        ],
+        "years_experience_min": 5,
+        "keywords": [
+          "data science",
+          "machine learning",
+          "location intelligence",
+          "geospatial",
+          "spatial data science",
+          "programmatic advertising",
+          "audience attributes",
+          "LLMs",
+          "LangChain",
+          "MCPs",
+          "EDA",
+          "experiment design",
+          "cloud-native",
+          "AWS",
+          "SageMaker",
+          "Lambda",
+          "SQL",
+          "BigQuery",
+          "Athena",
+          "Redshift",
+          "Snowflake",
+          "dbt",
+          "Docker",
+          "FastAPI",
+          "pandas",
+          "scikit-learn",
+          "PyTorch",
+          "TensorFlow"
+        ],
+        "job_family": "data_science",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "probability",
+            "matches": true,
+            "alias": "strong foundation in probability",
+            "canonical": "probability",
+            "confidence": 0.95
+          },
+          {
+            "must_have_skill": "pandas",
+            "matches": true,
+            "alias": "expert proficiency in pandas",
+            "canonical": "pandas",
+            "confidence": 0.95
+          },
+          {
+            "must_have_skill": "scikit-learn",
+            "matches": true,
+            "alias": "expert proficiency in scikit-learn",
+            "canonical": "scikit-learn",
+            "confidence": 0.95
+          },
+          {
+            "must_have_skill": "pytorch",
+            "matches": true,
+            "alias": "expert proficiency in pytorch/tensorflow",
+            "canonical": "pytorch",
+            "confidence": 0.92
+          },
+          {
+            "must_have_skill": "tensorflow",
+            "matches": true,
+            "alias": "expert proficiency in pytorch/tensorflow",
+            "canonical": "tensorflow",
+            "confidence": 0.92
+          },
+          {
+            "must_have_skill": "fastapi",
+            "matches": true,
+            "alias": "expert proficiency in fastapi",
+            "canonical": "fastapi",
+            "confidence": 0.95
+          },
+          {
+            "must_have_skill": "exploratory data analysis (eda)",
+            "matches": true,
+            "alias": "conduct rigorous eda",
+            "canonical": "exploratory data analysis (eda)",
+            "confidence": 0.9
+          },
+          {
+            "must_have_skill": "dbt",
+            "matches": true,
+            "alias": "experience with dbt",
+            "canonical": "dbt",
+            "confidence": 0.95
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:48:27.811017+00:00",
+        "raw_job_fingerprint": "baea81d8f36f08a59af33ff363693338583d64cdd15599bee65be1a46677d950",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "advertising technology",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417473980",
+        "job_title": "Data Scientist",
+        "company": "SME Careers",
+        "location_type": "remote",
+        "seniority": "senior",
+        "required_skills": [
+          "Python for data analysis and machine learning (pandas, NumPy, scikit-learn)",
+          "Statistics",
+          "Experimental design",
+          "Applied probability",
+          "Designing and analyzing controlled experiments",
+          "Building, evaluating, and deploying machine learning models",
+          "SQL",
+          "Working with large datasets from data warehouses or data lakes",
+          "Data visualization tools or dashboards"
+        ],
+        "required_skills_canonical": [
+          "python",
+          "pandas",
+          "numpy",
+          "scikit-learn",
+          "statistics",
+          "experimental design",
+          "applied probability",
+          "controlled experiments",
+          "machine learning model deployment",
+          "machine learning model evaluation",
+          "data warehouses",
+          "data lakes",
+          "data visualization",
+          "dashboards"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Strong proficiency in Python for data analysis and machine learning, including libraries such as pandas, NumPy, scikit-learn, and related tooling.",
+            "canonical": "python",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "Strong proficiency in Python for data analysis and machine learning, including libraries such as pandas, NumPy, scikit-learn, and related tooling.",
+            "canonical": "pandas",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Strong proficiency in Python for data analysis and machine learning, including libraries such as pandas, NumPy, scikit-learn, and related tooling.",
+            "canonical": "numpy",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Strong proficiency in Python for data analysis and machine learning, including libraries such as pandas, NumPy, scikit-learn, and related tooling.",
+            "canonical": "scikit-learn",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Solid background in statistics, experimental design, and applied probability, with experience designing and analyzing controlled experiments.",
+            "canonical": "statistics",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Solid background in statistics, experimental design, and applied probability, with experience designing and analyzing controlled experiments.",
+            "canonical": "experimental design",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Solid background in statistics, experimental design, and applied probability, with experience designing and analyzing controlled experiments.",
+            "canonical": "applied probability",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Solid background in statistics, experimental design, and applied probability, with experience designing and analyzing controlled experiments.",
+            "canonical": "controlled experiments",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Hands-on experience building, evaluating, and deploying machine learning models in real-world business or product environments.",
+            "canonical": "machine learning model deployment",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Hands-on experience building, evaluating, and deploying machine learning models in real-world business or product environments.",
+            "canonical": "machine learning model evaluation",
+            "confidence": 0.83
+          },
+          {
+            "raw_text": "Advanced SQL skills and comfort working with large, complex datasets from data warehouses or data lakes.",
+            "canonical": "data warehouses",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Advanced SQL skills and comfort working with large, complex datasets from data warehouses or data lakes.",
+            "canonical": "data lakes",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Experience with data visualization tools or dashboards",
+            "canonical": "data visualization",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Experience with data visualization tools or dashboards",
+            "canonical": "dashboards",
+            "confidence": 0.8
+          }
+        ],
+        "preferred_skills": [
+          "AI data training",
+          "Data annotation",
+          "Reviewing AI-generated analytical content"
+        ],
+        "preferred_skills_canonical": [
+          "ai data training",
+          "data annotation",
+          "reviewing ai-generated analytical content"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Previous experience with AI data training, annotation, or reviewing AI-generated analytical content is a strong plus.",
+            "canonical": "ai data training",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Previous experience with AI data training, annotation, or reviewing AI-generated analytical content is a strong plus.",
+            "canonical": "data annotation",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Previous experience with AI data training, annotation, or reviewing AI-generated analytical content is a strong plus.",
+            "canonical": "reviewing ai-generated analytical content",
+            "confidence": 0.83
+          }
+        ],
+        "responsibilities": [
+          "Review AI-generated analytical reasoning, code, and model outputs",
+          "Generate high-quality reference solutions and explanations for complex data problems",
+          "Assess solutions for accuracy, clarity, and adherence to prompt",
+          "Identify errors in methodology, modeling choices, or statistical reasoning",
+          "Fact-check quantitative claims",
+          "Write clear step-by-step explanations and model solutions demonstrating correct methods",
+          "Rate and compare multiple AI responses based on correctness and reasoning quality",
+          "Create detailed prompts and responses to guide AI learning",
+          "Evaluate and rank AI responses to improve accuracy, fluency, contextual relevance",
+          "Test AI models for inaccuracies or biases and validate reliability across use cases"
+        ],
+        "domain": "ai data services",
+        "tech_stack": [
+          "Python",
+          "pandas",
+          "NumPy",
+          "scikit-learn",
+          "SQL",
+          "data warehouses",
+          "data lakes",
+          "dashboards",
+          "data visualization"
+        ],
+        "years_experience_min": 5,
+        "keywords": [
+          "data scientist",
+          "AI training data",
+          "foundation models",
+          "analytical reasoning",
+          "reference solutions",
+          "prompt writing",
+          "model evaluation",
+          "bias testing",
+          "Python",
+          "pandas",
+          "NumPy",
+          "scikit-learn",
+          "SQL",
+          "statistics",
+          "experimental design",
+          "controlled experiments",
+          "machine learning deployment",
+          "data warehouses",
+          "data lakes",
+          "dashboards",
+          "data visualization"
+        ],
+        "job_family": "data_science",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:49:02.145086+00:00",
+        "raw_job_fingerprint": "e10e3ce1cbaa4f6bb724b6222dbffd4c806abb00435f89ca5d0299968b04dd09",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "ai data services",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-internal-technology-ai-at-jobgether-4417085054?trk=public_jobs_topcard-title",
+        "job_title": "Head of Internal Technology & AI",
+        "company": "Jobgether",
+        "location_type": "remote",
+        "seniority": "lead",
+        "required_skills": [
+          "AI transformation",
+          "Digital transformation",
+          "Change management",
+          "Software architecture",
+          "Code review",
+          "AI engineering",
+          "LLMs",
+          "AI agents",
+          "MCPs",
+          "Coding assistants",
+          "Integration frameworks",
+          "Identity management",
+          "SaaS administration",
+          "Device management",
+          "IT operations"
+        ],
+        "required_skills_canonical": [
+          "ai transformation",
+          "digital transformation",
+          "change management",
+          "software architecture",
+          "code review",
+          "ai engineering",
+          "ai agents",
+          "mcps",
+          "coding assistants",
+          "integration frameworks",
+          "identity management",
+          "saas administration",
+          "device management",
+          "it operations"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Proven experience leading end-to-end AI transformation, digital transformation, or large-scale technology change programs",
+            "canonical": "ai transformation",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Proven experience leading end-to-end AI transformation, digital transformation, or large-scale technology change programs",
+            "canonical": "digital transformation",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Demonstrated experience in change management, driving adoption of new tools and ways of working across large organizations",
+            "canonical": "change management",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Strong technical foundation with the ability to understand architecture, review code, and engage in meaningful technical discussions with engineers",
+            "canonical": "software architecture",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Strong technical foundation with the ability to understand architecture, review code, and engage in meaningful technical discussions with engineers",
+            "canonical": "code review",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Familiarity with modern AI engineering concepts such as LLMs, agents, MCPs, coding assistants, and integration frameworks",
+            "canonical": "ai engineering",
+            "confidence": 0.77
+          },
+          {
+            "raw_text": "Familiarity with modern AI engineering concepts such as LLMs, agents, MCPs, coding assistants, and integration frameworks",
+            "canonical": "ai agents",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Familiarity with modern AI engineering concepts such as LLMs, agents, MCPs, coding assistants, and integration frameworks",
+            "canonical": "mcps",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "Familiarity with modern AI engineering concepts such as LLMs, agents, MCPs, coding assistants, and integration frameworks",
+            "canonical": "coding assistants",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Familiarity with modern AI engineering concepts such as LLMs, agents, MCPs, coding assistants, and integration frameworks",
+            "canonical": "integration frameworks",
+            "confidence": 0.74
+          },
+          {
+            "raw_text": "Oversee corporate IT operations end-to-end, including identity management, SaaS administration, device management, and internal support systems",
+            "canonical": "identity management",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Oversee corporate IT operations end-to-end, including identity management, SaaS administration, device management, and internal support systems",
+            "canonical": "saas administration",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Oversee corporate IT operations end-to-end, including identity management, SaaS administration, device management, and internal support systems",
+            "canonical": "device management",
+            "confidence": 0.82
+          },
+          {
+            "raw_text": "Experience leading teams responsible for both AI engineering and IT operations",
+            "canonical": "it operations",
+            "confidence": 0.78
+          }
+        ],
+        "preferred_skills": [
+          "AI governance frameworks",
+          "EU AI Act"
+        ],
+        "preferred_skills_canonical": [
+          "ai governance frameworks",
+          "eu ai act"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Nice to have: experience with AI governance frameworks",
+            "canonical": "ai governance frameworks",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Nice to have: regulatory considerations (e.g., EU AI Act)",
+            "canonical": "eu ai act",
+            "confidence": 0.84
+          }
+        ],
+        "responsibilities": [
+          "Define lead AI transformation strategy align initiatives with business priorities long-term technology goals",
+          "Build manage portfolio of AI initiatives: prioritization ownership timelines impact metrics",
+          "Drive company-wide adoption of AI-first ways of working: productivity automation decision-making",
+          "Lead change management: AI literacy programs upskilling leadership enablement",
+          "Establish evolve AI governance frameworks: responsible usage data readiness tooling standards performance measurement",
+          "Own internal AI engineering strategy: tools agents automations integrations shared services",
+          "Lead build-versus-buy decisions for AI tools platforms with exec engineering leadership",
+          "Oversee corporate IT operations end-to-end: identity management SaaS administration device management internal support systems",
+          "Ensure internal systems data architecture optimized for AI enablement transparency scalability",
+          "Lead develop multidisciplinary team: AI engineers IT specialists operations"
+        ],
+        "domain": "marketplace",
+        "tech_stack": [
+          "LLMs",
+          "AI agents",
+          "MCPs",
+          "Coding assistants",
+          "Integration frameworks"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "AI-native",
+          "AI transformation",
+          "Digital transformation",
+          "AI adoption",
+          "AI governance",
+          "Responsible AI",
+          "Automation",
+          "Internal tooling",
+          "IT operations",
+          "Identity management",
+          "SaaS administration",
+          "Device management",
+          "Build vs buy",
+          "Roadmaps",
+          "Change management",
+          "AI literacy",
+          "Upskilling",
+          "Productivity metrics"
+        ],
+        "job_family": "ml_engineering",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:49:31.053295+00:00",
+        "raw_job_fingerprint": "e1d354428abae665e000591337365d9259a3f7c02f4884fed7f74da61a680c03",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417349690",
+        "job_title": "Head of Global Data Products (m/f/d)",
+        "company": "Allianz Technology",
+        "location_type": "hybrid",
+        "seniority": "lead",
+        "required_skills": [
+          "modern data architectures",
+          "cloud platforms (AWS, Azure, GCP)",
+          "data integration technologies",
+          "enterprise governance frameworks",
+          "AI/ML technologies",
+          "real-time analytics",
+          "data engineering",
+          "data architecture",
+          "process mining"
+        ],
+        "required_skills_canonical": [
+          "data architecture",
+          "amazon web services",
+          "microsoft azure",
+          "google cloud",
+          "data integration",
+          "data governance",
+          "artificial intelligence",
+          "machine learning",
+          "real-time analytics",
+          "data engineering",
+          "process mining"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Deep expertise in modern data architectures",
+            "canonical": "data architecture",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "cloud platforms (AWS, Azure, GCP)",
+            "canonical": "amazon web services",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "cloud platforms (AWS, Azure, GCP)",
+            "canonical": "microsoft azure",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "cloud platforms (AWS, Azure, GCP)",
+            "canonical": "google cloud",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "data integration technologies",
+            "canonical": "data integration",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "enterprise governance frameworks",
+            "canonical": "data governance",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Drive innovation by embedding AI, ML, and real-time analytics capabilities into product roadmaps",
+            "canonical": "artificial intelligence",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "Drive innovation by embedding AI, ML, and real-time analytics capabilities into product roadmaps",
+            "canonical": "machine learning",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Drive innovation by embedding AI, ML, and real-time analytics capabilities into product roadmaps",
+            "canonical": "real-time analytics",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Lead, mentor, and develop a global team of data engineers, architects, product managers, and analytics professionals",
+            "canonical": "data engineering",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "Lead, mentor, and develop a global team of data engineers, architects, product managers, and analytics professionals",
+            "canonical": "data architecture",
+            "confidence": 0.72
+          },
+          {
+            "raw_text": "Oversee the full lifecycle of enterprise-grade data products (..., Process Mining)",
+            "canonical": "process mining",
+            "confidence": 0.82
+          }
+        ],
+        "preferred_skills": [
+          "Agentic Development Lifecycles",
+          "GenAI",
+          "Agentic frameworks"
+        ],
+        "preferred_skills_canonical": [
+          "generative ai",
+          "agentic frameworks",
+          "agentic development lifecycle"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "including the adoption of AI/GenAI and Agentic frameworks",
+            "canonical": "generative ai",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "including the adoption of AI/GenAI and Agentic frameworks",
+            "canonical": "agentic frameworks",
+            "confidence": 0.76
+          },
+          {
+            "raw_text": "hands-on experience with Agentic Development Lifecycles is a strong plus",
+            "canonical": "agentic development lifecycle",
+            "confidence": 0.83
+          }
+        ],
+        "responsibilities": [
+          "Define and execute strategic roadmap for shared data products and services aligned to business and IT strategy, including adoption of AI/GenAI and agentic frameworks",
+          "Oversee full lifecycle of enterprise data products and services, ensuring governance, compliance, security, and performance standards",
+          "Embed AI, ML, and real-time analytics capabilities into product roadmaps",
+          "Lead, mentor, and develop global cross-functional team (data engineers, architects, product managers, analytics professionals)",
+          "Manage executive stakeholders; represent team in steering committees and industry forums",
+          "Manage department budget, vendor contracts, SLAs; ensure cost efficiency and service quality",
+          "Secure investment funding for data products; handle escalations; drive continuous service improvement"
+        ],
+        "domain": "insurance",
+        "tech_stack": [
+          "AWS",
+          "Microsoft Azure",
+          "Google Cloud Platform",
+          "AI",
+          "machine learning",
+          "real-time analytics",
+          "process mining"
+        ],
+        "years_experience_min": 10,
+        "keywords": [
+          "data products",
+          "data platforms",
+          "data architecture",
+          "cloud",
+          "AWS",
+          "Azure",
+          "GCP",
+          "data integration",
+          "data governance",
+          "AI",
+          "GenAI",
+          "agentic frameworks",
+          "real-time analytics",
+          "process mining",
+          "anti-fraud analytics",
+          "catastrophe analytics",
+          "geospatial information systems",
+          "global data layer",
+          "SLA",
+          "vendor management",
+          "budget management"
+        ],
+        "job_family": "data_engineering",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "data integration",
+            "matches": true,
+            "alias": "data integration technologies",
+            "canonical": "data integration",
+            "confidence": 0.78
+          },
+          {
+            "must_have_skill": "data governance",
+            "matches": true,
+            "alias": "enterprise governance frameworks",
+            "canonical": "data governance",
+            "confidence": 0.8
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:49:52.095352+00:00",
+        "raw_job_fingerprint": "0b7b51cd21c5d18fee0f38aa7e575c9ea90e3ef2867f817991ba770b4ae23faa",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "insurance",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413668252",
+        "job_title": "Data Engineer (m/w/d)",
+        "company": "Ashampoo®",
+        "location_type": "hybrid",
+        "seniority": "mid",
+        "required_skills": [
+          "Erfahrung als Data Engineer oder Backend-Entwickler mit tiefgehenden Kenntnissen in Datenarchitekturen",
+          "Fundierte SQL-Kenntnisse und Erfahrung in der Arbeit mit großen Datenmengen",
+          "Solide Programmierkenntnisse in Sprachen wie Python, Java oder Scala",
+          "Entwicklung und Implementierung robuster Datenarchitekturen, Datenmodelle und ETL-Prozesse",
+          "Verwaltung und kontinuierliche Optimierung unseres Data Warehouses",
+          "Entwicklung und Implementierung skalierbarer Pipelines zur Datenintegration und -verarbeitung",
+          "Sicherstellung der Datenqualität durch Implementierung effektiver Datenbereinigungsmaßnahmen"
+        ],
+        "required_skills_canonical": [
+          "data architecture",
+          "python",
+          "java",
+          "scala",
+          "data modeling",
+          "etl",
+          "data warehousing",
+          "data pipelines",
+          "data integration",
+          "data quality",
+          "data cleansing"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Erfahrung als Data Engineer oder Backend-Entwickler mit tiefgehenden Kenntnissen in Datenarchitekturen",
+            "canonical": "data architecture",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Solide Programmierkenntnisse in Sprachen wie Python, Java oder Scala",
+            "canonical": "python",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Solide Programmierkenntnisse in Sprachen wie Python, Java oder Scala",
+            "canonical": "java",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Solide Programmierkenntnisse in Sprachen wie Python, Java oder Scala",
+            "canonical": "scala",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Entwicklung und Implementierung robuster Datenarchitekturen, Datenmodelle und ETL-Prozesse",
+            "canonical": "data modeling",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Entwicklung und Implementierung robuster Datenarchitekturen, Datenmodelle und ETL-Prozesse",
+            "canonical": "etl",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Verwaltung und kontinuierliche Optimierung unseres Data Warehouses",
+            "canonical": "data warehousing",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Entwicklung und Implementierung skalierbarer Pipelines zur Datenintegration und -verarbeitung",
+            "canonical": "data pipelines",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Entwicklung und Implementierung skalierbarer Pipelines zur Datenintegration und -verarbeitung",
+            "canonical": "data integration",
+            "confidence": 0.84
+          },
+          {
+            "raw_text": "Sicherstellung der Datenqualität durch Implementierung effektiver Datenbereinigungsmaßnahmen",
+            "canonical": "data quality",
+            "confidence": 0.87
+          },
+          {
+            "raw_text": "Sicherstellung der Datenqualität durch Implementierung effektiver Datenbereinigungsmaßnahmen",
+            "canonical": "data cleansing",
+            "confidence": 0.86
+          }
+        ],
+        "preferred_skills": [
+          "Erfahrung mit Big Data Technologien",
+          "Erfahrung mit großen Cloud-Plattformen wie AWS, Google Cloud Platform oder Azure",
+          "Erfahrung mit DBT zur Datenaufbereitung und -veredelung"
+        ],
+        "preferred_skills_canonical": [
+          "big data",
+          "amazon web services",
+          "google cloud",
+          "microsoft azure",
+          "dbt"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Erfahrung mit Big Data Technologien",
+            "canonical": "big data",
+            "confidence": 0.65
+          },
+          {
+            "raw_text": "Erfahrung mit großen Cloud-Plattformen wie AWS, Google Cloud Platform oder Azure",
+            "canonical": "amazon web services",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Erfahrung mit großen Cloud-Plattformen wie AWS, Google Cloud Platform oder Azure",
+            "canonical": "google cloud",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Erfahrung mit großen Cloud-Plattformen wie AWS, Google Cloud Platform oder Azure",
+            "canonical": "microsoft azure",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Erfahrung mit DBT zur Datenaufbereitung und -veredelung",
+            "canonical": "dbt",
+            "confidence": 0.97
+          }
+        ],
+        "responsibilities": [
+          "Entwicklung und Implementierung robuster Datenarchitekturen, Datenmodelle und ETL-Prozesse",
+          "Verwaltung und kontinuierliche Optimierung des Data Warehouses",
+          "Entwicklung und Implementierung skalierbarer Pipelines zur Datenintegration und -verarbeitung",
+          "Sicherstellung der Datenqualität durch Datenbereinigung",
+          "Zusammenarbeit mit Stakeholdern zur Anforderungserhebung und Entwicklung technischer Lösungen"
+        ],
+        "domain": "software",
+        "tech_stack": [
+          "Google BigQuery",
+          "AWS",
+          "dbt",
+          "SQL",
+          "Python",
+          "Java",
+          "Scala"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "Data Engineer",
+          "Datenarchitektur",
+          "Data Warehouse",
+          "Google BigQuery",
+          "AWS",
+          "dbt",
+          "SQL",
+          "Python",
+          "Java",
+          "Scala",
+          "ETL",
+          "Datenmodellierung",
+          "Data Pipelines",
+          "Datenintegration",
+          "Datenqualität",
+          "Datenbereinigung",
+          "Big Data",
+          "Google Cloud Platform",
+          "Azure"
+        ],
+        "job_family": "data_engineering",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:50:17.743755+00:00",
+        "raw_job_fingerprint": "174da7c21591c697daba2b77cb9559176290a1252ac62ffa3ed1cecffaec4b61",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "software",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-zontal-4417481902?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer",
+        "company": "ZONTAL",
+        "seniority": "mid",
+        "required_skills": [
+          "Python",
+          "data visualization tools",
+          "data exploration tools",
+          "AWS Lambda",
+          "AWS Step Functions",
+          "Amazon SQS",
+          "Amazon DocumentDB",
+          "Amazon RDS",
+          "AI-assisted development tools",
+          "Apache Airflow (or similar)",
+          "Kafka (or similar)",
+          "dimensional modeling",
+          "normalization",
+          "Git",
+          "Docker",
+          "CI/CD pipelines",
+          "Linux",
+          "RESTful APIs",
+          "ETL/ELT",
+          "data validation",
+          "data monitoring",
+          "data governance"
+        ],
+        "required_skills_canonical": [
+          "python",
+          "data visualization",
+          "data exploration",
+          "aws lambda",
+          "aws step functions",
+          "amazon sqs",
+          "amazon documentdb",
+          "amazon rds",
+          "ai-assisted development tools",
+          "apache airflow",
+          "apache kafka",
+          "dimensional modeling",
+          "data normalization",
+          "git",
+          "docker",
+          "ci/cd",
+          "linux",
+          "rest apis"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Three or more years of experience with Python, and data visualization/exploration tools",
+            "canonical": "python",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "Three or more years of experience with Python, and data visualization/exploration tools",
+            "canonical": "data visualization",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Three or more years of experience with Python, and data visualization/exploration tools",
+            "canonical": "data exploration",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Familiarity with the AWS ecosystem, specifically lambda, Step Functions, SQS, document DB and RDS",
+            "canonical": "aws lambda",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Familiarity with the AWS ecosystem, specifically lambda, Step Functions, SQS, document DB and RDS",
+            "canonical": "aws step functions",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Familiarity with the AWS ecosystem, specifically lambda, Step Functions, SQS, document DB and RDS",
+            "canonical": "amazon sqs",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Familiarity with the AWS ecosystem, specifically lambda, Step Functions, SQS, document DB and RDS",
+            "canonical": "amazon documentdb",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Familiarity with the AWS ecosystem, specifically lambda, Step Functions, SQS, document DB and RDS",
+            "canonical": "amazon rds",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Literacy in using AI-assisted development workflows to accelerate development",
+            "canonical": "ai-assisted development tools",
+            "confidence": 0.74
+          },
+          {
+            "raw_text": "Experience with Apache Airflow, Kafka or similar.",
+            "canonical": "apache airflow",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Experience with Apache Airflow, Kafka or similar.",
+            "canonical": "apache kafka",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Strong understanding of dimensional modeling and normalization.",
+            "canonical": "dimensional modeling",
+            "confidence": 0.93
+          },
+          {
+            "raw_text": "Strong understanding of dimensional modeling and normalization.",
+            "canonical": "data normalization",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Familiarity with Git, Docker, and CI/CD pipelines for data workflows.",
+            "canonical": "git",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "Familiarity with Git, Docker, and CI/CD pipelines for data workflows.",
+            "canonical": "docker",
+            "confidence": 0.96
+          },
+          {
+            "raw_text": "Familiarity with Git, Docker, and CI/CD pipelines for data workflows.",
+            "canonical": "ci/cd",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Proficiency in working with Linux-based systems for deploying, monitoring, and maintaining data infrastructure.",
+            "canonical": "linux",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Experience working with RESTful APIs for data ingestion, transformation, and integration with third-party systems.",
+            "canonical": "rest apis",
+            "confidence": 0.93
+          }
+        ],
+        "preferred_skills": [
+          "ETL processes",
+          "real-time data processing",
+          "Kubernetes",
+          "Helm",
+          "Terraform",
+          "AWS CDK",
+          "Serverless Framework",
+          "MongoDB",
+          "DynamoDB",
+          "NoSQL",
+          "Elasticsearch",
+          "Prometheus",
+          "ELK Stack",
+          "clinical data analysis",
+          "biological informatics",
+          "GxP"
+        ],
+        "preferred_skills_canonical": [
+          "kubernetes",
+          "helm",
+          "terraform",
+          "aws cdk",
+          "serverless framework",
+          "nosql",
+          "mongodb",
+          "amazon dynamodb",
+          "elasticsearch",
+          "prometheus",
+          "elk stack"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Familiarity with deploying and managing containerized data applications in Kubernetes environments",
+            "canonical": "kubernetes",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Experience with Helm for managing Kubernetes applications is a plus",
+            "canonical": "helm",
+            "confidence": 0.94
+          },
+          {
+            "raw_text": "Experience automating infrastructure and deployments using Terraform, CDK, or Serverless Framework is a plus",
+            "canonical": "terraform",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Experience automating infrastructure and deployments using Terraform, CDK, or Serverless Framework is a plus",
+            "canonical": "aws cdk",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Experience automating infrastructure and deployments using Terraform, CDK, or Serverless Framework is a plus",
+            "canonical": "serverless framework",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Familiarity with NoSQL technologies such as MongoDB, DynamoDB, or similar.",
+            "canonical": "nosql",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Familiarity with NoSQL technologies such as MongoDB, DynamoDB, or similar.",
+            "canonical": "mongodb",
+            "confidence": 0.94
+          },
+          {
+            "raw_text": "Familiarity with NoSQL technologies such as MongoDB, DynamoDB, or similar.",
+            "canonical": "amazon dynamodb",
+            "confidence": 0.94
+          },
+          {
+            "raw_text": "Experience with Elasticsearch for indexing and querying data is a plus",
+            "canonical": "elasticsearch",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "Familiarity with tools like Prometheus, or ELK Stack for pipeline observability.",
+            "canonical": "prometheus",
+            "confidence": 0.92
+          },
+          {
+            "raw_text": "Familiarity with tools like Prometheus, or ELK Stack for pipeline observability.",
+            "canonical": "elk stack",
+            "confidence": 0.9
+          }
+        ],
+        "responsibilities": [
+          "Work with data to solve business problems by building and maintaining infrastructure to answer questions and improve processes",
+          "Streamline data science workflows via automation, reusable pipeline patterns, and AI-assisted development workflows",
+          "Work with data science and business intelligence teams to develop data models and pipelines for research, reporting, and machine learning",
+          "Use agile software development processes to make iterative improvements to back-end systems",
+          "Use AI-assisted development tools with emphasis on test coverage, code review, security, and maintainability",
+          "Model front-end and back-end data sources to understand user flows and enable data analysis",
+          "Build data pipelines to clean, transform, and aggregate data from disparate sources",
+          "Design, develop, and maintain robust ETL/ELT pipelines using Apache Airflow or similar tools",
+          "Collaborate with data scientists, analysts, and software engineers to deliver high-quality datasets",
+          "Ensure data quality, integrity, and security through validation, monitoring, and governance practices",
+          "Automate data workflows and improve data processing efficiency",
+          "Monitor and troubleshoot data pipeline issues and performance bottlenecks",
+          "Create technical documentation for data pipelines, architecture, and processes"
+        ],
+        "domain": "healthcare",
+        "tech_stack": [
+          "Python",
+          "Apache Airflow",
+          "Kafka",
+          "AWS Lambda",
+          "AWS Step Functions",
+          "Amazon SQS",
+          "Amazon DocumentDB",
+          "Amazon RDS",
+          "Git",
+          "Docker",
+          "CI/CD",
+          "Linux",
+          "REST APIs",
+          "Kubernetes",
+          "Helm",
+          "Terraform",
+          "AWS CDK",
+          "Serverless Framework",
+          "MongoDB",
+          "DynamoDB",
+          "Elasticsearch",
+          "Prometheus",
+          "ELK Stack"
+        ],
+        "years_experience_min": 3,
+        "keywords": [
+          "data pipelines",
+          "ETL",
+          "ELT",
+          "DAGs",
+          "pipeline-centric",
+          "data modeling",
+          "dimensional modeling",
+          "normalization",
+          "data quality",
+          "data governance",
+          "data validation",
+          "monitoring",
+          "pipeline observability",
+          "automation",
+          "AWS",
+          "Airflow",
+          "Kafka",
+          "Python",
+          "Kubernetes",
+          "Terraform",
+          "REST APIs",
+          "Docker",
+          "CI/CD"
+        ],
+        "job_family": "data_engineering",
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:50:56.437390+00:00",
+        "raw_job_fingerprint": "78dcadb255c88c11b2ec4c71202394c00a70fe74f32a30251434dcec826bd395",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "healthcare",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413606917",
+        "job_title": "Internship – Engineering & Data Analytics in Cloud Systems and Performance Optimization (all genders welcome)",
+        "company": "AUDI AG",
+        "location_type": "onsite",
+        "seniority": "junior",
+        "required_skills": [
+          "Linux-based systems",
+          "cloud or server environments",
+          "programming experience in Java",
+          "version control systems such as GitHub",
+          "basic understanding of CI/CD pipelines (e.g., GitHub Actions)",
+          "analysis and profiling of cloud-based systems",
+          "design and setup of monitoring solutions (CPU usage, memory consumption, network traffic)",
+          "system performance and scalability evaluation"
+        ],
+        "required_skills_canonical": [
+          "linux",
+          "cloud computing",
+          "server administration",
+          "java",
+          "version control",
+          "git",
+          "ci/cd",
+          "github actions",
+          "system profiling",
+          "monitoring",
+          "performance analysis",
+          "scalability testing"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "initial experience with Linux-based systems",
+            "canonical": "linux",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "initial experience with Linux-based systems and cloud or server environments",
+            "canonical": "cloud computing",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "initial experience with Linux-based systems and cloud or server environments",
+            "canonical": "server administration",
+            "confidence": 0.6
+          },
+          {
+            "raw_text": "programming experience in Java",
+            "canonical": "java",
+            "confidence": 0.95
+          },
+          {
+            "raw_text": "version control systems such as GitHub",
+            "canonical": "version control",
+            "confidence": 0.75
+          },
+          {
+            "raw_text": "version control systems such as GitHub",
+            "canonical": "git",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "basic understanding of CI/CD pipelines, for example GitHub Actions",
+            "canonical": "ci/cd",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "basic understanding of CI/CD pipelines, for example GitHub Actions",
+            "canonical": "github actions",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "You analyze and profile a cloud-based system for processing large-scale measurement and trace data",
+            "canonical": "system profiling",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "You support the design and setup of monitoring solutions focusing on CPU usage, memory consumption, and network traffic",
+            "canonical": "monitoring",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "You evaluate system performance, scalability, and resource efficiency in a production cloud environment",
+            "canonical": "performance analysis",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "You evaluate system performance, scalability, and resource efficiency in a production cloud environment",
+            "canonical": "scalability testing",
+            "confidence": 0.72
+          }
+        ],
+        "preferred_skills": [
+          "Scala"
+        ],
+        "preferred_skills_canonical": [
+          "scala"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "knowledge of Scala is an advantage",
+            "canonical": "scala",
+            "confidence": 0.95
+          }
+        ],
+        "responsibilities": [
+          "Analyze and profile cloud-based system processing large-scale measurement and trace data",
+          "Support design and setup of monitoring for CPU, memory, and network traffic",
+          "Evaluate performance, scalability, and resource efficiency in production cloud environment",
+          "Identify performance bottlenecks and cost drivers with engineering and DevOps teams",
+          "Derive, document, and communicate optimization measures for performance and cost efficiency",
+          "Collaborate cross-functionally with software development and operations teams"
+        ],
+        "domain": "automotive",
+        "tech_stack": [
+          "Linux",
+          "Cloud environments",
+          "Java",
+          "Scala",
+          "GitHub",
+          "GitHub Actions",
+          "CI/CD",
+          "Monitoring"
+        ],
+        "years_experience_min": 0,
+        "keywords": [
+          "cloud systems",
+          "large-scale data processing",
+          "petabyte scale",
+          "measurement data",
+          "trace data",
+          "performance optimization",
+          "performance engineering",
+          "cost optimization",
+          "monitoring",
+          "CPU usage",
+          "memory consumption",
+          "network traffic",
+          "scalability",
+          "resource efficiency",
+          "production cloud environment",
+          "profiling",
+          "bottlenecks",
+          "distributed computing",
+          "data-intensive systems",
+          "DevOps",
+          "CI/CD"
+        ],
+        "job_family": "data_engineering",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "java",
+            "matches": true,
+            "alias": "programming experience in java",
+            "canonical": "java",
+            "confidence": 0.95
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:51:40.949571+00:00",
+        "raw_job_fingerprint": "a2f09d84f58275f490aeea2787d53a2ba91a0d5f1325498051287cd450552e8c",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "automotive",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/chief-operating-officer-at-jobgether-4416519044?trk=public_jobs_topcard-title",
+        "job_title": "Chief Operating Officer",
+        "company": "Jobgether",
+        "location_type": "remote",
+        "seniority": "lead",
+        "required_skills": [
+          "KPI-driven decision-making",
+          "data analysis",
+          "performance management",
+          "strategic planning",
+          "business development",
+          "digital transformation"
+        ],
+        "required_skills_canonical": [
+          "kpis",
+          "data analysis",
+          "business reporting",
+          "process scaling",
+          "performance management",
+          "strategic planning",
+          "business development",
+          "digital transformation"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Monitor business performance through KPIs, data analysis, and reporting",
+            "canonical": "kpis",
+            "confidence": 0.88
+          },
+          {
+            "raw_text": "Monitor business performance through KPIs, data analysis, and reporting",
+            "canonical": "data analysis",
+            "confidence": 0.86
+          },
+          {
+            "raw_text": "Monitor business performance through KPIs, data analysis, and reporting",
+            "canonical": "business reporting",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "shaping scalable processes, strengthening performance management frameworks",
+            "canonical": "process scaling",
+            "confidence": 0.7
+          },
+          {
+            "raw_text": "shaping scalable processes, strengthening performance management frameworks",
+            "canonical": "performance management",
+            "confidence": 0.78
+          },
+          {
+            "raw_text": "Strong strategic planning, business development",
+            "canonical": "strategic planning",
+            "confidence": 0.76
+          },
+          {
+            "raw_text": "Strong strategic planning, business development",
+            "canonical": "business development",
+            "confidence": 0.76
+          },
+          {
+            "raw_text": "Experience in digital transformation",
+            "canonical": "digital transformation",
+            "confidence": 0.74
+          }
+        ],
+        "preferred_skills": [
+          "fundraising"
+        ],
+        "preferred_skills_canonical": [
+          "fundraising"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "Experience in digital transformation, fundraising, or large-scale business expansion is an advantage",
+            "canonical": "fundraising",
+            "confidence": 0.72
+          }
+        ],
+        "responsibilities": [
+          "Oversee daily operations across IT, marketing, sales, HR, finance to ensure efficiency, alignment with business goals",
+          "Partner with CEO, exec team to define strategic direction, set performance objectives, execute growth initiatives",
+          "Develop, implement operational strategies, policies, business plans to improve productivity, scalability, organizational effectiveness",
+          "Monitor performance via KPIs, data analysis, reporting; deliver insights, recommendations to leadership",
+          "Lead talent development, performance management, organizational capability building",
+          "Manage stakeholder relationships: clients, vendors, strategic partners",
+          "Drive business development: identify opportunities, support partnerships, contribute to expansion strategies"
+        ],
+        "domain": "marketing and advertising",
+        "years_experience_min": 5,
+        "keywords": [
+          "COO",
+          "business operations",
+          "operational excellence",
+          "strategic execution",
+          "KPIs",
+          "data analysis",
+          "performance management",
+          "process scaling",
+          "digital transformation",
+          "business development",
+          "stakeholder management",
+          "organizational change",
+          "marketing",
+          "advertising",
+          "digital business"
+        ],
+        "job_family": "operations_management",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "digital transformation",
+            "matches": true,
+            "alias": "experience in digital transformation",
+            "canonical": "digital transformation",
+            "confidence": 0.74
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:51:56.654233+00:00",
+        "raw_job_fingerprint": "15f46729386052639506509b70b6ae9476772bb0f9205bcada768c1a3955b337",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "marketing and advertising",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/strategic-finance-analyst-fp-a-m-w-d-at-octopus-energy-4416369761?trk=public_jobs_topcard-title",
+        "job_title": "Strategic Finance Analyst (FP&A) (m/w/d)",
+        "company": "Octopus Energy",
+        "location_type": "onsite",
+        "seniority": "junior",
+        "required_skills": [
+          "Operatives Treasury Management",
+          "Cashflow Reporting",
+          "Liquiditätsplanung",
+          "Working Capital Management",
+          "Forecasting",
+          "Unit Economics Analyse",
+          "Margenanalyse",
+          "Kostentrend- und Kostentreiberanalyse",
+          "Pricing-Strategie (datenbasiert)",
+          "Performance-Dashboards konzipieren und implementieren",
+          "Automatisierung von Reporting-Prozessen",
+          "Financial Modelling",
+          "Budgeterstellung",
+          "Forecast-Erstellung"
+        ],
+        "required_skills_canonical": [
+          "treasury management",
+          "cash management",
+          "liquidity planning",
+          "working capital management",
+          "cash flow reporting",
+          "forecasting",
+          "unit economics analysis",
+          "margin analysis",
+          "cost driver analysis",
+          "pricing strategy",
+          "dashboarding",
+          "reporting automation",
+          "cash flow analysis",
+          "gross margin analysis",
+          "financial modeling",
+          "budgeting"
+        ],
+        "required_skill_entities": [
+          {
+            "raw_text": "Du verantwortest das operative Treasury Management",
+            "canonical": "treasury management",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "steuerst unsere Zahlungsströme",
+            "canonical": "cash management",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "planst unsere Liquidität",
+            "canonical": "liquidity planning",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "optimierst ... das Working Capital",
+            "canonical": "working capital management",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Du entwickelst das Cashflow Reporting weiter",
+            "canonical": "cash flow reporting",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "leitest daraus fundierte Handlungsempfehlungen für unser Forecasting ab",
+            "canonical": "forecasting",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "analysierst tiefgreifend Unit Economics",
+            "canonical": "unit economics analysis",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "analysierst ... Margen sowie Kostentrends und -treiber",
+            "canonical": "margin analysis",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "analysierst ... Margen sowie Kostentrends und -treiber",
+            "canonical": "cost driver analysis",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "du unterstützt bei der datenbasierten Gestaltung und kontinuierlichen Optimierung unserer Pricing-Strategien",
+            "canonical": "pricing strategy",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Du konzipierst und implementierst aussagekräftige Performance-Dashboards",
+            "canonical": "dashboarding",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "treibst die Automatisierung von Reporting-Prozessen voran",
+            "canonical": "reporting automation",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Du hast ein gutes Verständnis von Themen wie Cashflow",
+            "canonical": "cash flow analysis",
+            "confidence": 0.8
+          },
+          {
+            "raw_text": "Du hast ein gutes Verständnis von Themen wie ... Gross Margin",
+            "canonical": "gross margin analysis",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Du hast ein gutes Verständnis von Themen wie ... Financial Modelling",
+            "canonical": "financial modeling",
+            "confidence": 0.9
+          },
+          {
+            "raw_text": "Du unterstützt bei der Budget- und Forecasterstellung sowie der Weiterentwicklung der Modelle",
+            "canonical": "budgeting",
+            "confidence": 0.85
+          },
+          {
+            "raw_text": "Du unterstützt bei der Budget- und Forecasterstellung sowie der Weiterentwicklung der Modelle",
+            "canonical": "forecasting",
+            "confidence": 0.85
+          }
+        ],
+        "preferred_skills": [
+          "Reporting-Standards"
+        ],
+        "preferred_skills_canonical": [
+          "reporting standards"
+        ],
+        "preferred_skill_entities": [
+          {
+            "raw_text": "idealerweise auch Reporting-Standards & Automatisierung",
+            "canonical": "reporting standards",
+            "confidence": 0.75
+          }
+        ],
+        "responsibilities": [
+          "Strategische Entscheidungen durch relevante Daten und Reports unterstützen",
+          "Operatives Treasury Management verantworten, Zahlungsströme steuern, Liquidität planen, Working Capital optimieren (mit Muttergesellschaft UK)",
+          "Cashflow Reporting weiterentwickeln und Handlungsempfehlungen fürs Forecasting ableiten",
+          "Business Partnering: Unit Economics, Margen, Kostentrends und -treiber analysieren und Optimierungspotenziale aufzeigen",
+          "Pricing-Strategien datenbasiert gestalten und kontinuierlich optimieren",
+          "Performance-Dashboards konzipieren/implementieren und Reporting-Prozesse automatisieren",
+          "Mit Accounting und internationalen Finance-Teams Prozesse in Financial Supply Chain verbessern und Best Practices teilen",
+          "Regelmäßige Reportings für Geschäftsführung erstellen (insb. Gross Margin)",
+          "Budget- und Forecast-Erstellung unterstützen, Modelle weiterentwickeln",
+          "Finance-Projekte unterstützen (Tool-Weiterentwicklung, neue Reporting-Strukturen, Analysen finanzwirtschaftlicher Themen)"
+        ],
+        "domain": "energy utilities / renewable energy",
+        "years_experience_min": 1,
+        "keywords": [
+          "FP&A",
+          "Strategic Finance",
+          "Treasury",
+          "Working Capital",
+          "Cashflow",
+          "Cashflow Reporting",
+          "Forecasting",
+          "Budgeting",
+          "Financial Modeling",
+          "Gross Margin",
+          "Unit Economics",
+          "Pricing Strategy",
+          "Performance Dashboards",
+          "Reporting Automation",
+          "Financial Supply Chain"
+        ],
+        "job_family": "analytics",
+        "mapping_suggestions": [
+          {
+            "must_have_skill": "cash management",
+            "matches": true,
+            "alias": "steuerst unsere zahlungsströme",
+            "canonical": "cash management",
+            "confidence": 0.8
+          },
+          {
+            "must_have_skill": "liquidity planning",
+            "matches": true,
+            "alias": "planst unsere liquidität",
+            "canonical": "liquidity planning",
+            "confidence": 0.85
+          },
+          {
+            "must_have_skill": "unit economics analysis",
+            "matches": true,
+            "alias": "analysierst tiefgreifend unit economics",
+            "canonical": "unit economics analysis",
+            "confidence": 0.9
+          }
+        ],
+        "enrichment_version": "v1",
+        "enrichment_model": "gemini-2.5-flash",
+        "enriched_at": "2026-05-21T12:52:23.070315+00:00",
+        "raw_job_fingerprint": "9cd42ecc46f1f0e2a4f2d260b634aaec4c515d70e4f0134ce0e186cfa987db4f",
+        "enrich_contract_fingerprint": "42db156fab0c7df30dc58cda3eea5351deae16fc4acd288c6b0122f9a6dd3160",
+        "enrich_reuse_status": "reused_cached_enrichment",
+        "marks": [
+          {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+            "details": {
+              "job_domain": "energy utilities / renewable energy",
+              "preferred_domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "settings_refs": [
+      "pipeline.vector_search_top_n"
+    ]
+  }
+}

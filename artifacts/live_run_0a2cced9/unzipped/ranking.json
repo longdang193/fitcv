@@ -1,0 +1,4561 @@
+{
+  "run_id": "0a2cced9-09fa-4ed7-baee-55b7369a25d4",
+  "stage_id": "ranking",
+  "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+  "created_at": "2026-05-21T12:54:56.683802+00:00",
+  "stage_artifact": {
+    "stage_id": "ranking",
+    "stage": "ranking",
+    "status": "completed",
+    "stage_result": {
+      "stage_id": "ranking",
+      "status": "completed",
+      "stage_version": "1.0.0",
+      "output": {
+        "ranked_jobs": 15,
+        "final_top_n": 15
+      },
+      "evidence": {
+        "input_counts": {
+          "ai_scores": 36,
+          "ranking_inputs": 36
+        },
+        "decision_summary": {
+          "ranking_fit_label_counts": {
+            "stretch": 12,
+            "skip": 23,
+            "strong": 1
+          },
+          "quality_metrics": {
+            "label_distribution": {
+              "strong_count": 1,
+              "stretch_count": 12,
+              "skip_count": 23,
+              "strong_rate": 0.027777777777777776,
+              "stretch_rate": 0.3333333333333333,
+              "skip_rate": 0.6388888888888888,
+              "total_scored": 36
+            }
+          },
+          "reuse_metrics": {
+            "reused_ai_scores": 0,
+            "fresh_ai_scores": 36,
+            "total_ai_scores": 36
+          },
+          "ranking_prompt_id": "ranking.ai_score.v1",
+          "ranking_prompt_version": "v1",
+          "ranking_prompt_template_path": "/app/src/fitcv/prompts/templates/ranking_ai_score_v1.md",
+          "ai_score_model": "gemini-2.5-flash",
+          "configured_ranking_weights": {
+            "ai_score": 0.4,
+            "must_have_match": 0.2,
+            "vector_similarity": 0.15,
+            "title_relevance": 0.1,
+            "seniority_fit": 0.1,
+            "preference_fit": 0.05
+          },
+          "configured_missing_value_defaults": {
+            "ai_score": 0.0,
+            "must_have_match": 0.5,
+            "vector_similarity": 0.0,
+            "title_relevance": 0.5,
+            "seniority_fit": 0.5,
+            "preference_fit": 0.5
+          },
+          "configured_preference_fit_weights": {
+            "domain": 0.5,
+            "role_family": 0.3,
+            "location_type": 0.2
+          },
+          "configured_fit_label_thresholds": {
+            "strong": 0.7,
+            "stretch": 0.4
+          },
+          "zero_weight_features": [],
+          "contributing_features": [
+            "ai_score",
+            "must_have_match",
+            "vector_similarity",
+            "title_relevance",
+            "seniority_fit",
+            "preference_fit"
+          ],
+          "candidate_preference_resolution": {
+            "preferences": {
+              "target_role": "Data Analyst",
+              "role_families": [
+                "data analytics",
+                "business intelligence",
+                "business analytics",
+                "product analytics",
+                "marketing analytics",
+                "customer analytics",
+                "commercial analytics",
+                "operations analytics",
+                "reporting analytics",
+                "analytics engineering",
+                "junior data scientist"
+              ],
+              "location_types": [
+                "remote",
+                "hybrid",
+                "onsite"
+              ],
+              "locations": [],
+              "domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ],
+              "seniority_target": "junior",
+              "salary_range": null,
+              "notice_period": null,
+              "exclude_contract_types": [],
+              "exclude_experience_levels": []
+            },
+            "inferred_preferences": {},
+            "effective_preferences": {
+              "target_role": "Data Analyst",
+              "role_families": [
+                "data analytics",
+                "business intelligence",
+                "business analytics",
+                "product analytics",
+                "marketing analytics",
+                "customer analytics",
+                "commercial analytics",
+                "operations analytics",
+                "reporting analytics",
+                "analytics engineering",
+                "junior data scientist"
+              ],
+              "location_types": [
+                "remote",
+                "hybrid",
+                "onsite"
+              ],
+              "locations": [],
+              "domains": [
+                "retail",
+                "consumer goods",
+                "e-commerce",
+                "technology",
+                "marketing analytics",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech"
+              ],
+              "seniority_target": "junior",
+              "salary_range": null,
+              "notice_period": null,
+              "exclude_contract_types": [],
+              "exclude_experience_levels": []
+            },
+            "preference_sources": {
+              "target_role": "explicit_yaml",
+              "role_families": "explicit_yaml",
+              "location_types": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml"
+            }
+          }
+        }
+      },
+      "validation": {
+        "checks": [],
+        "summary": {
+          "status": "completed"
+        }
+      },
+      "decision": "pass",
+      "policy_version": "policy.ranking.v1",
+      "trace_context": {
+        "trace_id": "828e9141559e004a554983d1c297e2eb",
+        "span_id": "ed89e5ac86bb4383",
+        "parent_span_id": "68adce1cbf7f3036"
+      }
+    },
+    "input_counts": {
+      "ai_scores": 36,
+      "ranking_inputs": 36
+    },
+    "output_counts": {
+      "ranked_jobs": 15,
+      "final_top_n": 15
+    },
+    "decision_summary": {
+      "ranking_fit_label_counts": {
+        "stretch": 12,
+        "skip": 23,
+        "strong": 1
+      },
+      "quality_metrics": {
+        "label_distribution": {
+          "strong_count": 1,
+          "stretch_count": 12,
+          "skip_count": 23,
+          "strong_rate": 0.027777777777777776,
+          "stretch_rate": 0.3333333333333333,
+          "skip_rate": 0.6388888888888888,
+          "total_scored": 36
+        }
+      },
+      "reuse_metrics": {
+        "reused_ai_scores": 0,
+        "fresh_ai_scores": 36,
+        "total_ai_scores": 36
+      },
+      "ranking_prompt_id": "ranking.ai_score.v1",
+      "ranking_prompt_version": "v1",
+      "ranking_prompt_template_path": "/app/src/fitcv/prompts/templates/ranking_ai_score_v1.md",
+      "ai_score_model": "gemini-2.5-flash",
+      "configured_ranking_weights": {
+        "ai_score": 0.4,
+        "must_have_match": 0.2,
+        "vector_similarity": 0.15,
+        "title_relevance": 0.1,
+        "seniority_fit": 0.1,
+        "preference_fit": 0.05
+      },
+      "configured_missing_value_defaults": {
+        "ai_score": 0.0,
+        "must_have_match": 0.5,
+        "vector_similarity": 0.0,
+        "title_relevance": 0.5,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.5
+      },
+      "configured_preference_fit_weights": {
+        "domain": 0.5,
+        "role_family": 0.3,
+        "location_type": 0.2
+      },
+      "configured_fit_label_thresholds": {
+        "strong": 0.7,
+        "stretch": 0.4
+      },
+      "zero_weight_features": [],
+      "contributing_features": [
+        "ai_score",
+        "must_have_match",
+        "vector_similarity",
+        "title_relevance",
+        "seniority_fit",
+        "preference_fit"
+      ],
+      "candidate_preference_resolution": {
+        "preferences": {
+          "target_role": "Data Analyst",
+          "role_families": [
+            "data analytics",
+            "business intelligence",
+            "business analytics",
+            "product analytics",
+            "marketing analytics",
+            "customer analytics",
+            "commercial analytics",
+            "operations analytics",
+            "reporting analytics",
+            "analytics engineering",
+            "junior data scientist"
+          ],
+          "location_types": [
+            "remote",
+            "hybrid",
+            "onsite"
+          ],
+          "locations": [],
+          "domains": [
+            "retail",
+            "consumer goods",
+            "e-commerce",
+            "technology",
+            "marketing analytics",
+            "saas",
+            "marketplace",
+            "fmcg",
+            "supply chain",
+            "logistics",
+            "hr tech"
+          ],
+          "seniority_target": "junior",
+          "salary_range": null,
+          "notice_period": null,
+          "exclude_contract_types": [],
+          "exclude_experience_levels": []
+        },
+        "inferred_preferences": {},
+        "effective_preferences": {
+          "target_role": "Data Analyst",
+          "role_families": [
+            "data analytics",
+            "business intelligence",
+            "business analytics",
+            "product analytics",
+            "marketing analytics",
+            "customer analytics",
+            "commercial analytics",
+            "operations analytics",
+            "reporting analytics",
+            "analytics engineering",
+            "junior data scientist"
+          ],
+          "location_types": [
+            "remote",
+            "hybrid",
+            "onsite"
+          ],
+          "locations": [],
+          "domains": [
+            "retail",
+            "consumer goods",
+            "e-commerce",
+            "technology",
+            "marketing analytics",
+            "saas",
+            "marketplace",
+            "fmcg",
+            "supply chain",
+            "logistics",
+            "hr tech"
+          ],
+          "seniority_target": "junior",
+          "salary_range": null,
+          "notice_period": null,
+          "exclude_contract_types": [],
+          "exclude_experience_levels": []
+        },
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        }
+      }
+    },
+    "outputs_sample": [
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4408002822",
+        "job_title": "Internship Teamsports Apparel",
+        "ai_score": 0.74,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "38097d550264833e53f112ab2404cae8030995c6a3e8dc982dfec6c9c9033936",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show strong match on data analysis, market analysis, reporting, plus solid SQL/Python evidence, but data management and presentation design not clearly evidenced and internship/junior fit slightly unclear given prior roles.",
+        "reranker_key_risks": [
+          "Data management skill not explicitly evidenced (pipelines, governance, warehousing, ETL not stated)",
+          "Presentation design not explicitly evidenced (decking, storytelling, stakeholder comms not stated)",
+          "Seniority mismatch risk (prior roles R&D Staff, Brand Marketing Executive may imply beyond junior internship)"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis (Python, SQL, performance analysis, insight generation)",
+          "Market analysis (market research, consumer research, competitor analysis)",
+          "Reporting/decision support (business intelligence, decision support systems, product & commercial analysis)",
+          "Role alignment (target role data analyst; analytics job family match)"
+        ],
+        "must_have_match": 0.2,
+        "vector_similarity": -0.059240840524839376,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.296,
+          "must_have_match": 0.04000000000000001,
+          "vector_similarity": -0.008886126078725905,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.5371138739212741,
+        "ranking_fit_label": "strong",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/research-assistant-at-rotaract-club-of-mount-aureol-4413669821?trk=public_jobs_topcard-title",
+        "job_title": "Research Assistant",
+        "ai_score": 0.62,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "a24cd1c7256f32e5bd52bd566d75602e147214ad54bef12350904b8a492d45bb",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows strong quantitative analysis, SQL/Python, market research, and insight work, but weak evidence for core research-assistant needs like literature review, reference management, qualitative analysis, research documentation, and...[truncated]",
+        "reranker_key_risks": [
+          "No clear evidence of literature review or reference management",
+          "Limited evidence of data cleaning, data quality assurance, and dataset management",
+          "Qualitative data analysis not demonstrated",
+          "Role alignment skewed toward data analyst/marketing analytics vs research assistant documentation workflows"
+        ],
+        "reranker_matched_strengths": [
+          "Quantitative data analysis with Python and SQL",
+          "Data collection and market/consumer/competitor research",
+          "Data analysis and insight generation for decision support",
+          "Business analytics and performance analysis"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.3269801929220948,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.0,
+        "feature_contributions": {
+          "ai_score": 0.248,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.04904702893831422,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.0
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 0.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.4970470289383142,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417319055",
+        "job_title": "Data Scientist* Inputmanagement",
+        "ai_score": 0.46,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "b6f8b2a3d58a7cdf6e9deb00f2e1534a75f6e2cc6db36a6fe6b53a74bcbc07ff",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python/SQL data analysis strength but weak evidence for required data science methods, machine learning, generative AI, and PoC delivery for junior Data Scientist Inputmanagement role.",
+        "reranker_key_risks": [
+          "No clear machine learning project/use evidence",
+          "No generative AI experience shown",
+          "No explicit data science methods (modeling/experimentation) evidence",
+          "No explicit PoC delivery evidence in DS context",
+          "Missing/unclear preferred stack: APIs, cloud, containers/Docker, git, deployment"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "SQL",
+          "Data analysis and insight generation",
+          "Business intelligence/performance analysis",
+          "Market/consumer research and concept validation (partial PoC-adjacent)"
+        ],
+        "must_have_match": 0.25,
+        "vector_similarity": 0.34623472390869425,
+        "title_relevance": 0.75,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.18400000000000002,
+          "must_have_match": 0.05,
+          "vector_similarity": 0.051935208586304134,
+          "title_relevance": 0.07500000000000001,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.4709352085863042,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417429648",
+        "job_title": "Research Analyst",
+        "ai_score": 0.52,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c3c9a1e3fe1d85be1aba2eae6155ef1fd7cf6d5aec00bdba9493eaac8de54914",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows research/analysis background (market, consumer, competitor) and strong data/automation skills, but required documentation, evaluation rubrics, source verification, and structured documentation evidence weak and role target m...[truncated]",
+        "reranker_key_risks": [
+          "No clear evidence of documentation/structured documentation deliverables",
+          "No explicit evaluation rubric design/use",
+          "No explicit source verification methods cited",
+          "Role alignment mismatch (candidate targeting Data Analyst, job Research Analyst)"
+        ],
+        "reranker_matched_strengths": [
+          "Online research via market/consumer/competitor analysis",
+          "Analytical workflow skills (Python, SQL, BI, insight generation)",
+          "Content/market evaluation experience (concept validation, product & commercial analysis)"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.19581671544217702,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.20800000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.02937250731632655,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.4473725073163266,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/junior-researcher-at-premier-business-solution-4413675925?trk=public_jobs_topcard-title",
+        "job_title": "Junior Researcher",
+        "ai_score": 0.62,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "087cb330d12fa3f8275ee55d10160babfcb379de848ccfeb4085c2ca5f34863f",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show strong online research, data analysis, market/consumer/competitor research, plus computer skills via SQL/Python, but mobile device skills not evidenced and target role data analyst only partial match to junior researcher.",
+        "reranker_key_risks": [
+          "Mobile device skills missing evidence",
+          "Role alignment gap: target data analyst vs junior researcher tasks may differ",
+          "Seniority/readiness unclear: past roles not clearly junior research execution"
+        ],
+        "reranker_matched_strengths": [
+          "Online research: market research, consumer research, competitor analysis, concept validation",
+          "Computer skills: SQL, Python, workflow automation, business analytics",
+          "Analytics mindset: insight generation, performance analysis, decision support"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": -0.07557184664184106,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.248,
+          "must_have_match": 0.0,
+          "vector_similarity": -0.01133577699627616,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.4466642230037239,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-entry-level-junior-at-encephal-statistics-department-of-ramanujan-college-university-of-delhi-4416513379?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst (Entry-Level / Junior)",
+        "ai_score": 0.53,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "86837db6cffbfe9a840d954f6d3a414f4ac938d872e8c5003418d9a679105391",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Role align Data Analyst, strong Python/SQL/analytics signals, but required Microsoft Excel not shown with clear usage evidence and preferred BI tools (Power BI/Tableau/R) not evidenced.",
+        "reranker_key_risks": [
+          "Microsoft Excel required skill missing or not evidenced",
+          "No clear evidence for Power BI, Tableau, or R usage",
+          "Recent roles not clearly hands-on data analyst work; readiness unclear"
+        ],
+        "reranker_matched_strengths": [
+          "Target role match: Data Analyst",
+          "Python + SQL for analysis and automation",
+          "Business analytics: performance analysis, insight generation, decision support",
+          "Marketing/consumer research domain exposure (retail/consumer goods/e-commerce hints)"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.23103174042228566,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.0,
+        "feature_contributions": {
+          "ai_score": 0.21200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.03465476106334285,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.0
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 0.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.4466547610633429,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4408283177",
+        "job_title": "Market Analysis Internship",
+        "ai_score": 0.46,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "ff6e59083c624d02dbf3a45fa05248171f7b12e68e7f781e159814f1d82e9ef3",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show analytics, market/consumer research strength but required Google Sheets/Workspace, Excel, Microsoft Office, PowerPoint not clearly evidenced in profile, so readiness for onsite junior market analysis role uncertain.",
+        "reranker_key_risks": [
+          "Missing explicit evidence for Google Sheets and Google Workspace use",
+          "Missing explicit evidence for Microsoft Excel, Office, and PowerPoint proficiency",
+          "Target role Data Analyst may misalign with internship market analysis tooling focus"
+        ],
+        "reranker_matched_strengths": [
+          "Market research and competitor analysis background",
+          "Data analysis and insight generation skills",
+          "Business/marketing analytics domain exposure"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": -0.030456753905768668,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.18400000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": -0.0045685130858653,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.38943148691413476,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-entry-clerk-at-premier-enerji-4413688119?trk=public_jobs_topcard-title",
+        "job_title": "Data Entry Clerk",
+        "ai_score": 0.48,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "6bd0bda006c2f49046ebec2aa1daa0b3025f013bc6ab91d3b7b923aec206675c",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show strong computer/data handling (SQL, Python, analytics) but job need proven data entry, spreadsheet-heavy work, and mobile device skills, plus role target mismatch (Data Analyst vs Data Entry Clerk).",
+        "reranker_key_risks": [
+          "No clear evidence of day-to-day data entry experience",
+          "Spreadsheet skill not explicitly shown (Excel/Google Sheets) despite likely exposure",
+          "Mobile device skills not evidenced",
+          "Role alignment weak; candidate targeting Data Analyst not Data Entry Clerk"
+        ],
+        "reranker_matched_strengths": [
+          "Computer skills from SQL/Python analytics work",
+          "Data handling accuracy mindset (analysis, reporting, decision support)",
+          "Junior-ready potential if willing do clerical workflow"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.21926361253629803,
+        "title_relevance": 0.5,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.192,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.032889541880444705,
+          "title_relevance": 0.05,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.3848895418804448,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417347776",
+        "job_title": "Data Analyst (m/w/d)",
+        "ai_score": 0.5,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "7bd2d4f20bbfe9a270955c9351753d74ea520b6a0df66a53f26f0194a8c454a6",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show SQL, Python, automation, analytics fit, but little/no evidence for Snowflake, dbt, Fivetran, Metabase, data governance/modeling, reverse ETL, ML/predictive, CTE/window functions, so senior hybrid analytics readiness unclear.",
+        "reranker_key_risks": [
+          "Missing core stack: Snowflake, Snowflake performance optimization, Snowflake data sharing",
+          "Missing modern analytics engineering tools: dbt, Fivetran, reverse ETL",
+          "No stated experience with CTE, SQL window functions, Metabase",
+          "Weak evidence for anomaly detection, machine learning, predictive analytics",
+          "Seniority mismatch risk: past roles not clearly senior data analyst"
+        ],
+        "reranker_matched_strengths": [
+          "SQL for analytics work",
+          "Python for data analysis/automation",
+          "Business analytics and insight generation",
+          "Marketing/consumer analytics domain signal"
+        ],
+        "must_have_match": 0.17647058823529413,
+        "vector_similarity": 0.08785984864508482,
+        "title_relevance": 1.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.2,
+          "must_have_match": 0.03529411764705883,
+          "vector_similarity": 0.013178977296762723,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.3834730949438216,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413658848",
+        "job_title": "Business Analyst",
+        "ai_score": 0.52,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "95d55f708a5fdd5aba9bcfac213f8b3af3c9f58aec2ee4ccbda1ddea7024e6f4",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show analytics/data analysis fit and junior readiness, but required MS Office (Excel/PowerPoint/Word) skills not evidenced and compliance/regulatory compliance not shown.",
+        "reranker_key_risks": [
+          "Required Microsoft Excel/PowerPoint/Word usage not demonstrated",
+          "Compliance/regulatory compliance experience missing",
+          "Target role Data Analyst vs job Business Analyst may need more BA deliverables (docs, decks, stakeholder comms) evidence"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis and business analytics background",
+          "Market/consumer research and insight generation experience",
+          "SQL/Python and performance analysis for decision support"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": -0.23134476462321693,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.20800000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": -0.03470171469348254,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.38329828530651744,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4386390764",
+        "job_title": "Data Scientist",
+        "ai_score": 0.35,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "4a21333af216c19f2d379e3e925afe31466a899379aa313b6eed1dbace49b890",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python, SQL, data analysis, BI/insights but miss most required data scientist core (A/B testing, causal inference, experimental design, ML/predictive/statistical modeling, PyTorch/TensorFlow/scikit-learn, R/Scala, Power BI/Ta...[truncated]",
+        "reranker_key_risks": [
+          "No evidence for A/B testing, experimental design, causal inference",
+          "No evidence for machine learning, predictive modeling, statistical modeling, scikit-learn/PyTorch/TensorFlow",
+          "No evidence for required tooling (Power BI, Tableau) and languages (R, Scala)",
+          "Target role mismatch (Data Analyst) vs job family (Data Scientist)"
+        ],
+        "reranker_matched_strengths": [
+          "Python for analysis",
+          "SQL + business analytics/BI reporting",
+          "Market/consumer/competitor analysis in retail/consumer goods context"
+        ],
+        "must_have_match": 0.1875,
+        "vector_similarity": 0.13153174747523544,
+        "title_relevance": 0.75,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.5,
+        "feature_contributions": {
+          "ai_score": 0.13999999999999999,
+          "must_have_match": 0.037500000000000006,
+          "vector_similarity": 0.019729762121285317,
+          "title_relevance": 0.07500000000000001,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.025
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 0.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.34722976212128537,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/research-consultant-public-sector-m-f-d-at-predictby-4417479502?trk=public_jobs_topcard-title",
+        "job_title": "Research Consultant Public Sector (m/f/d)",
+        "ai_score": 0.32,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "e4a177a029c0a5093b043db6eab6c86baa23213050836109b52baed48f8fed0b",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows data/market analysis (Python, SQL, market research) but lacks clear evidence for core consulting requirements like qualitative research methods, interview/focus group moderation, discussion guide/questionnaire design, policy...[truncated]",
+        "reranker_key_risks": [
+          "No evidenced experience with qualitative research methods, interviews, or focus group moderation",
+          "No evidenced policy analysis or public-sector consulting background",
+          "No evidenced systematic/scoping literature review or document analysis",
+          "No evidenced proposal/tender writing, formal report writing, or meeting minutes/presentation development for consulting deliverables",
+          "Role misalignment: target role data analyst vs research consultant public sector"
+        ],
+        "reranker_matched_strengths": [
+          "Market research and consumer/competitor analysis",
+          "Quantitative analysis skills (Python, SQL, BI, performance analysis)",
+          "Insight generation and decision support"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.33040824108675315,
+        "title_relevance": 1.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.128,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.04956123616301297,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.337561236163013,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-data-analyst-at-jobgether-4416398047?trk=public_jobs_topcard-title",
+        "job_title": "Senior Data Analyst",
+        "ai_score": 0.36,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "5b463336102e205d89998f689abd88bfb0ba9c96da2a10eab71f5c046b39c69d",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows Python/SQL analytics and some workflow/marketing analysis, but lacks clear evidence for many required tools and platforms (Google Ads/Meta/TikTok, Google Sheets/Looker, Power BI/Tableau, reporting automation specifics), crea...[truncated]",
+        "reranker_key_risks": [
+          "No evidence using Google Ads, Meta Ads, TikTok Ads platforms",
+          "No evidence using Google Sheets, Looker",
+          "No evidence using Power BI or Tableau",
+          "Reporting automation experience unclear (tools, scale, outputs)",
+          "Seniority mismatch risk (job asks Senior; profile reads mid/transition from marketing roles)"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "SQL",
+          "Data analysis and BI mindset",
+          "Marketing/performance analysis domain exposure",
+          "Workflow automation (stated, not tool-specific)"
+        ],
+        "must_have_match": 0.08333333333333333,
+        "vector_similarity": 0.01613707283153738,
+        "title_relevance": 1.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.144,
+          "must_have_match": 0.016666666666666666,
+          "vector_similarity": 0.0024205609247306067,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.32308722759139724,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4376523337",
+        "job_title": "Strategic Partnerships Lead, Central and Eastern Europe",
+        "ai_score": 0.45,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "ce95cceafbb8b5655321f050dc92bf79fa23357b24a548e03baab82c1073cafd",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show market research skill, but project management proof weak and seniority/role mismatch (data analyst vs strategic partnerships lead) big.",
+        "reranker_key_risks": [
+          "Project management not clearly evidenced",
+          "Seniority gap: lead role vs analyst/background",
+          "Role-family mismatch: partnerships/business development vs data analytics target",
+          "Onsite CEE partnerships scope not supported by location/language/regional evidence"
+        ],
+        "reranker_matched_strengths": [
+          "Market research (consumer research, competitor analysis, concept validation)",
+          "Commercial/product analysis and go-to-market support",
+          "Data analysis skills (SQL/Python) could help partnership insights"
+        ],
+        "must_have_match": 0.5,
+        "vector_similarity": 0.2171733078323763,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.18000000000000002,
+          "must_have_match": 0.1,
+          "vector_similarity": 0.032575996174856445,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.3225759961748565,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/strategic-finance-analyst-fp-a-m-w-d-at-octopus-energy-4416369761?trk=public_jobs_topcard-title",
+        "job_title": "Strategic Finance Analyst (FP&A) (m/w/d)",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "96dcd3cbac6ca1c414ebadbb06c1d356625e14b6372762c6558cb5351a30a431",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows data analytics (SQL/Python, BI, automation) but lacks clear evidence for core FP&A requirements like budgeting, forecasting, financial modeling, cash flow/liquidity/working capital management, and margin/unit economics analy...[truncated]",
+        "reranker_key_risks": [
+          "No explicit budgeting, forecasting, financial modeling experience",
+          "No cash flow analysis/reporting, liquidity planning, or treasury/cash management evidence",
+          "No gross margin/margin analysis, unit economics, or working capital management evidence",
+          "Target role misaligned (Data Analyst vs Strategic Finance/FP&A)"
+        ],
+        "reranker_matched_strengths": [
+          "Reporting automation via workflow automation",
+          "Dashboarding/business intelligence",
+          "Performance and product/commercial analysis"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": -0.022166070231696672,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": -0.0033249105347545006,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.31867508946524553,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      }
+    ],
+    "dropped_or_changed_sample": [
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417349690",
+        "job_title": "Head of Global Data Products (m/f/d)",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "0eb6a6070eb16e8ff19e9a44fc7213322db87fbabdf51f013077525fc3ec252b",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Role need lead Head of Global Data Products with AWS/Azure/GCP, data architecture/engineering/governance/integration, AI/ML/process mining/real-time analytics, but profile show analyst SQL/Python, marketing analytics, no cloud or data engin...[truncated]",
+        "reranker_key_risks": [
+          "Missing core required skills: AWS, Azure, GCP, data architecture, data engineering, data governance, data integration",
+          "No evidence for AI/ML, process mining, real-time analytics, generative AI or agentic frameworks",
+          "Big seniority mismatch: lead global head role vs data analyst target and recent non-data-engineering roles"
+        ],
+        "reranker_matched_strengths": [
+          "SQL and Python data analysis",
+          "Business intelligence and performance analysis",
+          "Insight generation for product/commercial decisions"
+        ],
+        "must_have_match": 0.18181818181818182,
+        "vector_similarity": 0.2905068569496985,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.03636363636363637,
+          "vector_similarity": 0.04357602854245478,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.16193966490609113,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/ai-research-engineer-agentic-post-training-at-jobgether-4416393656?trk=public_jobs_topcard-title",
+        "job_title": "AI Research Engineer (Agentic Post-training)",
+        "ai_score": 0.12,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "aea0d525df4bf9d80be206ec41d7458def274a36f34f4824eda6cdf211548cbe",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows Python/SQL and analytics experience but no evidence for core AI research engineer requirements like agentic workflows, multimodal data pipelines, fine-tuning/instruction tuning, RL, tool/function calling, or distributed mult...[truncated]",
+        "reranker_key_risks": [
+          "Missing most required skills: agentic workflows, tool use/function calling, fine-tuning/instruction tuning, RL, reasoning optimization",
+          "No evidence for multimodal learning (text/image/audio) or multimodal data handling",
+          "No evidence for distributed training (multi-GPU/multi-node) or ML engineering infrastructure",
+          "Role mismatch: target role data analyst vs research engineer post-training"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "Data analysis and pipeline-style workflow automation",
+          "Business intelligence/insight generation"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.18143218369126055,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.048,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.02721482755368908,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.13521482755368908,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-zontal-4417481902?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer",
+        "ai_score": 0.22,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "4255e44c5d7af7f70d419fa9bc65d29c44881a8aad7f515d5cc83c33b40b5f71",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows SQL/Python analytics but no evidence for core data engineering stack (Airflow, Kafka, AWS RDS/DocumentDB/SQS/Lambda/Step Functions, Docker, Linux, CI/CD, REST APIs, dimensional modeling).",
+        "reranker_key_risks": [
+          "Missing most required AWS services (RDS, DocumentDB, SQS, Lambda, Step Functions)",
+          "No evidence using Apache Airflow or Apache Kafka",
+          "No evidence for Docker, Linux, Git, CI/CD",
+          "No evidence building REST APIs",
+          "No evidence for dimensional modeling, data normalization, or data visualization in engineering context",
+          "Target role misaligned (Data Analyst vs Data Engineer) and recent roles not data engineering"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "SQL",
+          "Data analysis and data exploration",
+          "Business intelligence / insight generation"
+        ],
+        "must_have_match": 0.1111111111111111,
+        "vector_similarity": 0.15490484423427825,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.0,
+        "feature_contributions": {
+          "ai_score": 0.08800000000000001,
+          "must_have_match": 0.022222222222222223,
+          "vector_similarity": 0.023235726635141736,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.0
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 0.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.183457948857364,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4402878255",
+        "job_title": "Data Scientist",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "3fb72580555abaf7a253639ef739a05a17ee66292619eed67550913905d57233",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python+SQL analytics but no evidence for core required stack (AWS Athena/Redshift/SageMaker/Lambda, BigQuery/Snowflake, PyTorch/TensorFlow/scikit-learn, FastAPI, experimental design/inferential stats), plus target role Data A...[truncated]",
+        "reranker_key_risks": [
+          "Missing most required AWS services (Athena, Redshift, SageMaker, Lambda)",
+          "No evidence for ML frameworks (PyTorch, TensorFlow) or scikit-learn production use",
+          "No evidence for data warehouse tools (BigQuery, Snowflake)",
+          "No evidence for FastAPI or model serving",
+          "Seniority mismatch: profile and target role align Data Analyst not senior Data Scientist",
+          "Experimental design/inferential statistics not evidenced"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "SQL",
+          "Data analysis and insight generation",
+          "Business/marketing analytics domain exposure"
+        ],
+        "must_have_match": 0.11764705882352941,
+        "vector_similarity": 0.08715003655483414,
+        "title_relevance": 0.75,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.023529411764705882,
+          "vector_similarity": 0.01307250548322512,
+          "title_relevance": 0.07500000000000001,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.23360191724793103,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-huzzle-com-4417304971?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer",
+        "ai_score": 0.32,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "e6c04e36e28acb96c3d77420bde996497f417ffe70a9aa603fb1cc93f2cd32ac",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows SQL/Python analytics but lacks evidence for core data engineering skills like data pipelines, data modeling/schema design, data quality/integrity, and graph databases/knowledge graphs required for mid-level onsite Data Engin...[truncated]",
+        "reranker_key_risks": [
+          "No evidence building/operating data pipelines or orchestration",
+          "No evidence data modeling, relational modeling, schema design",
+          "No evidence data quality/integrity ownership",
+          "No evidence graph databases or knowledge graphs",
+          "Role alignment mismatch: target Data Analyst vs Data Engineer mid"
+        ],
+        "reranker_matched_strengths": [
+          "SQL",
+          "Python",
+          "Data analysis and BI reporting",
+          "Market/consumer analytics domain exposure"
+        ],
+        "must_have_match": 0.2,
+        "vector_similarity": 0.04645627887900813,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.128,
+          "must_have_match": 0.04000000000000001,
+          "vector_similarity": 0.006968441831851219,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.23496844183185123,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413622012",
+        "job_title": "Junior Data Engineer",
+        "ai_score": 0.48,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c2abf3a285c7cb1db78492307e96198fd7863ad86fcfaa2c162fbf6cbf201ebf",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows SQL, Python, analytics background but no evidence for required AI tools/Claude and lacks preferred data engineering stack (AWS/Airflow/dbt/CI-CD/IaC), making fit partial for junior data engineer.",
+        "reranker_key_risks": [
+          "No evidence of AI tools or Claude usage (required)",
+          "No evidence of AWS, Airflow, dbt, CI/CD, IaC (preferred data engineering stack)",
+          "Target role data analyst not data engineer; role alignment gap",
+          "Limited proof of production data pipelines/engineering readiness"
+        ],
+        "reranker_matched_strengths": [
+          "SQL",
+          "Python",
+          "Data analysis workflow automation mindset",
+          "Retail/consumer/e-commerce domain relevance"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.034506223335810465,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.192,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.0051759335003715694,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.3071759335003716,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-internal-technology-ai-at-jobgether-4417085054?trk=public_jobs_topcard-title",
+        "job_title": "Head of Internal Technology & AI",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "07b8176bd8d92f44f887abe27f93da2ee35fe57557bb4c8736b1a7c787de0be6",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show data analysis (SQL/Python, BI, marketing analytics) but miss most required Head of Internal Technology & AI skills (ai agents/engineering/transformation, IT ops, device/identity management, SaaS admin, integration frameworks,...[truncated]",
+        "reranker_key_risks": [
+          "No evidence for ai agents, ai engineering, MCPs, coding assistants, ai transformation",
+          "No evidence for IT operations, device management, identity management, SaaS administration",
+          "No evidence for software architecture, integration frameworks, code review at lead level",
+          "Seniority mismatch: target role Data Analyst vs lead Head of Internal Technology & AI",
+          "No evidence for AI governance frameworks or EU AI Act (preferred)"
+        ],
+        "reranker_matched_strengths": [
+          "Python, SQL, data analysis automation",
+          "Business intelligence and performance analysis",
+          "Stakeholder decision-support and insight generation"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.03104016641527017,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.004656024962290525,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.11165602496229052,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417473980",
+        "job_title": "Data Scientist",
+        "ai_score": 0.38,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "027cd4940757a396eb66ea77064b38e8f2c1dbb3704841992794c4185423f320",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python/SQL analytics strength but no clear evidence for core Data Scientist needs: applied probability/statistics, experimental design/controlled experiments, numpy/pandas/scikit-learn, ML model evaluation/deployment, data la...[truncated]",
+        "reranker_key_risks": [
+          "Missing or unproven applied probability/statistics and experimental design/controlled experiments",
+          "No evidence of numpy/pandas/scikit-learn usage",
+          "No evidence of ML model evaluation or deployment",
+          "No evidence of data lakes/data warehouses or dashboard ownership",
+          "Seniority mismatch: senior data scientist role vs analyst-oriented background"
+        ],
+        "reranker_matched_strengths": [
+          "Python for data analysis",
+          "SQL and business intelligence reporting",
+          "Performance analysis and insight generation",
+          "Marketing/consumer research domain fit"
+        ],
+        "must_have_match": 0.07142857142857142,
+        "vector_similarity": -0.010834704441630207,
+        "title_relevance": 0.75,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.15200000000000002,
+          "must_have_match": 0.014285714285714285,
+          "vector_similarity": -0.001625205666244531,
+          "title_relevance": 0.07500000000000001,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.2496605086194698,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/account-executive-at-samba-tv-4377415215?trk=public_jobs_topcard-title",
+        "job_title": "Account Executive",
+        "ai_score": 0.3,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "b6dbc7091137c516e4c503be089ea9ce8da1b09510b199a8c5ce75475b2f6a3c",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate strong data/marketing analytics but lacks clear 3+ years advertising/digital media/DaaS sales, quota-carrying full-cycle prospect-to-close experience, and proof of managing/closing advertiser or agency relationships.",
+        "reranker_key_risks": [
+          "No evidence of owning full sales cycle (prospect, qualify, close, scale) for advertisers/agencies",
+          "No evidence of meeting/exceeding quarterly sales quotas",
+          "No explicit online advertising sales experience (retargeting, cross-platform ad sync)",
+          "Role alignment mismatch: target role data analyst vs job account executive"
+        ],
+        "reranker_matched_strengths": [
+          "Marketing/consumer/competitor research for value messaging support",
+          "Performance analysis and insight generation useful for campaign reporting",
+          "Go-to-market and product/commercial analysis exposure"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": -0.09381608641939165,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.12,
+          "must_have_match": 0.0,
+          "vector_similarity": -0.014072412962908747,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.16592758703709126,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-genai-data-scientist-at-trust-in-soda-4416170236?trk=public_jobs_topcard-title",
+        "job_title": "Senior GenAI Data Scientist",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "9c4b4f1948872151da3067e086caa672d6488fee66c25b6479a76e790669f64a",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python/SQL data analytics but no evidence for GenAI stack (RAG, embeddings, fine-tuning, LangChain/AutoGen/atomic agents), ML/MLOps, evaluation/monitoring, or senior AI architecture needed for Senior GenAI Data Scientist.",
+        "reranker_key_risks": [
+          "Missing core GenAI skills: RAG, embeddings, fine-tuning, LangChain, AutoGen, atomic agents",
+          "No evidence of ML engineering, MLOps, model evaluation, monitoring/observability",
+          "Seniority mismatch: background data analyst/marketing vs senior AI architecture role",
+          "Role misalignment: target role data analyst vs job senior GenAI data scientist",
+          "No evidence of cloud computing for AI workloads or software engineering for production GenAI"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "SQL",
+          "Data analysis and business intelligence",
+          "Domain exposure: retail/consumer goods/e-commerce analytics"
+        ],
+        "must_have_match": 0.375,
+        "vector_similarity": -0.09464186755380782,
+        "title_relevance": 0.75,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.07500000000000001,
+          "vector_similarity": -0.014196280133071172,
+          "title_relevance": 0.07500000000000001,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.21780371986692887,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417477507",
+        "job_title": "Machine Learning Engineer (all genders), Monheim (hybrid)",
+        "ai_score": 0.33,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "f40079c013a9fdb47a1c2a81ab69c2316b18b21b3d527b8a0e785ed3363cd129",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python, data analysis, SQL but miss core ML engineering requirements: machine learning, method reproduction, reproducibility, PyTorch, TensorFlow, numpy/pandas evidence, code quality, documentation.",
+        "reranker_key_risks": [
+          "No evidence machine learning or ML engineering work",
+          "No evidence PyTorch or TensorFlow",
+          "No evidence numpy/pandas usage depth",
+          "No evidence reproducibility or method reproduction practices",
+          "Target role mismatch: wants Data Analyst not ML Engineer",
+          "Recent roles not aligned to mid-level ML engineering readiness"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "Data analysis and insight generation",
+          "SQL and business intelligence",
+          "Performance/market/consumer analytics"
+        ],
+        "must_have_match": 0.18181818181818182,
+        "vector_similarity": -0.10032616345646626,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.132,
+          "must_have_match": 0.03636363636363637,
+          "vector_similarity": -0.015048924518469939,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.21331471184516643,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-integration-at-jobgether-4417458133?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer (Integration)",
+        "ai_score": 0.22,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "0c0cb94eb04b3550e9515885ab251245cc1f90d2b8389682d967c828e4cf06c1",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows Python, SQL, analytics but no evidence for core data engineer integration stack (AWS Lambda, S3, DynamoDB, EventBridge, CloudWatch, Secrets/SSM, IaC), async API integration patterns (OAuth refresh, pagination, polling, retri...[truncated]",
+        "reranker_key_risks": [
+          "Missing most required AWS services (Lambda, S3, DynamoDB, EventBridge, CloudWatch, Secrets Manager, SSM Parameter Store)",
+          "No evidence of REST API integration, auth flows, OAuth token refresh, pagination, polling",
+          "No evidence of asynchronous processing, distributed systems design, retry mechanisms",
+          "No evidence of infrastructure as code or automated testing",
+          "Role mismatch: target role data analyst vs job data engineer (integration)"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "SQL",
+          "Data analysis and reporting",
+          "Marketing/consumer analytics domain exposure"
+        ],
+        "must_have_match": 0.05263157894736842,
+        "vector_similarity": -0.1186155904337736,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.08800000000000001,
+          "must_have_match": 0.010526315789473684,
+          "vector_similarity": -0.017792338565066037,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.14073397722440767,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413608643",
+        "job_title": "AI Engineer for LLM Ops & Evaluation (m/f/d)",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "0e7db5a68a2298fbb310b5ba773b777e5211af85fe073dfceaff192f21c0a1e3",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows Python/SQL data analytics but lacks evidence for core LLM Ops/evaluation requirements like embeddings, prompt regression testing, deterministic evaluation, LLM observability, incident response, latency/cost optimization, and...[truncated]",
+        "reranker_key_risks": [
+          "Missing most required LLM-specific skills (embeddings, LLM eval, LLMOps, observability, llm-as-judge, prompt optimization/testing)",
+          "No evidence of production ML/LLM engineering readiness (incident response, latency optimization, cost optimization)",
+          "Role alignment mismatch (target role data analyst vs job ML engineering/LLM ops)",
+          "No evidence of data labeling/human-in-the-loop or schema validation/entity matching/fuzzy matching"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "Data analysis and metrics/insight generation",
+          "Performance analysis"
+        ],
+        "must_have_match": 0.05263157894736842,
+        "vector_similarity": -0.14925934898795987,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.010526315789473684,
+          "vector_similarity": -0.02238890234819398,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.1201374134412797,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/director-project-management-at-alimentiv-4416325963?trk=public_jobs_topcard-title",
+        "job_title": "Director, Project Management",
+        "ai_score": 0.12,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "2d87dd1999562f8da5729af2d217bd41f100a548b99684fc54e7090267653126",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate profile shows data analytics (SQL/Python, marketing/BI) but lacks evidence for core Director Project Management requirements like clinical trial project management, budget/change order/SOW/RFP/RFI management, compliance/quality, r...[truncated]",
+        "reranker_key_risks": [
+          "No clinical trial project management evidence",
+          "No budget management, project finance, or resource planning evidence at director level",
+          "No change order management, SOW, proposal development, RFP/RFI experience shown",
+          "No compliance monitoring, policy development, or quality management evidence",
+          "Seniority mismatch (data analyst target vs director/people leadership role)",
+          "Onsite director role preference unknown; candidate targeting data analyst roles"
+        ],
+        "reranker_matched_strengths": [
+          "Data analysis and performance reporting support",
+          "Decision support and insight generation",
+          "Process/workflow automation (partial process optimization overlap)"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": -0.168453175760062,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.048,
+          "must_have_match": 0.0,
+          "vector_similarity": -0.0252679763640093,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.032732023635990704,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413668252",
+        "job_title": "Data Engineer (m/w/d)",
+        "ai_score": 0.33,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "3aaeabdaf764ac295bbd1d17b034c07dde24ca6829defcc2b26883bab11155ff",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python, SQL, analytics work but miss evidence for core data engineering needs (data architecture/modeling/warehousing, ETL pipelines, data integration/cleansing/quality, Java/Scala).",
+        "reranker_key_risks": [
+          "No evidence for building ETL/data pipelines or data integration at scale",
+          "No evidence for data modeling, data warehousing, data architecture, data quality ownership",
+          "Missing Java and Scala required skills",
+          "Target role Data Analyst not aligned with Data Engineer mid role expectations"
+        ],
+        "reranker_matched_strengths": [
+          "Python skill for data work",
+          "SQL skill for querying/analysis",
+          "Business intelligence and performance analysis background"
+        ],
+        "must_have_match": 0.18181818181818182,
+        "vector_similarity": -0.18140853705824808,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.132,
+          "must_have_match": 0.03636363636363637,
+          "vector_similarity": -0.02721128055873721,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.2011523558048992,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413606917",
+        "job_title": "Internship – Engineering & Data Analytics in Cloud Systems and Performance Optimization (all genders welcome)",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c24701beb9a42abcff7e24401ab924ea5c4ab728cb1bdbb95ff31d2d9b687334",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show SQL/Python data analytics and some performance analysis, but missing evidence for core required stack (CI/CD, cloud, Git/GitHub Actions, Java, Linux, monitoring, scalability/system profiling/server admin) and role target misa...[truncated]",
+        "reranker_key_risks": [
+          "No evidence CI/CD pipelines or GitHub Actions",
+          "No evidence cloud computing or server administration",
+          "No evidence Java (or Scala) and Linux",
+          "No evidence monitoring, scalability testing, system profiling",
+          "Target role and recent roles align data/marketing analytics, not cloud systems engineering"
+        ],
+        "reranker_matched_strengths": [
+          "Performance analysis (general)",
+          "Data analysis and BI",
+          "SQL and Python workflow automation"
+        ],
+        "must_have_match": 0.16666666666666666,
+        "vector_similarity": -0.19170154312261062,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.03333333333333333,
+          "vector_similarity": -0.028755231468391592,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.22657810186494176,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-data-engineer-at-jobgether-4417441908?trk=public_jobs_topcard-title",
+        "job_title": "Senior Data Engineer",
+        "ai_score": 0.22,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "ba56833a9143ed12dfae536f961affaafcd1acf622720e433bbf767240d58f02",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows SQL/Python analytics but no evidence for core senior data engineering stack (airbyte, dbt, snowflake, data pipelines, data modeling, data observability/quality) and target role misaligned (Data Analyst vs Senior Data Enginee...[truncated]",
+        "reranker_key_risks": [
+          "Missing required tools: airbyte, dbt, snowflake",
+          "No demonstrated data pipeline engineering experience",
+          "No demonstrated data modeling/warehouse design experience",
+          "No demonstrated data observability and data quality ownership",
+          "Seniority mismatch for senior data engineering role",
+          "Role alignment mismatch (targeting Data Analyst)"
+        ],
+        "reranker_matched_strengths": [
+          "SQL",
+          "Python",
+          "Analytics and reporting experience",
+          "Marketing/consumer analytics domain exposure"
+        ],
+        "must_have_match": 0.14285714285714285,
+        "vector_similarity": -0.20196874155640293,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.08800000000000001,
+          "must_have_match": 0.02857142857142857,
+          "vector_similarity": -0.030295311233460437,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.09627611733796815,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4416324617",
+        "job_title": "Director of Data (BI & Analytics)",
+        "ai_score": 0.32,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "7ae33e8ce0f426441f26298c1ebdbdb8d5974c05879aa8b7f66fbfdf43f1870a",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show SQL/Python, BI, analytics work but miss most Director of Data requirements (data warehousing/pipelines/modeling/quality, forecasting, anomaly detection, KPI ownership, agentic AI/GPT assistants) plus seniority gap for lead on...[truncated]",
+        "reranker_key_risks": [
+          "No evidence for agentic AI or GPT-based assistants",
+          "No evidence for anomaly detection or forecasting",
+          "No evidence for data pipelines, data warehousing, or data modeling at director scope",
+          "No evidence for data quality management program ownership",
+          "Seniority mismatch: target data analyst vs lead director role",
+          "No evidence for KPI development and executive dashboard ownership"
+        ],
+        "reranker_matched_strengths": [
+          "SQL and Python analytics",
+          "Business intelligence and performance analysis",
+          "Marketing/consumer and product analytics domain overlap (retail/consumer goods/e-commerce)"
+        ],
+        "must_have_match": 0.1,
+        "vector_similarity": -0.2201326619161095,
+        "title_relevance": 1.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.128,
+          "must_have_match": 0.020000000000000004,
+          "vector_similarity": -0.03301989928741642,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.22498010071258362,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/chief-operating-officer-at-jobgether-4416519044?trk=public_jobs_topcard-title",
+        "job_title": "Chief Operating Officer",
+        "ai_score": 0.32,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "583563cc3477c5bf7769d22a3b4e4297b8b7a4371a315f4e4bd00f3db3bbefa2",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate strong data analysis, reporting, performance analysis but lacks evidence for COO-level business development, strategic planning, process scaling, digital transformation, KPI/performance management ownership, lead seniority.",
+        "reranker_key_risks": [
+          "missing core COO required skills: business development, strategic planning, process scaling, digital transformation",
+          "seniority mismatch: lead COO vs analyst profile",
+          "role misalignment: target Data Analyst vs operations management leadership",
+          "no fundraising evidence (preferred)"
+        ],
+        "reranker_matched_strengths": [
+          "data analysis (Python, SQL)",
+          "business reporting / insight generation",
+          "performance analysis, decision support"
+        ],
+        "must_have_match": 0.125,
+        "vector_similarity": -0.2510583514497922,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.128,
+          "must_have_match": 0.025,
+          "vector_similarity": -0.03765875271746883,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.12534124728253118,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-scientist-%E2%80%93-analytics-statistics-bi-%E2%82%AC130-000-at-findr-4417486502?trk=public_jobs_topcard-title",
+        "job_title": "Data Scientist – Analytics, Statistics & BI - €130,000",
+        "ai_score": 0.46,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "f4b14e29fdd72f3fae417a7be738c541deab14fb05bd03cf683f31d36523903a",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python, SQL, BI/insight work but no clear proof for core needs (applied statistics, hypothesis testing, regression modeling, data warehouse, Superset/Looker/Power BI) and role/seniority mismatch vs senior Data Scientist BI ro...[truncated]",
+        "reranker_key_risks": [
+          "No evidence for applied statistics, hypothesis testing, regression modeling, study evaluation",
+          "No evidence for required BI tools (Apache Superset, Looker, Microsoft Power BI)",
+          "No data warehouse experience shown; BigQuery only preferred but still missing",
+          "Target role Data Analyst; job senior Data Scientist with higher practical readiness bar"
+        ],
+        "reranker_matched_strengths": [
+          "Python for analysis/automation",
+          "SQL and analytics reporting foundations",
+          "Business analytics and insight generation in marketing/consumer domains"
+        ],
+        "must_have_match": 0.09090909090909091,
+        "vector_similarity": -0.2548318845396475,
+        "title_relevance": 0.75,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.18400000000000002,
+          "must_have_match": 0.018181818181818184,
+          "vector_similarity": -0.038224782680947124,
+          "title_relevance": 0.07500000000000001,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.24895703550087112,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search",
+        "change_type": "scored_not_ranked"
+      }
+    ],
+    "inputs_sample": [
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417319055",
+        "job_title": "Data Scientist* Inputmanagement",
+        "ai_score": 0.46,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "b6f8b2a3d58a7cdf6e9deb00f2e1534a75f6e2cc6db36a6fe6b53a74bcbc07ff",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python/SQL data analysis strength but weak evidence for required data science methods, machine learning, generative AI, and PoC delivery for junior Data Scientist Inputmanagement role.",
+        "reranker_key_risks": [
+          "No clear machine learning project/use evidence",
+          "No generative AI experience shown",
+          "No explicit data science methods (modeling/experimentation) evidence",
+          "No explicit PoC delivery evidence in DS context",
+          "Missing/unclear preferred stack: APIs, cloud, containers/Docker, git, deployment"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "SQL",
+          "Data analysis and insight generation",
+          "Business intelligence/performance analysis",
+          "Market/consumer research and concept validation (partial PoC-adjacent)"
+        ],
+        "must_have_match": 0.25,
+        "vector_similarity": 0.34623472390869425,
+        "title_relevance": 0.75,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.18400000000000002,
+          "must_have_match": 0.05,
+          "vector_similarity": 0.051935208586304134,
+          "title_relevance": 0.07500000000000001,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.4709352085863042,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/research-consultant-public-sector-m-f-d-at-predictby-4417479502?trk=public_jobs_topcard-title",
+        "job_title": "Research Consultant Public Sector (m/f/d)",
+        "ai_score": 0.32,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "e4a177a029c0a5093b043db6eab6c86baa23213050836109b52baed48f8fed0b",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows data/market analysis (Python, SQL, market research) but lacks clear evidence for core consulting requirements like qualitative research methods, interview/focus group moderation, discussion guide/questionnaire design, policy...[truncated]",
+        "reranker_key_risks": [
+          "No evidenced experience with qualitative research methods, interviews, or focus group moderation",
+          "No evidenced policy analysis or public-sector consulting background",
+          "No evidenced systematic/scoping literature review or document analysis",
+          "No evidenced proposal/tender writing, formal report writing, or meeting minutes/presentation development for consulting deliverables",
+          "Role misalignment: target role data analyst vs research consultant public sector"
+        ],
+        "reranker_matched_strengths": [
+          "Market research and consumer/competitor analysis",
+          "Quantitative analysis skills (Python, SQL, BI, performance analysis)",
+          "Insight generation and decision support"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.33040824108675315,
+        "title_relevance": 1.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.128,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.04956123616301297,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.337561236163013,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/research-assistant-at-rotaract-club-of-mount-aureol-4413669821?trk=public_jobs_topcard-title",
+        "job_title": "Research Assistant",
+        "ai_score": 0.62,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "a24cd1c7256f32e5bd52bd566d75602e147214ad54bef12350904b8a492d45bb",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows strong quantitative analysis, SQL/Python, market research, and insight work, but weak evidence for core research-assistant needs like literature review, reference management, qualitative analysis, research documentation, and...[truncated]",
+        "reranker_key_risks": [
+          "No clear evidence of literature review or reference management",
+          "Limited evidence of data cleaning, data quality assurance, and dataset management",
+          "Qualitative data analysis not demonstrated",
+          "Role alignment skewed toward data analyst/marketing analytics vs research assistant documentation workflows"
+        ],
+        "reranker_matched_strengths": [
+          "Quantitative data analysis with Python and SQL",
+          "Data collection and market/consumer/competitor research",
+          "Data analysis and insight generation for decision support",
+          "Business analytics and performance analysis"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.3269801929220948,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.0,
+        "feature_contributions": {
+          "ai_score": 0.248,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.04904702893831422,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.0
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 0.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.4970470289383142,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417349690",
+        "job_title": "Head of Global Data Products (m/f/d)",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "0eb6a6070eb16e8ff19e9a44fc7213322db87fbabdf51f013077525fc3ec252b",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Role need lead Head of Global Data Products with AWS/Azure/GCP, data architecture/engineering/governance/integration, AI/ML/process mining/real-time analytics, but profile show analyst SQL/Python, marketing analytics, no cloud or data engin...[truncated]",
+        "reranker_key_risks": [
+          "Missing core required skills: AWS, Azure, GCP, data architecture, data engineering, data governance, data integration",
+          "No evidence for AI/ML, process mining, real-time analytics, generative AI or agentic frameworks",
+          "Big seniority mismatch: lead global head role vs data analyst target and recent non-data-engineering roles"
+        ],
+        "reranker_matched_strengths": [
+          "SQL and Python data analysis",
+          "Business intelligence and performance analysis",
+          "Insight generation for product/commercial decisions"
+        ],
+        "must_have_match": 0.18181818181818182,
+        "vector_similarity": 0.2905068569496985,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.03636363636363637,
+          "vector_similarity": 0.04357602854245478,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.16193966490609113,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-entry-level-junior-at-encephal-statistics-department-of-ramanujan-college-university-of-delhi-4416513379?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst (Entry-Level / Junior)",
+        "ai_score": 0.53,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "86837db6cffbfe9a840d954f6d3a414f4ac938d872e8c5003418d9a679105391",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Role align Data Analyst, strong Python/SQL/analytics signals, but required Microsoft Excel not shown with clear usage evidence and preferred BI tools (Power BI/Tableau/R) not evidenced.",
+        "reranker_key_risks": [
+          "Microsoft Excel required skill missing or not evidenced",
+          "No clear evidence for Power BI, Tableau, or R usage",
+          "Recent roles not clearly hands-on data analyst work; readiness unclear"
+        ],
+        "reranker_matched_strengths": [
+          "Target role match: Data Analyst",
+          "Python + SQL for analysis and automation",
+          "Business analytics: performance analysis, insight generation, decision support",
+          "Marketing/consumer research domain exposure (retail/consumer goods/e-commerce hints)"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.23103174042228566,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.0,
+        "feature_contributions": {
+          "ai_score": 0.21200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.03465476106334285,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.0
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 0.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.4466547610633429,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-entry-clerk-at-premier-enerji-4413688119?trk=public_jobs_topcard-title",
+        "job_title": "Data Entry Clerk",
+        "ai_score": 0.48,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "6bd0bda006c2f49046ebec2aa1daa0b3025f013bc6ab91d3b7b923aec206675c",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show strong computer/data handling (SQL, Python, analytics) but job need proven data entry, spreadsheet-heavy work, and mobile device skills, plus role target mismatch (Data Analyst vs Data Entry Clerk).",
+        "reranker_key_risks": [
+          "No clear evidence of day-to-day data entry experience",
+          "Spreadsheet skill not explicitly shown (Excel/Google Sheets) despite likely exposure",
+          "Mobile device skills not evidenced",
+          "Role alignment weak; candidate targeting Data Analyst not Data Entry Clerk"
+        ],
+        "reranker_matched_strengths": [
+          "Computer skills from SQL/Python analytics work",
+          "Data handling accuracy mindset (analysis, reporting, decision support)",
+          "Junior-ready potential if willing do clerical workflow"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.21926361253629803,
+        "title_relevance": 0.5,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.192,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.032889541880444705,
+          "title_relevance": 0.05,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.3848895418804448,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4376523337",
+        "job_title": "Strategic Partnerships Lead, Central and Eastern Europe",
+        "ai_score": 0.45,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "ce95cceafbb8b5655321f050dc92bf79fa23357b24a548e03baab82c1073cafd",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show market research skill, but project management proof weak and seniority/role mismatch (data analyst vs strategic partnerships lead) big.",
+        "reranker_key_risks": [
+          "Project management not clearly evidenced",
+          "Seniority gap: lead role vs analyst/background",
+          "Role-family mismatch: partnerships/business development vs data analytics target",
+          "Onsite CEE partnerships scope not supported by location/language/regional evidence"
+        ],
+        "reranker_matched_strengths": [
+          "Market research (consumer research, competitor analysis, concept validation)",
+          "Commercial/product analysis and go-to-market support",
+          "Data analysis skills (SQL/Python) could help partnership insights"
+        ],
+        "must_have_match": 0.5,
+        "vector_similarity": 0.2171733078323763,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.18000000000000002,
+          "must_have_match": 0.1,
+          "vector_similarity": 0.032575996174856445,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.3225759961748565,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417429648",
+        "job_title": "Research Analyst",
+        "ai_score": 0.52,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c3c9a1e3fe1d85be1aba2eae6155ef1fd7cf6d5aec00bdba9493eaac8de54914",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows research/analysis background (market, consumer, competitor) and strong data/automation skills, but required documentation, evaluation rubrics, source verification, and structured documentation evidence weak and role target m...[truncated]",
+        "reranker_key_risks": [
+          "No clear evidence of documentation/structured documentation deliverables",
+          "No explicit evaluation rubric design/use",
+          "No explicit source verification methods cited",
+          "Role alignment mismatch (candidate targeting Data Analyst, job Research Analyst)"
+        ],
+        "reranker_matched_strengths": [
+          "Online research via market/consumer/competitor analysis",
+          "Analytical workflow skills (Python, SQL, BI, insight generation)",
+          "Content/market evaluation experience (concept validation, product & commercial analysis)"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.19581671544217702,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.20800000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.02937250731632655,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.4473725073163266,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/ai-research-engineer-agentic-post-training-at-jobgether-4416393656?trk=public_jobs_topcard-title",
+        "job_title": "AI Research Engineer (Agentic Post-training)",
+        "ai_score": 0.12,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "aea0d525df4bf9d80be206ec41d7458def274a36f34f4824eda6cdf211548cbe",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows Python/SQL and analytics experience but no evidence for core AI research engineer requirements like agentic workflows, multimodal data pipelines, fine-tuning/instruction tuning, RL, tool/function calling, or distributed mult...[truncated]",
+        "reranker_key_risks": [
+          "Missing most required skills: agentic workflows, tool use/function calling, fine-tuning/instruction tuning, RL, reasoning optimization",
+          "No evidence for multimodal learning (text/image/audio) or multimodal data handling",
+          "No evidence for distributed training (multi-GPU/multi-node) or ML engineering infrastructure",
+          "Role mismatch: target role data analyst vs research engineer post-training"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "Data analysis and pipeline-style workflow automation",
+          "Business intelligence/insight generation"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.18143218369126055,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.048,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.02721482755368908,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.13521482755368908,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-zontal-4417481902?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer",
+        "ai_score": 0.22,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "4255e44c5d7af7f70d419fa9bc65d29c44881a8aad7f515d5cc83c33b40b5f71",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows SQL/Python analytics but no evidence for core data engineering stack (Airflow, Kafka, AWS RDS/DocumentDB/SQS/Lambda/Step Functions, Docker, Linux, CI/CD, REST APIs, dimensional modeling).",
+        "reranker_key_risks": [
+          "Missing most required AWS services (RDS, DocumentDB, SQS, Lambda, Step Functions)",
+          "No evidence using Apache Airflow or Apache Kafka",
+          "No evidence for Docker, Linux, Git, CI/CD",
+          "No evidence building REST APIs",
+          "No evidence for dimensional modeling, data normalization, or data visualization in engineering context",
+          "Target role misaligned (Data Analyst vs Data Engineer) and recent roles not data engineering"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "SQL",
+          "Data analysis and data exploration",
+          "Business intelligence / insight generation"
+        ],
+        "must_have_match": 0.1111111111111111,
+        "vector_similarity": 0.15490484423427825,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.0,
+        "feature_contributions": {
+          "ai_score": 0.08800000000000001,
+          "must_have_match": 0.022222222222222223,
+          "vector_similarity": 0.023235726635141736,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.0
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 0.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.183457948857364,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4386390764",
+        "job_title": "Data Scientist",
+        "ai_score": 0.35,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "4a21333af216c19f2d379e3e925afe31466a899379aa313b6eed1dbace49b890",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python, SQL, data analysis, BI/insights but miss most required data scientist core (A/B testing, causal inference, experimental design, ML/predictive/statistical modeling, PyTorch/TensorFlow/scikit-learn, R/Scala, Power BI/Ta...[truncated]",
+        "reranker_key_risks": [
+          "No evidence for A/B testing, experimental design, causal inference",
+          "No evidence for machine learning, predictive modeling, statistical modeling, scikit-learn/PyTorch/TensorFlow",
+          "No evidence for required tooling (Power BI, Tableau) and languages (R, Scala)",
+          "Target role mismatch (Data Analyst) vs job family (Data Scientist)"
+        ],
+        "reranker_matched_strengths": [
+          "Python for analysis",
+          "SQL + business analytics/BI reporting",
+          "Market/consumer/competitor analysis in retail/consumer goods context"
+        ],
+        "must_have_match": 0.1875,
+        "vector_similarity": 0.13153174747523544,
+        "title_relevance": 0.75,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.5,
+        "feature_contributions": {
+          "ai_score": 0.13999999999999999,
+          "must_have_match": 0.037500000000000006,
+          "vector_similarity": 0.019729762121285317,
+          "title_relevance": 0.07500000000000001,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.025
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 0.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.34722976212128537,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417347776",
+        "job_title": "Data Analyst (m/w/d)",
+        "ai_score": 0.5,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "7bd2d4f20bbfe9a270955c9351753d74ea520b6a0df66a53f26f0194a8c454a6",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show SQL, Python, automation, analytics fit, but little/no evidence for Snowflake, dbt, Fivetran, Metabase, data governance/modeling, reverse ETL, ML/predictive, CTE/window functions, so senior hybrid analytics readiness unclear.",
+        "reranker_key_risks": [
+          "Missing core stack: Snowflake, Snowflake performance optimization, Snowflake data sharing",
+          "Missing modern analytics engineering tools: dbt, Fivetran, reverse ETL",
+          "No stated experience with CTE, SQL window functions, Metabase",
+          "Weak evidence for anomaly detection, machine learning, predictive analytics",
+          "Seniority mismatch risk: past roles not clearly senior data analyst"
+        ],
+        "reranker_matched_strengths": [
+          "SQL for analytics work",
+          "Python for data analysis/automation",
+          "Business analytics and insight generation",
+          "Marketing/consumer analytics domain signal"
+        ],
+        "must_have_match": 0.17647058823529413,
+        "vector_similarity": 0.08785984864508482,
+        "title_relevance": 1.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.2,
+          "must_have_match": 0.03529411764705883,
+          "vector_similarity": 0.013178977296762723,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.3834730949438216,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4402878255",
+        "job_title": "Data Scientist",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "3fb72580555abaf7a253639ef739a05a17ee66292619eed67550913905d57233",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python+SQL analytics but no evidence for core required stack (AWS Athena/Redshift/SageMaker/Lambda, BigQuery/Snowflake, PyTorch/TensorFlow/scikit-learn, FastAPI, experimental design/inferential stats), plus target role Data A...[truncated]",
+        "reranker_key_risks": [
+          "Missing most required AWS services (Athena, Redshift, SageMaker, Lambda)",
+          "No evidence for ML frameworks (PyTorch, TensorFlow) or scikit-learn production use",
+          "No evidence for data warehouse tools (BigQuery, Snowflake)",
+          "No evidence for FastAPI or model serving",
+          "Seniority mismatch: profile and target role align Data Analyst not senior Data Scientist",
+          "Experimental design/inferential statistics not evidenced"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "SQL",
+          "Data analysis and insight generation",
+          "Business/marketing analytics domain exposure"
+        ],
+        "must_have_match": 0.11764705882352941,
+        "vector_similarity": 0.08715003655483414,
+        "title_relevance": 0.75,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.023529411764705882,
+          "vector_similarity": 0.01307250548322512,
+          "title_relevance": 0.07500000000000001,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.23360191724793103,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-huzzle-com-4417304971?trk=public_jobs_topcard-title",
+        "job_title": "Data Engineer",
+        "ai_score": 0.32,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "e6c04e36e28acb96c3d77420bde996497f417ffe70a9aa603fb1cc93f2cd32ac",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows SQL/Python analytics but lacks evidence for core data engineering skills like data pipelines, data modeling/schema design, data quality/integrity, and graph databases/knowledge graphs required for mid-level onsite Data Engin...[truncated]",
+        "reranker_key_risks": [
+          "No evidence building/operating data pipelines or orchestration",
+          "No evidence data modeling, relational modeling, schema design",
+          "No evidence data quality/integrity ownership",
+          "No evidence graph databases or knowledge graphs",
+          "Role alignment mismatch: target Data Analyst vs Data Engineer mid"
+        ],
+        "reranker_matched_strengths": [
+          "SQL",
+          "Python",
+          "Data analysis and BI reporting",
+          "Market/consumer analytics domain exposure"
+        ],
+        "must_have_match": 0.2,
+        "vector_similarity": 0.04645627887900813,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.128,
+          "must_have_match": 0.04000000000000001,
+          "vector_similarity": 0.006968441831851219,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.23496844183185123,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4413622012",
+        "job_title": "Junior Data Engineer",
+        "ai_score": 0.48,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "c2abf3a285c7cb1db78492307e96198fd7863ad86fcfaa2c162fbf6cbf201ebf",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows SQL, Python, analytics background but no evidence for required AI tools/Claude and lacks preferred data engineering stack (AWS/Airflow/dbt/CI-CD/IaC), making fit partial for junior data engineer.",
+        "reranker_key_risks": [
+          "No evidence of AI tools or Claude usage (required)",
+          "No evidence of AWS, Airflow, dbt, CI/CD, IaC (preferred data engineering stack)",
+          "Target role data analyst not data engineer; role alignment gap",
+          "Limited proof of production data pipelines/engineering readiness"
+        ],
+        "reranker_matched_strengths": [
+          "SQL",
+          "Python",
+          "Data analysis workflow automation mindset",
+          "Retail/consumer/e-commerce domain relevance"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.034506223335810465,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.192,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.0051759335003715694,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.3071759335003716,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/head-of-internal-technology-ai-at-jobgether-4417085054?trk=public_jobs_topcard-title",
+        "job_title": "Head of Internal Technology & AI",
+        "ai_score": 0.18,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "07b8176bd8d92f44f887abe27f93da2ee35fe57557bb4c8736b1a7c787de0be6",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show data analysis (SQL/Python, BI, marketing analytics) but miss most required Head of Internal Technology & AI skills (ai agents/engineering/transformation, IT ops, device/identity management, SaaS admin, integration frameworks,...[truncated]",
+        "reranker_key_risks": [
+          "No evidence for ai agents, ai engineering, MCPs, coding assistants, ai transformation",
+          "No evidence for IT operations, device management, identity management, SaaS administration",
+          "No evidence for software architecture, integration frameworks, code review at lead level",
+          "Seniority mismatch: target role Data Analyst vs lead Head of Internal Technology & AI",
+          "No evidence for AI governance frameworks or EU AI Act (preferred)"
+        ],
+        "reranker_matched_strengths": [
+          "Python, SQL, data analysis automation",
+          "Business intelligence and performance analysis",
+          "Stakeholder decision-support and insight generation"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": 0.03104016641527017,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.7,
+        "feature_contributions": {
+          "ai_score": 0.072,
+          "must_have_match": 0.0,
+          "vector_similarity": 0.004656024962290525,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.034999999999999996
+        },
+        "preference_fit_components": {
+          "domain": 1.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.11165602496229052,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/senior-data-analyst-at-jobgether-4416398047?trk=public_jobs_topcard-title",
+        "job_title": "Senior Data Analyst",
+        "ai_score": 0.36,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "5b463336102e205d89998f689abd88bfb0ba9c96da2a10eab71f5c046b39c69d",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows Python/SQL analytics and some workflow/marketing analysis, but lacks clear evidence for many required tools and platforms (Google Ads/Meta/TikTok, Google Sheets/Looker, Power BI/Tableau, reporting automation specifics), crea...[truncated]",
+        "reranker_key_risks": [
+          "No evidence using Google Ads, Meta Ads, TikTok Ads platforms",
+          "No evidence using Google Sheets, Looker",
+          "No evidence using Power BI or Tableau",
+          "Reporting automation experience unclear (tools, scale, outputs)",
+          "Seniority mismatch risk (job asks Senior; profile reads mid/transition from marketing roles)"
+        ],
+        "reranker_matched_strengths": [
+          "Python",
+          "SQL",
+          "Data analysis and BI mindset",
+          "Marketing/performance analysis domain exposure",
+          "Workflow automation (stated, not tool-specific)"
+        ],
+        "must_have_match": 0.08333333333333333,
+        "vector_similarity": 0.01613707283153738,
+        "title_relevance": 1.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.144,
+          "must_have_match": 0.016666666666666666,
+          "vector_similarity": 0.0024205609247306067,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.32308722759139724,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4417473980",
+        "job_title": "Data Scientist",
+        "ai_score": 0.38,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "027cd4940757a396eb66ea77064b38e8f2c1dbb3704841992794c4185423f320",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show Python/SQL analytics strength but no clear evidence for core Data Scientist needs: applied probability/statistics, experimental design/controlled experiments, numpy/pandas/scikit-learn, ML model evaluation/deployment, data la...[truncated]",
+        "reranker_key_risks": [
+          "Missing or unproven applied probability/statistics and experimental design/controlled experiments",
+          "No evidence of numpy/pandas/scikit-learn usage",
+          "No evidence of ML model evaluation or deployment",
+          "No evidence of data lakes/data warehouses or dashboard ownership",
+          "Seniority mismatch: senior data scientist role vs analyst-oriented background"
+        ],
+        "reranker_matched_strengths": [
+          "Python for data analysis",
+          "SQL and business intelligence reporting",
+          "Performance analysis and insight generation",
+          "Marketing/consumer research domain fit"
+        ],
+        "must_have_match": 0.07142857142857142,
+        "vector_similarity": -0.010834704441630207,
+        "title_relevance": 0.75,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.15200000000000002,
+          "must_have_match": 0.014285714285714285,
+          "vector_similarity": -0.001625205666244531,
+          "title_relevance": 0.07500000000000001,
+          "seniority_fit": 0.0,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.2496605086194698,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/strategic-finance-analyst-fp-a-m-w-d-at-octopus-energy-4416369761?trk=public_jobs_topcard-title",
+        "job_title": "Strategic Finance Analyst (FP&A) (m/w/d)",
+        "ai_score": 0.28,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "96dcd3cbac6ca1c414ebadbb06c1d356625e14b6372762c6558cb5351a30a431",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate shows data analytics (SQL/Python, BI, automation) but lacks clear evidence for core FP&A requirements like budgeting, forecasting, financial modeling, cash flow/liquidity/working capital management, and margin/unit economics analy...[truncated]",
+        "reranker_key_risks": [
+          "No explicit budgeting, forecasting, financial modeling experience",
+          "No cash flow analysis/reporting, liquidity planning, or treasury/cash management evidence",
+          "No gross margin/margin analysis, unit economics, or working capital management evidence",
+          "Target role misaligned (Data Analyst vs Strategic Finance/FP&A)"
+        ],
+        "reranker_matched_strengths": [
+          "Reporting automation via workflow automation",
+          "Dashboarding/business intelligence",
+          "Performance and product/commercial analysis"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": -0.022166070231696672,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.11200000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": -0.0033249105347545006,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.31867508946524553,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4408283177",
+        "job_title": "Market Analysis Internship",
+        "ai_score": 0.46,
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "ff6e59083c624d02dbf3a45fa05248171f7b12e68e7f781e159814f1d82e9ef3",
+        "reranker_parser_status": "ok",
+        "reranker_score_reasoning": "Candidate show analytics, market/consumer research strength but required Google Sheets/Workspace, Excel, Microsoft Office, PowerPoint not clearly evidenced in profile, so readiness for onsite junior market analysis role uncertain.",
+        "reranker_key_risks": [
+          "Missing explicit evidence for Google Sheets and Google Workspace use",
+          "Missing explicit evidence for Microsoft Excel, Office, and PowerPoint proficiency",
+          "Target role Data Analyst may misalign with internship market analysis tooling focus"
+        ],
+        "reranker_matched_strengths": [
+          "Market research and competitor analysis background",
+          "Data analysis and insight generation skills",
+          "Business/marketing analytics domain exposure"
+        ],
+        "must_have_match": 0.0,
+        "vector_similarity": -0.030456753905768668,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.18400000000000002,
+          "must_have_match": 0.0,
+          "vector_similarity": -0.0045685130858653,
+          "title_relevance": 0.1,
+          "seniority_fit": 0.1,
+          "preference_fit": 0.010000000000000002
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Data Analyst",
+        "effective_role_families": [
+          "data analytics",
+          "business intelligence",
+          "business analytics",
+          "product analytics",
+          "marketing analytics",
+          "customer analytics",
+          "commercial analytics",
+          "operations analytics",
+          "reporting analytics",
+          "analytics engineering",
+          "junior data scientist"
+        ],
+        "effective_domains": [
+          "retail",
+          "consumer goods",
+          "e-commerce",
+          "technology",
+          "marketing analytics",
+          "saas",
+          "marketplace",
+          "fmcg",
+          "supply chain",
+          "logistics",
+          "hr tech"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml"
+        },
+        "final_score": 0.38943148691413476,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      }
+    ],
+    "settings_refs": [
+      "ranking_weights",
+      "preference_fit_weights",
+      "missing_value_defaults",
+      "fit_label_thresholds",
+      "pipeline.final_top_n",
+      "prompts.ranking.ai_score.prompt_id"
+    ]
+  }
+}

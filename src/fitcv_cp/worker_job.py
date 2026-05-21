@@ -66,6 +66,7 @@ from fitcv_cp.run_artifact_mirror import persist_terminal_run_artifact_mirror
 from fitcv_cp.synonym_proposals import (
     resolve_synonym_management_mode,
     build_synonym_proposals_payload,
+    build_synonym_triage_fingerprint,
     transition_synonym_proposal_status,
 )
 from fitcv_cp.review_identity import ensure_review_item_id, is_review_resolution_pending
@@ -1158,23 +1159,15 @@ def _run_synonym_automation_for_payload(
                 skipped_count += 1
                 continue
             runtime_meta = dict(proposal.get("recommendation_runtime") or {})
-            triage_fp = _stable_sha256_json(
-                {
-                    "proposal_id": str(proposal.get("proposal_id") or "").strip(),
-                    "alias": str(proposal.get("alias") or "").strip().lower(),
-                    "canonical": str(proposal.get("canonical") or "").strip().lower(),
-                    "confidence": round(float(proposal.get("confidence") or 0.0), 6),
-                    "candidate_canonicals": sorted(
-                        {
-                            str(item).strip().lower()
-                            for item in list(proposal.get("candidate_canonicals") or [])
-                            if str(item).strip()
-                        }
-                    ),
+            triage_fp = build_synonym_triage_fingerprint(
+                proposal=proposal,
+                runtime={
                     "provider": "fitcv_builtin",
                     "model": "synonym_triage_v1",
                     "wire_api": "builtin",
-                }
+                    "sleep_secs": 0.0,
+                    "concurrency": 1,
+                },
             )
             reuse_enabled = bool(mode.get("triage_recommendation_reuse_enabled"))
             if reuse_enabled and str(runtime_meta.get("triage_fingerprint") or "").strip() == triage_fp:
@@ -1551,11 +1544,18 @@ def _persist_synonym_proposals_snapshot(
     dataset: str,
 ) -> str:
     """Persist run-scoped synonym proposals snapshot with shared behavior."""
+    existing_payload_json = _resolve_synonym_proposals_seed_payload_json(
+        run_id=run_id,
+        run_record=run_record,
+        bq=bq,
+        project=project,
+        dataset=dataset,
+    )
     synonym_payload_json = build_synonym_proposals_payload(
         run_id=run_id,
         summary=summary,
         created_at=created_at,
-        existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
+        existing_payload_json=existing_payload_json,
         global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
     )
     synonym_payload = json.loads(synonym_payload_json)
@@ -1594,6 +1594,52 @@ def _persist_synonym_proposals_snapshot(
         dataset=dataset,
     )
     return str(synonym_status or "")
+
+def _resolve_synonym_proposals_seed_payload_json(
+    *,
+    run_id: str,
+    run_record: Any,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> str | None:
+    current_payload = str(getattr(run_record, "synonym_proposals_json", "") or "").strip()
+    if current_payload:
+        return current_payload
+
+    current_jobs_path = str(getattr(run_record, "jobs_path", "") or "").strip()
+    current_run_mode = str(getattr(run_record, "run_mode", "") or "").strip()
+    try:
+        runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
+    except Exception:
+        return None
+
+    latest_payload: str | None = None
+    latest_ts: datetime.datetime | None = None
+    for candidate in runs:
+        candidate_run_id = str(getattr(candidate, "run_id", "") or "").strip()
+        if not candidate_run_id or candidate_run_id == run_id:
+            continue
+        payload = str(getattr(candidate, "synonym_proposals_json", "") or "").strip()
+        if not payload:
+            continue
+        if current_jobs_path and str(getattr(candidate, "jobs_path", "") or "").strip() != current_jobs_path:
+            continue
+        if current_run_mode and str(getattr(candidate, "run_mode", "") or "").strip() != current_run_mode:
+            continue
+
+        status_raw = getattr(candidate, "status", "")
+        status = str(getattr(status_raw, "value", status_raw) or "").strip().lower()
+        if status not in {"succeeded", "awaiting_continue"}:
+            continue
+
+        candidate_ts = getattr(candidate, "finished_at", None) or getattr(candidate, "created_at", None)
+        if not isinstance(candidate_ts, datetime.datetime):
+            continue
+        if latest_ts is None or candidate_ts > latest_ts:
+            latest_ts = candidate_ts
+            latest_payload = payload
+    return latest_payload
 
 
 def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
