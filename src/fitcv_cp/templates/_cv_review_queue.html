@@ -57,7 +57,9 @@
   <div style="display:flex;flex-direction:column;gap:0.85rem">
     {% if not visible_items %}
     <div class="meta" style="padding:0.6rem 0.7rem;border:1px dashed var(--border);border-radius:0.55rem">
-      No pending review rows shown here. Open dedicated review queue page for resolved history.
+      No pending review rows shown here.
+      <a href="/admin/runs/{{ run.run_id }}/review-queue">Open dedicated review queue page</a>
+      for resolved history.
     </div>
     {% endif %}
     {% for item in visible_items %}
@@ -199,8 +201,26 @@
 }
 
 .cv-preview-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.34rem 0.62rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
   cursor: pointer;
   user-select: none;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.cv-preview-summary:hover {
+  border-color: rgba(120, 170, 255, 0.55);
+  background: rgba(120, 170, 255, 0.08);
+}
+
+.cv-preview-details[open] .cv-preview-summary {
+  border-color: rgba(120, 170, 255, 0.65);
+  background: rgba(120, 170, 255, 0.1);
 }
 
 .cv-preview-wrap {

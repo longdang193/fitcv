@@ -1007,9 +1007,11 @@ TIMELINE_STAGE_LABELS: dict[str, str] = {
     "layer4_cv_analysis_skip": "CV Analysis",
     "layer4_cv_skip": "CV Analysis",
     "layer4_cv_generation_invoked": "CV Generation",
+    "layer4_cv_generation_reused": "CV Generation",
     "layer4_cv_validation_failed": "CV Generation",
     "pipeline_complete": "CV Generation",
     "pipeline_compute_complete": "CV Generation",
+    "layer4_cv_analysis_blocked_details": "CV Analysis Blocked Details",
     "stage_checkpoint": "Checkpoint",
     "manual_continue_requested": "Manual Continue",
     "pipeline_failed": "Pipeline",
@@ -4602,11 +4604,17 @@ def _timeline_stage_summary_message(
     stage_artifacts_by_id: dict[str, dict[str, Any]],
 ) -> str:
     payload = _event_payload(event)
-    def _fmt_value(value: Any) -> str:
-        return "—" if value is None else str(value)
-
     def _format_message(prefix: str, fields: list[tuple[str, Any]]) -> str:
-        details = ", ".join(f"{label} {_fmt_value(value)}" for label, value in fields)
+        compact_fields: list[tuple[str, Any]] = []
+        for label, value in fields:
+            if value is None:
+                continue
+            if isinstance(value, str) and not value.strip():
+                continue
+            compact_fields.append((label, value))
+        if not compact_fields:
+            return f"{prefix}."
+        details = ", ".join(f"{label} {value}" for label, value in compact_fields)
         return f"{prefix}: {details}."
 
     def _resolve_concurrency_value(*values: Any) -> str | None:
@@ -4709,16 +4717,43 @@ def _timeline_stage_summary_message(
         )
         outcome_match = re.search(r":\s*([a-z_]+)\s*(?:\(concurrency=|\Z)", str(event.message or ""), flags=re.IGNORECASE)
         outcome = outcome_match.group(1).replace("_", " ") if outcome_match else None
+        if not outcome:
+            raw_outcome = str(payload.get("deterministic_outcome") or payload_output.get("status") or "").strip()
+            outcome = raw_outcome.replace("_", " ") if raw_outcome else None
+        reuse_status = str(payload_output.get("reuse_status") or "").strip().lower()
+        reused_cv_version_id = str(payload_output.get("reused_cv_version_id") or "").strip()
+        reason_code = str(payload_output.get("review_required_reason_code") or "").strip()
+        validation_evidence_fingerprint = str(payload_output.get("validation_evidence_fingerprint") or "").strip()
         job_url = str(payload.get("job_url") or "").strip()
         if not job_url:
             match_url = re.search(r"for\s+(https?://\S+)", str(event.message or ""))
             if match_url:
                 job_url = match_url.group(1).rstrip(").,")
+        if reuse_status == "reused_exact_match":
+            outcome = "accepted (reused exact match)"
         return _format_message(
             "CV generation result",
             [
                 ("job", job_url or None),
                 ("outcome", outcome),
+                ("reason", reason_code or None),
+                ("evidence fp", validation_evidence_fingerprint[:12] if validation_evidence_fingerprint else None),
+                ("source version", reused_cv_version_id or None),
+                ("concurrency", cv_generation_concurrency),
+            ],
+        )
+    if event.stage == "layer4_cv_generation_reused":
+        cv_generation_concurrency = _resolve_concurrency_value(
+            payload_output.get("cv_generation_concurrency_effective"),
+            payload_output.get("configured_concurrency"),
+        )
+        reused_cv_version_id = str(payload_output.get("reused_cv_version_id") or "").strip()
+        job_url = str(payload.get("job_url") or "").strip()
+        return _format_message(
+            "CV generation reused",
+            [
+                ("job", job_url or None),
+                ("source version", reused_cv_version_id or None),
                 ("concurrency", cv_generation_concurrency),
             ],
         )
@@ -4752,6 +4787,14 @@ def _timeline_stage_summary_message(
                 ("applied", payload.get("applied")),
                 ("skipped", payload.get("skipped")),
                 ("failed", payload.get("failed")),
+            ],
+        )
+    if event.stage == "cv_review_required":
+        return _format_message(
+            "Run paused",
+            [
+                ("review-required items pending operator action", payload.get("review_required_total")),
+                ("auto-accepted", payload.get("auto_accepted")),
             ],
         )
     if event.stage == "cv_review_completed":
@@ -4801,6 +4844,20 @@ def _timeline_stage_summary_message(
                     ("reused", reused),
                 ],
             )
+        # Fallback when stage artifacts are absent: normalize legacy inline metrics.
+        raw_message = str(event.message or "")
+        fresh_match = re.search(r"\bfresh\s*=\s*(\d+)", raw_message, flags=re.IGNORECASE)
+        reused_match = re.search(r"\breused\s*=\s*(\d+)", raw_message, flags=re.IGNORECASE)
+        if fresh_match or reused_match:
+            return _format_message(
+                "Enrich complete",
+                [
+                    ("enriched", enriched),
+                    ("rejected before enrich", rejected),
+                    ("fresh", int(fresh_match.group(1)) if fresh_match else None),
+                    ("reused", int(reused_match.group(1)) if reused_match else None),
+                ],
+            )
     if event.stage == "layer3_filter":
         passed = outputs.get("passed_jobs")
         rejected = outputs.get("candidate_filter_rejected_jobs")
@@ -4842,6 +4899,14 @@ def _timeline_stage_summary_message(
             candidate = output_summary.get("reuse_metrics")
             if isinstance(candidate, dict):
                 reuse_metrics = dict(candidate)
+        if not reuse_metrics:
+            fallback_reused = payload_output.get("reused_ai_scores")
+            fallback_fresh = payload_output.get("fresh_ai_scores")
+            if fallback_reused is not None or fallback_fresh is not None:
+                reuse_metrics = {
+                    "reused_ai_scores": fallback_reused,
+                    "fresh_ai_scores": fallback_fresh,
+                }
         details = []
         if ranked is not None:
             details.append(f"{ranked} ranked")
@@ -4891,6 +4956,14 @@ def _timeline_stage_summary_message(
         )
         raw_reuse_metrics = decision.get("reuse_metrics")
         reuse_metrics: dict[str, Any] = dict(raw_reuse_metrics) if isinstance(raw_reuse_metrics, dict) else {}
+        if not reuse_metrics:
+            fallback_reused = payload_output.get("reused_analysis_rows")
+            fallback_fresh = payload_output.get("fresh_analysis_rows")
+            if fallback_reused is not None or fallback_fresh is not None:
+                reuse_metrics = {
+                    "reused_analysis_rows": fallback_reused,
+                    "fresh_analysis_rows": fallback_fresh,
+                }
         if ready is not None and blocked is not None and skipped is not None and failed is not None:
             details: list[tuple[str, Any]] = [
                 ("scope", "ranked jobs"),
@@ -4919,12 +4992,25 @@ def _timeline_stage_summary_message(
         return f"CV validation failed ({qualifier})"
     if event.stage in {"pipeline_complete", "pipeline_compute_complete"}:
         accepted = outputs.get("accepted")
+        review_required = outputs.get("review_required")
         validation_failed = outputs.get("validation_failed")
         generation_failed = outputs.get("generation_failed")
         persistence_failed = outputs.get("persistence_failed")
+        if accepted is None:
+            accepted = payload_output.get("quality_summary", {}).get("acceptance_review_failure", {}).get("accepted")
+        if review_required is None:
+            review_required = payload_output.get("quality_summary", {}).get("acceptance_review_failure", {}).get("review_required")
+        if validation_failed is None:
+            validation_failed = payload_output.get("quality_summary", {}).get("acceptance_review_failure", {}).get("validation_failed")
+        if generation_failed is None:
+            generation_failed = payload_output.get("quality_summary", {}).get("acceptance_review_failure", {}).get("generation_failed")
+        if persistence_failed is None:
+            persistence_failed = payload_output.get("quality_summary", {}).get("acceptance_review_failure", {}).get("persistence_failed")
         details = []
         if accepted is not None:
             details.append(f"{accepted} accepted")
+        if review_required is not None:
+            details.append(f"{review_required} review required")
         if validation_failed is not None:
             details.append(f"{validation_failed} validation failed")
         if generation_failed is not None:
@@ -5025,9 +5111,24 @@ def _dedupe_timeline_semantic_overlaps(
     """Drop duplicate semantic rows when heartbeat completion is mirrored by stage completion."""
     if not collapsed_events:
         return []
+    reused_result_keys: set[tuple[str, str]] = set()
     deduped: list[tuple[RunEvent, int]] = []
     for event, repeat_count in collapsed_events:
         stage = str(event.stage or "").strip()
+        payload = _event_payload(event)
+        output_snapshot = payload.get("output_snapshot")
+        outputs = dict(output_snapshot) if isinstance(output_snapshot, dict) else {}
+        job_url = str(payload.get("job_url") or "").strip()
+        reused_source_id = str(outputs.get("reused_cv_version_id") or "").strip()
+        if (
+            stage == "layer4_cv_generation_result"
+            and str(outputs.get("reuse_status") or "").strip().lower() == "reused_exact_match"
+            and job_url
+        ):
+            reused_result_keys.add((job_url, reused_source_id))
+        if stage == "layer4_cv_generation_reused" and job_url:
+            if (job_url, reused_source_id) in reused_result_keys:
+                continue
         if deduped and stage == "layer1_jobs":
             prev_event, _prev_repeat_count = deduped[-1]
             prev_stage = str(prev_event.stage or "").strip()
@@ -5037,9 +5138,6 @@ def _dedupe_timeline_semantic_overlaps(
                 if prev_phase == "batch_done":
                     prev_fresh = prev_payload.get("fresh_jobs_total")
                     prev_reused = prev_payload.get("reused_jobs_total")
-                    payload = _event_payload(event)
-                    output_snapshot = payload.get("output_snapshot")
-                    outputs = dict(output_snapshot) if isinstance(output_snapshot, dict) else {}
                     current_fresh = outputs.get("fresh_rows")
                     current_reused = outputs.get("reused_rows")
                     if prev_fresh == current_fresh and prev_reused == current_reused:
@@ -5447,6 +5545,16 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "synonym_management.propose_enabled",
                         "synonym_management.apply_to_run_enabled",
                         "synonym_management.promote_global_enabled",
+                    ],
+                },
+                {
+                    "id": "agentic-reuse",
+                    "title": "Reuse",
+                    "helper": "Control exact-match reuse per stage. Keep ON for speed, turn OFF to force fresh compute.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-reuse",
+                    "save_label": "Save Reuse Settings",
+                    "keys": [
                         "reuse.enrich.enabled",
                         "reuse.ranking.enabled",
                         "reuse.cv_analysis.enabled",
@@ -5463,7 +5571,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "save_label": "Save Automation Settings",
                     "keys": [
                         "synonym_management.auto_triage_recommendation_enabled",
-                        "synonym_management.triage_recommendation_reuse_enabled",
                         "synonym_management.auto_apply_recommendation_enabled",
                         "synonym_management.auto_promote_global_enabled",
                         "synonym_management.auto_accept_ai_action_enabled",
@@ -10341,6 +10448,10 @@ def _run_to_dict(run: PipelineRun) -> dict:
         "queue_job_id": run.queue_job_id,
         "orchestration_backend": run.orchestration_backend,
         "orchestration_run_id": run.orchestration_run_id,
+        "effective_settings_json": run.effective_settings_json,
+        "settings_used_json": run.settings_used_json,
+        "cv_generation_debug_json": run.cv_generation_debug_json,
+        "stage_transition_artifacts_json": run.stage_transition_artifacts_json,
     }
 
 

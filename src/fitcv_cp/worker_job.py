@@ -2041,6 +2041,93 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 summary["review_required_remaining"] = int(pending_review_required)
                 summary["review_required_remaining_missing_job_url"] = int(pending_review_required_missing_job_url)
                 summary["review_required_reason_counts"] = dict(review_reason_counts)
+                current_determinism_index: dict[tuple[str, str], tuple[str, str]] = {}
+                for record in cv_debug_records:
+                    status_value = str(record.get("status") or "").strip()
+                    if status_value not in {"accepted", "review_required", "validation_failed", "generation_failed", "persistence_failed"}:
+                        continue
+                    input_fp = str(record.get("cv_generation_input_fingerprint") or "").strip()
+                    evidence_fp = str(record.get("validation_evidence_fingerprint") or "").strip()
+                    job_url = str(record.get("job_url") or "").strip()
+                    if not input_fp or not evidence_fp:
+                        continue
+                    current_determinism_index[(input_fp, evidence_fp)] = (status_value, job_url)
+
+                if current_determinism_index:
+                    try:
+                        prior_runs = list_runs(
+                            bq,
+                            project=project,
+                            dataset=dataset,
+                            include_archived=True,
+                        )
+                    except Exception:
+                        prior_runs = []
+                    mismatches: list[dict[str, str]] = []
+                    for prior in prior_runs:
+                        if str(getattr(prior, "run_id", "") or "").strip() == run_id:
+                            continue
+                        prior_debug_json = str(getattr(prior, "cv_generation_debug_json", "") or "").strip()
+                        if not prior_debug_json:
+                            continue
+                        try:
+                            prior_payload = json.loads(prior_debug_json)
+                        except Exception:
+                            continue
+                        prior_records = list(prior_payload.get("debug_records") or prior_payload.get("cv_generation_debug_records") or [])
+                        for prior_record in prior_records:
+                            if not isinstance(prior_record, dict):
+                                continue
+                            prior_status = str(prior_record.get("status") or "").strip()
+                            prior_input_fp = str(prior_record.get("cv_generation_input_fingerprint") or "").strip()
+                            prior_evidence_fp = str(prior_record.get("validation_evidence_fingerprint") or "").strip()
+                            if not prior_input_fp or not prior_evidence_fp:
+                                continue
+                            key = (prior_input_fp, prior_evidence_fp)
+                            current = current_determinism_index.get(key)
+                            if current is None:
+                                continue
+                            current_status, current_job_url = current
+                            if current_status == prior_status:
+                                continue
+                            mismatches.append(
+                                {
+                                    "prior_run_id": str(getattr(prior, "run_id", "") or ""),
+                                    "job_url": current_job_url,
+                                    "input_fingerprint": prior_input_fp,
+                                    "validation_evidence_fingerprint": prior_evidence_fp,
+                                    "current_status": current_status,
+                                    "prior_status": prior_status,
+                                }
+                            )
+                            if len(mismatches) >= 10:
+                                break
+                        if len(mismatches) >= 10:
+                            break
+                    if mismatches:
+                        append_event(
+                            RunEvent(
+                                run_id=run_id,
+                                event_id=str(uuid.uuid4()),
+                                stage="determinism_violation",
+                                level="warning",
+                                message=(
+                                    "Determinism violation: same input+validation evidence fingerprint yielded "
+                                    f"different terminal status in {len(mismatches)} case(s)."
+                                ),
+                                created_at=datetime.datetime.now(datetime.timezone.utc),
+                                payload_json=json.dumps(
+                                    {
+                                        "mismatch_count": len(mismatches),
+                                        "mismatches": mismatches,
+                                    },
+                                    ensure_ascii=False,
+                                ),
+                            ),
+                            bq,
+                            project=project,
+                            dataset=dataset,
+                        )
                 finished_at = datetime.datetime.now(datetime.timezone.utc) if pending_review_required == 0 else None
                 terminal_status = RunStatus.SUCCEEDED if pending_review_required == 0 else RunStatus.AWAITING_CONTINUE
                 set_span_attributes(
@@ -2195,6 +2282,106 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     )
                 except Exception as exc:
                     logger.warning("[run_id=%s] Failed to persist settings-used snapshot: %s", run_id, exc)
+
+                accepted_debug_count = sum(
+                    1
+                    for record in cv_debug_records
+                    if str(record.get("status") or "").strip() == "accepted"
+                )
+                attempted_debug_count = sum(
+                    1
+                    for record in cv_debug_records
+                    if str(record.get("status") or "").strip()
+                    in {"accepted", "review_required", "validation_failed", "generation_failed", "persistence_failed"}
+                )
+                attempted_summary_count = int(summary.get("cv_generation_attempted") or 0)
+                if attempted_summary_count > 0 and not cv_debug_records:
+                    append_event(
+                        RunEvent(
+                            run_id=run_id,
+                            event_id=str(uuid.uuid4()),
+                            stage="artifact_persist_incomplete",
+                            level="warning",
+                            message="CV debug artifact empty despite CV generation terminal events.",
+                            created_at=datetime.datetime.now(datetime.timezone.utc),
+                        ),
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+                if int(summary.get("cvs_generated") or 0) < accepted_debug_count:
+                    append_event(
+                        RunEvent(
+                            run_id=run_id,
+                            event_id=str(uuid.uuid4()),
+                            stage="artifact_invariant_warning",
+                            level="warning",
+                            message=(
+                                f"Accepted CV invariant mismatch: accepted_debug={accepted_debug_count}, "
+                                f"cvs_generated={int(summary.get('cvs_generated') or 0)}"
+                            ),
+                            created_at=datetime.datetime.now(datetime.timezone.utc),
+                        ),
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+
+                persisted_run = get_run(run_id, bq, project=project, dataset=dataset)
+                missing_effective = not str(getattr(persisted_run, "effective_settings_json", "") or "").strip()
+                missing_debug = not str(getattr(persisted_run, "cv_generation_debug_json", "") or "").strip()
+                missing_stage_artifacts = not str(getattr(persisted_run, "stage_transition_artifacts_json", "") or "").strip()
+                if missing_effective or missing_debug or missing_stage_artifacts:
+                    append_event(
+                        RunEvent(
+                            run_id=run_id,
+                            event_id=str(uuid.uuid4()),
+                            stage="artifact_persist_incomplete",
+                            level="warning",
+                            message=(
+                                "Detected missing persisted artifacts; retrying once "
+                                f"(effective={missing_effective}, cv_debug={missing_debug}, stage_artifacts={missing_stage_artifacts})."
+                            ),
+                            created_at=datetime.datetime.now(datetime.timezone.utc),
+                        ),
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+                    if missing_effective:
+                        update_run_effective_settings(
+                            run_id,
+                            json.dumps(effective_config, ensure_ascii=False),
+                            bq,
+                            project=project,
+                            dataset=dataset,
+                        )
+                    if missing_debug:
+                        update_run_cv_generation_debug(
+                            run_id,
+                            _build_cv_generation_debug_payload(
+                                run_id=run_id,
+                                run_record=run_record,
+                                summary=summary,
+                                finished_at=artifact_snapshot_at,
+                            ),
+                            bq,
+                            project=project,
+                            dataset=dataset,
+                        )
+                    if missing_stage_artifacts:
+                        update_run_stage_transition_artifacts(
+                            run_id,
+                            _build_stage_transition_artifacts_payload(
+                                run_id=run_id,
+                                summary=summary,
+                                finished_at=artifact_snapshot_at,
+                                run_status=terminal_status,
+                            ),
+                            bq,
+                            project=project,
+                            dataset=dataset,
+                        )
                 if _summary_has_reached_stage(summary, "enrich"):
                     snapshot_created_at = finished_at or datetime.datetime.now(datetime.timezone.utc)
                     try:

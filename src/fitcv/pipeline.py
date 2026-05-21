@@ -48,6 +48,7 @@ can make this configurable without code changes.
 
 import logging
 import hashlib
+import json
 import os
 import time
 import uuid
@@ -123,7 +124,11 @@ from fitcv.rule_filter import (
 )
 from fitcv.runtime_routing import resolve_cv_generation_runtime_provenance
 from fitcv.runtime_routing import validate_cv_generation_routing_ready
-from fitcv.tracker import create_cv_version_record, store_cv_version
+from fitcv.tracker import (
+    create_cv_version_record,
+    lookup_reusable_cv_versions,
+    store_cv_version,
+)
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
 from fitcv.telemetry import (
     bound_langfuse_excerpt,
@@ -2045,10 +2050,21 @@ def _build_cv_generation_debug_record(
         "cv_generation_model": cv_generation_model,
         "cv_prompt_id": cv_prompt_id,
         "cv_prompt_template_path": cv_prompt_template_path,
+        "cv_generation_reuse_status": None,
+        "cv_generation_input_fingerprint": None,
         # Reranker blocks and fit-gate skips are expected outcomes, not generation runtime errors.
         "outcome_reason": error if status in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
         "error": error if status not in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
-        "review_required_reason_code": _normalize_review_required_reason_code(status=status, error=error),
+        "review_required_reason_code": _normalize_review_required_reason_code(
+            status=status,
+            error=error,
+            validation_initial=validation_initial,
+        ),
+        "validation_evidence_fingerprint": _build_validation_evidence_fingerprint(
+            status=status,
+            validation_initial=validation_initial,
+            error=error,
+        ),
         "attempt_count": 1,
         "failed_rule_ids": _extract_failed_rule_ids(validation_initial),
         "first_failing_section_key": _first_failing_section_key(validation_initial),
@@ -2096,6 +2112,7 @@ def _normalize_review_required_reason_code(
     *,
     status: str,
     error: dict[str, str] | None,
+    validation_initial: dict[str, Any] | None = None,
 ) -> str | None:
     if status == "persistence_failed":
         return "persistence_failed"
@@ -2119,11 +2136,46 @@ def _normalize_review_required_reason_code(
         return "policy_acceptance_fail"
     if stage == "validation":
         return "post_validation_failed"
+    if stage == "review_gate":
+        if "unsupported requirements require review" in message:
+            return "unsupported_requirement_gap"
+        if "low confidence sections" in message:
+            return "low_confidence_sections"
+        if "markdown quality" in message:
+            return "quality_gate_failed"
+        failed_rule_ids = _extract_failed_rule_ids(validation_initial)
+        if failed_rule_ids:
+            return "validation_guardrail_failed"
+        if "validation failed" in message or "guardrail" in message:
+            return "validation_guardrail_failed"
+        return "review_gate_manual_required"
     if "template" in stage or "template" in message:
         return "template_contract_violation"
     if "empty" in message:
         return "empty_output"
-    return "unknown"
+    return "manual_review_other"
+
+
+def _build_validation_evidence_fingerprint(
+    *,
+    status: str,
+    validation_initial: dict[str, Any] | None,
+    error: dict[str, str] | None,
+) -> str:
+    validation_snapshot = dict(validation_initial or {})
+    evidence_payload = {
+        "schema_version": "validation_evidence_fingerprint_v1",
+        "status": str(status or ""),
+        "missing_sections": list(validation_snapshot.get("missing_sections") or []),
+        "failed_rule_ids": _extract_failed_rule_ids(validation_snapshot),
+        "first_failing_section_key": _first_failing_section_key(validation_snapshot),
+        "markdown_quality_blocking_issues": list(validation_snapshot.get("markdown_quality_blocking_issues") or []),
+        "markdown_quality_review_flags": list(validation_snapshot.get("markdown_quality_review_flags") or []),
+        "error_stage": str((error or {}).get("stage") or ""),
+        "error_message": str((error or {}).get("message") or ""),
+    }
+    seed = json.dumps(evidence_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()
 
 def _extract_failed_rule_ids(validation: dict[str, Any] | None) -> list[str]:
     if not isinstance(validation, dict):
@@ -2903,6 +2955,8 @@ def _debug_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None
         "cv_generation_model": record.get("cv_generation_model"),
         "cv_prompt_id": record.get("cv_prompt_id"),
         "cv_prompt_template_path": record.get("cv_prompt_template_path"),
+        "cv_generation_reuse_status": record.get("cv_generation_reuse_status"),
+        "cv_generation_input_fingerprint": record.get("cv_generation_input_fingerprint"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "", [])}
 
@@ -2931,6 +2985,8 @@ def _debug_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | Non
         "cv_generation_model": record.get("cv_generation_model"),
         "cv_prompt_id": record.get("cv_prompt_id"),
         "cv_prompt_template_path": record.get("cv_prompt_template_path"),
+        "cv_generation_reuse_status": record.get("cv_generation_reuse_status"),
+        "cv_generation_input_fingerprint": record.get("cv_generation_input_fingerprint"),
         "error": record.get("error"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "", [])}
@@ -3094,6 +3150,36 @@ def _build_stage_transition_artifacts(
         "candidate_query_contract_fingerprint": str(
             candidate_query_debug.get("candidate_query_contract_fingerprint") or ""
         ),
+    }
+
+def _build_cv_generation_input_fingerprint(
+    *,
+    analysis_record: dict[str, Any],
+    config: dict[str, Any],
+    cv_prompt_id: str | None,
+    cv_prompt_template_path: str | None,
+    cv_prompt_version: str | None,
+    cv_generation_model: str | None,
+    enabled_sections: list[str] | None,
+    cv_acceptance_policy: dict[str, Any] | None,
+) -> dict[str, Any]:
+    payload = {
+        "schema_version": "cv_generation_input_fingerprint_v1",
+        "analysis_input_fingerprint": str(analysis_record.get("analysis_input_fingerprint") or ""),
+        "job_url": str(analysis_record.get("job_url") or ""),
+        "fit_classification": str(analysis_record.get("fit_classification") or ""),
+        "cv_prompt_id": str(cv_prompt_id or ""),
+        "cv_prompt_template_path": str(cv_prompt_template_path or ""),
+        "cv_prompt_version": str(cv_prompt_version or ""),
+        "cv_generation_model": str(cv_generation_model or ""),
+        "enabled_sections": sorted(str(item or "") for item in (enabled_sections or [])),
+        "cv_acceptance_policy": dict(cv_acceptance_policy or {}),
+        "agentic_late_stage_enabled": bool(_agentic_late_stage_enabled(config)),
+    }
+    seed = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return {
+        "fingerprint": hashlib.sha256(seed.encode("utf-8")).hexdigest(),
+        "payload": payload,
     }
     shortlist_candidate_query_debug = {
         key: value
@@ -4021,6 +4107,8 @@ def run_pipeline(
                             output_snapshot={
                                 "ranked_jobs": len(ranked),
                                 "ranking_concurrency_effective": _ranking_stage_concurrency(config),
+                                "reused_ai_scores": reused_ai_count,
+                                "fresh_ai_scores": fresh_ai_count,
                             },
                             artifact_refs={"stage_id": "ranking"},
                         ),
@@ -4108,12 +4196,7 @@ def run_pipeline(
                 if cancellation_check and cancellation_check():
                     raise PipelineCancelled("Cancelled before CV analysis")
                 cv_analysis_results = []
-                # CV generation consumes cv_analysis outputs directly; disable analysis snapshot reuse
-                # when cv_generation reuse is explicitly disabled to keep late-stage path fully fresh.
-                cv_analysis_reuse_enabled = (
-                    _reuse_stage_enabled(config, "cv_analysis")
-                    and _reuse_stage_enabled(config, "cv_generation")
-                )
+                cv_analysis_reuse_enabled = _reuse_stage_enabled(config, "cv_analysis")
                 pending_agentic_analysis: list[tuple[int, dict[str, Any], Future[dict[str, Any]]]] = []
                 agentic_executor: ThreadPoolExecutor | None = None
                 for job in ranked_jobs_for_cv:
@@ -4558,6 +4641,14 @@ def run_pipeline(
                             "cv_analysis_concurrency_configured": cv_analysis_concurrency,
                         },
                         output_snapshot={
+                            "reused_analysis_rows": sum(
+                                1 for record in cv_analysis_results
+                                if str(record.get("analysis_reuse_status") or "") == "reused_exact_match"
+                            ),
+                            "fresh_analysis_rows": sum(
+                                1 for record in cv_analysis_results
+                                if str(record.get("analysis_reuse_status") or "") == "fresh_compute"
+                            ),
                             "ready_for_generation": sum(
                                 1 for record in cv_analysis_results
                                 if str(record.get("status") or "") == CV_ANALYSIS_READY_FOR_GENERATION_STATUS
@@ -4711,6 +4802,27 @@ def run_pipeline(
             default=1,
         )
         generation_total = len(indexed_generation_ready_records)
+        cv_generation_reuse_enabled = _reuse_stage_enabled(config, "cv_generation")
+        cv_generation_fingerprint_by_index: dict[int, str] = {}
+        cv_generation_reuse_index: dict[str, dict[str, Any]] = {}
+        if cv_generation_reuse_enabled and indexed_generation_ready_records:
+            for generation_index, analysis_record in indexed_generation_ready_records:
+                fingerprint_record = _build_cv_generation_input_fingerprint(
+                    analysis_record=analysis_record,
+                    config=config,
+                    cv_prompt_id=cv_prompt_id_value,
+                    cv_prompt_template_path=cv_prompt_template_path_value,
+                    cv_prompt_version=cv_prompt_version_value,
+                    cv_generation_model=cv_generation_model_value,
+                    enabled_sections=enabled_cv_sections,
+                    cv_acceptance_policy=cv_acceptance_policy,
+                )
+                cv_generation_fingerprint_by_index[generation_index] = str(fingerprint_record["fingerprint"])
+            cv_generation_reuse_index = lookup_reusable_cv_versions(
+                list(cv_generation_fingerprint_by_index.values()),
+                config,
+                limit=max(500, len(cv_generation_fingerprint_by_index) * 3),
+            )
 
         def _prepare_cv_generation_work_item(
             *,
@@ -4819,6 +4931,11 @@ def run_pipeline(
             latency_ms: int | None = None,
             usage: dict[str, Any] | None = None,
             cost: dict[str, Any] | None = None,
+            reuse_status: str | None = None,
+            reused_cv_version_id: str | None = None,
+            cv_generation_input_fingerprint: str | None = None,
+            review_required_reason_code: str | None = None,
+            validation_evidence_fingerprint: str | None = None,
         ) -> None:
             if reporter is None:
                 return
@@ -4845,6 +4962,11 @@ def run_pipeline(
                     },
                     output_snapshot={
                         "status": str(status or ""),
+                        "reuse_status": str(reuse_status or ""),
+                        "reused_cv_version_id": str(reused_cv_version_id or ""),
+                        "cv_generation_input_fingerprint": str(cv_generation_input_fingerprint or ""),
+                        "review_required_reason_code": str(review_required_reason_code or ""),
+                        "validation_evidence_fingerprint": str(validation_evidence_fingerprint or ""),
                         "attempt_count": int(attempt_count),
                         "retry_count": int(retry_count),
                         "configured_concurrency": int(configured_cv_generation_concurrency),
@@ -4852,6 +4974,12 @@ def run_pipeline(
                         "worker_slot": int(generation_worker_slot),
                         "started_at": generation_started_at_iso,
                         "finished_at": generation_finished_at_iso,
+                        "status_flat": str(status or ""),
+                        "reuse_status_flat": str(reuse_status or ""),
+                        "reused_cv_version_id_flat": str(reused_cv_version_id or ""),
+                        "cv_generation_input_fingerprint_flat": str(cv_generation_input_fingerprint or ""),
+                        "review_required_reason_code_flat": str(review_required_reason_code or ""),
+                        "validation_evidence_fingerprint_flat": str(validation_evidence_fingerprint or ""),
                     },
                     artifact_refs={"stage_id": "cv_generation"},
                     latency_ms=latency_ms,
@@ -4901,6 +5029,7 @@ def run_pipeline(
             cv_prompt_template_path_value: str,
             enabled_cv_sections: list[str],
             run_id: str,
+            cv_generation_input_fingerprint: str | None,
         ) -> bool:
             if validation.get("valid", False):
                 return False
@@ -4923,6 +5052,17 @@ def run_pipeline(
                 attempt_count=1,
                 retry_count=0,
                 latency_ms=latency_ms,
+                review_required_reason_code=_normalize_review_required_reason_code(
+                    status="validation_failed",
+                    error={"stage": "validation", "message": f"CV validation failed for {job.get('job_url')}"},
+                    validation_initial=validation_initial,
+                ),
+                validation_evidence_fingerprint=_build_validation_evidence_fingerprint(
+                    status="validation_failed",
+                    validation_initial=validation_initial,
+                    error={"stage": "validation", "message": f"CV validation failed for {job.get('job_url')}"},
+                ),
+                cv_generation_input_fingerprint=cv_generation_input_fingerprint,
             )
             failure_details: dict[str, Any] = {
                 "missing_sections": validation.get("missing_sections") or [],
@@ -5013,6 +5153,7 @@ def run_pipeline(
             cv_prompt_template_path_value: str,
             enabled_cv_sections: list[str],
             run_id: str,
+            cv_generation_input_fingerprint: str | None,
         ) -> bool:
             if not markdown_review_reason:
                 return False
@@ -5035,6 +5176,23 @@ def run_pipeline(
                 attempt_count=1,
                 retry_count=0,
                 latency_ms=latency_ms,
+                review_required_reason_code=_normalize_review_required_reason_code(
+                    status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                    error={
+                        "stage": "markdown_quality_review",
+                        "message": str(markdown_review_reason or ""),
+                    },
+                    validation_initial=validation_initial,
+                ),
+                validation_evidence_fingerprint=_build_validation_evidence_fingerprint(
+                    status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                    validation_initial=validation_initial,
+                    error={
+                        "stage": "markdown_quality_review",
+                        "message": str(markdown_review_reason or ""),
+                    },
+                ),
+                cv_generation_input_fingerprint=cv_generation_input_fingerprint,
             )
             review_required_debug_record = _build_cv_generation_debug_record(
                 job=job,
@@ -5082,6 +5240,7 @@ def run_pipeline(
             cv_prompt_template_path_value: str,
             enabled_cv_sections: list[str],
             run_id: str,
+            cv_generation_input_fingerprint: str | None,
         ) -> bool:
             if policy_pass:
                 return False
@@ -5104,6 +5263,29 @@ def run_pipeline(
                 attempt_count=1,
                 retry_count=0,
                 latency_ms=latency_ms,
+                review_required_reason_code=_normalize_review_required_reason_code(
+                    status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                    error={
+                        "stage": "policy_acceptance",
+                        "message": (
+                            f"Policy acceptance blocked ({policy_reason_code}): {policy_note}. "
+                            f"Manual review required."
+                        ),
+                    },
+                    validation_initial=validation_initial,
+                ),
+                validation_evidence_fingerprint=_build_validation_evidence_fingerprint(
+                    status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                    validation_initial=validation_initial,
+                    error={
+                        "stage": "policy_acceptance",
+                        "message": (
+                            f"Policy acceptance blocked ({policy_reason_code}): {policy_note}. "
+                            f"Manual review required."
+                        ),
+                    },
+                ),
+                cv_generation_input_fingerprint=cv_generation_input_fingerprint,
             )
             policy_message = (
                 f"Policy acceptance blocked ({policy_reason_code}): {policy_note}. "
@@ -5156,6 +5338,7 @@ def run_pipeline(
             generation_attempt_count: int,
             latency_ms: int,
             run_id: str,
+            cv_generation_input_fingerprint: str | None,
         ) -> None:
             job = cast(dict[str, Any], state["job"])
             fit = str(state["fit"] or "skip")
@@ -5189,6 +5372,7 @@ def run_pipeline(
                 agentic_live_trace=job_agentic_live_trace,
             )
             accepted_debug_record["attempt_count"] = generation_attempt_count
+            accepted_debug_record["cv_generation_input_fingerprint"] = cv_generation_input_fingerprint
             cv_generation_debug_records.append(accepted_debug_record)
             _emit_cv_generation_item_observation(
                 run_id=run_id,
@@ -5201,6 +5385,9 @@ def run_pipeline(
                 attempt_count=generation_attempt_count,
                 retry_count=max(generation_attempt_count - 1, 0),
                 latency_ms=latency_ms,
+                cv_generation_input_fingerprint=cv_generation_input_fingerprint,
+                review_required_reason_code=str(accepted_debug_record.get("review_required_reason_code") or ""),
+                validation_evidence_fingerprint=str(accepted_debug_record.get("validation_evidence_fingerprint") or ""),
             )
 
         def _handle_cv_generation_failure(
@@ -5215,6 +5402,7 @@ def run_pipeline(
             latency_ms: int,
             run_id: str,
             exc: Exception,
+            cv_generation_input_fingerprint: str | None,
         ) -> None:
             job = cast(dict[str, Any], state["job"])
             fit = str(state["fit"] or "skip")
@@ -5232,13 +5420,6 @@ def run_pipeline(
             logger.error("[run_id=%s] Failed for %s: %s", run_id, job.get("job_url"), exc)
             failure_status = "persistence_failed" if structured_cv_final is not None or markdown_final is not None else "generation_failed"
             failure_stage = "persistence" if failure_status == "persistence_failed" else "generation"
-            _emit_cv_generation_result_event(
-                state=state,
-                status=failure_status,
-                attempt_count=1,
-                retry_count=0,
-                latency_ms=latency_ms,
-            )
             failure_debug_record = _build_cv_generation_debug_record(
                 job=job,
                 status=failure_status,
@@ -5262,6 +5443,17 @@ def run_pipeline(
                     "message": str(exc),
                 },
                 agentic_live_trace=job_agentic_live_trace,
+            )
+            failure_debug_record["cv_generation_input_fingerprint"] = cv_generation_input_fingerprint
+            _emit_cv_generation_result_event(
+                state=state,
+                status=failure_status,
+                attempt_count=1,
+                retry_count=0,
+                latency_ms=latency_ms,
+                cv_generation_input_fingerprint=cv_generation_input_fingerprint,
+                review_required_reason_code=str(failure_debug_record.get("review_required_reason_code") or ""),
+                validation_evidence_fingerprint=str(failure_debug_record.get("validation_evidence_fingerprint") or ""),
             )
             cv_generation_debug_records.append(failure_debug_record)
             _emit_cv_generation_item_observation(
@@ -5397,6 +5589,7 @@ def run_pipeline(
             evidence_used: list[dict[str, Any]],
             evidence_selection_summary: dict[str, Any],
             analysis_input_summary: dict[str, Any],
+            cv_generation_input_fingerprint: str | None,
         ) -> tuple[bool, dict[str, Any] | None, str | None]:
             _emit_cv_generation_invoked_event(
                 state=generation_state,
@@ -5412,6 +5605,7 @@ def run_pipeline(
                 cv_prompt_template_path_value=cv_prompt_template_path_value,
                 enabled_cv_sections=enabled_cv_sections,
                 run_id=run_id,
+                cv_generation_input_fingerprint=cv_generation_input_fingerprint,
             ):
                 return True, structured_cv_final, markdown_final
 
@@ -5427,6 +5621,7 @@ def run_pipeline(
                 cv_prompt_template_path_value=cv_prompt_template_path_value,
                 enabled_cv_sections=enabled_cv_sections,
                 run_id=run_id,
+                cv_generation_input_fingerprint=cv_generation_input_fingerprint,
             ):
                 return True, structured_cv_final, markdown_final
 
@@ -5448,6 +5643,7 @@ def run_pipeline(
                 cv_prompt_template_path_value=cv_prompt_template_path_value,
                 enabled_cv_sections=enabled_cv_sections,
                 run_id=run_id,
+                cv_generation_input_fingerprint=cv_generation_input_fingerprint,
             ):
                 return True, structured_cv_final, markdown_final
 
@@ -5468,6 +5664,8 @@ def run_pipeline(
                 cv_structured=structured_cv,
                 cv_generation_model=job_cv_generation_model_value,
                 cv_prompt_version=cv_prompt_version_value,
+                cv_generation_input_fingerprint=cv_generation_input_fingerprint,
+                cv_generation_reuse_status="fresh_compute",
             )
             pipeline_store.store_cv_version(version, config)
             results.append({
@@ -5484,6 +5682,8 @@ def run_pipeline(
                 "cv_markdown": cv,
                 "generated_at": version.get("generated_at"),
                 "fit_classification": fit,
+                "cv_generation_reuse_status": "fresh_compute",
+                "cv_generation_input_fingerprint": cv_generation_input_fingerprint,
             })
             _handle_cv_generation_accepted_debug_and_events(
                 state=generation_state,
@@ -5499,6 +5699,7 @@ def run_pipeline(
                 generation_attempt_count=generation_attempt_count,
                 latency_ms=latency_ms,
                 run_id=run_id,
+                cv_generation_input_fingerprint=cv_generation_input_fingerprint,
             )
             logger.info("[run_id=%s] CV generated for %s (fit=%s)", run_id, job.get("job_url"), fit)
             return False, structured_cv_final, markdown_final
@@ -5603,6 +5804,7 @@ def run_pipeline(
             generation_attempt_count: int,
             generation_worker_slot: int,
             generation_started_at_iso: str,
+            cv_generation_input_fingerprint: str | None,
         ) -> dict[str, Any]:
             agentic_generation_result = run_agentic_cv_generation(
                 analysis_record=analysis_record,
@@ -5649,6 +5851,20 @@ def run_pipeline(
                         },
                         output_snapshot={
                             "status": str(agentic_generation_result.get("status") or ""),
+                            "cv_generation_input_fingerprint": str(cv_generation_input_fingerprint or ""),
+                            "review_required_reason_code": str(
+                                _normalize_review_required_reason_code(
+                                    status=str(agentic_generation_result.get("status") or ""),
+                                    error=cast(dict[str, str] | None, agentic_generation_result.get("error")),
+                                    validation_initial=validation_initial,
+                                )
+                                or ""
+                            ),
+                            "validation_evidence_fingerprint": _build_validation_evidence_fingerprint(
+                                status=str(agentic_generation_result.get("status") or ""),
+                                validation_initial=validation_initial,
+                                error=cast(dict[str, str] | None, agentic_generation_result.get("error")),
+                            ),
                             "attempt_count": int(generation_metrics["attempt_count"]),
                             "retry_count": int(generation_metrics["retry_count"]),
                             "configured_concurrency": int(configured_cv_generation_concurrency),
@@ -5724,6 +5940,7 @@ def run_pipeline(
                         agentic_live_trace=job_agentic_live_trace,
                     )
                     debug_record["attempt_count"] = retry_attempt_count
+                    debug_record["cv_generation_input_fingerprint"] = cv_generation_input_fingerprint
                     return {
                         "should_continue": True,
                         "deferred_debug_record": debug_record,
@@ -5740,29 +5957,31 @@ def run_pipeline(
                     "stage": "review_gate",
                     "message": review_reason,
                 }
+                review_debug_record = _build_cv_generation_debug_record(
+                    job=job,
+                    status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                    fit_classification=fit,
+                    evidence_used=evidence_used,
+                    evidence_selection_summary=evidence_selection_summary,
+                    analysis_input_summary=analysis_input_summary,
+                    gap_summary=gap,
+                    structured_cv_initial=structured_cv_initial,
+                    validation_initial=validation_initial,
+                    repair_attempt=repair_attempt,
+                    structured_cv_final=structured_cv_final,
+                    markdown_final=markdown_final,
+                    enabled_sections=enabled_cv_sections,
+                    cv_generation_model=job_cv_generation_model_value,
+                    runtime_provenance=job_runtime_provenance,
+                    cv_prompt_id=cv_prompt_id_value,
+                    cv_prompt_template_path=cv_prompt_template_path_value,
+                    error=review_error,
+                    agentic_live_trace=job_agentic_live_trace,
+                )
+                review_debug_record["cv_generation_input_fingerprint"] = cv_generation_input_fingerprint
                 return {
                     "should_continue": True,
-                    "deferred_debug_record": _build_cv_generation_debug_record(
-                        job=job,
-                        status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
-                        fit_classification=fit,
-                        evidence_used=evidence_used,
-                        evidence_selection_summary=evidence_selection_summary,
-                        analysis_input_summary=analysis_input_summary,
-                        gap_summary=gap,
-                        structured_cv_initial=structured_cv_initial,
-                        validation_initial=validation_initial,
-                        repair_attempt=repair_attempt,
-                        structured_cv_final=structured_cv_final,
-                        markdown_final=markdown_final,
-                        enabled_sections=enabled_cv_sections,
-                        cv_generation_model=job_cv_generation_model_value,
-                        runtime_provenance=job_runtime_provenance,
-                        cv_prompt_id=cv_prompt_id_value,
-                        cv_prompt_template_path=cv_prompt_template_path_value,
-                        error=review_error,
-                        agentic_live_trace=job_agentic_live_trace,
-                    ),
+                    "deferred_debug_record": review_debug_record,
                     "deferred_observation": False,
                     "deferred_reporter_payload": deferred_reporter_payload,
                 }
@@ -5813,6 +6032,7 @@ def run_pipeline(
             generation_attempt_count: int,
             generation_worker_slot: int,
             generation_started_at_iso: str,
+            cv_generation_input_fingerprint: str | None,
         ) -> dict[str, Any]:
             if agentic_enabled:
                 return _run_agentic_cv_generation(
@@ -5834,6 +6054,7 @@ def run_pipeline(
                     generation_attempt_count=generation_attempt_count,
                     generation_worker_slot=generation_worker_slot,
                     generation_started_at_iso=generation_started_at_iso,
+                    cv_generation_input_fingerprint=cv_generation_input_fingerprint,
                 )
 
             (
@@ -5903,6 +6124,7 @@ def run_pipeline(
                 generation_attempt_count=int(runtime["generation_attempt_count"]),
                 generation_worker_slot=int(runtime["generation_worker_slot"]),
                 generation_started_at_iso=str(runtime["generation_started_at_iso"]),
+                cv_generation_input_fingerprint=str(cv_generation_fingerprint_by_index.get(generation_index) or "") or None,
             )
 
         compute_outcomes_by_index: dict[int, dict[str, Any]] = {}
@@ -5947,6 +6169,124 @@ def run_pipeline(
             job_cv_generation_model_value = cast(str | None, runtime["job_cv_generation_model_value"])
             job_agentic_live_trace = cast(dict[str, Any] | None, runtime["job_agentic_live_trace"])
             generation_attempt_count = int(runtime["generation_attempt_count"])
+            reuse_fingerprint = str(cv_generation_fingerprint_by_index.get(generation_index) or "").strip()
+            reused_cv_row = (
+                cv_generation_reuse_index.get(reuse_fingerprint)
+                if cv_generation_reuse_enabled and reuse_fingerprint
+                else None
+            )
+
+            if isinstance(reused_cv_row, dict):
+                reused_markdown = str(reused_cv_row.get("cv_markdown") or "")
+                reused_structured = reused_cv_row.get("cv_structured")
+                if isinstance(reused_structured, dict) and reused_markdown:
+                    structured_cv_final = dict(reused_structured)
+                    markdown_final = reused_markdown
+                    version = create_cv_version_record(
+                        job_url=str(job.get("job_url") or ""),
+                        run_id=run_id,
+                        enrichment_version=str(config.get("enrichment_version") or "v1"),
+                        vector_rank=int(job.get("vector_rank") or 0),
+                        ai_score=float(job.get("ai_score") or 0.0),
+                        final_score=float(job.get("final_score") or 0.0),
+                        evidence_ids=[str(e.get("evidence_id") or "") for e in evidence],
+                        prompt_version=cv_prompt_version_value,
+                        cv_markdown=reused_markdown,
+                        gap_summary=cast(dict[str, Any], gap or {}),
+                        fit_classification=fit,
+                        cv_structured=structured_cv_final,
+                        cv_generation_model=job_cv_generation_model_value,
+                        cv_prompt_version=cv_prompt_version_value,
+                        cv_generation_input_fingerprint=reuse_fingerprint,
+                        cv_generation_reuse_status="reused_exact_match",
+                    )
+                    pipeline_store.store_cv_version(version, config)
+                    results.append({
+                        "job_url": str(job.get("job_url") or ""),
+                        "fit": fit,
+                        "ranking_fit_label": fit,
+                        "cv_version_id": version["version_id"],
+                        "gap": gap,
+                        "structured_cv": structured_cv_final,
+                        "cv_generation_model": job_cv_generation_model_value,
+                        "runtime_provenance": job_runtime_provenance,
+                        "cv_prompt_id": cv_prompt_id_value,
+                        "cv_prompt_template_path": cv_prompt_template_path_value,
+                        "cv_markdown": reused_markdown,
+                        "generated_at": version.get("generated_at"),
+                        "fit_classification": fit,
+                        "cv_generation_reuse_status": "reused_exact_match",
+                        "cv_generation_input_fingerprint": reuse_fingerprint,
+                    })
+                    reused_debug_record = _build_cv_generation_debug_record(
+                        job=job,
+                        status="accepted",
+                        fit_classification=fit,
+                        evidence_used=evidence_used,
+                        evidence_selection_summary=evidence_selection_summary,
+                        analysis_input_summary=analysis_input_summary,
+                        gap_summary=cast(dict[str, Any] | None, gap),
+                        structured_cv_initial=structured_cv_final,
+                        validation_initial={"valid": True, "missing_sections": []},
+                        repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
+                        structured_cv_final=structured_cv_final,
+                        markdown_final=reused_markdown,
+                        enabled_sections=enabled_cv_sections,
+                        cv_generation_model=job_cv_generation_model_value,
+                        runtime_provenance=job_runtime_provenance,
+                        cv_prompt_id=cv_prompt_id_value,
+                        cv_prompt_template_path=cv_prompt_template_path_value,
+                        error=None,
+                        agentic_live_trace=None,
+                    )
+                    reused_debug_record["cv_generation_reuse_status"] = "reused_exact_match"
+                    reused_debug_record["cv_generation_input_fingerprint"] = reuse_fingerprint
+                    reused_debug_record["reused_cv_version_id"] = reused_cv_row.get("version_id")
+                    cv_generation_debug_records.append(reused_debug_record)
+                    _emit_cv_generation_item_observation(
+                        run_id=run_id,
+                        analysis_record=analysis_record,
+                        debug_record=reused_debug_record,
+                    )
+                    _emit_cv_generation_result_event(
+                        state=generation_state,
+                        status="accepted",
+                        attempt_count=1,
+                        retry_count=0,
+                        latency_ms=int((time.monotonic() - cv_generation_started_monotonic) * 1000),
+                        reuse_status="reused_exact_match",
+                        reused_cv_version_id=str(reused_cv_row.get("version_id") or ""),
+                        cv_generation_input_fingerprint=reuse_fingerprint or None,
+                        review_required_reason_code=str(reused_debug_record.get("review_required_reason_code") or ""),
+                        validation_evidence_fingerprint=str(reused_debug_record.get("validation_evidence_fingerprint") or ""),
+                    )
+                    if reporter is not None:
+                        reporter.emit(
+                            "layer4_cv_generation_reused",
+                            "info",
+                            f"CV generation reused for {job.get('job_url')}",
+                            _bounded_event_payload(
+                                event_name="cv_generation_reused",
+                                event_family="decision",
+                                source_stage="cv_generation",
+                                event_status="completed",
+                                job_url=str(job.get("job_url") or ""),
+                                deterministic_outcome="accepted",
+                                stage_owned_subreason="reused_exact_match",
+                                output_snapshot={
+                                    "reuse_status": "reused_exact_match",
+                                    "reused_cv_version_id": str(reused_cv_row.get("version_id") or ""),
+                                    "cv_generation_input_fingerprint": reuse_fingerprint,
+                                    "configured_concurrency": int(configured_cv_generation_concurrency),
+                                    "cv_generation_concurrency_effective": int(configured_cv_generation_concurrency),
+                                    "worker_slot": int(generation_state.get("generation_worker_slot") or 0),
+                                    "attempt_count": 1,
+                                    "retry_count": 0,
+                                },
+                                artifact_refs={"stage_id": "cv_generation"},
+                            ),
+                        )  # type: ignore[union-attr]
+                    continue
 
             try:
                 compute_outcome = compute_outcomes_by_index[generation_index]
@@ -6052,6 +6392,7 @@ def run_pipeline(
                     evidence_used=evidence_used,
                     evidence_selection_summary=evidence_selection_summary,
                     analysis_input_summary=analysis_input_summary,
+                    cv_generation_input_fingerprint=reuse_fingerprint or None,
                 )
                 if should_continue:
                     continue
@@ -6068,6 +6409,7 @@ def run_pipeline(
                     latency_ms=int((time.monotonic() - cv_generation_started_monotonic) * 1000),
                     run_id=run_id,
                     exc=exc,
+                    cv_generation_input_fingerprint=reuse_fingerprint or None,
                 )
                 continue
 
@@ -6211,7 +6553,15 @@ def run_pipeline(
             reporter.emit(
                 "pipeline_compute_complete",
                 "info",
-                str(event_summary),
+                (
+                    "Pipeline compute complete: "
+                    f"ranked={summary['ranked']}, "
+                    f"attempted={generation_quality.get('total_attempted')}, "
+                    f"accepted={generation_quality.get('accepted')}, "
+                    f"review_required={generation_quality.get('review_required')}, "
+                    f"failed={int(generation_quality.get('validation_failed') or 0) + int(generation_quality.get('generation_failed') or 0) + int(generation_quality.get('persistence_failed') or 0)}, "
+                    f"retries={total_retry_count}"
+                ),
                 _bounded_event_payload(
                     event_name="pipeline_compute_complete",
                     event_family="summary",

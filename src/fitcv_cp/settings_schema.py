@@ -902,6 +902,9 @@ AGENTIC_ENABLEMENT_SECTION_KEYS: list[str] = [
     "synonym_management.propose_enabled",
     "synonym_management.apply_to_run_enabled",
     "synonym_management.promote_global_enabled",
+]
+
+AGENTIC_REUSE_SECTION_KEYS: list[str] = [
     "reuse.enrich.enabled",
     "reuse.ranking.enabled",
     "reuse.cv_analysis.enabled",
@@ -911,7 +914,6 @@ AGENTIC_ENABLEMENT_SECTION_KEYS: list[str] = [
 
 AGENTIC_AUTOMATION_SECTION_KEYS: list[str] = [
     "synonym_management.auto_triage_recommendation_enabled",
-    "synonym_management.triage_recommendation_reuse_enabled",
     "synonym_management.auto_apply_recommendation_enabled",
     "synonym_management.auto_promote_global_enabled",
     "synonym_management.auto_accept_ai_action_enabled",
@@ -932,6 +934,7 @@ AGENTIC_ADVANCED_SECTION_KEYS: list[str] = [
 
 AGENTIC_SETTINGS_SECTIONS: dict[str, list[str]] = {
     "agentic-enablement": list(AGENTIC_ENABLEMENT_SECTION_KEYS),
+    "agentic-reuse": list(AGENTIC_REUSE_SECTION_KEYS),
     "agentic-automation": list(AGENTIC_AUTOMATION_SECTION_KEYS),
     "agentic-advanced": list(AGENTIC_ADVANCED_SECTION_KEYS),
 }

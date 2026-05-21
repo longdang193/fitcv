@@ -55,6 +55,8 @@ def create_cv_version_record(
     cv_structured: dict[str, Any] | None = None,
     cv_generation_model: str | None = None,
     cv_prompt_version: str | None = None,
+    cv_generation_input_fingerprint: str | None = None,
+    cv_generation_reuse_status: str | None = None,
 ) -> dict[str, Any]:
     """Build a cv_versions record in memory.
 
@@ -85,6 +87,8 @@ def create_cv_version_record(
         ),
         "cv_structured_json": json.dumps(cv_structured) if isinstance(cv_structured, dict) else None,
         "cv_markdown": str(cv_markdown),
+        "cv_generation_input_fingerprint": str(cv_generation_input_fingerprint or "") or None,
+        "cv_generation_reuse_status": str(cv_generation_reuse_status or "") or None,
         "gap_summary": json.dumps(gap_summary),
         "fit_classification": str(fit_classification),
         "generated_at": datetime.now(tz=timezone.utc).isoformat(),
@@ -97,6 +101,8 @@ def _is_missing_structured_cv_column_error(errors: list[dict[str, Any]]) -> bool
         "cv_generation_model",
         "cv_schema_version",
         "cv_structured_json",
+        "cv_generation_input_fingerprint",
+        "cv_generation_reuse_status",
     }
     for error in errors:
         for item in error.get("errors") or []:
@@ -116,9 +122,44 @@ def _legacy_cv_version_record(record: dict[str, Any]) -> dict[str, Any]:
         "cv_generation_model",
         "cv_schema_version",
         "cv_structured_json",
+        "cv_generation_input_fingerprint",
+        "cv_generation_reuse_status",
     ):
         legacy_record.pop(field, None)
     return legacy_record
+
+def lookup_reusable_cv_versions(
+    fingerprints: list[str],
+    config: dict[str, Any],
+    *,
+    limit: int = 500,
+) -> dict[str, dict[str, Any]]:
+    normalized = [str(item or "").strip() for item in fingerprints if str(item or "").strip()]
+    if not normalized:
+        return {}
+    if sqlite_mode_enabled(config):
+        from fitcv_cp import bq_store as cp_bq_store
+
+        return cp_bq_store.lookup_reusable_cv_versions(
+            normalized,
+            bq=None,
+            project="",
+            dataset="",
+            limit=limit,
+        )
+
+    project = str(config["gcp_project"])
+    dataset = str(config["bigquery_dataset"])
+    client = build_bigquery_client(config)
+    from fitcv_cp import bq_store as cp_bq_store
+
+    return cp_bq_store.lookup_reusable_cv_versions(
+        normalized,
+        bq=client,
+        project=project,
+        dataset=dataset,
+        limit=limit,
+    )
 
 
 def store_cv_version(record: dict[str, Any], config: dict[str, Any]) -> None:

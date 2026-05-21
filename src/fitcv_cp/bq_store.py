@@ -120,10 +120,24 @@ def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
             cv_prompt_version TEXT,
             cv_schema_version TEXT,
             cv_structured_json TEXT,
-            cv_markdown TEXT
+            cv_markdown TEXT,
+            cv_generation_input_fingerprint TEXT,
+            cv_generation_reuse_status TEXT
         )
         """
     )
+    existing_columns = {
+        str(row[1] or "")
+        for row in conn.execute("PRAGMA table_info(cv_versions)").fetchall()
+    }
+    if "cv_generation_input_fingerprint" not in existing_columns:
+        conn.execute(
+            "ALTER TABLE cv_versions ADD COLUMN cv_generation_input_fingerprint TEXT"
+        )
+    if "cv_generation_reuse_status" not in existing_columns:
+        conn.execute(
+            "ALTER TABLE cv_versions ADD COLUMN cv_generation_reuse_status TEXT"
+        )
 
 def _ensure_local_pipeline_runs_table(conn: sqlite3.Connection) -> None:
     conn.execute(
@@ -1448,7 +1462,9 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
                     cv_generation_model,
                     cv_prompt_version,
                     cv_schema_version,
-                    cv_structured_json
+                    cv_structured_json,
+                    cv_generation_input_fingerprint,
+                    cv_generation_reuse_status
                 FROM cv_versions
                 WHERE run_id = ?
                 ORDER BY generated_at DESC
@@ -1472,7 +1488,9 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
             cv_generation_model,
             cv_prompt_version,
             cv_schema_version,
-            cv_structured_json
+            cv_structured_json,
+            cv_generation_input_fingerprint,
+            cv_generation_reuse_status
         FROM `{table}`
         WHERE run_id = @run_id
         ORDER BY generated_at DESC
@@ -1492,7 +1510,9 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
             NULL AS cv_generation_model,
             NULL AS cv_prompt_version,
             NULL AS cv_schema_version,
-            NULL AS cv_structured_json
+            NULL AS cv_structured_json,
+            NULL AS cv_generation_input_fingerprint,
+            NULL AS cv_generation_reuse_status
         FROM `{table}`
         WHERE run_id = @run_id
         ORDER BY generated_at DESC
@@ -1514,10 +1534,109 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
         row_dict.setdefault("cv_prompt_version", None)
         row_dict.setdefault("cv_schema_version", None)
         row_dict.setdefault("cv_structured_json", None)
+        row_dict.setdefault("cv_generation_input_fingerprint", None)
+        row_dict.setdefault("cv_generation_reuse_status", None)
         structured_raw = row_dict.get("cv_structured_json")
         row_dict["cv_structured"] = _decode_json_or_none(structured_raw)
         bq_results.append(row_dict)
     return bq_results
+
+def lookup_reusable_cv_versions(
+    fingerprints: list[str],
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+    limit: int = 500,
+) -> dict[str, dict[str, Any]]:
+    normalized = [str(item or "").strip() for item in fingerprints if str(item or "").strip()]
+    if not normalized:
+        return {}
+
+    if bq is None:
+        db_path = Path(_local_sqlite_path())
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        with _sqlite_connection(db_path) as conn:
+            _ensure_local_cv_versions_table(conn)
+            conn.row_factory = sqlite3.Row
+            placeholders = ",".join("?" for _ in normalized)
+            rows = conn.execute(
+                f"""
+                SELECT
+                    version_id,
+                    run_id,
+                    job_url,
+                    fit_classification,
+                    generated_at,
+                    cv_generation_model,
+                    cv_prompt_version,
+                    cv_schema_version,
+                    cv_structured_json,
+                    cv_markdown,
+                    cv_generation_input_fingerprint,
+                    cv_generation_reuse_status
+                FROM cv_versions
+                WHERE cv_generation_input_fingerprint IN ({placeholders})
+                ORDER BY generated_at DESC
+                """,
+                tuple(normalized),
+            ).fetchall()
+        indexed: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            row_dict = dict(row)
+            fingerprint = str(row_dict.get("cv_generation_input_fingerprint") or "").strip()
+            if not fingerprint or fingerprint in indexed:
+                continue
+            row_dict["cv_structured"] = _decode_json_or_none(row_dict.get("cv_structured_json"))
+            indexed[fingerprint] = row_dict
+        return indexed
+
+    table = f"{project}.{dataset}.cv_versions"
+    sql = f"""
+        SELECT
+            version_id,
+            run_id,
+            job_url,
+            fit_classification,
+            generated_at,
+            cv_generation_model,
+            cv_prompt_version,
+            cv_schema_version,
+            cv_structured_json,
+            cv_markdown,
+            cv_generation_input_fingerprint,
+            cv_generation_reuse_status
+        FROM `{table}`
+        WHERE cv_generation_input_fingerprint IN UNNEST(@fingerprints)
+        ORDER BY generated_at DESC
+        LIMIT @limit
+    """
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ArrayQueryParameter("fingerprints", "STRING", normalized),
+            bq_module.ScalarQueryParameter("limit", "INT64", int(limit)),
+        ],
+        use_query_cache=False,
+    )
+    try:
+        rows = bq.query(sql, job_config=job_config).result()
+    except Exception as exc:
+        if "Unrecognized name:" not in str(exc):
+            raise
+        logger.warning(
+            "cv_versions generation-reuse columns missing; generation reuse lookup disabled: %s",
+            exc,
+        )
+        return {}
+    indexed_bq: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        row_dict = dict(row.items())
+        fingerprint = str(row_dict.get("cv_generation_input_fingerprint") or "").strip()
+        if not fingerprint or fingerprint in indexed_bq:
+            continue
+        row_dict["cv_structured"] = _decode_json_or_none(row_dict.get("cv_structured_json"))
+        indexed_bq[fingerprint] = row_dict
+    return indexed_bq
 
 
 def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> Optional[str]:
@@ -1669,8 +1788,10 @@ def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset
                             cv_prompt_version,
                             cv_schema_version,
                             cv_structured_json,
-                            cv_markdown
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            cv_markdown,
+                            cv_generation_input_fingerprint,
+                            cv_generation_reuse_status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             str(row.get("version_id") or ""),
@@ -1683,6 +1804,8 @@ def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset
                             str(row.get("cv_schema_version") or ""),
                             str(row.get("cv_structured_json") or ""),
                             str(row.get("cv_markdown") or ""),
+                            str(row.get("cv_generation_input_fingerprint") or ""),
+                            str(row.get("cv_generation_reuse_status") or ""),
                         ),
                     )
                     conn.commit()
