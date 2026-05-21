@@ -270,7 +270,8 @@ def test_feature_source_names_operator_facing_agentic_settings_capability() -> N
 
 def test_agentic_settings_sections_have_expected_slugs() -> None:
     assert set(AGENTIC_SETTINGS_SECTIONS.keys()) == {
-        "agentic-core",
+        "agentic-enablement",
+        "agentic-automation",
         "agentic-advanced",
     }
 
@@ -280,17 +281,19 @@ def test_settings_sections_exclude_legacy_retrieval_advanced_slug() -> None:
 
 
 def test_agentic_settings_section_ownership_is_explicit() -> None:
-    assert AGENTIC_SETTINGS_SECTIONS["agentic-core"] == [
+    assert AGENTIC_SETTINGS_SECTIONS["agentic-enablement"] == [
         "cv.agentic_late_stage.enabled",
+        "cv_analysis.semantic_alignment.enabled",
         "synonym_management.propose_enabled",
         "synonym_management.apply_to_run_enabled",
         "synonym_management.promote_global_enabled",
+    ]
+    assert AGENTIC_SETTINGS_SECTIONS["agentic-automation"] == [
         "synonym_management.auto_triage_recommendation_enabled",
         "synonym_management.triage_recommendation_reuse_enabled",
         "synonym_management.auto_apply_recommendation_enabled",
         "synonym_management.auto_promote_global_enabled",
         "synonym_management.auto_accept_ai_action_enabled",
-        "cv_analysis.semantic_alignment.enabled",
     ]
     assert AGENTIC_SETTINGS_SECTIONS["agentic-advanced"] == [
         "cv_analysis.semantic_alignment.model",
@@ -935,7 +938,7 @@ def test_settings_sections_retrieval_core_stays_focused_on_selection_funnel():
 def test_agentic_sections_own_semantic_alignment_enablement() -> None:
     from fitcv_cp.settings_schema import AGENTIC_SETTINGS_SECTIONS
 
-    assert "cv_analysis.semantic_alignment.enabled" in AGENTIC_SETTINGS_SECTIONS["agentic-core"]
+    assert "cv_analysis.semantic_alignment.enabled" in AGENTIC_SETTINGS_SECTIONS["agentic-enablement"]
 
 
 def test_settings_sections_global_job_filters_has_two_keys():

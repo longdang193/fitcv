@@ -5299,7 +5299,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "title": "Enablement",
                     "helper": "Turn on agentic pathways and core capabilities used by future runs.",
                     "submit_kind": "section",
-                    "submit_slug": "agentic-core",
+                    "submit_slug": "agentic-enablement",
                     "save_label": "Save Enablement Settings",
                     "keys": [
                         "cv.agentic_late_stage.enabled",
@@ -5314,7 +5314,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "title": "Automation",
                     "helper": "Control recommendation, auto-apply, and auto-promote behavior.",
                     "submit_kind": "section",
-                    "submit_slug": "agentic-core",
+                    "submit_slug": "agentic-automation",
                     "save_label": "Save Automation Settings",
                     "keys": [
                         "synonym_management.auto_triage_recommendation_enabled",
@@ -6828,6 +6828,41 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 coerced[key] = _coerce_and_validate_single_setting(key, raw)
             except HTTPException as exc:
                 section_errors[key] = str(exc.detail)
+
+        if section_name == "agentic-automation" and not section_errors:
+            enable_apply_prereq = str(form.get("__enable_prereq_apply_to_run", "")).strip().lower() in {"true", "1", "yes", "on"}
+            enable_promote_prereq = str(form.get("__enable_prereq_promote_global", "")).strip().lower() in {"true", "1", "yes", "on"}
+
+            if enable_apply_prereq:
+                coerced["synonym_management.apply_to_run_enabled"] = True
+            if enable_promote_prereq:
+                coerced["synonym_management.promote_global_enabled"] = True
+
+            apply_gate_on = bool(
+                coerced.get(
+                    "synonym_management.apply_to_run_enabled",
+                    active.get("synonym_management.apply_to_run_enabled", schema_by_key["synonym_management.apply_to_run_enabled"]["default"]),
+                )
+            )
+            promote_gate_on = bool(
+                coerced.get(
+                    "synonym_management.promote_global_enabled",
+                    active.get("synonym_management.promote_global_enabled", schema_by_key["synonym_management.promote_global_enabled"]["default"]),
+                )
+            )
+            auto_apply_on = bool(coerced.get("synonym_management.auto_apply_recommendation_enabled", False))
+            auto_promote_on = bool(coerced.get("synonym_management.auto_promote_global_enabled", False))
+
+            if auto_apply_on and not apply_gate_on:
+                section_errors["synonym_management.auto_apply_recommendation_enabled"] = (
+                    "Auto Apply Recommendation requires Synonym Apply-to-Run gate enabled. "
+                    "Enable prerequisite and continue, or keep Auto Apply off."
+                )
+            if auto_promote_on and not promote_gate_on:
+                section_errors["synonym_management.auto_promote_global_enabled"] = (
+                    "Auto Promote to Global requires Synonym Promote-Global gate enabled. "
+                    "Enable prerequisite and continue, or keep Auto Promote off."
+                )
 
         # Run cross-key validation across all coerced values in this section
         if not section_errors:

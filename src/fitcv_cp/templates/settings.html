@@ -590,6 +590,13 @@
         <div>
           <div class="task-section-title">{{ section.title }}</div>
           <div class="task-section-helper">{{ section.helper }}</div>
+          {% if section.id == "agentic" %}
+            <div class="settings-decision-item-meta" style="margin-top:0.4rem">
+              Manual Capability Gate controls permission. Automatic Execution controls policy.
+              If automation is ON while prerequisite gate is OFF, save flow will require explicit choice:
+              enable prerequisite and continue, or keep automation OFF.
+            </div>
+          {% endif %}
         </div>
       </div>
       <div class="task-section-grid">
@@ -939,6 +946,61 @@
     return issues;
   }
 
+  function coerceBoolField(form, name) {
+    const field = form.querySelector('[name="' + name + '"]');
+    if (!field) return false;
+    return String(field.value).toLowerCase() === 'true';
+  }
+
+  function setBoolField(form, name, enabled) {
+    const hidden = form.querySelector('input[type="hidden"][name="' + name + '"]');
+    const checkbox = form.querySelector('input[type="checkbox"][name="' + name + '"]');
+    if (hidden) hidden.value = enabled ? 'true' : 'false';
+    if (checkbox) checkbox.checked = !!enabled;
+  }
+
+  function ensureHiddenFlag(form, name, value) {
+    let field = form.querySelector('input[type="hidden"][name="' + name + '"]');
+    if (!field) {
+      field = document.createElement('input');
+      field.type = 'hidden';
+      field.name = name;
+      form.appendChild(field);
+    }
+    field.value = value;
+  }
+
+  function resolveAutomationPrerequisites(form) {
+    if (!form.action.endsWith('/admin/settings/section/agentic-automation')) return true;
+    const autoApplyEnabled = coerceBoolField(form, 'synonym_management.auto_apply_recommendation_enabled');
+    const autoPromoteEnabled = coerceBoolField(form, 'synonym_management.auto_promote_global_enabled');
+    const applyGateChecked = coerceBoolField(document, 'synonym_management.apply_to_run_enabled');
+    const promoteGateChecked = coerceBoolField(document, 'synonym_management.promote_global_enabled');
+
+    if (autoApplyEnabled && !applyGateChecked) {
+      const enablePrereq = window.confirm(
+        'Auto Apply requires Synonym Apply-to-Run gate.\n\nOK: Enable prerequisite and continue.\nCancel: Keep Auto Apply OFF.'
+      );
+      if (enablePrereq) {
+        ensureHiddenFlag(form, '__enable_prereq_apply_to_run', 'true');
+      } else {
+        setBoolField(form, 'synonym_management.auto_apply_recommendation_enabled', false);
+      }
+    }
+
+    if (autoPromoteEnabled && !promoteGateChecked) {
+      const enablePrereq = window.confirm(
+        'Auto Promote requires Synonym Promote-Global gate.\n\nOK: Enable prerequisite and continue.\nCancel: Keep Auto Promote OFF.'
+      );
+      if (enablePrereq) {
+        ensureHiddenFlag(form, '__enable_prereq_promote_global', 'true');
+      } else {
+        setBoolField(form, 'synonym_management.auto_promote_global_enabled', false);
+      }
+    }
+    return true;
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
     document.body.dataset.activeComplexity = 'basic';
     document.body.dataset.activeStage = 'all';
@@ -1015,6 +1077,10 @@
         field.addEventListener('change', function() { updateCardDirtyState(form); });
       });
       form.addEventListener('submit', function(event) {
+        if (!resolveAutomationPrerequisites(form)) {
+          event.preventDefault();
+          return;
+        }
         const issues = runPreflightGuardrails(form);
         if (issues.length > 0) {
           event.preventDefault();

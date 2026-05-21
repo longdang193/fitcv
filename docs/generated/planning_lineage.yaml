@@ -129,6 +129,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-17-17-36-synonym-proposal-review-gateway-and-dedicated-workspace-plan.md
     - docs/superpowers/plans/2026-05-17-19-20-terminal-run-artifact-mirror-and-backfill-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
     derived_completion: in_progress
   - thread_id: workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow
     status: proposed

@@ -154,6 +154,27 @@ When enabled for run-all:
 3. If all pending are low-risk and accepted, run can complete without awaiting_continue.
 4. If any high-risk remains, preserve awaiting_review checkpoint behavior.
 
+### 8.6 Settings Save Symmetry and Prerequisite Resolution
+
+Operator settings save boundaries must be symmetric and explicit:
+
+1. Enablement card saves only enablement keys via `agentic-enablement` section route.
+2. Automation card saves only automation keys via `agentic-automation` section route.
+3. No implicit cross-card mutation is allowed during normal save.
+
+Manual Capability Gate and Automatic Execution semantics:
+
+1. Gate is permission layer.
+2. Automatic execution is policy layer.
+3. Automatic execution never bypasses gate prerequisites.
+
+When an operator enables automation while prerequisite gate is OFF:
+
+1. Save flow must require explicit choice:
+   - enable prerequisite and continue
+   - keep automation OFF
+2. System must not silently flip unrelated settings.
+
 ## 9) Acceptance Criteria
 
 1. Settings exist and persist in effective-settings snapshots.

@@ -143,7 +143,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "type": "bool",
         "default": True,
         "label": "Synonym Apply-to-Run (Manual Capability Gate)",
-        "description": "Manual capability gate. Allows run-scoped synonym review actions and apply-approved-to-run overlay writes. This setting does not auto-apply decisions.",
+        "description": "Permission gate for apply-to-run capability. OFF blocks both manual and automatic apply actions. ON allows manual apply actions; automatic apply still requires its separate automation toggle.",
         "group": "agentic",
         "config_path": ["synonym_management", "apply_to_run_enabled"],
         "agentic_section": _AGENTIC_SECTION_CORE,
@@ -153,7 +153,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "type": "bool",
         "default": True,
         "label": "Synonym Promote-Global (Manual Capability Gate)",
-        "description": "Manual capability gate. Allows promotion of approved synonym proposals into the global synonym map. This setting does not auto-promote.",
+        "description": "Permission gate for promote-global capability. OFF blocks both manual and automatic promote actions. ON allows manual promote actions; automatic promote still requires its separate automation toggle.",
         "group": "agentic",
         "config_path": ["synonym_management", "promote_global_enabled"],
         "agentic_section": _AGENTIC_SECTION_CORE,
@@ -183,7 +183,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "type": "bool",
         "default": True,
         "label": "Auto Apply Recommendation (Automatic Execution)",
-        "description": "Automation policy: automatically apply recommended synonym proposal actions after triage refresh when safety checks pass. Requires Synonym Apply-to-Run Enabled.",
+        "description": "Automation policy toggle. When ON, system may auto-apply recommended actions after safety checks pass. Requires Synonym Apply-to-Run gate ON; never bypasses gate.",
         "group": "agentic",
         "config_path": ["synonym_management", "auto_apply_recommendation_enabled"],
         "agentic_section": _AGENTIC_SECTION_CORE,
@@ -193,7 +193,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "type": "bool",
         "default": True,
         "label": "Auto Promote to Global (Automatic Execution)",
-        "description": "Automation policy: automatically promote approved synonym proposals to global map after validation and conflict checks pass. Requires Synonym Promote-Global Enabled.",
+        "description": "Automation policy toggle. When ON, system may auto-promote approved actions after validation and conflict checks pass. Requires Synonym Promote-Global gate ON; never bypasses gate.",
         "group": "agentic",
         "config_path": ["synonym_management", "auto_promote_global_enabled"],
         "agentic_section": _AGENTIC_SECTION_CORE,
@@ -846,17 +846,40 @@ SETTINGS_SECTIONS: dict[str, list[str]] = {
 }
 
 
-def _build_agentic_settings_sections() -> dict[str, list[str]]:
-    sections: dict[str, list[str]] = {}
-    for entry in SETTINGS_SCHEMA:
-        section = entry.get("agentic_section")
-        if not isinstance(section, str) or not section:
-            continue
-        sections.setdefault(section, []).append(entry["key"])
-    return sections
+AGENTIC_ENABLEMENT_SECTION_KEYS: list[str] = [
+    "cv.agentic_late_stage.enabled",
+    "cv_analysis.semantic_alignment.enabled",
+    "synonym_management.propose_enabled",
+    "synonym_management.apply_to_run_enabled",
+    "synonym_management.promote_global_enabled",
+]
 
+AGENTIC_AUTOMATION_SECTION_KEYS: list[str] = [
+    "synonym_management.auto_triage_recommendation_enabled",
+    "synonym_management.triage_recommendation_reuse_enabled",
+    "synonym_management.auto_apply_recommendation_enabled",
+    "synonym_management.auto_promote_global_enabled",
+    "synonym_management.auto_accept_ai_action_enabled",
+]
 
-AGENTIC_SETTINGS_SECTIONS: dict[str, list[str]] = _build_agentic_settings_sections()
+AGENTIC_ADVANCED_SECTION_KEYS: list[str] = [
+    "cv_analysis.semantic_alignment.model",
+    "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+    "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+    "cv_analysis.semantic_alignment.role_lexical_weight",
+    "cv_analysis.semantic_alignment.role_semantic_weight",
+    "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+    "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+    "cv_analysis.semantic_alignment.domain_lexical_weight",
+    "cv_analysis.semantic_alignment.domain_semantic_weight",
+    "cv_analysis.semantic_alignment.channel_pool_size",
+]
+
+AGENTIC_SETTINGS_SECTIONS: dict[str, list[str]] = {
+    "agentic-enablement": list(AGENTIC_ENABLEMENT_SECTION_KEYS),
+    "agentic-automation": list(AGENTIC_AUTOMATION_SECTION_KEYS),
+    "agentic-advanced": list(AGENTIC_ADVANCED_SECTION_KEYS),
+}
 
 # ── CV Generation settings schema ──────────────────────────────────────────
 # Kept for reference and documentation only.  The actual schema entries live

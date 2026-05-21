@@ -9350,6 +9350,23 @@ def _agentic_advanced_section_form(
     }
 
 
+def _agentic_automation_section_form(
+    *,
+    auto_triage_enabled: str = "true",
+    triage_reuse_enabled: str = "true",
+    auto_apply_enabled: str = "true",
+    auto_promote_enabled: str = "true",
+    auto_accept_ai_action_enabled: str = "true",
+) -> dict[str, str]:
+    return {
+        "synonym_management.auto_triage_recommendation_enabled": auto_triage_enabled,
+        "synonym_management.triage_recommendation_reuse_enabled": triage_reuse_enabled,
+        "synonym_management.auto_apply_recommendation_enabled": auto_apply_enabled,
+        "synonym_management.auto_promote_global_enabled": auto_promote_enabled,
+        "synonym_management.auto_accept_ai_action_enabled": auto_accept_ai_action_enabled,
+    }
+
+
 def test_post_settings_section_valid_redirects():
     """Valid payload for retrieval core section returns 303."""
     with patch("fitcv_cp.app.save_settings_group"), \
@@ -9453,16 +9470,16 @@ def test_post_settings_section_advanced_retrieval_without_metadata_only_input_re
     mock_group_save.assert_not_called()
 
 
-def test_post_settings_section_agentic_core_valid_redirects() -> None:
+def test_post_settings_section_agentic_enablement_valid_redirects() -> None:
     captured = {}
 
     def _capture_save(values, *, updated_by, bq, project, dataset):
         captured["values"] = values
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
-         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
-            "/admin/settings/section/agentic-core",
+            "/admin/settings/section/agentic-enablement",
             data=_agentic_core_section_form(),
         )
 
@@ -9492,12 +9509,12 @@ def test_post_settings_section_agentic_advanced_omits_metadata_only_input() -> N
     assert "cv_analysis.semantic_alignment.role_semantic_weight" in captured["values"]
 
 
-def test_post_settings_section_agentic_core_preserves_current_vs_draft_feedback() -> None:
+def test_post_settings_section_agentic_enablement_preserves_current_vs_draft_feedback() -> None:
     active = {"cv.agentic_late_stage.enabled": False}
 
     with patch("fitcv_cp.app.load_active_settings", return_value=active):
         resp = TestClient(_app(), follow_redirects=False).post(
-            "/admin/settings/section/agentic-core",
+            "/admin/settings/section/agentic-enablement",
             data=_agentic_core_section_form(semantic_alignment_enabled="not-a-bool"),
         )
 
@@ -9536,6 +9553,76 @@ def test_post_settings_section_agentic_advanced_typed_equivalent_values_are_not_
     assert 'data-entry-key="cv_analysis.semantic_alignment.required_skill_lexical_weight" data-dirty="true"' not in html
     assert 'data-entry-key="cv_analysis.semantic_alignment.role_semantic_weight" data-dirty="true"' in html
     assert "1 unsaved edit" in html
+
+
+def test_post_settings_section_agentic_automation_does_not_mutate_enablement_keys() -> None:
+    captured: dict[str, Any] = {}
+
+    def _capture_save(values, *, updated_by, bq, project, dataset):
+        captured["values"] = values
+
+    with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
+         patch(
+             "fitcv_cp.app.load_active_settings",
+             return_value={
+                 "synonym_management.apply_to_run_enabled": True,
+                 "synonym_management.promote_global_enabled": True,
+             },
+         ):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/agentic-automation",
+            data=_agentic_automation_section_form(),
+        )
+
+    assert resp.status_code == 303
+    assert "synonym_management.auto_apply_recommendation_enabled" in captured["values"]
+    assert "synonym_management.apply_to_run_enabled" not in captured["values"]
+    assert "synonym_management.promote_global_enabled" not in captured["values"]
+
+
+def test_post_settings_section_agentic_automation_prereq_can_be_enabled_explicitly() -> None:
+    captured: dict[str, Any] = {}
+
+    def _capture_save(values, *, updated_by, bq, project, dataset):
+        captured["values"] = values
+
+    with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
+         patch(
+             "fitcv_cp.app.load_active_settings",
+             return_value={
+                 "synonym_management.apply_to_run_enabled": False,
+                 "synonym_management.promote_global_enabled": False,
+             },
+         ):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/agentic-automation",
+            data={
+                **_agentic_automation_section_form(),
+                "__enable_prereq_apply_to_run": "true",
+                "__enable_prereq_promote_global": "true",
+            },
+        )
+
+    assert resp.status_code == 303
+    assert captured["values"]["synonym_management.apply_to_run_enabled"] is True
+    assert captured["values"]["synonym_management.promote_global_enabled"] is True
+
+
+def test_post_settings_section_agentic_automation_blocks_when_prereq_off_and_not_acknowledged() -> None:
+    with patch(
+        "fitcv_cp.app.load_active_settings",
+        return_value={
+            "synonym_management.apply_to_run_enabled": False,
+            "synonym_management.promote_global_enabled": False,
+        },
+    ):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/agentic-automation",
+            data=_agentic_automation_section_form(),
+        )
+
+    assert resp.status_code == 422
+    assert "requires Synonym Apply-to-Run gate enabled" in resp.text
 
 
 def test_post_settings_key_rejects_metadata_only_agentic_setting() -> None:
@@ -11973,7 +12060,8 @@ def test_settings_page_surfaces_late_stage_stage_runtime_controls_in_agentic_sec
     assert "Throughput" in html
     assert "Advanced Agentic Tuning" not in html
     assert "Advanced Runtime Tuning" not in html
-    assert 'action="/admin/settings/section/agentic-core"' in html
+    assert 'action="/admin/settings/section/agentic-enablement"' in html
+    assert 'action="/admin/settings/section/agentic-automation"' in html
     assert 'action="/admin/settings/section/agentic-advanced"' in html
 
 
@@ -11993,12 +12081,12 @@ def test_settings_page_semantic_alignment_toggle_has_single_agentic_owner() -> N
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert 'action="/admin/settings/section/agentic-core"' in html
+    assert 'action="/admin/settings/section/agentic-enablement"' in html
     assert 'action="/admin/settings/section/retrieval-core"' in html
     assert html.count('name="cv_analysis.semantic_alignment.enabled"') == 2
 
     retrieval_form = html.split('action="/admin/settings/section/retrieval-core"', 1)[1].split("</form>", 1)[0]
-    agentic_form = html.split('action="/admin/settings/section/agentic-core"', 1)[1].split("</form>", 1)[0]
+    agentic_form = html.split('action="/admin/settings/section/agentic-enablement"', 1)[1].split("</form>", 1)[0]
 
     assert 'name="cv_analysis.semantic_alignment.enabled"' not in retrieval_form
     assert agentic_form.count('name="cv_analysis.semantic_alignment.enabled"') == 2
