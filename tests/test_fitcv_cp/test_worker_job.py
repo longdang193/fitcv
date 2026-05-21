@@ -2382,6 +2382,17 @@ def test_synonym_management_mode_matches_authoritative_resolver_defaults() -> No
 
     assert actual == expected
 
+def test_synonym_management_mode_prefers_canonical_reuse_toggle() -> None:
+    from fitcv_cp.synonym_proposals import resolve_synonym_management_mode
+
+    mode = resolve_synonym_management_mode(
+        {
+            "synonym_management": {"triage_recommendation_reuse_enabled": True},
+            "reuse": {"synonym_triage": {"enabled": False}},
+        }
+    )
+    assert mode["triage_recommendation_reuse_enabled"] is False
+
 def test_build_synonym_overlay_yaml_roundtrips_reserved_scalars() -> None:
     from fitcv.config import parse_skill_synonym_overlay_yaml
     from fitcv_cp.worker_job import _build_synonym_overlay_yaml

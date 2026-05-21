@@ -21,6 +21,10 @@ import time
 from copy import deepcopy
 from typing import Any, Callable
 
+def _reuse_stage_enabled(config: dict[str, Any], stage: str) -> bool:
+    reuse_block = dict(config.get("reuse") or {})
+    stage_block = dict(reuse_block.get(str(stage or "").strip()) or {})
+    return bool(stage_block.get("enabled", True))
 
 def execute_normalize_stage(
     *,
@@ -329,6 +333,7 @@ def execute_ranking_stage(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     with observe_span("pipeline.ai_score", attributes={"run_id": run_id}):
         ai_top_n = int(config["pipeline"]["ai_score_top_n"])
+        ranking_reuse_enabled = _reuse_stage_enabled(config, "ranking")
         if cancellation_check and cancellation_check():
             raise cancellation_error_cls("Cancelled before AI scoring")
         ai_score_candidates = shortlist[:ai_top_n]
@@ -344,7 +349,11 @@ def execute_ranking_stage(
                 config,
             )
             job_url = extract_job_url(shortlisted_job)
-            reused_ai_row = ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
+            reused_ai_row = (
+                ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
+                if ranking_reuse_enabled
+                else None
+            )
             if reused_ai_row is not None and job_url:
                 reused_ai_scores_by_url[job_url] = {
                     **deepcopy(reused_ai_row),
@@ -369,7 +378,7 @@ def execute_ranking_stage(
             fresh_ai_scores_by_url[job_url] = {
                 **ai_row,
                 "ai_score_input_fingerprint": fresh_ai_score_fingerprints.get(job_url),
-                "ai_score_reuse_status": "fresh_compute",
+                "ai_score_reuse_status": "fresh_compute" if ranking_reuse_enabled else "reuse_disabled",
             }
 
         ai_scores = []
@@ -1218,3 +1227,4 @@ def handle_cv_analysis_compute_branch(
             "ranking_fit_label": analysis_record.get("ranking_fit_label"),
             "error_stage": str(analysis_record["error"].get("stage") or ""),
         }
+

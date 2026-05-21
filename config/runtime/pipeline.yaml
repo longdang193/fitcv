@@ -71,3 +71,15 @@ synonym_management:
   triage_recommendation_reuse_enabled: true
   auto_apply_recommendation_enabled: true
   auto_promote_global_enabled: true
+
+reuse:
+  enrich:
+    enabled: true
+  ranking:
+    enabled: true
+  cv_analysis:
+    enabled: true
+  cv_generation:
+    enabled: true
+  synonym_triage:
+    enabled: true

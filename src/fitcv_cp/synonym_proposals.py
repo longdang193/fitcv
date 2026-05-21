@@ -33,6 +33,13 @@ _SYNONYM_MANAGEMENT_DEFAULTS: dict[str, bool] = {
     "auto_promote_global_enabled": True,
     "auto_accept_ai_action_enabled": True,
 }
+_REUSE_DEFAULTS: dict[str, bool] = {
+    "enrich": True,
+    "ranking": True,
+    "cv_analysis": True,
+    "cv_generation": True,
+    "synonym_triage": True,
+}
 
 def build_synonym_proposal_identity(
     *,
@@ -90,15 +97,28 @@ def build_synonym_triage_fingerprint(
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 def resolve_synonym_management_mode(settings_payload: dict[str, Any] | None) -> dict[str, bool]:
-    block = dict((settings_payload or {}).get("synonym_management") or {})
-    return {
+    payload = dict(settings_payload or {})
+    block = dict(payload.get("synonym_management") or {})
+    reuse_block = dict(payload.get("reuse") or {})
+    synonym_reuse_block = dict(reuse_block.get("synonym_triage") or {})
+    mode = {
         key: bool(block.get(key, default_value))
         for key, default_value in _SYNONYM_MANAGEMENT_DEFAULTS.items()
     }
+    # Canonical control lives under reuse.synonym_triage.enabled; legacy key remains fallback.
+    if "enabled" in synonym_reuse_block:
+        mode["triage_recommendation_reuse_enabled"] = bool(synonym_reuse_block.get("enabled"))
+    return mode
 
 def apply_synonym_management_defaults(settings_payload: dict[str, Any] | None) -> dict[str, Any]:
     normalized = dict(settings_payload or {})
     normalized["synonym_management"] = resolve_synonym_management_mode(normalized)
+    reuse = dict(normalized.get("reuse") or {})
+    for stage, default_enabled in _REUSE_DEFAULTS.items():
+        stage_block = dict(reuse.get(stage) or {})
+        stage_block.setdefault("enabled", default_enabled)
+        reuse[stage] = stage_block
+    normalized["reuse"] = reuse
     return normalized
 
 

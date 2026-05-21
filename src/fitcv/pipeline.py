@@ -401,11 +401,16 @@ def _enrich_jobs_with_reuse(
         raw_job_fingerprints[job_url] = build_raw_job_fingerprint(job)["fingerprint"]
 
     enrich_contract_fingerprint = build_enrich_contract_fingerprint(config)["fingerprint"]
-    reused_rows_by_url = pipeline_store.lookup_reusable_structured_jobs(
-        normalized_jobs,
-        config,
-        raw_job_fingerprints=raw_job_fingerprints,
-        enrich_contract_fingerprint=enrich_contract_fingerprint,
+    enrich_reuse_enabled = _reuse_stage_enabled(config, "enrich")
+    reused_rows_by_url = (
+        pipeline_store.lookup_reusable_structured_jobs(
+            normalized_jobs,
+            config,
+            raw_job_fingerprints=raw_job_fingerprints,
+            enrich_contract_fingerprint=enrich_contract_fingerprint,
+        )
+        if enrich_reuse_enabled
+        else {}
     )
 
     fresh_jobs = [
@@ -589,6 +594,11 @@ def _enrich_runtime_projection(config: dict[str, Any]) -> dict[str, Any]:
     if "concurrency" in enrich_runtime:
         projected["enrichment_concurrency"] = enrich_runtime["concurrency"]
     return projected
+
+def _reuse_stage_enabled(config: dict[str, Any], stage: str) -> bool:
+    reuse_block = dict(config.get("reuse") or {})
+    stage_block = dict(reuse_block.get(str(stage or "").strip()) or {})
+    return bool(stage_block.get("enabled", True))
 
 
 def _merge_ranked_job_with_enriched_context(
@@ -3909,6 +3919,7 @@ def run_pipeline(
                 if cancellation_check and cancellation_check():
                     raise PipelineCancelled("Cancelled before AI scoring")
                 ai_score_candidates = shortlist[:ai_top_n]
+                ranking_reuse_enabled = _reuse_stage_enabled(config, "ranking")
                 fresh_scoring_jobs: list[dict[str, Any]] = []
                 fresh_ai_score_fingerprints: dict[str, str] = {}
                 reused_ai_scores_by_url: dict[str, dict[str, Any]] = {}
@@ -3921,7 +3932,11 @@ def run_pipeline(
                         config,
                     )
                     job_url = _extract_job_url(shortlisted_job)
-                    reused_ai_row = ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
+                    reused_ai_row = (
+                        ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
+                        if ranking_reuse_enabled
+                        else None
+                    )
                     if reused_ai_row is not None and job_url:
                         reused_ai_scores_by_url[job_url] = {
                             **deepcopy(reused_ai_row),
@@ -3946,7 +3961,7 @@ def run_pipeline(
                     fresh_ai_scores_by_url[job_url] = {
                         **ai_row,
                         "ai_score_input_fingerprint": fresh_ai_score_fingerprints.get(job_url),
-                        "ai_score_reuse_status": "fresh_compute",
+                        "ai_score_reuse_status": "fresh_compute" if ranking_reuse_enabled else "reuse_disabled",
                     }
 
                 ai_scores = []
@@ -4093,6 +4108,12 @@ def run_pipeline(
                 if cancellation_check and cancellation_check():
                     raise PipelineCancelled("Cancelled before CV analysis")
                 cv_analysis_results = []
+                # CV generation consumes cv_analysis outputs directly; disable analysis snapshot reuse
+                # when cv_generation reuse is explicitly disabled to keep late-stage path fully fresh.
+                cv_analysis_reuse_enabled = (
+                    _reuse_stage_enabled(config, "cv_analysis")
+                    and _reuse_stage_enabled(config, "cv_generation")
+                )
                 pending_agentic_analysis: list[tuple[int, dict[str, Any], Future[dict[str, Any]]]] = []
                 agentic_executor: ThreadPoolExecutor | None = None
                 for job in ranked_jobs_for_cv:
@@ -4149,7 +4170,11 @@ def run_pipeline(
                         )
                         continue
                     analysis_fingerprint_record = build_cv_analysis_input_fingerprint(profile, job, config)
-                    reused_analysis_record = cv_analysis_reuse_index.get(analysis_fingerprint_record["fingerprint"])
+                    reused_analysis_record = (
+                        cv_analysis_reuse_index.get(analysis_fingerprint_record["fingerprint"])
+                        if cv_analysis_reuse_enabled
+                        else None
+                    )
                     if reused_analysis_record is not None:
                         analysis_record = {
                             **deepcopy(reused_analysis_record),

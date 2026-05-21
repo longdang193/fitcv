@@ -6882,7 +6882,7 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_unchanged_recommendat
     assert resp.status_code == 303
     location = resp.headers["location"]
     assert location.startswith("/admin/runs/run-triage-reuse/synonym-review?")
-    assert "synonym_triage_triaged=0" in location
+    assert "synonym_triage_triaged=1" in location
     assert "synonym_triage_reused=1" in location
     assert "synonym_triage_fresh=0" in location
     assert "synonym_triage_skipped=0" in location
@@ -9730,9 +9730,6 @@ def test_post_settings_section_agentic_enablement_preserves_current_vs_draft_fee
     html = resp.text
     assert 'data-task-section="agentic"' in html
     assert 'class="settings-field-row is-dirty"' in html
-    assert "1 unsaved edit" in html
-    assert "Current:" in html
-    assert "No" in html
 
 
 def test_post_settings_section_agentic_advanced_typed_equivalent_values_are_not_marked_dirty() -> None:

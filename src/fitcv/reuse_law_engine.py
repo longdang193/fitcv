@@ -1,4 +1,19 @@
-"""Reusable policy-gate helpers for cross-stage reuse decisions."""
+"""@meta
+name: reuse_law_engine
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.exact-match-late-stage-reuse
+responsibility:
+  - Provide reusable policy-gate helpers for cross-stage reuse decisions.
+inputs:
+  - Stage semantic/runtime fingerprints and policy gate inputs
+outputs:
+  - Deterministic reuse identities, decisions, and provenance payloads
+lifecycle:
+  - status: active
+"""
 
 from __future__ import annotations
 

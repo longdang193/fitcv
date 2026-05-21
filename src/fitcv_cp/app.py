@@ -121,6 +121,7 @@ from fitcv_cp.synonym_proposals import (
     apply_synonym_management_defaults,
     build_synonym_proposals_payload,
     build_synonym_triage_fingerprint,
+    resolve_synonym_management_mode,
     transition_synonym_proposal_status,
 )
 from fitcv_cp.data_plane import data_plane_contract_payload
@@ -3389,17 +3390,7 @@ def _validate_overlay_scope(overlay_payload: dict[str, Any], scope: str) -> None
 
 def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
     config = _load_run_effective_config_snapshot(run, fallback_to_runtime_config=False)
-    block = dict(config.get("synonym_management") or {})
-    return {
-        "propose_enabled": bool(block.get("propose_enabled", True)),
-        "apply_to_run_enabled": bool(block.get("apply_to_run_enabled", True)),
-        "promote_global_enabled": bool(block.get("promote_global_enabled", True)),
-        "auto_triage_recommendation_enabled": bool(block.get("auto_triage_recommendation_enabled", True)),
-        "triage_recommendation_reuse_enabled": bool(block.get("triage_recommendation_reuse_enabled", True)),
-        "auto_apply_recommendation_enabled": bool(block.get("auto_apply_recommendation_enabled", False)),
-        "auto_promote_global_enabled": bool(block.get("auto_promote_global_enabled", False)),
-        "auto_accept_ai_action_enabled": bool(block.get("auto_accept_ai_action_enabled", True)),
-    }
+    return resolve_synonym_management_mode(config)
 
 def _synonym_review_section_state(
     *,
@@ -5456,6 +5447,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "synonym_management.propose_enabled",
                         "synonym_management.apply_to_run_enabled",
                         "synonym_management.promote_global_enabled",
+                        "reuse.enrich.enabled",
+                        "reuse.ranking.enabled",
+                        "reuse.cv_analysis.enabled",
+                        "reuse.cv_generation.enabled",
+                        "reuse.synonym_triage.enabled",
                     ],
                 },
                 {

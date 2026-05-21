@@ -64,6 +64,11 @@ def test_all_expected_keys_present():
     assert "ranking_weights.ai_score" in keys
     assert "fit_label_thresholds.strong" in keys
     assert "gap_thresholds.strong_min_matched_ratio" in keys
+    assert "reuse.enrich.enabled" in keys
+    assert "reuse.ranking.enabled" in keys
+    assert "reuse.cv_analysis.enabled" in keys
+    assert "reuse.cv_generation.enabled" in keys
+    assert "reuse.synonym_triage.enabled" in keys
     # excluded key — internal fallback only, not admin-editable
     assert "rerank_top_n" not in keys
 
@@ -287,6 +292,11 @@ def test_agentic_settings_section_ownership_is_explicit() -> None:
         "synonym_management.propose_enabled",
         "synonym_management.apply_to_run_enabled",
         "synonym_management.promote_global_enabled",
+        "reuse.enrich.enabled",
+        "reuse.ranking.enabled",
+        "reuse.cv_analysis.enabled",
+        "reuse.cv_generation.enabled",
+        "reuse.synonym_triage.enabled",
     ]
     assert AGENTIC_SETTINGS_SECTIONS["agentic-automation"] == [
         "synonym_management.auto_triage_recommendation_enabled",
@@ -318,6 +328,11 @@ def test_agentic_settings_mutability_distinguishes_editable_metadata_only_and_ex
         "synonym_management.propose_enabled",
         "synonym_management.apply_to_run_enabled",
         "synonym_management.promote_global_enabled",
+        "reuse.enrich.enabled",
+        "reuse.ranking.enabled",
+        "reuse.cv_analysis.enabled",
+        "reuse.cv_generation.enabled",
+        "reuse.synonym_triage.enabled",
         "synonym_management.auto_triage_recommendation_enabled",
         "synonym_management.triage_recommendation_reuse_enabled",
         "synonym_management.auto_apply_recommendation_enabled",
@@ -339,6 +354,24 @@ def test_agentic_settings_mutability_distinguishes_editable_metadata_only_and_ex
         "cv_template_path",
         "skill_synonyms_runtime",
     }
+
+def test_apply_settings_to_config_reuse_nested_paths() -> None:
+    config: dict = {}
+    apply_settings_to_config(
+        config,
+        {
+            "reuse.enrich.enabled": False,
+            "reuse.ranking.enabled": True,
+            "reuse.cv_analysis.enabled": False,
+            "reuse.cv_generation.enabled": True,
+            "reuse.synonym_triage.enabled": False,
+        },
+    )
+    assert config["reuse"]["enrich"]["enabled"] is False
+    assert config["reuse"]["ranking"]["enabled"] is True
+    assert config["reuse"]["cv_analysis"]["enabled"] is False
+    assert config["reuse"]["cv_generation"]["enabled"] is True
+    assert config["reuse"]["synonym_triage"]["enabled"] is False
 
 
 def test_all_editable_agentic_settings_have_persistence_backed_config_paths() -> None:
