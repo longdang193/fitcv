@@ -1257,6 +1257,20 @@ def _score_components(
         ),
     }
 
+def _effective_channel_weights(
+    semantic_settings: dict[str, Any],
+    *,
+    lexical_weight_key: str,
+    semantic_weight_key: str,
+) -> tuple[float, float]:
+    if bool(semantic_settings.get("enabled")):
+        return (
+            float(semantic_settings[lexical_weight_key]),
+            float(semantic_settings[semantic_weight_key]),
+        )
+    # Semantic alignment is disabled, so channel scoring must be lexical-only.
+    return (1.0, 0.0)
+
 
 def _score_channel_components(
     item: dict[str, Any],
@@ -1273,6 +1287,11 @@ def _score_channel_components(
 ) -> dict[str, float]:
     lexical_score = float(lexical_score_fn(item, job_context))
     semantic_score = 0.0
+    lexical_weight, semantic_weight = _effective_channel_weights(
+        semantic_settings,
+        lexical_weight_key=lexical_weight_key,
+        semantic_weight_key=semantic_weight_key,
+    )
     if semantic_settings["enabled"] and config is not None:
         semantic_score = _semantic_similarity(
             job_texts=[str(value) for value in semantic_job_texts_fn(job_context) if value],
@@ -1284,8 +1303,8 @@ def _score_channel_components(
     return _score_components(
         lexical_score,
         semantic_score,
-        lexical_weight=float(semantic_settings[lexical_weight_key]),
-        semantic_weight=float(semantic_settings[semantic_weight_key]),
+        lexical_weight=lexical_weight,
+        semantic_weight=semantic_weight,
     )
 
 
@@ -1695,6 +1714,26 @@ def _build_retrieve_evidence_bundle_payload(
     merged_pool: list[dict[str, Any]],
     unselected_top_candidates: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    required_skill_lexical_weight, required_skill_semantic_weight = _effective_channel_weights(
+        semantic_settings,
+        lexical_weight_key="required_skill_lexical_weight",
+        semantic_weight_key="required_skill_semantic_weight",
+    )
+    role_lexical_weight, role_semantic_weight = _effective_channel_weights(
+        semantic_settings,
+        lexical_weight_key="role_lexical_weight",
+        semantic_weight_key="role_semantic_weight",
+    )
+    responsibility_lexical_weight, responsibility_semantic_weight = _effective_channel_weights(
+        semantic_settings,
+        lexical_weight_key="responsibility_lexical_weight",
+        semantic_weight_key="responsibility_semantic_weight",
+    )
+    domain_lexical_weight, domain_semantic_weight = _effective_channel_weights(
+        semantic_settings,
+        lexical_weight_key="domain_lexical_weight",
+        semantic_weight_key="domain_semantic_weight",
+    )
     return {
         "selected_evidence": selected_evidence,
         "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in selected_evidence],
@@ -1709,20 +1748,20 @@ def _build_retrieve_evidence_bundle_payload(
         "unselected_top_candidates": unselected_top_candidates,
         "hybrid_alignment": {
             "required_skill_support": {
-                "lexical_weight": round(float(semantic_settings["required_skill_lexical_weight"]), 6),
-                "semantic_weight": round(float(semantic_settings["required_skill_semantic_weight"]), 6),
+                "lexical_weight": round(required_skill_lexical_weight, 6),
+                "semantic_weight": round(required_skill_semantic_weight, 6),
             },
             "role_alignment": {
-                "lexical_weight": round(float(semantic_settings["role_lexical_weight"]), 6),
-                "semantic_weight": round(float(semantic_settings["role_semantic_weight"]), 6),
+                "lexical_weight": round(role_lexical_weight, 6),
+                "semantic_weight": round(role_semantic_weight, 6),
             },
             "responsibility": {
-                "lexical_weight": round(float(semantic_settings["responsibility_lexical_weight"]), 6),
-                "semantic_weight": round(float(semantic_settings["responsibility_semantic_weight"]), 6),
+                "lexical_weight": round(responsibility_lexical_weight, 6),
+                "semantic_weight": round(responsibility_semantic_weight, 6),
             },
             "domain": {
-                "lexical_weight": round(float(semantic_settings["domain_lexical_weight"]), 6),
-                "semantic_weight": round(float(semantic_settings["domain_semantic_weight"]), 6),
+                "lexical_weight": round(domain_lexical_weight, 6),
+                "semantic_weight": round(domain_semantic_weight, 6),
             },
         },
         "semantic_alignment": semantic_alignment,

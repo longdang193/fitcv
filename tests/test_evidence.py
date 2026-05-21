@@ -790,6 +790,26 @@ def test_retrieve_evidence_bundle_contract_is_deterministic_across_repeated_runs
         assert semantic_alignment["semantic_methods"]["domain_alignment"] == "disabled"
         assert semantic_alignment["reuse_state"]["candidate_evidence"] == "not_requested"
         assert semantic_alignment["reuse_state"]["job_context"] == "not_requested"
+        for components in dict(item.get("channel_subscores") or {}).values():
+            assert components["semantic"] == 0.0
+            assert components["combined"] == components["lexical"]
+
+    assert first["hybrid_alignment"]["required_skill_support"] == {
+        "lexical_weight": 1.0,
+        "semantic_weight": 0.0,
+    }
+    assert first["hybrid_alignment"]["role_alignment"] == {
+        "lexical_weight": 1.0,
+        "semantic_weight": 0.0,
+    }
+    assert first["hybrid_alignment"]["responsibility"] == {
+        "lexical_weight": 1.0,
+        "semantic_weight": 0.0,
+    }
+    assert first["hybrid_alignment"]["domain"] == {
+        "lexical_weight": 1.0,
+        "semantic_weight": 0.0,
+    }
 
 
 def test_retrieve_evidence_bundle_preserves_selection_and_debug_schema_contract() -> None:

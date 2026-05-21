@@ -5636,6 +5636,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     has_missing_required=is_missing_required,
                     has_quality_risk=bool(settings_ia_contract_for_key(key).get("is_dangerous") and key in active),
                 )
+                semantic_alignment_enabled = bool(effective.get("cv_analysis.semantic_alignment.enabled"))
+                apply_to_run_enabled = bool(effective.get("synonym_management.apply_to_run_enabled"))
+                promote_global_enabled = bool(effective.get("synonym_management.promote_global_enabled"))
                 owner_label = "Settings"
                 active_label = "Yes"
                 compatibility_alias_for = str(entry.get("compatibility_alias_for") or "").strip()
@@ -5649,6 +5652,15 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 elif key == "cv_analysis.semantic_alignment.model":
                     owner_label = "Runtime Contract"
                     active_label = "Yes"
+                elif key.startswith("cv_analysis.semantic_alignment.") and key.endswith("_semantic_weight"):
+                    owner_label = "Settings"
+                    active_label = "Yes" if semantic_alignment_enabled else "No (semantic alignment OFF)"
+                elif key == "synonym_management.auto_apply_recommendation_enabled":
+                    owner_label = "Settings"
+                    active_label = "Yes" if apply_to_run_enabled else "No (requires Apply-to-Run Enabled)"
+                elif key == "synonym_management.auto_promote_global_enabled":
+                    owner_label = "Settings"
+                    active_label = "Yes" if promote_global_enabled else "No (requires Promote-Global Enabled)"
                 elif compatibility_alias_for:
                     owner_label = "Compatibility surface (legacy alias)"
                     active_label = "Yes (maps to canonical runtime key)"

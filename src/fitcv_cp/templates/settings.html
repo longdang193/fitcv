@@ -508,6 +508,7 @@
             <span><strong>Effect:</strong> {{ entry.description }}</span>
             <span><strong>Applies when:</strong> {{ ia.applies_when }}</span>
             <span><strong>Dependencies:</strong> Backend settings validation and stage-specific consumers.</span>
+            <span><strong>Configured vs runtime:</strong> This row shows configured defaults; runtime may gate or override effective behavior. Check <strong>Active</strong> state and run-scoped <code>settings-used.json</code> for what executed.</span>
             <span><strong>Default source:</strong> {{ entry.config_path | join('.') }}</span>
             <span><strong>Observed in:</strong> settings registry/runtime consumers</span>
           </div>

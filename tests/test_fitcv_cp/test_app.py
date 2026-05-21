@@ -12091,13 +12091,54 @@ def test_settings_page_semantic_alignment_toggle_has_single_agentic_owner() -> N
     assert 'name="cv_analysis.semantic_alignment.enabled"' not in retrieval_form
     assert agentic_form.count('name="cv_analysis.semantic_alignment.enabled"') == 2
 
+def test_settings_page_active_labels_reflect_semantic_and_synonym_dependency_gates() -> None:
+    import re
+
+    with patch(
+        "fitcv_cp.app.load_active_settings",
+        return_value={
+            "cv_analysis.semantic_alignment.enabled": False,
+            "synonym_management.apply_to_run_enabled": False,
+            "synonym_management.promote_global_enabled": False,
+            "synonym_management.auto_apply_recommendation_enabled": True,
+            "synonym_management.auto_promote_global_enabled": True,
+        },
+    ):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+
+    semantic_weight_row = re.search(
+        r'data-entry-key="cv_analysis\.semantic_alignment\.role_semantic_weight".*?</div>\s*</div>\s*</div>',
+        html,
+        flags=re.DOTALL,
+    )
+    assert semantic_weight_row is not None
+    assert "Active: No (semantic alignment OFF)" in semantic_weight_row.group(0)
+
+    auto_apply_row = re.search(
+        r'data-entry-key="synonym_management\.auto_apply_recommendation_enabled".*?</div>\s*</div>\s*</div>',
+        html,
+        flags=re.DOTALL,
+    )
+    assert auto_apply_row is not None
+    assert "Active: No (requires Apply-to-Run Enabled)" in auto_apply_row.group(0)
+
+    auto_promote_row = re.search(
+        r'data-entry-key="synonym_management\.auto_promote_global_enabled".*?</div>\s*</div>\s*</div>',
+        html,
+        flags=re.DOTALL,
+    )
+    assert auto_promote_row is not None
+    assert "Active: No (requires Promote-Global Enabled)" in auto_promote_row.group(0)
+
 
 def test_settings_page_agentic_truth_copy_points_to_run_detail_and_settings_used() -> None:
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "settings-used.json" not in html
+    assert "settings-used.json" in html
     assert "run detail" not in html.lower()
 
 def test_settings_page_shows_mode_summary_strip_for_agentic_runtime() -> None:
@@ -12154,7 +12195,7 @@ def test_settings_page_explains_future_defaults_per_run_overrides_and_settings_u
     html = resp.text
     assert "future runs only" in html.lower()
     assert "Per-run overrides" not in html
-    assert "settings-used.json" not in html
+    assert "settings-used.json" in html
 
 
 def test_settings_page_labels_when_current_value_comes_from_baseline_default() -> None:
