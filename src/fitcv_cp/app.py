@@ -8722,6 +8722,18 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     checkpoint_status="completed",
                 )
             )
+            _persist_post_hitl_closure_artifact_reconciliation(
+                run_id=run_id,
+                run=dataclasses.replace(
+                    updated_run,
+                    status=RunStatus.SUCCEEDED,
+                    checkpoint_status="completed",
+                ),
+                closure_payload=closure_payload,
+                bq=bq,
+                project=project,
+                dataset=dataset,
+            )
             append_event(
                 RunEvent(
                     run_id=run_id,

@@ -1,0 +1,34 @@
+skill_synonyms:
+  any exposure to ci/cd: ci/cd
+  asynchronous processing workflows: asynchronous processing
+  bigquery ideal: google bigquery
+  code reviews in git/github: git
+  conduct basic online research: online research
+  data integration technologies: data integration
+  datenbereinigungsmaßnahmen: data cleansing
+  datenintegration: data integration
+  datenmodelle: data modeling
+  deep expertise in python: python
+  distributed system design: distributed systems design
+  enterprise governance frameworks: data governance
+  etl-prozesse: etl
+  gcp: google cloud platform (gcp)
+  google suite tools: google workspace
+  interviews: interview research
+  modern ci/cd pipelines: ci/cd
+  neural network: neural networks
+  own the llmops pipeline: llmops
+  performing data validation: data validation
+  pipeline development: data pipeline development
+  polling strategies: polling
+  proficiency in microsoft excel: microsoft excel
+  programming experience in java: java
+  regression modelling: regression modeling
+  retry mechanisms: retries
+  review data for accuracy: data validation
+  stakeholder consultations: stakeholder consultation
+  strong proficiency in python: python
+  strong python: python
+  superset: apache superset
+  token refresh logic: token refresh
+  validating information: data validation

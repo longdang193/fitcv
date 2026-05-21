@@ -1,0 +1,239 @@
+{
+  "run_id": "e9246134-0d97-4870-8cfe-d8f800e49c45",
+  "schema_version": "synonym_suppression_diff_v1",
+  "created_at": "2026-05-21T12:27:29.229357+00:00",
+  "suggested_pairs_total": 75,
+  "suppressed_pairs_total": 16,
+  "generated_pairs_total": 43,
+  "suppressed_pairs": [
+    {
+      "field": "skill",
+      "alias": "power bi",
+      "canonical": "microsoft power bi"
+    },
+    {
+      "field": "domain",
+      "alias": "data infrastructure and analytics, it system data services, and software development",
+      "canonical": "healthcare"
+    },
+    {
+      "field": "role_family",
+      "alias": "data science",
+      "canonical": "data_science"
+    },
+    {
+      "field": "role_family",
+      "alias": "data engineering",
+      "canonical": "data_engineering"
+    },
+    {
+      "field": "domain",
+      "alias": "international trade and development",
+      "canonical": "industrial trade and supply chain"
+    },
+    {
+      "field": "role_family",
+      "alias": "ml engineering",
+      "canonical": "ml_engineering"
+    },
+    {
+      "field": "domain",
+      "alias": "software development and advertising services",
+      "canonical": "advertising technology"
+    },
+    {
+      "field": "domain",
+      "alias": "financial services and insurance",
+      "canonical": "insurance"
+    },
+    {
+      "field": "domain",
+      "alias": "utilities and environmental services",
+      "canonical": "energy"
+    },
+    {
+      "field": "role_family",
+      "alias": "business development partnerships",
+      "canonical": "business_development_partnerships"
+    }
+  ],
+  "generated_pairs": [
+    {
+      "alias": "internet marketplace platforms",
+      "canonical": "affiliate marketing / igaming"
+    },
+    {
+      "alias": "it services and it consulting",
+      "canonical": "enterprise software"
+    },
+    {
+      "alias": "motor vehicle manufacturing",
+      "canonical": "automotive"
+    },
+    {
+      "alias": "software development",
+      "canonical": "e-commerce"
+    },
+    {
+      "alias": "technology, information and internet",
+      "canonical": "advertising technology"
+    },
+    {
+      "alias": "deep expertise in python",
+      "canonical": "python"
+    },
+    {
+      "alias": "proficiency in microsoft excel",
+      "canonical": "microsoft excel"
+    },
+    {
+      "alias": "programming experience in java",
+      "canonical": "java"
+    },
+    {
+      "alias": "strong proficiency in python",
+      "canonical": "python"
+    },
+    {
+      "alias": "etl-prozesse",
+      "canonical": "etl"
+    },
+    {
+      "alias": "regression modelling",
+      "canonical": "regression modeling"
+    },
+    {
+      "alias": "strong python",
+      "canonical": "python"
+    },
+    {
+      "alias": "superset",
+      "canonical": "apache superset"
+    },
+    {
+      "alias": "bigquery ideal",
+      "canonical": "google bigquery"
+    },
+    {
+      "alias": "pipeline development",
+      "canonical": "data pipeline development"
+    },
+    {
+      "alias": "modern ci/cd pipelines",
+      "canonical": "ci/cd"
+    },
+    {
+      "alias": "code reviews in git/github",
+      "canonical": "git"
+    },
+    {
+      "alias": "datenintegration",
+      "canonical": "data integration"
+    },
+    {
+      "alias": "datenmodelle",
+      "canonical": "data modeling"
+    },
+    {
+      "alias": "distributed system design",
+      "canonical": "distributed systems design"
+    },
+    {
+      "alias": "neural network",
+      "canonical": "neural networks"
+    },
+    {
+      "alias": "policy and document analysis",
+      "canonical": "document analysis"
+    },
+    {
+      "alias": "asynchronous processing workflows",
+      "canonical": "asynchronous processing"
+    },
+    {
+      "alias": "retry mechanisms",
+      "canonical": "retries"
+    },
+    {
+      "alias": "token refresh logic",
+      "canonical": "token refresh"
+    },
+    {
+      "alias": "polling strategies",
+      "canonical": "polling"
+    },
+    {
+      "alias": "any exposure to ci/cd",
+      "canonical": "ci/cd"
+    },
+    {
+      "alias": "conduct basic online research",
+      "canonical": "online research"
+    },
+    {
+      "alias": "google suite tools",
+      "canonical": "google workspace"
+    },
+    {
+      "alias": "own the llmops pipeline",
+      "canonical": "llmops"
+    },
+    {
+      "alias": "performing data validation",
+      "canonical": "data validation"
+    },
+    {
+      "alias": "validating information",
+      "canonical": "data validation"
+    },
+    {
+      "alias": "data integration technologies",
+      "canonical": "data integration"
+    },
+    {
+      "alias": "datenbereinigungsmaßnahmen",
+      "canonical": "data cleansing"
+    },
+    {
+      "alias": "enterprise governance frameworks",
+      "canonical": "data governance"
+    },
+    {
+      "alias": "interviews",
+      "canonical": "interview research"
+    },
+    {
+      "alias": "stakeholder consultations",
+      "canonical": "stakeholder consultation"
+    },
+    {
+      "alias": "cleaning and organizing datasets",
+      "canonical": "data cleaning"
+    },
+    {
+      "alias": "cost and latency engineering",
+      "canonical": "cost optimization"
+    },
+    {
+      "alias": "gcp",
+      "canonical": "google cloud platform (gcp)"
+    },
+    {
+      "alias": "review data for accuracy",
+      "canonical": "data validation"
+    },
+    {
+      "alias": "exposure to crm/esp platforms",
+      "canonical": "crm platforms"
+    },
+    {
+      "alias": "similar orchestration tools",
+      "canonical": "workflow orchestration"
+    }
+  ],
+  "suppression_source": "run_effective_skill_synonyms",
+  "pre_run_global_map_fingerprint": null,
+  "run_overlay_fingerprint": null,
+  "mapping_suggestions_fingerprint": "07ceb45d624bcf752862317c0fcea1885c9f487a441ef91dadc4c739dccf6849",
+  "proposal_input_bundle_fingerprint": "5130be3dd560b9a2e3c8d4a11de3ee9d114e8bdba721c7ff940672e42d401bca"
+}

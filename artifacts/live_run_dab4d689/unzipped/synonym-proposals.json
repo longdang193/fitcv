@@ -1,0 +1,4807 @@
+{
+  "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+  "synonym_proposals_schema_version": "synonym_proposals_v1",
+  "created_at": "2026-05-21T12:21:15.565824+00:00",
+  "proposal_generation_status": "generated",
+  "persistence_status": "persisted",
+  "proposals": [
+    {
+      "proposal_id": "synprop-fea84a1c68d6",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "domain",
+      "alias": "internet marketplace platforms",
+      "canonical": "affiliate marketing / igaming",
+      "candidate_aliases": [
+        "internet marketplace platforms"
+      ],
+      "candidate_canonicals": [
+        "affiliate marketing / igaming",
+        "energy",
+        "marketing",
+        "marketplace",
+        "performance marketing"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 5,
+        "distinct_canonical_count": 5
+      },
+      "evidence_summary": {
+        "occurrence_count": 5,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/senior-data-analyst-at-jobgether-4416398047?trk=public_jobs_topcard-title",
+            "job_title": "Senior Data Analyst",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/head-of-internal-technology-ai-at-jobgether-4417085054?trk=public_jobs_topcard-title",
+            "job_title": "Head of Internal Technology & AI",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/chief-operating-officer-at-jobgether-4416519044?trk=public_jobs_topcard-title",
+            "job_title": "Chief Operating Officer",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-integration-at-jobgether-4417458133?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (Integration)",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/senior-data-engineer-at-jobgether-4417441908?trk=public_jobs_topcard-title",
+            "job_title": "Senior Data Engineer",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "energy",
+          "marketing",
+          "marketplace",
+          "performance marketing"
+        ]
+      },
+      "proposal_status": "deferred",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "defer",
+          "from_status": "proposed_unreviewed",
+          "to_status": "deferred",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "e059c1f8f51d1b35ce78aeb9fe2ae3ef02c5519eadd0cbc5b0e64ac8b864f0ce"
+      }
+    },
+    {
+      "proposal_id": "synprop-88b9bc3f97ea",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "domain",
+      "alias": "it services and it consulting",
+      "canonical": "enterprise software",
+      "candidate_aliases": [
+        "it services and it consulting"
+      ],
+      "candidate_canonicals": [
+        "enterprise software",
+        "governance, risk and compliance (grc)",
+        "healthcare",
+        "software"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 4,
+        "distinct_canonical_count": 4
+      },
+      "evidence_summary": {
+        "occurrence_count": 4,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-huzzle-com-4417304971?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413668252",
+            "job_title": "Data Engineer (m/w/d)",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413608643",
+            "job_title": "AI Engineer for LLM Ops & Evaluation (m/f/d)",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413622012",
+            "job_title": "Junior Data Engineer",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "governance, risk and compliance (grc)",
+          "healthcare",
+          "software"
+        ]
+      },
+      "proposal_status": "deferred",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "defer",
+          "from_status": "proposed_unreviewed",
+          "to_status": "deferred",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "1b377b7c598a84888226e8aa1d8ab5ad31dfc4d7846dbe29b0cd9b1cfa57cafd"
+      }
+    },
+    {
+      "proposal_id": "synprop-e886a09676d5",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "domain",
+      "alias": "motor vehicle manufacturing",
+      "canonical": "automotive",
+      "candidate_aliases": [
+        "motor vehicle manufacturing"
+      ],
+      "candidate_canonicals": [
+        "automotive",
+        "automotive used-car marketplace"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 2,
+        "distinct_canonical_count": 2
+      },
+      "evidence_summary": {
+        "occurrence_count": 2,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/senior-data-scientist-f-m-x-at-auto1-group-4416397554?trk=public_jobs_topcard-title",
+            "job_title": "Senior Data Scientist (f/m/x)",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413606917",
+            "job_title": "Internship – Engineering & Data Analytics in Cloud Systems and Performance Optimization (all genders welcome)",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "automotive used-car marketplace"
+        ]
+      },
+      "proposal_status": "deferred",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "defer",
+          "from_status": "proposed_unreviewed",
+          "to_status": "deferred",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "884c6911144e2bcc49c697bf311457a7c434a73cc8decc9d503067eb8b154125"
+      }
+    },
+    {
+      "proposal_id": "synprop-772e6a528cd4",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "domain",
+      "alias": "software development",
+      "canonical": "e-commerce",
+      "candidate_aliases": [
+        "software development"
+      ],
+      "candidate_canonicals": [
+        "e-commerce",
+        "saas",
+        "travel_hospitality"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 3,
+        "distinct_canonical_count": 3
+      },
+      "evidence_summary": {
+        "occurrence_count": 3,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4386390764",
+            "job_title": "Data Scientist",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4376523337",
+            "job_title": "Strategic Partnerships Lead, Central and Eastern Europe",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4417347776",
+            "job_title": "Data Analyst (m/w/d)",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "saas",
+          "travel_hospitality"
+        ]
+      },
+      "proposal_status": "deferred",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "defer",
+          "from_status": "proposed_unreviewed",
+          "to_status": "deferred",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "49bc55986e3c7b3970f2075a59fd7364320bf6d16f6ee8ad55b701ebc03c7895"
+      }
+    },
+    {
+      "proposal_id": "synprop-4cc2b83c8a6b",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "domain",
+      "alias": "technology, information and internet",
+      "canonical": "advertising technology",
+      "candidate_aliases": [
+        "technology, information and internet"
+      ],
+      "candidate_canonicals": [
+        "advertising technology",
+        "artificial intelligence",
+        "banking"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 3,
+        "distinct_canonical_count": 3
+      },
+      "evidence_summary": {
+        "occurrence_count": 3,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/account-executive-at-samba-tv-4377415215?trk=public_jobs_topcard-title",
+            "job_title": "Account Executive",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4417473980",
+            "job_title": "Data Scientist",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413658848",
+            "job_title": "Business Analyst",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "artificial intelligence",
+          "banking"
+        ]
+      },
+      "proposal_status": "deferred",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "defer",
+          "from_status": "proposed_unreviewed",
+          "to_status": "deferred",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "0ceeba37bd08430b6b9be41e55cc7d260ad0cfdc0efa87ef9decedcc2df398d5"
+      }
+    },
+    {
+      "proposal_id": "synprop-122f48f5bc88",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "deep expertise in python",
+      "canonical": "python",
+      "candidate_aliases": [
+        "deep expertise in python"
+      ],
+      "candidate_canonicals": [
+        "python"
+      ],
+      "confidence": 0.98,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.98,
+        "must_have_skills": [
+          "python"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/senior-data-scientist-f-m-x-at-auto1-group-4416397554?trk=public_jobs_topcard-title",
+            "job_title": "Senior Data Scientist (f/m/x)",
+            "confidence": 0.98
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.98,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "3b6803cbd51aa8e0dd60da35c423178389381ce854761a2bada2cef4cf4dad74"
+      }
+    },
+    {
+      "proposal_id": "synprop-9a889ce63166",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "proficiency in microsoft excel",
+      "canonical": "microsoft excel",
+      "candidate_aliases": [
+        "proficiency in microsoft excel"
+      ],
+      "candidate_canonicals": [
+        "microsoft excel"
+      ],
+      "confidence": 0.96,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.96,
+        "must_have_skills": [
+          "microsoft excel"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-analyst-entry-level-junior-at-encephal-statistics-department-of-ramanujan-college-university-of-delhi-4416513379?trk=public_jobs_topcard-title",
+            "job_title": "Data Analyst (Entry-Level / Junior)",
+            "confidence": 0.96
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.96,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "c8e13fe48c1c8c617b5acd0db763bae5676cb2c5f7fb798e7131625561cbcea8"
+      }
+    },
+    {
+      "proposal_id": "synprop-0445ac23c59a",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "programming experience in java",
+      "canonical": "java",
+      "candidate_aliases": [
+        "programming experience in java"
+      ],
+      "candidate_canonicals": [
+        "java"
+      ],
+      "confidence": 0.96,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.96,
+        "must_have_skills": [
+          "java"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413606917",
+            "job_title": "Internship – Engineering & Data Analytics in Cloud Systems and Performance Optimization (all genders welcome)",
+            "confidence": 0.96
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.96,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "afed857a0cd3c86b2e23cce08328921dd636d9bba17c2d9da0bf73372a77cdd2"
+      }
+    },
+    {
+      "proposal_id": "synprop-05a7d9863288",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "strong proficiency in python",
+      "canonical": "python",
+      "candidate_aliases": [
+        "strong proficiency in python"
+      ],
+      "candidate_canonicals": [
+        "python"
+      ],
+      "confidence": 0.96,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.96,
+        "must_have_skills": [
+          "python"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-integration-at-jobgether-4417458133?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (Integration)",
+            "confidence": 0.96
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.96,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "a20124de851487b1da041adff9ca7fa775614df5690a1acf2d75f9149f47eff0"
+      }
+    },
+    {
+      "proposal_id": "synprop-30e74b7857f2",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "etl-prozesse",
+      "canonical": "etl",
+      "candidate_aliases": [
+        "etl-prozesse"
+      ],
+      "candidate_canonicals": [
+        "etl"
+      ],
+      "confidence": 0.95,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.95,
+        "must_have_skills": [
+          "etl"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413668252",
+            "job_title": "Data Engineer (m/w/d)",
+            "confidence": 0.95
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.95,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "a37cd71ce5981a2d5f1b7312044c85faa45483c244a93619c7e311d160c8b89b"
+      }
+    },
+    {
+      "proposal_id": "synprop-f49d5bf2eea0",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "regression modelling",
+      "canonical": "regression modeling",
+      "candidate_aliases": [
+        "regression modelling"
+      ],
+      "candidate_canonicals": [
+        "regression modeling"
+      ],
+      "confidence": 0.95,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.95,
+        "must_have_skills": [
+          "regression modeling"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-%E2%80%93-analytics-statistics-bi-%E2%82%AC130-000-at-findr-4417486502?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist – Analytics, Statistics & BI - €130,000",
+            "confidence": 0.95
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.95,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "eb7577845fbf02fbf0d66a9380c2a02ee67b956bf45655e454750fff89842276"
+      }
+    },
+    {
+      "proposal_id": "synprop-4b4b791f5d32",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "strong python",
+      "canonical": "python",
+      "candidate_aliases": [
+        "strong python"
+      ],
+      "candidate_canonicals": [
+        "python"
+      ],
+      "confidence": 0.95,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.95,
+        "must_have_skills": [
+          "python"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-%E2%80%93-analytics-statistics-bi-%E2%82%AC130-000-at-findr-4417486502?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist – Analytics, Statistics & BI - €130,000",
+            "confidence": 0.95
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.95,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "580617fe0fff0a9d72c8f7f711769a91a8b660e357286d766c01bde3b4308be7"
+      }
+    },
+    {
+      "proposal_id": "synprop-7977b857ee78",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "superset",
+      "canonical": "apache superset",
+      "candidate_aliases": [
+        "superset"
+      ],
+      "candidate_canonicals": [
+        "apache superset"
+      ],
+      "confidence": 0.95,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.95,
+        "must_have_skills": [
+          "apache superset"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-%E2%80%93-analytics-statistics-bi-%E2%82%AC130-000-at-findr-4417486502?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist – Analytics, Statistics & BI - €130,000",
+            "confidence": 0.95
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.95,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "4542c0b897ed179e32ba02a1045e01062a53ec0a49dc86501a0ee7d472bc675d"
+      }
+    },
+    {
+      "proposal_id": "synprop-3179ba491d05",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "bigquery ideal",
+      "canonical": "google bigquery",
+      "candidate_aliases": [
+        "bigquery ideal"
+      ],
+      "candidate_canonicals": [
+        "google bigquery"
+      ],
+      "confidence": 0.94,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.94,
+        "must_have_skills": [
+          "google bigquery"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-%E2%80%93-analytics-statistics-bi-%E2%82%AC130-000-at-findr-4417486502?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist – Analytics, Statistics & BI - €130,000",
+            "confidence": 0.94
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.94,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "97c95e4f235ac9a6c9b85427f781409e75e2846f75b712d3e53fc205bf29ec4e"
+      }
+    },
+    {
+      "proposal_id": "synprop-9bb17718ed33",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "pipeline development",
+      "canonical": "data pipeline development",
+      "candidate_aliases": [
+        "pipeline development"
+      ],
+      "candidate_canonicals": [
+        "data pipeline development"
+      ],
+      "confidence": 0.93,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.93,
+        "must_have_skills": [
+          "data pipeline development"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-at-huzzle-com-4417304971?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer",
+            "confidence": 0.93
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.93,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "5c8d9d007f6e7c01218d31592557ae46e02cac04b330942feb275f919b78b4e8"
+      }
+    },
+    {
+      "proposal_id": "synprop-be8580808484",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "modern ci/cd pipelines",
+      "canonical": "ci/cd",
+      "candidate_aliases": [
+        "modern ci/cd pipelines"
+      ],
+      "candidate_canonicals": [
+        "ci/cd"
+      ],
+      "confidence": 0.92,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.92,
+        "must_have_skills": [
+          "ci/cd"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/senior-data-scientist-f-m-x-at-auto1-group-4416397554?trk=public_jobs_topcard-title",
+            "job_title": "Senior Data Scientist (f/m/x)",
+            "confidence": 0.92
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.92,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "81f5c0155e117a0fdaba51d8405eaccb38b9e8af6151ce9c2937f982a140f69c"
+      }
+    },
+    {
+      "proposal_id": "synprop-23978184e7b3",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "code reviews in git/github",
+      "canonical": "git",
+      "candidate_aliases": [
+        "code reviews in git/github"
+      ],
+      "candidate_canonicals": [
+        "git"
+      ],
+      "confidence": 0.9,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.9,
+        "must_have_skills": [
+          "git"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/senior-data-scientist-f-m-x-at-auto1-group-4416397554?trk=public_jobs_topcard-title",
+            "job_title": "Senior Data Scientist (f/m/x)",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.9,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "cde89cf433aa15a9d4e77bba6da71a519f53da9b39907abce0af0e91ebbbaa0b"
+      }
+    },
+    {
+      "proposal_id": "synprop-102518909c2f",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "datenintegration",
+      "canonical": "data integration",
+      "candidate_aliases": [
+        "datenintegration"
+      ],
+      "candidate_canonicals": [
+        "data integration"
+      ],
+      "confidence": 0.9,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.9,
+        "must_have_skills": [
+          "data integration"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413668252",
+            "job_title": "Data Engineer (m/w/d)",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.9,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "43732efe4129248cef577e8654760dfd5d12c9ff98023fff58dc98dca298db9a"
+      }
+    },
+    {
+      "proposal_id": "synprop-545126c829c0",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "datenmodelle",
+      "canonical": "data modeling",
+      "candidate_aliases": [
+        "datenmodelle"
+      ],
+      "candidate_canonicals": [
+        "data modeling"
+      ],
+      "confidence": 0.9,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.9,
+        "must_have_skills": [
+          "data modeling"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413668252",
+            "job_title": "Data Engineer (m/w/d)",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.9,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "41aff9b8bd4c939763963741008cbdf497d5d13d9a24e1b663d54e679c0b0b65"
+      }
+    },
+    {
+      "proposal_id": "synprop-5449b6a1bb63",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "distributed system design",
+      "canonical": "distributed systems design",
+      "candidate_aliases": [
+        "distributed system design"
+      ],
+      "candidate_canonicals": [
+        "distributed systems design"
+      ],
+      "confidence": 0.9,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.9,
+        "must_have_skills": [
+          "distributed systems design"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-integration-at-jobgether-4417458133?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (Integration)",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.9,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "05bfc72613af8d0e44fcda95dda9c8b2a98334d896c3377984b4cfdc06403b73"
+      }
+    },
+    {
+      "proposal_id": "synprop-09a179033005",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "neural network",
+      "canonical": "neural networks",
+      "candidate_aliases": [
+        "neural network"
+      ],
+      "candidate_canonicals": [
+        "neural networks"
+      ],
+      "confidence": 0.9,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.9,
+        "must_have_skills": [
+          "neural networks"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/senior-data-scientist-f-m-x-at-auto1-group-4416397554?trk=public_jobs_topcard-title",
+            "job_title": "Senior Data Scientist (f/m/x)",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.9,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "8ddf2ddc0935da6529d29f7b2a9e7a6e92117d62b416d3071cb17646c5ba8551"
+      }
+    },
+    {
+      "proposal_id": "synprop-1b8dfd98d3ad",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "policy and document analysis",
+      "canonical": "document analysis",
+      "candidate_aliases": [
+        "policy and document analysis"
+      ],
+      "candidate_canonicals": [
+        "document analysis",
+        "policy analysis"
+      ],
+      "confidence": 0.9,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 2,
+        "distinct_canonical_count": 2
+      },
+      "evidence_summary": {
+        "occurrence_count": 2,
+        "average_confidence": 0.9,
+        "must_have_skills": [
+          "document analysis",
+          "policy analysis"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/research-consultant-public-sector-m-f-d-at-predictby-4417479502?trk=public_jobs_topcard-title",
+            "job_title": "Research Consultant Public Sector (m/f/d)",
+            "confidence": 0.9
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/research-consultant-public-sector-m-f-d-at-predictby-4417479502?trk=public_jobs_topcard-title",
+            "job_title": "Research Consultant Public Sector (m/f/d)",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "policy analysis"
+        ]
+      },
+      "proposal_status": "deferred",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "defer",
+          "from_status": "proposed_unreviewed",
+          "to_status": "deferred",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "54a275e92da8f8d3eac8cd925ce9602e93f35b05be67a6ce60f556484bf2d640"
+      }
+    },
+    {
+      "proposal_id": "synprop-edc83518fdd5",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "asynchronous processing workflows",
+      "canonical": "asynchronous processing",
+      "candidate_aliases": [
+        "asynchronous processing workflows"
+      ],
+      "candidate_canonicals": [
+        "asynchronous processing"
+      ],
+      "confidence": 0.88,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.88,
+        "must_have_skills": [
+          "asynchronous processing"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-integration-at-jobgether-4417458133?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (Integration)",
+            "confidence": 0.88
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.88,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "5a8511cd5efe7db6b2b1ccf68faba87278c7590bf7a589b708c26052af7b0942"
+      }
+    },
+    {
+      "proposal_id": "synprop-04b42dad7c8c",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "retry mechanisms",
+      "canonical": "retries",
+      "candidate_aliases": [
+        "retry mechanisms"
+      ],
+      "candidate_canonicals": [
+        "retries"
+      ],
+      "confidence": 0.88,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.88,
+        "must_have_skills": [
+          "retries"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-integration-at-jobgether-4417458133?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (Integration)",
+            "confidence": 0.88
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.88,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "023986f386638681e883ddd91a66a66de8efc07610cc6ab21c79bd15aa15d860"
+      }
+    },
+    {
+      "proposal_id": "synprop-51cba200481c",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "token refresh logic",
+      "canonical": "token refresh",
+      "candidate_aliases": [
+        "token refresh logic"
+      ],
+      "candidate_canonicals": [
+        "token refresh"
+      ],
+      "confidence": 0.88,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.88,
+        "must_have_skills": [
+          "token refresh"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-integration-at-jobgether-4417458133?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (Integration)",
+            "confidence": 0.88
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.88,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "1c1ea669582b48171adc711154dca5ec2df095dc9729e8182fadb80a54d49af3"
+      }
+    },
+    {
+      "proposal_id": "synprop-2c59389a7fc8",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "polling strategies",
+      "canonical": "polling",
+      "candidate_aliases": [
+        "polling strategies"
+      ],
+      "candidate_canonicals": [
+        "polling"
+      ],
+      "confidence": 0.87,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.87,
+        "must_have_skills": [
+          "polling"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-integration-at-jobgether-4417458133?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (Integration)",
+            "confidence": 0.87
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.87,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "8ba9e5b97ae9562b1063f2c5f25a0705b5266fd3673bf48c46e974f57265db58"
+      }
+    },
+    {
+      "proposal_id": "synprop-39fbb8e32bb5",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "any exposure to ci/cd",
+      "canonical": "ci/cd",
+      "candidate_aliases": [
+        "any exposure to ci/cd"
+      ],
+      "candidate_canonicals": [
+        "ci/cd"
+      ],
+      "confidence": 0.86,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.86,
+        "must_have_skills": [
+          "ci/cd"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413622012",
+            "job_title": "Junior Data Engineer",
+            "confidence": 0.86
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.86,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "34ac2595cf2d1b12431b863946135d61a704eb06f80b0d13a56ce7f4d54e1618"
+      }
+    },
+    {
+      "proposal_id": "synprop-1981d80a4abf",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "conduct basic online research",
+      "canonical": "online research",
+      "candidate_aliases": [
+        "conduct basic online research"
+      ],
+      "candidate_canonicals": [
+        "online research"
+      ],
+      "confidence": 0.86,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.86,
+        "must_have_skills": [
+          "online research"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-researcher-at-premier-business-solution-4413675925?trk=public_jobs_topcard-title",
+            "job_title": "Junior Researcher",
+            "confidence": 0.86
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.86,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "c3b17be48b5aef2b05ff8083964599772d9e9a3509619341e7188603f4bde122"
+      }
+    },
+    {
+      "proposal_id": "synprop-9c9519b04164",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "google suite tools",
+      "canonical": "google workspace",
+      "candidate_aliases": [
+        "google suite tools"
+      ],
+      "candidate_canonicals": [
+        "google workspace"
+      ],
+      "confidence": 0.86,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.86,
+        "must_have_skills": [
+          "google workspace"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4408283177",
+            "job_title": "Market Analysis Internship",
+            "confidence": 0.86
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.86,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "beb0393b1537a8720f3a8bf067ad403fdb4d3efc17ec2cc8a9a8503586ef63be"
+      }
+    },
+    {
+      "proposal_id": "synprop-3adab5c24d73",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "own the llmops pipeline",
+      "canonical": "llmops",
+      "candidate_aliases": [
+        "own the llmops pipeline"
+      ],
+      "candidate_canonicals": [
+        "llmops"
+      ],
+      "confidence": 0.86,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.86,
+        "must_have_skills": [
+          "llmops"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413608643",
+            "job_title": "AI Engineer for LLM Ops & Evaluation (m/f/d)",
+            "confidence": 0.86
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.86,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "48b053f7ea4cb2af0f5eebe4c7bbfd0711011dd8817182c877798799bb6a4721"
+      }
+    },
+    {
+      "proposal_id": "synprop-53bb7b112e70",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "performing data validation",
+      "canonical": "data validation",
+      "candidate_aliases": [
+        "performing data validation"
+      ],
+      "candidate_canonicals": [
+        "data validation"
+      ],
+      "confidence": 0.86,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.86,
+        "must_have_skills": [
+          "data validation"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-analyst-entry-level-junior-at-encephal-statistics-department-of-ramanujan-college-university-of-delhi-4416513379?trk=public_jobs_topcard-title",
+            "job_title": "Data Analyst (Entry-Level / Junior)",
+            "confidence": 0.86
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.86,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "01370d42fcdf004f704cc1cc48620495953d7a4040649175b439f8c75f2665c4"
+      }
+    },
+    {
+      "proposal_id": "synprop-a72c917895b1",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "validating information",
+      "canonical": "data validation",
+      "candidate_aliases": [
+        "validating information"
+      ],
+      "candidate_canonicals": [
+        "data validation"
+      ],
+      "confidence": 0.86,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.86,
+        "must_have_skills": [
+          "data validation"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/research-assistant-at-rotaract-club-of-mount-aureol-4413669821?trk=public_jobs_topcard-title",
+            "job_title": "Research Assistant",
+            "confidence": 0.86
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.86,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "b41f7138a36dc7646c68214a6891b366d017f3a43b64b13a8bfdb34d0ef0ab4b"
+      }
+    },
+    {
+      "proposal_id": "synprop-0e2315e928c5",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "data integration technologies",
+      "canonical": "data integration",
+      "candidate_aliases": [
+        "data integration technologies"
+      ],
+      "candidate_canonicals": [
+        "data integration"
+      ],
+      "confidence": 0.85,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.85,
+        "must_have_skills": [
+          "data integration"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4417349690",
+            "job_title": "Head of Global Data Products (m/f/d)",
+            "confidence": 0.85
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "f9c710f46fcb00547d4582cf6afcc5736a55559e3abcf76f9c0306de7cfa93e7"
+      }
+    },
+    {
+      "proposal_id": "synprop-d4c1db071c41",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "datenbereinigungsmaßnahmen",
+      "canonical": "data cleansing",
+      "candidate_aliases": [
+        "datenbereinigungsmaßnahmen"
+      ],
+      "candidate_canonicals": [
+        "data cleansing"
+      ],
+      "confidence": 0.85,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.85,
+        "must_have_skills": [
+          "data cleansing"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413668252",
+            "job_title": "Data Engineer (m/w/d)",
+            "confidence": 0.85
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "16e7513d921d8b8d2d4d47f313903be9f1a31951edb2ac0f90752656a1f33411"
+      }
+    },
+    {
+      "proposal_id": "synprop-86bb395079d7",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "enterprise governance frameworks",
+      "canonical": "data governance",
+      "candidate_aliases": [
+        "enterprise governance frameworks"
+      ],
+      "candidate_canonicals": [
+        "data governance"
+      ],
+      "confidence": 0.85,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.85,
+        "must_have_skills": [
+          "data governance"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4417349690",
+            "job_title": "Head of Global Data Products (m/f/d)",
+            "confidence": 0.85
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "8b3a87694cddc083ec90cd426008edae2d6b2c1aedcdd69ece4c1f5582763290"
+      }
+    },
+    {
+      "proposal_id": "synprop-efadc8aff020",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "interviews",
+      "canonical": "interview research",
+      "candidate_aliases": [
+        "interviews"
+      ],
+      "candidate_canonicals": [
+        "interview research"
+      ],
+      "confidence": 0.85,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.85,
+        "must_have_skills": [
+          "interview research"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/research-consultant-public-sector-m-f-d-at-predictby-4417479502?trk=public_jobs_topcard-title",
+            "job_title": "Research Consultant Public Sector (m/f/d)",
+            "confidence": 0.85
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "4b07a631e393a9d300110187b42a8dc4311ef65ee6487d273efefde5bec406bf"
+      }
+    },
+    {
+      "proposal_id": "synprop-b7013743692d",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "stakeholder consultations",
+      "canonical": "stakeholder consultation",
+      "candidate_aliases": [
+        "stakeholder consultations"
+      ],
+      "candidate_canonicals": [
+        "stakeholder consultation"
+      ],
+      "confidence": 0.85,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.85,
+        "must_have_skills": [
+          "stakeholder consultation"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/research-consultant-public-sector-m-f-d-at-predictby-4417479502?trk=public_jobs_topcard-title",
+            "job_title": "Research Consultant Public Sector (m/f/d)",
+            "confidence": 0.85
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "57d135fadb2a4e8a763119e115946a6120f70a9ca01076532ad62d5e163e97ff"
+      }
+    },
+    {
+      "proposal_id": "synprop-30ae9f6a299b",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "cleaning and organizing datasets",
+      "canonical": "data cleaning",
+      "candidate_aliases": [
+        "cleaning and organizing datasets"
+      ],
+      "candidate_canonicals": [
+        "data cleaning",
+        "data preparation"
+      ],
+      "confidence": 0.785,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 2,
+        "distinct_canonical_count": 2
+      },
+      "evidence_summary": {
+        "occurrence_count": 2,
+        "average_confidence": 0.785,
+        "must_have_skills": [
+          "data cleaning",
+          "data preparation"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/research-assistant-at-rotaract-club-of-mount-aureol-4413669821?trk=public_jobs_topcard-title",
+            "job_title": "Research Assistant",
+            "confidence": 0.85
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/research-assistant-at-rotaract-club-of-mount-aureol-4413669821?trk=public_jobs_topcard-title",
+            "job_title": "Research Assistant",
+            "confidence": 0.72
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "data preparation"
+        ]
+      },
+      "proposal_status": "deferred",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "defer",
+          "from_status": "proposed_unreviewed",
+          "to_status": "deferred",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.785,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "5a92835933be1e4875dafdc9f99eaffe9fd97036b9c5bf748812ea71c4efc008"
+      }
+    },
+    {
+      "proposal_id": "synprop-bedf2b0cf911",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "cost and latency engineering",
+      "canonical": "cost optimization",
+      "candidate_aliases": [
+        "cost and latency engineering"
+      ],
+      "candidate_canonicals": [
+        "cost optimization",
+        "latency optimization"
+      ],
+      "confidence": 0.78,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 2,
+        "distinct_canonical_count": 2
+      },
+      "evidence_summary": {
+        "occurrence_count": 2,
+        "average_confidence": 0.78,
+        "must_have_skills": [
+          "cost optimization",
+          "latency optimization"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413608643",
+            "job_title": "AI Engineer for LLM Ops & Evaluation (m/f/d)",
+            "confidence": 0.78
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4413608643",
+            "job_title": "AI Engineer for LLM Ops & Evaluation (m/f/d)",
+            "confidence": 0.78
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "latency optimization"
+        ]
+      },
+      "proposal_status": "deferred",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "defer",
+          "from_status": "proposed_unreviewed",
+          "to_status": "deferred",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.78,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "b0662409434ec8788894bbfafb0b5beedbba079b4f643bf84b54d4524da0e021"
+      }
+    },
+    {
+      "proposal_id": "synprop-6aa0a851418b",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "gcp",
+      "canonical": "google cloud platform (gcp)",
+      "candidate_aliases": [
+        "gcp"
+      ],
+      "candidate_canonicals": [
+        "google cloud platform (gcp)"
+      ],
+      "confidence": 0.78,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.78,
+        "must_have_skills": [
+          "google cloud platform (gcp)"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-scientist-%E2%80%93-analytics-statistics-bi-%E2%82%AC130-000-at-findr-4417486502?trk=public_jobs_topcard-title",
+            "job_title": "Data Scientist – Analytics, Statistics & BI - €130,000",
+            "confidence": 0.78
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.78,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "4af47fc2282be455173a899b9440f34ab4716c1b200a354df01febae4229b582"
+      }
+    },
+    {
+      "proposal_id": "synprop-300ac962a547",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "review data for accuracy",
+      "canonical": "data validation",
+      "candidate_aliases": [
+        "review data for accuracy"
+      ],
+      "candidate_canonicals": [
+        "data validation"
+      ],
+      "confidence": 0.76,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.76,
+        "must_have_skills": [
+          "data validation"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-entry-clerk-at-premier-enerji-4413688119?trk=public_jobs_topcard-title",
+            "job_title": "Data Entry Clerk",
+            "confidence": 0.76
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "approved_for_run_overlay",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "approve_for_run_overlay",
+          "from_status": "proposed_unreviewed",
+          "to_status": "approved_for_run_overlay",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.76,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "df55711e7494cd61100015c8dbfcc2a1a74afe3585f991a3603a755fdb4f2ffa"
+      }
+    },
+    {
+      "proposal_id": "synprop-824f9103831a",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "exposure to crm/esp platforms",
+      "canonical": "crm platforms",
+      "candidate_aliases": [
+        "exposure to crm/esp platforms"
+      ],
+      "candidate_canonicals": [
+        "crm platforms",
+        "email service providers (esp)"
+      ],
+      "confidence": 0.75,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 2,
+        "distinct_canonical_count": 2
+      },
+      "evidence_summary": {
+        "occurrence_count": 2,
+        "average_confidence": 0.75,
+        "must_have_skills": [
+          "crm platforms",
+          "email service providers (esp)"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-integration-at-jobgether-4417458133?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (Integration)",
+            "confidence": 0.75
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-integration-at-jobgether-4417458133?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (Integration)",
+            "confidence": 0.75
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "email service providers (esp)"
+        ]
+      },
+      "proposal_status": "deferred",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "defer",
+          "from_status": "proposed_unreviewed",
+          "to_status": "deferred",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.75,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "a77ec2d971015ea2139a177278b9c64873f771fbd8c9c13f9d6fe6d5d3bc530b"
+      }
+    },
+    {
+      "proposal_id": "synprop-68d7ec1d733e",
+      "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+      "field": "skill",
+      "alias": "similar orchestration tools",
+      "canonical": "workflow orchestration",
+      "candidate_aliases": [
+        "similar orchestration tools"
+      ],
+      "candidate_canonicals": [
+        "workflow orchestration"
+      ],
+      "confidence": 0.7,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.7,
+        "must_have_skills": [
+          "workflow orchestration"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-integration-at-jobgether-4417458133?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (Integration)",
+            "confidence": 0.7
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "deferred",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [
+        {
+          "action": "defer",
+          "from_status": "proposed_unreviewed",
+          "to_status": "deferred",
+          "acted_by": "system",
+          "acted_at": "2026-05-21T12:21:15.640087+00:00",
+          "note": "auto:run-execution"
+        }
+      ],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.8,
+      "recommendation_rationale": "Moderate confidence mapping should be deferred for review.",
+      "recommendation_risk_flags": [
+        "moderate_confidence"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-21T12:21:15.640087+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "73660ba9722da00e811e75d157165d870de1fc590898d7addb9f1e5da7a53e97"
+      }
+    }
+  ],
+  "synonym_proposals_trace": {
+    "run_id": "dab4d689-ad85-4dc5-9b4e-ef2eb8e0314b",
+    "trace_schema_version": "agentic_step_trace_run_v1",
+    "trace_family": "agentic_step_trace",
+    "step_id": "synonym_proposals",
+    "created_at": "2026-05-21T12:21:15.565824+00:00",
+    "trace_status": "completed",
+    "trace_summary": {
+      "records_total": 43,
+      "present_records": 43,
+      "proposal_count": 43,
+      "suppressed_as_already_global_count": 1,
+      "generated_for_review_count": 43,
+      "suppressed_count_by_field": {
+        "skill": 1,
+        "domain": 9,
+        "role_family": 6
+      },
+      "suppressed_reason_counts_by_field": {
+        "skill": {
+          "already_global_exact": 1
+        },
+        "domain": {
+          "insufficient_non_skill_support": 9
+        },
+        "role_family": {
+          "insufficient_non_skill_support": 6
+        }
+      },
+      "suppression_source": "run_effective_skill_synonyms",
+      "triage_recommendation_generated_total": 43,
+      "triage_recommendation_reused_total": 0,
+      "triage_recommendation_fresh_total": 43,
+      "triage_recommendation_suppressed_total": 0,
+      "triage_recommendation_reuse_reason": "reuse_enabled",
+      "triage_recommendation_fingerprint": "06d50da2002bea45cf6df2649fd03ca86aff2652292e75a6590d47d43460b422",
+      "auto_apply_recommendation_applied": 43,
+      "auto_apply_recommendation_skipped": 0,
+      "auto_apply_recommendation_failed": 0,
+      "auto_apply_recommendation_reason_counts": {},
+      "auto_promote_global_applied": 0,
+      "auto_promote_global_skipped": 0,
+      "auto_promote_global_failed": 0,
+      "auto_promote_global_skip_reason": "validation_not_eligible"
+    },
+    "records": [
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-fea84a1c68d6",
+        "scope_type": "alias",
+        "scope_key": "internet marketplace platforms",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "internet marketplace platforms",
+          "candidate_canonicals_count": 5
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-88b9bc3f97ea",
+        "scope_type": "alias",
+        "scope_key": "it services and it consulting",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "it services and it consulting",
+          "candidate_canonicals_count": 4
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-e886a09676d5",
+        "scope_type": "alias",
+        "scope_key": "motor vehicle manufacturing",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "motor vehicle manufacturing",
+          "candidate_canonicals_count": 2
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-772e6a528cd4",
+        "scope_type": "alias",
+        "scope_key": "software development",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "software development",
+          "candidate_canonicals_count": 3
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-4cc2b83c8a6b",
+        "scope_type": "alias",
+        "scope_key": "technology, information and internet",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "technology, information and internet",
+          "candidate_canonicals_count": 3
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-122f48f5bc88",
+        "scope_type": "alias",
+        "scope_key": "deep expertise in python",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "deep expertise in python",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.98
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-9a889ce63166",
+        "scope_type": "alias",
+        "scope_key": "proficiency in microsoft excel",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "proficiency in microsoft excel",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.96
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-0445ac23c59a",
+        "scope_type": "alias",
+        "scope_key": "programming experience in java",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "programming experience in java",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.96
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-05a7d9863288",
+        "scope_type": "alias",
+        "scope_key": "strong proficiency in python",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "strong proficiency in python",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.96
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-30e74b7857f2",
+        "scope_type": "alias",
+        "scope_key": "etl-prozesse",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "etl-prozesse",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.95
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-f49d5bf2eea0",
+        "scope_type": "alias",
+        "scope_key": "regression modelling",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "regression modelling",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.95
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-4b4b791f5d32",
+        "scope_type": "alias",
+        "scope_key": "strong python",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "strong python",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.95
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-7977b857ee78",
+        "scope_type": "alias",
+        "scope_key": "superset",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "superset",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.95
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-3179ba491d05",
+        "scope_type": "alias",
+        "scope_key": "bigquery ideal",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "bigquery ideal",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.94
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-9bb17718ed33",
+        "scope_type": "alias",
+        "scope_key": "pipeline development",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "pipeline development",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.93
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-be8580808484",
+        "scope_type": "alias",
+        "scope_key": "modern ci/cd pipelines",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "modern ci/cd pipelines",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.92
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-23978184e7b3",
+        "scope_type": "alias",
+        "scope_key": "code reviews in git/github",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "code reviews in git/github",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.9
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-102518909c2f",
+        "scope_type": "alias",
+        "scope_key": "datenintegration",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "datenintegration",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.9
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-545126c829c0",
+        "scope_type": "alias",
+        "scope_key": "datenmodelle",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "datenmodelle",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.9
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-5449b6a1bb63",
+        "scope_type": "alias",
+        "scope_key": "distributed system design",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "distributed system design",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.9
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-09a179033005",
+        "scope_type": "alias",
+        "scope_key": "neural network",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "neural network",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.9
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-1b8dfd98d3ad",
+        "scope_type": "alias",
+        "scope_key": "policy and document analysis",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "policy and document analysis",
+          "candidate_canonicals_count": 2
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.9
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-edc83518fdd5",
+        "scope_type": "alias",
+        "scope_key": "asynchronous processing workflows",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "asynchronous processing workflows",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.88
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-04b42dad7c8c",
+        "scope_type": "alias",
+        "scope_key": "retry mechanisms",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "retry mechanisms",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.88
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-51cba200481c",
+        "scope_type": "alias",
+        "scope_key": "token refresh logic",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "token refresh logic",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.88
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-2c59389a7fc8",
+        "scope_type": "alias",
+        "scope_key": "polling strategies",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "polling strategies",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.87
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-39fbb8e32bb5",
+        "scope_type": "alias",
+        "scope_key": "any exposure to ci/cd",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "any exposure to ci/cd",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.86
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-1981d80a4abf",
+        "scope_type": "alias",
+        "scope_key": "conduct basic online research",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "conduct basic online research",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.86
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-9c9519b04164",
+        "scope_type": "alias",
+        "scope_key": "google suite tools",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "google suite tools",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.86
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-3adab5c24d73",
+        "scope_type": "alias",
+        "scope_key": "own the llmops pipeline",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "own the llmops pipeline",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.86
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-53bb7b112e70",
+        "scope_type": "alias",
+        "scope_key": "performing data validation",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "performing data validation",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.86
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-a72c917895b1",
+        "scope_type": "alias",
+        "scope_key": "validating information",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "validating information",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.86
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-0e2315e928c5",
+        "scope_type": "alias",
+        "scope_key": "data integration technologies",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "data integration technologies",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.85
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-d4c1db071c41",
+        "scope_type": "alias",
+        "scope_key": "datenbereinigungsmaßnahmen",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "datenbereinigungsmaßnahmen",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.85
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-86bb395079d7",
+        "scope_type": "alias",
+        "scope_key": "enterprise governance frameworks",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "enterprise governance frameworks",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.85
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-efadc8aff020",
+        "scope_type": "alias",
+        "scope_key": "interviews",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "interviews",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.85
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-b7013743692d",
+        "scope_type": "alias",
+        "scope_key": "stakeholder consultations",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "stakeholder consultations",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.85
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-30ae9f6a299b",
+        "scope_type": "alias",
+        "scope_key": "cleaning and organizing datasets",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "cleaning and organizing datasets",
+          "candidate_canonicals_count": 2
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.785
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-bedf2b0cf911",
+        "scope_type": "alias",
+        "scope_key": "cost and latency engineering",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "cost and latency engineering",
+          "candidate_canonicals_count": 2
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.78
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-6aa0a851418b",
+        "scope_type": "alias",
+        "scope_key": "gcp",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "gcp",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.78
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-300ac962a547",
+        "scope_type": "alias",
+        "scope_key": "review data for accuracy",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "review data for accuracy",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.76
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-824f9103831a",
+        "scope_type": "alias",
+        "scope_key": "exposure to crm/esp platforms",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "exposure to crm/esp platforms",
+          "candidate_canonicals_count": 2
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.75
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-68d7ec1d733e",
+        "scope_type": "alias",
+        "scope_key": "similar orchestration tools",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "similar orchestration tools",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.7
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      }
+    ],
+    "degradation": {},
+    "artifact_refs": {
+      "proposal_artifact": "synonym-proposals.json",
+      "stage_artifact": "enrich.json"
+    },
+    "suppression_examples": [
+      {
+        "field": "skill",
+        "alias": "power bi",
+        "canonical": "microsoft power bi"
+      },
+      {
+        "field": "domain",
+        "alias": "data infrastructure and analytics, it system data services, and software development",
+        "canonical": "healthcare"
+      },
+      {
+        "field": "role_family",
+        "alias": "data science",
+        "canonical": "data_science"
+      },
+      {
+        "field": "role_family",
+        "alias": "data engineering",
+        "canonical": "data_engineering"
+      },
+      {
+        "field": "domain",
+        "alias": "international trade and development",
+        "canonical": "industrial trade and supply chain"
+      },
+      {
+        "field": "role_family",
+        "alias": "ml engineering",
+        "canonical": "ml_engineering"
+      },
+      {
+        "field": "domain",
+        "alias": "software development and advertising services",
+        "canonical": "advertising technology"
+      },
+      {
+        "field": "domain",
+        "alias": "financial services and insurance",
+        "canonical": "insurance"
+      },
+      {
+        "field": "domain",
+        "alias": "utilities and environmental services",
+        "canonical": "energy"
+      },
+      {
+        "field": "role_family",
+        "alias": "business development partnerships",
+        "canonical": "business_development_partnerships"
+      }
+    ]
+  }
+}
