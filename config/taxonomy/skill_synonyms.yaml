@@ -1,4 +1,5 @@
 skill_synonyms:
+  3nf: third normal form (3nf)
   about you: about you advertising
   advanced proficiency in sql: sql
   ahrefs/semrush: ahrefs
@@ -28,6 +29,7 @@ skill_synonyms:
   corporate pitch decks: pitch deck design
   create execution roadmaps: project roadmap planning
   data vault und 3nf: data vault
+  datenvisualisierung: data visualization
   dbt core: dbt
   deal structures: deal structuring
   deep content seo expertise: seo
@@ -97,6 +99,8 @@ skill_synonyms:
   meta: meta ads
   meta library: meta ad library
   ml: machine learning
+  mlops practices: mlops
+  model deployment workflows: model deployment
   nlp: natural language processing
   nosql-datenbanksystemen: nosql databases
   oder video-editing: video-editing
@@ -120,7 +124,7 @@ skill_synonyms:
   prompt engineering: genai
   pull salesforce reports: salesforce
   quality assurance: quality assurance (qa)
-  rag: genai
+  rag: retrieval-augmented generation (rag)
   redshift: amazon redshift
   relationalen ... datenbanksystemen: relational databases
   revenue forecasts: revenue forecasting

@@ -4165,6 +4165,86 @@ def _commit_synonym_global_promotion(
         "overridden_aliases": overridden_aliases,
     }
 
+def _run_post_validation_auto_promote_global(
+    *,
+    run: PipelineRun,
+    acted_by: str,
+    note: str,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> dict[str, Any]:
+    payload = _load_run_synonym_proposals_payload(run)
+    promote_counts: dict[str, int] = {
+        "applied": 0,
+        "skipped": 0,
+        "failed": 0,
+        "new_aliases": 0,
+        "unchanged_aliases": 0,
+        "overridden_aliases": 0,
+    }
+    promote_skip_reason = "disabled"
+    if not isinstance(payload, dict):
+        promote_skip_reason = "no_payload"
+    else:
+        mode = _synonym_management_mode(run)
+        if bool(mode.get("auto_promote_global_enabled")) and bool(mode.get("promote_global_enabled")):
+            if not _is_validation_eligible_for_auto_promote(run):
+                promote_skip_reason = "validation_not_eligible"
+            else:
+                selected_ids = [
+                    str(item.get("proposal_id") or "").strip()
+                    for item in list(payload.get("proposals") or [])
+                    if isinstance(item, dict)
+                    and str(item.get("proposal_status") or "").strip() == "approved_for_run_overlay"
+                    and str(item.get("proposal_id") or "").strip()
+                ]
+                if not selected_ids:
+                    promote_skip_reason = "no_approved_proposals"
+                else:
+                    preview = _build_promote_global_preview(
+                        run=run,
+                        payload=payload,
+                        selected_proposal_ids=selected_ids,
+                    )
+                    if int((preview.get("counts") or {}).get("conflict") or 0) > 0:
+                        promote_counts["failed"] = int((preview.get("counts") or {}).get("conflict") or 0)
+                        promote_counts["skipped"] = int((preview.get("counts") or {}).get("skip") or 0)
+                        promote_skip_reason = "conflicts_present"
+                    else:
+                        promote_counts = _commit_synonym_global_promotion(
+                            run=run,
+                            payload=payload,
+                            preview=preview,
+                            selected_ids=selected_ids,
+                            acted_by=acted_by,
+                            note=note,
+                            bq=bq,
+                            project=project,
+                            dataset=dataset,
+                        )
+                        promote_skip_reason = "applied"
+
+        trace_payload = dict(payload.get("synonym_proposals_trace") or {})
+        trace_summary = dict(trace_payload.get("trace_summary") or {})
+        trace_summary["auto_promote_global_applied"] = int(promote_counts.get("applied") or 0)
+        trace_summary["auto_promote_global_skipped"] = int(promote_counts.get("skipped") or 0)
+        trace_summary["auto_promote_global_failed"] = int(promote_counts.get("failed") or 0)
+        trace_summary["auto_promote_global_skip_reason"] = promote_skip_reason
+        trace_payload["trace_summary"] = trace_summary
+        payload["synonym_proposals_trace"] = trace_payload
+        update_run_synonym_proposals(
+            run.run_id,
+            _json.dumps(payload, ensure_ascii=False),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+    return {
+        "counts": promote_counts,
+        "skip_reason": promote_skip_reason,
+    }
+
 
 def _sync_run_overlay_from_approved_synonym_proposals(
     *,
@@ -8471,6 +8551,18 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 completed_stages=completed_stages,
                 checkpoint_payload_json=checkpoint_payload_json,
             )
+            post_validation_auto_promote = _run_post_validation_auto_promote_global(
+                run=dataclasses.replace(
+                    updated_run,
+                    status=RunStatus.SUCCEEDED,
+                    checkpoint_status="completed",
+                ),
+                acted_by=actor,
+                note="auto:cv-review-closure",
+                bq=bq,
+                project=project,
+                dataset=dataset,
+            )
             closure_payload = _build_hitl_review_audit_payload(
                 dataclasses.replace(
                     updated_run,
@@ -8503,6 +8595,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                             "closure_mode": closure_payload.get("summary", {}).get("closure_mode"),
                             "review_required_total": closure_payload.get("summary", {}).get("review_required_total"),
                             "resolution_totals": closure_payload.get("summary", {}).get("resolution_totals"),
+                            "synonym_auto_promote": post_validation_auto_promote,
                         },
                         ensure_ascii=False,
                     ),
@@ -8820,6 +8913,18 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 completed_stages=completed_stages,
                 checkpoint_payload_json=checkpoint_payload_json,
             )
+            post_validation_auto_promote = _run_post_validation_auto_promote_global(
+                run=dataclasses.replace(
+                    updated_run,
+                    status=RunStatus.SUCCEEDED,
+                    checkpoint_status="completed",
+                ),
+                acted_by=actor,
+                note="auto:cv-review-closure",
+                bq=bq,
+                project=project,
+                dataset=dataset,
+            )
             closure_payload = _build_hitl_review_audit_payload(
                 dataclasses.replace(
                     updated_run,
@@ -8852,6 +8957,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                             "closure_mode": closure_payload.get("summary", {}).get("closure_mode"),
                             "review_required_total": closure_payload.get("summary", {}).get("review_required_total"),
                             "resolution_totals": closure_payload.get("summary", {}).get("resolution_totals"),
+                            "synonym_auto_promote": post_validation_auto_promote,
                         },
                         ensure_ascii=False,
                     ),

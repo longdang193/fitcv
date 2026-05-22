@@ -441,6 +441,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
     - docs/superpowers/plans/2026-05-21-14-35-synonym-triage-cross-run-reuse-plan.md
     - docs/superpowers/plans/2026-05-21-15-20-semantic-alignment-drift-remediation-plan.md
+    - docs/superpowers/plans/2026-05-22-14-43-synonym-triage-symmetry-reuse-plan.md
     derived_completion: in_progress
   - thread_id: workstream-operator-control-plane.operator-control-plane-phase-2-degraded-mode-and-portability-surface
     status: completed
