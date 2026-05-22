@@ -96,6 +96,148 @@ def build_synonym_triage_fingerprint(
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
+
+def build_synonym_triage_core_fingerprint(
+    *,
+    proposal: dict[str, Any],
+    runtime: dict[str, Any],
+    overlay_fingerprint: str | None = None,
+) -> str:
+    payload = {
+        "field": str(proposal.get("field") or "skill").strip().lower(),
+        "alias": str(proposal.get("alias") or "").strip().lower(),
+        "canonical": str(proposal.get("canonical") or "").strip().lower(),
+        "proposal_family": str(proposal.get("proposal_family") or "alias_to_canonical_mapping").strip().lower(),
+        "provider": str(runtime.get("provider") or "fitcv_builtin").strip().lower(),
+        "model": str(runtime.get("model") or "synonym_triage_v1").strip(),
+        "wire_api": str(runtime.get("wire_api") or "builtin").strip(),
+        "triage_version": "synonym_triage_v1",
+        "overlay_fingerprint": str(overlay_fingerprint or "").strip() or None,
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def _build_synonym_triage_gate_snapshot(proposal: dict[str, Any]) -> dict[str, Any]:
+    canonical = str(proposal.get("canonical") or "").strip().lower()
+    candidates = sorted(
+        {
+            str(item).strip().lower()
+            for item in list(proposal.get("candidate_canonicals") or [])
+            if str(item).strip()
+        }
+    )
+    return {
+        "status": str(proposal.get("proposal_status") or "").strip() or "proposed_unreviewed",
+        "has_conflict": bool((proposal.get("conflict_summary") or {}).get("has_conflict")),
+        "canonical": canonical,
+        "candidate_canonicals": candidates,
+    }
+
+
+def _triage_status_gate_compatible(previous: str, current: str) -> bool:
+    prev = str(previous or "").strip() or "proposed_unreviewed"
+    cur = str(current or "").strip() or "proposed_unreviewed"
+    if prev == cur:
+        return True
+    compatible_open_states = {
+        "proposed_unreviewed",
+        "in_review",
+        "deferred",
+        "approved_for_run_overlay",
+    }
+    return prev in compatible_open_states and cur in compatible_open_states
+
+
+def evaluate_synonym_triage_reuse(
+    *,
+    proposal: dict[str, Any],
+    runtime: dict[str, Any],
+    runtime_meta: dict[str, Any],
+    overlay_fingerprint: str | None = None,
+) -> dict[str, Any]:
+    strict_fp = build_synonym_triage_fingerprint(
+        proposal=proposal,
+        runtime=runtime,
+        overlay_fingerprint=overlay_fingerprint,
+    )
+    core_fp = build_synonym_triage_core_fingerprint(
+        proposal=proposal,
+        runtime=runtime,
+        overlay_fingerprint=overlay_fingerprint,
+    )
+    gate = _build_synonym_triage_gate_snapshot(proposal)
+    stored_strict_fp = str(
+        runtime_meta.get("triage_fingerprint_strict")
+        or runtime_meta.get("triage_fingerprint")
+        or ""
+    ).strip()
+    if stored_strict_fp and stored_strict_fp == strict_fp:
+        return {
+            "decision": "strict_reuse",
+            "reason": "strict_fingerprint_match",
+            "strict_fingerprint": strict_fp,
+            "core_fingerprint": core_fp,
+            "gate": gate,
+        }
+    stored_core_fp = str(runtime_meta.get("triage_fingerprint_core") or "").strip()
+    gate_status = str(runtime_meta.get("triage_gate_status") or "").strip()
+    gate_has_conflict = bool(runtime_meta.get("triage_gate_has_conflict"))
+    gate_canonical = str(runtime_meta.get("triage_gate_canonical") or "").strip().lower()
+    gate_candidates = sorted(
+        {
+            str(item).strip().lower()
+            for item in list(runtime_meta.get("triage_gate_candidate_canonicals") or [])
+            if str(item).strip()
+        }
+    )
+    if stored_core_fp and stored_core_fp == core_fp:
+        if not _triage_status_gate_compatible(gate_status, str(gate["status"])):
+            return {
+                "decision": "fresh",
+                "reason": "core_match_gate_status_mismatch",
+                "strict_fingerprint": strict_fp,
+                "core_fingerprint": core_fp,
+                "gate": gate,
+            }
+        if gate_has_conflict != bool(gate["has_conflict"]):
+            return {
+                "decision": "fresh",
+                "reason": "core_match_gate_conflict_mismatch",
+                "strict_fingerprint": strict_fp,
+                "core_fingerprint": core_fp,
+                "gate": gate,
+            }
+        if gate_canonical and gate_canonical != str(gate["canonical"]):
+            return {
+                "decision": "fresh",
+                "reason": "core_match_gate_canonical_mismatch",
+                "strict_fingerprint": strict_fp,
+                "core_fingerprint": core_fp,
+                "gate": gate,
+            }
+        if gate_candidates and str(gate["canonical"]) not in gate_candidates:
+            return {
+                "decision": "fresh",
+                "reason": "core_match_gate_candidates_mismatch",
+                "strict_fingerprint": strict_fp,
+                "core_fingerprint": core_fp,
+                "gate": gate,
+            }
+        return {
+            "decision": "core_reuse",
+            "reason": "core_fingerprint_match_with_gates",
+            "strict_fingerprint": strict_fp,
+            "core_fingerprint": core_fp,
+            "gate": gate,
+        }
+    return {
+        "decision": "fresh",
+        "reason": "fingerprint_mismatch",
+        "strict_fingerprint": strict_fp,
+        "core_fingerprint": core_fp,
+        "gate": gate,
+    }
+
 def resolve_synonym_management_mode(settings_payload: dict[str, Any] | None) -> dict[str, bool]:
     payload = dict(settings_payload or {})
     block = dict(payload.get("synonym_management") or {})

@@ -121,6 +121,7 @@ from fitcv_cp.synonym_proposals import (
     apply_synonym_management_defaults,
     build_synonym_proposals_payload,
     build_synonym_triage_fingerprint,
+    evaluate_synonym_triage_reuse,
     resolve_synonym_management_mode,
     transition_synonym_proposal_status,
 )
@@ -1163,7 +1164,7 @@ def _late_stage_reuse_metrics_from_stage_artifacts(
     stage_artifacts_by_id: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     metrics_by_stage: dict[str, Any] = {}
-    for stage_id in ("ranking", "cv_analysis"):
+    for stage_id in ("enrich", "ranking", "cv_analysis", "cv_generation"):
         stage_payload = dict(stage_artifacts_by_id.get(stage_id) or {})
         decision_summary = dict(stage_payload.get("decision_summary") or {})
         reuse_metrics = decision_summary.get("reuse_metrics")
@@ -1374,6 +1375,19 @@ def _build_stage_quality_metric_rows(stage_quality_metrics: dict[str, Any]) -> l
 
 def _build_late_stage_reuse_metric_rows(late_stage_reuse_metrics: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    enrich = dict(late_stage_reuse_metrics.get("enrich") or {})
+    enrich_row = _stage_quality_metric_row(
+        stage_id="enrich",
+        label="Enrich Reuse Rate",
+        rate=enrich.get("reuse_rate"),
+        numerator=enrich.get("reused_rows"),
+        denominator=enrich.get("total_rows"),
+        hint="Exact-match enrich rows reused from prior runs with matching fingerprints.",
+    )
+    if enrich_row:
+        enrich_row["fresh_count"] = int(enrich.get("fresh_rows") or 0)
+        rows.append(enrich_row)
+
     ranking = dict(late_stage_reuse_metrics.get("ranking") or {})
     ranking_row = _stage_quality_metric_row(
         stage_id="ranking",
@@ -1399,6 +1413,19 @@ def _build_late_stage_reuse_metric_rows(late_stage_reuse_metrics: dict[str, Any]
     if cv_analysis_row:
         cv_analysis_row["fresh_count"] = int(cv_analysis.get("fresh_analysis_rows") or 0)
         rows.append(cv_analysis_row)
+
+    cv_generation = dict(late_stage_reuse_metrics.get("cv_generation") or {})
+    cv_generation_row = _stage_quality_metric_row(
+        stage_id="cv_generation",
+        label="CV Generation Reuse Rate",
+        rate=cv_generation.get("reuse_rate"),
+        numerator=cv_generation.get("reused_rows"),
+        denominator=cv_generation.get("total_rows"),
+        hint="Exact-match CV generation outputs reused from prior runs.",
+    )
+    if cv_generation_row:
+        cv_generation_row["fresh_count"] = int(cv_generation.get("fresh_rows") or 0)
+        rows.append(cv_generation_row)
 
     return rows
 
@@ -1595,6 +1622,49 @@ def _latest_dead_letter_replay_summary(events: list[RunEvent]) -> dict[str, Any]
         "failed": 0,
         "replay_success_ratio": 0.0,
         "remaining_dead_letter_total": 0,
+        "occurred_at": None,
+        "occurred_at_display": None,
+    }
+
+def _latest_reuse_anomaly_summary(events: list[RunEvent]) -> dict[str, Any]:
+    latest: dict[str, Any] | None = None
+    for event in events:
+        if str(getattr(event, "stage", "") or "").strip() != "reuse_anomaly":
+            continue
+        payload = _event_payload(event)
+        output_snapshot = dict(payload.get("output_snapshot") or {})
+        stages = [item for item in list(output_snapshot.get("stages") or []) if isinstance(item, dict)]
+        if not stages:
+            continue
+        latest = {
+            "status": str(output_snapshot.get("status") or "breached"),
+            "min_overlap": int(output_snapshot.get("min_overlap") or 0),
+            "reuse_rate_floor": float(output_snapshot.get("reuse_rate_floor") or 0.0),
+            "stages": [
+                {
+                    "stage_id": str(stage.get("stage_id") or ""),
+                    "total": int(stage.get("total") or 0),
+                    "reused": int(stage.get("reused") or 0),
+                    "fresh": int(stage.get("fresh") or 0),
+                    "reuse_rate": float(stage.get("reuse_rate") or 0.0),
+                    "reuse_rate_percent": int(round(float(stage.get("reuse_rate") or 0.0) * 100)),
+                }
+                for stage in stages
+            ],
+            "occurred_at": (
+                event.created_at.isoformat()
+                if getattr(event, "created_at", None) is not None
+                else None
+            ),
+            "occurred_at_display": _format_compact_utc_timestamp(
+                event.created_at.isoformat() if getattr(event, "created_at", None) is not None else None
+            ),
+        }
+    return latest or {
+        "status": "healthy",
+        "min_overlap": 0,
+        "reuse_rate_floor": 0.0,
+        "stages": [],
         "occurred_at": None,
         "occurred_at_display": None,
     }
@@ -3220,6 +3290,13 @@ def _build_run_artifact_bundle_manifest(run: PipelineRun, files: list[RunArtifac
 def _build_run_export_links(run: PipelineRun) -> list[dict[str, str]]:
     artifact_files = _build_available_run_artifact_files(run)
     links: list[dict[str, str]] = []
+    links.append(
+        {
+            "label": "Download Global Synonyms YAML",
+            "href": "/admin/synonyms/global.yaml",
+            "helper_text": "Canonical global skill synonym map used as baseline across runs.",
+        }
+    )
     if artifact_files:
         links.append(
             {
@@ -8151,6 +8228,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         telemetry_export_health = _run_telemetry_export_health(events)
         langfuse_link_health = _run_langfuse_link_health(events)
         dead_letter_replay_summary = _latest_dead_letter_replay_summary(events)
+        reuse_anomaly_summary = _latest_reuse_anomaly_summary(events)
         orchestration_diagnostics = _build_orchestration_diagnostics(run)
         replay_context_summary = _run_replay_context_summary(run)
         data_plane_summary = _run_data_plane_summary(run)
@@ -8206,6 +8284,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "telemetry_export_health": telemetry_export_health,
                 "langfuse_link_health": langfuse_link_health,
                 "dead_letter_replay_summary": dead_letter_replay_summary,
+                "reuse_anomaly_summary": reuse_anomaly_summary,
                 "orchestration_diagnostics": orchestration_diagnostics,
                 "replay_context_summary": replay_context_summary,
                 "data_plane_summary": data_plane_summary,
@@ -9509,6 +9588,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         proposals = list(payload.get("proposals") or [])
         triaged_count = 0
         reused_count = 0
+        reused_strict_count = 0
+        reused_core_count = 0
         skipped_count = 0
         failed_count = 0
         fallback_count = 0
@@ -9531,19 +9612,24 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             if not bool(mode.get("auto_triage_recommendation_enabled")):
                 skipped_count += 1
                 continue
-            triage_fp = _synonym_triage_fingerprint(
-                proposal,
+            runtime_meta = dict(proposal.get("recommendation_runtime") or {})
+            reuse_eval = evaluate_synonym_triage_reuse(
+                proposal=proposal,
                 runtime=triage_runtime,
+                runtime_meta=runtime_meta,
                 overlay_fingerprint=overlay_fp,
             )
-            runtime_meta = dict(proposal.get("recommendation_runtime") or {})
             reuse_enabled = bool(mode.get("triage_recommendation_reuse_enabled"))
-            if reuse_enabled and str(runtime_meta.get("triage_fingerprint") or "").strip() == triage_fp:
+            if reuse_enabled and str(reuse_eval.get("decision") or "") in {"strict_reuse", "core_reuse"}:
                 reused_count += 1
+                if str(reuse_eval.get("decision") or "") == "strict_reuse":
+                    reused_strict_count += 1
+                else:
+                    reused_core_count += 1
                 triaged_count += 1
                 continue
             if reuse_enabled:
-                reuse_reason = "fingerprint_mismatch"
+                reuse_reason = str(reuse_eval.get("reason") or "fingerprint_mismatch")
             try:
                 sleep_secs = max(0.0, float(triage_runtime.get("sleep_secs") or 0.0))
                 if sleep_secs > 0:
@@ -9575,7 +9661,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             # Advisory-only: never mutate proposal_status during triage refresh.
             updated.update(recommendation)
             recommendation_runtime = dict(updated.get("recommendation_runtime") or {})
-            recommendation_runtime["triage_fingerprint"] = triage_fp
+            recommendation_runtime["triage_fingerprint"] = str(reuse_eval.get("strict_fingerprint") or "")
+            recommendation_runtime["triage_fingerprint_strict"] = str(reuse_eval.get("strict_fingerprint") or "")
+            recommendation_runtime["triage_fingerprint_core"] = str(reuse_eval.get("core_fingerprint") or "")
+            gate = dict(reuse_eval.get("gate") or {})
+            recommendation_runtime["triage_gate_status"] = str(gate.get("status") or "")
+            recommendation_runtime["triage_gate_has_conflict"] = bool(gate.get("has_conflict"))
+            recommendation_runtime["triage_gate_canonical"] = str(gate.get("canonical") or "")
+            recommendation_runtime["triage_gate_candidate_canonicals"] = list(gate.get("candidate_canonicals") or [])
             updated["recommendation_runtime"] = recommendation_runtime
             proposals[idx] = updated
             triaged_count += 1
@@ -9594,6 +9687,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             event_payload={
                 "triaged_count": triaged_count,
                 "reused_count": reused_count,
+                "reused_strict_count": reused_strict_count,
+                "reused_core_count": reused_core_count,
                 "fresh_count": fresh_count,
                 "generated_total": generated_total,
                 "fallback_count": fallback_count,
@@ -9612,6 +9707,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         trace_summary = dict(trace_payload.get("trace_summary") or {})
         trace_summary["triage_recommendation_generated_total"] = int(generated_total)
         trace_summary["triage_recommendation_reused_total"] = int(reused_count)
+        trace_summary["triage_recommendation_reused_strict_total"] = int(reused_strict_count)
+        trace_summary["triage_recommendation_reused_core_total"] = int(reused_core_count)
         trace_summary["triage_recommendation_fresh_total"] = int(fresh_count)
         trace_summary["triage_recommendation_suppressed_total"] = 0
         trace_summary["triage_recommendation_reuse_reason"] = reuse_reason
