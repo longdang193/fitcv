@@ -781,27 +781,33 @@ def _append_event_dead_letter(row: dict[str, Any]) -> str:
     return dead_letter_file
 
 def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dict[str, str]:
+    # Use persistence-time timestamp as canonical ordering key so mixed producers
+    # cannot backdate events and scramble timeline order.
+    persisted_event = dataclasses.replace(
+        event,
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
     if bq is None:
         try:
-            _append_local_pipeline_run_event(event)
+            _append_local_pipeline_run_event(persisted_event)
             return _persistence_result("persisted")
         except Exception as exc:
             logger.warning(
                 "local append_event sqlite persistence degraded for run_id=%s: %s",
-                event.run_id,
+                persisted_event.run_id,
                 exc,
             )
             try:
-                event_file = _local_event_history_file(event.run_id)
+                event_file = _local_event_history_file(persisted_event.run_id)
                 event_file.parent.mkdir(parents=True, exist_ok=True)
                 record = {
-                    "run_id": event.run_id,
-                    "event_id": event.event_id,
-                    "stage": event.stage,
-                    "level": event.level,
-                    "message": event.message,
-                    "payload_json": event.payload_json,
-                    "created_at": event.created_at.isoformat(),
+                    "run_id": persisted_event.run_id,
+                    "event_id": persisted_event.event_id,
+                    "stage": persisted_event.stage,
+                    "level": persisted_event.level,
+                    "message": persisted_event.message,
+                    "payload_json": persisted_event.payload_json,
+                    "created_at": persisted_event.created_at.isoformat(),
                 }
                 with event_file.open("a", encoding="utf-8") as handle:
                     handle.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -809,7 +815,7 @@ def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dic
             except Exception as file_exc:
                 logger.warning(
                     "local append_event file fallback degraded for run_id=%s: %s",
-                    event.run_id,
+                    persisted_event.run_id,
                     file_exc,
                 )
                 return _persistence_result(
@@ -817,13 +823,13 @@ def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dic
                 )
     table = f"{project}.{dataset}.pipeline_run_events"
     row = {
-        "run_id": event.run_id,
-        "event_id": event.event_id,
-        "stage": event.stage,
-        "level": event.level,
-        "message": event.message,
-        "payload_json": event.payload_json,
-        "created_at": event.created_at.isoformat(),
+        "run_id": persisted_event.run_id,
+        "event_id": persisted_event.event_id,
+        "stage": persisted_event.stage,
+        "level": persisted_event.level,
+        "message": persisted_event.message,
+        "payload_json": persisted_event.payload_json,
+        "created_at": persisted_event.created_at.isoformat(),
     }
     last_errors: Any = None
     for attempt in range(1, _EVENT_APPEND_RETRY_ATTEMPTS + 1):
@@ -1360,7 +1366,7 @@ def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunE
         return file_events
     sql = (
         f"SELECT * FROM `{project}.{dataset}.pipeline_run_events` "
-        f"WHERE run_id = @run_id ORDER BY created_at ASC"
+        f"WHERE run_id = @run_id ORDER BY created_at ASC, event_id ASC"
     )
     job_config = bq_module.QueryJobConfig(
         query_parameters=[bq_module.ScalarQueryParameter("run_id", "STRING", run_id)]

@@ -575,9 +575,13 @@ def emit_cv_generation_result_event(
     latency_ms: int | None = None,
     usage: dict[str, Any] | None = None,
     cost: dict[str, Any] | None = None,
+    reuse_status: str | None = None,
+    reused_cv_version_id: str | None = None,
 ) -> None:
     if reporter is None:
         return
+    effective_reuse_status = str(reuse_status or "").strip() or "fresh_compute"
+    effective_reused_cv_version_id = str(reused_cv_version_id or "").strip()
     reporter.emit(
         "layer4_cv_generation_result",
         "info",
@@ -598,6 +602,10 @@ def emit_cv_generation_result_event(
                 "status": str(status or ""),
                 "attempt_count": int(attempt_count),
                 "retry_count": int(retry_count),
+                "reuse_status": effective_reuse_status,
+                "reused_cv_version_id": effective_reused_cv_version_id,
+                "reuse_status_flat": effective_reuse_status,
+                "reused_cv_version_id_flat": effective_reused_cv_version_id,
             },
             artifact_refs={"stage_id": "cv_generation"},
             latency_ms=latency_ms,

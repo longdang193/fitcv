@@ -2120,6 +2120,11 @@ def _build_cv_generation_debug_record(
         CV_ANALYSIS_FAILED_STATUS,
     }:
         cv_generation_status = "not_attempted"
+    default_cv_generation_reuse_status: str | None = None
+    if status in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}:
+        # Any attempted non-reused path should count as fresh unless a later branch
+        # explicitly marks this record as reused_exact_match.
+        default_cv_generation_reuse_status = "fresh_compute"
     decision_chain = _build_decision_chain(
         shortlist_status=_shortlist_status_for_ranked_job(job),
         advanced_to_scoring=True,
@@ -2150,7 +2155,7 @@ def _build_cv_generation_debug_record(
         "cv_generation_model": cv_generation_model,
         "cv_prompt_id": cv_prompt_id,
         "cv_prompt_template_path": cv_prompt_template_path,
-        "cv_generation_reuse_status": None,
+        "cv_generation_reuse_status": default_cv_generation_reuse_status,
         "cv_generation_input_fingerprint": None,
         # Reranker blocks and fit-gate skips are expected outcomes, not generation runtime errors.
         "outcome_reason": error if status in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
@@ -5094,6 +5099,7 @@ def run_pipeline(
         ) -> None:
             if reporter is None:
                 return
+            effective_reuse_status = str(reuse_status or "").strip() or "fresh_compute"
             job = cast(dict[str, Any], state["job"])
             fit = str(state["fit"] or "skip")
             generation_started_at_iso = str(state["generation_started_at_iso"])
@@ -5117,7 +5123,7 @@ def run_pipeline(
                     },
                     output_snapshot={
                         "status": str(status or ""),
-                        "reuse_status": str(reuse_status or ""),
+                        "reuse_status": effective_reuse_status,
                         "reused_cv_version_id": str(reused_cv_version_id or ""),
                         "cv_generation_input_fingerprint": str(cv_generation_input_fingerprint or ""),
                         "review_required_reason_code": str(review_required_reason_code or ""),
@@ -5130,7 +5136,7 @@ def run_pipeline(
                         "started_at": generation_started_at_iso,
                         "finished_at": generation_finished_at_iso,
                         "status_flat": str(status or ""),
-                        "reuse_status_flat": str(reuse_status or ""),
+                        "reuse_status_flat": effective_reuse_status,
                         "reused_cv_version_id_flat": str(reused_cv_version_id or ""),
                         "cv_generation_input_fingerprint_flat": str(cv_generation_input_fingerprint or ""),
                         "review_required_reason_code_flat": str(review_required_reason_code or ""),
@@ -5994,6 +6000,8 @@ def run_pipeline(
             markdown_final = agentic_generation_result["markdown_final"]
             deferred_reporter_payload: dict[str, Any] | None = None
             if reporter is not None:
+                effective_reuse_status = str(agentic_generation_result.get("reuse_status") or "").strip() or "fresh_compute"
+                effective_reused_cv_version_id = str(agentic_generation_result.get("reused_cv_version_id") or "").strip()
                 deferred_reporter_payload = {
                     "channel": "layer4_cv_generation_result",
                     "level": "info",
@@ -6012,6 +6020,10 @@ def run_pipeline(
                         },
                         output_snapshot={
                             "status": str(agentic_generation_result.get("status") or ""),
+                            "reuse_status": effective_reuse_status,
+                            "reused_cv_version_id": effective_reused_cv_version_id,
+                            "reuse_status_flat": effective_reuse_status,
+                            "reused_cv_version_id_flat": effective_reused_cv_version_id,
                             "cv_generation_input_fingerprint": str(cv_generation_input_fingerprint or ""),
                             "review_required_reason_code": str(
                                 _normalize_review_required_reason_code(

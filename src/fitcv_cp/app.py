@@ -16,6 +16,7 @@ lifecycle:
 import dataclasses
 import datetime
 import hashlib
+import html
 import io
 import json as _json
 import logging
@@ -26,7 +27,7 @@ import uuid
 import zipfile
 from pathlib import Path
 from typing import Any, Literal, TypedDict
-from urllib.parse import urlencode, urlparse
+from urllib.parse import unquote, urlencode, urlparse
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -2498,6 +2499,8 @@ def _finalize_review_draft_as_cv_artifact(
             or row.get("prompt_version")
             or ""
         ) or None,
+        cv_generation_input_fingerprint=str(record.get("cv_generation_input_fingerprint") or "") or None,
+        cv_generation_reuse_status=str(record.get("cv_generation_reuse_status") or "") or None,
     )
     errors = insert_cv_version_row(version_record, bq, project=project, dataset=dataset)
     if errors:
@@ -4743,6 +4746,59 @@ def _timeline_stage_label(event_stage: str) -> str:
         return "—"
     return TIMELINE_STAGE_LABELS.get(normalized, normalized.replace("_", " ").title())
 
+def _timeline_human_job_label(job_url: str) -> str:
+    normalized_url = str(job_url or "").strip()
+    if not normalized_url:
+        return "View Job"
+    try:
+        parsed = urlparse(normalized_url)
+    except Exception:
+        return normalized_url
+    slug = str(parsed.path or "").rstrip("/").split("/")[-1]
+    slug = unquote(slug)
+    if not slug:
+        return normalized_url
+    slug = re.sub(r"-\d+$", "", slug)
+    title_slug = slug
+    company_slug = ""
+    if "-at-" in slug:
+        title_slug, company_slug = slug.rsplit("-at-", 1)
+    title_slug = title_slug.strip("-")
+    company_slug = company_slug.strip("-")
+    suffix_patterns = {
+        "-m-f-d": " (m/f/d)",
+        "-m-f-x": " (m/f/x)",
+        "-m-w-d": " (m/w/d)",
+        "-w-m-d": " (w/m/d)",
+        "-f-m-d": " (f/m/d)",
+    }
+    suffix = ""
+    lowered_title = title_slug.lower()
+    for pattern, normalized_suffix in suffix_patterns.items():
+        if lowered_title.endswith(pattern):
+            title_slug = title_slug[: -len(pattern)]
+            suffix = normalized_suffix
+            break
+    title_tokens = [token for token in title_slug.split("-") if token]
+    company_tokens = [token for token in company_slug.split("-") if token]
+    title_label = " ".join(token.capitalize() for token in title_tokens).strip() or "View Job"
+    company_label = " ".join(token.capitalize() for token in company_tokens).strip()
+    if suffix:
+        title_label = f"{title_label}{suffix}"
+    if company_label:
+        return f"{title_label} ({company_label})"
+    return title_label
+
+def _timeline_job_link_html(job_url: str) -> str | None:
+    normalized_url = str(job_url or "").strip()
+    if not normalized_url:
+        return None
+    label = _timeline_human_job_label(normalized_url)
+    return (
+        f"<a href=\"{html.escape(normalized_url, quote=True)}\" "
+        f"target=\"_blank\" rel=\"noopener noreferrer\">{html.escape(label)}</a>"
+    )
+
 def _timeline_semantic_outcome(event: RunEvent, payload: dict[str, Any]) -> str:
     stage = str(event.stage or "").strip()
     deterministic_outcome = str(payload.get("deterministic_outcome") or "").strip().lower()
@@ -4796,7 +4852,6 @@ def _timeline_stage_summary_message(
             return _format_message(
                 "Enrich starting",
                 [
-                    ("scope", "jobs"),
                     ("fresh", fresh_total),
                     ("reused", reused_total),
                     ("concurrency", concurrency),
@@ -4806,7 +4861,6 @@ def _timeline_stage_summary_message(
             return _format_message(
                 "Enrich in progress",
                 [
-                    ("scope", "jobs"),
                     ("fresh", fresh_total),
                     ("reused", reused_total),
                     ("concurrency", concurrency),
@@ -4817,7 +4871,6 @@ def _timeline_stage_summary_message(
             return _format_message(
                 "Enrich complete",
                 [
-                    ("scope", "jobs"),
                     ("fresh rows", fresh_rows_total),
                     ("fresh", fresh_total),
                     ("reused", reused_total),
@@ -4877,13 +4930,21 @@ def _timeline_stage_summary_message(
         if not outcome:
             raw_outcome = str(payload.get("deterministic_outcome") or payload_output.get("status") or "").strip()
             outcome = raw_outcome.replace("_", " ") if raw_outcome else None
-        reuse_status = str(payload_output.get("reuse_status") or "").strip().lower()
+        reuse_status = str(
+            payload_output.get("reuse_status")
+            or payload_output.get("reuse_status_flat")
+            or ""
+        ).strip().lower()
         reuse_label = None
-        if reuse_status == "reused_exact_match":
-            reuse_label = "reused"
-        elif reuse_status == "fresh_compute":
-            reuse_label = "fresh"
         reused_cv_version_id = str(payload_output.get("reused_cv_version_id") or "").strip()
+        if not reuse_status:
+            # Backward-compatible default for older/missing payload fields:
+            # if a source version exists we reused, otherwise treat as fresh compute.
+            reuse_status = "reused_exact_match" if reused_cv_version_id else "fresh_compute"
+        if reuse_status == "reused_exact_match":
+            reuse_label = "reused exact match"
+        elif reuse_status == "fresh_compute":
+            reuse_label = "fresh compute"
         reason_code = str(payload_output.get("review_required_reason_code") or "").strip()
         validation_evidence_fingerprint = str(payload_output.get("validation_evidence_fingerprint") or "").strip()
         job_url = str(payload.get("job_url") or "").strip()
@@ -4891,14 +4952,12 @@ def _timeline_stage_summary_message(
             match_url = re.search(r"for\s+(https?://\S+)", str(event.message or ""))
             if match_url:
                 job_url = match_url.group(1).rstrip(").,")
-        if reuse_status == "reused_exact_match":
-            outcome = "accepted (reused exact match)"
         return _format_message(
             "CV generation result",
             [
                 ("job", job_url or None),
                 ("outcome", outcome),
-                ("reuse", reuse_label),
+                ("reuse status", reuse_label),
                 ("reason", reason_code or None),
                 ("evidence fp", validation_evidence_fingerprint[:12] if validation_evidence_fingerprint else None),
                 ("source version", reused_cv_version_id or None),
@@ -5129,7 +5188,6 @@ def _timeline_stage_summary_message(
                 }
         if ready is not None and blocked is not None and skipped is not None and failed is not None:
             details: list[tuple[str, Any]] = [
-                ("scope", "ranked jobs"),
                 ("ready", ready),
                 ("blocked", blocked),
                 ("skipped", skipped),
@@ -5195,6 +5253,60 @@ def _timeline_stage_summary_message(
         if details:
             return f"CV generation complete: {', '.join(details)}"
     return event.message
+
+def _timeline_stage_summary_message_html(
+    event: RunEvent,
+    *,
+    message_text: str,
+) -> str | None:
+    payload = _event_payload(event)
+    raw_payload_output = payload.get("output_snapshot")
+    payload_output: dict[str, Any] = (
+        dict(raw_payload_output)
+        if isinstance(raw_payload_output, dict)
+        else {}
+    )
+    job_url = str(payload.get("job_url") or "").strip()
+    if not job_url:
+        match_url = re.search(r"job\s+(https?://\S+)", str(message_text or ""))
+        if match_url:
+            job_url = match_url.group(1).rstrip(").,")
+    job_link = _timeline_job_link_html(job_url)
+    if event.stage == "layer4_cv_generation_started" and job_link:
+        item_match = re.search(r"item\s+(\d+/\d+)", str(message_text or ""), flags=re.IGNORECASE)
+        concurrency_match = re.search(r"concurrency\s+(\d+)", str(message_text or ""), flags=re.IGNORECASE)
+        item_value = item_match.group(1) if item_match else None
+        concurrency_value = concurrency_match.group(1) if concurrency_match else None
+        details: list[str] = []
+        if item_value:
+            details.append(f"item {html.escape(item_value)}")
+        details.append(f"job {job_link}")
+        if concurrency_value:
+            details.append(f"concurrency {html.escape(concurrency_value)}")
+        return f"CV generation started: {', '.join(details)}."
+    if event.stage == "layer4_cv_generation_result" and job_link:
+        outcome_match = re.search(r"outcome\s+([^,]+)", str(message_text or ""), flags=re.IGNORECASE)
+        reuse_match = re.search(r"reuse\s+([^,]+)", str(message_text or ""), flags=re.IGNORECASE)
+        reason_match = re.search(r"reason\s+([^,]+)", str(message_text or ""), flags=re.IGNORECASE)
+        evidence_match = re.search(r"evidence fp\s+([a-f0-9]{6,64})", str(message_text or ""), flags=re.IGNORECASE)
+        source_version = str(payload_output.get("reused_cv_version_id") or "").strip()
+        concurrency_match = re.search(r"concurrency\s+(\d+)", str(message_text or ""), flags=re.IGNORECASE)
+        details: list[str] = [f"job {job_link}"]
+        if outcome_match:
+            details.append(f"outcome {html.escape(outcome_match.group(1).strip())}")
+        if reuse_match:
+            reuse_label = reuse_match.group(1).strip()
+            details.append(f"reuse status {html.escape(reuse_label)}")
+        if reason_match:
+            details.append(f"reason {html.escape(reason_match.group(1).strip())}")
+        if evidence_match:
+            details.append(f"evidence fingerprint {html.escape(evidence_match.group(1).strip())}")
+        if source_version:
+            details.append(f"source version <code>{html.escape(source_version)}</code>")
+        if concurrency_match:
+            details.append(f"concurrency {html.escape(concurrency_match.group(1))}")
+        return f"CV generation result: {', '.join(details)}."
+    return None
 
 def _collapse_timeline_noise(events: list[RunEvent]) -> list[tuple[RunEvent, int]]:
     """Collapse repeated informational noise rows."""
@@ -8174,13 +8286,18 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             ):
                 stage_download_url = f"/admin/runs/{run_id}/stage-artifacts/{stage_id}.json"
                 stage_download_label = _stage_download_label(stage_id)
+            message_text = _timeline_stage_summary_message(ev, stage_artifacts_by_id)
             timeline_events.append(
                 {
                     "created_at": ev.created_at,
                     "stage": ev.stage,
                     "stage_label": _timeline_stage_label(ev.stage),
                     "level": ev.level,
-                    "message": _timeline_stage_summary_message(ev, stage_artifacts_by_id),
+                    "message": message_text,
+                    "message_html": _timeline_stage_summary_message_html(
+                        ev,
+                        message_text=message_text,
+                    ),
                     "repeat_count": int(repeat_count),
                     "show_repeat_suffix": _timeline_show_repeat_suffix(ev),
                     "stage_id": stage_id,
@@ -8654,7 +8771,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     status=RunStatus.SUCCEEDED,
                     checkpoint_status="completed",
                 ),
-                acted_by=actor,
+                acted_by=payload.actor or "admin",
                 note="auto:cv-review-closure",
                 bq=bq,
                 project=project,
