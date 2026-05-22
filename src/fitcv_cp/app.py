@@ -4878,6 +4878,11 @@ def _timeline_stage_summary_message(
             raw_outcome = str(payload.get("deterministic_outcome") or payload_output.get("status") or "").strip()
             outcome = raw_outcome.replace("_", " ") if raw_outcome else None
         reuse_status = str(payload_output.get("reuse_status") or "").strip().lower()
+        reuse_label = None
+        if reuse_status == "reused_exact_match":
+            reuse_label = "reused"
+        elif reuse_status == "fresh_compute":
+            reuse_label = "fresh"
         reused_cv_version_id = str(payload_output.get("reused_cv_version_id") or "").strip()
         reason_code = str(payload_output.get("review_required_reason_code") or "").strip()
         validation_evidence_fingerprint = str(payload_output.get("validation_evidence_fingerprint") or "").strip()
@@ -4893,6 +4898,7 @@ def _timeline_stage_summary_message(
             [
                 ("job", job_url or None),
                 ("outcome", outcome),
+                ("reuse", reuse_label),
                 ("reason", reason_code or None),
                 ("evidence fp", validation_evidence_fingerprint[:12] if validation_evidence_fingerprint else None),
                 ("source version", reused_cv_version_id or None),
@@ -5153,6 +5159,8 @@ def _timeline_stage_summary_message(
         validation_failed = outputs.get("validation_failed")
         generation_failed = outputs.get("generation_failed")
         persistence_failed = outputs.get("persistence_failed")
+        reused_cv_generation = None
+        fresh_cv_generation = None
         if accepted is None:
             accepted = payload_output.get("quality_summary", {}).get("acceptance_review_failure", {}).get("accepted")
         if review_required is None:
@@ -5163,6 +5171,12 @@ def _timeline_stage_summary_message(
             generation_failed = payload_output.get("quality_summary", {}).get("acceptance_review_failure", {}).get("generation_failed")
         if persistence_failed is None:
             persistence_failed = payload_output.get("quality_summary", {}).get("acceptance_review_failure", {}).get("persistence_failed")
+        late_stage_reuse_metrics = payload_output.get("late_stage_reuse_metrics")
+        if isinstance(late_stage_reuse_metrics, dict):
+            cv_generation_metrics = late_stage_reuse_metrics.get("cv_generation")
+            if isinstance(cv_generation_metrics, dict):
+                reused_cv_generation = cv_generation_metrics.get("reused_rows")
+                fresh_cv_generation = cv_generation_metrics.get("fresh_rows")
         details = []
         if accepted is not None:
             details.append(f"{accepted} accepted")
@@ -5174,6 +5188,10 @@ def _timeline_stage_summary_message(
             details.append(f"{generation_failed} generation failed")
         if persistence_failed is not None:
             details.append(f"{persistence_failed} persistence failed")
+        if reused_cv_generation is not None:
+            details.append(f"{reused_cv_generation} reused")
+        if fresh_cv_generation is not None:
+            details.append(f"{fresh_cv_generation} fresh")
         if details:
             return f"CV generation complete: {', '.join(details)}"
     return event.message
