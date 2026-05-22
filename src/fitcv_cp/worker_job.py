@@ -33,6 +33,7 @@ from fitcv.config import (
     get_stage_runtime_sleep_secs,
     parse_skill_synonym_overlay_yaml,
 )
+from fitcv.reuse import build_reuse_decision, resolve_reuse_stage_policy
 from fitcv.contracts import (
     MAPPING_SUGGESTIONS_SCHEMA_VERSION,
     STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION,
@@ -66,7 +67,7 @@ from fitcv_cp.run_artifact_mirror import persist_terminal_run_artifact_mirror
 from fitcv_cp.synonym_proposals import (
     resolve_synonym_management_mode,
     build_synonym_proposals_payload,
-    build_synonym_triage_fingerprint,
+    evaluate_synonym_triage_reuse,
     transition_synonym_proposal_status,
 )
 from fitcv_cp.review_identity import ensure_review_item_id, is_review_resolution_pending
@@ -535,6 +536,7 @@ def _build_results_export_payload(
 def _collect_late_stage_reuse_snapshots(
     *,
     current_run_id: str,
+    allow_checkpointed_sources: bool,
     bq: Any,
     project: str,
     dataset: str,
@@ -556,25 +558,11 @@ def _collect_late_stage_reuse_snapshots(
         logger.warning("[run_id=%s] Failed to list prior runs for reuse lookup: %s", current_run_id, exc)
         return snapshots
 
-    for prior_run in prior_runs:
-        if prior_run.run_id == current_run_id:
-            continue
-        if prior_run.status != RunStatus.SUCCEEDED or not prior_run.results_export_json:
-            continue
-        try:
-            payload = json.loads(prior_run.results_export_json)
-        except Exception as exc:
-            logger.warning(
-                "[run_id=%s] Failed to parse prior results_export_json for reuse lookup [source_run_id=%s]: %s",
-                current_run_id,
-                prior_run.run_id,
-                exc,
-            )
-            continue
-        diagnostic_support = dict(payload.get("diagnostic_support") or {})
+    def _merge_reuse_payload(source_payload: dict[str, Any]) -> None:
+        diagnostic_support = dict(source_payload.get("diagnostic_support") or {})
         reuse_payload = dict(
             diagnostic_support.get("late_stage_reuse_snapshots")
-            or payload.get("late_stage_reuse_snapshots")
+            or source_payload.get("late_stage_reuse_snapshots")
             or {}
         )
         snapshots["ranking_ai_scores"].extend(
@@ -591,6 +579,77 @@ def _collect_late_stage_reuse_snapshots(
                 if isinstance(item, dict)
             ]
         )
+        if snapshots["ranking_ai_scores"] or snapshots["cv_analysis_records"]:
+            return
+        stage_root = dict(source_payload.get("artifacts") or source_payload)
+        stage_blocks = dict(stage_root.get("stages") or {})
+        ranking_block = dict(stage_blocks.get("ranking") or {})
+        ranking_rows = [item for item in list(ranking_block.get("outputs_sample") or []) if isinstance(item, dict)]
+        for row in ranking_rows:
+            fingerprint = str(row.get("ai_score_input_fingerprint") or "").strip()
+            job_url = str(row.get("job_url") or "").strip()
+            if not fingerprint or not job_url:
+                continue
+            snapshots["ranking_ai_scores"].append(
+                {
+                    "job_url": job_url,
+                    "ai_score_input_fingerprint": fingerprint,
+                    "ai_score_row": dict(row),
+                }
+            )
+        cv_analysis_block = dict(stage_blocks.get("cv_analysis") or {})
+        cv_analysis_rows = []
+        cv_analysis_rows.extend(
+            [item for item in list(cv_analysis_block.get("outputs_sample") or []) if isinstance(item, dict)]
+        )
+        cv_analysis_rows.extend(
+            [item for item in list(cv_analysis_block.get("dropped_or_changed_sample") or []) if isinstance(item, dict)]
+        )
+        for row in cv_analysis_rows:
+            fingerprint = str(row.get("analysis_input_fingerprint") or "").strip()
+            job_url = str(row.get("job_url") or "").strip()
+            if not fingerprint or not job_url:
+                continue
+            snapshots["cv_analysis_records"].append(
+                {
+                    "job_url": job_url,
+                    "analysis_input_fingerprint": fingerprint,
+                    "analysis_record": dict(row),
+                }
+            )
+
+    for prior_run in prior_runs:
+        if prior_run.run_id == current_run_id:
+            continue
+        if prior_run.status == RunStatus.SUCCEEDED and prior_run.results_export_json:
+            try:
+                payload = json.loads(prior_run.results_export_json)
+            except Exception as exc:
+                logger.warning(
+                    "[run_id=%s] Failed to parse prior results_export_json for reuse lookup [source_run_id=%s]: %s",
+                    current_run_id,
+                    prior_run.run_id,
+                    exc,
+                )
+            else:
+                _merge_reuse_payload(payload)
+                continue
+        if not allow_checkpointed_sources:
+            continue
+        stage_payload_raw = str(getattr(prior_run, "stage_transition_artifacts_json", "") or "").strip()
+        if not stage_payload_raw:
+            continue
+        try:
+            stage_payload = json.loads(stage_payload_raw)
+        except Exception as exc:
+            logger.warning(
+                "[run_id=%s] Failed to parse prior stage_transition_artifacts_json for reuse lookup [source_run_id=%s]: %s",
+                current_run_id,
+                prior_run.run_id,
+                exc,
+            )
+            continue
+        _merge_reuse_payload(stage_payload)
     return snapshots
 
 
@@ -1142,6 +1201,8 @@ def _run_synonym_automation_for_payload(
 
     triaged_count = 0
     reused_count = 0
+    reused_strict_count = 0
+    reused_core_count = 0
     fresh_count = 0
     skipped_count = 0
     failed_count = 0
@@ -1159,7 +1220,7 @@ def _run_synonym_automation_for_payload(
                 skipped_count += 1
                 continue
             runtime_meta = dict(proposal.get("recommendation_runtime") or {})
-            triage_fp = build_synonym_triage_fingerprint(
+            reuse_eval = evaluate_synonym_triage_reuse(
                 proposal=proposal,
                 runtime={
                     "provider": "fitcv_builtin",
@@ -1168,10 +1229,31 @@ def _run_synonym_automation_for_payload(
                     "sleep_secs": 0.0,
                     "concurrency": 1,
                 },
+                runtime_meta=runtime_meta,
             )
             reuse_enabled = bool(mode.get("triage_recommendation_reuse_enabled"))
-            if reuse_enabled and str(runtime_meta.get("triage_fingerprint") or "").strip() == triage_fp:
+            triage_fingerprint = str(reuse_eval.get("strict_fingerprint") or "")
+            runtime_meta["reuse_decision"] = build_reuse_decision(
+                decision=(
+                    "reused_exact_match"
+                    if reuse_enabled and str(reuse_eval.get("decision") or "") in {"strict_reuse", "core_reuse"}
+                    else "fresh_compute"
+                ),
+                reason_code=(
+                    "exact_fingerprint_match"
+                    if reuse_enabled and str(reuse_eval.get("decision") or "") in {"strict_reuse", "core_reuse"}
+                    else str(reuse_eval.get("reason") or "no_reusable_snapshot_match")
+                ),
+                fingerprint=triage_fingerprint,
+                source_artifact_type="synonym_triage",
+            )
+            proposal["recommendation_runtime"] = runtime_meta
+            if reuse_enabled and str(reuse_eval.get("decision") or "") in {"strict_reuse", "core_reuse"}:
                 reused_count += 1
+                if str(reuse_eval.get("decision") or "") == "strict_reuse":
+                    reused_strict_count += 1
+                else:
+                    reused_core_count += 1
                 triaged_count += 1
                 continue
             try:
@@ -1181,7 +1263,14 @@ def _run_synonym_automation_for_payload(
                 fallback_count += 1
                 continue
             recommendation_runtime = dict(recommendation.get("recommendation_runtime") or {})
-            recommendation_runtime["triage_fingerprint"] = triage_fp
+            recommendation_runtime["triage_fingerprint"] = str(reuse_eval.get("strict_fingerprint") or "")
+            recommendation_runtime["triage_fingerprint_strict"] = str(reuse_eval.get("strict_fingerprint") or "")
+            recommendation_runtime["triage_fingerprint_core"] = str(reuse_eval.get("core_fingerprint") or "")
+            gate = dict(reuse_eval.get("gate") or {})
+            recommendation_runtime["triage_gate_status"] = str(gate.get("status") or "")
+            recommendation_runtime["triage_gate_has_conflict"] = bool(gate.get("has_conflict"))
+            recommendation_runtime["triage_gate_canonical"] = str(gate.get("canonical") or "")
+            recommendation_runtime["triage_gate_candidate_canonicals"] = list(gate.get("candidate_canonicals") or [])
             updated = dict(proposal)
             updated.update(
                 {
@@ -1203,6 +1292,8 @@ def _run_synonym_automation_for_payload(
         event_payload = {
             "triaged_count": triaged_count,
             "reused_count": reused_count,
+            "reused_strict_count": reused_strict_count,
+            "reused_core_count": reused_core_count,
             "fresh_count": fresh_count,
             "fallback_count": fallback_count,
             "skipped_count": skipped_count,
@@ -1453,6 +1544,8 @@ def _run_synonym_automation_for_payload(
                             )
     trace_summary["triage_recommendation_generated_total"] = int(triaged_count)
     trace_summary["triage_recommendation_reused_total"] = int(reused_count)
+    trace_summary["triage_recommendation_reused_strict_total"] = int(reused_strict_count)
+    trace_summary["triage_recommendation_reused_core_total"] = int(reused_core_count)
     trace_summary["triage_recommendation_fresh_total"] = int(fresh_count)
     trace_summary["triage_recommendation_suppressed_total"] = 0
     trace_summary["triage_recommendation_reuse_reason"] = reuse_reason
@@ -1814,8 +1907,14 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 current = get_run(run_id, bq, project=project, dataset=dataset)
                 return current is not None and current.cancel_requested_at is not None
 
+            reuse_policy_stages = ("ranking", "cv_analysis", "cv_generation", "synonym_triage")
+            allow_checkpointed_sources = any(
+                resolve_reuse_stage_policy(effective_config or {}, stage).source_scope == "succeeded_or_checkpointed"
+                for stage in reuse_policy_stages
+            )
             late_stage_reuse_snapshots = _collect_late_stage_reuse_snapshots(
                 current_run_id=run_id,
+                allow_checkpointed_sources=allow_checkpointed_sources,
                 bq=bq,
                 project=project,
                 dataset=dataset,

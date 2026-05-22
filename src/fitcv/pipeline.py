@@ -163,6 +163,8 @@ from fitcv.pipeline_stage_artifacts import sample_rows as _sample_rows_artifacts
 from fitcv.pipeline_stage_artifacts import sample_strings as _sample_strings_artifacts
 from fitcv.pipeline_stage_artifacts import truncate_stage_text as _truncate_stage_text_artifacts
 from fitcv.pipeline_stage_artifacts import truncate_stage_value as _truncate_stage_value_artifacts
+from fitcv.reuse import build_reuse_decision
+from fitcv.reuse import resolve_reuse_stage_policy
 from fitcv.pipeline_store import PipelineStore
 from fitcv.pipeline_stage_context import (
     PipelineState,
@@ -564,6 +566,12 @@ def _enrich_jobs_with_reuse(
             row["raw_job_fingerprint"] = raw_job_fingerprints.get(job_url)
             row["enrich_contract_fingerprint"] = enrich_contract_fingerprint
             row["enrich_reuse_status"] = FRESH_ENRICHMENT_STATUS
+            row["reuse_decision"] = build_reuse_decision(
+                decision=FRESH_ENRICHMENT_STATUS,
+                reason_code="no_reusable_enrichment_row",
+                fingerprint=raw_job_fingerprints.get(job_url),
+                source_artifact_type="enrich",
+            )
 
     fresh_rows_by_url = {
         _extract_job_url(row): row
@@ -580,6 +588,12 @@ def _enrich_jobs_with_reuse(
             reused_row["raw_job_fingerprint"] = raw_job_fingerprints.get(job_url)
             reused_row["enrich_contract_fingerprint"] = enrich_contract_fingerprint
             reused_row["enrich_reuse_status"] = REUSED_CACHED_ENRICHMENT_STATUS
+            reused_row["reuse_decision"] = build_reuse_decision(
+                decision=REUSED_CACHED_ENRICHMENT_STATUS,
+                reason_code="exact_fingerprint_match",
+                fingerprint=raw_job_fingerprints.get(job_url),
+                source_artifact_type="enrich",
+            )
             enriched_rows.append(reused_row)
             continue
         fresh_row = fresh_rows_by_url.get(job_url)
@@ -601,9 +615,7 @@ def _enrich_runtime_projection(config: dict[str, Any]) -> dict[str, Any]:
     return projected
 
 def _reuse_stage_enabled(config: dict[str, Any], stage: str) -> bool:
-    reuse_block = dict(config.get("reuse") or {})
-    stage_block = dict(reuse_block.get(str(stage or "").strip()) or {})
-    return bool(stage_block.get("enabled", True))
+    return bool(resolve_reuse_stage_policy(config, stage).enabled)
 
 
 def _merge_ranked_job_with_enriched_context(
@@ -990,9 +1002,19 @@ def _index_late_stage_reuse_rows(
 
 def _build_late_stage_reuse_metrics(
     *,
+    enriched: list[dict[str, Any]],
     ai_scores: list[dict[str, Any]],
     cv_analysis_results: list[dict[str, Any]],
+    cv_generation_debug_records: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    reused_enrich_rows = sum(
+        1 for row in enriched
+        if str(row.get("enrich_reuse_status") or "") == REUSED_CACHED_ENRICHMENT_STATUS
+    )
+    fresh_enrich_rows = sum(
+        1 for row in enriched
+        if str(row.get("enrich_reuse_status") or "") == FRESH_ENRICHMENT_STATUS
+    )
     reused_ai_scores = sum(
         1 for row in ai_scores
         if str(row.get("ai_score_reuse_status") or "") == "reused_exact_match"
@@ -1017,7 +1039,25 @@ def _build_late_stage_reuse_metrics(
         1 for row in cv_analysis_results
         if str(row.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
     )
+    generation_attempted_rows = [
+        row for row in cv_generation_debug_records
+        if str(row.get("status") or "") in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
+    ]
+    reused_cv_generations = sum(
+        1 for row in generation_attempted_rows
+        if str(row.get("cv_generation_reuse_status") or "") == "reused_exact_match"
+    )
+    fresh_cv_generations = sum(
+        1 for row in generation_attempted_rows
+        if str(row.get("cv_generation_reuse_status") or "") == "fresh_compute"
+    )
     return {
+        "enrich": {
+            "reused_rows": reused_enrich_rows,
+            "fresh_rows": fresh_enrich_rows,
+            "total_rows": len(enriched),
+            "reuse_rate": _safe_rate(reused_enrich_rows, len(enriched)),
+        },
         "ranking": {
             "reused_ai_scores": reused_ai_scores,
             "fresh_ai_scores": fresh_ai_scores,
@@ -1031,6 +1071,66 @@ def _build_late_stage_reuse_metrics(
             "blocked_before_analysis_rows": blocked_before_analysis_rows,
             "analysis_reuse_rate": _safe_rate(reused_analysis_rows, len(executed_analysis_rows)),
         },
+        "cv_generation": {
+            "reused_rows": reused_cv_generations,
+            "fresh_rows": fresh_cv_generations,
+            "total_rows": len(generation_attempted_rows),
+            "reuse_rate": _safe_rate(reused_cv_generations, len(generation_attempted_rows)),
+        },
+    }
+
+def _reuse_anomaly_payload(
+    *,
+    reuse_metrics: dict[str, Any],
+    config: dict[str, Any],
+) -> dict[str, Any] | None:
+    guard_cfg = dict((config.get("reuse") or {}).get("anomaly_guard") or {})
+    min_overlap = int(guard_cfg.get("min_overlap", 5) or 5)
+    floor = float(guard_cfg.get("reuse_rate_floor", 0.05) or 0.05)
+    stages: list[dict[str, Any]] = []
+    for stage_id, stage_metrics_raw in dict(reuse_metrics or {}).items():
+        stage_metrics = dict(stage_metrics_raw or {})
+        total = int(
+            stage_metrics.get("total_rows")
+            or stage_metrics.get("total_ai_scores")
+            or stage_metrics.get("analysis_rows_executed")
+            or 0
+        )
+        reused = int(
+            stage_metrics.get("reused_rows")
+            or stage_metrics.get("reused_ai_scores")
+            or stage_metrics.get("reused_analysis_rows")
+            or 0
+        )
+        fresh = int(
+            stage_metrics.get("fresh_rows")
+            or stage_metrics.get("fresh_ai_scores")
+            or stage_metrics.get("fresh_analysis_rows")
+            or 0
+        )
+        rate = float(stage_metrics.get("reuse_rate") or stage_metrics.get("analysis_reuse_rate") or 0.0)
+        if total < min_overlap or rate >= floor:
+            continue
+        stages.append(
+            {
+                "stage_id": stage_id,
+                "total": total,
+                "reused": reused,
+                "fresh": fresh,
+                "reuse_rate": rate,
+                "reason_histogram": {
+                    "exact_fingerprint_match": reused,
+                    "no_reusable_snapshot_match": fresh,
+                },
+            }
+        )
+    if not stages:
+        return None
+    return {
+        "status": "breached",
+        "min_overlap": min_overlap,
+        "reuse_rate_floor": floor,
+        "stages": stages,
     }
 
 
@@ -2563,10 +2663,17 @@ def _build_cv_analysis_record(
     error: dict[str, str] | None,
     pre_writing_decision: dict[str, Any] | None = None,
     readiness_diagnostics: dict[str, Any] | None = None,
+    reuse_decision: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     ranking_fit_label = _authoritative_ranking_fit_label(job, fit_classification)
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
     cv_status = _cv_generation_status_for_analysis_status(status)
+    resolved_reuse_decision = reuse_decision or build_reuse_decision(
+        decision=analysis_reuse_status,
+        reason_code=analysis_reuse_status,
+        fingerprint=analysis_input_fingerprint,
+        source_artifact_type="cv_analysis",
+    )
     decision_chain = _build_decision_chain(
         shortlist_status=_shortlist_status_for_ranked_job(job),
         advanced_to_scoring=True,
@@ -2581,6 +2688,7 @@ def _build_cv_analysis_record(
         "status": status,
         "analysis_input_fingerprint": analysis_input_fingerprint,
         "analysis_reuse_status": analysis_reuse_status,
+        "reuse_decision": dict(resolved_reuse_decision),
         "ranking_fit_label": ranking_fit_label,
         "fit_classification": fit_classification,
         "decision_chain": decision_chain,
@@ -3152,35 +3260,6 @@ def _build_stage_transition_artifacts(
         ),
     }
 
-def _build_cv_generation_input_fingerprint(
-    *,
-    analysis_record: dict[str, Any],
-    config: dict[str, Any],
-    cv_prompt_id: str | None,
-    cv_prompt_template_path: str | None,
-    cv_prompt_version: str | None,
-    cv_generation_model: str | None,
-    enabled_sections: list[str] | None,
-    cv_acceptance_policy: dict[str, Any] | None,
-) -> dict[str, Any]:
-    payload = {
-        "schema_version": "cv_generation_input_fingerprint_v1",
-        "analysis_input_fingerprint": str(analysis_record.get("analysis_input_fingerprint") or ""),
-        "job_url": str(analysis_record.get("job_url") or ""),
-        "fit_classification": str(analysis_record.get("fit_classification") or ""),
-        "cv_prompt_id": str(cv_prompt_id or ""),
-        "cv_prompt_template_path": str(cv_prompt_template_path or ""),
-        "cv_prompt_version": str(cv_prompt_version or ""),
-        "cv_generation_model": str(cv_generation_model or ""),
-        "enabled_sections": sorted(str(item or "") for item in (enabled_sections or [])),
-        "cv_acceptance_policy": dict(cv_acceptance_policy or {}),
-        "agentic_late_stage_enabled": bool(_agentic_late_stage_enabled(config)),
-    }
-    seed = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    return {
-        "fingerprint": hashlib.sha256(seed.encode("utf-8")).hexdigest(),
-        "payload": payload,
-    }
     shortlist_candidate_query_debug = {
         key: value
         for key, value in shortlist_candidate_query_debug.items()
@@ -3288,6 +3367,15 @@ def _build_cv_generation_input_fingerprint(
         ),
         "total_enriched_rows": len(enriched),
     }
+    enrich_reuse_metrics = {
+        "reused_rows": int(enrich_reuse_counts["reused_rows"]),
+        "fresh_rows": int(enrich_reuse_counts["fresh_rows"]),
+        "total_rows": int(enrich_reuse_counts["total_enriched_rows"]),
+    }
+    enrich_reuse_metrics["reuse_rate"] = _safe_rate(
+        int(enrich_reuse_metrics["reused_rows"]),
+        int(enrich_reuse_metrics["total_rows"]),
+    )
     shortlist_embedding_reuse_counts = {
         "embedding_reused_jobs": sum(
             1 for job in passed_jobs
@@ -3340,6 +3428,24 @@ def _build_cv_generation_input_fingerprint(
         int(cv_analysis_reuse_metrics["analysis_rows_executed"]),
     )
     cv_generation_quality_metrics = _build_cv_generation_quality_metrics(cv_generation_debug_records)
+    cv_generation_reuse_metrics = {
+        "reused_rows": sum(
+            1 for record in cv_generation_debug_records
+            if str(record.get("cv_generation_reuse_status") or "") == "reused_exact_match"
+        ),
+        "fresh_rows": sum(
+            1 for record in cv_generation_debug_records
+            if str(record.get("cv_generation_reuse_status") or "") == "fresh_compute"
+        ),
+        "total_rows": sum(
+            1 for record in cv_generation_debug_records
+            if str(record.get("status") or "") in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
+        ),
+    }
+    cv_generation_reuse_metrics["reuse_rate"] = _safe_rate(
+        int(cv_generation_reuse_metrics["reused_rows"]),
+        int(cv_generation_reuse_metrics["total_rows"]),
+    )
     agentic_late_stage_enabled = _agentic_late_stage_enabled(config)
 
     return {
@@ -3366,6 +3472,7 @@ def _build_cv_generation_input_fingerprint(
                 config=config,
                 enrich_prompt_provenance=enrich_prompt_provenance,
                 enrich_reuse_counts=enrich_reuse_counts,
+                enrich_reuse_metrics=enrich_reuse_metrics,
                 stage_block_builder=_stage_block,
                 sample_rows_builder=_sample_rows,
                 job_sample_builder=_job_sample,
@@ -3459,6 +3566,7 @@ def _build_cv_generation_input_fingerprint(
                 cv_generation_debug_records=cv_generation_debug_records,
                 cv_status_counts=cv_status_counts,
                 cv_generation_quality_metrics=cv_generation_quality_metrics,
+                cv_generation_reuse_metrics=cv_generation_reuse_metrics,
                 cv_generation_prompt_provenance=cv_generation_prompt_provenance,
                 config=config,
                 agentic_late_stage_enabled=agentic_late_stage_enabled,
@@ -3474,6 +3582,35 @@ def _build_cv_generation_input_fingerprint(
                 cv_generation_model_resolver=get_cv_generation_model,
             ),
         },
+    }
+def _build_cv_generation_input_fingerprint(
+    *,
+    analysis_record: dict[str, Any],
+    config: dict[str, Any],
+    cv_prompt_id: str | None,
+    cv_prompt_template_path: str | None,
+    cv_prompt_version: str | None,
+    cv_generation_model: str | None,
+    enabled_sections: list[str] | None,
+    cv_acceptance_policy: dict[str, Any] | None,
+) -> dict[str, Any]:
+    payload = {
+        "schema_version": "cv_generation_input_fingerprint_v1",
+        "analysis_input_fingerprint": str(analysis_record.get("analysis_input_fingerprint") or ""),
+        "job_url": str(analysis_record.get("job_url") or ""),
+        "fit_classification": str(analysis_record.get("fit_classification") or ""),
+        "cv_prompt_id": str(cv_prompt_id or ""),
+        "cv_prompt_template_path": str(cv_prompt_template_path or ""),
+        "cv_prompt_version": str(cv_prompt_version or ""),
+        "cv_generation_model": str(cv_generation_model or ""),
+        "enabled_sections": sorted(str(item or "") for item in (enabled_sections or [])),
+        "cv_acceptance_policy": dict(cv_acceptance_policy or {}),
+        "agentic_late_stage_enabled": bool(_agentic_late_stage_enabled(config)),
+    }
+    seed = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return {
+        "fingerprint": hashlib.sha256(seed.encode("utf-8")).hexdigest(),
+        "payload": payload,
     }
 
 def build_ranking_features(
@@ -4029,6 +4166,12 @@ def run_pipeline(
                             "job_url": job_url,
                             "ai_score_input_fingerprint": fingerprint_record["fingerprint"],
                             "ai_score_reuse_status": "reused_exact_match",
+                            "reuse_decision": build_reuse_decision(
+                                decision="reused_exact_match",
+                                reason_code="exact_fingerprint_match",
+                                fingerprint=fingerprint_record["fingerprint"],
+                                source_artifact_type="ranking_ai_score",
+                            ),
                         }
                         continue
                     fresh_scoring_jobs.append(shortlisted_job)
@@ -4048,6 +4191,12 @@ def run_pipeline(
                         **ai_row,
                         "ai_score_input_fingerprint": fresh_ai_score_fingerprints.get(job_url),
                         "ai_score_reuse_status": "fresh_compute" if ranking_reuse_enabled else "reuse_disabled",
+                        "reuse_decision": build_reuse_decision(
+                            decision="fresh_compute" if ranking_reuse_enabled else "reuse_disabled",
+                            reason_code="no_reusable_snapshot_match" if ranking_reuse_enabled else "stage_reuse_disabled",
+                            fingerprint=fresh_ai_score_fingerprints.get(job_url),
+                            source_artifact_type="ranking_ai_score",
+                        ),
                     }
 
                 ai_scores = []
@@ -4266,6 +4415,12 @@ def run_pipeline(
                             "job_snapshot": dict(job),
                             "analysis_input_fingerprint": analysis_fingerprint_record["fingerprint"],
                             "analysis_reuse_status": "reused_exact_match",
+                            "reuse_decision": build_reuse_decision(
+                                decision="reused_exact_match",
+                                reason_code="exact_fingerprint_match",
+                                fingerprint=analysis_fingerprint_record["fingerprint"],
+                                source_artifact_type="cv_analysis",
+                            ),
                         }
                         cv_analysis_results.append(analysis_record)
                         _emit_cv_analysis_item_observation(
@@ -5684,6 +5839,12 @@ def run_pipeline(
                 "fit_classification": fit,
                 "cv_generation_reuse_status": "fresh_compute",
                 "cv_generation_input_fingerprint": cv_generation_input_fingerprint,
+                "reuse_decision": build_reuse_decision(
+                    decision="fresh_compute",
+                    reason_code="no_reusable_snapshot_match",
+                    fingerprint=cv_generation_input_fingerprint,
+                    source_artifact_type="cv_generation",
+                ),
             })
             _handle_cv_generation_accepted_debug_and_events(
                 state=generation_state,
@@ -6217,6 +6378,12 @@ def run_pipeline(
                         "fit_classification": fit,
                         "cv_generation_reuse_status": "reused_exact_match",
                         "cv_generation_input_fingerprint": reuse_fingerprint,
+                        "reuse_decision": build_reuse_decision(
+                            decision="reused_exact_match",
+                            reason_code="exact_fingerprint_match",
+                            fingerprint=reuse_fingerprint,
+                            source_artifact_type="cv_generation",
+                        ),
                     })
                     reused_debug_record = _build_cv_generation_debug_record(
                         job=job,
@@ -6509,6 +6676,16 @@ def run_pipeline(
         if reporter is not None:
             analysis_quality = _build_cv_analysis_quality_metrics(cv_analysis_results)
             generation_quality = _build_cv_generation_quality_metrics(cv_generation_debug_records)
+            late_stage_reuse_metrics = _build_late_stage_reuse_metrics(
+                enriched=enriched,
+                ai_scores=ai_scores,
+                cv_analysis_results=cv_analysis_results,
+                cv_generation_debug_records=cv_generation_debug_records,
+            )
+            reuse_anomaly = _reuse_anomaly_payload(
+                reuse_metrics=late_stage_reuse_metrics,
+                config=config,
+            )
             total_retry_count = sum(
                 max(0, int(record.get("attempt_count") or 1) - 1)
                 for record in cv_generation_debug_records
@@ -6549,6 +6726,7 @@ def run_pipeline(
                         "attempted_jobs": generation_quality.get("total_attempted"),
                     },
                 },
+                "late_stage_reuse_metrics": late_stage_reuse_metrics,
             }
             reporter.emit(
                 "pipeline_compute_complete",
@@ -6578,6 +6756,19 @@ def run_pipeline(
                     },
                 ),
             )  # type: ignore[union-attr]
+            if reuse_anomaly is not None:
+                reporter.emit(
+                    "reuse_anomaly",
+                    "warning",
+                    "Reuse anomaly detected: overlap present but reuse under floor",
+                    _bounded_event_payload(
+                        event_name="reuse_anomaly",
+                        event_family="diagnostic",
+                        source_stage="cv_generation",
+                        event_status="warning",
+                        output_snapshot=reuse_anomaly,
+                    ),
+                )  # type: ignore[union-attr]
     return summary
 
 

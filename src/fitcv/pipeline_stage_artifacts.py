@@ -179,6 +179,7 @@ def build_enrich_stage_block(
     config: dict[str, Any],
     enrich_prompt_provenance: dict[str, Any],
     enrich_reuse_counts: dict[str, Any],
+    enrich_reuse_metrics: dict[str, Any],
     stage_block_builder: Callable[..., dict[str, Any]],
     sample_rows_builder: Callable[[list[Any], Callable[[Any], dict[str, Any] | None]], list[dict[str, Any]]],
     job_sample_builder: Callable[[dict[str, Any]], dict[str, Any] | None],
@@ -209,6 +210,7 @@ def build_enrich_stage_block(
             "enrich_prompt_template_path": enrich_prompt_provenance["template_path"],
             "enrich_prompt_model": enrich_prompt_provenance["model"],
             **enrich_reuse_counts,
+            "reuse_metrics": enrich_reuse_metrics,
         },
         inputs_sample=sample_rows_builder(
             surviving_normalized,
@@ -590,6 +592,7 @@ def build_cv_generation_stage_block(
     cv_generation_debug_records: list[dict[str, Any]],
     cv_status_counts: dict[str, Any],
     cv_generation_quality_metrics: dict[str, Any],
+    cv_generation_reuse_metrics: dict[str, Any],
     cv_generation_prompt_provenance: dict[str, Any],
     config: dict[str, Any],
     agentic_late_stage_enabled: bool,
@@ -628,6 +631,7 @@ def build_cv_generation_stage_block(
             "debug_records_captured": cv_status_counts["debug_records_captured"],
             "analysis_ready_jobs_total": len(ready_records),
             "quality_metrics": cv_generation_quality_metrics,
+            "reuse_metrics": cv_generation_reuse_metrics,
             "cv_generation_model": cv_generation_model_summarizer(
                 cv_generation_debug_records,
                 cv_generation_model_resolver(config),

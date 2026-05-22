@@ -251,6 +251,57 @@ This is the main human-facing inspection surface for:
 - checkpoint/continue flow
 - synonym review activity
 
+## Reuse Contract (Run Detail + Artifacts)
+
+The pipeline now exposes one symmetric reuse decision envelope and per-stage reuse metrics across:
+
+- `enrich`
+- `ranking`
+- `cv_analysis`
+- `cv_generation`
+
+### Reuse Decision Envelope
+
+Where present in stage output rows, `reuse_decision` uses:
+
+```json
+{
+  "decision": "reused_exact_match | fresh_compute | reuse_disabled",
+  "reason_code": "exact_fingerprint_match | no_reusable_snapshot_match | stage_reuse_disabled | ...",
+  "fingerprint": "stage input fingerprint or null",
+  "source_run_id": "optional source run id",
+  "source_artifact_type": "enrich | ranking_ai_score | cv_analysis | cv_generation | ..."
+}
+```
+
+### Stage Reuse Metrics
+
+Run detail surfaces reuse metrics from stage transition artifacts under:
+
+- `stages.<stage_id>.decision_summary.reuse_metrics`
+
+Current metric buckets:
+
+- `enrich`: `reused_rows`, `fresh_rows`, `total_rows`, `reuse_rate`
+- `ranking`: `reused_ai_scores`, `fresh_ai_scores`, `total_ai_scores`, `reuse_rate`
+- `cv_analysis`: `analysis_rows_executed`, `reused_analysis_rows`, `fresh_analysis_rows`, `analysis_reuse_rate`
+- `cv_generation`: `reused_rows`, `fresh_rows`, `total_rows`, `reuse_rate`
+
+### Reuse Anomaly Event
+
+When overlap exists but reuse rate drops below floor, pipeline emits diagnostic event:
+
+- stage: `reuse_anomaly`
+- payload includes:
+  - `reuse_rate_floor`
+  - `min_overlap`
+  - breached stages with `total`, `reused`, `fresh`, `reuse_rate`, and reason histogram
+
+Default guard (configurable under `reuse.anomaly_guard`):
+
+- `min_overlap = 5`
+- `reuse_rate_floor = 0.05`
+
 ### `GET /admin/settings`
 
 Purpose:

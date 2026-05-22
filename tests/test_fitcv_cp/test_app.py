@@ -6609,6 +6609,211 @@ def test_admin_run_synonym_proposals_triage_refresh_recomputes_when_runtime_fing
     assert "synonym_triage_reused=0" in location
     assert "synonym_triage_fresh=1" in location
 
+def test_admin_run_synonym_proposals_triage_refresh_reuses_when_core_matches_and_strict_misses() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from fitcv_cp.synonym_proposals import build_synonym_triage_core_fingerprint
+
+    runtime = {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "sleep_secs": 0.0,
+        "concurrency": 1,
+    }
+    row = {
+        "proposal_id": "proposal-core-reuse",
+        "proposal_identity": "synident-core-reuse",
+        "proposal_status": "proposed_unreviewed",
+        "field": "skill",
+        "alias": "k8s",
+        "canonical": "kubernetes",
+        "candidate_canonicals": ["kubernetes", "k8s"],
+        "confidence": 0.88,
+        "conflict_summary": {"has_conflict": True},
+    }
+    core_fp = build_synonym_triage_core_fingerprint(proposal=row, runtime=runtime, overlay_fingerprint=None)
+    row["recommendation_runtime"] = {
+        "triage_fingerprint": "strict-old-and-different",
+        "triage_fingerprint_core": core_fp,
+        "triage_gate_status": "proposed_unreviewed",
+        "triage_gate_has_conflict": True,
+        "triage_gate_canonical": "kubernetes",
+        "triage_gate_candidate_canonicals": ["kubernetes", "k8s"],
+    }
+
+    run = PipelineRun(
+        run_id="run-triage-core-reuse",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json='{"synonym_management":{"auto_apply_recommendation_enabled":false}}',
+        synonym_proposals_json=json.dumps({"run_id": "run-triage-core-reuse", "proposals": [row]}),
+    )
+    event_payloads: list[dict[str, object]] = []
+
+    def _capture_event(ev, bq, *, project: str, dataset: str):
+        event_payloads.append(json.loads(str(ev.payload_json or "{}")))
+        return {"persistence_status": "persisted"}
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event", side_effect=_capture_event):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-core-reuse/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    location = resp.headers["location"]
+    assert "synonym_triage_reused=1" in location
+    assert "synonym_triage_fresh=0" in location
+    triage_events = [p for p in event_payloads if "reused_count" in p]
+    assert triage_events
+    assert int(triage_events[-1].get("reused_core_count") or 0) == 1
+    assert int(triage_events[-1].get("reused_strict_count") or 0) == 0
+
+
+def test_admin_run_synonym_proposals_triage_refresh_core_match_gate_mismatch_forces_fresh() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from fitcv_cp.synonym_proposals import build_synonym_triage_core_fingerprint
+
+    runtime = {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "sleep_secs": 0.0,
+        "concurrency": 1,
+    }
+    row = {
+        "proposal_id": "proposal-core-gate-mismatch",
+        "proposal_identity": "synident-core-gate-mismatch",
+        "proposal_status": "proposed_unreviewed",
+        "field": "skill",
+        "alias": "aws",
+        "canonical": "amazon web services",
+        "candidate_canonicals": ["amazon web services"],
+        "confidence": 0.91,
+        "conflict_summary": {"has_conflict": False},
+    }
+    core_fp = build_synonym_triage_core_fingerprint(proposal=row, runtime=runtime, overlay_fingerprint=None)
+    row["recommendation_runtime"] = {
+        "triage_fingerprint": "strict-old-and-different",
+        "triage_fingerprint_core": core_fp,
+        "triage_gate_status": "proposed_unreviewed",
+        "triage_gate_has_conflict": False,
+        "triage_gate_canonical": "amazon web services",
+        "triage_gate_candidate_canonicals": ["wrong-canonical-only"],
+    }
+
+    run = PipelineRun(
+        run_id="run-triage-core-gate-mismatch",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json='{"synonym_management":{"auto_apply_recommendation_enabled":false}}',
+        synonym_proposals_json=json.dumps({"run_id": "run-triage-core-gate-mismatch", "proposals": [row]}),
+    )
+    event_payloads: list[dict[str, object]] = []
+
+    def _capture_event(ev, bq, *, project: str, dataset: str):
+        event_payloads.append(json.loads(str(ev.payload_json or "{}")))
+        return {"persistence_status": "persisted"}
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event", side_effect=_capture_event):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-core-gate-mismatch/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    location = resp.headers["location"]
+    assert "synonym_triage_reused=0" in location
+    assert "synonym_triage_fresh=1" in location
+    triage_events = [p for p in event_payloads if "reused_count" in p]
+    assert triage_events
+    assert int(triage_events[-1].get("reused_core_count") or 0) == 0
+    assert int(triage_events[-1].get("reused_strict_count") or 0) == 0
+    assert str(triage_events[-1].get("reuse_reason") or "") == "core_match_gate_candidates_mismatch"
+
+
+def test_admin_run_synonym_proposals_triage_refresh_core_reuse_allows_open_status_churn() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from fitcv_cp.synonym_proposals import build_synonym_triage_core_fingerprint
+
+    runtime = {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "sleep_secs": 0.0,
+        "concurrency": 1,
+    }
+    row = {
+        "proposal_id": "proposal-core-status-churn",
+        "proposal_identity": "synident-core-status-churn",
+        "proposal_status": "proposed_unreviewed",
+        "field": "skill",
+        "alias": "etl",
+        "canonical": "extract transform load",
+        "candidate_canonicals": ["extract transform load"],
+        "confidence": 0.9,
+        "conflict_summary": {"has_conflict": False},
+        "recommended_action": "approve_for_run_overlay",
+    }
+    core_fp = build_synonym_triage_core_fingerprint(proposal=row, runtime=runtime, overlay_fingerprint=None)
+    row["recommendation_runtime"] = {
+        "triage_fingerprint": "strict-older-value",
+        "triage_fingerprint_core": core_fp,
+        "triage_gate_status": "approved_for_run_overlay",
+        "triage_gate_has_conflict": False,
+        "triage_gate_canonical": "extract transform load",
+        "triage_gate_candidate_canonicals": ["extract transform load"],
+    }
+
+    run = PipelineRun(
+        run_id="run-triage-core-status-churn",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json='{"synonym_management":{"auto_apply_recommendation_enabled":false}}',
+        synonym_proposals_json=json.dumps({"run_id": "run-triage-core-status-churn", "proposals": [row]}),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-core-status-churn/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    location = resp.headers["location"]
+    assert "synonym_triage_reused=1" in location
+    assert "synonym_triage_fresh=0" in location
+
 def test_synonym_proposal_review_queue_filters_pairs_already_in_global_synonyms() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -9215,6 +9420,56 @@ def test_run_detail_hides_late_stage_reuse_metrics_when_absent():
     assert resp.status_code == 200
     assert "Ranking AI-Score Reuse Rate" not in resp.text
     assert "CV Analysis Reuse Rate" not in resp.text
+
+def test_run_detail_renders_reuse_anomaly_summary_when_event_present() -> None:
+    from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="reuse-anomaly-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json=json.dumps({"run_id": "reuse-anomaly-1", "stages": {}}),
+    )
+    reuse_event = RunEvent(
+        run_id="reuse-anomaly-1",
+        event_id="reuse-anomaly-ev-1",
+        stage="reuse_anomaly",
+        level="warning",
+        message="Reuse anomaly detected: overlap present but reuse under floor",
+        payload_json=json.dumps(
+            {
+                "output_snapshot": {
+                    "status": "breached",
+                    "min_overlap": 5,
+                    "reuse_rate_floor": 0.05,
+                    "stages": [
+                        {
+                            "stage_id": "ranking",
+                            "total": 12,
+                            "reused": 0,
+                            "fresh": 12,
+                            "reuse_rate": 0.0,
+                        }
+                    ],
+                }
+            },
+            ensure_ascii=False,
+        ),
+        created_at=datetime.now(timezone.utc),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[reuse_event]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/reuse-anomaly-1")
+
+    assert resp.status_code == 200
+    assert "Reuse anomaly detected" in resp.text
+    assert "ranking: 0/12" in resp.text
 
 
 def test_run_detail_renders_cv_generation_quality_metrics():

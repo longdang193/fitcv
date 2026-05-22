@@ -206,8 +206,9 @@
 
 
 
-{% if run_health_rows %}
+{% if run_health_rows or (reuse_anomaly_summary and reuse_anomaly_summary.status == 'breached' and reuse_anomaly_summary.stages) %}
 <div class="card">
+  {% if run_health_rows %}
   <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
     <h3 style="margin:0">Run Health</h3>
     <span class="meta">Compact stage quality and late-stage reuse diagnostics.</span>
@@ -240,6 +241,21 @@
     </div>
     {% endfor %}
   </div>
+  {% endif %}
+  {% if reuse_anomaly_summary and reuse_anomaly_summary.status == 'breached' and reuse_anomaly_summary.stages %}
+  <div style="margin-top:0.9rem;padding:0.65rem;border:1px solid var(--badge-warning-fg);border-radius:6px;background:rgba(245,158,11,0.08)">
+    <div style="font-weight:600">Reuse anomaly detected</div>
+    <div class="meta" style="margin-top:0.25rem">
+      Floor {{ (reuse_anomaly_summary.reuse_rate_floor * 100)|int }}%, min overlap {{ reuse_anomaly_summary.min_overlap }}.
+      {% if reuse_anomaly_summary.occurred_at_display %}Last observed {{ reuse_anomaly_summary.occurred_at_display }}.{% endif %}
+    </div>
+    <div style="margin-top:0.35rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+      {% for stage in reuse_anomaly_summary.stages %}
+      <code>{{ stage.stage_id }}: {{ stage.reused }}/{{ stage.total }} ({{ stage.reuse_rate_percent }}%)</code>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 
