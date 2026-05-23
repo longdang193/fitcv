@@ -419,7 +419,8 @@ def test_review_required_reason_code_mapping_for_markdown_review() -> None:
         status="review_required",
         error={"stage": "markdown_quality_review", "message": "Markdown quality requires review"},
     )
-    assert reason_code == "markdown_structure_violation"
+    assert reason_code is not None
+    assert reason_code.value == "markdown_structure_violation"
 
 
 def test_review_required_reason_code_mapping_for_policy_ratio_fail() -> None:
@@ -427,7 +428,8 @@ def test_review_required_reason_code_mapping_for_policy_ratio_fail() -> None:
         status="review_required",
         error={"stage": "policy_acceptance", "message": "Policy acceptance blocked (policy_required_ratio_fail): ratio"},
     )
-    assert reason_code == "policy_required_ratio_fail"
+    assert reason_code is not None
+    assert reason_code.value == "policy_required_ratio_fail"
 
 
 def test_evaluate_cv_acceptance_policy_downgrades_stretch_when_missing_above_threshold() -> None:

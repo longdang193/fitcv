@@ -14,7 +14,8 @@ def test_review_gate_maps_to_specific_reason_code_for_unsupported_requirements()
         },
         validation_initial=None,
     )
-    assert code == "unsupported_requirement_gap"
+    assert code is not None
+    assert code.value == "unsupported_requirement_gap"
 
 
 def test_review_gate_maps_to_validation_guardrail_failed_when_rules_present() -> None:
@@ -29,7 +30,8 @@ def test_review_gate_maps_to_validation_guardrail_failed_when_rules_present() ->
             "missing_sections": [],
         },
     )
-    assert code == "validation_guardrail_failed"
+    assert code is not None
+    assert code.value == "validation_guardrail_failed"
 
 
 def test_review_required_fallback_no_longer_returns_unknown() -> None:
@@ -38,7 +40,8 @@ def test_review_required_fallback_no_longer_returns_unknown() -> None:
         error={"stage": "mystery", "message": "mystery"},
         validation_initial=None,
     )
-    assert code == "manual_review_other"
+    assert code is not None
+    assert code.value == "manual_review_other"
 
 
 def test_validation_evidence_fingerprint_is_stable_for_identical_inputs() -> None:

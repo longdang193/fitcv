@@ -41,9 +41,7 @@ config["pipeline"]["evidence_top_k"]       evidence items per job     (e.g. 5)
 
 embed_scope note
 ----------------
-v1 embeds only rule-passing jobs (cheaper, faster).  A future
-config["pipeline"]["embed_scope"] key (filtered_only | all_enriched_jobs)
-can make this configurable without code changes.
+v1 embeds only rule-passing jobs (cheaper, faster).
 """
 
 import logging
@@ -80,6 +78,25 @@ from fitcv.config import (
 from fitcv.contracts import (
     STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION,
     normalize_analysis_channel_mapping,
+)
+from fitcv.pipeline_contracts import ReviewRequiredReasonCode
+from fitcv.pipeline_stages.common import (
+    pipeline_int,
+    extract_job_title,
+    extract_job_url,
+    normalize_shortlist_row,
+    json_safe_value,
+    shortlist_outcome_for_row,
+    unique_job_urls,
+    compute_raw_shortlist_anomaly_urls,
+    job_sample,
+    candidate_profile_summary,
+    shortlist_row_sample,
+    ranking_row_sample,
+    analysis_record_output_sample,
+    analysis_record_changed_sample,
+    debug_record_output_sample,
+    debug_record_changed_sample,
 )
 from fitcv.cv_generator import generate_cv, render_cv_markdown
 from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
@@ -215,16 +232,6 @@ CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS = "skipped_fit_gate"
 CV_ANALYSIS_FAILED_STATUS = "analysis_failed"
 CV_GENERATION_REVIEW_REQUIRED_STATUS = "review_required"
 PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER = "ranked_blocked_by_reranker_fit"
-CV_REVIEW_REQUIRED_REASON_CODES = {
-    "provider_error",
-    "timeout",
-    "empty_output",
-    "template_contract_violation",
-    "markdown_structure_violation",
-    "post_validation_failed",
-    "persistence_failed",
-    "unknown",
-}
 PIPELINE_STAGE_SEQUENCE = (
     "normalize",
     "enrich",
@@ -240,14 +247,6 @@ def _build_stage_dispatch_map() -> dict[str, str]:
     """Build canonical stage-dispatch scaffold keyed by pipeline stage order."""
     return {stage_name: stage_name for stage_name in PIPELINE_STAGE_SEQUENCE}
 
-def _extract_job_url(job: dict[str, Any]) -> str:
-    return str(job.get("job_url") or job.get("jobUrl") or "")
-
-
-def _extract_job_title(job: dict[str, Any]) -> str:
-    return str(job.get("title") or job.get("job_title") or "")
-
-
 def _prompt_runtime_metadata(
     config: dict[str, Any],
     *,
@@ -262,54 +261,6 @@ def _prompt_runtime_metadata(
         "template_path": str(prompt_block.get("template_path") or ""),
         "stage_id": str(prompt_block.get("stage_id") or ""),
     }
-
-
-def _normalize_shortlist_row(shortlist_row: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "vector_similarity": shortlist_row.get("vector_similarity", shortlist_row.get("similarity_score")),
-        "vector_rank": shortlist_row.get("vector_rank", shortlist_row.get("rank")),
-        "shortlist_origin": str(shortlist_row.get("shortlist_origin") or "vector_search"),
-    }
-
-
-def _shortlist_outcome_for_row(
-    *,
-    raw_hit_present: bool,
-    shortlist_origin: str,
-    retrieval_anomaly_present: bool = False,
-) -> str:
-    normalized_origin = shortlist_origin.strip().lower()
-    if retrieval_anomaly_present:
-        return "raw_hit_excluded_from_scoring"
-    if normalized_origin == "backfill":
-        return "backfilled_for_scoring"
-    if raw_hit_present:
-        return "returned_by_vector_search"
-    return "not_returned_in_raw_hits"
-
-
-def _unique_job_urls(rows: list[dict[str, Any]]) -> list[str]:
-    urls: list[str] = []
-    seen_urls: set[str] = set()
-    for row in rows:
-        job_url = _extract_job_url(row)
-        if not job_url or job_url in seen_urls:
-            continue
-        seen_urls.add(job_url)
-        urls.append(job_url)
-    return urls
-
-
-def _raw_shortlist_anomaly_urls(
-    raw_shortlist: list[dict[str, Any]],
-    passed_jobs: list[dict[str, Any]],
-) -> list[str]:
-    passed_job_urls = {_extract_job_url(job) for job in passed_jobs if _extract_job_url(job)}
-    return [
-        job_url for job_url in _unique_job_urls(raw_shortlist)
-        if job_url not in passed_job_urls
-    ]
-
 
 def _materialize_scoring_shortlist(
     raw_shortlist: list[dict[str, Any]],
@@ -328,15 +279,15 @@ def _materialize_scoring_shortlist(
     itself missed the job URL.
     """
     passed_by_url = {
-        _extract_job_url(job): job
+        extract_job_url(job): job
         for job in passed_jobs
-        if _extract_job_url(job)
+        if extract_job_url(job)
     }
     scoring_shortlist: list[dict[str, Any]] = []
     seen_urls: set[str] = set()
 
     for row in raw_shortlist:
-        job_url = _extract_job_url(row)
+        job_url = extract_job_url(row)
         if not job_url or job_url in seen_urls:
             continue
         passed_job = passed_by_url.get(job_url)
@@ -347,7 +298,7 @@ def _materialize_scoring_shortlist(
             {
                 **passed_job,
                 "job_url": job_url,
-                **_normalize_shortlist_row(row),
+                **normalize_shortlist_row(row),
                 "vector_rank": len(scoring_shortlist) + 1,
                 "shortlist_origin": "vector_search",
             }
@@ -357,7 +308,7 @@ def _materialize_scoring_shortlist(
     for job in passed_jobs:
         if len(scoring_shortlist) >= vector_search_top_n:
             break
-        job_url = _extract_job_url(job)
+        job_url = extract_job_url(job)
         if not job_url or job_url in seen_urls:
             continue
         seen_urls.add(job_url)
@@ -402,7 +353,7 @@ def _enrich_jobs_with_reuse(
 
     raw_job_fingerprints: dict[str, str] = {}
     for job in normalized_jobs:
-        job_url = _extract_job_url(job)
+        job_url = extract_job_url(job)
         if not job_url:
             continue
         raw_job_fingerprints[job_url] = build_raw_job_fingerprint(job)["fingerprint"]
@@ -422,7 +373,7 @@ def _enrich_jobs_with_reuse(
 
     fresh_jobs = [
         job for job in normalized_jobs
-        if _extract_job_url(job) and _extract_job_url(job) not in reused_rows_by_url
+        if extract_job_url(job) and extract_job_url(job) not in reused_rows_by_url
     ]
     fresh_rows: list[dict[str, Any]] = []
 
@@ -482,7 +433,7 @@ def _enrich_jobs_with_reuse(
         if debug_heartbeat_enabled:
             total = len(fresh_jobs)
             for idx, job in enumerate(fresh_jobs, start=1):
-                job_url = _extract_job_url(job) or f"job_{idx}"
+                job_url = extract_job_url(job) or f"job_{idx}"
                 if heartbeat_callback:
                     heartbeat_callback(
                         {
@@ -560,7 +511,7 @@ def _enrich_jobs_with_reuse(
                     }
                 )
         for row in fresh_rows:
-            job_url = _extract_job_url(row)
+            job_url = extract_job_url(row)
             if not job_url:
                 continue
             row["raw_job_fingerprint"] = raw_job_fingerprints.get(job_url)
@@ -574,13 +525,13 @@ def _enrich_jobs_with_reuse(
             )
 
     fresh_rows_by_url = {
-        _extract_job_url(row): row
+        extract_job_url(row): row
         for row in fresh_rows
-        if _extract_job_url(row)
+        if extract_job_url(row)
     }
     enriched_rows: list[dict[str, Any]] = []
     for job in normalized_jobs:
-        job_url = _extract_job_url(job)
+        job_url = extract_job_url(job)
         if not job_url:
             continue
         reused_row = reused_rows_by_url.get(job_url)
@@ -622,7 +573,7 @@ def _merge_ranked_job_with_enriched_context(
     ranked_job: dict[str, Any],
     enriched_by_url: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
-    job_url = _extract_job_url(ranked_job)
+    job_url = extract_job_url(ranked_job)
     enriched_job = enriched_by_url.get(job_url, {})
     if not enriched_job:
         return dict(ranked_job)
@@ -649,21 +600,21 @@ def _build_export_results(
     cv_generation_debug_records: list[dict[str, Any]],
     vector_search_top_n: int,
 ) -> list[dict[str, Any]]:
-    original_by_url = {_extract_job_url(job): job for job in raw_jobs if _extract_job_url(job)}
-    enriched_by_url = {_extract_job_url(job): job for job in enriched if _extract_job_url(job)}
-    passed_by_url = {_extract_job_url(job): job for job in passed_jobs if _extract_job_url(job)}
+    original_by_url = {extract_job_url(job): job for job in raw_jobs if extract_job_url(job)}
+    enriched_by_url = {extract_job_url(job): job for job in enriched if extract_job_url(job)}
+    passed_by_url = {extract_job_url(job): job for job in passed_jobs if extract_job_url(job)}
     raw_shortlist_by_url = {
-        _extract_job_url(job): _normalize_shortlist_row(job)
+        extract_job_url(job): normalize_shortlist_row(job)
         for job in raw_shortlist
-        if _extract_job_url(job)
+        if extract_job_url(job)
     }
     scoring_shortlist_by_url = {
-        _extract_job_url(job): _normalize_shortlist_row(job)
+        extract_job_url(job): normalize_shortlist_row(job)
         for job in shortlist_for_scoring
-        if _extract_job_url(job)
+        if extract_job_url(job)
     }
-    scoring_by_url = {_extract_job_url(job): job for job in ranking_inputs if _extract_job_url(job)}
-    ranked_by_url = {_extract_job_url(job): job for job in ranked if _extract_job_url(job)}
+    scoring_by_url = {extract_job_url(job): job for job in ranking_inputs if extract_job_url(job)}
+    ranked_by_url = {extract_job_url(job): job for job in ranked if extract_job_url(job)}
     analysis_by_url = {
         str(record.get("job_url") or ""): record
         for record in cv_analysis_results
@@ -694,9 +645,9 @@ def _build_export_results(
 
     reject_reasons_by_url: dict[str, list[str]] = {}
     rule_filter_marks_by_url: dict[str, list[dict[str, Any]]] = {
-        _extract_job_url(job): list(job.get("marks") or [])
+        extract_job_url(job): list(job.get("marks") or [])
         for job in passed_jobs
-        if _extract_job_url(job)
+        if extract_job_url(job)
     }
     rejected_before_enrichment_urls: set[str] = set()
     rejected_after_enrichment_urls: set[str] = set()
@@ -760,7 +711,7 @@ def _build_export_results(
 
     rows: list[dict[str, Any]] = []
     for input_index, raw_job in enumerate(raw_jobs):
-        job_url = _extract_job_url(raw_job)
+        job_url = extract_job_url(raw_job)
         enriched_job = enriched_by_url.get(job_url)
         deduplicated_job = deduplicated_by_input_index.get(input_index)
         score_source = {
@@ -850,7 +801,7 @@ def _build_export_results(
         rows.append(
             {
                 "job_url": job_url,
-                "job_title": _extract_job_title(enriched_job or raw_job or {}),
+                "job_title": extract_job_title(enriched_job or raw_job or {}),
                 "company": (enriched_job or raw_job or {}).get("company_name")
                 or (enriched_job or raw_job or {}).get("companyName"),
                 "location_type": (enriched_job or {}).get("location_type"),
@@ -928,24 +879,6 @@ def completed_pipeline_stages_through(stage_name: str | None) -> list[str]:
         return []
     stage_index = PIPELINE_STAGE_SEQUENCE.index(normalized)
     return list(PIPELINE_STAGE_SEQUENCE[: stage_index + 1])
-
-
-def _build_stage_dispatch_map() -> dict[str, str]:
-    """Build canonical stage dispatch scaffold keyed by pipeline stage order."""
-    return {stage_name: stage_name for stage_name in PIPELINE_STAGE_SEQUENCE}
-
-
-def _json_safe_pipeline_value(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe_pipeline_value(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_json_safe_pipeline_value(item) for item in value]
-    if isinstance(value, tuple):
-        return [_json_safe_pipeline_value(item) for item in value]
-    if isinstance(value, set):
-        return [_json_safe_pipeline_value(item) for item in sorted(value)]
-    return value
-
 
 def _normalize_late_stage_reuse_snapshots(reuse_snapshots: dict[str, Any] | None) -> dict[str, list[dict[str, Any]]]:
     payload = dict(reuse_snapshots or {})
@@ -1040,7 +973,7 @@ def _attach_analysis_input_components(
     )
     hydrated["job_title"] = str(
         hydrated.get("job_title")
-        or _extract_job_title(job)
+        or extract_job_title(job)
     )
     hydrated["job_snapshot"] = dict(hydrated.get("job_snapshot") or job)
     reuse_status = str(hydrated.get("analysis_reuse_status") or "")
@@ -1263,10 +1196,15 @@ def _restore_pipeline_state(
 
 def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
     keys = PipelineState.payload_keys()
-    return {
-        key: _json_safe_pipeline_value(state.get(key) or [])
-        for key in keys
+    payload: dict[str, Any] = {
+        "schema_version": int(getattr(PipelineState, "CHECKPOINT_SCHEMA_VERSION", 1)),
     }
+    for key in keys:
+        if key == "candidate_query_debug":
+            payload[key] = json_safe_value(state.get(key) or {})
+            continue
+        payload[key] = json_safe_value(state.get(key) or [])
+    return payload
 
 
 def _infer_last_completed_stage_from_state(state: dict[str, Any]) -> str | None:
@@ -1295,8 +1233,8 @@ def _collect_mapping_suggestions(enriched: list[dict[str, Any]], run_id: str) ->
     suggestions: list[dict[str, Any]] = []
     seen_keys: set[tuple[str, str, str, str]] = set()
     for job in enriched:
-        job_url = _extract_job_url(job)
-        job_title = _extract_job_title(job)
+        job_url = extract_job_url(job)
+        job_title = extract_job_title(job)
         for suggestion in list(job.get("mapping_suggestions") or []):
             if not isinstance(suggestion, dict):
                 continue
@@ -1388,10 +1326,10 @@ def _build_stage_progress_summary(
     cv_results = list(state.get("cv_results") or [])
     candidate_profile = profile or {"preferences": {}}
     vector_top_n_value = int(
-        vector_top_n if vector_top_n is not None else config.get("pipeline", {}).get("vector_search_top_n", 0)
+        vector_top_n if vector_top_n is not None else pipeline_int(config, "vector_search_top_n", default=0)
     )
     final_top_n_value = int(
-        final_top_n if final_top_n is not None else config.get("pipeline", {}).get("final_top_n", 0)
+        final_top_n if final_top_n is not None else pipeline_int(config, "final_top_n", default=0)
     )
     candidate_summary_value = str(candidate_summary or "")
     candidate_query_components_value = dict(candidate_query_components or {})
@@ -1935,7 +1873,7 @@ def _build_analysis_evidence_selection_summary(
 
 
 def _render_cv_analysis_item_input(*, profile: dict[str, Any], job: dict[str, Any]) -> str:
-    job_title = _extract_job_title(job) or "Unknown job"
+    job_title = extract_job_title(job) or "Unknown job"
     required_skills = bound_langfuse_list(
         [str(item).strip() for item in list(job.get("required_skills") or []) if str(item).strip()],
         max_items=8,
@@ -2048,7 +1986,7 @@ def _render_cv_generation_item_input(
         max_item_chars=240,
     )
     sections = [
-        ("## Job", [f"Title: {_extract_job_title(job) or 'Unknown job'}"]),
+        ("## Job", [f"Title: {extract_job_title(job) or 'Unknown job'}"]),
         ("### Job Excerpt", [bound_langfuse_excerpt(str(job.get("description") or ""), max_chars=1500) or ""]),
         ("### Constraints", [f"- {item}" for item in required_skills]),
         ("## Analysis Inputs", [f"Fit Classification: {fit_classification or 'unknown'}"]),
@@ -2235,7 +2173,7 @@ def _build_cv_generation_debug_record(
     )
     payload = {
         "job_url": str(job.get("job_url") or ""),
-        "job_title": _extract_job_title(job),
+        "job_title": extract_job_title(job),
         "status": status,
         "ranking_fit_label": ranking_fit_label,
         # Backward-compatible alias for downstream consumers still reading reranker_fit_label.
@@ -2261,10 +2199,12 @@ def _build_cv_generation_debug_record(
         # Reranker blocks and fit-gate skips are expected outcomes, not generation runtime errors.
         "outcome_reason": error if status in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
         "error": error if status not in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
-        "review_required_reason_code": _normalize_review_required_reason_code(
-            status=status,
-            error=error,
-            validation_initial=resolved_validation,
+        "review_required_reason_code": _review_required_reason_code_value(
+            _normalize_review_required_reason_code(
+                status=status,
+                error=error,
+                validation_initial=resolved_validation,
+            )
         ),
         "validation_evidence_fingerprint": _build_validation_evidence_fingerprint(
             status=status,
@@ -2319,47 +2259,53 @@ def _normalize_review_required_reason_code(
     status: str,
     error: dict[str, str] | None,
     validation_initial: dict[str, Any] | None = None,
-) -> str | None:
+) -> ReviewRequiredReasonCode | None:
     if status == "persistence_failed":
-        return "persistence_failed"
+        return ReviewRequiredReasonCode.PERSISTENCE_FAILED
     if status == "validation_failed":
-        return "post_validation_failed"
+        return ReviewRequiredReasonCode.POST_VALIDATION_FAILED
     if status != CV_GENERATION_REVIEW_REQUIRED_STATUS:
         return None
     stage = str((error or {}).get("stage") or "").strip().lower()
     message = str((error or {}).get("message") or "").strip().lower()
     if stage in {"provider", "provider_error", "generation"}:
-        return "provider_error"
+        return ReviewRequiredReasonCode.PROVIDER_ERROR
     if "timeout" in stage or "timeout" in message:
-        return "timeout"
+        return ReviewRequiredReasonCode.TIMEOUT
     if stage == "markdown_quality_review":
-        return "markdown_structure_violation"
+        return ReviewRequiredReasonCode.MARKDOWN_STRUCTURE_VIOLATION
     if stage == "policy_acceptance":
         if "ratio" in message:
-            return "policy_required_ratio_fail"
+            return ReviewRequiredReasonCode.POLICY_REQUIRED_RATIO_FAIL
         if "missing" in message:
-            return "policy_missing_required_fail"
-        return "policy_acceptance_fail"
+            return ReviewRequiredReasonCode.POLICY_MISSING_REQUIRED_FAIL
+        return ReviewRequiredReasonCode.POLICY_ACCEPTANCE_FAIL
     if stage == "validation":
-        return "post_validation_failed"
+        return ReviewRequiredReasonCode.POST_VALIDATION_FAILED
     if stage == "review_gate":
         if "unsupported requirements require review" in message:
-            return "unsupported_requirement_gap"
+            return ReviewRequiredReasonCode.UNSUPPORTED_REQUIREMENT_GAP
         if "low confidence sections" in message:
-            return "low_confidence_sections"
+            return ReviewRequiredReasonCode.LOW_CONFIDENCE_SECTIONS
         if "markdown quality" in message:
-            return "quality_gate_failed"
+            return ReviewRequiredReasonCode.QUALITY_GATE_FAILED
         failed_rule_ids = _extract_failed_rule_ids(validation_initial)
         if failed_rule_ids:
-            return "validation_guardrail_failed"
+            return ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED
         if "validation failed" in message or "guardrail" in message:
-            return "validation_guardrail_failed"
-        return "review_gate_manual_required"
+            return ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED
+        return ReviewRequiredReasonCode.REVIEW_GATE_MANUAL_REQUIRED
     if "template" in stage or "template" in message:
-        return "template_contract_violation"
+        return ReviewRequiredReasonCode.TEMPLATE_CONTRACT_VIOLATION
     if "empty" in message:
-        return "empty_output"
-    return "manual_review_other"
+        return ReviewRequiredReasonCode.EMPTY_OUTPUT
+    return ReviewRequiredReasonCode.MANUAL_REVIEW_OTHER
+
+
+def _review_required_reason_code_value(code: ReviewRequiredReasonCode | None) -> str | None:
+    if code is None:
+        return None
+    return code.value
 
 
 def _build_validation_evidence_fingerprint(
@@ -2431,7 +2377,7 @@ def _is_recoverable_cv_failure(*, status: str, error: dict[str, str] | None) -> 
         message = str((error or {}).get("message") or "").strip().lower()
         return any(token in message for token in ("timeout", "tempor", "rate limit", "unavailable", "provider"))
     reason_code = _normalize_review_required_reason_code(status=status, error=error)
-    return reason_code in {"provider_error", "timeout"}
+    return reason_code in {ReviewRequiredReasonCode.PROVIDER_ERROR, ReviewRequiredReasonCode.TIMEOUT}
 
 def _hitl_review_reason_for_agentic_case(
     analysis_record: dict[str, Any] | None,
@@ -2791,7 +2737,7 @@ def _build_cv_analysis_record(
     )
     return {
         "job_url": str(job.get("job_url") or ""),
-        "job_title": _extract_job_title(job),
+        "job_title": extract_job_title(job),
         "status": status,
         "analysis_input_fingerprint": analysis_input_fingerprint,
         "analysis_input_components": dict(analysis_input_components or {}),
@@ -2978,68 +2924,14 @@ def _collect_stage_quality_metrics(stage_transition_artifacts: dict[str, Any]) -
 
 
 def _job_sample(job: dict[str, Any]) -> dict[str, Any] | None:
-    job_url = _extract_job_url(job)
-    if not job_url:
-        return None
-    sample: dict[str, Any] = {
-        "job_url": job_url,
-        "job_title": _extract_job_title(job),
-        "company": str(job.get("company_name") or job.get("companyName") or ""),
-    }
-    optional_fields: dict[str, Any] = {}
-    for field in _EXPORT_ENRICHED_JOB_FIELDS:
-        value = job.get(field)
-        optional_fields[field] = value
-    for key, value in optional_fields.items():
-        if value not in (None, "", []):
-            sample[key] = value
-    marks = list(job.get("marks") or [])
-    if marks:
-        sample["marks"] = marks
-    return sample
-
+    return job_sample(job, export_fields=_EXPORT_ENRICHED_JOB_FIELDS)
 
 def _candidate_profile_summary(profile: dict[str, Any], config: dict[str, Any] | None = None) -> dict[str, Any]:
-    preferences = dict(profile.get("preferences") or {})
-    preference_resolution = infer_effective_preferences(profile, config)
-    flattened_skills = flatten_skills(profile)
-    summary = {
-        "target_role": str(preferences.get("target_role") or ""),
-        "effective_target_role": str(preference_resolution["effective_preferences"].get("target_role") or ""),
-        "effective_role_families": list(preference_resolution["effective_preferences"].get("role_families") or []),
-        "effective_domains": list(preference_resolution["effective_preferences"].get("domains") or []),
-        "preference_sources": dict(preference_resolution["preference_sources"] or {}),
-        "years_experience": profile.get("years_experience"),
-        "skills_sample": flattened_skills[:5],
-    }
-    return {key: value for key, value in summary.items() if value not in (None, "", [])}
+    return candidate_profile_summary(profile, config)
 
 
 def _shortlist_row_sample(row: dict[str, Any]) -> dict[str, Any] | None:
-    job_url = _extract_job_url(row)
-    if not job_url:
-        return None
-    shortlist_origin = str(row.get("shortlist_origin") or "vector_search")
-    raw_hit_present = bool(row.get("raw_hit_present", shortlist_origin != "backfill"))
-    retrieval_anomaly_present = bool(row.get("retrieval_anomaly_present", False))
-    sample = {
-        "job_url": job_url,
-        "job_title": _extract_job_title(row),
-        "vector_similarity": row.get("vector_similarity", row.get("similarity_score")),
-        "vector_rank": row.get("vector_rank", row.get("rank")),
-        "shortlist_origin": shortlist_origin,
-        "shortlist_outcome": _shortlist_outcome_for_row(
-            raw_hit_present=raw_hit_present,
-            shortlist_origin=shortlist_origin,
-            retrieval_anomaly_present=retrieval_anomaly_present,
-        ),
-        "raw_hit_present": raw_hit_present,
-        "retrieval_anomaly_present": retrieval_anomaly_present,
-        "embedding_reuse_status": row.get("embedding_reuse_status"),
-        "embedding_input_signature": row.get("embedding_input_signature"),
-        "embedding_contract_fingerprint": row.get("embedding_contract_fingerprint"),
-    }
-    return {key: value for key, value in sample.items() if value not in (None, "")}
+    return shortlist_row_sample(row)
 
 
 def _rule_filter_decision_sample(
@@ -3047,7 +2939,7 @@ def _rule_filter_decision_sample(
     *,
     filter_outcome: str,
 ) -> dict[str, Any] | None:
-    base = _job_sample(row)
+    base = job_sample(row, export_fields=_EXPORT_ENRICHED_JOB_FIELDS)
     if not base:
         return None
     sample = {
@@ -3064,148 +2956,35 @@ def _rule_filter_decision_sample(
 
 
 def _ranking_row_sample(row: dict[str, Any]) -> dict[str, Any] | None:
-    job_url = _extract_job_url(row)
-    if not job_url:
-        return None
-    sample = {
-        "job_url": job_url,
-        "job_title": _extract_job_title(row),
-        "ai_score": row.get("ai_score"),
-        "ai_score_reuse_status": row.get("ai_score_reuse_status"),
-        "ai_score_input_fingerprint": row.get("ai_score_input_fingerprint"),
-        "reranker_parser_status": row.get("parser_status"),
-        "reranker_score_reasoning": row.get("score_reasoning"),
-        "reranker_key_risks": row.get("key_risks"),
-        "reranker_matched_strengths": row.get("matched_strengths"),
-        "must_have_match": row.get("must_have_match"),
-        "vector_similarity": row.get("vector_similarity"),
-        "title_relevance": row.get("title_relevance"),
-        "seniority_fit": row.get("seniority_fit"),
-        "preference_fit": row.get("preference_fit"),
-        "feature_contributions": row.get("feature_contributions"),
-        "preference_fit_components": row.get("preference_fit_components"),
-        "effective_target_role": ((row.get("effective_preferences") or {}).get("target_role") if isinstance(row.get("effective_preferences"), dict) else None),
-        "effective_role_families": ((row.get("effective_preferences") or {}).get("role_families") if isinstance(row.get("effective_preferences"), dict) else None),
-        "effective_domains": ((row.get("effective_preferences") or {}).get("domains") if isinstance(row.get("effective_preferences"), dict) else None),
-        "preference_sources": row.get("preference_sources"),
-        "final_score": row.get("final_score"),
-        "ranking_fit_label": row.get("fit_label"),
-        "shortlist_origin": row.get("shortlist_origin"),
-    }
-    return {key: value for key, value in sample.items() if value not in (None, "")}
+    return ranking_row_sample(row)
 
 
 def _analysis_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None:
-    status = str(record.get("status") or "")
-    if status != "ready_for_generation":
-        return None
-    job_url = str(record.get("job_url") or "")
-    if not job_url:
-        return None
-    sample = {
-        "job_url": job_url,
-        "job_title": str(record.get("job_title") or ""),
-        "status": status,
-        **_deterministic_truth_fields(status),
-        "analysis_reuse_status": record.get("analysis_reuse_status"),
-        "analysis_input_fingerprint": record.get("analysis_input_fingerprint"),
-        "ranking_fit_label": record.get("ranking_fit_label"),
-        "fit_classification": record.get("fit_classification"),
-        "evidence_used": record.get("evidence_used"),
-        "evidence_selection_summary": record.get("evidence_selection_summary"),
-        "gap_summary": record.get("gap_summary"),
-        "pre_writing_decision": record.get("pre_writing_decision"),
-        "readiness_diagnostics": record.get("readiness_diagnostics"),
-    }
-    return {key: value for key, value in sample.items() if value not in (None, "", [])}
+    return analysis_record_output_sample(
+        record,
+        deterministic_truth_fields=_deterministic_truth_fields,
+    )
 
 
 def _analysis_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | None:
-    status = str(record.get("status") or "")
-    if status == "ready_for_generation":
-        return None
-    job_url = str(record.get("job_url") or "")
-    if not job_url:
-        return None
-    sample = {
-        "job_url": job_url,
-        "job_title": str(record.get("job_title") or ""),
-        "change_type": status,
-        **_deterministic_truth_fields(status),
-        "analysis_reuse_status": record.get("analysis_reuse_status"),
-        "analysis_input_fingerprint": record.get("analysis_input_fingerprint"),
-        "ranking_fit_label": record.get("ranking_fit_label"),
-        "fit_classification": record.get("fit_classification"),
-        "evidence_used": record.get("evidence_used"),
-        "evidence_selection_summary": record.get("evidence_selection_summary"),
-        "gap_summary": record.get("gap_summary"),
-        "pre_writing_decision": record.get("pre_writing_decision"),
-        "readiness_diagnostics": record.get("readiness_diagnostics"),
-        "outcome_reason": record.get("outcome_reason") or record.get("error"),
-    }
-    return {key: value for key, value in sample.items() if value not in (None, "", [])}
+    return analysis_record_changed_sample(
+        record,
+        deterministic_truth_fields=_deterministic_truth_fields,
+    )
 
 
 def _debug_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None:
-    status = str(record.get("status") or "")
-    if status not in {"accepted", "persistence_failed"}:
-        return None
-    job_url = str(record.get("job_url") or "")
-    if not job_url:
-        return None
-    sample = {
-        "job_url": job_url,
-        "job_title": str(record.get("job_title") or ""),
-        "status": status,
-        **_deterministic_truth_fields(status),
-        "ranking_fit_label": record.get("ranking_fit_label"),
-        "fit_classification": record.get("fit_classification"),
-        "analysis_input_summary": record.get("analysis_input_summary"),
-        "evidence_used": record.get("evidence_used"),
-        "evidence_selection_summary": record.get("evidence_selection_summary"),
-        "gap_summary": record.get("gap_summary"),
-        "validation_initial": record.get("validation_initial"),
-        "repair_attempt": record.get("repair_attempt"),
-        "structured_cv_final": record.get("structured_cv_final"),
-        "enabled_sections": record.get("enabled_sections"),
-        "cv_generation_model": record.get("cv_generation_model"),
-        "cv_prompt_id": record.get("cv_prompt_id"),
-        "cv_prompt_template_path": record.get("cv_prompt_template_path"),
-        "cv_generation_reuse_status": record.get("cv_generation_reuse_status"),
-        "cv_generation_input_fingerprint": record.get("cv_generation_input_fingerprint"),
-    }
-    return {key: value for key, value in sample.items() if value not in (None, "", [])}
+    return debug_record_output_sample(
+        record,
+        deterministic_truth_fields=_deterministic_truth_fields,
+    )
 
 
 def _debug_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | None:
-    status = str(record.get("status") or "")
-    if status in {"accepted", "persistence_failed"}:
-        return None
-    job_url = str(record.get("job_url") or "")
-    if not job_url:
-        return None
-    sample = {
-        "job_url": job_url,
-        "job_title": str(record.get("job_title") or ""),
-        "change_type": status,
-        **_deterministic_truth_fields(status),
-        "ranking_fit_label": record.get("ranking_fit_label"),
-        "fit_classification": record.get("fit_classification"),
-        "analysis_input_summary": record.get("analysis_input_summary"),
-        "evidence_used": record.get("evidence_used"),
-        "evidence_selection_summary": record.get("evidence_selection_summary"),
-        "gap_summary": record.get("gap_summary"),
-        "validation_initial": record.get("validation_initial"),
-        "repair_attempt": record.get("repair_attempt"),
-        "enabled_sections": record.get("enabled_sections"),
-        "cv_generation_model": record.get("cv_generation_model"),
-        "cv_prompt_id": record.get("cv_prompt_id"),
-        "cv_prompt_template_path": record.get("cv_prompt_template_path"),
-        "cv_generation_reuse_status": record.get("cv_generation_reuse_status"),
-        "cv_generation_input_fingerprint": record.get("cv_generation_input_fingerprint"),
-        "error": record.get("error"),
-    }
-    return {key: value for key, value in sample.items() if value not in (None, "", [])}
+    return debug_record_changed_sample(
+        record,
+        deterministic_truth_fields=_deterministic_truth_fields,
+    )
 
 
 def _stage_block(
@@ -3345,8 +3124,8 @@ def _build_stage_transition_artifacts(
         if str(record.get("status") or "") in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
     ]
     cv_generation_reached = len(generation_execution_records) > 0
-    raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
-    raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
+    raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
+    raw_shortlist_anomaly_urls = compute_raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
     shortlist_candidate_query_components = {
         "headline": str(candidate_query_components.get("headline") or ""),
         "target_role": str(candidate_query_components.get("target_role") or ""),
@@ -3373,7 +3152,7 @@ def _build_stage_transition_artifacts(
         for key, value in shortlist_candidate_query_debug.items()
         if value not in ("", None)
     }
-    ranked_urls = {_extract_job_url(job) for job in ranked if _extract_job_url(job)}
+    ranked_urls = {extract_job_url(job) for job in ranked if extract_job_url(job)}
     dedupe_reason_counts: dict[str, int] = {}
     for job in deduplicated_jobs:
         reason = _DEDUPE_REASON_LABELS.get(str(job.get("dedupe_reason") or ""), "deduplicated")
@@ -3770,7 +3549,7 @@ def build_ranking_features(
         )
         must_have_match = compute_must_have_match(required_skills, candidate_skills, config)
         title_relevance = compute_title_relevance(
-            _extract_job_title(ranking_source),
+            extract_job_title(ranking_source),
             str(effective_preferences.get("target_role") or "") or None,
             job_family=str(ranking_source.get("job_family") or "") or None,
             config=config,
@@ -3919,8 +3698,8 @@ def run_pipeline(
         candidate_summary = ""
         candidate_query_components: dict[str, Any] = {}
         candidate_query_debug: dict[str, Any] = {}
-        vector_top_n = int(config.get("pipeline", {}).get("vector_search_top_n", 0))
-        final_top_n = int(config.get("pipeline", {}).get("final_top_n", 0))
+        vector_top_n = pipeline_int(config, "vector_search_top_n", default=0)
+        final_top_n = pipeline_int(config, "final_top_n", default=0)
 
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("normalize"):
             with observe_span("pipeline.normalize", attributes={"run_id": run_id}):
@@ -4136,7 +3915,7 @@ def run_pipeline(
 
         passed_jobs = list(state["passed_jobs"])
         candidate_filter_rejected_jobs = list(state["candidate_filter_rejected_jobs"])
-        passed_job_urls = [_extract_job_url(job) for job in passed_jobs if _extract_job_url(job)]
+        passed_job_urls = [extract_job_url(job) for job in passed_jobs if extract_job_url(job)]
 
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("shortlist"):
             with observe_span("pipeline.shortlist", attributes={"run_id": run_id, "vector_top_n": vector_top_n}):
@@ -4191,8 +3970,8 @@ def run_pipeline(
                     )
                 shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_top_n)
                 pipeline_store.store_shortlist(shortlist, config)
-                raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
-                raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
+                raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
+                raw_shortlist_anomaly_urls = compute_raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
                 backfilled_job_urls = [
                     str(job.get("job_url") or "")
                     for job in shortlist
@@ -4238,8 +4017,8 @@ def run_pipeline(
         shortlist = list(state["shortlist"])
         backfilled_job_urls = list(state["backfilled_job_urls"])
         candidate_query_debug = dict(state.get("candidate_query_debug") or candidate_query_debug)
-        raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
-        raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
+        raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
+        raw_shortlist_anomaly_urls = compute_raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
 
         if not candidate_query_components or not candidate_summary:
             from fitcv.vector_search import build_candidate_query_components, build_candidate_query_text
@@ -4249,7 +4028,7 @@ def run_pipeline(
 
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("ranking"):
             with observe_span("pipeline.ai_score", attributes={"run_id": run_id}):
-                ai_top_n = int(config["pipeline"]["ai_score_top_n"])
+                ai_top_n = pipeline_int(config, "ai_score_top_n", default=0)
                 if cancellation_check and cancellation_check():
                     raise PipelineCancelled("Cancelled before AI scoring")
                 ai_score_candidates = shortlist[:ai_top_n]
@@ -4265,7 +4044,7 @@ def run_pipeline(
                         top_evidence,
                         config,
                     )
-                    job_url = _extract_job_url(shortlisted_job)
+                    job_url = extract_job_url(shortlisted_job)
                     reused_ai_row = (
                         ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
                         if ranking_reuse_enabled
@@ -4312,7 +4091,7 @@ def run_pipeline(
 
                 ai_scores = []
                 for shortlisted_job in ai_score_candidates:
-                    job_url = _extract_job_url(shortlisted_job)
+                    job_url = extract_job_url(shortlisted_job)
                     score_row: dict[str, Any] | None = reused_ai_scores_by_url.get(job_url) or fresh_ai_scores_by_url.get(job_url)
                     if score_row is not None:
                         ai_scores.append(score_row)
@@ -4527,7 +4306,7 @@ def run_pipeline(
                         analysis_record = {
                             **deepcopy(reused_analysis_record),
                             "job_url": str(job.get("job_url") or ""),
-                            "job_title": _extract_job_title(job),
+                            "job_title": extract_job_title(job),
                             "job_snapshot": dict(job),
                             "analysis_input_fingerprint": analysis_fingerprint_record["fingerprint"],
                             "analysis_input_components": dict(analysis_input_components),
@@ -4666,7 +4445,7 @@ def run_pipeline(
                                     )
                                 )
                             continue
-                        evidence_top_k = int(config["pipeline"]["evidence_top_k"])
+                        evidence_top_k = pipeline_int(config, "evidence_top_k", default=0)
                         evidence_bundle = retrieve_evidence_bundle(
                             profile,
                             job,
@@ -5377,10 +5156,12 @@ def run_pipeline(
                 attempt_count=1,
                 retry_count=0,
                 latency_ms=latency_ms,
-                review_required_reason_code=_normalize_review_required_reason_code(
-                    status="validation_failed",
-                    error={"stage": "validation", "message": f"CV validation failed for {job.get('job_url')}"},
-                    validation_initial=validation_initial,
+                review_required_reason_code=_review_required_reason_code_value(
+                    _normalize_review_required_reason_code(
+                        status="validation_failed",
+                        error={"stage": "validation", "message": f"CV validation failed for {job.get('job_url')}"},
+                        validation_initial=validation_initial,
+                    )
                 ),
                 validation_evidence_fingerprint=_build_validation_evidence_fingerprint(
                     status="validation_failed",
@@ -5517,13 +5298,15 @@ def run_pipeline(
                 attempt_count=1,
                 retry_count=0,
                 latency_ms=latency_ms,
-                review_required_reason_code=_normalize_review_required_reason_code(
-                    status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
-                    error={
-                        "stage": "markdown_quality_review",
-                        "message": str(markdown_review_reason or ""),
-                    },
-                    validation_initial=validation_initial,
+                review_required_reason_code=_review_required_reason_code_value(
+                    _normalize_review_required_reason_code(
+                        status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                        error={
+                            "stage": "markdown_quality_review",
+                            "message": str(markdown_review_reason or ""),
+                        },
+                        validation_initial=validation_initial,
+                    )
                 ),
                 validation_evidence_fingerprint=_build_validation_evidence_fingerprint(
                     status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
@@ -5604,16 +5387,18 @@ def run_pipeline(
                 attempt_count=1,
                 retry_count=0,
                 latency_ms=latency_ms,
-                review_required_reason_code=_normalize_review_required_reason_code(
-                    status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
-                    error={
-                        "stage": "policy_acceptance",
-                        "message": (
-                            f"Policy acceptance blocked ({policy_reason_code}): {policy_note}. "
-                            f"Manual review required."
-                        ),
-                    },
-                    validation_initial=validation_initial,
+                review_required_reason_code=_review_required_reason_code_value(
+                    _normalize_review_required_reason_code(
+                        status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                        error={
+                            "stage": "policy_acceptance",
+                            "message": (
+                                f"Policy acceptance blocked ({policy_reason_code}): {policy_note}. "
+                                f"Manual review required."
+                            ),
+                        },
+                        validation_initial=validation_initial,
+                    )
                 ),
                 validation_evidence_fingerprint=_build_validation_evidence_fingerprint(
                     status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
@@ -6331,7 +6116,7 @@ def run_pipeline(
                     except Exception:
                         debug_record = {
                             "job_url": str(job.get("job_url") or ""),
-                            "job_title": _extract_job_title(job),
+                            "job_title": extract_job_title(job),
                             "status": str(agentic_generation_result.get("status") or "generation_failed"),
                             "fit_classification": fit,
                             "validation_initial": validation_initial,
@@ -6359,10 +6144,12 @@ def run_pipeline(
                     payload = dict(deferred_reporter_payload.get("payload") or {})
                     output_snapshot = dict(payload.get("output_snapshot") or {})
                     output_snapshot["status"] = CV_GENERATION_REVIEW_REQUIRED_STATUS
-                    output_snapshot["review_required_reason_code"] = _normalize_review_required_reason_code(
-                        status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
-                        error=review_error,
-                        validation_initial=validation_initial,
+                    output_snapshot["review_required_reason_code"] = _review_required_reason_code_value(
+                        _normalize_review_required_reason_code(
+                            status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                            error=review_error,
+                            validation_initial=validation_initial,
+                        )
                     )
                     payload["deterministic_outcome"] = CV_GENERATION_REVIEW_REQUIRED_STATUS
                     payload["output_snapshot"] = output_snapshot

@@ -1068,22 +1068,24 @@ def _persist_global_skill_synonyms_map(mappings: dict[str, str]) -> None:
 
 def _map_review_required_reason_code(record: dict[str, Any]) -> str:
     explicit_code = str(record.get("review_required_reason_code") or "").strip()
-    if explicit_code and explicit_code != "unknown":
+    from fitcv.pipeline_contracts import ReviewRequiredReasonCode, is_review_required_reason_code
+
+    if is_review_required_reason_code(explicit_code):
         return explicit_code
     error = dict(record.get("error") or {})
     stage = str(error.get("stage") or "").strip().lower()
     message = str(error.get("message") or record.get("operator_note") or "").strip().lower()
     if "unsupported requirements require review" in message:
-        return "unsupported_requirement_gap"
+        return ReviewRequiredReasonCode.UNSUPPORTED_REQUIREMENT_GAP.value
     if stage == "markdown_quality_review" or "markdown quality" in message:
-        return "quality_gate_failed"
+        return ReviewRequiredReasonCode.QUALITY_GATE_FAILED.value
     if stage == "validation" or "validation failed" in message or "guardrail" in message:
-        return "validation_guardrail_failed"
+        return ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED.value
     if "insufficient evidence" in message or "evidence coverage" in message:
-        return "evidence_coverage_insufficient"
+        return ReviewRequiredReasonCode.EVIDENCE_COVERAGE_INSUFFICIENT.value
     if stage in {"provider", "llm"} or "provider" in message or "response unusable" in message:
-        return "provider_response_unusable"
-    return "manual_review_other"
+        return ReviewRequiredReasonCode.PROVIDER_RESPONSE_UNUSABLE.value
+    return ReviewRequiredReasonCode.MANUAL_REVIEW_OTHER.value
 
 
 def _summary_has_reached_stage(summary: dict[str, Any], stage_id: str) -> bool:

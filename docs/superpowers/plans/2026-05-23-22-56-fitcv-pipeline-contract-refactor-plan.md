@@ -42,6 +42,11 @@ Unify all pipeline config reads for Top-N and similar keys under one accessor po
 
 Introduce explicit checkpoint/state schema boundaries (TypedDict + schema version + upgrade adapter) and prove resume safety with snapshot tests.
 
+## Execution Notes (lane progress)
+
+- 2026-05-24: Tasks 1–5 completed with focused tests + GitNexus `detect-changes` evidence recorded in context pack.
+- 2026-05-24: Task 6 (A5) started as helper-only extraction into `src/fitcv/pipeline_stages/common.py` (no stage bodies moved yet).
+
 ## Task/Wave Breakdown
 
 ### Task 1: Baseline safety + dependency map
@@ -212,9 +217,30 @@ Introduce explicit checkpoint/state schema boundaries (TypedDict + schema versio
 - Tasks 2–5 complete with green tests and acceptable detect-changes scope
 - explicit approval to proceed with structural split
 
+**Progress (helper-only extraction, no stage bodies moved yet):**
+- `src/fitcv/pipeline_stages/common.py`: `pipeline_int`
+- `src/fitcv/pipeline_stages/common.py`: `extract_job_url`, `extract_job_title`
+- `src/fitcv/pipeline_stages/common.py`: `normalize_shortlist_row`
+- `src/fitcv/pipeline_stages/common.py`: `json_safe_value`
+- `src/fitcv/pipeline_stages/common.py`: `shortlist_outcome_for_row`
+- `src/fitcv/pipeline_stages/common.py`: `unique_job_urls`
+- `src/fitcv/pipeline_stages/common.py`: `compute_raw_shortlist_anomaly_urls`
+- `src/fitcv/pipeline_stages/common.py`: `job_sample` (with thin `_job_sample` wrapper in `pipeline.py` to bind export fields)
+- `src/fitcv/pipeline_stages/common.py`: `candidate_profile_summary` (with thin `_candidate_profile_summary` wrapper in `pipeline.py`)
+- `src/fitcv/pipeline_stages/common.py`: `shortlist_row_sample` (with thin `_shortlist_row_sample` wrapper in `pipeline.py`)
+- `src/fitcv/pipeline_stages/common.py`: `ranking_row_sample` (with thin `_ranking_row_sample` wrapper in `pipeline.py`)
+- `src/fitcv/pipeline_stages/common.py`: `analysis_record_output_sample` (with thin `_analysis_record_output_sample` wrapper in `pipeline.py`)
+- `src/fitcv/pipeline_stages/common.py`: `analysis_record_changed_sample` (with thin `_analysis_record_changed_sample` wrapper in `pipeline.py`)
+- `src/fitcv/pipeline_stages/common.py`: `debug_record_output_sample` (with thin `_debug_record_output_sample` wrapper in `pipeline.py`)
+- `src/fitcv/pipeline_stages/common.py`: `debug_record_changed_sample` (with thin `_debug_record_changed_sample` wrapper in `pipeline.py`)
+
+**Decision (bounded scope):**
+- Stop A5 at helper consolidation (do not move stage bodies in this lane).
+- Rationale: stage-body moves increase blast radius while `gitnexus detect-changes` remains medium and baseline `tests/test_pipeline.py` is red pre-existing; helper consolidation delivers most readability/SSOT wins with minimal behavioral risk.
+
 **Steps:**
-- [ ] Define stage module interface (`run_stage(ctx) -> StageResult`) and move stage bodies incrementally.
-- [ ] Keep `run_pipeline` signature stable; orchestration-only in `pipeline.py`.
+- [ ] Define stage module interface (`run_stage(ctx) -> StageResult`) and move stage bodies incrementally. (dropped in this lane)
+- [x] Keep `run_pipeline` signature stable; orchestration-only in `pipeline.py`. (satisfied; orchestration unchanged)
 
 **Verification:**
 - [ ] `uvx pytest tests/`

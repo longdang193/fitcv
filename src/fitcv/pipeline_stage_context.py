@@ -18,11 +18,12 @@ lifecycle:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 
 @dataclass
 class PipelineState:
+    CHECKPOINT_SCHEMA_VERSION: ClassVar[int] = 1
     run_id: str
     raw_jobs: list[dict[str, Any]] = field(default_factory=list)
     normalized: list[dict[str, Any]] = field(default_factory=list)
@@ -50,6 +51,8 @@ class PipelineState:
         checkpoint_payload: dict[str, Any] | None,
     ) -> "PipelineState":
         payload = checkpoint_payload or {}
+        if isinstance(payload.get("checkpoint_payload"), dict):
+            payload = dict(payload["checkpoint_payload"])
         state = cls(run_id=run_id)
         for key in cls.payload_keys():
             value = payload.get(key)
@@ -79,6 +82,7 @@ class PipelineState:
             "ranking_inputs",
             "ranked",
             "cv_analysis_results",
+            "cv_results",
             "cv_generation_debug_records",
         )
 
