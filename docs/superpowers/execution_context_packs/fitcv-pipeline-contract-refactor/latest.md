@@ -32,6 +32,7 @@
   - Task 6 (A5) stage-body moves dropped (stop at helper consolidation; keep `run_pipeline` stable).
 - **Known divergence from plan (if any):**
   - `tests/test_pipeline.py` baseline remains red; rely on focused tests + `gitnexus detect-changes` scope checks.
+  - Plan checklist reconciled: all `- [ ]` items cleared; completed/dropped items marked `- [x]` in plan.
 
 ## 4) Files Changed This Session
 

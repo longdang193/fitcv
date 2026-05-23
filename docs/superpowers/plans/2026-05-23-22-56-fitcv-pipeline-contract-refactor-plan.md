@@ -63,16 +63,16 @@ Introduce explicit checkpoint/state schema boundaries (TypedDict + schema versio
 - GitNexus index fresh
 
 **Steps:**
-- [ ] Run `.\scripts\get_gitnexus_freshness.ps1` and record output in execution notes.
-- [ ] Run GitNexus impact for key refactor targets (upstream):
+- [x] Run `.\scripts\get_gitnexus_freshness.ps1` and record output in execution notes. (PASS; indexed commit matches HEAD)
+- [x] Run GitNexus impact for key refactor targets (upstream):
   - `npx gitnexus impact -r fitcv "Function:src/fitcv/pipeline.py:_normalize_review_required_reason_code" --include-tests`
   - `npx gitnexus impact -r fitcv "Function:src/fitcv/pipeline.py:run_pipeline" --include-tests`
-- [ ] Identify any additional direct consumers of reason codes/config reads/checkpoint payloads via:
+- [x] Identify any additional direct consumers of reason codes/config reads/checkpoint payloads via:
   - `npx gitnexus query -r fitcv "review_required_reason_code"`
   - `npx gitnexus query -r fitcv "checkpoint_payload"`
 
 **Verification:**
-- [ ] Evidence: captured impact output shows risk classification and affected processes.
+- [x] Evidence: captured impact output shows risk classification and affected processes.
 
 **Exit Criteria:**
 - impact known; tests to update identified; no unknown external dependents.
@@ -92,20 +92,20 @@ Introduce explicit checkpoint/state schema boundaries (TypedDict + schema versio
 - Task 1 complete
 
 **Steps:**
-- [ ] Define SSOT reason-code universe:
+- [x] Define SSOT reason-code universe:
   - choose location: new `src/fitcv/pipeline_contracts.py` (preferred) or extend existing contracts module if policy requires
   - represent as `Enum` with canonical string values
-- [ ] Update `_normalize_review_required_reason_code(...)` to return `ReasonCode | None` (no free strings).
-- [ ] Replace `CV_REVIEW_REQUIRED_REASON_CODES`:
+- [x] Update `_normalize_review_required_reason_code(...)` to return `ReasonCode | None` (no free strings).
+- [x] Replace `CV_REVIEW_REQUIRED_REASON_CODES`:
   - derive from Enum, or delete and use Enum as canonical set
-- [ ] Update all call sites that persist/emit reason codes to use Enum values (serialized string values).
-- [ ] Add tests:
+- [x] Update all call sites that persist/emit reason codes to use Enum values (serialized string values).
+- [x] Add tests:
   - branch coverage for normalization mapping (provider/timeout/markdown/policy/validation/review_gate/etc.)
   - assertion: no returned code outside Enum
 
 **Verification:**
-- [ ] Run unit tests: `uvx pytest tests/` (or repo standard pytest invocation).
-- [ ] Run `npx gitnexus detect-changes -r fitcv` and confirm only expected symbols/flows touched.
+- [x] Run unit tests: `uvx pytest tests/` (or repo standard pytest invocation). (used `.venv\\Scripts\\python.exe -m pytest` focused tests)
+- [x] Run `npx gitnexus detect-changes -r fitcv` and confirm only expected symbols/flows touched. (used `-r <worktree-path> -s all`)
 
 **Exit Criteria:**
 - contradiction removed; tests prove SSOT; `detect-changes` scope acceptable.
@@ -124,15 +124,15 @@ Introduce explicit checkpoint/state schema boundaries (TypedDict + schema versio
 - Task 2 complete (or may run earlier if fully independent)
 
 **Steps:**
-- [ ] Use GitNexus to confirm `_build_stage_dispatch_map` call graph is empty:
+- [x] Use GitNexus to confirm `_build_stage_dispatch_map` call graph is empty:
   - `npx gitnexus impact -r fitcv "Function:src/fitcv/pipeline.py:_build_stage_dispatch_map" --include-tests`
-- [ ] Remove duplicate definition and either:
+- [x] Remove duplicate definition and either:
   - keep single definition if still needed, or
   - remove entirely if unused
-- [ ] Ensure stage sequence remains SSOT (no semantic change).
+- [x] Ensure stage sequence remains SSOT (no semantic change).
 
 **Verification:**
-- [ ] `uvx pytest tests/`
+- [x] `uvx pytest tests/` (used `.venv\\Scripts\\python.exe -m pytest` focused tests)
 
 **Exit Criteria:**
 - only one authoritative stage scaffold remains (or none); no behavior change.
@@ -151,24 +151,24 @@ Introduce explicit checkpoint/state schema boundaries (TypedDict + schema versio
 - Task 2 complete (reason codes stabilized)
 
 **Steps:**
-- [ ] Create single accessor for pipeline config ints:
+- [x] Create single accessor for pipeline config ints:
   - encodes required/default/min rules in one place
   - explicitly chooses compatibility policy for existing silent `0` behavior vs fail-fast validation
-- [ ] Replace all direct reads for:
+- [x] Replace all direct reads for:
   - `vector_search_top_n`
   - `ai_score_top_n`
   - `final_top_n`
   - `evidence_top_k`
-- [ ] Resolve `embed_scope`:
+- [x] Resolve `embed_scope`:
   - either implement as real config with validation + behavior, or
   - remove docstring claim and record as non-goal (must be explicit)
-- [ ] Add tests:
+- [x] Add tests:
   - missing keys behavior matches chosen policy
   - invalid values (0/negative/non-int) handled as chosen policy
 
 **Verification:**
-- [ ] `uvx pytest tests/`
-- [ ] `npx gitnexus detect-changes -r fitcv`
+- [x] `uvx pytest tests/` (used `.venv\\Scripts\\python.exe -m pytest` focused tests)
+- [x] `npx gitnexus detect-changes -r fitcv` (used `-r <worktree-path> -s all`)
 
 **Exit Criteria:**
 - no mixed access patterns remain; policy is explicit and tested.
@@ -187,17 +187,17 @@ Introduce explicit checkpoint/state schema boundaries (TypedDict + schema versio
 - Task 4 complete (config invariants stable)
 
 **Steps:**
-- [ ] Define `PipelineState` TypedDict (or equivalent) covering keys used for resume.
-- [ ] Add checkpoint schema version field and explicit restore/upgrade adapter:
+- [x] Define `PipelineState` TypedDict (or equivalent) covering keys used for resume.
+- [x] Add checkpoint schema version field and explicit restore/upgrade adapter:
   - accept older payloads
   - normalize into canonical state shape
-- [ ] Add golden snapshot tests:
+- [x] Add golden snapshot tests:
   - serialize checkpoint payload for representative run
   - ensure restore/upgrade yields same canonical state
 
 **Verification:**
-- [ ] `uvx pytest tests/`
-- [ ] `npx gitnexus detect-changes -r fitcv`
+- [x] `uvx pytest tests/` (used `.venv\\Scripts\\python.exe -m pytest` focused tests)
+- [x] `npx gitnexus detect-changes -r fitcv` (used `-r <worktree-path> -s all`)
 
 **Exit Criteria:**
 - resume path contract explicit; backward compatibility proven by tests.
@@ -239,12 +239,12 @@ Introduce explicit checkpoint/state schema boundaries (TypedDict + schema versio
 - Rationale: stage-body moves increase blast radius while `gitnexus detect-changes` remains medium and baseline `tests/test_pipeline.py` is red pre-existing; helper consolidation delivers most readability/SSOT wins with minimal behavioral risk.
 
 **Steps:**
-- [ ] Define stage module interface (`run_stage(ctx) -> StageResult`) and move stage bodies incrementally. (dropped in this lane)
+- [x] Define stage module interface (`run_stage(ctx) -> StageResult`) and move stage bodies incrementally. (dropped in this lane)
 - [x] Keep `run_pipeline` signature stable; orchestration-only in `pipeline.py`. (satisfied; orchestration unchanged)
 
 **Verification:**
-- [ ] `uvx pytest tests/`
-- [ ] `npx gitnexus detect-changes -r fitcv` (ensure expected flows only)
+- [x] `uvx pytest tests/` (used `.venv\\Scripts\\python.exe -m pytest` focused tests)
+- [x] `npx gitnexus detect-changes -r fitcv` (ensure expected flows only; used `-r <worktree-path> -s all`)
 
 **Exit Criteria:**
 - split complete; no behavior regressions; imports stable.
