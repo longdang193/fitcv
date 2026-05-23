@@ -599,12 +599,14 @@ def _resolve_submission_binding(run_id: str, queue_job_id: str) -> RunSubmission
     submission = _RUN_SUBMISSION_CACHE.pop(run_id, None)
     if submission is not None:
         return submission
-    backend = str(ORCHESTRATION_ADAPTER.name or "default_queue")
+    requested_backend = str(ORCHESTRATION_ADAPTER.name or "default_queue")
+    execution_backend = "prefect" if requested_backend == "prefect" else "queue"
     submission = RunSubmission(
         run_id=run_id,
         queue_job_id=queue_job_id,
         backend_run_id=queue_job_id,
-        backend=backend,
+        requested_backend=requested_backend,
+        execution_backend=execution_backend,
     )
     _, emit_backend = _observability_toggles()
     if emit_backend:
@@ -828,6 +830,7 @@ def _apply_trigger_runtime_envelope(
     candidate_profile_source: str | None,
     candidate_profile_json: str | None,
     run_mode: str,
+    reuse_precheck_warning: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     effective_config = apply_synonym_management_defaults(effective_config)
 
@@ -846,8 +849,21 @@ def _apply_trigger_runtime_envelope(
         "run_mode": run_mode,
         "has_jobs_input_snapshot": bool(jobs_input_json),
         "has_candidate_profile_snapshot": bool(candidate_profile_json),
+        "reuse_precheck_warning": dict(reuse_precheck_warning or {}),
     }
     return effective_config
+
+def _stable_synonym_hash(config: dict[str, Any]) -> str:
+    synonyms = dict(config.get("skill_synonyms") or {})
+    normalized: dict[str, str] = {}
+    for raw_alias, raw_canonical in synonyms.items():
+        alias = str(raw_alias or "").strip().casefold()
+        canonical = str(raw_canonical or "").strip().casefold()
+        if not alias or not canonical:
+            continue
+        normalized[alias] = canonical
+    seed = _json.dumps(dict(sorted(normalized.items())), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()
 
 
 def _resolve_jobs_path_snapshot(jobs_path: str) -> tuple[str, str]:
@@ -2031,6 +2047,14 @@ def _run_status_allows_export(run: PipelineRun) -> bool:
     if run.status == RunStatus.SUCCEEDED:
         return True
     return run.status == RunStatus.AWAITING_CONTINUE and str(run.checkpoint_status or "").strip() == "awaiting_review"
+
+
+def _is_hitl_review_pending_state(run: PipelineRun) -> bool:
+    return (
+        run.status in {RunStatus.AWAITING_CONTINUE, RunStatus.SUCCEEDED}
+        and str(run.checkpoint_status or "").strip() == "awaiting_review"
+    )
+
 
 def _map_review_required_reason_code(record: dict[str, Any]) -> str:
     explicit_code = str(record.get("review_required_reason_code") or "").strip()
@@ -4418,7 +4442,63 @@ def _results_export_rows(run: PipelineRun) -> list[dict[str, Any]]:
     rows = payload.get("results")
     if not isinstance(rows, list):
         return []
-    return [dict(row) for row in rows if isinstance(row, dict)]
+    return [_normalize_results_export_row(dict(row)) for row in rows if isinstance(row, dict)]
+
+
+def _normalize_results_export_row(row: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(row)
+    decision_chain = normalized.get("decision_chain")
+    if not isinstance(decision_chain, dict):
+        decision_chain = {}
+    cv_generation = decision_chain.get("cv_generation")
+    if not isinstance(cv_generation, dict):
+        cv_generation = {}
+    primary_fit = decision_chain.get("primary_fit")
+    if not isinstance(primary_fit, dict):
+        primary_fit = {}
+
+    pipeline_status = str(normalized.get("pipeline_status") or "").strip()
+    stage_owned_subreason = str(normalized.get("stage_owned_subreason") or "").strip()
+    cv_status = str(cv_generation.get("status") or "").strip()
+    has_cv = bool(normalized.get("cv"))
+
+    final_status = str(normalized.get("final_status") or "").strip()
+    if not final_status:
+        if pipeline_status == "ranked_with_cv" or has_cv:
+            final_status = "accepted"
+        elif pipeline_status in {"ranked_blocked_by_reranker_fit", "ranked_skipped_fit_gate"}:
+            final_status = "blocked_by_reranker_fit"
+        elif cv_status in {"review_required", "validation_failed", "generation_failed", "persistence_failed"}:
+            final_status = cv_status
+        elif stage_owned_subreason in {"review_required", "validation_failed", "generation_failed", "persistence_failed"}:
+            final_status = stage_owned_subreason
+        elif pipeline_status == "ranked_no_cv":
+            final_status = "ranked_no_cv"
+        elif pipeline_status == "not_shortlisted":
+            final_status = "not_shortlisted"
+        elif pipeline_status:
+            final_status = pipeline_status
+        elif stage_owned_subreason:
+            final_status = stage_owned_subreason
+    if final_status:
+        normalized["final_status"] = final_status
+
+    if not str(normalized.get("reason") or "").strip():
+        reason = stage_owned_subreason
+        if not reason:
+            reject_reasons = normalized.get("reject_reasons")
+            if isinstance(reject_reasons, list):
+                first = next((str(item).strip() for item in reject_reasons if str(item).strip()), "")
+                reason = first
+        if reason:
+            normalized["reason"] = reason
+
+    if not str(normalized.get("fit_label") or "").strip():
+        fit_label = str(primary_fit.get("label") or "").strip()
+        if fit_label:
+            normalized["fit_label"] = fit_label
+
+    return normalized
 
 def _fallback_enriched_rows_from_results_export(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Derive enriched-tab rows from results export when run_structured_jobs is unavailable."""
@@ -4935,16 +5015,19 @@ def _timeline_stage_summary_message(
             or payload_output.get("reuse_status_flat")
             or ""
         ).strip().lower()
-        reuse_label = None
+        cache_label = None
+        compute_label = None
         reused_cv_version_id = str(payload_output.get("reused_cv_version_id") or "").strip()
         if not reuse_status:
             # Backward-compatible default for older/missing payload fields:
             # if a source version exists we reused, otherwise treat as fresh compute.
             reuse_status = "reused_exact_match" if reused_cv_version_id else "fresh_compute"
         if reuse_status == "reused_exact_match":
-            reuse_label = "reused exact match"
+            cache_label = "hit (exact)"
+            compute_label = "reused"
         elif reuse_status == "fresh_compute":
-            reuse_label = "fresh compute"
+            cache_label = "miss"
+            compute_label = "fresh"
         reason_code = str(payload_output.get("review_required_reason_code") or "").strip()
         validation_evidence_fingerprint = str(payload_output.get("validation_evidence_fingerprint") or "").strip()
         job_url = str(payload.get("job_url") or "").strip()
@@ -4957,7 +5040,8 @@ def _timeline_stage_summary_message(
             [
                 ("job", job_url or None),
                 ("outcome", outcome),
-                ("reuse status", reuse_label),
+                ("cache", cache_label),
+                ("compute", compute_label),
                 ("reason", reason_code or None),
                 ("evidence fp", validation_evidence_fingerprint[:12] if validation_evidence_fingerprint else None),
                 ("source version", reused_cv_version_id or None),
@@ -5286,7 +5370,8 @@ def _timeline_stage_summary_message_html(
         return f"CV generation started: {', '.join(details)}."
     if event.stage == "layer4_cv_generation_result" and job_link:
         outcome_match = re.search(r"outcome\s+([^,]+)", str(message_text or ""), flags=re.IGNORECASE)
-        reuse_match = re.search(r"reuse\s+([^,]+)", str(message_text or ""), flags=re.IGNORECASE)
+        cache_match = re.search(r"cache\s+([^,]+)", str(message_text or ""), flags=re.IGNORECASE)
+        compute_match = re.search(r"compute\s+([^,]+)", str(message_text or ""), flags=re.IGNORECASE)
         reason_match = re.search(r"reason\s+([^,]+)", str(message_text or ""), flags=re.IGNORECASE)
         evidence_match = re.search(r"evidence fp\s+([a-f0-9]{6,64})", str(message_text or ""), flags=re.IGNORECASE)
         source_version = str(payload_output.get("reused_cv_version_id") or "").strip()
@@ -5294,9 +5379,10 @@ def _timeline_stage_summary_message_html(
         details: list[str] = [f"job {job_link}"]
         if outcome_match:
             details.append(f"outcome {html.escape(outcome_match.group(1).strip())}")
-        if reuse_match:
-            reuse_label = reuse_match.group(1).strip()
-            details.append(f"reuse status {html.escape(reuse_label)}")
+        if cache_match:
+            details.append(f"cache {html.escape(cache_match.group(1).strip())}")
+        if compute_match:
+            details.append(f"compute {html.escape(compute_match.group(1).strip())}")
         if reason_match:
             details.append(f"reason {html.escape(reason_match.group(1).strip())}")
         if evidence_match:
@@ -6719,6 +6805,40 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         apply_settings_to_config(effective_config, coerced_overrides)
         # Recompute derived fields (required_cv_sections, etc.) from effective composition
         effective_config = apply_cv_compatibility_projection(effective_config)
+        reuse_precheck_warning: dict[str, Any] | None = None
+        try:
+            current_hash = _stable_synonym_hash(effective_config)
+            current_count = len(dict(effective_config.get("skill_synonyms") or {}))
+            recent_runs = list_runs(
+                bq,
+                project=project,
+                dataset=dataset,
+                include_archived=True,
+                limit=50,
+            )
+            prior_success = next(
+                (
+                    run
+                    for run in recent_runs
+                    if str(getattr(run, "status", "") or "").strip().lower() in {"succeeded", "awaiting_continue"}
+                    and str(getattr(run, "effective_settings_json", "") or "").strip()
+                ),
+                None,
+            )
+            if prior_success is not None:
+                prior_cfg = _load_json_object(getattr(prior_success, "effective_settings_json", ""))
+                prior_hash = _stable_synonym_hash(prior_cfg if isinstance(prior_cfg, dict) else {})
+                if prior_hash and prior_hash != current_hash:
+                    prior_count = len(dict((prior_cfg or {}).get("skill_synonyms") or {})) if isinstance(prior_cfg, dict) else 0
+                    reuse_precheck_warning = {
+                        "code": "cv_analysis_reuse_reset_likely",
+                        "message": "Skill synonym map changed from previous successful run; exact CV-analysis reuse may reset.",
+                        "previous_run_id": str(getattr(prior_success, "run_id", "") or ""),
+                        "previous_synonym_count": int(prior_count),
+                        "current_synonym_count": int(current_count),
+                    }
+        except Exception as exc:
+            logger.warning("reuse precheck warning generation failed (non-blocking): %s", exc)
         actual_jobs_path, jobs_input_json_snapshot = _resolve_jobs_path_snapshot(jobs_path)
         candidate_json_snapshot = _resolve_default_candidate_profile_snapshot(config_path)
         effective_config = _apply_trigger_runtime_envelope(
@@ -6729,6 +6849,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             candidate_profile_source="default_config",
             candidate_profile_json=candidate_json_snapshot,
             run_mode=run_mode,
+            reuse_precheck_warning=reuse_precheck_warning,
         )
 
         run_id = str(uuid.uuid4())
@@ -6776,7 +6897,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
-        return {"run_id": run_id}
+        return {"run_id": run_id, "warnings": [reuse_precheck_warning] if reuse_precheck_warning else []}
 
     def _execute_trigger_with_inputs(
         jobs_path: str,
@@ -6866,6 +6987,40 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         apply_settings_to_config(effective_config, coerced_overrides)
         # Recompute derived fields (required_cv_sections, etc.) from effective composition
         effective_config = apply_cv_compatibility_projection(effective_config)
+        reuse_precheck_warning: dict[str, Any] | None = None
+        try:
+            current_hash = _stable_synonym_hash(effective_config)
+            current_count = len(dict(effective_config.get("skill_synonyms") or {}))
+            recent_runs = list_runs(
+                bq,
+                project=project,
+                dataset=dataset,
+                include_archived=True,
+                limit=50,
+            )
+            prior_success = next(
+                (
+                    run
+                    for run in recent_runs
+                    if str(getattr(run, "status", "") or "").strip().lower() in {"succeeded", "awaiting_continue"}
+                    and str(getattr(run, "effective_settings_json", "") or "").strip()
+                ),
+                None,
+            )
+            if prior_success is not None:
+                prior_cfg = _load_json_object(getattr(prior_success, "effective_settings_json", ""))
+                prior_hash = _stable_synonym_hash(prior_cfg if isinstance(prior_cfg, dict) else {})
+                if prior_hash and prior_hash != current_hash:
+                    prior_count = len(dict((prior_cfg or {}).get("skill_synonyms") or {})) if isinstance(prior_cfg, dict) else 0
+                    reuse_precheck_warning = {
+                        "code": "cv_analysis_reuse_reset_likely",
+                        "message": "Skill synonym map changed from previous successful run; exact CV-analysis reuse may reset.",
+                        "previous_run_id": str(getattr(prior_success, "run_id", "") or ""),
+                        "previous_synonym_count": int(prior_count),
+                        "current_synonym_count": int(current_count),
+                    }
+        except Exception as exc:
+            logger.warning("reuse precheck warning generation failed (non-blocking): %s", exc)
         effective_config = _apply_trigger_runtime_envelope(
             effective_config,
             jobs_input_source=jobs_input_source,
@@ -6874,6 +7029,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             candidate_profile_source=candidate_profile_source,
             candidate_profile_json=candidate_profile_json,
             run_mode=run_mode,
+            reuse_precheck_warning=reuse_precheck_warning,
         )
 
         if run_synonym_overlay:
@@ -6931,7 +7087,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
-        return {"run_id": run_id}
+        return {"run_id": run_id, "warnings": [reuse_precheck_warning] if reuse_precheck_warning else []}
 
     @app.post("/runs", status_code=201)
     def trigger_run(req: TriggerRequest) -> dict:
@@ -8700,8 +8856,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             )
         queue_state = _build_hitl_review_queue(updated_run)
         if (
-            run.status == RunStatus.AWAITING_CONTINUE
-            and str(run.checkpoint_status or "").strip() == "awaiting_review"
+            _is_hitl_review_pending_state(run)
             and int(queue_state.get("total_review_required") or 0) > 0
             and int(queue_state.get("pending_count") or 0) == 0
         ):
@@ -9054,8 +9209,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             )
         queue_state = _build_hitl_review_queue(updated_run)
         if (
-            run.status == RunStatus.AWAITING_CONTINUE
-            and str(run.checkpoint_status or "").strip() == "awaiting_review"
+            _is_hitl_review_pending_state(run)
             and int(queue_state.get("total_review_required") or 0) > 0
             and int(queue_state.get("pending_count") or 0) == 0
         ):

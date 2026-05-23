@@ -220,6 +220,19 @@ def _normalize_optional_text(value: Any) -> str:
     return str(value or "").strip()
 
 
+def _normalize_skill_synonyms_for_contract(value: Any) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    normalized: dict[str, str] = {}
+    for raw_alias, raw_canonical in value.items():
+        alias = str(raw_alias or "").strip().casefold()
+        canonical = str(raw_canonical or "").strip().casefold()
+        if not alias or not canonical:
+            continue
+        normalized[alias] = canonical
+    return dict(sorted(normalized.items()))
+
+
 def _canonicalize_json_value(value: Any) -> Any:
     if isinstance(value, dict):
         return {
@@ -410,6 +423,7 @@ def _cv_analysis_profile_payload(profile: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_cv_analysis_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
+    stable_skill_synonyms = _normalize_skill_synonyms_for_contract(config.get("skill_synonyms"))
     payload = {
         "schema_version": CV_ANALYSIS_REUSE_SCHEMA_VERSION,
         "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
@@ -417,7 +431,9 @@ def build_cv_analysis_contract_fingerprint(config: dict[str, Any]) -> dict[str, 
         "selection_policy": _cv_analysis_policy_settings(config),
         "fit_label_thresholds": dict(config.get("fit_label_thresholds") or {}),
         "role_taxonomy": dict(config.get("role_taxonomy") or {}),
-        "skill_synonyms_runtime": dict(config.get("skill_synonyms_runtime") or {}),
+        # Use semantic synonym map, not runtime counters/metadata, to keep
+        # reuse keys stable across runs when behavior is unchanged.
+        "skill_synonyms": stable_skill_synonyms,
     }
     return {
         "payload": payload,

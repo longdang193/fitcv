@@ -13,12 +13,12 @@ services:
       - GCP_PROJECT=${GCP_PROJECT:-fitcv-491123}
       - BIGQUERY_DATASET=${BIGQUERY_DATASET:-fitcv}
       - FITCV_CP_DATA_BACKEND=sqlite
-      - FITCV_CP_SQLITE_PATH=/app/data/fitcv_cp.sqlite3
+      - FITCV_CP_SQLITE_PATH=/app/runtime/fitcv_cp.sqlite3
       - REDIS_URL=redis://redis:6379/0
       - GOOGLE_APPLICATION_CREDENTIALS=/app/sa_key.json
       - FITCV_LANGGRAPH_ENV_FILE=/app/.env
       - FITCV_LANGGRAPH_REPO_ROOT=/opt/fitcv-langgraph
-      - FITCV_CP_SETTINGS_SQLITE_PATH=/app/data/fitcv_cp.sqlite3
+      - FITCV_CP_SETTINGS_SQLITE_PATH=/app/runtime/fitcv_cp.sqlite3
     volumes:
       - ./.env:/app/.env:ro
       - ./config/env.yaml:/app/config/env.yaml:ro
@@ -33,18 +33,19 @@ services:
   worker:
     build: .
     command: rq worker fitcv --url redis://redis:6379/0
+    restart: unless-stopped
     env_file:
       - .env
     environment:
       - GCP_PROJECT=${GCP_PROJECT:-fitcv-491123}
       - BIGQUERY_DATASET=${BIGQUERY_DATASET:-fitcv}
       - FITCV_CP_DATA_BACKEND=sqlite
-      - FITCV_CP_SQLITE_PATH=/app/data/fitcv_cp.sqlite3
+      - FITCV_CP_SQLITE_PATH=/app/runtime/fitcv_cp.sqlite3
       - REDIS_URL=redis://redis:6379/0
       - GOOGLE_APPLICATION_CREDENTIALS=/app/sa_key.json
       - FITCV_LANGGRAPH_ENV_FILE=/app/.env
       - FITCV_LANGGRAPH_REPO_ROOT=/opt/fitcv-langgraph
-      - FITCV_CP_SETTINGS_SQLITE_PATH=/app/data/fitcv_cp.sqlite3
+      - FITCV_CP_SETTINGS_SQLITE_PATH=/app/runtime/fitcv_cp.sqlite3
     volumes:
       - ./.env:/app/.env:ro
       - ./config/env.yaml:/app/config/env.yaml:ro

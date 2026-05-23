@@ -123,6 +123,7 @@ skill_synonyms:
   promotion-projekte: promotion-management
   prompt engineering: genai
   pull salesforce reports: salesforce
+  py: python
   quality assurance: quality assurance (qa)
   rag: retrieval-augmented generation (rag)
   redshift: amazon redshift

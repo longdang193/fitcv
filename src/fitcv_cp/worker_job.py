@@ -2227,8 +2227,17 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                             project=project,
                             dataset=dataset,
                         )
-                finished_at = datetime.datetime.now(datetime.timezone.utc) if pending_review_required == 0 else None
-                terminal_status = RunStatus.SUCCEEDED if pending_review_required == 0 else RunStatus.AWAITING_CONTINUE
+                review_pending = pending_review_required > 0
+                terminal_status = (
+                    RunStatus.AWAITING_CONTINUE
+                    if (review_pending and run_mode == "manual_staged")
+                    else RunStatus.SUCCEEDED
+                )
+                finished_at = (
+                    None
+                    if terminal_status == RunStatus.AWAITING_CONTINUE
+                    else datetime.datetime.now(datetime.timezone.utc)
+                )
                 set_span_attributes(
                     {
                         "review_required_total": int(sum(review_reason_counts.values())),

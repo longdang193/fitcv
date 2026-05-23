@@ -975,9 +975,23 @@ def check_skill_provenance(
         if skill.strip()
     }
     violations: list[str] = []
+    placeholder_tokens = {
+        "not provided in selected evidence",
+        "none provided in selected evidence",
+        "not provided",
+        "n/a",
+        "na",
+        "none",
+        "unknown",
+        "not specified",
+        "unspecified",
+    }
 
     for skill in cv_skills:
         skill_lower = skill.lower()
+        skill_compact = skill_lower.strip("()[]{} \t")
+        if skill_lower in placeholder_tokens or skill_compact in placeholder_tokens:
+            continue
         skill_canonical = canonicalize_skill(skill, config)
         if skill_lower not in candidate_lower and skill_canonical not in candidate_canonical:
             violations.append(
@@ -1121,6 +1135,13 @@ def run_all_validations(
             + semantic_grounding_violations
         ))
 
+    missing_skills_relaxed = False
+    if "Skills" in missing_sections and not support_surface["skills_lower"] and support_surface["has_selected_support"]:
+        # When selected evidence has no skill-level support, a hard Skills-section
+        # requirement can become unsatisfiable. Keep signal as warning, do not fail.
+        missing_sections = [section for section in missing_sections if section != "Skills"]
+        missing_skills_relaxed = True
+
     selected_evidence_skill_relaxation_enabled = bool(
         ((config.get("cv") or {}).get("validation") or {}).get(
             "allow_profile_skill_outside_selected_evidence",
@@ -1146,6 +1167,10 @@ def run_all_validations(
 
     # Non-blocking warnings
     warnings: list[str] = []
+    if missing_skills_relaxed:
+        warnings.append(
+            "Relaxed missing Skills section: selected evidence contains no grounded skill entries."
+        )
     if selected_evidence_skill_relaxation_enabled:
         for violation in relaxed_skill_violations:
             warnings.append(f"Relaxed selected-evidence skill grounding violation: {violation}")

@@ -39,19 +39,28 @@ _DEGRADATION_REASON_NONE = "none"
 _SQLITE_OPEN_RETRY_ATTEMPTS = 3
 _SQLITE_OPEN_RETRY_DELAY_SECONDS = 0.2
 
+
+def _is_transient_sqlite_open_error(exc: sqlite3.OperationalError) -> bool:
+    message = str(exc).strip().lower()
+    return "unable to open database file" in message or "disk i/o error" in message
+
+
 def _local_sqlite_path() -> str:
     return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
 
 def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:
-    try:
-        conn.execute("PRAGMA journal_mode=WAL;")
-    except sqlite3.OperationalError as exc:
-        if "unable to open database file" in str(exc).strip().lower():
-            logger.warning("sqlite journal_mode pragma skipped due to transient open failure: %s", exc)
-        else:
+    def _safe_pragma(sql: str, label: str) -> None:
+        try:
+            conn.execute(sql)
+        except sqlite3.OperationalError as exc:
+            if _is_transient_sqlite_open_error(exc):
+                logger.warning("sqlite %s pragma skipped due to transient open failure: %s", label, exc)
+                return
             raise
-    conn.execute("PRAGMA synchronous=NORMAL;")
-    conn.execute("PRAGMA busy_timeout=30000;")
+
+    _safe_pragma("PRAGMA journal_mode=WAL;", "journal_mode")
+    _safe_pragma("PRAGMA synchronous=NORMAL;", "synchronous")
+    _safe_pragma("PRAGMA busy_timeout=30000;", "busy_timeout")
 
 
 def _is_sqlite_malformed_error(exc: BaseException) -> bool:
@@ -86,8 +95,7 @@ def _sqlite_connection(db_path: Path, *, ensure_parent: bool = False):
             _configure_sqlite_connection(conn)
             break
         except sqlite3.OperationalError as exc:
-            message = str(exc).strip().lower()
-            if "unable to open database file" in message and attempt < (_SQLITE_OPEN_RETRY_ATTEMPTS - 1):
+            if _is_transient_sqlite_open_error(exc) and attempt < (_SQLITE_OPEN_RETRY_ATTEMPTS - 1):
                 time.sleep(_SQLITE_OPEN_RETRY_DELAY_SECONDS)
                 continue
             raise
@@ -140,15 +148,23 @@ def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
         )
 
 def _ensure_local_pipeline_runs_table(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS local_pipeline_runs (
-            run_id TEXT PRIMARY KEY,
-            run_json TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )
-        """
-    )
+    for attempt in range(_SQLITE_OPEN_RETRY_ATTEMPTS):
+        try:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS local_pipeline_runs (
+                    run_id TEXT PRIMARY KEY,
+                    run_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            return
+        except sqlite3.OperationalError as exc:
+            if _is_transient_sqlite_open_error(exc) and attempt < (_SQLITE_OPEN_RETRY_ATTEMPTS - 1):
+                time.sleep(_SQLITE_OPEN_RETRY_DELAY_SECONDS)
+                continue
+            raise
 
 def _ensure_local_pipeline_run_events_table(conn: sqlite3.Connection) -> None:
     conn.execute(

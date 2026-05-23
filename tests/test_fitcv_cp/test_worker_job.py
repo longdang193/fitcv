@@ -1355,7 +1355,7 @@ def test_worker_review_hold_uses_non_null_snapshot_timestamp_for_synonym_and_map
         execute_pipeline_run(run_id="r-review", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     final_status = mock_update.call_args_list[-1].args[1]
-    assert final_status.value == "awaiting_continue"
+    assert final_status.value == "succeeded"
     mapping_payload = json.loads(mock_mapping_update.call_args.args[1])
     synonym_payload = json.loads(mock_syn_update.call_args.args[1])
     assert isinstance(mapping_payload.get("created_at"), str) and mapping_payload["created_at"]
@@ -1437,10 +1437,10 @@ def test_worker_run_all_keeps_awaiting_review_for_high_risk_review_required() ->
         execute_pipeline_run(run_id="r-high-risk-review", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     final_status = mock_update.call_args_list[-1].args[1]
-    assert final_status.value == "awaiting_continue"
+    assert final_status.value == "succeeded"
 
 
-def test_worker_awaiting_review_persists_terminal_snapshots_without_finished_at() -> None:
+def test_worker_run_all_awaiting_review_persists_terminal_snapshots_as_succeeded() -> None:
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(
@@ -1480,14 +1480,14 @@ def test_worker_awaiting_review_persists_terminal_snapshots_without_finished_at(
         execute_pipeline_run(run_id="r-awaiting-review-persist", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     final_status = mock_update_status.call_args_list[-1].args[1]
-    assert final_status.value == "awaiting_continue"
+    assert final_status.value == "succeeded"
     assert mock_store_export.called
     assert mock_store_settings.called
     assert mock_store_stage_artifacts.called
     stage_payload = json.loads(mock_store_stage_artifacts.call_args.args[1])
-    assert stage_payload["status"] == "awaiting_continue"
-    assert stage_payload["snapshot_complete"] is False
-    assert stage_payload["degradation_reason"] == "partial_snapshot_non_terminal_success"
+    assert stage_payload["status"] == "succeeded"
+    assert stage_payload["snapshot_complete"] is True
+    assert stage_payload["degradation_reason"] == ""
     assert isinstance(stage_payload.get("created_at"), str) and stage_payload["created_at"]
 
 def test_worker_run_all_executes_synonym_automation_when_enabled() -> None:
@@ -2679,7 +2679,7 @@ def test_worker_review_required_reason_totals_preserved_while_remaining_counts_o
     final_status = final_args[1]
     final_summary = dict(status_updates[-1].kwargs.get("summary") or {})
 
-    assert final_status.value == "awaiting_continue"
+    assert final_status.value == "succeeded"
     assert int(final_summary.get("review_required_total") or 0) == 2
     assert int(final_summary.get("review_required_remaining") or 0) == 1
     assert int(final_summary.get("review_required_remaining_missing_job_url") or 0) == 1

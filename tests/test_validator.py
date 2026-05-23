@@ -234,6 +234,17 @@ def test_check_skill_provenance_accepts_synonym_equivalent_skill() -> None:
     violations = check_skill_provenance(cv_text, candidate_skills=["GA4"])
     assert violations == []
 
+def test_check_skill_provenance_ignores_placeholder_tokens() -> None:
+    cv_text = "## Skills\nSQL, Not provided in selected evidence, Python"
+    violations = check_skill_provenance(cv_text, candidate_skills=["SQL", "Python"])
+    assert violations == []
+
+
+def test_check_skill_provenance_ignores_parenthesized_placeholder_tokens() -> None:
+    cv_text = "## Skills\nSQL, (none provided in selected evidence), Python"
+    violations = check_skill_provenance(cv_text, candidate_skills=["SQL", "Python"])
+    assert violations == []
+
 
 # ── run_all_validations ───────────────────────────────────────────────────────
 
@@ -705,6 +716,43 @@ def test_run_all_validations_falls_back_to_payload_when_selected_ids_are_missing
 
     assert result["valid"] is True
     assert result["deterministic_grounding_violations"] == []
+
+def test_run_all_validations_relaxes_missing_skills_when_selected_evidence_has_no_skills() -> None:
+    profile = {
+        "experiences": [{"role": "Data Analyst", "company": "ACME"}],
+        "projects": [],
+        "skills": ["SQL", "Python"],
+    }
+    cv_text = (
+        "# Name\n"
+        "## Summary\nGrounded summary\n"
+        "## Experience\n"
+        "Data Analyst at ACME\n"
+        "- Built reporting workflows\n"
+    )
+    analysis_grounding = {
+        "evidence_payload": [
+            {
+                "evidence_id": "exp-acme",
+                "evidence_type": "experience_entry",
+                "company": "ACME",
+                "role": "Data Analyst",
+                "skills": [],
+            }
+        ],
+        "evidence_selection_summary": {"selected_evidence_ids": ["exp-acme"]},
+        "analysis_input_summary": {"job_family": "analytics"},
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=_CV_CONFIG,
+        analysis_grounding=analysis_grounding,
+    )
+
+    assert "Skills" not in result["missing_sections"]
+    assert any("Relaxed missing Skills section" in msg for msg in result["warnings"])
 
 def test_run_all_validations_supports_semantically_close_soft_claim_from_selected_evidence() -> None:
     profile = {

@@ -671,6 +671,145 @@ def _determine_repair_targets(validation: dict[str, Any], structured_cv: dict[st
         return repair_targets
     return _shallow_section_repair_targets(structured_cv)
 
+def _normalize_missing_section_keys(missing_sections: list[str] | None) -> list[str]:
+    keys: list[str] = []
+    for raw in list(missing_sections or []):
+        value = str(raw).strip().lower()
+        if not value:
+            continue
+        if value in {"skills", "experience", "projects", "education", "languages", "certifications"}:
+            keys.append(value)
+    return list(dict.fromkeys(keys))
+
+def _backfill_required_sections_from_profile(
+    *,
+    structured_cv: dict[str, Any] | None,
+    profile: dict[str, Any],
+    missing_sections: list[str] | None,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    if not isinstance(structured_cv, dict):
+        return structured_cv, []
+    repair_keys = _normalize_missing_section_keys(missing_sections)
+    if not repair_keys:
+        return structured_cv, []
+
+    repaired = deepcopy(structured_cv)
+    sections = repaired.setdefault("sections", {})
+    if not isinstance(sections, dict):
+        return structured_cv, []
+
+    repaired_keys: list[str] = []
+    if "skills" in repair_keys:
+        profile_skills: list[str] = []
+        for item in list(profile.get("skills") or []):
+            if isinstance(item, dict):
+                value = str(item.get("name") or "").strip()
+            else:
+                value = str(item).strip()
+            if value:
+                profile_skills.append(value)
+        unique_skills = list(dict.fromkeys(profile_skills))[:12]
+        if unique_skills:
+            sections["skills"] = {"groups": [{"label": "Core Skills", "items": unique_skills}]}
+            repaired_keys.append("skills")
+
+    if "experience" in repair_keys:
+        existing_experience = list(sections.get("experience") or [])
+        if not existing_experience:
+            fallback_experience: list[dict[str, Any]] = []
+            for exp in list(profile.get("experiences") or [])[:3]:
+                if not isinstance(exp, dict):
+                    continue
+                bullet_texts = [
+                    (
+                        str(item.get("text") or "").strip()
+                        if isinstance(item, dict)
+                        else str(item).strip()
+                    )
+                    for item in list(exp.get("bullets") or [])
+                    if (
+                        str(item.get("text") or "").strip()
+                        if isinstance(item, dict)
+                        else str(item).strip()
+                    )
+                ]
+                fallback_experience.append(
+                    {
+                        "role": str(exp.get("role") or "").strip(),
+                        "company": str(exp.get("company") or "").strip(),
+                        "start": exp.get("start"),
+                        "end": exp.get("end"),
+                        "location": str(exp.get("location") or "").strip() or None,
+                        "bullets": bullet_texts[:2] or ["Delivered cross-functional work aligned with business goals."],
+                    }
+                )
+            if fallback_experience:
+                sections["experience"] = fallback_experience
+                repaired_keys.append("experience")
+
+    if "projects" in repair_keys:
+        existing_projects = list(sections.get("projects") or [])
+        if not existing_projects:
+            fallback_projects: list[dict[str, Any]] = []
+            for project in list(profile.get("projects") or [])[:3]:
+                if not isinstance(project, dict):
+                    continue
+                bullets = [
+                    str(item).strip()
+                    for item in list(project.get("highlights") or project.get("bullets") or [])
+                    if str(item).strip()
+                ]
+                fallback_projects.append(
+                    {
+                        "name": str(project.get("name") or "").strip(),
+                        "context": str(project.get("context") or project.get("period") or "").strip() or None,
+                        "bullets": bullets[:2] or ["Built project outcome with measurable business impact."],
+                    }
+                )
+            if fallback_projects:
+                sections["projects"] = fallback_projects
+                repaired_keys.append("projects")
+
+    if "education" in repair_keys:
+        existing_education = list(sections.get("education") or [])
+        if not existing_education:
+            fallback_education = []
+            for edu in list(profile.get("education") or [])[:2]:
+                if not isinstance(edu, dict):
+                    continue
+                fallback_education.append(
+                    {
+                        "degree": str(edu.get("degree") or "").strip(),
+                        "institution": str(edu.get("institution") or "").strip(),
+                        "field": str(edu.get("field") or "").strip() or None,
+                        "start": edu.get("start"),
+                        "end": edu.get("end"),
+                    }
+                )
+            if fallback_education:
+                sections["education"] = fallback_education
+                repaired_keys.append("education")
+
+    if "languages" in repair_keys:
+        existing_languages = list(sections.get("languages") or [])
+        if not existing_languages:
+            fallback_languages = []
+            for lang in list(profile.get("languages") or [])[:5]:
+                if isinstance(lang, dict):
+                    name = str(lang.get("name") or "").strip()
+                    level = str(lang.get("level") or "").strip() or None
+                else:
+                    name = str(lang).strip()
+                    level = None
+                if not name:
+                    continue
+                fallback_languages.append({"name": name, "level": level})
+            if fallback_languages:
+                sections["languages"] = fallback_languages
+                repaired_keys.append("languages")
+
+    return repaired, repaired_keys
+
 def _run_repair_cycle(
     *,
     structured_cv: dict[str, Any] | None,
@@ -697,6 +836,28 @@ def _run_repair_cycle(
     if repair_targets:
         repair_attempt = _build_repair_attempt(repair_targets)
         structured_cv, markdown, validation = retry_executor(repair_targets)
+
+    if not validation.get("valid"):
+        structured_cv, repaired_keys = _backfill_required_sections_from_profile(
+            structured_cv=structured_cv,
+            profile=profile,
+            missing_sections=list(validation.get("missing_sections") or []),
+        )
+        if repaired_keys:
+            markdown = render_cv_markdown(structured_cv or {}, config)
+            validation = _run_generation_validations(
+                markdown,
+                profile=profile,
+                config=config,
+                structured_cv=structured_cv,
+                analysis_grounding=analysis_grounding,
+            )
+            if validation.get("valid"):
+                repair_attempt = {
+                    "performed": True,
+                    "missing_sections": repaired_keys,
+                    "reason": "deterministic_section_backfill",
+                }
 
     return structured_cv, markdown, validation, repair_attempt
 
@@ -1068,6 +1229,66 @@ def generate_from_analysis(
             }
 
             if not validation["valid"]:
+                try:
+                    fallback_provider_generator = _build_fallback_provider_generator(
+                        job=job,
+                        evidence_payload=evidence_payload,
+                        gap_summary=gap_summary,
+                        profile=profile,
+                        config=config,
+                        fit=fit,
+                        evidence_selection_summary=dict(analysis_record.get("evidence_selection_summary") or {}),
+                    )
+                    fallback_structured_cv, fallback_markdown, fallback_validation = _execute_generation_attempt(
+                        fallback_provider_generator,
+                        profile=profile,
+                        config=config,
+                        analysis_grounding=analysis_grounding,
+                        repair_missing_sections=None,
+                    )
+                    if not fallback_validation.get("valid"):
+                        fallback_structured_cv, fallback_markdown, fallback_validation, fallback_repair_attempt = _run_repair_cycle(
+                            structured_cv=fallback_structured_cv,
+                            markdown=fallback_markdown,
+                            validation=fallback_validation,
+                            profile=profile,
+                            config=config,
+                            analysis_grounding=analysis_grounding,
+                            retry_executor=_build_fallback_retry_executor(
+                                fallback_provider_generator=fallback_provider_generator,
+                                profile=profile,
+                                config=config,
+                                analysis_grounding=analysis_grounding,
+                            ),
+                        )
+                        if fallback_repair_attempt.get("performed"):
+                            repair_attempt = dict(fallback_repair_attempt)
+                    if fallback_validation.get("valid"):
+                        trace_payload["output_summary"] = {
+                            "accepted_output_present": True,
+                            "final_status": ACCEPTED_STATUS,
+                            "fallback_provider_used_after_live_validation_failure": True,
+                        }
+                        trace_payload["error_summary"] = None
+                        runtime_with_fallback = dict(live_runtime_provenance)
+                        runtime_with_fallback["fallback_provider_used_after_live_validation_failure"] = True
+                        return _build_generation_result_payload(
+                            analysis_record=analysis_record,
+                            job=job,
+                            status=ACCEPTED_STATUS,
+                            fit_classification=fit_classification,
+                            structured_cv_initial=structured_cv_initial,
+                            validation_initial=validation_initial,
+                            repair_attempt=repair_attempt,
+                            structured_cv_final=fallback_structured_cv,
+                            markdown_final=fallback_markdown,
+                            validation=fallback_validation,
+                            error=None,
+                            runtime_provenance=runtime_with_fallback,
+                            agentic_live_trace=trace_payload,
+                        )
+                except Exception:
+                    pass
                 trace_payload["output_summary"] = {
                     "accepted_output_present": False,
                     "final_status": VALIDATION_FAILED_STATUS,

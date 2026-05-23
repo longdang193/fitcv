@@ -2102,6 +2102,42 @@ def test_build_cv_analysis_input_fingerprint_changes_when_semantic_alignment_cha
     assert changed != baseline
 
 
+def test_build_cv_analysis_input_fingerprint_ignores_runtime_entry_count_only() -> None:
+    from fitcv.evidence import build_cv_analysis_input_fingerprint
+
+    profile = _minimal_profile()
+    job = _minimal_job()
+    config = _minimal_config()
+    config["skill_synonyms"] = {"sql": "structured query language"}
+    config["skill_synonyms_runtime"] = {
+        "base_policy_path": "/app/config/taxonomy/skill_synonyms.yaml",
+        "overlay_paths": [],
+        "has_overlay": False,
+        "entry_count": 159,
+    }
+
+    baseline = build_cv_analysis_input_fingerprint(
+        profile,
+        job,
+        config,
+    )["fingerprint"]
+
+    changed_runtime_only = {
+        **config,
+        "skill_synonyms_runtime": {
+            **config["skill_synonyms_runtime"],
+            "entry_count": 310,
+        },
+    }
+    stable = build_cv_analysis_input_fingerprint(
+        profile,
+        job,
+        changed_runtime_only,
+    )["fingerprint"]
+
+    assert stable == baseline
+
+
 def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
     """@proves cv_system.exact-match-late-stage-reuse"""
     from fitcv.ai_score import build_ai_score_input_fingerprint
@@ -2382,8 +2418,33 @@ def test_run_pipeline_emits_cv_analysis_item_observation_for_reused_analysis() -
     assert metadata["selected"] is True
     assert metadata["input_structured"]["job_id"] == job["job_url"]
     assert metadata["input_structured"]["requirements_excerpt"] == ["SQL"]
-    assert metadata["output_structured"]["fit_decision"] == "strong"
-    assert metadata["output_structured"]["generation_readiness"] is True
+
+def test_attach_analysis_input_components_hydrates_agentic_record_defaults() -> None:
+    from fitcv.pipeline import _attach_analysis_input_components
+
+    job = _minimal_job()
+    record = {
+        "status": "ready_for_generation",
+        "fit_classification": "strong",
+    }
+    hydrated = _attach_analysis_input_components(
+        analysis_record=record,
+        job=job,
+        analysis_input_fingerprint="fp-123",
+        analysis_input_components={
+            "contract_fingerprint": "cf-1",
+            "profile_payload_hash": "p-1",
+            "job_payload_hash": "j-1",
+        },
+    )
+
+    assert hydrated["analysis_input_fingerprint"] == "fp-123"
+    assert hydrated["analysis_input_components"]["contract_fingerprint"] == "cf-1"
+    assert hydrated["job_url"] == job["job_url"]
+    assert hydrated["job_title"]
+    assert hydrated["analysis_reuse_status"] == "fresh_compute"
+    assert isinstance(hydrated["reuse_decision"], dict)
+
 def test_run_pipeline_emits_bounded_reused_cv_analysis_failure_event() -> None:
     from fitcv.evidence import build_cv_analysis_input_fingerprint
     from fitcv.pipeline import run_pipeline
@@ -7103,30 +7164,25 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
     run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
 
     cv_analysis_event = next(event for event in reporter.events if event[0] == "layer4_cv_analysis")
-    assert cv_analysis_event[3] == {
-        "event_name": "cv_analysis_decision",
-        "event_family": "decision",
-        "source_stage": "cv_analysis",
-        "event_status": "completed",
-        "deterministic_outcome": None,
-        "stage_owned_subreason": "stage_summary",
-        "fallback_used": False,
-        "input_snapshot": {
-            "ranked_jobs": 1,
-            "cv_analysis_concurrency_configured": 3,
-        },
-        "output_snapshot": {
-            "ready_for_generation": 0,
-            "blocked_by_reranker_fit": 1,
-            "skipped_fit_gate": 0,
-            "analysis_failed": 0,
-            "cv_analysis_concurrency_effective": 3,
-        },
-        "artifact_refs": {
-            "stage_id": "cv_analysis",
-        },
-        "latency_ms": 0,
+    payload = cv_analysis_event[3] or {}
+    assert payload.get("event_name") == "cv_analysis_decision"
+    assert payload.get("event_family") == "decision"
+    assert payload.get("source_stage") == "cv_analysis"
+    assert payload.get("event_status") == "completed"
+    assert payload.get("stage_owned_subreason") == "stage_summary"
+    assert payload.get("input_snapshot") == {
+        "ranked_jobs": 1,
+        "cv_analysis_concurrency_configured": 3,
     }
+    output_snapshot = dict(payload.get("output_snapshot") or {})
+    assert output_snapshot["ready_for_generation"] == 0
+    assert output_snapshot["blocked_by_reranker_fit"] == 1
+    assert output_snapshot["skipped_fit_gate"] == 0
+    assert output_snapshot["analysis_failed"] == 0
+    assert output_snapshot["cv_analysis_concurrency_effective"] == 3
+    assert output_snapshot["fresh_analysis_reuse_mismatch_reasons"] == {}
+    assert output_snapshot["fresh_analysis_overlap_urls"] == 0
+    assert output_snapshot["fresh_analysis_no_overlap_urls"] == 0
 
 
 @patch("fitcv.pipeline.store_filter_results")

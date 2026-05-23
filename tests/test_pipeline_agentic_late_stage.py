@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from fitcv.pipeline import run_pipeline
 from fitcv.agentic_cv_generation import (
+    _backfill_required_sections_from_profile,
     _build_fitcv_langgraph_env_values,
     _generate_cv_with_live_provider,
     _shallow_section_repair_targets,
@@ -138,6 +139,26 @@ def test_shallow_section_repair_targets_flags_empty_experience_bullets() -> None
     structured_cv = _minimal_structured_cv()
     structured_cv["sections"]["experience"][0]["bullets"] = []
     assert _shallow_section_repair_targets(structured_cv) == ["experience"]
+
+def test_backfill_required_sections_from_profile_populates_missing_required_sections() -> None:
+    profile = _minimal_profile()
+    profile["projects"] = [{"name": "FitCV", "highlights": ["Built CV-job matching workflow."]}]
+    structured = _minimal_structured_cv()
+    structured["sections"]["skills"] = {"groups": []}
+    structured["sections"]["experience"] = []
+    structured["sections"]["projects"] = []
+
+    repaired, repaired_keys = _backfill_required_sections_from_profile(
+        structured_cv=structured,
+        profile=profile,
+        missing_sections=["Skills", "Experience", "Projects"],
+    )
+
+    assert repaired is not None
+    assert set(repaired_keys) == {"skills", "experience", "projects"}
+    assert repaired["sections"]["skills"]["groups"][0]["items"]
+    assert repaired["sections"]["experience"]
+    assert repaired["sections"]["projects"]
 
 
 @patch("fitcv.pipeline.store_final_ranking")

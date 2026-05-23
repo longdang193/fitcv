@@ -999,6 +999,90 @@ def _index_late_stage_reuse_rows(
         indexed[fingerprint] = deepcopy(payload)
     return indexed
 
+def _index_cv_analysis_reuse_by_url(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    indexed: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        job_url = str(row.get("job_url") or "").strip()
+        payload = row.get("analysis_record")
+        if not job_url or not isinstance(payload, dict):
+            continue
+        indexed.setdefault(job_url, []).append(deepcopy(payload))
+    return indexed
+
+def _analysis_input_components(payload: dict[str, Any]) -> dict[str, Any]:
+    profile_payload = dict(payload.get("profile") or {})
+    job_payload = dict(payload.get("job") or {})
+
+    def _hash(value: Any) -> str:
+        seed = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        return hashlib.sha256(seed.encode("utf-8")).hexdigest()
+
+    return {
+        "contract_fingerprint": str(payload.get("contract_fingerprint") or ""),
+        "profile_payload_hash": _hash(profile_payload),
+        "job_payload_hash": _hash(job_payload),
+    }
+
+def _attach_analysis_input_components(
+    *,
+    analysis_record: dict[str, Any],
+    job: dict[str, Any],
+    analysis_input_fingerprint: str,
+    analysis_input_components: dict[str, Any],
+) -> dict[str, Any]:
+    hydrated = dict(analysis_record or {})
+    hydrated["analysis_input_fingerprint"] = analysis_input_fingerprint
+    hydrated["analysis_input_components"] = dict(analysis_input_components or {})
+    hydrated["job_url"] = str(
+        hydrated.get("job_url")
+        or job.get("job_url")
+        or ""
+    )
+    hydrated["job_title"] = str(
+        hydrated.get("job_title")
+        or _extract_job_title(job)
+    )
+    hydrated["job_snapshot"] = dict(hydrated.get("job_snapshot") or job)
+    reuse_status = str(hydrated.get("analysis_reuse_status") or "")
+    if not reuse_status:
+        hydrated["analysis_reuse_status"] = "fresh_compute"
+    if not isinstance(hydrated.get("reuse_decision"), dict):
+        hydrated["reuse_decision"] = build_reuse_decision(
+            decision="fresh_compute",
+            reason_code="no_reusable_snapshot_match",
+            fingerprint=analysis_input_fingerprint,
+            source_artifact_type="cv_analysis",
+        )
+    return hydrated
+
+def _cv_analysis_reuse_mismatch_reason(
+    *,
+    current_record: dict[str, Any],
+    prior_records_for_url: list[dict[str, Any]],
+) -> str:
+    current_components = dict(current_record.get("analysis_input_components") or {})
+    if not prior_records_for_url:
+        return "no_overlap_prior_url"
+    if not current_components:
+        return "missing_current_components"
+    prior_components = [
+        dict(item.get("analysis_input_components") or {})
+        for item in prior_records_for_url
+        if isinstance(item, dict)
+    ]
+    if not any(prior_components):
+        return "overlap_without_prior_components"
+    contract = str(current_components.get("contract_fingerprint") or "")
+    if any(str(item.get("contract_fingerprint") or "") != contract for item in prior_components):
+        return "contract_fingerprint_changed"
+    profile_hash = str(current_components.get("profile_payload_hash") or "")
+    if any(str(item.get("profile_payload_hash") or "") != profile_hash for item in prior_components):
+        return "profile_payload_changed"
+    job_hash = str(current_components.get("job_payload_hash") or "")
+    if any(str(item.get("job_payload_hash") or "") != job_hash for item in prior_components):
+        return "job_payload_changed"
+    return "overlap_exact_match_not_used"
+
 
 def _build_late_stage_reuse_metrics(
     *,
@@ -2107,7 +2191,23 @@ def _build_cv_generation_debug_record(
     cv_prompt_template_path: str | None,
     error: dict[str, str] | None,
     agentic_live_trace: dict[str, Any] | None = None,
+    validation_final: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    resolved_validation = dict(validation_final or validation_initial or {})
+    if "valid" not in resolved_validation and validation_initial is not None:
+        resolved_validation["valid"] = bool(validation_initial.get("valid"))
+    resolved_validation.setdefault("missing_sections", list(resolved_validation.get("missing_sections") or []))
+    resolved_validation.setdefault("grounding_violations", list(resolved_validation.get("grounding_violations") or []))
+    resolved_validation.setdefault(
+        "deterministic_grounding_violations",
+        list(resolved_validation.get("deterministic_grounding_violations") or []),
+    )
+    resolved_validation.setdefault(
+        "semantic_grounding_violations",
+        list(resolved_validation.get("semantic_grounding_violations") or []),
+    )
+    resolved_validation.setdefault("skill_violations", list(resolved_validation.get("skill_violations") or []))
+    resolved_validation.setdefault("warnings", list(resolved_validation.get("warnings") or []))
     ranking_fit_label = _authoritative_ranking_fit_label(job, fit_classification)
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
     cv_analysis_status = status
@@ -2148,6 +2248,7 @@ def _build_cv_generation_debug_record(
         "gap_summary": gap_summary,
         "structured_cv_initial": structured_cv_initial,
         "validation_initial": validation_initial,
+        "validation_final": validation_final,
         "repair_attempt": repair_attempt,
         "structured_cv_final": structured_cv_final,
         "markdown_final": markdown_final,
@@ -2163,17 +2264,17 @@ def _build_cv_generation_debug_record(
         "review_required_reason_code": _normalize_review_required_reason_code(
             status=status,
             error=error,
-            validation_initial=validation_initial,
+            validation_initial=resolved_validation,
         ),
         "validation_evidence_fingerprint": _build_validation_evidence_fingerprint(
             status=status,
-            validation_initial=validation_initial,
+            validation_initial=resolved_validation,
             error=error,
         ),
         "attempt_count": 1,
-        "failed_rule_ids": _extract_failed_rule_ids(validation_initial),
-        "first_failing_section_key": _first_failing_section_key(validation_initial),
-        "operator_note": _build_operator_note(status=status, error=error, validation_initial=validation_initial),
+        "failed_rule_ids": _extract_failed_rule_ids(resolved_validation),
+        "first_failing_section_key": _first_failing_section_key(resolved_validation),
+        "operator_note": _build_operator_note(status=status, error=error, validation_initial=resolved_validation),
     }
     if isinstance(runtime_provenance, dict):
         payload["runtime_provenance"] = dict(runtime_provenance)
@@ -2669,6 +2770,7 @@ def _build_cv_analysis_record(
     pre_writing_decision: dict[str, Any] | None = None,
     readiness_diagnostics: dict[str, Any] | None = None,
     reuse_decision: dict[str, Any] | None = None,
+    analysis_input_components: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     ranking_fit_label = _authoritative_ranking_fit_label(job, fit_classification)
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
@@ -2692,6 +2794,7 @@ def _build_cv_analysis_record(
         "job_title": _extract_job_title(job),
         "status": status,
         "analysis_input_fingerprint": analysis_input_fingerprint,
+        "analysis_input_components": dict(analysis_input_components or {}),
         "analysis_reuse_status": analysis_reuse_status,
         "reuse_decision": dict(resolved_reuse_decision),
         "ranking_fit_label": ranking_fit_label,
@@ -3792,6 +3895,9 @@ def run_pipeline(
             fingerprint_key="analysis_input_fingerprint",
             payload_key="analysis_record",
         )
+        cv_analysis_reuse_by_url = _index_cv_analysis_reuse_by_url(
+            normalized_reuse_snapshots["cv_analysis_records"],
+        )
         raw_jobs = list(state["raw_jobs"])
         normalized = list(state["normalized"])
         deduplicated_jobs = list(state["deduplicated_jobs"])
@@ -4351,7 +4457,9 @@ def run_pipeline(
                     raise PipelineCancelled("Cancelled before CV analysis")
                 cv_analysis_results = []
                 cv_analysis_reuse_enabled = _reuse_stage_enabled(config, "cv_analysis")
-                pending_agentic_analysis: list[tuple[int, dict[str, Any], Future[dict[str, Any]]]] = []
+                pending_agentic_analysis: list[
+                    tuple[int, dict[str, Any], Future[dict[str, Any]], str, dict[str, Any]]
+                ] = []
                 agentic_executor: ThreadPoolExecutor | None = None
                 for job in ranked_jobs_for_cv:
                     ranking_fit_label = _resolve_layer4_fit(job, gap_fit=None, config=config)
@@ -4407,6 +4515,9 @@ def run_pipeline(
                         )
                         continue
                     analysis_fingerprint_record = build_cv_analysis_input_fingerprint(profile, job, config)
+                    analysis_input_components = _analysis_input_components(
+                        dict(analysis_fingerprint_record.get("payload") or {}),
+                    )
                     reused_analysis_record = (
                         cv_analysis_reuse_index.get(analysis_fingerprint_record["fingerprint"])
                         if cv_analysis_reuse_enabled
@@ -4419,6 +4530,7 @@ def run_pipeline(
                             "job_title": _extract_job_title(job),
                             "job_snapshot": dict(job),
                             "analysis_input_fingerprint": analysis_fingerprint_record["fingerprint"],
+                            "analysis_input_components": dict(analysis_input_components),
                             "analysis_reuse_status": "reused_exact_match",
                             "reuse_decision": build_reuse_decision(
                                 decision="reused_exact_match",
@@ -4503,9 +4615,22 @@ def run_pipeline(
                                 )
                                 placeholder_index = len(cv_analysis_results)
                                 cv_analysis_results.append({})
-                                pending_agentic_analysis.append((placeholder_index, dict(job), future))
+                                pending_agentic_analysis.append(
+                                    (
+                                        placeholder_index,
+                                        dict(job),
+                                        future,
+                                        analysis_fingerprint_record["fingerprint"],
+                                        dict(analysis_input_components),
+                                    )
+                                )
                                 continue
-                            analysis_record = dict(run_agentic_cv_analysis(job, profile, config))
+                            analysis_record = _attach_analysis_input_components(
+                                analysis_record=dict(run_agentic_cv_analysis(job, profile, config)),
+                                job=job,
+                                analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
+                                analysis_input_components=analysis_input_components,
+                            )
                             cv_analysis_results.append(analysis_record)
                             _emit_cv_analysis_item_observation(
                                 run_id=run_id,
@@ -4599,6 +4724,7 @@ def run_pipeline(
                                 job=job,
                                 status="skipped_fit_gate",
                                 analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
+                                analysis_input_components=analysis_input_components,
                                 analysis_reuse_status="fresh_compute",
                                 evidence_payload=evidence,
                                 evidence_used=_build_debug_evidence_used(evidence),
@@ -4645,6 +4771,7 @@ def run_pipeline(
                             job=job,
                             status="ready_for_generation",
                             analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
+                            analysis_input_components=analysis_input_components,
                             analysis_reuse_status="fresh_compute",
                             evidence_payload=evidence,
                             evidence_used=_build_debug_evidence_used(evidence),
@@ -4666,6 +4793,7 @@ def run_pipeline(
                             job=job,
                             status="analysis_failed",
                             analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
+                            analysis_input_components=analysis_input_components,
                             analysis_reuse_status="fresh_compute",
                             evidence_payload=evidence,
                             evidence_used=_build_debug_evidence_used(evidence),
@@ -4731,8 +4859,19 @@ def run_pipeline(
                         continue
                 if agentic_executor is not None:
                     agentic_executor.shutdown(wait=True)
-                for placeholder_index, pending_job, future in pending_agentic_analysis:
-                    analysis_record = dict(future.result())
+                for (
+                    placeholder_index,
+                    pending_job,
+                    future,
+                    analysis_input_fingerprint,
+                    analysis_input_components,
+                ) in pending_agentic_analysis:
+                    analysis_record = _attach_analysis_input_components(
+                        analysis_record=dict(future.result()),
+                        job=pending_job,
+                        analysis_input_fingerprint=analysis_input_fingerprint,
+                        analysis_input_components=analysis_input_components,
+                    )
                     cv_analysis_results[placeholder_index] = analysis_record
                     _emit_cv_analysis_item_observation(
                         run_id=run_id,
@@ -4768,6 +4907,27 @@ def run_pipeline(
                             )
                         )
             if reporter is not None:
+                fresh_analysis_reuse_reason_counts: dict[str, int] = {}
+                fresh_overlap_urls = 0
+                fresh_no_overlap_urls = 0
+                for record in cv_analysis_results:
+                    if str(record.get("analysis_reuse_status") or "") != "fresh_compute":
+                        continue
+                    if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
+                        continue
+                    job_url = str(record.get("job_url") or "").strip()
+                    prior_records_for_url = list(cv_analysis_reuse_by_url.get(job_url) or [])
+                    if prior_records_for_url:
+                        fresh_overlap_urls += 1
+                    else:
+                        fresh_no_overlap_urls += 1
+                    reason = _cv_analysis_reuse_mismatch_reason(
+                        current_record=record,
+                        prior_records_for_url=prior_records_for_url,
+                    )
+                    fresh_analysis_reuse_reason_counts[reason] = int(
+                        fresh_analysis_reuse_reason_counts.get(reason) or 0
+                    ) + 1
                 blocked_by_reranker_diagnostics = [
                     {
                         "job_url": str(record.get("job_url") or ""),
@@ -4825,6 +4985,9 @@ def run_pipeline(
                                 1 for record in cv_analysis_results
                                 if str(record.get("status") or "") == CV_ANALYSIS_FAILED_STATUS
                             ),
+                            "fresh_analysis_reuse_mismatch_reasons": dict(fresh_analysis_reuse_reason_counts),
+                            "fresh_analysis_overlap_urls": fresh_overlap_urls,
+                            "fresh_analysis_no_overlap_urls": fresh_no_overlap_urls,
                             "cv_analysis_concurrency_effective": cv_analysis_concurrency,
                         },
                         artifact_refs={"stage_id": "cv_analysis"},
@@ -5192,7 +5355,8 @@ def run_pipeline(
             run_id: str,
             cv_generation_input_fingerprint: str | None,
         ) -> bool:
-            if validation.get("valid", False):
+            validation_payload = dict(validation or {})
+            if validation_payload.get("valid", False):
                 return False
             job = cast(dict[str, Any], state["job"])
             fit = str(state["fit"] or "skip")
@@ -5226,15 +5390,15 @@ def run_pipeline(
                 cv_generation_input_fingerprint=cv_generation_input_fingerprint,
             )
             failure_details: dict[str, Any] = {
-                "missing_sections": validation.get("missing_sections") or [],
-                "grounding_violations": validation.get("grounding_violations") or [],
-                "deterministic_grounding_violations": validation.get("deterministic_grounding_violations") or [],
-                "semantic_grounding_violations": validation.get("semantic_grounding_violations") or [],
-                "skill_violations": validation.get("skill_violations") or [],
-                "markdown_quality_blocking_issues": validation.get("markdown_quality_blocking_issues") or [],
-                "markdown_quality_review_flags": validation.get("markdown_quality_review_flags") or [],
-                "warnings": validation.get("warnings") or [],
-                "support_source_summary": validation.get("support_source_summary") or {},
+                "missing_sections": validation_payload.get("missing_sections") or [],
+                "grounding_violations": validation_payload.get("grounding_violations") or [],
+                "deterministic_grounding_violations": validation_payload.get("deterministic_grounding_violations") or [],
+                "semantic_grounding_violations": validation_payload.get("semantic_grounding_violations") or [],
+                "skill_violations": validation_payload.get("skill_violations") or [],
+                "markdown_quality_blocking_issues": validation_payload.get("markdown_quality_blocking_issues") or [],
+                "markdown_quality_review_flags": validation_payload.get("markdown_quality_review_flags") or [],
+                "warnings": validation_payload.get("warnings") or [],
+                "support_source_summary": validation_payload.get("support_source_summary") or {},
             }
             logger.warning(
                 "[run_id=%s] CV for %s failed validation: %s",
@@ -5252,6 +5416,7 @@ def run_pipeline(
                 gap_summary=gap,
                 structured_cv_initial=structured_cv_initial,
                 validation_initial=validation_initial,
+                validation_final=validation_payload if validation_payload else None,
                 repair_attempt=repair_attempt,
                 structured_cv_final=None,
                 markdown_final=None,
@@ -5295,7 +5460,22 @@ def run_pipeline(
                         },
                         output_snapshot={
                             "validation_status": "failed",
-                            "missing_sections": list(validation.get("missing_sections") or []),
+                            "missing_sections": list(validation_payload.get("missing_sections") or []),
+                            "grounding_violations": list(validation_payload.get("grounding_violations") or []),
+                            "deterministic_grounding_violations": list(
+                                validation_payload.get("deterministic_grounding_violations") or []
+                            ),
+                            "semantic_grounding_violations": list(
+                                validation_payload.get("semantic_grounding_violations") or []
+                            ),
+                            "skill_violations": list(validation_payload.get("skill_violations") or []),
+                            "markdown_quality_blocking_issues": list(
+                                validation_payload.get("markdown_quality_blocking_issues") or []
+                            ),
+                            "markdown_quality_review_flags": list(
+                                validation_payload.get("markdown_quality_review_flags") or []
+                            ),
+                            "warnings": list(validation_payload.get("warnings") or []),
                         },
                         artifact_refs={"stage_id": "cv_generation"},
                     ),
@@ -5995,6 +6175,10 @@ def run_pipeline(
             structured_cv_initial = agentic_generation_result["structured_cv_initial"]
             raw_validation_initial = agentic_generation_result["validation_initial"]
             validation_initial = dict(raw_validation_initial) if raw_validation_initial is not None else None
+            raw_validation_final = agentic_generation_result.get("validation")
+            validation_final = dict(raw_validation_final) if isinstance(raw_validation_final, dict) else None
+            if validation_initial is None and validation_final is not None:
+                validation_initial = dict(validation_final)
             repair_attempt = dict(agentic_generation_result["repair_attempt"])
             structured_cv_final = agentic_generation_result["structured_cv_final"]
             markdown_final = agentic_generation_result["markdown_final"]
@@ -6029,13 +6213,13 @@ def run_pipeline(
                                 _normalize_review_required_reason_code(
                                     status=str(agentic_generation_result.get("status") or ""),
                                     error=cast(dict[str, str] | None, agentic_generation_result.get("error")),
-                                    validation_initial=validation_initial,
+                                    validation_initial=(validation_final or validation_initial),
                                 )
                                 or ""
                             ),
                             "validation_evidence_fingerprint": _build_validation_evidence_fingerprint(
                                 status=str(agentic_generation_result.get("status") or ""),
-                                validation_initial=validation_initial,
+                                validation_initial=(validation_final or validation_initial),
                                 error=cast(dict[str, str] | None, agentic_generation_result.get("error")),
                             ),
                             "attempt_count": int(generation_metrics["attempt_count"]),
@@ -6044,6 +6228,36 @@ def run_pipeline(
                             "worker_slot": int(generation_worker_slot),
                             "started_at": generation_started_at_iso,
                             "finished_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                            "missing_sections": (
+                                list(((validation_final or validation_initial) or {}).get("missing_sections") or [])
+                                if str(agentic_generation_result.get("status") or "") == "validation_failed"
+                                else []
+                            ),
+                            "grounding_violations": (
+                                list(((validation_final or validation_initial) or {}).get("grounding_violations") or [])
+                                if str(agentic_generation_result.get("status") or "") == "validation_failed"
+                                else []
+                            ),
+                            "deterministic_grounding_violations": (
+                                list(((validation_final or validation_initial) or {}).get("deterministic_grounding_violations") or [])
+                                if str(agentic_generation_result.get("status") or "") == "validation_failed"
+                                else []
+                            ),
+                            "semantic_grounding_violations": (
+                                list(((validation_final or validation_initial) or {}).get("semantic_grounding_violations") or [])
+                                if str(agentic_generation_result.get("status") or "") == "validation_failed"
+                                else []
+                            ),
+                            "skill_violations": (
+                                list(((validation_final or validation_initial) or {}).get("skill_violations") or [])
+                                if str(agentic_generation_result.get("status") or "") == "validation_failed"
+                                else []
+                            ),
+                            "warnings": (
+                                list(((validation_final or validation_initial) or {}).get("warnings") or [])
+                                if str(agentic_generation_result.get("status") or "") == "validation_failed"
+                                else []
+                            ),
                         },
                         artifact_refs={"stage_id": "cv_generation"},
                         latency_ms=cast(int | None, generation_metrics["latency_ms"]),
@@ -6084,34 +6298,45 @@ def run_pipeline(
                         generation_error = retry_result.get("error")
                         agentic_generation_result = retry_result
                 if agentic_generation_result["status"] != "accepted":
-                    debug_record = _build_cv_generation_debug_record(
-                        job=job,
-                        status=agentic_generation_result["status"],
-                        fit_classification=fit,
-                        evidence_used=evidence_used,
-                        evidence_selection_summary=evidence_selection_summary,
-                        analysis_input_summary=analysis_input_summary,
-                        gap_summary=gap,
-                        structured_cv_initial=structured_cv_initial,
-                        validation_initial=validation_initial,
-                        repair_attempt=repair_attempt,
-                        structured_cv_final=structured_cv_final,
-                        markdown_final=markdown_final,
-                        enabled_sections=enabled_cv_sections,
-                        cv_generation_model=job_cv_generation_model_value,
-                        runtime_provenance=job_runtime_provenance,
-                        cv_prompt_id=cv_prompt_id_value,
-                        cv_prompt_template_path=cv_prompt_template_path_value,
-                        error=(
-                            {
-                                "stage": str(generation_error["stage"]),
-                                "message": str(generation_error["message"]),
-                            }
-                            if generation_error is not None
-                            else None
-                        ),
-                        agentic_live_trace=job_agentic_live_trace,
-                    )
+                    try:
+                        debug_record = _build_cv_generation_debug_record(
+                            job=job,
+                            status=agentic_generation_result["status"],
+                            fit_classification=fit,
+                            evidence_used=evidence_used,
+                            evidence_selection_summary=evidence_selection_summary,
+                            analysis_input_summary=analysis_input_summary,
+                            gap_summary=gap,
+                            structured_cv_initial=structured_cv_initial,
+                            validation_initial=validation_initial,
+                            validation_final=validation_final,
+                            repair_attempt=repair_attempt,
+                            structured_cv_final=structured_cv_final,
+                            markdown_final=markdown_final,
+                            enabled_sections=enabled_cv_sections,
+                            cv_generation_model=job_cv_generation_model_value,
+                            runtime_provenance=job_runtime_provenance,
+                            cv_prompt_id=cv_prompt_id_value,
+                            cv_prompt_template_path=cv_prompt_template_path_value,
+                            error=(
+                                {
+                                    "stage": str(generation_error["stage"]),
+                                    "message": str(generation_error["message"]),
+                                }
+                                if generation_error is not None
+                                else None
+                            ),
+                            agentic_live_trace=job_agentic_live_trace,
+                        )
+                    except Exception:
+                        debug_record = {
+                            "job_url": str(job.get("job_url") or ""),
+                            "job_title": _extract_job_title(job),
+                            "status": str(agentic_generation_result.get("status") or "generation_failed"),
+                            "fit_classification": fit,
+                            "validation_initial": validation_initial,
+                            "error": generation_error,
+                        }
                     debug_record["attempt_count"] = retry_attempt_count
                     debug_record["cv_generation_input_fingerprint"] = cv_generation_input_fingerprint
                     return {
@@ -6130,6 +6355,21 @@ def run_pipeline(
                     "stage": "review_gate",
                     "message": review_reason,
                 }
+                if deferred_reporter_payload is not None:
+                    payload = dict(deferred_reporter_payload.get("payload") or {})
+                    output_snapshot = dict(payload.get("output_snapshot") or {})
+                    output_snapshot["status"] = CV_GENERATION_REVIEW_REQUIRED_STATUS
+                    output_snapshot["review_required_reason_code"] = _normalize_review_required_reason_code(
+                        status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                        error=review_error,
+                        validation_initial=validation_initial,
+                    )
+                    payload["deterministic_outcome"] = CV_GENERATION_REVIEW_REQUIRED_STATUS
+                    payload["output_snapshot"] = output_snapshot
+                    deferred_reporter_payload["message"] = (
+                        f"CV generation result for {job.get('job_url')}: {CV_GENERATION_REVIEW_REQUIRED_STATUS}"
+                    )
+                    deferred_reporter_payload["payload"] = payload
                 review_debug_record = _build_cv_generation_debug_record(
                     job=job,
                     status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
