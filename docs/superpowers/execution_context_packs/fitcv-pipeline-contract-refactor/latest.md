@@ -123,6 +123,9 @@
 - **Failing checks (if any):**
   - `tests/test_pipeline.py` full suite failing at baseline (pre-existing)
   - `python scripts/hooks/run_validator.py --fast` (PASS)
+  - `python scripts/validate_planning_lifecycle.py --strict` (PASS)
+  - `python scripts/validate_checkpoint_packs.py` (PASS)
+  - `python scripts/validate_repo_contracts.py --fast` (PASS)
 
 ## 6) Open Blockers / Risks
 
@@ -130,10 +133,10 @@
 
 ## 7) Next Exact Action
 
-- **Action type:** edit (bounded refactor)
-- **Target:** Task 6 (A5) in `docs/superpowers/plans/2026-05-23-22-56-fitcv-pipeline-contract-refactor-plan.md`
-- **Exact command or edit intent:** close lane planning state: record A5 stop decision in plan, then run lane verifications (`python scripts/hooks/run_validator.py --fast`, focused pytest, `npx gitnexus detect-changes`).
-- **Why this is next:** A1–A4 complete; A5 helper consolidation complete; remaining A5 stage-body moves intentionally dropped to keep risk bounded.
+- **Action type:** close now
+- **Target:** `docs/superpowers/plans/2026-05-23-22-56-fitcv-pipeline-contract-refactor-plan.md`
+- **Exact command or edit intent:** no further code edits in lane; open PR from `codex/fitcv-pipeline-contract-refactor`.
+- **Why this is next:** Key Deliverables satisfied (A1/A3/A4). A5 stage-body moves dropped with rationale recorded. Closeout validators + focused tests have evidence.
 
 ## 8) Resume Prompt (Copy/Paste)
 
