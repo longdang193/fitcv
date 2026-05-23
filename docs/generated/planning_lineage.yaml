@@ -506,9 +506,11 @@ workstreams:
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-operator-diagnostics
     status: proposed
     path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/03-efficiency-reuse-operator-diagnostics.md
-    specs: []
-    plans: []
-    derived_completion: not_started
+    specs:
+    - docs/superpowers/specs/2026-05-23-22-45-fitcv-pipeline-refactor-ssot-spec.md
+    plans:
+    - docs/superpowers/plans/2026-05-23-22-56-fitcv-pipeline-contract-refactor-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-cross-stage-cache-safety
     status: proposed
     path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/04-efficiency-reuse-cross-stage-cache-safety.md
