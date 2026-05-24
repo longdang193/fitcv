@@ -5697,6 +5697,84 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             return get_run(run.run_id, bq, project=project, dataset=dataset) or run
         except Exception:
             return run
+
+    def _reconcile_orphaned_queued_run(run: PipelineRun) -> PipelineRun:
+        """Repair QUEUED rows if their RQ job already started or terminated."""
+        if run.status != RunStatus.QUEUED:
+            return run
+        queue_job_id = str(getattr(run, "queue_job_id", "") or "").strip()
+        if not queue_job_id:
+            return run
+        created_at = getattr(run, "created_at", None)
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        if isinstance(created_at, datetime.datetime):
+            created_at_utc = created_at if created_at.tzinfo else created_at.replace(tzinfo=datetime.timezone.utc)
+            run_age_seconds = max(0.0, (now_utc - created_at_utc).total_seconds())
+            if run_age_seconds < 10:
+                return run
+        try:
+            rq_status = str(get_queue_job_status(queue_job_id, redis_url=redis_url) or "").strip().lower()
+        except Exception:
+            return run
+        if rq_status in {"queued", "deferred", ""}:
+            return run
+        if rq_status == "started":
+            update_run_status(
+                run.run_id,
+                RunStatus.RUNNING,
+                bq,
+                project=project,
+                dataset=dataset,
+                started_at=now_utc,
+            )
+            append_event(
+                RunEvent(
+                    run_id=run.run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="run_reconciled",
+                    level="warning",
+                    message=f"Run reconciled from QUEUED to RUNNING (queue status={rq_status})",
+                    created_at=now_utc,
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+            return get_run(run.run_id, bq, project=project, dataset=dataset) or run
+        if rq_status in {"finished", "failed", "stopped", "canceled", "cancelled"}:
+            update_run_status(
+                run.run_id,
+                RunStatus.FAILED,
+                bq,
+                project=project,
+                dataset=dataset,
+                finished_at=now_utc,
+                error_message=(
+                    f"Queue job {queue_job_id} ended with status={rq_status} while run remained QUEUED "
+                    "(likely web/worker storage mismatch or persistence failure)."
+                ),
+            )
+            append_event(
+                RunEvent(
+                    run_id=run.run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="run_reconciled",
+                    level="error",
+                    message=f"Run reconciled from orphaned queued state (queue status={rq_status})",
+                    created_at=now_utc,
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+            return get_run(run.run_id, bq, project=project, dataset=dataset) or run
+        if rq_status == "missing" and queue_job_id.startswith("inline-"):
+            return run
+        return run
+
+    def _reconcile_orphaned_run(run: PipelineRun) -> PipelineRun:
+        run = _reconcile_orphaned_queued_run(run)
+        return _reconcile_orphaned_running_run(run)
     all_settings_sections = {
         **SETTINGS_SECTIONS,
         **AGENTIC_SETTINGS_SECTIONS,
@@ -7201,13 +7279,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     @app.get("/runs")
     def get_runs_list() -> list:
         runs = list_runs(bq, project=project, dataset=dataset)
-        runs = [_reconcile_orphaned_running_run(run) for run in runs]
+        runs = [_reconcile_orphaned_run(run) for run in runs]
         return [_run_to_dict(r) for r in runs]
 
     @app.get("/runs/{run_id}")
     def get_run_detail(run_id: str) -> dict:
         run = require_run_or_404(run_id)
-        run = _reconcile_orphaned_running_run(run)
+        run = _reconcile_orphaned_run(run)
         return _run_to_dict(run)
 
     @app.get("/runs/{run_id}/events")
@@ -7547,7 +7625,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             runs = list_runs(bq, project=project, dataset=dataset, include_archived=True)
         else:  # default: active
             runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
-        runs = [_reconcile_orphaned_running_run(run) for run in runs]
+        runs = [_reconcile_orphaned_run(run) for run in runs]
         runs = [_attach_jobs_path_display(run) for run in runs]
         max_runtime_minutes = _run_max_runtime_minutes()
         runs = [_enforce_run_timeout_guard(run, max_runtime_minutes=max_runtime_minutes) for run in runs]
@@ -8325,7 +8403,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404)
-        run = _reconcile_orphaned_running_run(run)
+        run = _reconcile_orphaned_run(run)
         run = _attach_jobs_path_display(run)
         run = _enforce_run_timeout_guard(run, max_runtime_minutes=_run_max_runtime_minutes())
         timeline_limit = _coerce_positive_int(
@@ -8593,7 +8671,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404)
-        run = _reconcile_orphaned_running_run(run)
+        run = _reconcile_orphaned_run(run)
         run = _enforce_run_timeout_guard(run, max_runtime_minutes=_run_max_runtime_minutes())
         hitl_review_queue = _build_hitl_review_queue(run)
         hitl_closure_summary = _build_hitl_closure_summary(run, queue=hitl_review_queue)
