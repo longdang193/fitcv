@@ -1,6 +1,6 @@
 ---
 thread_id: workstream-operator-control-plane.fitcv-cp-run-artifact-ssot-symmetry-refactor
-status: proposed
+status: completed
 ---
 
 # fitcv-cp-run-artifact-ssot-symmetry-refactor

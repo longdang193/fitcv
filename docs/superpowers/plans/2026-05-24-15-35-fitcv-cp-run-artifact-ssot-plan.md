@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: fitcv_cp_run_artifact_ssot_symmetry_invariance_plan
 parent_thread: workstream-operator-control-plane.fitcv-cp-run-artifact-ssot-symmetry-refactor
