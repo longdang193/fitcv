@@ -400,6 +400,7 @@ def test_worker_persists_results_export_json_on_success():
     payload = json.loads(stored_json)
     assert payload["run_id"] == "r1"
     assert payload["results_schema_version"] == "results_job_ledger_v3"
+    assert payload["schema_version"] == "results_job_ledger_v3"
     assert payload["run_mode"] == "run_all"
     assert payload["run_mode_label"] == "Run All"
     assert payload["data_plane"]["runtime_mode"] == "full"
@@ -415,6 +416,54 @@ def test_worker_persists_results_export_json_on_success():
     assert "late_stage_reuse_metrics" not in payload
     assert "shortlist_debug" not in payload
     assert payload["results"][0]["job_url"] == "https://example.com/1"
+
+def test_results_export_payload_encoding_is_deterministic():
+    from fitcv_cp.worker_job import _build_results_export_payload
+
+    run_record = MagicMock()
+    run_record.triggered_by = "admin"
+    run_record.run_mode = "run_all"
+    run_record.created_at = None
+    run_record.started_at = None
+    run_record.finished_at = None
+    run_record.jobs_path = "data/sample_jobs.json"
+    run_record.jobs_input_source = "upload"
+    run_record.candidate_profile_source = "default_config"
+
+    finished_at = datetime.datetime(2026, 5, 24, tzinfo=datetime.timezone.utc)
+    replay_context = {
+        "replay_mode": "strict",
+        "replay_source_run_id": "r1",
+        "policy_registry_version": "policy_registry.v1",
+    }
+    summary = {
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 0,
+    }
+    export_results = [{"job_url": "https://example.com/1", "pipeline_status": "ranked"}]
+
+    payload_a = _build_results_export_payload(
+        run_id="r1",
+        run_record=run_record,
+        effective_config={},
+        summary=summary,
+        export_results=export_results,
+        finished_at=finished_at,
+        replay_context=replay_context,
+    )
+    payload_b = _build_results_export_payload(
+        run_id="r1",
+        run_record=run_record,
+        effective_config={},
+        summary=summary,
+        export_results=export_results,
+        finished_at=finished_at,
+        replay_context=replay_context,
+    )
+    assert payload_a == payload_b
+    assert json.loads(payload_a)["run_id"] == "r1"
 
 
 def test_worker_persists_compact_cv_fields_in_results_export_json():
@@ -793,6 +842,7 @@ def test_worker_persists_cv_generation_debug_json_on_success():
     payload = json.loads(mock_store_debug.call_args.args[1])
     assert payload["run_id"] == "r1"
     assert payload["debug_schema_version"] == "cv_generation_debug_v3"
+    assert payload["schema_version"] == "cv_generation_debug_v3"
     assert payload["run_mode"] == "run_all"
     assert payload["run_mode_label"] == "Run All"
     assert payload["ranked_jobs_total"] == 2

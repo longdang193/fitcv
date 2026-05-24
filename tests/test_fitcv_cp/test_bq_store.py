@@ -135,6 +135,15 @@ def test_rotate_corrupt_sqlite_artifacts_moves_primary_and_sidecars(tmp_path):
     assert any("fitcv_cp.sqlite3-wal.corrupt." in n for n in names)
     assert any("fitcv_cp.sqlite3-shm.corrupt." in n for n in names)
 
+def test_sqlite_connection_creates_parent_dir(tmp_path):
+    from fitcv_cp import bq_store as module
+
+    db_path = tmp_path / "nested" / "fitcv_cp.sqlite3"
+    assert not db_path.parent.exists()
+    with module._sqlite_connection(db_path) as conn:
+        conn.execute("SELECT 1")
+    assert db_path.parent.exists()
+
 
 def test_list_runs_coerces_unknown_status_to_failed_for_admin_compatibility():
     bq = MagicMock()
@@ -926,6 +935,20 @@ def test_update_run_synonym_proposals_tolerates_missing_column() -> None:
     assert status["persistence_status"] == "bundle_only_degraded"
     assert status["degradation_reason"] == "missing_synonym_proposals_json_column"
 
+def test_update_pipeline_run_json_field_with_result_rejects_unknown_field() -> None:
+    from fitcv_cp import bq_store as module
+
+    with pytest.raises(ValueError):
+        module._update_pipeline_run_json_field_with_result(
+            run_id="run-123",
+            field_name="totally_not_a_field",
+            field_value="{}",
+            bq=None,
+            project="local",
+            dataset="local",
+            local_mutator=lambda run: run,
+        )
+
 
 def test_update_run_effective_settings_updates_only_effective_settings_field() -> None:
     """@proves settings_system.trigger-time-effective-settings-snapshot"""
@@ -1046,6 +1069,21 @@ def test_update_run_queue_job_id_uses_parameterized_query():
     sql_arg = bq.query.call_args[0][0]
     assert "rid" not in sql_arg
     assert "rq-job-1" not in sql_arg
+
+def test_update_run_queue_job_id_local_mode_degrades_when_run_missing(tmp_path, monkeypatch):
+    from fitcv_cp.bq_store import update_run_queue_job_id
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv_cp.sqlite3"))
+
+    status = update_run_queue_job_id(
+        "missing-run-id",
+        "rq-job-1",
+        None,
+        project="local",
+        dataset="local",
+    )
+
+    assert status["persistence_status"] == "degraded"
+    assert status["degradation_reason"] == "run_not_found"
 
 def test_update_run_orchestration_binding_uses_parameterized_query():
     from fitcv_cp.bq_store import update_run_orchestration_binding

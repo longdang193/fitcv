@@ -4,7 +4,7 @@ artifact_type: spec
 status: proposed
 template_id: detailed-specification
 name: fitcv_cp_run_artifact_ssot_symmetry_invariance
-parent_workstream: none
+parent_thread: workstream-operator-control-plane.fitcv-cp-run-artifact-ssot-symmetry-refactor
 targets:
   - src/fitcv_cp/worker_job.py
   - src/fitcv_cp/bq_store.py
@@ -49,13 +49,13 @@ Define SSOT registries for pipeline run JSON field names and for “missing colu
 - lock current behavior surfaces (payloads, encoding, persistence, degradation) before change
 
 **Steps:**
-- [ ] inventory all worker-built run artifacts in `src/fitcv_cp/worker_job.py` (payload keys, schema-version keys, encoding function used)
-- [ ] inventory all persistence entrypoints in `src/fitcv_cp/bq_store.py` used by worker (signature, return/raise behavior, sqlite vs BigQuery divergence)
-- [ ] confirm callsites for `update_run_*` across repo (blast radius for BQ-R1) and record required compatibility bridges
-- [ ] record “hash identity” usage sites and expected stability needs (dedupe, reuse, audit diff)
+- [x] inventory all worker-built run artifacts in `src/fitcv_cp/worker_job.py` (payload keys, schema-version keys, encoding function used)
+- [x] inventory all persistence entrypoints in `src/fitcv_cp/bq_store.py` used by worker (signature, return/raise behavior, sqlite vs BigQuery divergence)
+- [x] confirm callsites for `update_run_*` across repo (blast radius for BQ-R1) and record required compatibility bridges
+- [x] record “hash identity” usage sites and expected stability needs (dedupe, reuse, audit diff)
 
 **Verification:**
-- [ ] current-state table exists in this spec (see Design Decisions: “Current-State Inventory”)
+- [x] current-state table exists in this spec (see Design Decisions: “Current-State Inventory”)
 
 **Exit Criteria:**
 - no decision depends on unknown artifact shape or unknown persistence outcome semantics
@@ -66,14 +66,14 @@ Define SSOT registries for pipeline run JSON field names and for “missing colu
 - choose SSOT shapes and lock invariants + compatibility rules
 
 **Steps:**
-- [ ] decide canonical artifact envelope fields and required keys
-- [ ] decide canonical encoding path (single helper)
-- [ ] decide canonical fingerprint helper and migration policy (if hash bytes change)
-- [ ] decide canonical persistence-result structure and rollout strategy (bridge period for old callsites)
-- [ ] decide backend selection SSOT (`bq is None` vs env vs runtime resolver) and delete/retire competing knobs
+- [x] decide canonical artifact envelope fields and required keys
+- [x] decide canonical encoding path (single helper)
+- [x] decide canonical fingerprint helper and migration policy (if hash bytes change)
+- [x] decide canonical persistence-result structure and rollout strategy (bridge period for old callsites)
+- [x] decide backend selection SSOT (`bq is None` vs env vs runtime resolver) and delete/retire competing knobs
 
 **Verification:**
-- [ ] each action WJ-R1..X-R1 has explicit “before/after contract” statements and acceptance criteria
+- [x] each action WJ-R1..X-R1 has explicit “before/after contract” statements and acceptance criteria
 
 **Exit Criteria:**
 - spec contains implementable contracts with bounded scope and testable proof targets
@@ -84,13 +84,13 @@ Define SSOT registries for pipeline run JSON field names and for “missing colu
 - define proof and rollback so implementation plan can execute safely
 
 **Steps:**
-- [ ] define unit tests for payload/encoding/fingerprint invariants
-- [ ] define unit tests for sqlite degraded paths + BigQuery missing-column fallbacks (mocked)
-- [ ] define migration controls (feature flags, dual-write/dual-hash if needed)
-- [ ] define rollback plan (containment switches, revert commit scope)
+- [x] define unit tests for payload/encoding/fingerprint invariants
+- [x] define unit tests for sqlite degraded paths + BigQuery missing-column fallbacks (mocked)
+- [x] define migration controls (feature flags, dual-write/dual-hash if needed)
+- [x] define rollback plan (containment switches, revert commit scope)
 
 **Verification:**
-- [ ] validation plan includes evidence targets and exact commands/tests to run
+- [x] validation plan includes evidence targets and exact commands/tests to run
 
 **Exit Criteria:**
 - spec ready for `skill-writing-plans` handoff

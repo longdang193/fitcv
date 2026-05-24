@@ -283,12 +283,14 @@ def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunE
     return _resolve_run_store(bq, project=project, dataset=dataset).get_events(run_id)
 
 
-def update_run_status(run_id: str, status: RunStatus, bq: Any, *, project: str, dataset: str, **kwargs: Any) -> None:
-    _resolve_run_store(bq, project=project, dataset=dataset).update_run_status(run_id, status, **kwargs)
+def update_run_status(run_id: str, status: RunStatus, bq: Any, *, project: str, dataset: str, **kwargs: Any) -> dict[str, str]:
+    return dict(
+        _resolve_run_store(bq, project=project, dataset=dataset).update_run_status(run_id, status, **kwargs)
+    )
 
 
-def update_run_checkpoint(run_id: str, bq: Any, *, project: str, dataset: str, **kwargs: Any) -> None:
-    _resolve_run_store(bq, project=project, dataset=dataset).update_run_checkpoint(run_id, **kwargs)
+def update_run_checkpoint(run_id: str, bq: Any, *, project: str, dataset: str, **kwargs: Any) -> dict[str, str]:
+    return dict(_resolve_run_store(bq, project=project, dataset=dataset).update_run_checkpoint(run_id, **kwargs))
 
 def update_run_stage_transition_artifacts(
     run_id: str,
@@ -297,9 +299,11 @@ def update_run_stage_transition_artifacts(
     *,
     project: str,
     dataset: str,
-) -> None:
-    _resolve_run_store(bq, project=project, dataset=dataset).update_run_stage_transition_artifacts(
-        run_id, stage_transition_artifacts_json
+) -> dict[str, str]:
+    return dict(
+        _resolve_run_store(bq, project=project, dataset=dataset).update_run_stage_transition_artifacts(
+            run_id, stage_transition_artifacts_json
+        )
     )
 
 
@@ -348,9 +352,11 @@ def get_pipeline_runs_schema_status(bq: Any, *, project: str, dataset: str) -> d
 def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dict[str, str]:
     return dict(_resolve_run_store(bq, project=project, dataset=dataset).append_event(event))
 
-def update_run_effective_settings(run_id: str, effective_settings_json: str, bq: Any, *, project: str, dataset: str) -> None:
-    _resolve_run_store(bq, project=project, dataset=dataset).update_run_effective_settings(
-        run_id, effective_settings_json
+def update_run_effective_settings(run_id: str, effective_settings_json: str, bq: Any, *, project: str, dataset: str) -> dict[str, str]:
+    return dict(
+        _resolve_run_store(bq, project=project, dataset=dataset).update_run_effective_settings(
+            run_id, effective_settings_json
+        )
     )
 
 def update_run_synonym_proposals(
@@ -374,9 +380,11 @@ def update_run_cv_generation_debug(
     *,
     project: str,
     dataset: str,
-) -> None:
-    _resolve_run_store(bq, project=project, dataset=dataset).update_run_cv_generation_debug(
-        run_id, cv_generation_debug_json
+) -> dict[str, str]:
+    return dict(
+        _resolve_run_store(bq, project=project, dataset=dataset).update_run_cv_generation_debug(
+            run_id, cv_generation_debug_json
+        )
     )
 
 def update_run_results_export_snapshot(
@@ -386,16 +394,16 @@ def update_run_results_export_snapshot(
     *,
     project: str,
     dataset: str,
-) -> None:
+) -> dict[str, str]:
     # ControlPlaneStore has no dedicated results_export mutator yet.
     # Persist via canonical store module path.
-    bq_store_module.update_run_results_export(
+    return dict(bq_store_module.update_run_results_export(
         run_id,
         results_export_json,
         bq,
         project=project,
         dataset=dataset,
-    )
+    ))
 
 def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset: str) -> list[Any]:
     return list(_resolve_run_store(bq, project=project, dataset=dataset).insert_cv_version_row(row))

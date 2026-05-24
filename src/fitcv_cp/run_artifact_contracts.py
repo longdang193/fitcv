@@ -88,6 +88,17 @@ def stable_sha256_fingerprint(payload: Any) -> str:
     raw = stable_json_dumps(payload)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
+def require_payload_keys(
+    payload: dict[str, Any],
+    *,
+    required_keys: set[str],
+    context: str,
+) -> dict[str, Any]:
+    missing = sorted(key for key in required_keys if key not in payload)
+    if missing:
+        raise ValueError(f"missing_required_payload_keys:{context}:{','.join(missing)}")
+    return payload
+
 
 def schema_version_or_none(payload: dict[str, Any] | None) -> str | None:
     if not payload:

@@ -31,6 +31,10 @@ from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 logger = logging.getLogger(__name__)
 _LOCAL_RUNS: dict[str, PipelineRun] = {}
 
+PersistenceResult = dict[str, str]
+
+# Backend selection SSOT: `bq is None` means local sqlite mode.
+# Callers decide whether to pass a BigQuery client or None.
 _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS = 3
 _PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS = 0.25
 _EVENT_APPEND_RETRY_ATTEMPTS = 3
@@ -85,8 +89,7 @@ def _rotate_corrupt_sqlite_artifacts(db_path: Path) -> None:
 
 
 @contextmanager
-def _sqlite_connection(db_path: Path, *, ensure_parent: bool = False):
-    _ = ensure_parent
+def _sqlite_connection(db_path: Path):
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn: sqlite3.Connection | None = None
     for attempt in range(_SQLITE_OPEN_RETRY_ATTEMPTS):
@@ -111,9 +114,6 @@ def _sqlite_connection(db_path: Path, *, ensure_parent: bool = False):
         yield conn
     finally:
         conn.close()
-
-def _sqlite_mode_enabled() -> bool:
-    return str(os.environ.get("FITCV_CP_DATA_BACKEND") or "").strip().lower() == "sqlite"
 
 def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
     conn.execute(
@@ -230,8 +230,50 @@ def _coerce_int_or_none(value: Any) -> int | None:
     except (TypeError, ValueError):
         return None
 
-def _persistence_result(status: str, reason: str = _DEGRADATION_REASON_NONE) -> dict[str, str]:
+def _persistence_result(status: str, reason: str = _DEGRADATION_REASON_NONE) -> PersistenceResult:
     return {"persistence_status": status, "degradation_reason": reason}
+
+_PIPELINE_RUNS_JSON_FIELDS = {
+    "cv_generation_debug_json",
+    "effective_settings_json",
+    "mapping_suggestions_json",
+    "results_export_json",
+    "settings_used_json",
+    "stage_transition_artifacts_json",
+    "synonym_proposals_json",
+}
+
+_PIPELINE_RUNS_MISSING_COLUMN_POLICY: dict[str, PersistenceResult] = {
+    "synonym_proposals_json": _persistence_result(
+        "bundle_only_degraded", "missing_synonym_proposals_json_column"
+    ),
+    "results_export_json": _persistence_result(
+        "bundle_only_degraded", "missing_results_export_json_column"
+    ),
+    "cv_generation_debug_json": _persistence_result(
+        "bundle_only_degraded", "missing_cv_generation_debug_json_column"
+    ),
+    "stage_transition_artifacts_json": _persistence_result(
+        "bundle_only_degraded", "missing_stage_transition_artifacts_json_column"
+    ),
+    "settings_used_json": _persistence_result(
+        "bundle_only_degraded", "missing_settings_used_json_column"
+    ),
+    "mapping_suggestions_json": _persistence_result(
+        "bundle_only_degraded", "missing_mapping_suggestions_json_column"
+    ),
+    "effective_settings_json": _persistence_result(
+        "bundle_only_degraded", "missing_effective_settings_json_column"
+    ),
+}
+
+def _validate_pipeline_runs_json_field_name(field_name: str) -> None:
+    normalized = str(field_name or "").strip()
+    if normalized not in _PIPELINE_RUNS_JSON_FIELDS:
+        raise ValueError(
+            f"Unexpected pipeline_runs JSON field name: {field_name!r}. "
+            f"Expected one of: {sorted(_PIPELINE_RUNS_JSON_FIELDS)}"
+        )
 
 def _update_local_run(
     run_id: str,
@@ -253,6 +295,7 @@ def _update_single_pipeline_run_json_field(
     dataset: str,
     local_mutator: Callable[[PipelineRun], PipelineRun],
 ) -> None:
+    _validate_pipeline_runs_json_field_name(field_name)
     if bq is None:
         _update_local_run(run_id, local_mutator)
         return
@@ -267,6 +310,49 @@ def _update_single_pipeline_run_json_field(
         ]
     )
     _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+
+def _update_pipeline_run_json_field_with_result(
+    *,
+    run_id: str,
+    field_name: str,
+    field_value: str,
+    bq: Any,
+    project: str,
+    dataset: str,
+    local_mutator: Callable[[PipelineRun], PipelineRun],
+    missing_column_result: PersistenceResult | None = None,
+) -> PersistenceResult:
+    _validate_pipeline_runs_json_field_name(field_name)
+    if bq is None:
+        updated = _update_local_run(run_id, local_mutator)
+        if not updated:
+            return _persistence_result("degraded", "run_not_found")
+        return _persistence_result("persisted")
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET {field_name} = @{field_name} WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter(field_name, "STRING", field_value),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    try:
+        _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+    except Exception as exc:
+        if not _is_unrecognized_column_error(exc, field_name):
+            raise
+        logger.warning(
+            "pipeline_runs.%s missing in live schema; degraded persistence: %s",
+            field_name,
+            exc,
+        )
+        resolved = missing_column_result or _PIPELINE_RUNS_MISSING_COLUMN_POLICY.get(field_name)
+        if resolved is None:
+            return _persistence_result("degraded", f"missing_column:{field_name}")
+        return dict(resolved)
+    return _persistence_result("persisted")
 
 def _pipeline_run_from_json(run_json: str) -> Optional[PipelineRun]:
     try:
@@ -624,7 +710,7 @@ def update_run_status(
     summary: Optional[dict[str, Any]] = None,
     error_message: Optional[str] = None,
     error_stage: Optional[str] = None,
-) -> None:
+) -> PersistenceResult:
     if bq is None:
         def _mutate(existing: PipelineRun) -> PipelineRun:
             updated = dataclasses.replace(existing, status=status)
@@ -652,8 +738,10 @@ def update_run_status(
                         )
             return updated
 
-        _update_local_run(run_id, _mutate)
-        return
+        updated = _update_local_run(run_id, _mutate)
+        if not updated:
+            return _persistence_result("degraded", "run_not_found")
+        return _persistence_result("persisted")
     set_clauses = ["status = @status"]
     params: list[bq_module.ScalarQueryParameter] = [
         bq_module.ScalarQueryParameter("status", "STRING", status.value),
@@ -684,6 +772,7 @@ def update_run_status(
     )
     job_config = bq_module.QueryJobConfig(query_parameters=params)
     _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+    return _persistence_result("persisted")
 
 
 def update_run_checkpoint(
@@ -697,11 +786,11 @@ def update_run_checkpoint(
     last_completed_stage: Optional[str] = None,
     completed_stages: Optional[list[str]] = None,
     checkpoint_payload_json: Optional[str] = None,
-) -> None:
+) -> PersistenceResult:
     if bq is None:
         existing = _local_get_run(run_id)
         if existing is None:
-            return
+            return _persistence_result("degraded", "run_not_found")
         _local_save_run(dataclasses.replace(
             existing,
             checkpoint_status=checkpoint_status,
@@ -710,7 +799,7 @@ def update_run_checkpoint(
             completed_stages=completed_stages,
             checkpoint_payload_json=checkpoint_payload_json,
         ))
-        return
+        return _persistence_result("persisted")
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         "SET checkpoint_status = @checkpoint_status, "
@@ -737,6 +826,7 @@ def update_run_checkpoint(
         ]
     )
     _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+    return _persistence_result("persisted")
 
 
 def update_run_progress(
@@ -747,12 +837,12 @@ def update_run_progress(
     dataset: str,
     last_completed_stage: Optional[str] = None,
     completed_stages: Optional[list[str]] = None,
-) -> None:
+) -> PersistenceResult:
     """Persist shared stage progress without implying resumability."""
     if bq is None:
         existing = _local_get_run(run_id)
         if existing is None:
-            return
+            return _persistence_result("degraded", "run_not_found")
         _local_save_run(dataclasses.replace(
             existing,
             checkpoint_status=None,
@@ -761,7 +851,7 @@ def update_run_progress(
             completed_stages=completed_stages,
             checkpoint_payload_json=None,
         ))
-        return
+        return _persistence_result("persisted")
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         "SET checkpoint_status = NULL, "
@@ -783,6 +873,7 @@ def update_run_progress(
         ]
     )
     _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+    return _persistence_result("persisted")
 
 
 def _append_event_dead_letter(row: dict[str, Any]) -> str:
@@ -971,14 +1062,14 @@ def update_run_queue_job_id(
     *,
     project: str,
     dataset: str,
-) -> None:
+) -> PersistenceResult:
     """Persist the RQ job id onto the run row immediately after enqueue."""
     if bq is None:
         existing = _local_get_run(run_id)
         if existing is None:
-            return
+            return _persistence_result("degraded", "run_not_found")
         _local_save_run(dataclasses.replace(existing, queue_job_id=queue_job_id))
-        return
+        return _persistence_result("persisted")
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET queue_job_id = @queue_job_id WHERE run_id = @run_id"
@@ -990,6 +1081,7 @@ def update_run_queue_job_id(
         ]
     )
     _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+    return _persistence_result("persisted")
 
 def update_run_orchestration_binding(
     run_id: str,
@@ -1000,18 +1092,18 @@ def update_run_orchestration_binding(
     bq: Any,
     project: str,
     dataset: str,
-) -> None:
+) -> PersistenceResult:
     if bq is None:
         existing = _local_get_run(run_id)
         if existing is None:
-            return
+            return _persistence_result("degraded", "run_not_found")
         _local_save_run(dataclasses.replace(
             existing,
             queue_job_id=queue_job_id,
             orchestration_backend=orchestration_backend,
             orchestration_run_id=orchestration_run_id,
         ))
-        return
+        return _persistence_result("persisted")
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         "SET queue_job_id = @queue_job_id, "
@@ -1029,6 +1121,7 @@ def update_run_orchestration_binding(
     )
     try:
         _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+        return _persistence_result("persisted")
     except Exception as exc:
         if not (
             _is_unrecognized_column_error(exc, "orchestration_backend")
@@ -1036,7 +1129,7 @@ def update_run_orchestration_binding(
         ):
             raise
         # Legacy compatibility before schema migration.
-        update_run_queue_job_id(
+        return update_run_queue_job_id(
             run_id,
             str(queue_job_id or ""),
             bq,
@@ -1052,9 +1145,9 @@ def update_run_results_export(
     *,
     project: str,
     dataset: str,
-) -> None:
+) -> PersistenceResult:
     """Persist the immutable run-results export snapshot for a completed run."""
-    _update_single_pipeline_run_json_field(
+    return _update_pipeline_run_json_field_with_result(
         run_id=run_id,
         field_name="results_export_json",
         field_value=results_export_json,
@@ -1074,9 +1167,9 @@ def update_run_cv_generation_debug(
     *,
     project: str,
     dataset: str,
-) -> None:
+) -> PersistenceResult:
     """Persist the immutable run-scoped CV-generation debug snapshot."""
-    _update_single_pipeline_run_json_field(
+    return _update_pipeline_run_json_field_with_result(
         run_id=run_id,
         field_name="cv_generation_debug_json",
         field_value=cv_generation_debug_json,
@@ -1096,9 +1189,9 @@ def update_run_stage_transition_artifacts(
     *,
     project: str,
     dataset: str,
-) -> None:
+) -> PersistenceResult:
     """Persist the immutable run-scoped stage transition artifacts snapshot."""
-    _update_single_pipeline_run_json_field(
+    return _update_pipeline_run_json_field_with_result(
         run_id=run_id,
         field_name="stage_transition_artifacts_json",
         field_value=stage_transition_artifacts_json,
@@ -1118,9 +1211,9 @@ def update_run_settings_used(
     *,
     project: str,
     dataset: str,
-) -> None:
+) -> PersistenceResult:
     """Persist the immutable run-scoped settings-used snapshot."""
-    _update_single_pipeline_run_json_field(
+    return _update_pipeline_run_json_field_with_result(
         run_id=run_id,
         field_name="settings_used_json",
         field_value=settings_used_json,
@@ -1140,9 +1233,9 @@ def update_run_mapping_suggestions(
     *,
     project: str,
     dataset: str,
-) -> None:
+) -> PersistenceResult:
     """Persist the immutable run-scoped mapping suggestions snapshot."""
-    _update_single_pipeline_run_json_field(
+    return _update_pipeline_run_json_field_with_result(
         run_id=run_id,
         field_name="mapping_suggestions_json",
         field_value=mapping_suggestions_json,
@@ -1164,42 +1257,17 @@ def update_run_synonym_proposals(
     dataset: str,
 ) -> dict[str, str]:
     """Persist the mutable run-scoped synonym proposal review snapshot."""
-    if bq is None:
-        updated = _update_local_run(
-            run_id,
-            lambda existing: dataclasses.replace(
-                existing, synonym_proposals_json=synonym_proposals_json
-            ),
-        )
-        if not updated:
-            return _persistence_result("degraded", "run_not_found")
-        return _persistence_result("persisted")
-    sql = (
-        f"UPDATE `{project}.{dataset}.pipeline_runs` "
-        f"SET synonym_proposals_json = @synonym_proposals_json WHERE run_id = @run_id"
+    return _update_pipeline_run_json_field_with_result(
+        run_id=run_id,
+        field_name="synonym_proposals_json",
+        field_value=synonym_proposals_json,
+        bq=bq,
+        project=project,
+        dataset=dataset,
+        local_mutator=lambda existing: dataclasses.replace(
+            existing, synonym_proposals_json=synonym_proposals_json
+        ),
     )
-    job_config = bq_module.QueryJobConfig(
-        query_parameters=[
-            bq_module.ScalarQueryParameter(
-                "synonym_proposals_json", "STRING", synonym_proposals_json
-            ),
-            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
-        ]
-    )
-    try:
-        _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
-        return _persistence_result("persisted")
-    except Exception as exc:
-        if not _is_unrecognized_column_error(exc, "synonym_proposals_json"):
-            raise
-        logger.warning(
-            "pipeline_runs.synonym_proposals_json missing in live schema; "
-            "skipping synonym proposal snapshot persistence until migration is applied: %s",
-            exc,
-        )
-        return _persistence_result(
-            "bundle_only_degraded", "missing_synonym_proposals_json_column"
-        )
 
 
 def update_run_effective_settings(
@@ -1209,9 +1277,9 @@ def update_run_effective_settings(
     *,
     project: str,
     dataset: str,
-) -> None:
+) -> PersistenceResult:
     """Persist the mutable run-scoped effective settings snapshot."""
-    _update_single_pipeline_run_json_field(
+    return _update_pipeline_run_json_field_with_result(
         run_id=run_id,
         field_name="effective_settings_json",
         field_value=effective_settings_json,

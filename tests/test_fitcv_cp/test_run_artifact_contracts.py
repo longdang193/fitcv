@@ -11,15 +11,18 @@ tags:
 """
 
 import json
+import pytest
 
 from fitcv_cp.run_artifact_contracts import (
     decode_json_object_or_none,
     normalized_run_mode,
     pretty_json_string,
     pretty_json_string_or_fallback,
+    require_payload_keys,
     run_mode_label,
     schema_version_matches,
     schema_version_or_none,
+    stable_sha256_fingerprint,
 )
 
 
@@ -69,3 +72,16 @@ def test_pretty_json_string_or_fallback_handles_empty_and_invalid_payloads() -> 
 def test_pretty_json_string_or_fallback_formats_valid_payloads() -> None:
     rendered = pretty_json_string_or_fallback(json.dumps({"a": 1}))
     assert '"a": 1' in rendered
+
+def test_stable_sha256_fingerprint_is_deterministic_and_sorted() -> None:
+    payload = {"b": 2, "a": 1}
+    assert stable_sha256_fingerprint(payload) == "43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777"
+
+def test_require_payload_keys_raises_on_missing_keys() -> None:
+    with pytest.raises(ValueError) as excinfo:
+        require_payload_keys(
+            {"run_id": "r1"},
+            required_keys={"run_id", "created_at"},
+            context="unit_test",
+        )
+    assert "missing_required_payload_keys:unit_test:created_at" in str(excinfo.value)

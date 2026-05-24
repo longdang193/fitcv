@@ -81,11 +81,11 @@ from fitcv_cp.run_artifact_contracts import (
     normalized_run_mode,
     replay_context_payload,
     run_mode_label,
+    require_payload_keys,
     stable_json_dumps,
     stable_sha256_fingerprint,
     string_or_none,
 )
-from fitcv_cp.review_identity import ensure_review_item_id
 
 logger = logging.getLogger(__name__)
 _MAX_DEBUG_MARKDOWN_CHARS = 4000
@@ -510,6 +510,7 @@ def _build_results_export_payload(
     payload = {
         "run_id": run_id,
         "results_schema_version": "results_job_ledger_v3",
+        "schema_version": "results_job_ledger_v3",
         "status": RunStatus.SUCCEEDED.value,
         "triggered_by": string_or_none(getattr(run_record, "triggered_by", "")) or "",
         "run_mode": normalized_run_mode(getattr(run_record, "run_mode", None)),
@@ -534,7 +535,12 @@ def _build_results_export_payload(
     }
     if diagnostic_support["late_stage_reuse_snapshots"]:
         payload["diagnostic_support"] = diagnostic_support
-    return json.dumps(payload, ensure_ascii=False)
+    require_payload_keys(
+        payload,
+        required_keys={"run_id", "schema_version", "created_at", "replay_context"},
+        context="results_export_payload",
+    )
+    return encode_json_object(payload)
 
 
 def _collect_late_stage_reuse_snapshots(
@@ -729,6 +735,7 @@ def _build_cv_generation_debug_payload(
         "run_id": run_id,
         "status": RunStatus.SUCCEEDED.value,
         "debug_schema_version": "cv_generation_debug_v3",
+        "schema_version": "cv_generation_debug_v3",
         "run_mode": normalized_run_mode(getattr(run_record, "run_mode", None)),
         "run_mode_label": run_mode_label(getattr(run_record, "run_mode", None)),
         "created_at": finished_at.isoformat(),
@@ -744,7 +751,12 @@ def _build_cv_generation_debug_payload(
         payload["agentic_live_trace"] = dict(summary["agentic_live_trace"])
     if isinstance(summary.get("cv_analysis_trace"), dict):
         payload["cv_analysis_trace"] = dict(summary["cv_analysis_trace"])
-    return json.dumps(payload, ensure_ascii=False)
+    require_payload_keys(
+        payload,
+        required_keys={"run_id", "schema_version", "created_at", "debug_records"},
+        context="cv_generation_debug_payload",
+    )
+    return encode_json_object(payload)
 
 
 def _build_stage_transition_artifacts_payload_dict(
@@ -765,6 +777,7 @@ def _build_stage_transition_artifacts_payload_dict(
         "run_id": run_id,
         "status": run_status.value,
         "artifact_schema_version": STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION,
+        "schema_version": STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION,
         "created_at": finished_at.isoformat(),
         "snapshot_complete": snapshot_complete,
         "degradation_reason": resolved_reason,
@@ -800,6 +813,7 @@ def _build_manual_checkpoint_payload(
     payload = {
         "run_id": run_id,
         "checkpoint_schema_version": "manual_checkpoint_v1",
+        "schema_version": "manual_checkpoint_v1",
         "created_at": created_at.isoformat(),
         "paused_after_stage": summary.get("paused_after_stage"),
         "next_stage": summary.get("next_stage"),
@@ -807,7 +821,12 @@ def _build_manual_checkpoint_payload(
         "checkpoint_payload": summary.get("checkpoint_payload") or {},
         "replay_context": replay_context_payload(replay_context=replay_context, run_id=run_id),
     }
-    return json.dumps(payload, ensure_ascii=False)
+    require_payload_keys(
+        payload,
+        required_keys={"run_id", "schema_version", "created_at", "replay_context"},
+        context="manual_checkpoint_payload",
+    )
+    return encode_json_object(payload)
 
 
 def _build_settings_used_payload_dict(
@@ -877,6 +896,7 @@ def _build_settings_used_payload_dict(
     payload = {
         "run_id": run_id,
         "settings_schema_version": SETTINGS_USED_SCHEMA_VERSION,
+        "schema_version": SETTINGS_USED_SCHEMA_VERSION,
         "created_at": finished_at.isoformat(),
         "late_stage_mode": _build_late_stage_mode_payload(
             summary={},
@@ -910,6 +930,11 @@ def _build_settings_used_payload_dict(
         payload["data_plane"] = data_plane
     if compatibility_projection:
         payload["compatibility_projection"] = compatibility_projection
+    require_payload_keys(
+        payload,
+        required_keys={"run_id", "schema_version", "created_at", "effective_settings", "data_plane"},
+        context="settings_used_payload",
+    )
     return payload
 
 def _build_settings_used_payload(
@@ -942,10 +967,16 @@ def _build_mapping_suggestions_payload(
     payload = {
         "run_id": run_id,
         "mapping_suggestions_schema_version": MAPPING_SUGGESTIONS_SCHEMA_VERSION,
+        "schema_version": MAPPING_SUGGESTIONS_SCHEMA_VERSION,
         "created_at": created_at.isoformat(),
         "suggestions": list(summary.get("mapping_suggestions") or []),
     }
-    return json.dumps(payload, ensure_ascii=False)
+    require_payload_keys(
+        payload,
+        required_keys={"run_id", "schema_version", "created_at", "suggestions"},
+        context="mapping_suggestions_payload",
+    )
+    return encode_json_object(payload)
 
 
 
@@ -982,10 +1013,6 @@ def _synonym_management_mode_from_run_record(run_record: Any) -> dict[str, bool]
     settings_payload = _effective_settings_payload_from_run_record(run_record)
     # Keep worker policy flags fully sourced from shared synonym policy resolver.
     return resolve_synonym_management_mode(settings_payload)
-
-def _stable_sha256_json(payload: dict[str, Any]) -> str:
-    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 def _triage_synonym_proposal_recommendation_builtin(proposal: dict[str, Any], *, now_iso: str) -> dict[str, Any]:
     alias = str(proposal.get("alias") or "").strip().lower()
@@ -1568,7 +1595,7 @@ def _run_synonym_automation_for_payload(
     trace_summary["triage_recommendation_fresh_total"] = int(fresh_count)
     trace_summary["triage_recommendation_suppressed_total"] = 0
     trace_summary["triage_recommendation_reuse_reason"] = reuse_reason
-    trace_summary["triage_recommendation_fingerprint"] = _stable_sha256_json(
+    trace_summary["triage_recommendation_fingerprint"] = stable_sha256_fingerprint(
         {"provider": "fitcv_builtin", "model": "synonym_triage_v1", "wire_api": "builtin"}
     )
     trace_summary["auto_apply_recommendation_applied"] = int(auto_apply_counts.get("applied") or 0)
