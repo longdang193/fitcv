@@ -26,13 +26,30 @@ from fitcv_cp import queue
 from fitcv_cp.runtime_contracts import normalize_orchestration_status
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class RunSubmission:
     run_id: str
     queue_job_id: str
     backend_run_id: str | None = None
     requested_backend: str = "queue"
     execution_backend: str = "queue"
+
+    def __init__(
+        self,
+        *,
+        run_id: str,
+        queue_job_id: str,
+        backend_run_id: str | None = None,
+        requested_backend: str = "queue",
+        execution_backend: str = "queue",
+        backend: str | None = None,
+    ) -> None:
+        object.__setattr__(self, "run_id", run_id)
+        object.__setattr__(self, "queue_job_id", queue_job_id)
+        object.__setattr__(self, "backend_run_id", backend_run_id)
+        object.__setattr__(self, "requested_backend", requested_backend)
+        resolved_backend = str(backend).strip() if backend is not None else ""
+        object.__setattr__(self, "execution_backend", resolved_backend or execution_backend)
 
     @property
     def backend(self) -> str:

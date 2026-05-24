@@ -103,7 +103,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "pipeline.final_top_n",
         "type": "int",
-        "default": 15,
+        "default": 10,
         "label": "Final Output Count",
         "description": "Bounds how many ranked jobs reach the final output set and late CV stages.",
         "group": "retrieval",
@@ -231,7 +231,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "synonym_management.auto_apply_recommendation_enabled",
         "type": "bool",
-        "default": True,
+        "default": False,
         "label": "Auto Apply Recommendation (Automatic Execution)",
         "description": "Automation policy toggle. When ON, system can auto-apply recommended actions after safety checks pass. Requires Synonym Apply-to-Run gate ON and never bypasses that gate.",
         "group": "agentic",
@@ -241,7 +241,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "synonym_management.auto_promote_global_enabled",
         "type": "bool",
-        "default": True,
+        "default": False,
         "label": "Auto Promote to Global (Automatic Execution)",
         "description": "Automation policy toggle. When ON, system can auto-promote approved actions after validation and conflict checks pass. Requires Synonym Promote-Global gate ON and never bypasses that gate.",
         "group": "agentic",
@@ -902,6 +902,11 @@ AGENTIC_ENABLEMENT_SECTION_KEYS: list[str] = [
     "synonym_management.propose_enabled",
     "synonym_management.apply_to_run_enabled",
     "synonym_management.promote_global_enabled",
+    "reuse.enrich.enabled",
+    "reuse.ranking.enabled",
+    "reuse.cv_analysis.enabled",
+    "reuse.cv_generation.enabled",
+    "reuse.synonym_triage.enabled",
 ]
 
 AGENTIC_REUSE_SECTION_KEYS: list[str] = [
@@ -914,6 +919,7 @@ AGENTIC_REUSE_SECTION_KEYS: list[str] = [
 
 AGENTIC_AUTOMATION_SECTION_KEYS: list[str] = [
     "synonym_management.auto_triage_recommendation_enabled",
+    "synonym_management.triage_recommendation_reuse_enabled",
     "synonym_management.auto_apply_recommendation_enabled",
     "synonym_management.auto_promote_global_enabled",
     "synonym_management.auto_accept_ai_action_enabled",
@@ -934,7 +940,6 @@ AGENTIC_ADVANCED_SECTION_KEYS: list[str] = [
 
 AGENTIC_SETTINGS_SECTIONS: dict[str, list[str]] = {
     "agentic-enablement": list(AGENTIC_ENABLEMENT_SECTION_KEYS),
-    "agentic-reuse": list(AGENTIC_REUSE_SECTION_KEYS),
     "agentic-automation": list(AGENTIC_AUTOMATION_SECTION_KEYS),
     "agentic-advanced": list(AGENTIC_ADVANCED_SECTION_KEYS),
 }

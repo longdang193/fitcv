@@ -465,7 +465,7 @@ def build_synonym_proposals_payload(
             }
         )
     proposals.sort(key=lambda item: (-float(item["confidence"]), str(item["alias"])))
-    payload = {
+    payload: dict[str, Any] = {
         "run_id": run_id,
         "synonym_proposals_schema_version": SYNONYM_PROPOSALS_SCHEMA_VERSION,
         "created_at": created_at.isoformat(),

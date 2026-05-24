@@ -25,6 +25,7 @@ import re
 import time
 import uuid
 import zipfile
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 from urllib.parse import unquote, urlencode, urlparse
@@ -58,26 +59,17 @@ from fitcv.pipeline import (
     next_pipeline_stage,
 )
 from fitcv.tracker import create_cv_version_record
-from fitcv_cp.bq_store import (
-    archive_run,
-    get_events, get_run, insert_run, list_filter_results_for_run,
-    list_runs, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs,
-    request_run_cancel, unarchive_run, update_run_checkpoint,
-    update_run_effective_settings,
-    update_run_synonym_proposals,
-    update_run_orchestration_binding, update_run_queue_job_id, update_run_status,
-    update_run_cv_generation_debug,
-    update_run_results_export,
-    insert_cv_version_row,
-)
 import fitcv_cp.bq_store as bq_store_module
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission, get_orchestration_adapter
 from fitcv_cp.queue import (
-    cancel_queued_run,
     enqueue_cv_regenerate_once_with_job_id,
-    enqueue_run,
-    enqueue_run_with_job_id,
+)
+from fitcv_cp.run_artifact_contracts import (
+    decode_json_object_or_none,
+    pretty_json_string,
+    pretty_json_string_or_fallback,
+    run_mode_label,
 )
 from fitcv_cp.settings_schema import (
     AGENTIC_SETTINGS_SECTIONS,
@@ -108,6 +100,11 @@ from fitcv_cp.settings_schema import (
     settings_schema_with_runtime_defaults,
     validate_settings,
 )
+
+# Back-compat module-level store symbols (tests + patch surfaces).
+insert_run = bq_store_module.insert_run
+update_run_queue_job_id = bq_store_module.update_run_queue_job_id
+update_run_orchestration_binding = bq_store_module.update_run_orchestration_binding
 from fitcv_cp.settings_store import (
     bookmark_key_for_job,
     delete_bookmarked_job,
@@ -132,7 +129,42 @@ from fitcv_cp.store import ControlPlaneStore
 from fitcv_cp.review_identity import ensure_review_item_id
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 ORCHESTRATION_ADAPTER = get_orchestration_adapter()
-_RUN_SUBMISSION_CACHE: dict[str, RunSubmission] = {}
+_RUN_SUBMISSION_CACHE_TTL_SECS = float(os.environ.get("FITCV_CP_SUBMISSION_CACHE_TTL_SECS") or 15 * 60)
+_RUN_SUBMISSION_CACHE_MAX = int(os.environ.get("FITCV_CP_SUBMISSION_CACHE_MAX") or 256)
+_RUN_SUBMISSION_CACHE: "OrderedDict[str, tuple[float, RunSubmission]]" = OrderedDict()
+
+
+def _prune_run_submission_cache(now: float) -> None:
+    ttl = max(0.0, float(_RUN_SUBMISSION_CACHE_TTL_SECS))
+    while _RUN_SUBMISSION_CACHE:
+        oldest_key = next(iter(_RUN_SUBMISSION_CACHE))
+        cached_at, _submission = _RUN_SUBMISSION_CACHE[oldest_key]
+        if ttl <= 0.0 or now - float(cached_at) <= ttl:
+            break
+        _RUN_SUBMISSION_CACHE.popitem(last=False)
+    max_size = max(0, int(_RUN_SUBMISSION_CACHE_MAX))
+    while max_size and len(_RUN_SUBMISSION_CACHE) > max_size:
+        _RUN_SUBMISSION_CACHE.popitem(last=False)
+
+
+def _cache_run_submission(submission: RunSubmission) -> None:
+    now = time.time()
+    _RUN_SUBMISSION_CACHE[submission.run_id] = (now, submission)
+    _RUN_SUBMISSION_CACHE.move_to_end(submission.run_id)
+    _prune_run_submission_cache(now)
+
+
+def _pop_cached_run_submission(run_id: str) -> RunSubmission | None:
+    now = time.time()
+    entry = _RUN_SUBMISSION_CACHE.pop(run_id, None)
+    if entry is None:
+        return None
+    cached_at, submission = entry
+    ttl = max(0.0, float(_RUN_SUBMISSION_CACHE_TTL_SECS))
+    if ttl > 0.0 and now - float(cached_at) > ttl:
+        return None
+    _prune_run_submission_cache(now)
+    return submission
 _CP_STORE: ControlPlaneStore | None = None
 logger = logging.getLogger(__name__)
 GERMANY_TZ = ZoneInfo("Europe/Berlin")
@@ -221,10 +253,14 @@ def _build_output_availability(
     }
 
 
-def get_run(run_id: str, bq: Any, *, project: str, dataset: str) -> PipelineRun | None:
+def _resolve_run_store(bq: Any, *, project: str, dataset: str) -> ControlPlaneStore:
     if _CP_STORE is not None:
-        return _CP_STORE.get_run(run_id)
-    return bq_store_module.get_run(run_id, bq, project=project, dataset=dataset)
+        return _CP_STORE
+    return ControlPlaneStore(bq=bq, project=project, dataset=dataset)
+
+
+def get_run(run_id: str, bq: Any, *, project: str, dataset: str) -> PipelineRun | None:
+    return _resolve_run_store(bq, project=project, dataset=dataset).get_run(run_id)
 
 
 def list_runs(
@@ -236,16 +272,7 @@ def list_runs(
     include_archived: bool = False,
     archived_only: bool = False,
 ) -> list[PipelineRun]:
-    if _CP_STORE is not None:
-        return _CP_STORE.list_runs(
-            limit=limit,
-            include_archived=include_archived,
-            archived_only=archived_only,
-        )
-    return bq_store_module.list_runs(
-        bq,
-        project=project,
-        dataset=dataset,
+    return _resolve_run_store(bq, project=project, dataset=dataset).list_runs(
         limit=limit,
         include_archived=include_archived,
         archived_only=archived_only,
@@ -253,23 +280,15 @@ def list_runs(
 
 
 def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunEvent]:
-    if _CP_STORE is not None:
-        return _CP_STORE.get_events(run_id)
-    return bq_store_module.get_events(run_id, bq, project=project, dataset=dataset)
+    return _resolve_run_store(bq, project=project, dataset=dataset).get_events(run_id)
 
 
 def update_run_status(run_id: str, status: RunStatus, bq: Any, *, project: str, dataset: str, **kwargs: Any) -> None:
-    if _CP_STORE is not None:
-        _CP_STORE.update_run_status(run_id, status, **kwargs)
-        return
-    bq_store_module.update_run_status(run_id, status, bq, project=project, dataset=dataset, **kwargs)
+    _resolve_run_store(bq, project=project, dataset=dataset).update_run_status(run_id, status, **kwargs)
 
 
 def update_run_checkpoint(run_id: str, bq: Any, *, project: str, dataset: str, **kwargs: Any) -> None:
-    if _CP_STORE is not None:
-        _CP_STORE.update_run_checkpoint(run_id, **kwargs)
-        return
-    bq_store_module.update_run_checkpoint(run_id, bq, project=project, dataset=dataset, **kwargs)
+    _resolve_run_store(bq, project=project, dataset=dataset).update_run_checkpoint(run_id, **kwargs)
 
 def update_run_stage_transition_artifacts(
     run_id: str,
@@ -279,15 +298,8 @@ def update_run_stage_transition_artifacts(
     project: str,
     dataset: str,
 ) -> None:
-    if _CP_STORE is not None:
-        _CP_STORE.update_run_stage_transition_artifacts(run_id, stage_transition_artifacts_json)
-        return
-    bq_store_module.update_run_stage_transition_artifacts(
-        run_id,
-        stage_transition_artifacts_json,
-        bq,
-        project=project,
-        dataset=dataset,
+    _resolve_run_store(bq, project=project, dataset=dataset).update_run_stage_transition_artifacts(
+        run_id, stage_transition_artifacts_json
     )
 
 
@@ -300,77 +312,45 @@ def request_run_cancel(
     project: str,
     dataset: str,
 ) -> bool:
-    if _CP_STORE is not None:
-        return _CP_STORE.request_run_cancel(run_id, requested_by, target_status)
     return bool(
-        bq_store_module.request_run_cancel(
-            run_id,
-            requested_by,
-            target_status,
-            bq,
-            project=project,
-            dataset=dataset,
+        _resolve_run_store(bq, project=project, dataset=dataset).request_run_cancel(
+            run_id, requested_by, target_status
         )
     )
 
 
 def archive_run(run_id: str, archived_by: str, bq: Any, *, project: str, dataset: str) -> None:
-    if _CP_STORE is not None:
-        _CP_STORE.archive_run(run_id, archived_by)
-        return
-    bq_store_module.archive_run(run_id, archived_by, bq, project=project, dataset=dataset)
+    _resolve_run_store(bq, project=project, dataset=dataset).archive_run(run_id, archived_by)
 
 
 def unarchive_run(run_id: str, bq: Any, *, project: str, dataset: str) -> None:
-    if _CP_STORE is not None:
-        _CP_STORE.unarchive_run(run_id)
-        return
-    bq_store_module.unarchive_run(run_id, bq, project=project, dataset=dataset)
+    _resolve_run_store(bq, project=project, dataset=dataset).unarchive_run(run_id)
 
 
 def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> list[dict[str, Any]]:
-    if _CP_STORE is not None:
-        return _CP_STORE.list_cvs_for_run(run_id)
-    return bq_store_module.list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
+    return _resolve_run_store(bq, project=project, dataset=dataset).list_cvs_for_run(run_id)
 
 
 def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> str | None:
-    if _CP_STORE is not None:
-        return _CP_STORE.get_cv_markdown(version_id)
-    return bq_store_module.get_cv_markdown(version_id, bq, project=project, dataset=dataset)
+    return _resolve_run_store(bq, project=project, dataset=dataset).get_cv_markdown(version_id)
 
 
 def list_run_structured_jobs(run_id: str, bq: Any, *, project: str, dataset: str) -> list[dict[str, Any]]:
-    if _CP_STORE is not None:
-        return _CP_STORE.list_run_structured_jobs(run_id)
-    return bq_store_module.list_run_structured_jobs(run_id, bq, project=project, dataset=dataset)
+    return _resolve_run_store(bq, project=project, dataset=dataset).list_run_structured_jobs(run_id)
 
 
 def list_filter_results_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> list[dict[str, Any]]:
-    if _CP_STORE is not None:
-        return _CP_STORE.list_filter_results_for_run(run_id)
-    return bq_store_module.list_filter_results_for_run(run_id, bq, project=project, dataset=dataset)
+    return _resolve_run_store(bq, project=project, dataset=dataset).list_filter_results_for_run(run_id)
 
 def get_pipeline_runs_schema_status(bq: Any, *, project: str, dataset: str) -> dict[str, Any]:
-    if _CP_STORE is not None:
-        return _CP_STORE.get_pipeline_runs_schema_status()
-    return dict(bq_store_module.get_pipeline_runs_schema_status(bq, project=project, dataset=dataset))
+    return dict(_resolve_run_store(bq, project=project, dataset=dataset).get_pipeline_runs_schema_status())
 
 def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dict[str, str]:
-    if _CP_STORE is not None:
-        return _CP_STORE.append_event(event)
-    return dict(bq_store_module.append_event(event, bq, project=project, dataset=dataset))
+    return dict(_resolve_run_store(bq, project=project, dataset=dataset).append_event(event))
 
 def update_run_effective_settings(run_id: str, effective_settings_json: str, bq: Any, *, project: str, dataset: str) -> None:
-    if _CP_STORE is not None:
-        _CP_STORE.update_run_effective_settings(run_id, effective_settings_json)
-        return
-    bq_store_module.update_run_effective_settings(
-        run_id,
-        effective_settings_json,
-        bq,
-        project=project,
-        dataset=dataset,
+    _resolve_run_store(bq, project=project, dataset=dataset).update_run_effective_settings(
+        run_id, effective_settings_json
     )
 
 def update_run_synonym_proposals(
@@ -381,15 +361,9 @@ def update_run_synonym_proposals(
     project: str,
     dataset: str,
 ) -> dict[str, str]:
-    if _CP_STORE is not None:
-        return _CP_STORE.update_run_synonym_proposals(run_id, synonym_proposals_json)
     return dict(
-        bq_store_module.update_run_synonym_proposals(
-            run_id,
-            synonym_proposals_json,
-            bq,
-            project=project,
-            dataset=dataset,
+        _resolve_run_store(bq, project=project, dataset=dataset).update_run_synonym_proposals(
+            run_id, synonym_proposals_json
         )
     )
 
@@ -401,15 +375,8 @@ def update_run_cv_generation_debug(
     project: str,
     dataset: str,
 ) -> None:
-    if _CP_STORE is not None:
-        _CP_STORE.update_run_cv_generation_debug(run_id, cv_generation_debug_json)
-        return
-    bq_store_module.update_run_cv_generation_debug(
-        run_id,
-        cv_generation_debug_json,
-        bq,
-        project=project,
-        dataset=dataset,
+    _resolve_run_store(bq, project=project, dataset=dataset).update_run_cv_generation_debug(
+        run_id, cv_generation_debug_json
     )
 
 def update_run_results_export_snapshot(
@@ -431,9 +398,7 @@ def update_run_results_export_snapshot(
     )
 
 def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset: str) -> list[Any]:
-    if _CP_STORE is not None:
-        return _CP_STORE.insert_cv_version_row(row)
-    return list(bq_store_module.insert_cv_version_row(row, bq, project=project, dataset=dataset))
+    return list(_resolve_run_store(bq, project=project, dataset=dataset).insert_cv_version_row(row))
 
 
 def _observability_toggles() -> tuple[bool, bool]:
@@ -508,7 +473,7 @@ def enqueue_run_with_job_id(
         redis_url=redis_url,
         run_id=run_id,
     )
-    _RUN_SUBMISSION_CACHE[submission.run_id] = submission
+    _cache_run_submission(submission)
     return submission.run_id, submission.queue_job_id
 
 def submit_run(
@@ -592,13 +557,13 @@ def continue_run_with_job_id(
         triggered_by=triggered_by,
         redis_url=redis_url,
     )
-    _RUN_SUBMISSION_CACHE[submission.run_id] = submission
+    _cache_run_submission(submission)
     return submission.run_id, submission.queue_job_id
 
 def _resolve_submission_binding(run_id: str, queue_job_id: str) -> RunSubmission:
-    submission = _RUN_SUBMISSION_CACHE.pop(run_id, None)
-    if submission is not None:
-        return submission
+    cached = _pop_cached_run_submission(run_id)
+    if cached is not None:
+        return cached
     requested_backend = str(ORCHESTRATION_ADAPTER.name or "default_queue")
     execution_backend = "prefect" if requested_backend == "prefect" else "queue"
     submission = RunSubmission(
@@ -740,10 +705,6 @@ STAGE_DOWNLOAD_LABELS: dict[str, str] = {
     "cv_analysis": "Download CV Analysis JSON",
     "cv_generation": "Download CV Generation JSON",
 }
-RUN_MODE_LABELS = {
-    "run_all": "Run All",
-    "manual_staged": "Stage by Stage",
-}
 RUN_STATUS_GROUPS = {
     "active": {RunStatus.QUEUED.value, RunStatus.RUNNING.value, RunStatus.CANCELLING.value},
     "terminal": {RunStatus.SUCCEEDED.value, RunStatus.FAILED.value, RunStatus.CANCELLED.value},
@@ -832,6 +793,11 @@ def _apply_trigger_runtime_envelope(
     run_mode: str,
     reuse_precheck_warning: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    synonym_management = dict(effective_config.get("synonym_management") or {})
+    synonym_management.setdefault("auto_apply_recommendation_enabled", False)
+    synonym_management.setdefault("auto_promote_global_enabled", False)
+    synonym_management.setdefault("auto_accept_ai_action_enabled", True)
+    effective_config["synonym_management"] = synonym_management
     effective_config = apply_synonym_management_defaults(effective_config)
 
     runtime_inputs = effective_config.setdefault("runtime_inputs", {})
@@ -930,11 +896,7 @@ def _resolve_candidate_profile_snapshot_from_text(raw_text: str) -> str:
 def _load_jobs_input_manifest(raw_manifest_json: str | None) -> dict[str, Any]:
     if not raw_manifest_json:
         return {}
-    try:
-        payload = _json.loads(raw_manifest_json)
-    except Exception:
-        return {}
-    return payload if isinstance(payload, dict) else {}
+    return decode_json_object_or_none(raw_manifest_json) or {}
 
 def _format_jobs_path_display(run: PipelineRun) -> str:
     raw_jobs_path = str(getattr(run, "jobs_path", "") or "").strip()
@@ -968,11 +930,8 @@ def _canonical_continue_next_stage(run: PipelineRun) -> str | None:
     checkpoint_next_stage: str | None = None
     checkpoint_payload_json = str(run.checkpoint_payload_json or "").strip()
     if checkpoint_payload_json:
-        try:
-            raw_payload = _json.loads(checkpoint_payload_json)
-        except _json.JSONDecodeError:
-            raw_payload = None
-        if isinstance(raw_payload, dict):
+        raw_payload = decode_json_object_or_none(checkpoint_payload_json)
+        if raw_payload:
             checkpoint_payload = raw_payload.get("checkpoint_payload")
             if not isinstance(checkpoint_payload, dict):
                 checkpoint_payload = raw_payload
@@ -1102,13 +1061,8 @@ class RunArtifactFile:
 
 
 def _load_stage_transition_artifacts_payload(run: PipelineRun) -> dict[str, Any]:
-    if not run.stage_transition_artifacts_json:
-        return {}
-    try:
-        payload = _json.loads(run.stage_transition_artifacts_json)
-    except (_json.JSONDecodeError, TypeError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
+    payload = decode_json_object_or_none(run.stage_transition_artifacts_json)
+    return payload or {}
 
 def _persist_stage_artifacts_terminal_snapshot(
     *,
@@ -1141,13 +1095,7 @@ def _persist_stage_artifacts_terminal_snapshot(
 
 
 def _load_json_object(raw_payload: str | None) -> dict[str, Any] | None:
-    if not raw_payload:
-        return None
-    try:
-        payload = _json.loads(raw_payload)
-    except (_json.JSONDecodeError, TypeError):
-        return None
-    return payload if isinstance(payload, dict) else None
+    return decode_json_object_or_none(raw_payload)
 
 
 def _stage_artifacts_by_id(run: PipelineRun) -> dict[str, dict[str, Any]]:
@@ -1495,9 +1443,8 @@ def _run_event_delivery_health(run_id: str) -> dict[str, Any]:
                 raw = line.strip()
                 if not raw:
                     continue
-                try:
-                    record = _json.loads(raw)
-                except Exception:
+                record = decode_json_object_or_none(raw)
+                if record is None:
                     continue
                 row = dict(record.get("row") or {})
                 if str(row.get("run_id") or "").strip() != str(run_id):
@@ -1539,9 +1486,8 @@ def _run_telemetry_export_health(events: list[RunEvent]) -> dict[str, Any]:
         payload_json = str(getattr(event, "payload_json", "") or "").strip()
         if not payload_json:
             continue
-        try:
-            payload = _json.loads(payload_json)
-        except Exception:
+        payload = decode_json_object_or_none(payload_json)
+        if payload is None:
             continue
         telemetry = dict(payload.get("telemetry_export") or {})
         if str(telemetry.get("status") or "") != "degraded":
@@ -1569,9 +1515,8 @@ def _run_langfuse_link_health(events: list[RunEvent]) -> dict[str, Any]:
         payload_json = str(getattr(ev, "payload_json", "") or "").strip()
         if not payload_json:
             continue
-        try:
-            payload = _json.loads(payload_json)
-        except Exception:
+        payload = decode_json_object_or_none(payload_json)
+        if payload is None:
             continue
         stage = str(ev.stage or "")
         langfuse = dict(payload.get("langfuse_link") or {})
@@ -1612,9 +1557,8 @@ def _latest_dead_letter_replay_summary(events: list[RunEvent]) -> dict[str, Any]
         payload_json = str(getattr(event, "payload_json", "") or "").strip()
         if not payload_json:
             continue
-        try:
-            payload = _json.loads(payload_json)
-        except Exception:
+        payload = decode_json_object_or_none(payload_json)
+        if payload is None:
             continue
         latest = {
             "replay_candidates": int(payload.get("replay_candidates") or 0),
@@ -1766,11 +1710,8 @@ def _load_event_dead_letter_records(dead_letter_file: Path) -> list[dict[str, An
             raw = line.strip()
             if not raw:
                 continue
-            try:
-                parsed = _json.loads(raw)
-            except Exception:
-                continue
-            if isinstance(parsed, dict):
+            parsed = decode_json_object_or_none(raw)
+            if parsed is not None:
                 records.append(parsed)
     return records
 
@@ -1783,10 +1724,6 @@ def _persist_event_dead_letter_records(dead_letter_file: Path, records: list[dic
     with dead_letter_file.open("w", encoding="utf-8") as handle:
         for record in records:
             handle.write(_json.dumps(record, ensure_ascii=False) + "\n")
-
-def _pretty_json_string(raw_json: str) -> str:
-    return _json.dumps(_json.loads(raw_json), ensure_ascii=False, indent=2)
-
 
 def _build_stage_slice_payload(run: PipelineRun, stage_id: str) -> dict[str, Any] | None:
     if stage_id not in BUNDLE_STAGE_IDS:
@@ -1841,7 +1778,7 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 filename="cv-debug.json",
                 label="CV Debug JSON",
                 href=f"/admin/runs/{run.run_id}/cv-debug.json",
-                content=_pretty_json_string(run.cv_generation_debug_json),
+                content=pretty_json_string_or_fallback(run.cv_generation_debug_json),
             )
         )
         review_required_payload = _build_cv_generation_review_required_payload(run)
@@ -1890,7 +1827,7 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 filename="settings-used.json",
                 label="Settings Used JSON",
                 href=f"/admin/runs/{run.run_id}/settings-used.json",
-                content=_pretty_json_string(run.settings_used_json),
+                content=pretty_json_string_or_fallback(run.settings_used_json),
             )
         )
     if run.mapping_suggestions_json and _run_has_reached_stage(run, "enrich") and "enrich" in stage_artifacts_by_id:
@@ -1899,7 +1836,7 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 filename="mapping-suggestions.json",
                 label="Mapping Suggestions JSON",
                 href=f"/admin/runs/{run.run_id}/mapping-suggestions.json",
-                content=_pretty_json_string(run.mapping_suggestions_json),
+                content=pretty_json_string_or_fallback(run.mapping_suggestions_json),
             )
         )
     if run.synonym_proposals_json and (
@@ -1910,7 +1847,7 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 filename="synonym-proposals.json",
                 label="Synonym Proposals JSON",
                 href=f"/admin/runs/{run.run_id}/synonym-proposals.json",
-                content=_pretty_json_string(run.synonym_proposals_json),
+                content=pretty_json_string_or_fallback(run.synonym_proposals_json),
             )
         )
         approved_overlay_yaml = _build_run_approved_synonym_overlay_yaml(run)
@@ -3305,7 +3242,7 @@ def _build_run_artifact_bundle_manifest(run: PipelineRun, files: list[RunArtifac
         "run_id": run.run_id,
         "status": run.status.value,
         "run_mode": run.run_mode,
-        "run_mode_label": RUN_MODE_LABELS.get(run.run_mode, run.run_mode),
+        "run_mode_label": run_mode_label(run.run_mode),
         "created_at": run.created_at.isoformat() if run.created_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
         "bundle_schema_version": "run_artifact_bundle_v6",
@@ -3361,12 +3298,9 @@ def _load_run_effective_config_snapshot(
     fallback_to_runtime_config: bool = True,
 ) -> dict[str, Any]:
     if run.effective_settings_json:
-        try:
-            payload = _json.loads(run.effective_settings_json)
-            if isinstance(payload, dict):
-                return apply_synonym_management_defaults(payload)
-        except (_json.JSONDecodeError, TypeError):
-            pass
+        payload = decode_json_object_or_none(run.effective_settings_json)
+        if payload is not None:
+            return apply_synonym_management_defaults(payload)
     if fallback_to_runtime_config:
         try:
             return apply_synonym_management_defaults(load_config(run.config_path))
@@ -3378,11 +3312,8 @@ def _load_run_effective_config_snapshot(
 def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
     if not run.effective_settings_json:
         return {"has_run_overlay": False}
-    try:
-        payload = _json.loads(run.effective_settings_json)
-    except (_json.JSONDecodeError, TypeError):
-        return {"has_run_overlay": False}
-    if not isinstance(payload, dict):
+    payload = decode_json_object_or_none(run.effective_settings_json)
+    if payload is None:
         return {"has_run_overlay": False}
     runtime = payload.get("skill_synonyms_runtime")
     if not isinstance(runtime, dict):
@@ -3537,9 +3468,8 @@ def _aggregate_mapping_suggestion_payloads(runs: list[PipelineRun]) -> dict[str,
         raw_payload = run.mapping_suggestions_json
         if not raw_payload:
             continue
-        try:
-            payload = _json.loads(raw_payload)
-        except (_json.JSONDecodeError, TypeError):
+        payload = decode_json_object_or_none(raw_payload)
+        if not payload:
             continue
         for suggestion in list(payload.get("suggestions") or []):
             if not isinstance(suggestion, dict):
@@ -3593,13 +3523,7 @@ def _load_run_synonym_proposals_payload(run: PipelineRun) -> dict[str, Any] | No
     raw_payload = run.synonym_proposals_json
     if not raw_payload:
         return None
-    try:
-        payload = _json.loads(raw_payload)
-    except (_json.JSONDecodeError, TypeError):
-        return None
-    if not isinstance(payload, dict):
-        return None
-    return payload
+    return decode_json_object_or_none(raw_payload)
 
 
 def _aggregate_synonym_proposal_payloads(runs: list[PipelineRun]) -> dict[str, Any]:
@@ -4437,9 +4361,8 @@ def _format_pipeline_outcome_detail(row: dict[str, Any]) -> str | None:
 def _results_export_rows(run: PipelineRun) -> list[dict[str, Any]]:
     if not run.results_export_json:
         return []
-    try:
-        payload = _json.loads(run.results_export_json)
-    except (_json.JSONDecodeError, TypeError, AttributeError):
+    payload = decode_json_object_or_none(run.results_export_json)
+    if payload is None:
         return []
     rows = payload.get("results")
     if not isinstance(rows, list):
@@ -4551,9 +4474,8 @@ def _fallback_enriched_rows_from_stage_artifacts(run: PipelineRun) -> list[dict[
 def _stage_result_summary_rows(run: PipelineRun) -> list[dict[str, str]]:
     if not run.results_export_json:
         return []
-    try:
-        payload = _json.loads(run.results_export_json)
-    except (_json.JSONDecodeError, TypeError, AttributeError):
+    payload = decode_json_object_or_none(run.results_export_json)
+    if payload is None:
         return []
     raw_summary = payload.get("stage_result_summary")
     if not isinstance(raw_summary, dict):
@@ -4585,11 +4507,7 @@ def _event_payload(event: RunEvent) -> dict[str, Any]:
     raw_payload = getattr(event, "payload_json", None)
     if not raw_payload:
         return {}
-    try:
-        payload = _json.loads(raw_payload)
-    except (_json.JSONDecodeError, TypeError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
+    return decode_json_object_or_none(raw_payload) or {}
 
 
 def _pipeline_outcome_surface(row: dict[str, Any]) -> dict[str, str]:
@@ -8027,11 +7945,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         )
         synonym_mode = dict(updated_config.get("synonym_management") or {})
         if bool(synonym_mode.get("propose_enabled", True)) and run.mapping_suggestions_json:
-            try:
-                mapping_payload = _json.loads(run.mapping_suggestions_json)
-            except (_json.JSONDecodeError, TypeError):
-                mapping_payload = {}
-            suggestions = list((mapping_payload or {}).get("suggestions") or [])
+            mapping_payload = decode_json_object_or_none(run.mapping_suggestions_json) or {}
+            suggestions = list(mapping_payload.get("suggestions") or [])
             synonym_payload_json = build_synonym_proposals_payload(
                 run_id=run_id,
                 summary={"mapping_suggestions": suggestions},
@@ -8200,7 +8115,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 detail="Continue enqueue failed; run restored to awaiting_continue. Check queue/redis connectivity and retry.",
             ) from exc
         submission = _resolve_submission_binding(run.run_id, queue_job_id)
-        update_run_orchestration_binding(
+        _persist_run_orchestration_binding(
             run.run_id,
             queue_job_id=submission.queue_job_id,
             orchestration_backend=submission.backend,
@@ -8209,7 +8124,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
-        update_run_queue_job_id(run.run_id, submission.queue_job_id, bq, project=project, dataset=dataset)
+        _persist_run_queue_job_id(run.run_id, submission.queue_job_id, bq=bq, project=project, dataset=dataset)
 
         append_event(
             RunEvent(
@@ -8535,7 +8450,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             request=request, name="run_detail.html", context={
                 "run": run,
                 "run_status_projection": _run_status_projection(run),
-                "run_mode_label": RUN_MODE_LABELS.get(run.run_mode, run.run_mode),
+                "run_mode_label": run_mode_label(run.run_mode),
                 "events": timeline_events,
                 "timeline_has_more": len(events) > timeline_limit,
                 "timeline_next_limit": min(timeline_limit + 25, 200),
@@ -8688,7 +8603,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             context={
                 "run": run,
                 "run_status_projection": _run_status_projection(run),
-                "run_mode_label": RUN_MODE_LABELS.get(run.run_mode, run.run_mode),
+                "run_mode_label": run_mode_label(run.run_mode),
                 "hitl_review_queue": hitl_review_queue,
                 "hitl_closure_summary": hitl_closure_summary,
                 "review_queue_inline_threshold": HITL_REVIEW_QUEUE_INLINE_THRESHOLD,
@@ -9507,7 +9422,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "synonym_batch_failed": failed,
                 }
             )
-            return RedirectResponse(f"/admin/runs/{run_id}/synonym-proposals/promote-review?{query}", status_code=303)
+            return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
         if applied > 0:
             _persist_synonym_proposal_payload(
@@ -9548,7 +9463,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_batch_failed": failed,
             }
         )
-        return RedirectResponse(f"/admin/runs/{run_id}/synonym-proposals/promote-review?{query}", status_code=303)
+        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/apply-approved-to-run")
     async def admin_run_synonym_proposals_apply_approved_to_run(
@@ -9612,11 +9527,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             )
         if not run.mapping_suggestions_json:
             raise HTTPException(status_code=404, detail="Mapping suggestions payload is not available for this run")
-        try:
-            mapping_payload = _json.loads(run.mapping_suggestions_json)
-        except (_json.JSONDecodeError, TypeError):
+        mapping_payload = decode_json_object_or_none(run.mapping_suggestions_json)
+        if mapping_payload is None:
             raise HTTPException(status_code=409, detail="Mapping suggestions payload is invalid for this run")
-        suggestions = list((mapping_payload or {}).get("suggestions") or [])
+        suggestions = list(mapping_payload.get("suggestions") or [])
 
         synonym_payload_json = build_synonym_proposals_payload(
             run_id=run.run_id,
@@ -9632,10 +9546,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
-        try:
-            synonym_payload = _json.loads(synonym_payload_json)
-        except (_json.JSONDecodeError, TypeError):
-            synonym_payload = {}
+        synonym_payload = decode_json_object_or_none(synonym_payload_json) or {}
         trace_summary = dict(
             ((synonym_payload.get("synonym_proposals_trace") or {}).get("trace_summary") or {})
             if isinstance(synonym_payload, dict)
@@ -9868,7 +9779,17 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         payload = _load_run_synonym_proposals_payload(run)
         if not isinstance(payload, dict):
             raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
-        mode = _synonym_management_mode(run)
+        mode = dict(_synonym_management_mode(run))
+        # Triage refresh is advisory by default. Auto-apply / auto-promote requires explicit opt-in
+        # in stored effective settings, not just defaulted mode values.
+        explicit_settings = decode_json_object_or_none(run.effective_settings_json) or {}
+        explicit_synonym_management = dict(explicit_settings.get("synonym_management") or {})
+        auto_apply_opt_in = explicit_synonym_management.get("auto_apply_recommendation_enabled") is True
+        auto_promote_opt_in = explicit_synonym_management.get("auto_promote_global_enabled") is True
+        if not auto_apply_opt_in:
+            mode["auto_apply_recommendation_enabled"] = False
+        if not auto_promote_opt_in:
+            mode["auto_promote_global_enabled"] = False
         form = await request.form()
         acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
         note = str(form.get("note") or "").strip()
@@ -9877,6 +9798,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         fingerprints = _synonym_observability_fingerprints(run)
         overlay_fp = str(fingerprints.get("run_overlay_fingerprint") or "").strip() or None
         proposals = list(payload.get("proposals") or [])
+        original_status_by_id = {
+            str(item.get("proposal_id") or "").strip(): str(item.get("proposal_status") or "").strip()
+            for item in proposals
+            if isinstance(item, dict) and str(item.get("proposal_id") or "").strip()
+        }
         triaged_count = 0
         reused_count = 0
         reused_strict_count = 0
@@ -9951,6 +9877,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             updated = dict(proposal)
             # Advisory-only: never mutate proposal_status during triage refresh.
             updated.update(recommendation)
+            updated["proposal_status"] = status
             recommendation_runtime = dict(updated.get("recommendation_runtime") or {})
             recommendation_runtime["triage_fingerprint"] = str(reuse_eval.get("strict_fingerprint") or "")
             recommendation_runtime["triage_fingerprint_strict"] = str(reuse_eval.get("strict_fingerprint") or "")
@@ -9963,6 +9890,16 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             updated["recommendation_runtime"] = recommendation_runtime
             proposals[idx] = updated
             triaged_count += 1
+        for idx, proposal in enumerate(proposals):
+            if not isinstance(proposal, dict):
+                continue
+            proposal_id = str(proposal.get("proposal_id") or "").strip()
+            if not proposal_id:
+                continue
+            original_status = original_status_by_id.get(proposal_id)
+            if original_status is not None:
+                proposal["proposal_status"] = original_status
+                proposals[idx] = proposal
         payload["proposals"] = proposals
         _persist_synonym_proposal_payload(
             run=run,
@@ -10318,11 +10255,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = require_run_or_404(run_id, detail="")
         candidate_profile_pretty: str | None = None
         if run.candidate_profile_json:
-            try:
-                candidate_profile_parsed = _json.loads(run.candidate_profile_json)
-                candidate_profile_pretty = _json.dumps(candidate_profile_parsed, indent=2, ensure_ascii=False)
-            except (_json.JSONDecodeError, TypeError):
-                candidate_profile_pretty = run.candidate_profile_json
+            candidate_profile_pretty = pretty_json_string_or_fallback(run.candidate_profile_json)
         return templates.TemplateResponse(
             request=request,
             name="run_detail_tab_profile.html",
@@ -10494,7 +10427,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=404, detail="Run not found")
         if not run.stage_transition_artifacts_json:
             raise HTTPException(status_code=404, detail="Stage transition artifacts export is not available for this run")
-        pretty_json = _json.dumps(_json.loads(run.stage_transition_artifacts_json), ensure_ascii=False, indent=2)
+        try:
+            pretty_json = pretty_json_string(run.stage_transition_artifacts_json)
+        except (_json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=f"Stage transition artifacts JSON invalid: {exc}")
         return Response(
             content=pretty_json,
             media_type="application/json",
@@ -10568,7 +10504,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=409, detail="Settings-used export is only available for succeeded runs")
         if not run.settings_used_json:
             raise HTTPException(status_code=404, detail="Settings-used export is not available for this run")
-        pretty_json = _json.dumps(_json.loads(run.settings_used_json), ensure_ascii=False, indent=2)
+        try:
+            pretty_json = pretty_json_string(run.settings_used_json)
+        except (_json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=f"Settings-used JSON invalid: {exc}")
         return Response(
             content=pretty_json,
             media_type="application/json",
@@ -10584,10 +10523,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(
                 status_code=404,
                 detail="Mapping suggestions export is not available until enrich has completed for this run",
-            )
+        )
         if not run.mapping_suggestions_json:
             raise HTTPException(status_code=404, detail="Mapping suggestions export is not available for this run")
-        pretty_json = _json.dumps(_json.loads(run.mapping_suggestions_json), ensure_ascii=False, indent=2)
+        try:
+            pretty_json = pretty_json_string(run.mapping_suggestions_json)
+        except (_json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=f"Mapping suggestions JSON invalid: {exc}")
         return Response(
             content=pretty_json,
             media_type="application/json",
@@ -10606,7 +10548,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             )
         if not run.synonym_proposals_json:
             raise HTTPException(status_code=404, detail="Synonym proposals export is not available for this run")
-        pretty_json = _json.dumps(_json.loads(run.synonym_proposals_json), ensure_ascii=False, indent=2)
+        try:
+            pretty_json = pretty_json_string(run.synonym_proposals_json)
+        except (_json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=f"Synonym proposals JSON invalid: {exc}")
         return Response(
             content=pretty_json,
             media_type="application/json",

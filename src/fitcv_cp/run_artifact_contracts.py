@@ -9,6 +9,7 @@ inputs:
   - run records, replay context, and runtime artifact values
 outputs:
   - normalized run-mode labels and JSON-safe artifact payload fragments
+  - shared JSON decode helpers for run artifacts
 lifecycle:
   - status: active
 """
@@ -16,6 +17,7 @@ lifecycle:
 from __future__ import annotations
 
 import datetime
+import json as _json
 from typing import Any
 
 RUN_MODE_LABELS = {
@@ -57,6 +59,40 @@ def json_safe(value: Any) -> Any:
     if isinstance(value, set):
         return [json_safe(item) for item in sorted(value)]
     return value
+
+
+def decode_json_object_or_none(raw_payload: str | None) -> dict[str, Any] | None:
+    if not raw_payload:
+        return None
+    try:
+        payload = _json.loads(raw_payload)
+    except (_json.JSONDecodeError, TypeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def schema_version_or_none(payload: dict[str, Any] | None) -> str | None:
+    if not payload:
+        return None
+    value = payload.get("schema_version")
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def schema_version_matches(payload: dict[str, Any] | None, expected: str) -> bool:
+    return schema_version_or_none(payload) == expected
+
+
+def pretty_json_string(raw_json: str) -> str:
+    return _json.dumps(_json.loads(raw_json), ensure_ascii=False, indent=2)
+
+
+def pretty_json_string_or_fallback(raw_json: str | None) -> str:
+    if not raw_json:
+        return ""
+    try:
+        return pretty_json_string(str(raw_json))
+    except (_json.JSONDecodeError, TypeError, ValueError):
+        return str(raw_json)
 
 
 def replay_context_payload(*, replay_context: dict[str, Any], run_id: str) -> dict[str, str]:

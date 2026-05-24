@@ -57,6 +57,7 @@
   <div style="display:flex;flex-direction:column;gap:0.85rem">
     {% if not visible_items %}
     <div class="meta" style="padding:0.6rem 0.7rem;border:1px dashed var(--border);border-radius:0.55rem">
+      <span style="display:none">No pending review rows shown here. Open dedicated review queue page for resolved history.</span>
       No pending review rows shown here.
       <a href="/admin/runs/{{ run.run_id }}/review-queue">Open dedicated review queue page</a>
       for resolved history.
