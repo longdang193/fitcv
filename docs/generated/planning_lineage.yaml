@@ -458,6 +458,7 @@ workstreams:
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
     - docs/superpowers/specs/2026-05-03-phase-2-architecture-hardening-and-portability-spec.md
     - docs/superpowers/specs/2026-05-15-23-00-provider-baseurl-ssot-centralization-spec.md
+    - docs/superpowers/specs/2026-05-24-12-15-pipeline-extract-job-url-title-nameerror-fix-spec.md
     plans:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
@@ -469,6 +470,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-10-14-35-provider-agnostic-runtime-hardening-plan.md
     - docs/superpowers/plans/2026-05-10-provider-agnostic-persistence-patch-plan.md
     - docs/superpowers/plans/2026-05-15-23-10-provider-baseurl-ssot-centralization-plan.md
+    - docs/superpowers/plans/2026-05-24-12-20-pipeline-extract-job-url-title-nameerror-fix-plan.md
     derived_completion: completed
 - workstream_id: workstream-pipeline-efficiency-and-reuse
   status: active
