@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: completed
 template_id: detailed-specification
 name: fitcv_cp.worker_job SSOT/symmetry/invariance refactor (R-WJ-01..06)
 parent_thread: workstream-operator-control-plane.fitcv-cp-app-ssot-symmetry-refactor
@@ -46,12 +46,12 @@ Normalize `src/fitcv_cp/worker_job.py` artifact snapshot/persistence flows for S
 - lock current behavior + drift points before refactor
 
 **Steps:**
-- [ ] Inventory JSON parse sites + payload builders + snapshot persisters in `worker_job.py`.
-- [ ] Map equivalent concepts vs `fitcv_cp.app` (JSON failure policy, schema versions, hashing, effective settings parsing).
-- [ ] Record GitNexus impact for each symbol to be edited.
+- [x] Inventory JSON parse sites + payload builders + snapshot persisters in `worker_job.py`.
+- [x] Map equivalent concepts vs `fitcv_cp.app` (JSON failure policy, schema versions, hashing, effective settings parsing).
+- [x] Record GitNexus impact for each symbol to be edited.
 
 **Verification:**
-- [ ] Equivalence map covers R-WJ-01..06 targets.
+- [x] Equivalence map covers R-WJ-01..06 targets.
 
 **Exit Criteria:**
 - no change depends on unstated assumptions.
@@ -62,13 +62,13 @@ Normalize `src/fitcv_cp/worker_job.py` artifact snapshot/persistence flows for S
 - resolve SSOT ownership and migration rules
 
 **Steps:**
-- [ ] Choose worker JSON failure policy per surface (skip/warn/fail).
-- [ ] Define schema-version constant placement.
-- [ ] Define SHA256 fingerprint migration note.
-- [ ] Decide compat shim handling rules.
+- [x] Choose worker JSON failure policy per surface (skip/warn/fail).
+- [x] Define schema-version constant placement.
+- [x] Define SHA256 fingerprint migration note.
+- [x] Decide compat shim handling rules.
 
 **Verification:**
-- [ ] Acceptance criteria per R-WJ item documented.
+- [x] Acceptance criteria per R-WJ item documented.
 
 **Exit Criteria:**
 - spec ready for plan authoring.
@@ -79,11 +79,11 @@ Normalize `src/fitcv_cp/worker_job.py` artifact snapshot/persistence flows for S
 - define proof + safety controls
 
 **Steps:**
-- [ ] Test matrix for malformed JSON, schema versions, fingerprint dedupe, effective-settings defaults.
-- [ ] Repo checks + GitNexus detect-changes gates.
+- [x] Test matrix for malformed JSON, schema versions, fingerprint dedupe, effective-settings defaults.
+- [x] Repo checks + GitNexus detect-changes gates.
 
 **Verification:**
-- [ ] Validation plan provides evidence-first proof for invariants.
+- [x] Validation plan provides evidence-first proof for invariants.
 
 **Exit Criteria:**
 - implementation plan can be written with bounded tasks.
