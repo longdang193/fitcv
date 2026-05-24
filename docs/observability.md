@@ -222,13 +222,7 @@ Langfuse export consumption lanes:
   (including exports where `input`/`output` are stringified JSON objects)
 - reviewer-first Wave 1 item observations should surface sectioned markdown/text in Langfuse `input`/`output`, while metadata keeps structured backing payloads for filters and joins
 
-Example:
-
-```powershell
-python scripts/filter_langfuse_export.py `
-  --input logs/exports_*.jsonl `
-  --output logs/exports_analysis_ready.jsonl
-```
+Public-repo note: export filtering is intentionally left as a local workflow (use any JSONL tooling) so the public mirror stays minimal.
 
 Pipeline summary quality block:
 

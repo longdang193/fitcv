@@ -19,7 +19,7 @@ Use one mode at a time. Do not mix a local web or worker process with the Docker
 
 Agentic late-stage runs in Docker mode also depend on two local inputs:
 
-- repo `.env` with `OPENAI_API_KEY` and any `FITCV_LANGGRAPH_*` overrides
+- repo `.env` with `FITCV_LLM_API_KEY` (temporary aliases: `OPENAI_API_KEY`, `OPENAI_COMPATIBLE_API_KEY`) and any `FITCV_LANGGRAPH_*` overrides
 - a sibling `fitcv-langgraph` checkout, or an explicit `FITCV_LANGGRAPH_REPO_PATH`
 
 The Compose services now load `.env` into both `web` and `worker`, mount that
