@@ -46,6 +46,7 @@ name: lane-codex-bookmarks-status-tracking
 ## 4) Files Changed This Session
 
 - `docs/superpowers/specs/2026-05-24-19-37-bookmarks-application-status-tracking-spec.md` — fix `parent_thread` alignment
+- `docs/superpowers/specs/2026-05-24-19-37-bookmarks-application-status-tracking-spec.md` — reconcile checklists to `- [x]`
 - `docs/superpowers/plans/2026-05-24-19-39-bookmarks-application-status-tracking-plan.md` — fix `parent_thread` alignment
 - `docs/superpowers/execution_context_packs/lane-codex-bookmarks-status-tracking/latest.md` — new lane context pack
 - `src/fitcv_cp/settings_store.py` — add bookmark status columns + migration; include status in list output; preserve status on upsert conflict

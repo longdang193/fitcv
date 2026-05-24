@@ -44,12 +44,12 @@ Existing bookmarks page + delete flow remains valid, with added tests proving st
 - lock current bookmarks persistence + page rendering contract before adding status logic
 
 **Steps:**
-- [ ] inspect current `bookmarked_jobs` sqlite schema and access API in `src/fitcv_cp/settings_store.py`
-- [ ] inspect `/admin/bookmarks` route + template expectations in `src/fitcv_cp/app.py` + `src/fitcv_cp/templates/bookmarks.html`
-- [ ] inspect existing tests around bookmarks page in `tests/test_fitcv_cp/test_app.py`
+- [x] inspect current `bookmarked_jobs` sqlite schema and access API in `src/fitcv_cp/settings_store.py`
+- [x] inspect `/admin/bookmarks` route + template expectations in `src/fitcv_cp/app.py` + `src/fitcv_cp/templates/bookmarks.html`
+- [x] inspect existing tests around bookmarks page in `tests/test_fitcv_cp/test_app.py`
 
 **Verification:**
-- [ ] current page uses server-rendered template and sqlite-backed persistence (no JS required)
+- [x] current page uses server-rendered template and sqlite-backed persistence (no JS required)
 
 **Exit Criteria:**
 - no core decision depends on unknown persistence backend or client state
@@ -60,13 +60,13 @@ Existing bookmarks page + delete flow remains valid, with added tests proving st
 - resolve status semantics, persistence shape, schema migration, and page interaction contract
 
 **Steps:**
-- [ ] define status taxonomy and transitions (`active` <-> `submitted`, `archived` as separate terminal bucket)
-- [ ] decide whether status is single enum column vs multiple booleans
-- [ ] decide migration approach for existing sqlite DB files
-- [ ] define UI contract for filter tabs and per-row actions (including button labels)
+- [x] define status taxonomy and transitions (`active` <-> `submitted`, `archived` as separate terminal bucket)
+- [x] decide whether status is single enum column vs multiple booleans
+- [x] decide migration approach for existing sqlite DB files
+- [x] define UI contract for filter tabs and per-row actions (including button labels)
 
 **Verification:**
-- [ ] decisions include fallback behavior for legacy DB without new columns
+- [x] decisions include fallback behavior for legacy DB without new columns
 
 **Exit Criteria:**
 - implementation can proceed without unresolved UX/state questions
@@ -77,11 +77,11 @@ Existing bookmarks page + delete flow remains valid, with added tests proving st
 - make proof expectations explicit before writing implementation plan
 
 **Steps:**
-- [ ] specify test cases for status actions and filters
-- [ ] specify minimal manual QA checks on page
+- [x] specify test cases for status actions and filters
+- [x] specify minimal manual QA checks on page
 
 **Verification:**
-- [ ] validation plan proves persistence across refresh and correct filtering
+- [x] validation plan proves persistence across refresh and correct filtering
 
 **Exit Criteria:**
 - spec ready for implementation planning
