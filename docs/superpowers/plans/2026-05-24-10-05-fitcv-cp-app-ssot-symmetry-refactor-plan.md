@@ -61,7 +61,7 @@ Execute refactor R1–R5 from spec `docs/superpowers/specs/2026-05-24-10-02-fitc
   - orchestration binding behavior for submit/continue flows (where observable)
 
 **Verification:**
-- [ ] Baseline validator run is green.
+- [x] Baseline validator run is green.
  - [x] Baseline validator run is green.
 
 **Exit Criteria:**
@@ -88,7 +88,7 @@ Execute refactor R1–R5 from spec `docs/superpowers/specs/2026-05-24-10-02-fitc
 **Verification:**
 - [x] `python -c "import fitcv_cp.app"` succeeds.
 - [x] `python scripts/hooks/run_validator.py --fast` green.
- - [ ] If `uvx pytest ...` lacks dependencies (ex: `fastapi`), use project environment: `uv sync --group dev` then `uv run pytest ...`
+ - [x] If `uvx pytest ...` lacks dependencies (ex: `fastapi`), use project environment: `uv sync --group dev` then `uv run pytest ...` (N/A; lane used `uv run pytest ...`)
 
 **Exit Criteria:**
 - `app.py` contains no shadow-import pattern and remains importable.
@@ -240,11 +240,11 @@ Execute refactor R1–R5 from spec `docs/superpowers/specs/2026-05-24-10-02-fitc
 - [x] Run validator: `python scripts/hooks/run_validator.py --fast`
 - [x] Run Python tests: `uv run pytest tests/test_fitcv_cp/`
 - [x] Run lane typecheck (targeted): `uv run mypy src/fitcv_cp/synonym_proposals.py --show-error-codes`
-- [ ] Run repo-wide type check: `uv run mypy src --show-error-codes` (known baseline failures outside lane; informational only)
+- [x] Run repo-wide type check: `uv run mypy src --show-error-codes` (ran; known baseline failures outside lane; informational only)
 - [x] Run GitNexus scope check: `npx gitnexus detect-changes -r "<worktree path>" --scope all`
 
 **Verification:**
-- [ ] All commands green; GitNexus shows only expected symbols/files affected.
+- [x] All required commands green; GitNexus scope expected for `app.py` blast radius (repo-wide mypy not a lane gate).
 
 **Exit Criteria:**
 - Deliverables satisfied and ready for execution handoff.
