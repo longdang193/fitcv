@@ -17,6 +17,7 @@ lifecycle:
 from __future__ import annotations
 
 import datetime
+import hashlib
 import json as _json
 from typing import Any
 
@@ -69,6 +70,23 @@ def decode_json_object_or_none(raw_payload: str | None) -> dict[str, Any] | None
     except (_json.JSONDecodeError, TypeError):
         return None
     return payload if isinstance(payload, dict) else None
+
+
+def decode_json_object_or_raise(raw_payload: str | None) -> dict[str, Any]:
+    payload = _json.loads(raw_payload or "")
+    if not isinstance(payload, dict):
+        raise ValueError("decoded_json_not_object")
+    return payload
+
+def encode_json_object(payload: dict[str, Any]) -> str:
+    return _json.dumps(payload, ensure_ascii=False)
+
+def stable_json_dumps(payload: Any) -> str:
+    return _json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+def stable_sha256_fingerprint(payload: Any) -> str:
+    raw = stable_json_dumps(payload)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def schema_version_or_none(payload: dict[str, Any] | None) -> str | None:

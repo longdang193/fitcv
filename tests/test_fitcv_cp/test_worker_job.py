@@ -14,6 +14,7 @@ tags:
 
 from unittest.mock import MagicMock, patch
 import datetime
+import hashlib
 import json
 from copy import deepcopy
 from pathlib import Path
@@ -109,6 +110,43 @@ def test_execute_cv_regenerate_once_emits_failed_event_for_missing_record() -> N
             )
     stages = [call.args[0].stage for call in mock_append.call_args_list]
     assert stages == ["cv_regenerate_once_started", "cv_regenerate_once_failed"]
+
+
+def test_execute_cv_regenerate_once_emits_failed_event_for_invalid_json_payload() -> None:
+    from fitcv_cp.worker_job import execute_cv_regenerate_once
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="run-regen-3",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        cv_generation_debug_json="{invalid-json",
+    )
+    with (
+        patch("fitcv_cp.worker_job.get_run", return_value=run),
+        patch("fitcv_cp.worker_job._get_bq", return_value=MagicMock()),
+        patch("fitcv_cp.worker_job.append_event") as mock_append,
+    ):
+        with pytest.raises(ValueError):
+            execute_cv_regenerate_once(
+                run_id="run-regen-3",
+                job_url="https://example.com/job-1",
+                actor="operator",
+                note=None,
+            )
+    stages = [call.args[0].stage for call in mock_append.call_args_list]
+    assert stages == ["cv_regenerate_once_started", "cv_regenerate_once_failed"]
+
+
+def test_worker_synonym_policy_defaults_when_effective_settings_json_invalid() -> None:
+    from fitcv_cp.worker_job import _auto_accept_ai_action_enabled_from_run_record
+
+    run_record = MagicMock(effective_settings_json="{invalid-json")
+    assert _auto_accept_ai_action_enabled_from_run_record(run_record) is True
 
 
 def test_worker_marks_succeeded_on_success():
@@ -2101,10 +2139,10 @@ def test_worker_manual_resume_uses_uploaded_run_scoped_synonym_overlay() -> None
 
 
 def test_build_synonym_proposals_payload_groups_conflicts_for_review() -> None:
-    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+    from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
 
     payload = json.loads(
-        _build_synonym_proposals_payload(
+        build_synonym_proposals_payload(
             run_id="run-synonym-proposals",
             summary={
                 "mapping_suggestions": [
@@ -2144,10 +2182,10 @@ def test_build_synonym_proposals_payload_groups_conflicts_for_review() -> None:
 
 
 def test_build_synonym_proposals_payload_preserves_existing_review_state() -> None:
-    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+    from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
 
     baseline_payload = json.loads(
-        _build_synonym_proposals_payload(
+        build_synonym_proposals_payload(
             run_id="run-synonym-proposals",
             summary={
                 "mapping_suggestions": [
@@ -2183,7 +2221,7 @@ def test_build_synonym_proposals_payload_preserves_existing_review_state() -> No
     )
 
     payload = json.loads(
-        _build_synonym_proposals_payload(
+        build_synonym_proposals_payload(
             run_id="run-synonym-proposals",
             summary={
                 "mapping_suggestions": [
@@ -2207,10 +2245,10 @@ def test_build_synonym_proposals_payload_preserves_existing_review_state() -> No
 
 
 def test_build_synonym_proposals_payload_marks_not_applicable_without_mapping_suggestions() -> None:
-    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+    from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
 
     payload = json.loads(
-        _build_synonym_proposals_payload(
+        build_synonym_proposals_payload(
             run_id="run-synonym-proposals-empty",
             summary={},
             created_at=datetime.datetime(2026, 4, 28, tzinfo=datetime.timezone.utc),
@@ -2226,10 +2264,10 @@ def test_build_synonym_proposals_payload_marks_not_applicable_without_mapping_su
 # ── cooperative cancellation ─────────────────────────────────────────────────
 
 def test_build_synonym_proposals_payload_skips_pairs_already_in_global_synonyms() -> None:
-    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+    from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
 
     payload = json.loads(
-        _build_synonym_proposals_payload(
+        build_synonym_proposals_payload(
             run_id="run-synonym-proposals-global-skip",
             summary={
                 "mapping_suggestions": [
@@ -2258,10 +2296,10 @@ def test_build_synonym_proposals_payload_skips_pairs_already_in_global_synonyms(
     assert payload["synonym_proposals_trace"]["suppression_examples"][0]["alias"] == "gcp"
 
 def test_build_synonym_proposals_payload_supports_domain_and_role_family_fields() -> None:
-    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+    from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
 
     payload = json.loads(
-        _build_synonym_proposals_payload(
+        build_synonym_proposals_payload(
             run_id="run-multi-field-proposals",
             summary={
                 "mapping_suggestions": [
@@ -2281,10 +2319,10 @@ def test_build_synonym_proposals_payload_supports_domain_and_role_family_fields(
     assert {proposal["field"] for proposal in proposals} == {"domain", "role_family"}
 
 def test_build_synonym_proposals_payload_suppresses_low_support_non_skill_rows() -> None:
-    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+    from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
 
     payload = json.loads(
-        _build_synonym_proposals_payload(
+        build_synonym_proposals_payload(
             run_id="run-non-skill-low-support",
             summary={
                 "mapping_suggestions": [
@@ -2348,11 +2386,60 @@ def test_append_synonym_suppression_summary_event_deduplicates_same_fingerprint(
 
     assert len(appended) == 1
 
+def test_append_synonym_suppression_summary_event_respects_legacy_sha1_fingerprint() -> None:
+    from types import SimpleNamespace
+
+    from fitcv_cp.worker_job import _append_synonym_suppression_summary_event
+
+    payload_json = json.dumps(
+        {
+            "synonym_proposals_trace": {
+                "trace_summary": {
+                    "suppressed_as_already_global_count": 2,
+                    "generated_for_review_count": 1,
+                    "suppression_source": "run_effective_skill_synonyms",
+                },
+                "suppression_examples": [{"field": "skill", "alias": "gcp", "canonical": "google cloud"}],
+            }
+        }
+    )
+    suppression_payload = {
+        "suppressed_as_already_global_count": 2,
+        "generated_for_review_count": 1,
+        "suppression_source": "run_effective_skill_synonyms",
+        "suppression_examples": [{"field": "skill", "alias": "gcp", "canonical": "google cloud"}],
+    }
+    legacy_sha1 = hashlib.sha1(
+        json.dumps(suppression_payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    existing_events = [
+        SimpleNamespace(
+            stage="synonym_proposal_suppression_summary",
+            payload_json=json.dumps({"suppression_fingerprint": legacy_sha1}),
+        )
+    ]
+    appended: list[object] = []
+
+    def _fake_append_event(event: object, bq: object, *, project: str, dataset: str) -> None:
+        appended.append(event)
+
+    with patch("fitcv_cp.worker_job.get_events", side_effect=lambda *args, **kwargs: list(existing_events)), \
+         patch("fitcv_cp.worker_job.append_event", side_effect=_fake_append_event):
+        _append_synonym_suppression_summary_event(
+            run_id="run-1",
+            synonym_payload_json=payload_json,
+            bq=object(),
+            project="proj",
+            dataset="ds",
+        )
+
+    assert appended == []
+
 def test_build_synonym_proposals_payload_keeps_conflicts_when_global_points_elsewhere() -> None:
-    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+    from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
 
     payload = json.loads(
-        _build_synonym_proposals_payload(
+        build_synonym_proposals_payload(
             run_id="run-synonym-proposals-global-conflict",
             summary={
                 "mapping_suggestions": [
@@ -2689,6 +2776,51 @@ def test_worker_review_required_reason_totals_preserved_while_remaining_counts_o
     payload = json.loads(str(getattr(review_events[-1], "payload_json", "") or "{}"))
     assert int(payload.get("remaining") or 0) == 1
     assert int(payload.get("remaining_missing_job_url") or 0) == 1
+
+def test_build_settings_used_payload_dict_has_required_shape() -> None:
+    from types import SimpleNamespace
+
+    from fitcv.contracts import SETTINGS_USED_SCHEMA_VERSION
+    from fitcv_cp.worker_job import _build_settings_used_payload_dict
+
+    run_record = SimpleNamespace(
+        config_path="config/env.yaml",
+        jobs_input_source="path",
+        candidate_profile_source="path",
+    )
+    payload = _build_settings_used_payload_dict(
+        run_id="run-shape-1",
+        run_record=run_record,
+        effective_config={"run_mode": "run_all"},
+        config_path="config/env.yaml",
+        finished_at=datetime.datetime(2026, 5, 24, tzinfo=datetime.timezone.utc),
+        replay_context={},
+    )
+
+    assert payload["run_id"] == "run-shape-1"
+    assert payload["settings_schema_version"] == SETTINGS_USED_SCHEMA_VERSION
+    assert isinstance(payload["effective_settings"], dict)
+    assert isinstance(payload["sources"], dict)
+    assert isinstance(payload["data_plane"], dict)
+    assert isinstance(payload["replay_context"], dict)
+
+def test_build_stage_transition_artifacts_payload_dict_has_required_shape() -> None:
+    from fitcv.contracts import STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION
+    from fitcv_cp.worker_job import _build_stage_transition_artifacts_payload_dict
+
+    finished_at = datetime.datetime(2026, 5, 24, tzinfo=datetime.timezone.utc)
+    payload = _build_stage_transition_artifacts_payload_dict(
+        run_id="run-stage-shape-1",
+        summary={"stage_transition_artifacts": {"stages": {"enrich": {"status": "succeeded"}}}},
+        finished_at=finished_at,
+        run_status=RunStatus.SUCCEEDED,
+        degradation_reason=None,
+    )
+
+    assert payload["run_id"] == "run-stage-shape-1"
+    assert payload["artifact_schema_version"] == STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION
+    assert payload["created_at"] == finished_at.isoformat()
+    assert isinstance(payload["artifacts"], dict)
 
 
 

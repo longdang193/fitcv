@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: active
 template_id: implementation-plan
 name: fitcv_cp.worker_job SSOT/symmetry/invariance refactor implementation plan (R-WJ-01..06)
 parent_thread: workstream-operator-control-plane.fitcv-cp-app-ssot-symmetry-refactor
@@ -54,13 +54,13 @@ Refactor `src/fitcv_cp/worker_job.py` artifact snapshot/persistence flows to use
 - GitNexus fresh: `npx gitnexus analyze`
 
 **Steps:**
-- [ ] `python scripts/hooks/run_validator.py --fast`
-- [ ] `uv run pytest tests/test_fitcv_cp/`
-- [ ] Record GitNexus impact for each edited symbol before edits:
+- [x] `python scripts/hooks/run_validator.py --fast`
+- [x] `uv run pytest tests/test_fitcv_cp/`
+- [x] Record GitNexus impact for each edited symbol before edits:
   - `npx gitnexus impact <symbol> --direction upstream --include-tests -r "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT"`
 
 **Verification:**
-- [ ] baseline tests green and impact evidence captured
+- [x] baseline tests green and impact evidence captured
 
 **Exit Criteria:**
 - proceed only if blast radius understood.
@@ -79,15 +79,15 @@ Refactor `src/fitcv_cp/worker_job.py` artifact snapshot/persistence flows to use
 - Task 0 complete
 
 **Steps:**
-- [ ] Add/extend helpers (tolerant decode, stable encode) in `run_artifact_contracts`.
-- [ ] Migrate worker call sites (start with):
-  - `execute_cv_regenerate_once`
-  - `_append_synonym_suppression_summary_event`
-  - `_persist_synonym_proposals_snapshot`
-- [ ] Add tests pinning invalid JSON behavior for each migrated surface.
+- [x] Add/extend helpers (tolerant decode, stable encode) in `run_artifact_contracts`. (added `decode_json_object_or_raise`)
+- [x] Migrate worker call sites (start with):
+  - `execute_cv_regenerate_once` (migrated to `decode_json_object_or_raise`)
+  - `_append_synonym_suppression_summary_event` (migrated to `decode_json_object_or_none`)
+  - `_persist_synonym_proposals_snapshot` (migrated to `decode_json_object_or_raise`)
+- [x] Add tests pinning invalid JSON behavior for each migrated surface. (added invalid JSON test for `execute_cv_regenerate_once`)
 
 **Verification:**
-- [ ] `uv run pytest tests/test_fitcv_cp/`
+- [x] `uv run pytest tests/test_fitcv_cp/`
 
 **Exit Criteria:**
 - worker JSON behavior consistent and test-enforced.
@@ -106,12 +106,12 @@ Refactor `src/fitcv_cp/worker_job.py` artifact snapshot/persistence flows to use
 - Task 1 complete
 
 **Steps:**
-- [ ] Add missing schema constants (ex: settings used).
-- [ ] Replace worker literals with constants.
-- [ ] Add tests asserting schema-version key/value.
+- [x] Add missing schema constants (ex: settings used). (`SETTINGS_USED_SCHEMA_VERSION`)
+- [x] Replace worker literals with constants.
+- [x] Add tests asserting schema-version key/value. (existing `test_worker_persists_settings_used_json_on_success`)
 
 **Verification:**
-- [ ] `uv run pytest tests/test_fitcv_cp/`
+- [x] `uv run pytest tests/test_fitcv_cp/`
 
 **Exit Criteria:**
 - no in-scope schema literals remain.
@@ -129,13 +129,13 @@ Refactor `src/fitcv_cp/worker_job.py` artifact snapshot/persistence flows to use
 - Task 1 complete
 
 **Steps:**
-- [ ] Introduce single parse path and reuse parsed dict for:
+- [x] Introduce single parse path and reuse parsed dict for:
   - skill_synonyms derivation
   - synonym mode resolution
-- [ ] Add tests for invalid/missing JSON and explicit opt-in/out.
+- [x] Add tests for invalid/missing JSON and explicit opt-in/out. (added invalid JSON default test)
 
 **Verification:**
-- [ ] `uv run pytest tests/test_fitcv_cp/`
+- [x] `uv run pytest tests/test_fitcv_cp/`
 
 **Exit Criteria:**
 - single parse path enforced, behavior preserved.
@@ -153,11 +153,11 @@ Refactor `src/fitcv_cp/worker_job.py` artifact snapshot/persistence flows to use
 - Task 1 complete
 
 **Steps:**
-- [ ] Convert SHA1 fingerprint to SHA256 with stable canonicalization helper.
-- [ ] Add test proving dedupe prevents duplicate event emission.
+- [x] Convert SHA1 fingerprint to SHA256 with stable canonicalization helper.
+- [x] Add test proving dedupe prevents duplicate event emission.
 
 **Verification:**
-- [ ] `uv run pytest tests/test_fitcv_cp/`
+- [x] `uv run pytest tests/test_fitcv_cp/`
 
 **Exit Criteria:**
 - dedupe invariant enforced by tests.
@@ -175,15 +175,15 @@ Refactor `src/fitcv_cp/worker_job.py` artifact snapshot/persistence flows to use
 - Tasks 1–2 complete
 
 **Steps:**
-- [ ] Extract dict builders for high-risk artifacts:
+- [x] Extract dict builders for high-risk artifacts:
   - settings used
   - stage transition artifacts
   - synonym proposals (worker snapshot)
-- [ ] Route encoding via SSOT encode helper.
-- [ ] Add dict-shape tests (required keys/types).
+- [x] Route encoding via SSOT encode helper.
+- [x] Add dict-shape tests (required keys/types).
 
 **Verification:**
-- [ ] `uv run pytest tests/test_fitcv_cp/`
+- [x] `uv run pytest tests/test_fitcv_cp/`
 
 **Exit Criteria:**
 - consistent builder shape for in-scope artifacts.
@@ -201,11 +201,11 @@ Refactor `src/fitcv_cp/worker_job.py` artifact snapshot/persistence flows to use
 - Tasks 1–5 complete
 
 **Steps:**
-- [ ] Audit callers via GitNexus + `rg`.
-- [ ] Remove shim if no external callers; otherwise convert to explicit compat with deprecation note + test pin.
+- [x] Audit callers via GitNexus + `rg`.
+- [x] Remove shim if no external callers; otherwise convert to explicit compat with deprecation note + test pin.
 
 **Verification:**
-- [ ] `uv run pytest tests/test_fitcv_cp/`
+- [x] `uv run pytest tests/test_fitcv_cp/`
 
 **Exit Criteria:**
 - compat surface handled with explicit audit evidence.

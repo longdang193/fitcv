@@ -37,6 +37,7 @@ from fitcv.reuse import build_reuse_decision, resolve_reuse_stage_policy
 from fitcv.contracts import (
     MAPPING_SUGGESTIONS_SCHEMA_VERSION,
     STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION,
+    SETTINGS_USED_SCHEMA_VERSION,
 )
 from fitcv.pipeline import PipelineCancelled, run_pipeline
 from fitcv.telemetry import (
@@ -72,11 +73,16 @@ from fitcv_cp.synonym_proposals import (
 )
 from fitcv_cp.review_identity import ensure_review_item_id, is_review_resolution_pending
 from fitcv_cp.run_artifact_contracts import (
+    encode_json_object,
     iso_or_none,
+    decode_json_object_or_none,
+    decode_json_object_or_raise,
     json_safe,
     normalized_run_mode,
     replay_context_payload,
     run_mode_label,
+    stable_json_dumps,
+    stable_sha256_fingerprint,
     string_or_none,
 )
 from fitcv_cp.review_identity import ensure_review_item_id
@@ -237,9 +243,7 @@ def execute_cv_regenerate_once(
         raw_payload = str(getattr(run, "cv_generation_debug_json", "") or "").strip()
         if not raw_payload:
             raise ValueError("missing_cv_generation_debug")
-        payload = json.loads(raw_payload)
-        if not isinstance(payload, dict):
-            raise ValueError("invalid_cv_generation_debug")
+        payload = decode_json_object_or_raise(raw_payload)
         records_key = "debug_records" if isinstance(payload.get("debug_records"), list) else "cv_generation_debug_records"
         records = payload.get(records_key)
         if not isinstance(records, list):
@@ -743,21 +747,21 @@ def _build_cv_generation_debug_payload(
     return json.dumps(payload, ensure_ascii=False)
 
 
-def _build_stage_transition_artifacts_payload(
+def _build_stage_transition_artifacts_payload_dict(
     *,
     run_id: str,
     summary: dict[str, Any],
     finished_at: datetime.datetime,
     run_status: RunStatus = RunStatus.SUCCEEDED,
     degradation_reason: str | None = None,
-) -> str:
+) -> dict[str, Any]:
     stage_artifacts = dict(summary.get("stage_transition_artifacts") or {})
     snapshot_complete = bool(stage_artifacts) and run_status == RunStatus.SUCCEEDED
     resolved_reason = (
         str(degradation_reason or "").strip()
         or ("partial_snapshot_non_terminal_success" if run_status != RunStatus.SUCCEEDED else "")
     )
-    payload = {
+    return {
         "run_id": run_id,
         "status": run_status.value,
         "artifact_schema_version": STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION,
@@ -766,7 +770,24 @@ def _build_stage_transition_artifacts_payload(
         "degradation_reason": resolved_reason,
         "artifacts": stage_artifacts,
     }
-    return json.dumps(payload, ensure_ascii=False)
+
+def _build_stage_transition_artifacts_payload(
+    *,
+    run_id: str,
+    summary: dict[str, Any],
+    finished_at: datetime.datetime,
+    run_status: RunStatus = RunStatus.SUCCEEDED,
+    degradation_reason: str | None = None,
+) -> str:
+    return encode_json_object(
+        _build_stage_transition_artifacts_payload_dict(
+            run_id=run_id,
+            summary=summary,
+            finished_at=finished_at,
+            run_status=run_status,
+            degradation_reason=degradation_reason,
+        )
+    )
 
 
 def _build_manual_checkpoint_payload(
@@ -789,7 +810,7 @@ def _build_manual_checkpoint_payload(
     return json.dumps(payload, ensure_ascii=False)
 
 
-def _build_settings_used_payload(
+def _build_settings_used_payload_dict(
     *,
     run_id: str,
     run_record: Any,
@@ -797,7 +818,7 @@ def _build_settings_used_payload(
     config_path: str,
     finished_at: datetime.datetime,
     replay_context: dict[str, Any],
-) -> str:
+) -> dict[str, Any]:
     effective_settings = dict(effective_config or {})
 
     def _materialize_stage_runtime_snapshot(settings: dict[str, Any]) -> None:
@@ -855,7 +876,7 @@ def _build_settings_used_payload(
         compatibility_projection.pop("service_account_key", None)
     payload = {
         "run_id": run_id,
-        "settings_schema_version": "settings_used_v2",
+        "settings_schema_version": SETTINGS_USED_SCHEMA_VERSION,
         "created_at": finished_at.isoformat(),
         "late_stage_mode": _build_late_stage_mode_payload(
             summary={},
@@ -889,7 +910,27 @@ def _build_settings_used_payload(
         payload["data_plane"] = data_plane
     if compatibility_projection:
         payload["compatibility_projection"] = compatibility_projection
-    return json.dumps(payload, ensure_ascii=False)
+    return payload
+
+def _build_settings_used_payload(
+    *,
+    run_id: str,
+    run_record: Any,
+    effective_config: dict[str, Any] | None,
+    config_path: str,
+    finished_at: datetime.datetime,
+    replay_context: dict[str, Any],
+) -> str:
+    return encode_json_object(
+        _build_settings_used_payload_dict(
+            run_id=run_id,
+            run_record=run_record,
+            effective_config=effective_config,
+            config_path=config_path,
+            finished_at=finished_at,
+            replay_context=replay_context,
+        )
+    )
 
 
 def _build_mapping_suggestions_payload(
@@ -908,34 +949,9 @@ def _build_mapping_suggestions_payload(
 
 
 
-def _build_synonym_proposals_payload(
-    *,
-    run_id: str,
-    summary: dict[str, Any],
-    created_at: datetime.datetime,
-    existing_payload_json: str | None = None,
-    global_synonyms: dict[str, str] | None = None,
-) -> str:
-    # Deprecated compatibility shim for test/import callers.
-    # Runtime should call fitcv_cp.synonym_proposals.build_synonym_proposals_payload directly.
-    return build_synonym_proposals_payload(
-        run_id=run_id,
-        summary=summary,
-        created_at=created_at,
-        existing_payload_json=existing_payload_json,
-        global_synonyms=global_synonyms,
-    )
 def _effective_skill_synonyms_from_run_record(run_record: Any) -> dict[str, str]:
-    if run_record is None:
-        return {}
-    raw_payload = getattr(run_record, "effective_settings_json", None)
-    if not raw_payload:
-        return {}
-    try:
-        settings_payload = json.loads(raw_payload)
-    except (TypeError, json.JSONDecodeError):
-        return {}
-    if not isinstance(settings_payload, dict):
+    settings_payload = _effective_settings_payload_from_run_record(run_record)
+    if not settings_payload:
         return {}
     raw_synonyms = settings_payload.get("skill_synonyms")
     if not isinstance(raw_synonyms, dict):
@@ -946,6 +962,15 @@ def _effective_skill_synonyms_from_run_record(run_record: Any) -> dict[str, str]
         if str(alias).strip() and str(canonical).strip()
     }
 
+
+def _effective_settings_payload_from_run_record(run_record: Any) -> dict[str, Any] | None:
+    if run_record is None:
+        return None
+    raw_payload = getattr(run_record, "effective_settings_json", None)
+    if not raw_payload:
+        return None
+    return decode_json_object_or_none(str(raw_payload))
+
 def _synonym_propose_enabled_from_run_record(run_record: Any) -> bool:
     return bool(_synonym_management_mode_from_run_record(run_record).get("propose_enabled", True))
 
@@ -954,18 +979,7 @@ def _auto_accept_ai_action_enabled_from_run_record(run_record: Any) -> bool:
     return bool(_synonym_management_mode_from_run_record(run_record).get("auto_accept_ai_action_enabled", True))
 
 def _synonym_management_mode_from_run_record(run_record: Any) -> dict[str, bool]:
-    if run_record is None:
-        settings_payload: dict[str, Any] | None = None
-    else:
-        raw_payload = getattr(run_record, "effective_settings_json", None)
-        if not raw_payload:
-            settings_payload = None
-        else:
-            try:
-                parsed = json.loads(raw_payload)
-            except (TypeError, json.JSONDecodeError):
-                parsed = None
-            settings_payload = parsed if isinstance(parsed, dict) else None
+    settings_payload = _effective_settings_payload_from_run_record(run_record)
     # Keep worker policy flags fully sourced from shared synonym policy resolver.
     return resolve_synonym_management_mode(settings_payload)
 
@@ -1124,11 +1138,8 @@ def _append_synonym_suppression_summary_event(
     project: str,
     dataset: str,
 ) -> None:
-    try:
-        payload = json.loads(synonym_payload_json)
-    except (TypeError, json.JSONDecodeError):
-        return
-    if not isinstance(payload, dict):
+    payload = decode_json_object_or_none(synonym_payload_json)
+    if not payload:
         return
     trace_payload = payload.get("synonym_proposals_trace")
     if not isinstance(trace_payload, dict):
@@ -1145,7 +1156,8 @@ def _append_synonym_suppression_summary_event(
         "suppression_source": str(trace_summary.get("suppression_source") or "none"),
         "suppression_examples": list(trace_payload.get("suppression_examples") or []),
     }
-    suppression_fingerprint = hashlib.sha1(
+    suppression_fingerprint_sha256 = stable_sha256_fingerprint(suppression_payload)
+    suppression_fingerprint_sha1 = hashlib.sha1(
         json.dumps(suppression_payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
     ).hexdigest()
     try:
@@ -1155,11 +1167,11 @@ def _append_synonym_suppression_summary_event(
     for prior in reversed(prior_events):
         if str(getattr(prior, "stage", "") or "") != "synonym_proposal_suppression_summary":
             continue
-        try:
-            prior_payload = json.loads(str(getattr(prior, "payload_json", "") or "{}"))
-        except (TypeError, json.JSONDecodeError):
-            prior_payload = {}
-        if str(prior_payload.get("suppression_fingerprint") or "") == suppression_fingerprint:
+        prior_payload = decode_json_object_or_none(str(getattr(prior, "payload_json", "") or "")) or {}
+        prior_fingerprint = str(prior_payload.get("suppression_fingerprint") or "").strip()
+        if not prior_fingerprint:
+            break
+        if prior_fingerprint in {suppression_fingerprint_sha256, suppression_fingerprint_sha1}:
             return
         break
     append_event(
@@ -1174,7 +1186,12 @@ def _append_synonym_suppression_summary_event(
             ),
             created_at=datetime.datetime.now(datetime.timezone.utc),
             payload_json=json.dumps(
-                {**suppression_payload, "suppression_fingerprint": suppression_fingerprint},
+                {
+                    **suppression_payload,
+                    "suppression_fingerprint": suppression_fingerprint_sha256,
+                    "suppression_fingerprint_legacy_sha1": suppression_fingerprint_sha1,
+                    "suppression_payload_canonical_json": stable_json_dumps(suppression_payload),
+                },
                 ensure_ascii=False,
             ),
         ),
@@ -1678,18 +1695,17 @@ def _persist_synonym_proposals_snapshot(
         existing_payload_json=existing_payload_json,
         global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
     )
-    synonym_payload = json.loads(synonym_payload_json)
-    if isinstance(synonym_payload, dict):
-        _run_synonym_automation_for_payload(
-            run_id=run_id,
-            run_record=run_record,
-            payload=synonym_payload,
-            run_status=run_status,
-            bq=bq,
-            project=project,
-            dataset=dataset,
-        )
-        synonym_payload_json = json.dumps(synonym_payload, ensure_ascii=False)
+    synonym_payload = decode_json_object_or_raise(synonym_payload_json)
+    _run_synonym_automation_for_payload(
+        run_id=run_id,
+        run_record=run_record,
+        payload=synonym_payload,
+        run_status=run_status,
+        bq=bq,
+        project=project,
+        dataset=dataset,
+    )
+    synonym_payload_json = encode_json_object(synonym_payload)
 
     synonym_status = update_run_synonym_proposals(
         run_id,

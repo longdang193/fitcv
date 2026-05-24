@@ -29,6 +29,7 @@ STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION = "stage_transition_artifacts_run_
 STAGE_TRANSITION_ARTIFACTS_STAGE_SCHEMA_VERSION = "stage_transition_artifacts_stage_v1"
 MAPPING_SUGGESTIONS_SCHEMA_VERSION = "mapping_suggestions_v1"
 MAPPING_SUGGESTIONS_AGGREGATE_SCHEMA_VERSION = "mapping_suggestions_aggregate_v1"
+SETTINGS_USED_SCHEMA_VERSION = "settings_used_v2"
 SYNONYM_PROPOSALS_SCHEMA_VERSION = "synonym_proposals_v1"
 SYNONYM_PROPOSALS_QUEUE_SCHEMA_VERSION = "synonym_proposals_queue_v1"
 
