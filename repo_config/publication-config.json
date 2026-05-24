@@ -8,6 +8,7 @@
     "assets",
     "config",
     "data/candidate_profile.template.yaml",
+    "data/candidate_profile.yaml",
     "data/sample_data_engineer_jobs.json",
     "data/sample_jobs.json",
     "data/images",
@@ -22,6 +23,7 @@
     "docs/setup.md",
     "docs/usage.md",
     "docs/observability.md",
+    "docs/job-data-input.md",
     "requirements.txt",
     "scripts/backfill_live_run_artifacts.py",
     "scripts/bootstrap_bigquery.py",
@@ -74,6 +76,7 @@
     "docs/component_boundaries.md",
     "docs/configuration.md",
     "docs/observability.md",
+    "docs/job-data-input.md",
     "src"
   ],
   "allowedGeneratedPaths": [],
@@ -83,8 +86,7 @@
     "docs/stages"
   ],
   "forbiddenMetadataMarkers": [
-    "repo: private",
-    "distribution_tier: starter_kit"
+    "repo: private"
   ],
   "forbiddenFilenameMarkers": [
     ".private.",
