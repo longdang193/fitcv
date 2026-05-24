@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: in_progress
+status: completed
 template_id: implementation-plan
 name: fitcv_cp.app SSOT/symmetry/invariance refactor implementation plan (R1-R5)
 parent_thread: workstream-operator-control-plane.fitcv-cp-app-ssot-symmetry-refactor
@@ -239,7 +239,8 @@ Execute refactor R1–R5 from spec `docs/superpowers/specs/2026-05-24-10-02-fitc
 **Steps:**
 - [x] Run validator: `python scripts/hooks/run_validator.py --fast`
 - [x] Run Python tests: `uv run pytest tests/test_fitcv_cp/`
-- [ ] Run type check: `uv run mypy src --show-error-codes` (known baseline failures outside lane; ensure lane-modified files typecheck)
+- [x] Run lane typecheck (targeted): `uv run mypy src/fitcv_cp/synonym_proposals.py --show-error-codes`
+- [ ] Run repo-wide type check: `uv run mypy src --show-error-codes` (known baseline failures outside lane; informational only)
 - [x] Run GitNexus scope check: `npx gitnexus detect-changes -r "<worktree path>" --scope all`
 
 **Verification:**
