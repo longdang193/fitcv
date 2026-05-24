@@ -22,6 +22,16 @@ run artifacts, stage-owned truth, and admin UI surfaces.
 - Generate CV outputs with validation/repair safeguards
 - Persist artifacts so operator can inspect what happened
 
+## Job Data Input (LinkedIn via Apify)
+
+Primary upstream source: scraped LinkedIn job posts produced by Apify actor
+`bebity/linkedin-jobs-scraper`.
+
+FitCV ingestion expects a JSON file containing a top-level array of job objects
+(the actor’s output shape) and loads it via `jobs_path` when triggering a run.
+
+Single source of truth: [docs/job-data-input.md](docs/job-data-input.md).
+
 Stage order:
 
 `normalize → enrich → rule_filter → shortlist → ranking → cv_analysis → cv_generation`

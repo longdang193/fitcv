@@ -20,6 +20,8 @@ Stage order:
 
 This page is a cross-cutting summary of runtime behavior and ownership.
 
+Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
+
 ## Stage Responsibilities
 
 - `normalize`: canonicalize incoming jobs
