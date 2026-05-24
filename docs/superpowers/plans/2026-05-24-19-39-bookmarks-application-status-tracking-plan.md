@@ -1,10 +1,10 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: bookmarks-application-status-tracking
-parent_thread: workstream-operator-control-plane.operator-control-plane-run-detail-truth
+parent_thread: workstream-operator-control-plane.operator-control-plane-settings-surface-alignment
 parent_spec: docs/superpowers/specs/2026-05-24-19-37-bookmarks-application-status-tracking-spec.md
 targets:
   - src/fitcv_cp/settings_store.py
@@ -50,8 +50,8 @@ Tests prove status endpoint wiring, tab/filter rendering, and that legacy delete
 - migration must be additive (no destructive table rewrite)
 
 **Steps:**
-- [ ] Step 1: define canonical status vocabulary: `active`, `submitted`, `archived`
-- [ ] Step 2: update `_ensure_local_bookmarked_jobs_table()` to:
+- [x] Step 1: define canonical status vocabulary: `active`, `submitted`, `archived`
+- [x] Step 2: update `_ensure_local_bookmarked_jobs_table()` to:
   - create table if missing (current behavior)
   - detect missing columns via `PRAGMA table_info(bookmarked_jobs)`
   - `ALTER TABLE ... ADD COLUMN` for missing:
@@ -59,11 +59,11 @@ Tests prove status endpoint wiring, tab/filter rendering, and that legacy delete
     - `submitted_at TEXT`
     - `archived_at TEXT`
     - optional: `status_updated_at TEXT` (only if plan wants it; keep minimal)
-- [ ] Step 3: update `list_bookmarked_jobs()` to SELECT status columns and return `status` in dict result (default to `active` when column absent or NULL)
-- [ ] Step 4: update `upsert_bookmarked_job()` to preserve existing status on conflict (do not overwrite to `active` on re-save)
+- [x] Step 3: update `list_bookmarked_jobs()` to SELECT status columns and return `status` in dict result (default to `active` when column absent or NULL)
+- [x] Step 4: update `upsert_bookmarked_job()` to preserve existing status on conflict (do not overwrite to `active` on re-save)
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "admin_bookmarks"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "admin_bookmarks"`
 
 **Exit Criteria:**
 - existing sqlite file can open and table upgraded in-place
@@ -82,16 +82,16 @@ Tests prove status endpoint wiring, tab/filter rendering, and that legacy delete
 - Task 1 complete
 
 **Steps:**
-- [ ] Step 1: add `set_bookmarked_job_status(bookmark_key: str, status: str, *, at: str | None = None) -> bool`
-- [ ] Step 2: validate `status` in allowed set; reject invalid with ValueError
-- [ ] Step 3: update row by `bookmark_key`; set:
+- [x] Step 1: add `set_bookmarked_job_status(bookmark_key: str, status: str, *, at: str | None = None) -> bool`
+- [x] Step 2: validate `status` in allowed set; reject invalid with ValueError
+- [x] Step 3: update row by `bookmark_key`; set:
   - `status = ?`
   - `submitted_at` when status becomes `submitted` (and clear when leaving submitted, if desired)
   - `archived_at` when status becomes `archived` (and clear when leaving archived, if desired)
-- [ ] Step 4: return bool whether row updated (rowcount > 0)
+- [x] Step 4: return bool whether row updated (rowcount > 0)
 
 **Verification:**
-- [ ] unit-style test via patching in route tests (Task 4) OR direct sqlite fixture if existing suite already uses local sqlite
+- [x] unit-style test via patching in route tests (Task 3)
 
 **Exit Criteria:**
 - store exposes one stable API for status updates and future extension
@@ -111,16 +111,16 @@ Tests prove status endpoint wiring, tab/filter rendering, and that legacy delete
 - `_safe_admin_redirect_target` helper exists and used by delete route
 
 **Steps:**
-- [ ] Step 1: add `@app.post("/admin/bookmarks/status")` handler
-- [ ] Step 2: parse form fields:
+- [x] Step 1: add `@app.post("/admin/bookmarks/status")` handler
+- [x] Step 2: parse form fields:
   - `bookmark_key` (required)
   - `status` (required)
   - `redirect_to` (optional; default `/admin/bookmarks`)
-- [ ] Step 3: call `set_bookmarked_job_status(bookmark_key, status)`
-- [ ] Step 4: redirect 303 to safe `redirect_to`
+- [x] Step 3: call `set_bookmarked_job_status(bookmark_key, status)`
+- [x] Step 4: redirect 303 to safe `redirect_to`
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "bookmarks and status"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "admin_bookmarks_status_flow"`
 
 **Exit Criteria:**
 - endpoint updates status and returns stable redirect
@@ -139,18 +139,18 @@ Tests prove status endpoint wiring, tab/filter rendering, and that legacy delete
 - Task 1 complete (bookmark items include status)
 
 **Steps:**
-- [ ] Step 1: extend `GET /admin/bookmarks` to accept `view` query param:
+- [x] Step 1: extend `GET /admin/bookmarks` to accept `view` query param:
   - `all` (default)
   - `submitted`
   - `archived`
-- [ ] Step 2: build view-model:
+- [x] Step 2: build view-model:
   - for `all`: split list into `active_items`, `submitted_items`, optionally `archived_items`
   - for other views: return one list only
-- [ ] Step 3: keep existing row fields (`job_primary_label`, `saved_at_display`, etc.) for each item, independent of status
-- [ ] Step 4: pass `view` into template context for `aria-pressed` on tabs
+- [x] Step 3: keep existing row fields (`job_primary_label`, `saved_at_display`, etc.) for each item, independent of status
+- [x] Step 4: pass `view` into template context for `aria-pressed` on tabs
 
 **Verification:**
-- [ ] add/extend tests to assert:
+- [x] add/extend tests to assert:
   - tabs rendered with correct `aria-pressed`
   - `view=submitted` response does not include active-only action label if excluded
   - `all` view shows section headings and correct row placement markers
@@ -173,22 +173,22 @@ Tests prove status endpoint wiring, tab/filter rendering, and that legacy delete
 - Task 4 complete (template has access to status + view)
 
 **Steps:**
-- [ ] Step 1: add top-of-page filter buttons modeled after `src/fitcv_cp/templates/runs_list.html`:
+- [x] Step 1: add top-of-page filter buttons modeled after `src/fitcv_cp/templates/runs_list.html`:
   - `/admin/bookmarks?view=all`
   - `/admin/bookmarks?view=submitted`
   - `/admin/bookmarks?view=archived`
-- [ ] Step 2: in row action cluster add forms posting to `/admin/bookmarks/status`:
+- [x] Step 2: in row action cluster add forms posting to `/admin/bookmarks/status`:
   - when `active`: button `✓ Submitted` sets `status=submitted`; button `Archive` sets `status=archived`
   - when `submitted`: button `Undo Submitted` sets `status=active`; button `Archive` sets `status=archived`
   - when `archived`: button `Restore` sets `status=active`
   - always keep existing `★ Remove` form
-- [ ] Step 3: add small status badge near fit badge:
+- [x] Step 3: add small status badge near fit badge:
   - submitted -> `Submitted`
   - archived -> `Archived`
-- [ ] Step 4: ensure action buttons keep wrapping behavior (existing flex-wrap)
+- [x] Step 4: ensure action buttons keep wrapping behavior (existing flex-wrap)
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "admin_bookmarks"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "admin_bookmarks"`
 
 **Exit Criteria:**
 - user can quickly see “needs action vs submitted vs archived” and act in 1 click
@@ -208,12 +208,12 @@ Tests prove status endpoint wiring, tab/filter rendering, and that legacy delete
 - Tasks 1-5 complete
 
 **Steps:**
-- [ ] Step 1: run targeted tests for bookmarks
-- [ ] Step 2: run fast validator hook
+- [x] Step 1: run targeted tests for bookmarks
+- [x] Step 2: run fast validator hook
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "admin_bookmarks or bookmark"`
-- [ ] `python scripts/hooks/run_validator.py --fast`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "admin_bookmarks or bookmark"`
+- [x] `python scripts/hooks/run_validator.py --fast`
 
 **Exit Criteria:**
 - tests green for touched surface; repo fast validator passes

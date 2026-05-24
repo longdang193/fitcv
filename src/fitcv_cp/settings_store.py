@@ -62,10 +62,27 @@ def _ensure_local_bookmarked_jobs_table(conn: sqlite3.Connection) -> None:
             source_run_id TEXT,
             source TEXT,
             snapshot_json TEXT NOT NULL,
-            saved_at TEXT NOT NULL
+            saved_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            submitted_at TEXT,
+            archived_at TEXT
         )
         """
     )
+    existing_columns = {
+        str(row[1])
+        for row in conn.execute("PRAGMA table_info(bookmarked_jobs)").fetchall()
+        if row and len(row) > 1
+    }
+    missing_columns = {
+        "status": "ALTER TABLE bookmarked_jobs ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
+        "submitted_at": "ALTER TABLE bookmarked_jobs ADD COLUMN submitted_at TEXT",
+        "archived_at": "ALTER TABLE bookmarked_jobs ADD COLUMN archived_at TEXT",
+    }
+    for column_name, ddl in missing_columns.items():
+        if column_name in existing_columns:
+            continue
+        conn.execute(ddl)
 
 def _is_recoverable_sqlite_error(exc: sqlite3.Error) -> bool:
     message = str(exc).lower()
@@ -254,8 +271,11 @@ def upsert_bookmarked_job(
                 source_run_id,
                 source,
                 snapshot_json,
-                saved_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                saved_at,
+                status,
+                submitted_at,
+                archived_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(bookmark_key) DO UPDATE SET
                 job_id=excluded.job_id,
                 title=excluded.title,
@@ -280,6 +300,9 @@ def upsert_bookmarked_job(
                 str(source).strip() if source else None,
                 json.dumps(snapshot_payload),
                 timestamp,
+                "active",
+                None,
+                None,
             ),
         )
         conn.commit()
@@ -295,6 +318,52 @@ def delete_bookmarked_job(bookmark_key: str) -> bool:
         cursor = conn.execute(
             "DELETE FROM bookmarked_jobs WHERE bookmark_key = ?",
             (str(bookmark_key).strip(),),
+        )
+        conn.commit()
+        return int(cursor.rowcount or 0) > 0
+
+
+def set_bookmarked_job_status(
+    bookmark_key: str,
+    status: str,
+    *,
+    at: str | None = None,
+) -> bool:
+    normalized_key = str(bookmark_key).strip()
+    normalized_status = str(status).strip().lower()
+    allowed = {"active", "submitted", "archived"}
+    if normalized_status not in allowed:
+        raise ValueError(f"Unsupported bookmark status: {normalized_status}")
+
+    db_path = _local_sqlite_path()
+    if not db_path.exists():
+        return False
+
+    timestamp = at or datetime.datetime.now(datetime.timezone.utc).isoformat()
+    submitted_at: str | None = None
+    archived_at: str | None = None
+    if normalized_status == "submitted":
+        submitted_at = timestamp
+    elif normalized_status == "archived":
+        archived_at = timestamp
+
+    with sqlite3.connect(db_path, timeout=30) as conn:
+        _ensure_local_bookmarked_jobs_table(conn)
+        cursor = conn.execute(
+            """
+            UPDATE bookmarked_jobs
+            SET
+                status = ?,
+                submitted_at = ?,
+                archived_at = ?
+            WHERE bookmark_key = ?
+            """,
+            (
+                normalized_status,
+                submitted_at,
+                archived_at,
+                normalized_key,
+            ),
         )
         conn.commit()
         return int(cursor.rowcount or 0) > 0
@@ -320,7 +389,10 @@ def list_bookmarked_jobs() -> list[dict[str, Any]]:
                 source_run_id,
                 source,
                 snapshot_json,
-                saved_at
+                saved_at,
+                status,
+                submitted_at,
+                archived_at
             FROM bookmarked_jobs
             ORDER BY saved_at DESC, bookmark_key ASC
             """
@@ -348,6 +420,11 @@ def list_bookmarked_jobs() -> list[dict[str, Any]]:
                 "source_run_id": str(row["source_run_id"]) if row["source_run_id"] is not None else None,
                 "source": str(row["source"]) if row["source"] is not None else None,
                 "saved_at": str(row["saved_at"]),
+                "status": str(row["status"]) if row["status"] is not None else "active",
+                "submitted_at": (
+                    str(row["submitted_at"]) if row["submitted_at"] is not None else None
+                ),
+                "archived_at": str(row["archived_at"]) if row["archived_at"] is not None else None,
                 "snapshot": snapshot,
             }
         )

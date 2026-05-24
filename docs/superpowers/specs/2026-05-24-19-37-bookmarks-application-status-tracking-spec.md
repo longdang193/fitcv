@@ -1,10 +1,10 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: completed
 template_id: detailed-specification
 name: bookmarks-application-status-tracking
-parent_workstream: none
+parent_thread: workstream-operator-control-plane.operator-control-plane-settings-surface-alignment
 targets:
   - src/fitcv_cp/templates/bookmarks.html
   - src/fitcv_cp/app.py

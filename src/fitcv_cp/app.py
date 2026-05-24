@@ -111,6 +111,7 @@ from fitcv_cp.settings_store import (
     is_job_bookmarked,
     list_bookmarked_jobs,
     load_active_settings,
+    set_bookmarked_job_status,
     save_setting,
     save_settings_group,
     upsert_bookmarked_job,
@@ -8636,6 +8637,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
     @app.get("/admin/bookmarks", response_class=HTMLResponse)
     def admin_bookmarks(request: Request) -> HTMLResponse:
+        view = str(request.query_params.get("view") or "all").strip().lower()
+        allowed_views = {"all", "submitted", "archived"}
+        if view not in allowed_views:
+            view = "all"
+
         bookmarks = list_bookmarked_jobs()
         bookmarks_view: list[dict[str, Any]] = []
         for item in bookmarks:
@@ -8643,21 +8649,40 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             fit_classification = str(row.get("fit_classification") or "").strip()
             snapshot = dict(row.get("snapshot") or {})
             version_id = str(snapshot.get("version_id") or "").strip() or None
+            status = str(row.get("status") or "active").strip().lower()
+            if status not in {"active", "submitted", "archived"}:
+                status = "active"
             row["saved_at_display"] = _format_compact_utc_timestamp(row.get("saved_at")) or "—"
             row["fit_classification_display"] = fit_classification.lower() if fit_classification else None
             row["fit_classification_badge_class"] = _fit_classification_badge_class(fit_classification)
             row["version_id"] = version_id
+            row["status"] = status
             row["job_primary_label"] = _build_job_primary_label(
                 title=str(row.get("title") or "").strip() or "View Job",
                 company=str(row.get("company") or "").strip() or None,
                 location=str(row.get("location") or "").strip() or None,
             )
             bookmarks_view.append(row)
+
+        active_bookmarks = [row for row in bookmarks_view if row.get("status") == "active"]
+        submitted_bookmarks = [row for row in bookmarks_view if row.get("status") == "submitted"]
+        archived_bookmarks = [row for row in bookmarks_view if row.get("status") == "archived"]
+
+        if view == "submitted":
+            visible_bookmarks = submitted_bookmarks
+        elif view == "archived":
+            visible_bookmarks = archived_bookmarks
+        else:
+            visible_bookmarks = bookmarks_view
         return templates.TemplateResponse(
             request=request,
             name="bookmarks.html",
             context={
-                "bookmarks": bookmarks_view,
+                "view": view,
+                "bookmarks": visible_bookmarks,
+                "active_bookmarks": active_bookmarks,
+                "submitted_bookmarks": submitted_bookmarks,
+                "archived_bookmarks": archived_bookmarks,
             },
         )
 
@@ -8668,6 +8693,24 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if not bookmark_key:
             raise HTTPException(status_code=422, detail="bookmark_key is required")
         delete_bookmarked_job(bookmark_key)
+        redirect_to = _safe_admin_redirect_target(
+            str(form.get("redirect_to") or ""),
+            fallback="/admin/bookmarks",
+        )
+        return RedirectResponse(url=redirect_to, status_code=303)
+
+    @app.post("/admin/bookmarks/status")
+    async def admin_bookmarks_status(request: Request) -> Response:
+        form = await request.form()
+        bookmark_key = str(form.get("bookmark_key") or "").strip()
+        status = str(form.get("status") or "").strip()
+        if not bookmark_key:
+            raise HTTPException(status_code=422, detail="bookmark_key is required")
+        if not status:
+            raise HTTPException(status_code=422, detail="status is required")
+        updated = set_bookmarked_job_status(bookmark_key, status)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Bookmark not found")
         redirect_to = _safe_admin_redirect_target(
             str(form.get("redirect_to") or ""),
             fallback="/admin/bookmarks",

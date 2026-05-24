@@ -11530,6 +11530,9 @@ def test_admin_bookmarks_page_and_delete_flow():
         page_resp = TestClient(_app()).get("/admin/bookmarks")
     assert page_resp.status_code == 200
     assert "Bookmarked Jobs" in page_resp.text
+    assert 'href="/admin/bookmarks?view=all"' in page_resp.text
+    assert 'href="/admin/bookmarks?view=submitted"' in page_resp.text
+    assert 'href="/admin/bookmarks?view=archived"' in page_resp.text
     assert "Role 1 (Acme, Remote)" in page_resp.text
     assert "20.05.2026 18:00 CEST" in page_resp.text
     assert 'class="badge badge-info">stretch<' in page_resp.text
@@ -11545,6 +11548,68 @@ def test_admin_bookmarks_page_and_delete_flow():
     assert delete_resp.status_code == 303
     assert delete_resp.headers["location"] == "/admin/bookmarks"
     delete_mock.assert_called_once_with("url:https://jobs.example.com/1")
+
+
+def test_admin_bookmarks_status_flow():
+    with patch("fitcv_cp.app.set_bookmarked_job_status", return_value=True) as status_mock:
+        resp = TestClient(_app()).post(
+            "/admin/bookmarks/status",
+            data={
+                "bookmark_key": "url:https://jobs.example.com/1",
+                "status": "submitted",
+                "redirect_to": "/admin/bookmarks?view=submitted",
+            },
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/admin/bookmarks?view=submitted"
+    status_mock.assert_called_once_with("url:https://jobs.example.com/1", "submitted")
+
+
+def test_admin_bookmarks_view_filtering_and_sections():
+    bookmarks = [
+        {
+            "bookmark_key": "url:https://jobs.example.com/active",
+            "job_id": None,
+            "title": "Active Role",
+            "company": "Acme",
+            "location": "Remote",
+            "url": "https://jobs.example.com/active",
+            "fit_classification": "STRETCH",
+            "source_run_id": None,
+            "source": "pipeline_results",
+            "saved_at": "2026-05-20T16:00:00+00:00",
+            "status": "active",
+            "snapshot": {"version_id": None},
+        },
+        {
+            "bookmark_key": "url:https://jobs.example.com/submitted",
+            "job_id": None,
+            "title": "Submitted Role",
+            "company": "Contoso",
+            "location": "Berlin",
+            "url": "https://jobs.example.com/submitted",
+            "fit_classification": "STRONG",
+            "source_run_id": None,
+            "source": "pipeline_results",
+            "saved_at": "2026-05-20T15:00:00+00:00",
+            "status": "submitted",
+            "snapshot": {"version_id": None},
+        },
+    ]
+    with patch("fitcv_cp.app.list_bookmarked_jobs", return_value=bookmarks):
+        all_resp = TestClient(_app()).get("/admin/bookmarks?view=all")
+        submitted_resp = TestClient(_app()).get("/admin/bookmarks?view=submitted")
+
+    assert all_resp.status_code == 200
+    assert "Needs Action" in all_resp.text
+    assert "Submitted" in all_resp.text
+    assert "Active Role (Acme, Remote)" in all_resp.text
+    assert "Submitted Role (Contoso, Berlin)" in all_resp.text
+
+    assert submitted_resp.status_code == 200
+    assert "Submitted Role (Contoso, Berlin)" in submitted_resp.text
+    assert "Active Role (Acme, Remote)" not in submitted_resp.text
 
 
 
