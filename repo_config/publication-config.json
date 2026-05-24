@@ -80,6 +80,9 @@
     "src"
   ],
   "allowedGeneratedPaths": [],
+  "publicExcludeGlobs": [
+    "config/env.private.yaml"
+  ],
   "scrubPrivateReferencePaths": [
     "README.md",
     "docs/features",
