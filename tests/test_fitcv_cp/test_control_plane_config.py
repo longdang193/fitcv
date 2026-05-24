@@ -24,6 +24,15 @@ def test_load_control_plane_config_defaults_from_runtime_yaml() -> None:
     cfg = load_control_plane_config()
 
     assert cfg["data_backend"]["type"] == "sqlite"
+
+def test_load_control_plane_config_env_override_openai_compatible_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FITCV_CP_OPENAI_COMPATIBLE_BASE_URL", "http://localhost:20128/v1")
+    monkeypatch.setenv("FITCV_CP_OPENAI_COMPATIBLE_WIRE_API", "chat_completions")
+
+    cfg = load_control_plane_config()
+
+    assert cfg["providers"]["openai_compatible"]["base_url"] == "http://localhost:20128/v1"
+    assert cfg["providers"]["openai_compatible"]["wire_api"] == "chat_completions"
     assert "providers" in cfg
     assert "model_routing" in cfg
     assert "parts" in cfg["model_routing"]

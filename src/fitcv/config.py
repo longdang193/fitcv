@@ -87,6 +87,9 @@ _INFRA_ENV_OVERRIDES = {
 }
 _CONTROL_PLANE_ENV_OVERRIDES = {
     "FITCV_CP_DATA_BACKEND": ("data_backend", "type"),
+    # Portability override: local Windows host often needs localhost, while containers may use host.docker.internal.
+    "FITCV_CP_OPENAI_COMPATIBLE_BASE_URL": ("providers", "openai_compatible", "base_url"),
+    "FITCV_CP_OPENAI_COMPATIBLE_WIRE_API": ("providers", "openai_compatible", "wire_api"),
 }
 _CANONICAL_INFRA_KEYS = {
     "location",
