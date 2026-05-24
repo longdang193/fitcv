@@ -18,6 +18,7 @@ dump.rdb
 logs/
 .worktrees/
 data/uploads/
+data/*dataset_linkedin-jobs-scraper*.json
 .worktrees/
 .env
 .env.*
@@ -34,3 +35,6 @@ data/fitcv_cp.sqlite3
 data/fitcv_cp_runtime.sqlite3*
 data/fitcv_cp_settings.sqlite3*
 data/fitcv_cp.sqlite3*
+
+# Live run evidence bundles (local only)
+artifacts/live_run_*/
