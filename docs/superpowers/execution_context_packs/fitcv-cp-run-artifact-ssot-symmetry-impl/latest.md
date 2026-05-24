@@ -3,7 +3,7 @@ name: execution-context-pack
 template_id: execution-context-pack-template
 document_type: execution_context_pack
 lane_id: fitcv-cp-run-artifact-ssot-symmetry-impl
-status: active
+status: completed
 ---
 
 # Execution Context Pack
@@ -41,6 +41,7 @@ status: active
   - Task 6 (normalize worker artifact encoding SSOT)
   - Task 7 (unify fingerprinting SSOT and migration)
   - Task 8 (contract-ize artifact envelope enforcement)
+  - fast-forward merged lane into `main` and pushed `origin/main` at `2d5afce3`
 - **In Progress:**
   - none
 - **Deferred / Dropped:** none
@@ -65,11 +66,10 @@ status: active
   - `npx gitnexus analyze`
   - `.\.venv\Scripts\python.exe -m pytest -q`
 - **Result summary:**
-  - PASSED after adding `parent_thread`, adding bounded change thread, and regenerating planning lineage
-  - `tests\test_fitcv_cp\test_bq_store.py`: 68 passed
-  - `tests\test_fitcv_cp\test_worker_job.py` subset: pass
-  - `tests\test_fitcv_cp\test_run_artifact_contracts.py`: pass (10 passed)
-  - GitNexus freshness: fresh (after `npx gitnexus analyze`)
+  - `scripts/validate_repo_contracts.py --fast`: PASS (post-merge on `main`)
+  - `tests\test_fitcv_cp\test_bq_store.py`: PASS (68 passed)
+  - `tests\test_fitcv_cp\test_worker_job.py` subset: PASS (14 passed, 56 deselected)
+  - `tests\test_fitcv_cp\test_run_artifact_contracts.py`: PASS (10 passed)
 - **Failing checks (if any):**
   - `.\.venv\Scripts\python.exe -m pytest -q` fails (38 failed) due to missing private/runtime artifacts and unrelated baseline expectations (ex: `data/candidate_profile.private.yaml`).
 - **Gaps still unverified:**
@@ -81,10 +81,10 @@ status: active
 
 ## 7) Next Exact Action
 
-- **Action type:** docs sync
-- **Target:** `docs/superpowers/plans/2026-05-24-15-35-fitcv-cp-run-artifact-ssot-plan.md`
-- **Exact command or edit intent:** record verification evidence and document that full-suite pytest requires private/runtime artifacts (blocked in this lane) while targeted unit tests + repo contract validator provide bounded proof for this plan scope.
-- **Why this is next:** plan Verification expects a repo test command; now evidence shows full-suite not eligible in this environment without extra artifacts.
+- **Action type:** close now
+- **Target:** lane `fitcv-cp-run-artifact-ssot-symmetry-impl`
+- **Exact command or edit intent:** no further lane actions; merge + push + bounded verification evidence already landed.
+- **Why this is next:** closure gates satisfied; further edits risk scope drift.
 
 ## 8) Resume Prompt (Copy/Paste)
 
@@ -97,30 +97,7 @@ Read this execution context pack first. Verify its state against listed source f
 - **conversation_id:** none
 - **overview_log:** (not used)
 - **consult_if:** (not used)
-- **notes_from_log (optional, concise):** (none)
-
-### Current-state notes (Task 1, partial)
-
-- `src/fitcv_cp/store.py` drift: `RunStore.update_run_synonym_proposals(...)` returns `dict[str, str]` while other `update_run_*` methods return `None` (symmetry break; impacts BQ-R1).
-- `src/fitcv_cp/worker_job.py` encoding drift: mix of `encode_json_object(...)` and direct `json.dumps(...)` in payload builder paths; needs inventory split:
-  - persisted artifacts (store snapshots) vs
-  - event payloads / telemetry payloads (may remain `json.dumps` if not persisted artifact contract).
-
-### Current-state inventory (Task 1, evidence-first summary)
-
-**Callsites affected by BQ-R1 (update_run_* return contract):**
-- `src/fitcv_cp/worker_job.py`:
-  - treats `update_run_synonym_proposals(...)` return as dict (`synonym_status = ...`)
-  - calls other `update_run_*` as fire-and-forget (`None` return today)
-- `src/fitcv_cp/store.py`:
-  - `RunStore` Protocol encodes signature drift: only `update_run_synonym_proposals(...)` returns dict; other updates return `None`.
-  - `ControlPlaneStore` wrappers currently mirror this drift.
-- `src/fitcv_cp/app.py`:
-  - provides wrapper functions delegating to `RunStore`; will need signature/return alignment when `update_run_*` returns normalized `PersistenceResult`.
-- `src/fitcv_cp/queue.py`:
-  - calls `update_run_status(...)` (will need to accept return if signature changes).
-
-**Worker persisted artifact builders and current encoding:**
+- **notes_from_log (optional, concise):** none
 - `_build_results_export_payload(...)` → `json.dumps(...)` (used for `update_run_results_export`)
 - `_build_cv_generation_debug_payload(...)` → `json.dumps(...)` (used for `update_run_cv_generation_debug`)
 - `_build_stage_transition_artifacts_payload(...)` → `encode_json_object(...)` (used for `update_run_stage_transition_artifacts`)
