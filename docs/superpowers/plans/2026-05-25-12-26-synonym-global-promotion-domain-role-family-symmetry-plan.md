@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: active
+status: completed
 template_id: implementation-plan
 name: synonym-global-promotion-domain-role-family-symmetry
 parent_thread: workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow
@@ -27,6 +27,10 @@ related_stages:
 ## Goal
 
 Implement symmetric, SSOT-correct global promotion for synonym proposals across `skill`, `domain`, and `role_family` fields so promotion always writes to correct canonical policy map(s) and never cross-pollutes SSOT.
+
+## Closure
+
+Status: completed.
 
 ## Key Deliverables
 

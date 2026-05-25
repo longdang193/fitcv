@@ -1,7 +1,7 @@
 ---
 lane_id: synonym-global-promotion-domain-role-family-symmetry-impl
 artifact_type: execution_context_pack
-status: active
+status: completed
 created_at: 2026-05-25
 ---
 
@@ -36,7 +36,8 @@ created_at: 2026-05-25
   - Task 4 promote commit is field-aware (app-side), conflict fields skipped
   - Task 4 worker auto-promote is skill-only (guardrails + test)
   - Task 5 global policy exports added + docs/api.md updated
-  - Task 6 targeted tests + fast validators run
+  - Task 6 tests + validators run
+  - lane merged fast-forward into `main`
 - **In Progress:**
   - none
 - **Deferred / Dropped:**
@@ -53,30 +54,27 @@ created_at: 2026-05-25
 - `tests/test_fitcv_cp/test_synonym_promote_preview_field_aware.py` — preview builder mixed-field test.
 - `tests/test_fitcv_cp/test_synonym_promote_commit_field_aware.py` — commit routes by field, skips conflict fields.
 - `src/fitcv_cp/templates/synonym_promote_preview.html` — field-grouped promote preview UI.
-- `docs/superpowers/plans/2026-05-25-12-26-synonym-global-promotion-domain-role-family-symmetry-plan.md` — tick Task 1–2 checkboxes.
+- `docs/superpowers/plans/2026-05-25-12-26-synonym-global-promotion-domain-role-family-symmetry-plan.md` — tick Task 1–6 checkboxes; set plan status `completed`.
 
 ## 5) Verification State
 
 - **Last commands run:**
-  - `python scripts/hooks/run_validator.py --fast` (pass in worktree)
-  - `python -m pytest -q tests/test_config.py` (FAIL: `tests/test_config.py::test_load_config_defaults_to_repo_config_shape`)
-  - `python -m pytest -q tests/test_fitcv_cp/test_synonym_global_policy_io.py` (pass)
-  - `python -m pytest -q tests/test_fitcv_cp/test_synonym_promote_preview_field_aware.py` (pass)
-  - `python -m pytest -q tests/test_fitcv_cp/test_synonym_promote_commit_field_aware.py` (pass)
-  - `python -m pytest -q tests/test_fitcv_cp/test_worker_job_auto_promote_skill_only.py` (pass)
-  - `python -m pytest -q tests/test_fitcv_cp/test_app.py -k "download_global_domain_synonyms_yaml or download_global_role_family_synonyms_yaml or download_global_synonyms_yaml"` (pass)
-  - `python scripts/hooks/run_validator.py --fast` (pass)
+  - `npx gitnexus detect-changes --scope all -r "<worktreePath>"` (risk: critical; reviewed and accepted for this change)
+  - `python scripts/validate_planning_lifecycle.py --strict` (pass)
+  - `python scripts/validate_checkpoint_packs.py` (pass)
+  - `python scripts/validate_repo_contracts.py --fast` (pass)
+- **Merge/push proof:**
+  - `main` fast-forward merged from `codex/synonym-global-promotion-domain-role-family-symmetry-impl`
+  - `git push origin main` completed
 - **Result summary:**
-  - validators pass; added unit tests pass; targeted pytest has 1 pre-existing failure unrelated to synonym promotion surfaces.
-- **Failing checks (if any):**
-  - `tests/test_config.py::test_load_config_defaults_to_repo_config_shape` expects `data/candidate_profile.yaml` but config returns `data/candidate_profile.private.yaml`.
-- **Gaps still unverified:**
-  - promotion behavior tests do not exist yet; will be added during Tasks 2–5.
+  - repo-contract validators pass; lifecycle/checkpoint packs pass; new unit tests pass.
+- **Known baseline failures (pre-existing; out of scope):**
+  - `tests/test_fitcv_cp/test_store.py` has failing injection-path tests (`TypeError: 'NoneType' object is not iterable` from `dict(self._call(...))` when injected fns return `None`).
 
 ## 6) Open Blockers / Risks
 
-- GitNexus impact analysis is required before editing high-blast-radius symbols; use `npx gitnexus impact` with `-r <repoPath>` to disambiguate.
-- Promotion currently ignores proposal `field`; risk of SSOT corruption (domain/role-family proposals written into skill SSOT). Must fix early.
+- No lane blockers.
+- Remaining risk: baseline test failures above persist; not addressed in this lane.
 
 ## 7) Next Exact Action
 
