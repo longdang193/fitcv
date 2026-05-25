@@ -3273,6 +3273,20 @@ def _build_run_export_links(run: PipelineRun) -> list[dict[str, str]]:
             "helper_text": "Canonical global skill synonym map used as baseline across runs.",
         }
     )
+    links.append(
+        {
+            "label": "Download Global Domain Aliases YAML",
+            "href": "/admin/synonyms/global-domain.yaml",
+            "helper_text": "Canonical global domain alias map used as baseline across runs.",
+        }
+    )
+    links.append(
+        {
+            "label": "Download Global Role Family Aliases YAML",
+            "href": "/admin/synonyms/global-role-family.yaml",
+            "helper_text": "Canonical global role family alias map used as baseline across runs.",
+        }
+    )
     if artifact_files:
         links.append(
             {
@@ -10824,6 +10838,41 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 status_code=404,
                 detail="No run artifacts are currently available for this run",
             )
+        artifact_files.extend(
+            [
+                RunArtifactFile(
+                    filename="global-skill-synonyms.yaml",
+                    label="Global Skill Synonyms YAML",
+                    href="/admin/synonyms/global.yaml",
+                    content=_build_synonym_overlay_yaml(_load_global_skill_synonyms_map()),
+                    show_in_exports=False,
+                ),
+                RunArtifactFile(
+                    filename="global-domain-aliases.yaml",
+                    label="Global Domain Aliases YAML",
+                    href="/admin/synonyms/global-domain.yaml",
+                    content="".join(
+                        _render_yaml_top_level_mapping(
+                            key="domain_alias_map",
+                            mappings=_load_global_domain_alias_map(),
+                        )
+                    ),
+                    show_in_exports=False,
+                ),
+                RunArtifactFile(
+                    filename="global-role-family-aliases.yaml",
+                    label="Global Role Family Aliases YAML",
+                    href="/admin/synonyms/global-role-family.yaml",
+                    content="".join(
+                        _render_yaml_top_level_mapping(
+                            key="role_family_alias_map",
+                            mappings=_load_global_role_family_alias_map(),
+                        )
+                    ),
+                    show_in_exports=False,
+                ),
+            ]
+        )
         manifest = _build_run_artifact_bundle_manifest(run, artifact_files)
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:

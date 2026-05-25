@@ -8955,6 +8955,9 @@ def test_download_run_artifact_bundle_includes_synonym_yaml_artifacts_when_avail
         names = set(archive.namelist())
         assert "approved-synonym-proposals.yaml" in names
         assert "synonym-overlay-used.yaml" in names
+        assert "global-skill-synonyms.yaml" in names
+        assert "global-domain-aliases.yaml" in names
+        assert "global-role-family-aliases.yaml" in names
 
 
 def test_download_run_artifact_bundle_zip_endpoint_404_if_no_artifacts_available() -> None:
