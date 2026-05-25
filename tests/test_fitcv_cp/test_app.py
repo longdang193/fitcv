@@ -7348,6 +7348,20 @@ def test_download_global_synonyms_yaml() -> None:
     assert "skill_synonyms:" in resp.text
     assert "gcp: google cloud" in resp.text
 
+def test_download_global_domain_synonyms_yaml() -> None:
+    with patch("fitcv_cp.app._load_global_domain_alias_map", return_value={"fintech": "financial technology"}):
+        resp = TestClient(_app()).get("/admin/synonyms/global-domain.yaml")
+    assert resp.status_code == 200
+    assert "domain_alias_map:" in resp.text
+    assert "fintech: financial technology" in resp.text
+
+def test_download_global_role_family_synonyms_yaml() -> None:
+    with patch("fitcv_cp.app._load_global_role_family_alias_map", return_value={"data eng": "data engineering"}):
+        resp = TestClient(_app()).get("/admin/synonyms/global-role-family.yaml")
+    assert resp.status_code == 200
+    assert "role_family_alias_map:" in resp.text
+    assert "data eng: data engineering" in resp.text
+
 
 def test_admin_run_synonym_promote_preview_renders_diff_summary() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus

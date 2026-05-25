@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: active
 template_id: implementation-plan
 name: synonym-global-promotion-domain-role-family-symmetry
 parent_thread: workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow
@@ -69,14 +69,14 @@ Add tests proving:
 - spec is approved for implementation planning scope (this plan)
 
 **Steps:**
-- [ ] confirm promote-preview/commit routes and which SSOT they load/persist today
-- [ ] confirm proposal payload includes `field` values for domain and role-family
-- [ ] confirm domain/role-family SSOT schema keys and intended ownership boundaries
-- [ ] record current route list and filenames for existing skill global export
+- [x] confirm promote-preview/commit routes and which SSOT they load/persist today
+- [x] confirm proposal payload includes `field` values for domain and role-family
+- [x] confirm domain/role-family SSOT schema keys and intended ownership boundaries
+- [x] record current route list and filenames for existing skill global export
 
 **Verification:**
-- [ ] `rg -n "promote-preview|promote-commit|_load_global_skill_synonyms_map" src/fitcv_cp/app.py src/fitcv_cp/worker_job.py`
-- [ ] `rg -n "domain_alias_map|role_family_alias_map" config/taxonomy/*.yaml src/fitcv/config.py`
+- [x] `rg -n "promote-preview|promote-commit|_load_global_skill_synonyms_map" src/fitcv_cp/app.py src/fitcv_cp/worker_job.py`
+- [x] `rg -n "domain_alias_map|role_family_alias_map" config/taxonomy/*.yaml src/fitcv/config.py`
 
 **Exit Criteria:**
 - exact edit points + current invariance violation documented in plan notes for later PR description
@@ -96,15 +96,15 @@ Add tests proving:
 - Task 1 complete
 
 **Steps:**
-- [ ] add `_global_domain_synonyms_path()` + loader/persist for `domain_alias_map` only
-- [ ] add `_global_role_family_synonyms_path()` + loader/persist for `role_family_alias_map` only
-- [ ] implement deterministic YAML writer preserving existing header comments and non-mutated sections:
+- [x] add `_global_domain_synonyms_path()` + loader/persist for `domain_alias_map` only
+- [x] add `_global_role_family_synonyms_path()` + loader/persist for `role_family_alias_map` only
+- [x] implement deterministic YAML writer preserving existing header comments and non-mutated sections:
   - always keep `domain_neighbors` / `role_family_neighbors` untouched
   - only update alias-map mapping entries
-- [ ] ensure writer sorts aliases and writes trailing newline
+- [x] ensure writer sorts aliases and writes trailing newline
 
 **Verification:**
-- [ ] unit tests for YAML render/parse round-trip for each file type
+- [x] unit tests for YAML render/parse round-trip for each file type
 
 **Exit Criteria:**
 - dedicated helpers exist for each SSOT surface; no promotion logic yet
@@ -122,16 +122,16 @@ Add tests proving:
 - Task 2 complete
 
 **Steps:**
-- [ ] extend preview builder to:
+- [x] extend preview builder to:
   - read proposal `field`
   - group rows by field
   - use correct global map for each field to classify add/update/skip
   - compute conflicts per field (duplicate alias with multiple canonicals within same field)
-- [ ] update template to render grouped sections (Skills / Domain / Role Family) with per-field counts and blocked reasons
-- [ ] keep behavior for “already present” vs “blocked” rows consistent with existing skill preview semantics
+- [x] update template to render grouped sections (Skills / Domain / Role Family) with per-field counts and blocked reasons
+- [x] keep behavior for “already present” vs “blocked” rows consistent with existing skill preview semantics
 
 **Verification:**
-- [ ] test preview builder with mixed-field selected ids; assert per-field groupings and counts
+- [x] test preview builder with mixed-field selected ids; assert per-field groupings and counts
 
 **Exit Criteria:**
 - preview page explicitly shows which SSOT maps will be written
@@ -149,18 +149,18 @@ Add tests proving:
 - Task 3 complete
 
 **Steps:**
-- [ ] implement commit path that:
+- [x] implement commit path that:
   - reuses preview output as decision envelope
   - applies promotions per field to correct map
   - persists only fields without conflicts
   - records per-field applied/skipped/failed counts in redirect query params and event payload(s)
-- [ ] enforce worker auto-promote skill-only:
+- [x] enforce worker auto-promote skill-only:
   - skip proposals where `field != "skill"` with explicit reason
   - never write domain/role-family from auto-promote in this change
 
 **Verification:**
-- [ ] tests: commit updates correct SSOT file(s) for mixed-field selection
-- [ ] tests: auto-promote skips non-skill proposals and does not mutate domain/role SSOT
+- [x] tests: commit updates correct SSOT file(s) for mixed-field selection
+- [x] tests: auto-promote skips non-skill proposals and does not mutate domain/role SSOT
 
 **Exit Criteria:**
 - promotion invariants proven by tests (“no cross-field writes”, “correct SSOT updated”)
@@ -178,13 +178,13 @@ Add tests proving:
 - Task 4 complete
 
 **Steps:**
-- [ ] add `GET /admin/synonyms/global-domain.yaml` exporting `domain_alias_map` YAML
-- [ ] add `GET /admin/synonyms/global-role-family.yaml` exporting `role_family_alias_map` YAML
-- [ ] decide and implement back-compat for existing `GET /admin/synonyms/global.yaml` (keep as skill export or add redirect to `/admin/synonyms/global-skill.yaml`)
-- [ ] update `docs/api.md` to reflect per-field SSOT and new endpoints
+- [x] add `GET /admin/synonyms/global-domain.yaml` exporting `domain_alias_map` YAML
+- [x] add `GET /admin/synonyms/global-role-family.yaml` exporting `role_family_alias_map` YAML
+- [x] decide and implement back-compat for existing `GET /admin/synonyms/global.yaml` (kept as skills export)
+- [x] update `docs/api.md` to reflect per-field SSOT and new endpoints
 
 **Verification:**
-- [ ] route tests for 200 + expected YAML top keys per endpoint
+- [x] route tests for 200 + expected YAML top keys per endpoint
 
 **Exit Criteria:**
 - operators can download canonical global policy for all three fields
@@ -202,13 +202,13 @@ Add tests proving:
 - Tasks 1–5 complete
 
 **Steps:**
-- [ ] run targeted tests for promotion preview/commit + worker auto-promote guardrails
-- [ ] run `python scripts/hooks/run_validator.py --fast`
-- [ ] run `python scripts/generate_planning_lineage.py` if validator reports stale planning lineage
+- [x] run targeted tests for promotion preview/commit + worker auto-promote guardrails
+- [x] run `python scripts/hooks/run_validator.py --fast`
+- [x] run `python scripts/generate_planning_lineage.py` if validator reports stale planning lineage (not needed: validator did not report drift)
 
 **Verification:**
-- [ ] test output shows new tests passing
-- [ ] validator passes with no planning lineage drift
+- [x] test output shows new tests passing
+- [x] validator passes with no planning lineage drift
 
 **Exit Criteria:**
 - repo passes hook subset validators and promotion behavior is covered by tests
