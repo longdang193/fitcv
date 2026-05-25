@@ -84,7 +84,7 @@ workstreams:
   status: active
   path: docs/intent/workstreams/workstream-agentic-synonym-management.md
   thread_count: 6
-  completed_thread_count: 2
+  completed_thread_count: 1
   derived_completion: in_progress
   threads:
   - thread_id: workstream-agentic-synonym-management.agentic-synonym-unmatched-term-detection
@@ -137,10 +137,12 @@ workstreams:
     specs:
     - docs/superpowers/specs/2026-05-19-22-45-synonym-workspace-action-model-simplification-spec.md
     - docs/superpowers/specs/2026-05-20-11-33-synonym-review-queue-symmetry-spec.md
+    - docs/superpowers/specs/2026-05-25-12-26-synonym-global-promotion-domain-role-family-symmetry-spec.md
     plans:
     - docs/superpowers/plans/2026-05-19-23-10-synonym-workspace-action-model-simplification-plan.md
     - docs/superpowers/plans/2026-05-20-11-40-synonym-promote-review-page-and-queue-symmetry-plan.md
-    derived_completion: completed
+    - docs/superpowers/plans/2026-05-25-12-26-synonym-global-promotion-domain-role-family-symmetry-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-agentic-synonym-management.agentic-synonym-downstream-impact-preview
     status: proposed
     path: docs/intent/workstreams/threads/workstream-agentic-synonym-management/05-agentic-synonym-downstream-impact-preview.md
