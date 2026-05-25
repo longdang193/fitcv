@@ -40,11 +40,12 @@
     {% if rows %}
       <div class="meta" style="margin:0.35rem 0 0.35rem 0">{{ field_label }}</div>
       <table style="margin-bottom:0.85rem">
-        <thead><tr><th>Select</th><th>Proposal</th><th>Status</th><th>Diff</th><th>Reason</th></tr></thead>
+        <thead><tr><th>Select</th><th>Field</th><th>Proposal</th><th>Status</th><th>Diff</th><th>Reason</th></tr></thead>
         <tbody>
           {% for row in rows %}
           <tr>
             <td><input type="checkbox" name="promote_proposal_id" value="{{ row.proposal_id }}" form="promote-commit-form" checked></td>
+            <td>{{ row.field or "—" }}</td>
             <td><code>{{ row.alias or "—" }}</code> → <code>{{ row.canonical or "—" }}</code></td>
             <td>{{ row.status }}</td>
             <td>{{ row.diff_type }}</td>
@@ -65,10 +66,11 @@
     {% if rows %}
       <div class="meta" style="margin:0.35rem 0 0.35rem 0">{{ field_label }}</div>
       <table style="margin-bottom:0.85rem">
-        <thead><tr><th>Proposal</th><th>Status</th><th>Diff</th><th>Reason</th></tr></thead>
+        <thead><tr><th>Field</th><th>Proposal</th><th>Status</th><th>Diff</th><th>Reason</th></tr></thead>
         <tbody>
           {% for row in rows %}
           <tr>
+            <td>{{ row.field or "—" }}</td>
             <td><code>{{ row.alias or "—" }}</code> → <code>{{ row.canonical or "—" }}</code></td>
             <td>{{ row.status }}</td>
             <td>{{ row.diff_type }}</td>
@@ -89,10 +91,11 @@
     {% if rows %}
       <div class="meta" style="margin:0.35rem 0 0.35rem 0">{{ field_label }}</div>
       <table style="margin-bottom:0.85rem">
-        <thead><tr><th>Proposal</th><th>Status</th><th>Diff</th><th>Reason</th></tr></thead>
+        <thead><tr><th>Field</th><th>Proposal</th><th>Status</th><th>Diff</th><th>Reason</th></tr></thead>
         <tbody>
           {% for row in rows %}
           <tr>
+            <td>{{ row.field or "—" }}</td>
             <td><code>{{ row.alias or "—" }}</code> → <code>{{ row.canonical or "—" }}</code></td>
             <td>{{ row.status }}</td>
             <td>{{ row.diff_type }}</td>
