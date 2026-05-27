@@ -14,11 +14,14 @@ import json
 import pytest
 
 from fitcv_cp.run_artifact_contracts import (
+    RUN_ATTEMPT_SCHEMA_VERSION,
     decode_json_object_or_none,
+    decode_run_attempt_payload_or_none,
     normalized_run_mode,
     pretty_json_string,
     pretty_json_string_or_fallback,
     require_payload_keys,
+    run_attempt_payload_v1,
     run_mode_label,
     schema_version_matches,
     schema_version_or_none,
@@ -85,3 +88,35 @@ def test_require_payload_keys_raises_on_missing_keys() -> None:
             context="unit_test",
         )
     assert "missing_required_payload_keys:unit_test:created_at" in str(excinfo.value)
+
+
+def test_run_attempt_payload_v1_encodes_schema_version() -> None:
+    payload = run_attempt_payload_v1(attempt_id="a1", status="running")
+    assert payload["schema_version"] == RUN_ATTEMPT_SCHEMA_VERSION
+
+
+def test_decode_run_attempt_payload_or_none_rejects_non_matching_payloads() -> None:
+    assert decode_run_attempt_payload_or_none(None) is None
+    assert decode_run_attempt_payload_or_none("{") is None
+    assert decode_run_attempt_payload_or_none(json.dumps({"schema_version": "other"})) is None
+
+
+def test_decode_run_attempt_payload_or_none_accepts_minimal_valid_payload() -> None:
+    raw = json.dumps(run_attempt_payload_v1(attempt_id="a1", status="running"))
+    decoded = decode_run_attempt_payload_or_none(raw)
+    assert isinstance(decoded, dict)
+    assert decoded["attempt"]["attempt_id"] == "a1"
+
+def test_run_attempt_payload_v1_truncates_error_details_when_over_cap() -> None:
+    payload = run_attempt_payload_v1(
+        attempt_id="a1",
+        status="failed",
+        error_classification="transient",
+        error_summary="timeout",
+        error_details={"blob": "x" * 5000},
+        error_details_max_chars=200,
+    )
+    details = payload["attempt"]["error"]["details"]
+    assert isinstance(details, dict)
+    assert details.get("truncated") is True
+    assert details.get("max_chars") == 200

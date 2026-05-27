@@ -56,6 +56,42 @@ def test_enqueue_run_with_job_id_returns_tuple():
     assert job_id == "rq-job-abc"
 
 
+def test_enqueue_run_with_job_id_wires_rq_retry_when_enabled() -> None:
+    from rq.job import Retry
+
+    from fitcv_cp.queue import enqueue_run_with_job_id
+
+    mock_q = MagicMock()
+    mock_job = MagicMock()
+    mock_job.id = "rq-job-abc"
+    mock_q.enqueue.return_value = mock_job
+    from fitcv_cp.retry_settings import RetrySettings
+
+    with patch("fitcv_cp.queue.get_queue", return_value=mock_q):
+        with patch.dict("os.environ", {"FITCV_CP_INLINE_EXECUTION": "0"}, clear=False):
+            with patch(
+                "fitcv_cp.retry_settings.load_retry_settings",
+                return_value=RetrySettings(
+                    enabled=True,
+                    max_attempts=3,
+                    backoff_seconds=(1, 2),
+                    lease_seconds=900,
+                    reconciler_interval_seconds=0,
+                    error_details_max_chars=2048,
+                ),
+            ):
+                _run_id, _job_id = enqueue_run_with_job_id(
+                    jobs_path="data/jobs.json",
+                    config_path=".env.yaml",
+                    triggered_by="admin",
+                    redis_url="redis://localhost:6379/0",
+                )
+
+    _fn, _args, kwargs = mock_q.enqueue.mock_calls[0]
+    assert isinstance(kwargs.get("retry"), Retry)
+    assert "attempt_id" not in kwargs
+
+
 def test_enqueue_run_still_returns_str():
     """Existing enqueue_run() keeps returning a plain str (backward compat)."""
     from fitcv_cp.queue import enqueue_run
@@ -180,3 +216,37 @@ def test_get_queue_job_status_normalizes_inline_missing_run() -> None:
     queue_module._INLINE_JOB_STATUS["inline-1"] = "missing_run"
     assert get_queue_job_status("inline-1") == "missing"
 
+
+
+def test_enqueue_run_with_job_id_does_not_wire_rq_retry_when_disabled() -> None:
+    from fitcv_cp.queue import enqueue_run_with_job_id
+
+    mock_q = MagicMock()
+    mock_job = MagicMock()
+    mock_job.id = "rq-job-abc"
+    mock_q.enqueue.return_value = mock_job
+
+    from fitcv_cp.retry_settings import RetrySettings
+
+    with patch("fitcv_cp.queue.get_queue", return_value=mock_q):
+        with patch.dict("os.environ", {"FITCV_CP_INLINE_EXECUTION": "0"}, clear=False):
+            with patch(
+                "fitcv_cp.retry_settings.load_retry_settings",
+                return_value=RetrySettings(
+                    enabled=False,
+                    max_attempts=3,
+                    backoff_seconds=(1, 2),
+                    lease_seconds=900,
+                    reconciler_interval_seconds=0,
+                    error_details_max_chars=2048,
+                ),
+            ):
+                _run_id, _job_id = enqueue_run_with_job_id(
+                    jobs_path="data/jobs.json",
+                    config_path=".env.yaml",
+                    triggered_by="admin",
+                    redis_url="redis://localhost:6379/0",
+                )
+
+    _fn, _args, kwargs = mock_q.enqueue.mock_calls[0]
+    assert kwargs.get("retry") is None

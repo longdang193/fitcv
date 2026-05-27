@@ -215,3 +215,32 @@ def test_control_plane_store_uses_injected_event_and_snapshot_write_fns() -> Non
     assert captured["syn_run_id"] == "rid-1"
     assert captured["cv_debug_run_id"] == "rid-1"
     assert captured["cv_row_version_id"] == "v1"
+
+
+def test_control_plane_store_lists_run_attempt_payloads_from_events() -> None:
+    import json as _json
+
+    from fitcv_cp.run_artifact_contracts import run_attempt_payload_v1
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    attempt_payload = run_attempt_payload_v1(attempt_id="a1", status="running")
+    store = ControlPlaneStore(
+        bq=None,
+        project="p",
+        dataset="d",
+        get_events_fn=lambda run_id, bq, *, project, dataset: [
+            RunEvent(
+                run_id=run_id,
+                event_id="ev-1",
+                stage="test",
+                level="info",
+                message="ok",
+                created_at=now,
+                payload_json=_json.dumps(attempt_payload),
+            )
+        ],
+    )
+
+    payloads = store.list_run_attempt_payloads("rid-1")
+    assert len(payloads) == 1
+    assert payloads[0]["attempt"]["attempt_id"] == "a1"

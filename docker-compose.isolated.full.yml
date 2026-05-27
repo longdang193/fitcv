@@ -19,6 +19,7 @@ services:
     volumes:
       - ./.env:/app/.env:ro
       - ./config/env.yaml:/app/config/env.yaml:ro
+      - ./config/runtime/control_plane.yaml:/app/config/runtime/control_plane.yaml:ro
       - C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/fitcv-491123-51c030d71e07.json:/app/sa_key.json:ro
       - ${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}:/opt/fitcv-langgraph:ro
       - fitcv_uploads:/app/data/uploads
@@ -39,6 +40,7 @@ services:
     volumes:
       - ./.env:/app/.env:ro
       - ./config/env.yaml:/app/config/env.yaml:ro
+      - ./config/runtime/control_plane.yaml:/app/config/runtime/control_plane.yaml:ro
       - C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/fitcv-491123-51c030d71e07.json:/app/sa_key.json:ro
       - ${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}:/opt/fitcv-langgraph:ro
       - fitcv_uploads:/app/data/uploads
@@ -46,6 +48,8 @@ services:
 
 volumes:
   fitcv_uploads:
+
+
 
 
 
