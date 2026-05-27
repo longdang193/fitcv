@@ -236,13 +236,14 @@ def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
     mock_build_ranking_features.return_value = [ranked_job]
     mock_rank_jobs.return_value = [ranked_job]
 
-    run_pipeline(
-        "data/sample_jobs.json",
-        config_path="config/env.yaml",
-        run_id="timeline-concurrency-check",
-        stop_after_stage="ranking",
-        reporter=reporter,
-    )
+    with patch.dict("os.environ", {"FITCV_ENRICH_HEARTBEAT_EVENTS": "1"}, clear=False):
+        run_pipeline(
+            "data/sample_jobs.json",
+            config_path="config/env.yaml",
+            run_id="timeline-concurrency-check",
+            stop_after_stage="ranking",
+            reporter=reporter,
+        )
 
     enrich_heartbeat_event = next(event for event in reporter.events if event[0] == "enrich_heartbeat")
     assert enrich_heartbeat_event[3] is not None

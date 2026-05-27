@@ -413,6 +413,15 @@ def _enrich_jobs_with_reuse(
         return list(result_holder.get("rows") or [])
 
     if fresh_jobs:
+        heartbeat_events_enabled = str(os.environ.get("FITCV_ENRICH_HEARTBEAT_EVENTS", "") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if not heartbeat_events_enabled:
+            heartbeat_callback = None
+
         debug_heartbeat_enabled = str(os.environ.get("FITCV_ENRICH_DEBUG_HEARTBEAT", "") or "").strip().lower() in {
             "1",
             "true",
@@ -6857,6 +6866,7 @@ def run_pipeline(
                     ),
                 )  # type: ignore[union-attr]
     return summary
+
 
 
 
