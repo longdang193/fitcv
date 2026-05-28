@@ -58,7 +58,7 @@ Automated tests fail if ranking score computation, fit-label resolution, or rera
 - [x] Note one accepted exception: debug/sample artifact key rename only.
 
 **Verification:**
-- [ ] `rg --line-number "matched_strengths|key_risks|score_reasoning|fit_label" src/fitcv src/fitcv_cp`
+- [x] `rg --line-number "matched_strengths|key_risks|score_reasoning|fit_label" src/fitcv src/fitcv_cp`
 
 **Exit Criteria:**
 - Baseline map is explicit and no hidden decision consumer remains unaccounted.
@@ -82,7 +82,7 @@ Automated tests fail if ranking score computation, fit-label resolution, or rera
 - [x] Align companion docs so engineers and operators read same contract intent.
 
 **Verification:**
-- [ ] Prompt render/usage path still resolves via `ranking.ai_score.v1` without schema/placeholder drift.
+- [x] Prompt render/usage path still resolves via `ranking.ai_score.v1` without schema/placeholder drift.
 
 **Exit Criteria:**
 - Prompt + docs communicate single unambiguous meaning for these fields.
@@ -108,8 +108,8 @@ Automated tests fail if ranking score computation, fit-label resolution, or rera
 - [x] Update any direct readers/tests of old key names.
 
 **Verification:**
-- [ ] Targeted tests for stage artifact/sample serialization pass.
-- [ ] Manual snapshot inspection confirms renamed keys present and values preserved.
+- [x] Targeted tests for stage artifact/sample serialization pass.
+- [x] Manual snapshot inspection confirms renamed keys present and values preserved.
 
 **Exit Criteria:**
 - Artifact payload names reflect diagnostic intent; no ranking/gating behavior change observed.
@@ -132,7 +132,7 @@ Automated tests fail if ranking score computation, fit-label resolution, or rera
 - [x] Add test/documentation assertion that `score_reasoning` remains cache-poison filter input only.
 
 **Verification:**
-- [ ] `pytest -q tests/fitcv -k "ranking or pipeline or analysis"`
+- [x] `pytest -q tests/test_pipeline.py -k "ignores_diagnostic_reranker_lists_for_scoring"` and `pytest -q tests/test_agentic_cv_analysis.py -k "ignores_diagnostic_lists"`
 
 **Exit Criteria:**
 - Failing tests would catch future semantic drift from diagnostic-only to decision input.
@@ -149,6 +149,7 @@ Automated tests fail if ranking score computation, fit-label resolution, or rera
 1. all Key Deliverables are satisfied
 2. all downstream/child items are terminal
 3. every child item is `completed` or `dropped`
+
 
 
 

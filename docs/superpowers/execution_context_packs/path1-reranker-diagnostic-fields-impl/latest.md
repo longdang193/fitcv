@@ -85,3 +85,4 @@ If context pack, source files, and raw log disagree:
 1. source files and current tests/checks win
 2. then context pack
 3. raw log is fallback evidence only
+
