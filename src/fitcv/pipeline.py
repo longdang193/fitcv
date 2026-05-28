@@ -5854,7 +5854,7 @@ def run_pipeline(
             results.append({
                 "job_url": str(job.get("job_url") or ""),
                 "fit": fit,
-                "ranking_fit_label": fit,
+                "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
                 "cv_version_id": version["version_id"],
                 "gap": gap,
                 "structured_cv": structured_cv,
@@ -6461,7 +6461,7 @@ def run_pipeline(
                     results.append({
                         "job_url": str(job.get("job_url") or ""),
                         "fit": fit,
-                        "ranking_fit_label": fit,
+                        "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
                         "cv_version_id": version["version_id"],
                         "gap": gap,
                         "structured_cv": structured_cv_final,
@@ -6866,6 +6866,7 @@ def run_pipeline(
                     ),
                 )  # type: ignore[union-attr]
     return summary
+
 
 
 

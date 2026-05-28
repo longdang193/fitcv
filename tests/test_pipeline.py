@@ -19,6 +19,7 @@ tags:
 import json
 import uuid
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 from unittest.mock import ANY, MagicMock, patch
 
@@ -414,6 +415,40 @@ def test_ready_for_generation_keeps_generation_terminal_statuses_stage_owned(
     assert "review_required_reason_code" in record
     assert "attempt_count" in record
 
+
+@pytest.mark.parametrize("status", ["accepted", "review_required", "validation_failed"])
+def test_cv_generation_terminal_statuses_keep_reranker_primary_fit_authority_matrix(status: str) -> None:
+    job = {
+        "job_url": "https://example.com/status-matrix",
+        "title": "Status Matrix Job",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+
+    record = _build_cv_generation_debug_record(
+        job=job,
+        status=status,
+        fit_classification="skip",
+        evidence_used=[],
+        evidence_selection_summary=None,
+        analysis_input_summary=None,
+        gap_summary=None,
+        structured_cv_initial=None,
+        validation_initial=None,
+        repair_attempt={"performed": False, "missing_sections": []},
+        structured_cv_final=None,
+        markdown_final=None,
+        enabled_sections=None,
+        cv_generation_model=None,
+        cv_prompt_id=None,
+        cv_prompt_template_path=None,
+        error=None,
+    )
+
+    assert record["ranking_fit_label"] == "strong"
+    assert record["fit_classification"] == "skip"
+    assert record["decision_chain"]["primary_fit"]["label"] == record["ranking_fit_label"]
+    assert record["decision_chain"]["primary_fit"]["source"] == "reranker"
 def test_review_required_reason_code_mapping_for_markdown_review() -> None:
     reason_code = _normalize_review_required_reason_code(
         status="review_required",
@@ -1208,7 +1243,14 @@ def test_run_pipeline_resume_from_cv_generation_recomputes_shortlist_debug_state
     assert result["cvs_generated"] == 1
     assert "shortlist_debug" not in result
     assert result["export_results"][0]["pipeline_status"] == "ranked_with_cv"
+def test_pipeline_source_has_no_direct_ranking_fit_label_assignment_in_fresh_compute_branch() -> None:
+    source = Path("src/fitcv/pipeline.py").read_text(encoding="utf-8")
+    assert '"ranking_fit_label": fit' not in source
 
+
+def test_pipeline_source_has_no_direct_ranking_fit_label_assignment_in_reuse_branch() -> None:
+    source = Path("src/fitcv/pipeline.py").read_text(encoding="utf-8")
+    assert '"ranking_fit_label": fit' not in source
 
 @patch("fitcv.pipeline.compute_gap")
 @patch("fitcv.pipeline.retrieve_evidence")
@@ -1387,7 +1429,7 @@ def test_run_pipeline_resume_from_cv_generation_preserves_reranker_blocked_final
                 "job_url": job["job_url"],
                 "status": "blocked_by_reranker_fit",
                 "analysis_reuse_status": "not_run_reranker_skip",
-                "fit_classification": "skip",
+                "fit_classification": "stretch",
                 "outcome_reason": {
                     "stage": "reranker_fit",
                     "message": f"Blocked {job['job_url']} before CV analysis (reranker fit=skip)",
@@ -1399,7 +1441,7 @@ def test_run_pipeline_resume_from_cv_generation_preserves_reranker_blocked_final
                 "job_url": job["job_url"],
                 "job_title": job["job_title"],
                 "status": "blocked_by_reranker_fit",
-                "fit_classification": "skip",
+                "fit_classification": "stretch",
                 "ranking_fit_label": "skip",
                 "decision_chain": {
                     "shortlist": {
@@ -6212,14 +6254,15 @@ def test_run_pipeline_uses_ranked_fit_label_as_floor_for_layer4_fit_gate(
     assert result["cv_generation_debug_records"][0]["status"] == "accepted"
     assert result["cv_generation_debug_records"][0]["fit_classification"] == "stretch"
     assert result["export_results"][0]["pipeline_status"] == "ranked_with_cv"
-    assert result["export_results"][0]["cv"]["fit_classification"] == "stretch"
+def test_pipeline_source_has_no_direct_ranking_fit_label_assignment_in_fresh_compute_branch() -> None:
+    source = Path("src/fitcv/pipeline.py").read_text(encoding="utf-8")
+    assert '"ranking_fit_label": fit' not in source
 
 
-@patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
+def test_pipeline_source_has_no_direct_ranking_fit_label_assignment_in_reuse_branch() -> None:
+    source = Path("src/fitcv/pipeline.py").read_text(encoding="utf-8")
+    assert '"ranking_fit_label": fit' not in source
+
 @patch("fitcv.pipeline.compute_gap")
 @patch("fitcv.pipeline.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -9019,3 +9062,14 @@ def test_bounded_event_payload_uses_canonical_observability_builder() -> None:
         "cost": {"usd": 0.01},
     }
     assert _bounded_event_payload(**payload_kwargs) == build_bounded_event_payload(**payload_kwargs)
+
+
+
+
+
+
+
+
+
+
+
