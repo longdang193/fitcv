@@ -4,6 +4,8 @@ artifact_type: plan
 status: proposed
 template_id: implementation-plan
 name: path-1-reranker-diagnostic-fields-clarity
+parent_thread: workstream-fitcv-semantic-spine.semantic-spine-stage-authority-contract
+parent_spec: docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
 targets:
   - src/fitcv/prompts/templates/ranking_ai_score_v1.md
   - src/fitcv/pipeline_stages/common.py
@@ -11,7 +13,7 @@ targets:
   - tests/
   - docs/
 related_features:
-  - cv_system.stage-artifact-diagnostics
+  - cv_system
 related_stages:
   - ranking
 ---

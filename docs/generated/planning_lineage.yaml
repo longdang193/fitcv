@@ -300,6 +300,7 @@ workstreams:
     plans:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
     - docs/superpowers/plans/2026-05-28-12-03-ranking-fit-label-authority-ssot-symmetry-invariance-plan.md
+    - docs/superpowers/plans/2026-05-28-12-30-path-1-reranker-diagnostic-fields-clarity-plan.md
     derived_completion: in_progress
   - thread_id: workstream-fitcv-semantic-spine.semantic-spine-checkpoint-and-continue-truth
     status: proposed
