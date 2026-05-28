@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: path-1-reranker-diagnostic-fields-clarity
 parent_thread: workstream-fitcv-semantic-spine.semantic-spine-stage-authority-contract
@@ -17,7 +17,6 @@ related_features:
 related_stages:
   - ranking
 ---
-
 ## Goal
 
 Make Path 1 explicit and safe: keep `matched_strengths` and `key_risks` as diagnostic-only fields, remove ambiguity in naming/docs, and add tests proving no ranking or fit-gate behavior depends on those fields.
@@ -54,9 +53,9 @@ Automated tests fail if ranking score computation, fit-label resolution, or rera
 - Existing usage audit shows `fit_label` used for decisions, `score_reasoning` used for poisoned-cache filtering, `matched_strengths`/`key_risks` debug-only.
 
 **Steps:**
-- [ ] Re-run targeted symbol/text queries for `matched_strengths` and `key_risks` to confirm no decision-path consumers.
-- [ ] Record baseline expectation: behavior must stay identical for ranking order and fit-gate outcomes.
-- [ ] Note one accepted exception: debug/sample artifact key rename only.
+- [x] Re-run targeted symbol/text queries for `matched_strengths` and `key_risks` to confirm no decision-path consumers.
+- [x] Record baseline expectation: behavior must stay identical for ranking order and fit-gate outcomes.
+- [x] Note one accepted exception: debug/sample artifact key rename only.
 
 **Verification:**
 - [ ] `rg --line-number "matched_strengths|key_risks|score_reasoning|fit_label" src/fitcv src/fitcv_cp`
@@ -78,9 +77,9 @@ Automated tests fail if ranking score computation, fit-label resolution, or rera
 - Task 1 baseline confirmed.
 
 **Steps:**
-- [ ] Add explicit note in prompt template that `matched_strengths` and `key_risks` are diagnostics-only fields.
-- [ ] Keep `fit_label` and `score_reasoning` semantics unchanged.
-- [ ] Align companion docs so engineers and operators read same contract intent.
+- [x] Add explicit note in prompt template that `matched_strengths` and `key_risks` are diagnostics-only fields.
+- [x] Keep `fit_label` and `score_reasoning` semantics unchanged.
+- [x] Align companion docs so engineers and operators read same contract intent.
 
 **Verification:**
 - [ ] Prompt render/usage path still resolves via `ranking.ai_score.v1` without schema/placeholder drift.
@@ -102,11 +101,11 @@ Automated tests fail if ranking score computation, fit-label resolution, or rera
 - Task 2 complete.
 
 **Steps:**
-- [ ] Rename sample keys to `diagnostic_matched_strengths` and `diagnostic_key_risks` (and optional `diagnostic_score_reasoning` if chosen for naming symmetry).
-- [ ] Decide compatibility mode:
-- [ ] either dual-write old+new keys for one release window,
-- [ ] or single-write new keys if no external dependency exists.
-- [ ] Update any direct readers/tests of old key names.
+- [x] Rename sample keys to `diagnostic_matched_strengths` and `diagnostic_key_risks` (and optional `diagnostic_score_reasoning` if chosen for naming symmetry).
+- [x] Decide compatibility mode:
+- [x] either dual-write old+new keys for one release window,
+- [x] or single-write new keys if no external dependency exists.
+- [x] Update any direct readers/tests of old key names.
 
 **Verification:**
 - [ ] Targeted tests for stage artifact/sample serialization pass.
@@ -128,9 +127,9 @@ Automated tests fail if ranking score computation, fit-label resolution, or rera
 - Task 3 complete.
 
 **Steps:**
-- [ ] Add test: varying `matched_strengths`/`key_risks` with fixed numeric features does not change `final_score` ordering.
-- [ ] Add test: varying `matched_strengths`/`key_risks` does not change fit-gate outcome (skip vs non-skip) when `fit_label`/`ai_score` held constant.
-- [ ] Add test/documentation assertion that `score_reasoning` remains cache-poison filter input only.
+- [x] Add test: varying `matched_strengths`/`key_risks` with fixed numeric features does not change `final_score` ordering.
+- [x] Add test: varying `matched_strengths`/`key_risks` does not change fit-gate outcome (skip vs non-skip) when `fit_label`/`ai_score` held constant.
+- [x] Add test/documentation assertion that `score_reasoning` remains cache-poison filter input only.
 
 **Verification:**
 - [ ] `pytest -q tests/fitcv -k "ranking or pipeline or analysis"`
@@ -150,3 +149,7 @@ Automated tests fail if ranking score computation, fit-label resolution, or rera
 1. all Key Deliverables are satisfied
 2. all downstream/child items are terminal
 3. every child item is `completed` or `dropped`
+
+
+
+

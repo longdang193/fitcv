@@ -9063,13 +9063,25 @@ def test_bounded_event_payload_uses_canonical_observability_builder() -> None:
     }
     assert _bounded_event_payload(**payload_kwargs) == build_bounded_event_payload(**payload_kwargs)
 
+`ndef test_build_ranking_features_ignores_diagnostic_reranker_lists_for_scoring() -> None:
+    profile: dict = {"preferences": {"target_role": "Data Engineer"}}
+    config: dict = {}
 
+    ai_scores_a = _make_ai_scores()
+    ai_scores_b = _make_ai_scores()
+    ai_scores_a[0]["matched_strengths"] = ["SQL", "Python"]
+    ai_scores_a[0]["key_risks"] = ["No Spark"]
+    ai_scores_b[0]["matched_strengths"] = ["Completely different"]
+    ai_scores_b[0]["key_risks"] = ["Completely different"]
 
+    features_a = build_ranking_features(_make_shortlist(), ai_scores_a, profile, config)
+    features_b = build_ranking_features(_make_shortlist(), ai_scores_b, profile, config)
 
-
-
-
-
+    by_url_a = {row["job_url"]: row for row in features_a}
+    by_url_b = {row["job_url"]: row for row in features_b}
+    assert by_url_a.keys() == by_url_b.keys()
+    for url in by_url_a:
+        assert by_url_a[url]["final_score"] == pytest.approx(by_url_b[url]["final_score"])
 
 
 

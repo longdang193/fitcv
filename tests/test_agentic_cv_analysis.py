@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from fitcv.agentic_cv_analysis import analyze_ranked_job
+from fitcv.agentic_cv_analysis import analyze_ranked_job, resolve_ranked_job_fit
 
 
 def _job() -> dict:
@@ -126,3 +126,17 @@ def test_analyze_ranked_job_uses_stage_runtime_cv_analysis_sleep(
 
     mock_sleep.assert_called_once_with(0.3)
 
+
+
+def test_resolve_ranked_job_fit_ignores_diagnostic_lists_when_fit_label_present() -> None:
+    base_job = _job()
+    base_job["fit_label"] = "stretch"
+    job_a = dict(base_job)
+    job_b = dict(base_job)
+    job_a["matched_strengths"] = ["SQL"]
+    job_a["key_risks"] = ["Missing Spark"]
+    job_b["matched_strengths"] = ["Different"]
+    job_b["key_risks"] = ["Different"]
+
+    assert resolve_ranked_job_fit(job_a, _config()) == "stretch"
+    assert resolve_ranked_job_fit(job_b, _config()) == "stretch"

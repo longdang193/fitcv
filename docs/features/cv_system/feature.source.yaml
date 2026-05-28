@@ -75,3 +75,4 @@ stage_participation:
       - cv_system.header-placeholder-repair
       - cv_system.stage-artifact-diagnostics
       - cv_system.structured-cv-generation
+
