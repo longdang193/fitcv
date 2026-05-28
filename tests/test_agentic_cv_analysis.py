@@ -1,6 +1,10 @@
 from unittest.mock import patch
 
-from fitcv.agentic_cv_analysis import analyze_ranked_job, resolve_ranked_job_fit
+from fitcv.agentic_cv_analysis import (
+    analyze_ranked_job,
+    build_analysis_input_summary,
+    resolve_ranked_job_fit,
+)
 
 
 def _job() -> dict:
@@ -140,3 +144,72 @@ def test_resolve_ranked_job_fit_ignores_diagnostic_lists_when_fit_label_present(
 
     assert resolve_ranked_job_fit(job_a, _config()) == "stretch"
     assert resolve_ranked_job_fit(job_b, _config()) == "stretch"
+
+def test_build_analysis_input_summary_prefers_canonical_skill_lists_when_available() -> None:
+    summary = build_analysis_input_summary(
+        {
+            "required_skills": ["SQL", "Python scripting"],
+            "required_skills_canonical": ["sql", "python"],
+            "preferred_skills": ["Airflow orchestration"],
+            "preferred_skills_canonical": ["apache airflow"],
+            "responsibilities": ["Build dashboards"],
+            "job_family": "analytics",
+        }
+    )
+
+    assert summary["required_skills"] == ["sql", "python"]
+    assert summary["preferred_skills"] == ["apache airflow"]
+
+
+def test_build_analysis_input_summary_falls_back_to_raw_skills_when_canonical_missing() -> None:
+    summary = build_analysis_input_summary(
+        {
+            "required_skills": ["SQL", "Python"],
+            "preferred_skills": ["Airflow"],
+            "responsibilities": ["Build dashboards"],
+        }
+    )
+
+    assert summary["required_skills"] == ["SQL", "Python"]
+    assert summary["preferred_skills"] == ["Airflow"]
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+@patch("fitcv.agentic_cv_analysis.time.sleep")
+def test_analyze_ranked_job_trace_input_summary_prefers_canonical_skill_counts(
+    mock_sleep,
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+) -> None:
+    mock_fingerprint.return_value = {"fingerprint": "analysis::trace-counts"}
+    mock_bundle.return_value = {
+        "selected_evidence": [{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
+        "channel_counts": {"required_skill_support": 1},
+        "merged_pool_size": 1,
+        "deduped_pool_size": 1,
+        "effective_channel_pool_size": 1,
+    }
+    mock_gap.return_value = {"matched": ["SQL"], "missing": []}
+
+    job = _job()
+    job["required_skills"] = ["SQL", "Python", "Spark"]
+    job["required_skills_canonical"] = ["sql"]
+    job["preferred_skills"] = ["Airflow", "dbt"]
+    job["preferred_skills_canonical"] = ["apache airflow"]
+
+    result = analyze_ranked_job(job, _profile(), _config())
+    input_summary = result["cv_analysis_trace"]["input_summary"]
+
+    assert input_summary["required_skills_count"] == 1
+    assert input_summary["preferred_skills_count"] == 1
+
+    job["required_skills_canonical"] = []
+    job["preferred_skills_canonical"] = []
+    fallback_result = analyze_ranked_job(job, _profile(), _config())
+    fallback_input_summary = fallback_result["cv_analysis_trace"]["input_summary"]
+
+    assert fallback_input_summary["required_skills_count"] == 3
+    assert fallback_input_summary["preferred_skills_count"] == 2
+    mock_sleep.assert_not_called()
+
