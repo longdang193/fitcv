@@ -1,5 +1,5 @@
 skill_synonyms:
-  3nf: third normal form
+  3nf: third normal form (3nf)
   a/b testing: a/b testing
   academic writing: academic writing
   acceptance criteria: acceptance criteria
@@ -19,6 +19,7 @@ skill_synonyms:
   advanced excel skills: microsoft excel
   advanced financial analysis: financial analysis
   advanced ms excel skills: microsoft excel
+  advanced proficiency in sql: sql
   agent-systeme: ai agents
   agentic ai: agentic ai
   agentic workflows: agentic workflows
@@ -72,11 +73,13 @@ skill_synonyms:
   arbeitest sicher mit excel: microsoft excel
   arbeitest sicher mit powerpoint: microsoft powerpoint
   arbeitest sicher mit word: microsoft word
+  architecting complex data models: data modeling
   archiving: archiving
   arrays: excel array formulas
   artificial intelligence: artificial intelligence
   as400: ibm as/400
   as400 von vorteil: ibm as/400
+  atlassian jira: jira
   attribution tooling: marketing attribution
   auswertungen und analysen: data analysis
   automated regression testing: automated regression testing
@@ -375,6 +378,7 @@ skill_synonyms:
   finanzmodellierungsfähigkeiten: financial modeling
   fine-tuning: model fine-tuning
   fit-gap analysis: fit-gap analysis
+  flatfiles: flat file
   flexray: flexray
   flowcharting: flowcharting
   flowcharts: flowcharting
@@ -424,6 +428,7 @@ skill_synonyms:
   heatmaps: heatmap analytics
   hgb: hgb accounting
   high-voltage battery analysis: battery analysis
+  hochverfügbaren daten-pipelines: data pipelines
   hubspot: hubspot
   hubspot or equivalent crm: crm
   hvac: hvac
@@ -431,6 +436,7 @@ skill_synonyms:
   ibm cognos tm1: ibm cognos tm1
   ic design specifications: ic design specifications
   icon design: icon design
+  idealerweise python: python
   ifrs: ifrs
   illustrator: adobe illustrator
   im umgang mit etl-werkzeugen: etl tools
@@ -576,6 +582,7 @@ skill_synonyms:
   mysql server: mysql
   natural language processing: natural language processing
   networking: networking
+  networking issues and technologies: computer networking
   neural network: neural networks
   neural networks: neural networks
   newsletter creation: newsletter creation
@@ -782,6 +789,8 @@ skill_synonyms:
   statistik: statistics
   strategic vendor management: vendor management
   stress testing: stress testing
+  strong command of sql: sql
+  strong sql skills: sql
   structured output formatting: structured output generation
   structured outputs: structured output generation
   strukturierte branching-strategien: git branching strategies
@@ -820,6 +829,7 @@ skill_synonyms:
   trade marketing: trade marketing
   trademark law: trademark law
   transmission maintenance: transmission maintenance
+  transportation management system: transportation management system (tms)
   travel expense accounting: travel expense accounting
   trend scouting: trend scouting
   troubleshooting: troubleshooting
@@ -830,11 +840,14 @@ skill_synonyms:
   ubo identification: ubo identification
   umgang mit excel: microsoft excel
   umgang mit ms office: microsoft office
+  und datenvisualisierung: data visualization
+  understanding of sql: sql
   unit economics analysis: unit economics analysis
   unternehmensbewertungen: business valuation
   user acceptance testing: user acceptance testing
   user acceptance testing (uat): user acceptance testing
   user stories: user stories
+  using relational databases: relational databases
   ux/ui: ux/ui design
   ux/ui design: ux/ui design
   valuation: valuation
@@ -864,6 +877,7 @@ skill_synonyms:
   workflow orchestration: workflow orchestration
   workshop facilitation: workshop facilitation
   wormery management: wormery management
+  writing mapping documentation: mapping documentation
   xva modeling: xva modeling
   you build agents: ai agents
   z. b. ms access: microsoft access

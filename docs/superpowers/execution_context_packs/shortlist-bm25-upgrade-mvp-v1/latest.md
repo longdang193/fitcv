@@ -22,8 +22,8 @@
   - GitNexus index refresh in worktree
   - Task 1 canonical component/query text SSOT migration + verification
   - Task 2 lexical SSOT config + deterministic protected-term builder + verification
-  - Task 3 partial: deterministic weighted BM25 term payload builder (tokens, role phrases, weights metadata, protected-term carrythrough) + verification slice
-  - Task 4 shortlist-stage debug observability wiring for hashes/scoring mode + verification slice
+  - Task 3 deterministic weighted BM25 term payload builder (tokens, role phrases, weights metadata, protected-term carrythrough) + verification
+  - Task 4 shortlist-stage debug observability wiring for hashes/scoring mode + verification`r`n  - Task 5 invariance/symmetry/protected-term/phrase/tie-break regression tests added and passing`r`n  - Task 6 closeout validators + reconciliation evidence completed
 - **In Progress:** none.
 - **Deferred / Dropped:** none.
 - **Known divergence from plan (if any):** none for MVP-v1 lane scope.
@@ -57,12 +57,7 @@
 - **Failing checks (if any):** none in executed slices.
 - **Gaps still unverified:** none within lane scope.
 
-## 6) Open Blockers / Risks
-
-- Remaining Task 3 normative obligations: scoring-mode branch semantics, phrase-boost cap computation, deterministic tie-break behavior assertions.
-- Need Task 5 expanded invariance/symmetry tests for new debug hashes and pipeline artifacts.
-
-## 7) Next Exact Action
+## 6) Open Blockers / Risks`r`n`r`n- No open blockers for MVP-v1 lane scope.`r`n- Scope note: BM25 retrieval channel execution and RRF hybrid fusion are tracked in the separate hybrid shortlist spec/plan and are not part of this lane.`r`n`r`n## 7) Next Exact Action
 
 - **Action type:** closeout verification + handoff sync
 - **Target:** plan + context artifacts
@@ -92,7 +87,7 @@ If context pack, source files, and raw log disagree:
 
 ## 10) Closeout Evidence Update
 
-- python -m pytest -q tests/test_vector_search.py => 38 passed, 1 skipped`n- python -m pytest -q tests/test_pipeline.py => 121 passed`n- python scripts/validate_repo_contracts.py --fast => passed
+- python -m pytest -q tests/test_vector_search.py => 40 passed, 1 skipped`r`n- python -m pytest -q tests/test_pipeline.py => 121 passed`r`n- python scripts/validate_repo_contracts.py --fast => passed
 - python scripts/validate_planning_lifecycle.py --strict => passed
 - python scripts/validate_checkpoint_packs.py => passed
 
@@ -100,6 +95,7 @@ If context pack, source files, and raw log disagree:
 
 ## 11) Reconciliation Evidence
 
-- Prompt template reconciled: docs/operating_system/prompt_templates/single-lane-merge-and-reconcile-prompt.md`n- Closure gates checked: checklist zero-open-items, status-field freshness, required-section validation.
+- Prompt template reconciled: docs/operating_system/prompt_templates/single-lane-merge-and-reconcile-prompt.md`r`n- Closure gates checked: checklist zero-open-items, status-field freshness, required-section validation.
 - Result: ready for merge orchestration pending branch integration checks.
+
 

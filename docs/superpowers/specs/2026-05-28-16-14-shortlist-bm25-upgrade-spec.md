@@ -265,3 +265,12 @@ For equal `lexical_score` values, ordering MUST be:
 
 
 
+
+## Scope Clarification (Post-Implementation)
+
+- MVP-v1 completed in this lane delivers deterministic canonical BM25 term payload construction and shortlist observability/debug hashes.
+- MVP-v1 does not add runtime BM25 retrieval-channel execution or RRF fusion-based shortlist ordering.
+- Hybrid retrieval (`vector` + `bm25` + `hybrid_rrf`) remains tracked by:
+  - `docs/superpowers/specs/2026-05-28-14-09-shortlist-hybrid-retrieval-spec.md`
+  - `docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md`
+
