@@ -4891,7 +4891,7 @@ def run_pipeline(
             record for record in cv_analysis_results
             if str(record.get("status") or "") == "ready_for_generation"
         ]
-        if generation_ready_records:
+        if generation_ready_records and not agentic_late_stage_enabled:
             try:
                 validate_cv_generation_routing_ready(config)
             except RuntimeError as exc:
@@ -5012,9 +5012,13 @@ def run_pipeline(
 
         def _initialize_cv_generation_runtime_state(work_item: dict[str, Any]) -> dict[str, Any]:
             job = dict(work_item["job"])
-            job_runtime_provenance: dict[str, Any] | None = _non_agentic_cv_generation_runtime_provenance(
-                config,
-                cv_generation_model_value
+            # Agentic path resolves runtime provenance from generation result.
+            # Avoid non-agentic routing readiness checks here, which can require
+            # provider credentials not needed for mocked/agentic execution paths.
+            job_runtime_provenance: dict[str, Any] | None = (
+                None
+                if agentic_late_stage_enabled
+                else _non_agentic_cv_generation_runtime_provenance(config, cv_generation_model_value)
             )
             return {
                 "job": job,
