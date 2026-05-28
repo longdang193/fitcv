@@ -4824,6 +4824,85 @@ def _coerce_positive_int(value: Any, *, default: int, minimum: int = 1, maximum:
     return max(minimum, min(maximum, parsed))
 
 
+
+def _pipeline_outcome_options() -> list[dict[str, str]]:
+    options = [
+        {"value": key, "label": meta.get("label") or key}
+        for key, meta in PIPELINE_OUTCOME_META.items()
+    ]
+    options.sort(key=lambda row: str(row.get("label") or "").lower())
+    return options
+
+def _normalize_pipeline_outcomes(values: list[str] | tuple[str, ...] | None) -> list[str]:
+    allowed = set(PIPELINE_OUTCOME_META)
+    normalized: list[str] = []
+    for raw_value in values or []:
+        value = str(raw_value or "").strip()
+        if not value or value not in allowed:
+            continue
+        if value in normalized:
+            continue
+        normalized.append(value)
+    return normalized
+
+def _build_enriched_tab_url(
+    *,
+    run_id: str,
+    page: int,
+    page_size: int,
+    filter_name: str,
+    query: str,
+    pipeline_outcomes: list[str],
+) -> str:
+    params: list[tuple[str, str]] = [
+        ("page", str(page)),
+        ("page_size", str(page_size)),
+        ("filter_name", filter_name),
+    ]
+    if query:
+        params.append(("q", query))
+    for outcome in pipeline_outcomes:
+        params.append(("pipeline_outcome", outcome))
+    encoded = urlencode(params, doseq=True)
+    return f"/admin/runs/{run_id}/tabs/enriched?{encoded}"
+
+def _raw_jobs_by_url_from_run_input(run: PipelineRun) -> dict[str, dict[str, Any]]:
+    payload_raw = str(getattr(run, "jobs_input_json", "") or "").strip()
+    if not payload_raw:
+        return {}
+    try:
+        payload = _json.loads(payload_raw)
+    except Exception:
+        return {}
+    if not isinstance(payload, list):
+        return {}
+    rows: dict[str, dict[str, Any]] = {}
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        job_url = str(item.get("job_url") or item.get("jobUrl") or "").strip()
+        if not job_url:
+            continue
+        rows[job_url] = dict(item)
+    return rows
+
+
+def _derived_pipeline_flags(pipeline_status: str) -> tuple[str, str, str]:
+    status = str(pipeline_status or "").strip()
+    shortlist_status = "SHORTLISTED"
+    scoring_status = "NOT_SCORED"
+    final_top_n_status = "NOT_TOP_N"
+
+    if status == "not_shortlisted":
+        shortlist_status = "NOT_SHORTLISTED"
+    if status in {"scored_not_ranked", "ranked_with_cv", "ranked_no_cv", "ranked_blocked_by_reranker_fit", "ranked_skipped_fit_gate"}:
+        scoring_status = "SCORED"
+    if status in {"ranked_with_cv", "ranked_no_cv", "ranked_blocked_by_reranker_fit", "ranked_skipped_fit_gate"}:
+        final_top_n_status = "TOP_N"
+
+    return shortlist_status, scoring_status, final_top_n_status
+
+
 def _paginate_rows(rows: list[dict[str, Any]], *, page: int, page_size: int) -> dict[str, int]:
     total = len(rows)
     total_pages = max(1, (total + page_size - 1) // page_size)
@@ -4848,6 +4927,7 @@ def _build_enriched_tab_context(
     bq: Any,
     filter_name: str,
     query: str,
+    pipeline_outcomes: list[str],
     page: int,
     page_size: int,
 ) -> dict[str, Any]:
@@ -4913,6 +4993,8 @@ def _build_enriched_tab_context(
     if normalized_filter not in {"all", "passed", "rejected", "unknown"}:
         normalized_filter = "all"
     normalized_query = str(query or "").strip().lower()
+    normalized_pipeline_outcomes = _normalize_pipeline_outcomes(pipeline_outcomes)
+
     filter_scoped_rows: list[dict[str, Any]] = []
     for job in enriched_jobs:
         job_url = str(job.get("job_url") or "")
@@ -4924,6 +5006,11 @@ def _build_enriched_tab_context(
             continue
         if normalized_filter == "unknown" and passed is not None:
             continue
+        if normalized_pipeline_outcomes:
+            outcome_row = pipeline_outcomes_by_job_url.get(job_url, {})
+            outcome_status = str(outcome_row.get("status") or "").strip()
+            if outcome_status not in normalized_pipeline_outcomes:
+                continue
         filter_scoped_rows.append(job)
 
     filtered_rows: list[dict[str, Any]] = []
@@ -4940,6 +5027,39 @@ def _build_enriched_tab_context(
     nav_pager = _paginate_rows(filter_scoped_rows, page=page, page_size=page_size)
     pager = _paginate_rows(filtered_rows, page=page, page_size=page_size)
     visible_rows = filtered_rows[pager["start"]:pager["end"]]
+
+    prev_url = None
+    if nav_pager["current_page"] > 1:
+        prev_url = _build_enriched_tab_url(
+            run_id=run_id,
+            page=nav_pager["current_page"] - 1,
+            page_size=page_size,
+            filter_name=normalized_filter,
+            query=query,
+            pipeline_outcomes=normalized_pipeline_outcomes,
+        )
+    next_url = None
+    if nav_pager["current_page"] < nav_pager["total_pages"]:
+        next_url = _build_enriched_tab_url(
+            run_id=run_id,
+            page=nav_pager["current_page"] + 1,
+            page_size=page_size,
+            filter_name=normalized_filter,
+            query=query,
+            pipeline_outcomes=normalized_pipeline_outcomes,
+        )
+    download_url = (
+        f"/admin/runs/{run_id}/enriched/export-filtered.zip?"
+        + urlencode(
+            [
+                ("filter_name", normalized_filter),
+                ("q", query),
+                *[("pipeline_outcome", value) for value in normalized_pipeline_outcomes],
+            ],
+            doseq=True,
+        )
+    )
+
     return {
         "run": run,
         "enriched_jobs": visible_rows,
@@ -4958,10 +5078,14 @@ def _build_enriched_tab_context(
         "enriched_page_end": pager["end"],
         "enriched_filter": normalized_filter,
         "enriched_query": query,
+        "enriched_selected_pipeline_outcomes": normalized_pipeline_outcomes,
+        "enriched_pipeline_outcome_options": _pipeline_outcome_options(),
         "enriched_has_prev": nav_pager["current_page"] > 1,
         "enriched_has_next": nav_pager["current_page"] < nav_pager["total_pages"],
+        "enriched_prev_url": prev_url,
+        "enriched_next_url": next_url,
+        "enriched_download_url": download_url,
     }
-
 
 def _timeline_stage_download_for_event(event_stage: str) -> str | None:
     normalized = str(event_stage or "").strip()
@@ -7396,19 +7520,56 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         status_code=422,
                         detail=f"Invalid jobs JSON in {filename}: {exc}",
                     )
+                parsed: Any = None
                 try:
                     parsed = _json.loads(decoded)
                 except _json.JSONDecodeError as exc:
-                    raise HTTPException(
-                        status_code=422,
-                        detail=f"Invalid jobs JSON in {filename}: {exc}",
-                    )
-                if not isinstance(parsed, list):
-                    raise HTTPException(
-                        status_code=422,
-                        detail=f"Invalid jobs JSON in {filename}: top-level value must be a JSON array",
-                    )
-                validated_arrays.append(parsed)
+                    if not filename.lower().endswith(".jsonl"):
+                        raise HTTPException(
+                            status_code=422,
+                            detail=f"Invalid jobs JSON in {filename}: {exc}",
+                        )
+                if isinstance(parsed, list):
+                    validated_arrays.append(parsed)
+                    continue
+
+                if filename.lower().endswith(".jsonl"):
+                    jsonl_rows: list[dict[str, Any]] = []
+                    for line_index, line in enumerate(decoded.splitlines(), start=1):
+                        stripped = line.strip()
+                        if not stripped:
+                            continue
+                        try:
+                            row = _json.loads(stripped)
+                        except _json.JSONDecodeError as exc:
+                            raise HTTPException(
+                                status_code=422,
+                                detail=f"Invalid jobs JSONL in {filename} at line {line_index}: {exc}",
+                            )
+                        if not isinstance(row, dict):
+                            raise HTTPException(
+                                status_code=422,
+                                detail=f"Invalid jobs JSONL in {filename} at line {line_index}: each line must be JSON object",
+                            )
+                        raw_job = row.get("raw_job")
+                        if not isinstance(raw_job, dict):
+                            raise HTTPException(
+                                status_code=422,
+                                detail=f"Invalid jobs JSONL in {filename} at line {line_index}: missing object field 'raw_job'",
+                            )
+                        jsonl_rows.append(raw_job)
+                    if not jsonl_rows:
+                        raise HTTPException(
+                            status_code=422,
+                            detail=f"Invalid jobs JSONL in {filename}: no valid rows found",
+                        )
+                    validated_arrays.append(jsonl_rows)
+                    continue
+
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid jobs JSON in {filename}: top-level value must be a JSON array",
+                )
 
             # Merge in submitted file order, preserving row order within each file
             merged_jobs: list = []
@@ -10720,6 +10881,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             bq=bq,
             filter_name=filter_name,
             query=q,
+            pipeline_outcomes=request.query_params.getlist("pipeline_outcome"),
             page=page,
             page_size=page_size,
         )
@@ -10727,6 +10889,106 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             request=request,
             name="run_detail_tab_enriched.html",
             context=context,
+        )
+
+    @app.get("/admin/runs/{run_id}/enriched/export-filtered.zip")
+    def download_run_enriched_filtered_zip(
+        request: Request,
+        run_id: str,
+        filter_name: str = "all",
+        q: str = "",
+    ) -> Response:
+        run = require_run_or_404(run_id, detail="")
+        context = _build_enriched_tab_context(
+            run,
+            run_id=run_id,
+            project=project,
+            dataset=dataset,
+            bq=bq,
+            filter_name=filter_name,
+            query=q,
+            pipeline_outcomes=request.query_params.getlist("pipeline_outcome"),
+            page=1,
+            page_size=1_000_000,
+        )
+
+        filtered_jobs = list(context.get("enriched_jobs") or [])
+        outcomes_by_url = dict(context.get("pipeline_outcomes_by_job_url") or {})
+        filter_results_by_job_url = dict(context.get("filter_results_by_job_url") or {})
+        selected_outcomes = list(context.get("enriched_selected_pipeline_outcomes") or [])
+
+        raw_jobs_by_url = _raw_jobs_by_url_from_run_input(run)
+
+        export_rows: list[dict[str, Any]] = []
+        dropped_rows: list[dict[str, str]] = []
+
+        for job in filtered_jobs:
+            job_url = str(job.get("job_url") or "").strip()
+            if not job_url:
+                continue
+            raw_job = raw_jobs_by_url.get(job_url)
+            if not isinstance(raw_job, dict):
+                dropped_rows.append({"job_url": job_url, "reason": "missing_raw_job"})
+                continue
+
+            outcome_row = outcomes_by_url.get(job_url, {})
+            pipeline_status = str(outcome_row.get("status") or "").strip()
+            filter_row = filter_results_by_job_url.get(job_url, {})
+            passed = filter_row.get("passed")
+            filter_status = "UNKNOWN"
+            if passed is True:
+                filter_status = "PASS"
+            elif passed is False:
+                filter_status = "REJECT"
+
+            shortlist_status, scoring_status, final_top_n_status = _derived_pipeline_flags(pipeline_status)
+
+            export_rows.append(
+                {
+                    "schema_version": "rerun_input.v1",
+                    "job_url": job_url,
+                    "source_run_id": run_id,
+                    "pipeline_outcome": pipeline_status,
+                    "filter_status": filter_status,
+                    "shortlist_status": shortlist_status,
+                    "scoring_status": scoring_status,
+                    "final_top_n_status": final_top_n_status,
+                    "raw_job": raw_job,
+                }
+            )
+
+        export_rows.sort(key=lambda row: str(row.get("job_url") or ""))
+        jsonl_text = "\n".join(_json.dumps(row, ensure_ascii=False) for row in export_rows)
+        jsonl_bytes = (jsonl_text + ("\n" if jsonl_text else "")).encode("utf-8")
+        checksum = hashlib.sha256(jsonl_bytes).hexdigest()
+
+        manifest = {
+            "schema_version": "rerun_export_manifest.v1",
+            "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "source_run_id": run_id,
+            "export_id": str(uuid.uuid4()),
+            "filters": {
+                "filter_name": str(filter_name or "all"),
+                "q": str(q or ""),
+                "pipeline_outcome": selected_outcomes,
+            },
+            "row_count": len(export_rows),
+            "ordering": "job_url_asc",
+            "jsonl_file": "jobs.filtered.jsonl",
+            "checksum_sha256": checksum,
+            "warnings": dropped_rows,
+        }
+
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("jobs.filtered.jsonl", jsonl_bytes)
+            archive.writestr("jobs.filtered.manifest.json", _json.dumps(manifest, ensure_ascii=False, indent=2))
+        buffer.seek(0)
+
+        return Response(
+            content=buffer.getvalue(),
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-filtered-export.zip"'},
         )
 
     @app.get("/admin/runs/{run_id}/tabs/jobs-input", response_class=HTMLResponse)
@@ -11429,6 +11691,23 @@ def _run_to_dict(run: PipelineRun) -> dict:
 def _is_hitl_resolution_pending(resolution_status: str | None) -> bool:
     normalized = str(resolution_status or "").strip().lower() or "pending"
     return normalized not in _HITL_TERMINAL_RESOLUTION_STATUSES
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

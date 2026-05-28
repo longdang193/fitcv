@@ -25,6 +25,12 @@
     <option value="unknown" {% if enriched_filter == 'unknown' %}selected{% endif %}>Unknown</option>
   </select>
   <input id="enr-search" type="search" name="q" value="{{ enriched_query }}" placeholder="Search title, domain, job family…" style="flex:1;min-width:16rem;font-size:0.85rem;padding:0.25rem 0.6rem">
+  <label class="meta" for="enr-pipeline-outcome" style="font-size:0.85rem">Pipeline Outcome</label>
+  <select id="enr-pipeline-outcome" name="pipeline_outcome" multiple size="4" style="font-size:0.85rem;padding:0.25rem 0.5rem;min-width:14rem">
+    {% for outcome in enriched_pipeline_outcome_options %}
+    <option value="{{ outcome.value }}" {% if outcome.value in enriched_selected_pipeline_outcomes %}selected{% endif %}>{{ outcome.label }}</option>
+    {% endfor %}
+  </select>
   <label class="meta" for="enr-page-size" style="font-size:0.85rem">Rows</label>
   <select id="enr-page-size" name="page_size" style="font-size:0.85rem;padding:0.25rem 0.5rem">
     {% for size in (25, 50, 100) %}
@@ -32,6 +38,7 @@
     {% endfor %}
   </select>
   <button type="submit" class="btn-secondary">Apply</button>
+  <a class="btn-secondary" href="{{ enriched_download_url }}" data-tab-fragment-skip="true">Download filtered</a>
 </form>
 
 <div class="card" style="padding:0;overflow:hidden">
@@ -110,16 +117,14 @@
 {% if enriched_total_pages > 1 %}
 <div style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1.25rem;justify-content:flex-end">
   {% if enriched_has_prev %}
-  {% set enriched_prev_url = "/admin/runs/" ~ run.run_id ~ "/tabs/enriched?page=" ~ (enriched_current_page - 1) ~ "&page_size=" ~ enriched_page_size ~ "&filter_name=" ~ enriched_filter ~ "&q=" ~ (enriched_query | urlencode) %}
-  <a href="{{ enriched_prev_url | safe }}"
+    <a href="{{ enriched_prev_url | safe }}"
      class="btn-secondary"
      data-tab-fragment-url="{{ enriched_prev_url | safe }}"
      data-tab-id="enriched">← Prev</a>
   {% endif %}
   <span class="meta">Page {{ enriched_current_page }} of {{ enriched_total_pages }}</span>
   {% if enriched_has_next %}
-  {% set enriched_next_url = "/admin/runs/" ~ run.run_id ~ "/tabs/enriched?page=" ~ (enriched_current_page + 1) ~ "&page_size=" ~ enriched_page_size ~ "&filter_name=" ~ enriched_filter ~ "&q=" ~ (enriched_query | urlencode) %}
-  <a href="{{ enriched_next_url | safe }}"
+    <a href="{{ enriched_next_url | safe }}"
      class="btn-secondary"
      data-tab-fragment-url="{{ enriched_next_url | safe }}"
      data-tab-id="enriched">Next →</a>
@@ -193,3 +198,6 @@
   </details>
 </div>
 {% endif %}
+
+
+

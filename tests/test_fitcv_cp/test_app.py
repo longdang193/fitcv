@@ -349,7 +349,7 @@ def test_post_runs_inserts_before_enqueue(tmp_path):
              "paths": {"candidate_profile": str(profile_path)},
          }):
         resp = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
     assert "run_id" in resp.json()
     assert call_order == ["insert", "enqueue"], f"Order was: {call_order}"
 
@@ -378,7 +378,7 @@ def test_post_runs_persists_backend_binding_from_submission(tmp_path):
              "paths": {"candidate_profile": str(profile_path)},
          }):
         resp = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
     kwargs = binding_mock.call_args.kwargs
     assert kwargs["queue_job_id"] == "rq-job-abc"
     assert kwargs["orchestration_backend"] == "prefect"
@@ -698,7 +698,7 @@ def test_post_runs_persists_manual_staged_mode(tmp_path) -> None:
             "run_mode": "manual_staged",
         })
 
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
     assert captured["run"].run_mode == "manual_staged"
     assert captured["run"].next_stage == "normalize"
     assert captured["run"].completed_stages == []
@@ -728,7 +728,7 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
          }):
         resp = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
 
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
     assert captured["run"].jobs_input_source == "path"
     assert json.loads(captured["run"].jobs_input_json) == [{"job_url": "http://a.com"}]
     assert captured["run"].candidate_profile_source == "default_config"
@@ -774,7 +774,7 @@ def test_post_runs_path_trigger_captures_agentic_runtime_expectation(tmp_path) -
          }):
         resp = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
 
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
     effective = json.loads(captured["run"].effective_settings_json)
     expectation = effective["runtime_inputs"]["agentic_runtime_expectation"]
     assert expectation["provider"] == "9router"
@@ -1032,7 +1032,7 @@ def test_post_runs_with_config_overrides(tmp_path):
             "jobs_path": str(jobs_file),
             "config_overrides": {"pipeline.final_top_n": 5},
         })
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
     assert "run_id" in resp.json()
 
 
@@ -1080,7 +1080,7 @@ def test_post_runs_accepts_nested_stage_runtime_overrides(tmp_path):
                 },
             },
         })
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
     effective = json.loads(captured["run"].effective_settings_json)
     assert effective["stage_runtime"]["ranking"]["concurrency"] == 4
     assert float(effective["stage_runtime"]["ranking"]["sleep_secs"]) == pytest.approx(0.0)
@@ -1107,7 +1107,7 @@ def test_post_runs_accepts_mixed_nested_and_flat_same_value(tmp_path):
                 "stage_runtime.ranking.concurrency": 4,
             },
         })
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
 
 def test_post_runs_rejects_mixed_nested_and_flat_conflict(tmp_path):
     jobs_file = tmp_path / "jobs.json"
@@ -1332,7 +1332,7 @@ def test_admin_upload_trigger_honors_explicit_overlay_upload_scope() -> None:
         }
         resp = TestClient(_app()).post("/admin/upload-trigger", data=data, files=files)
 
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
     effective = json.loads(captured["run"].effective_settings_json)
     assert effective["domain_alias_map"]["fintech"] == "financial services"
 
@@ -3547,7 +3547,7 @@ def test_admin_upload_trigger_accepts_domain_scope_with_domain_sections_only() -
         }
         resp = TestClient(_app()).post("/admin/upload-trigger", data=data, files=files)
 
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
     effective = json.loads(captured["run"].effective_settings_json)
     assert effective["domain_alias_map"]["fintech"] == "financial services"
 
@@ -10984,6 +10984,7 @@ def _run_detail_patches(
     filter_results=None,
     results_export_json=None,
     stage_transition_artifacts_json=None,
+    jobs_input_json=None,
 ):
     import datetime
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -10997,6 +10998,7 @@ def _run_detail_patches(
         created_at=datetime.datetime(2026, 3, 27, 9, 0, 0, tzinfo=datetime.timezone.utc),
         results_export_json=results_export_json,
         stage_transition_artifacts_json=stage_transition_artifacts_json,
+        jobs_input_json=jobs_input_json,
     )
     return (
         patch("fitcv_cp.app.get_run", return_value=run),
@@ -11794,6 +11796,171 @@ def test_run_detail_enriched_unknown_filter_not_counted_as_rejected():
     assert "Engineer B" in resp.text
     # Rejected count should be 0 (no explicit reject), not 1
     assert "Rejected: 0" in resp.text
+
+
+
+def test_run_detail_enriched_filters_by_pipeline_outcome_multi_select():
+    import json as _json
+
+    enriched = [
+        {"job_url": "https://j.test/ns", "title": "Not Shortlisted", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/snr", "title": "Scored Not Ranked", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/rej", "title": "Rejected Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+    ]
+    export_payload = _json.dumps(
+        {
+            "results": [
+                {"job_url": "https://j.test/ns", "pipeline_status": "not_shortlisted"},
+                {"job_url": "https://j.test/snr", "pipeline_status": "scored_not_ranked"},
+                {"job_url": "https://j.test/rej", "pipeline_status": "rejected_after_enrichment"},
+            ]
+        }
+    )
+    patches = _run_detail_patches(enriched_jobs=enriched, filter_results=[], results_export_json=export_payload)
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-detail-test/tabs/enriched"
+            "?pipeline_outcome=not_shortlisted&pipeline_outcome=scored_not_ranked"
+        )
+    assert resp.status_code == 200
+    assert "Not Shortlisted" in resp.text
+    assert "Scored Not Ranked" in resp.text
+    assert "Rejected Role" not in resp.text
+
+
+def test_run_detail_enriched_pipeline_outcome_query_state_preserved_in_urls():
+    import json as _json
+
+    enriched = [
+        {"job_url": f"https://j.test/{i}", "title": f"Job {i}", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None}
+        for i in range(1, 61)
+    ]
+    export_payload = _json.dumps(
+        {
+            "results": [
+                {
+                    "job_url": f"https://j.test/{i}",
+                    "pipeline_status": "not_shortlisted" if i % 2 else "scored_not_ranked",
+                }
+                for i in range(1, 61)
+            ]
+        }
+    )
+    patches = _run_detail_patches(enriched_jobs=enriched, filter_results=[], results_export_json=export_payload)
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-detail-test/tabs/enriched?page=2&page_size=25&filter_name=all&q=python"
+            "&pipeline_outcome=not_shortlisted&pipeline_outcome=scored_not_ranked"
+        )
+    assert resp.status_code == 200
+    prev_url = (
+        "/admin/runs/run-detail-test/tabs/enriched?page=1&page_size=25&filter_name=all&q=python"
+        "&pipeline_outcome=not_shortlisted&pipeline_outcome=scored_not_ranked"
+    )
+    next_url = (
+        "/admin/runs/run-detail-test/tabs/enriched?page=3&page_size=25&filter_name=all&q=python"
+        "&pipeline_outcome=not_shortlisted&pipeline_outcome=scored_not_ranked"
+    )
+    download_url = (
+        "/admin/runs/run-detail-test/enriched/export-filtered.zip?filter_name=all&q=python"
+        "&pipeline_outcome=not_shortlisted&pipeline_outcome=scored_not_ranked"
+    )
+    assert f'href="{prev_url}"' in resp.text
+    assert f'data-tab-fragment-url="{prev_url}"' in resp.text
+    assert f'href="{next_url}"' in resp.text
+    assert f'data-tab-fragment-url="{next_url}"' in resp.text
+    assert f'href="{download_url.replace("&", "&amp;")}"' in resp.text
+
+
+def test_download_run_enriched_filtered_zip_contains_jsonl_and_manifest():
+    import io as _io
+    import json as _json
+    import zipfile as _zipfile
+
+    enriched = [
+        {"job_url": "https://j.test/ns", "title": "Not Shortlisted", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/rej", "title": "Rejected Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+    ]
+    export_payload = _json.dumps(
+        {
+            "results": [
+                {"job_url": "https://j.test/ns", "pipeline_status": "not_shortlisted"},
+                {"job_url": "https://j.test/rej", "pipeline_status": "rejected_after_enrichment"},
+            ]
+        }
+    )
+    jobs_input = _json.dumps([
+        {"jobUrl": "https://j.test/ns", "title": "Not Shortlisted"},
+        {"jobUrl": "https://j.test/rej", "title": "Rejected Role"},
+    ])
+    patches = _run_detail_patches(
+        enriched_jobs=enriched,
+        filter_results=[],
+        results_export_json=export_payload,
+        jobs_input_json=jobs_input,
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-detail-test/enriched/export-filtered.zip"
+            "?pipeline_outcome=not_shortlisted"
+        )
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/zip"
+    with _zipfile.ZipFile(_io.BytesIO(resp.content)) as archive:
+        names = set(archive.namelist())
+        assert "jobs.filtered.jsonl" in names
+        assert "jobs.filtered.manifest.json" in names
+        lines = [line for line in archive.read("jobs.filtered.jsonl").decode("utf-8").splitlines() if line.strip()]
+        manifest = _json.loads(archive.read("jobs.filtered.manifest.json"))
+
+    assert len(lines) == 1
+    row = _json.loads(lines[0])
+    assert row["pipeline_outcome"] == "not_shortlisted"
+    assert row["raw_job"]["jobUrl"] == "https://j.test/ns"
+    assert manifest["row_count"] == 1
+    assert manifest["filters"]["pipeline_outcome"] == ["not_shortlisted"]
+
+
+def test_admin_upload_trigger_accepts_jsonl_rerun_input():
+    import io as _io
+    import json as _json
+
+    captured = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    jsonl_payload = "\n".join(
+        [
+            _json.dumps({"schema_version": "rerun_input.v1", "raw_job": {"jobUrl": "https://a.com", "title": "A"}}),
+            _json.dumps({"schema_version": "rerun_input.v1", "raw_job": {"jobUrl": "https://b.com", "title": "B"}}),
+        ]
+    )
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": "data/candidate_profile.yaml"},
+         }):
+        resp = TestClient(_app()).post(
+            "/admin/upload-trigger",
+            data={
+                "jobs_input_mode": "upload",
+                "candidate_profile_mode": "default_config",
+                "config_path": ".env.yaml",
+            },
+            files={"jobs_file": ("filtered.jsonl", _io.BytesIO(jsonl_payload.encode("utf-8")), "application/jsonl")},
+        )
+
+    assert resp.status_code == 201, resp.text
+    jobs_input_json = captured["run"].jobs_input_json
+    parsed = _json.loads(jobs_input_json)
+    assert [row.get("jobUrl") for row in parsed] == ["https://a.com", "https://b.com"]
 
 
 def test_run_detail_enriched_tab_paginates_server_side():
@@ -13841,6 +14008,15 @@ def test_is_hitl_resolution_pending_uses_terminal_status_set() -> None:
     assert _is_hitl_resolution_pending("regeneration_requested") is True
     assert _is_hitl_resolution_pending("approved_as_is") is False
     assert _is_hitl_resolution_pending("rejected") is False
+
+
+
+
+
+
+
+
+
 
 
 

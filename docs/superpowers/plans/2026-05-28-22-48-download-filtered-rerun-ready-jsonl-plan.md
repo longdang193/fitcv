@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: active
 template_id: implementation-plan
 name: run-detail-download-filtered-rerun-jsonl-manifest-implementation
 parent_thread: workstream-operator-control-plane.operator-control-plane-run-detail-truth
@@ -56,14 +56,14 @@ Tests prove filter correctness, manifest integrity, rerun compatibility, and non
 - Existing outcome taxonomy remains source of truth in `PIPELINE_OUTCOME_META`
 
 **Steps:**
-- [ ] Add request/query parsing for repeated `pipeline_outcome` values in enriched tab route(s).
-- [ ] Extend `_build_enriched_tab_context` to apply outcome filters before pagination using canonical status keys.
-- [ ] Add multi-select UI control for pipeline outcomes and persist selection across Apply/pagination.
-- [ ] Add `Download filtered` link/button that forwards active filter query params to export endpoint.
+- [x] Add request/query parsing for repeated `pipeline_outcome` values in enriched tab route(s).
+- [x] Extend `_build_enriched_tab_context` to apply outcome filters before pagination using canonical status keys.
+- [x] Add multi-select UI control for pipeline outcomes and persist selection across Apply/pagination.
+- [x] Add `Download filtered` link/button that forwards active filter query params to export endpoint.
 
 **Verification:**
-- [ ] Run targeted tests for enriched-tab filter state rendering and query behavior.
-- [ ] Manual inspection in run detail UI: selected outcomes remain stable across Apply/Next/Prev.
+- [x] Run targeted tests for enriched-tab filter state rendering and query behavior.
+- [x] Manual inspection in run detail UI: selected outcomes remain stable across Apply/Next/Prev.
 
 **Exit Criteria:**
 - Enriched tab can express and display filtered cohort `not_shortlisted + scored_not_ranked` with stable UI state.
@@ -83,16 +83,16 @@ Tests prove filter correctness, manifest integrity, rerun compatibility, and non
 - Filtered row selection logic centralized/reusable (avoid duplicate filtering paths)
 
 **Steps:**
-- [ ] Add `GET /admin/runs/{run_id}/enriched/export-filtered.zip` endpoint.
-- [ ] Reuse canonical filter path (`filter_name`, `q`, repeated `pipeline_outcome`) and ignore pagination for export.
-- [ ] Build JSONL rows with `rerun_input.v1` schema and include `raw_job` payload.
-- [ ] Sort rows deterministically (`job_url ASC`, stable fallback key if missing).
-- [ ] Generate manifest with metadata fields: schema version, generated timestamp, export id, source run id, filters, row count, ordering, checksum, warnings.
-- [ ] Package JSONL + manifest into zip response with deterministic filenames.
+- [x] Add `GET /admin/runs/{run_id}/enriched/export-filtered.zip` endpoint.
+- [x] Reuse canonical filter path (`filter_name`, `q`, repeated `pipeline_outcome`) and ignore pagination for export.
+- [x] Build JSONL rows with `rerun_input.v1` schema and include `raw_job` payload.
+- [x] Sort rows deterministically (`job_url ASC`, stable fallback key if missing).
+- [x] Generate manifest with metadata fields: schema version, generated timestamp, export id, source run id, filters, row count, ordering, checksum, warnings.
+- [x] Package JSONL + manifest into zip response with deterministic filenames.
 
 **Verification:**
-- [ ] Add/execute tests validating zip entries, row count parity, and checksum correctness.
-- [ ] Add test asserting exported rows all satisfy active filter criteria.
+- [x] Add/execute tests validating zip entries, row count parity, and checksum correctness.
+- [x] Add test asserting exported rows all satisfy active filter criteria.
 
 **Exit Criteria:**
 - Export endpoint returns correct deterministic bundle for any valid enriched filter query.
@@ -113,16 +113,16 @@ Tests prove filter correctness, manifest integrity, rerun compatibility, and non
 - Existing JSON-array behaviors must remain unchanged
 
 **Steps:**
-- [ ] Extend upload parser branch to detect `.jsonl` files (or line-delimited JSON content-type).
-- [ ] Parse JSONL safely line-by-line; validate row shape and extract `raw_job` as canonical ingest object.
-- [ ] Convert parsed rows into merged jobs JSON array snapshot used by existing trigger path.
-- [ ] Add explicit validation errors for malformed JSONL, missing `raw_job`, and empty valid rows.
-- [ ] Preserve existing path/upload/paste JSON-array handling unchanged.
+- [x] Extend upload parser branch to detect `.jsonl` files (or line-delimited JSON content-type).
+- [x] Parse JSONL safely line-by-line; validate row shape and extract `raw_job` as canonical ingest object.
+- [x] Convert parsed rows into merged jobs JSON array snapshot used by existing trigger path.
+- [x] Add explicit validation errors for malformed JSONL, missing `raw_job`, and empty valid rows.
+- [x] Preserve existing path/upload/paste JSON-array handling unchanged.
 
 **Verification:**
-- [ ] Add test that uploads exported JSONL and receives `201` with created run.
-- [ ] Add negative tests for malformed JSONL and missing required row fields.
-- [ ] Re-run existing upload mode tests for regression guard.
+- [x] Add test that uploads exported JSONL and receives `201` with created run.
+- [x] Add negative tests for malformed JSONL and missing required row fields.
+- [x] Re-run existing upload mode tests for regression guard.
 
 **Exit Criteria:**
 - Operator can download filtered bundle and directly re-upload JSONL to trigger new run without manual conversion.
@@ -142,14 +142,14 @@ Tests prove filter correctness, manifest integrity, rerun compatibility, and non
 - Tasks 1-3 complete
 
 **Steps:**
-- [ ] Document new endpoint, query params, zip contents, JSONL row schema, manifest schema, and rerun import expectations in `docs/api.md`.
-- [ ] Run targeted test selection for enriched filters/export/upload-trigger.
-- [ ] Run broader app test subset touching run detail and upload trigger flows.
-- [ ] Capture final verification notes and unresolved follow-ups (if any) in plan execution output.
+- [x] Document new endpoint, query params, zip contents, JSONL row schema, manifest schema, and rerun import expectations in `docs/api.md`.
+- [x] Run targeted test selection for enriched filters/export/upload-trigger.
+- [x] Run broader app test subset touching run detail and upload trigger flows.
+- [x] Capture final verification notes and unresolved follow-ups (if any) in plan execution output.
 
 **Verification:**
-- [ ] Docs and tests reflect same field names and schema versions.
-- [ ] No regressions in existing trigger modes.
+- [x] Docs and tests reflect same field names and schema versions.
+- [x] No regressions in existing trigger modes.
 
 **Exit Criteria:**
 - Implementation artifacts, tests, and docs are consistent and handoff-ready.
@@ -174,3 +174,4 @@ Canonical source-of-truth:
 - `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
 </LINK>
+
