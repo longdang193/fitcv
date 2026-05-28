@@ -4,7 +4,7 @@ artifact_type: plan
 status: proposed
 template_id: implementation-plan
 name: shortlist-bm25-upgrade-implementation
-parent_workstream: none
+parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-operator-diagnostics
 parent_spec: docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
 targets:
   - src/fitcv/vector_search.py
@@ -14,7 +14,7 @@ targets:
   - tests/test_vector_search.py
   - tests/test_pipeline.py
 related_features:
-  - shortlist_retrieval
+  - cv_system
 related_stages:
   - shortlist
 ---

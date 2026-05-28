@@ -24,6 +24,7 @@ from fitcv.ranking import (
     compute_must_have_match,
     compute_preference_fit,
     compute_preference_fit_details,
+    compute_ranking_runtime_diagnostics,
     compute_seniority_fit,
     compute_title_relevance,
     rank_jobs,
@@ -479,3 +480,63 @@ tags:
   - fast
   - ci-safe
 """
+
+def test_get_preference_fit_weights_rejects_invalid_sum() -> None:
+    with pytest.raises(ValueError, match="Invalid preference-fit weights sum"):
+        get_preference_fit_weights(
+            {
+                "preference_fit_weights": {
+                    "domain": 0.8,
+                    "role_family": 0.3,
+                    "location_type": 0.2,
+                }
+            }
+        )
+
+def test_compute_ranking_runtime_diagnostics_counts_fallback_and_taxonomy_drift() -> None:
+    diagnostics = compute_ranking_runtime_diagnostics(
+        [
+            {
+                "missing_feature_default_applied": {
+                    "ai_score": True,
+                    "must_have_match": False,
+                    "vector_similarity": True,
+                    "title_relevance": False,
+                    "seniority_fit": False,
+                    "preference_fit": False,
+                },
+                "preference_fit_match_details": {
+                    "domain": "none",
+                    "role_family": "neighbor",
+                    "location_type": "exact",
+                },
+            },
+            {
+                "missing_feature_default_applied": {
+                    "ai_score": False,
+                    "must_have_match": False,
+                    "vector_similarity": False,
+                    "title_relevance": False,
+                    "seniority_fit": False,
+                    "preference_fit": False,
+                },
+                "preference_fit_match_details": {
+                    "domain": "exact",
+                    "role_family": "neutral",
+                    "location_type": "neutral",
+                },
+            },
+        ]
+    )
+    assert diagnostics["missing_feature_fallbacks"]["total_applied"] == 2
+    assert diagnostics["missing_feature_fallbacks"]["by_feature"]["ai_score"]["count"] == 1
+    assert diagnostics["missing_feature_fallbacks"]["by_feature"]["vector_similarity"]["count"] == 1
+    assert diagnostics["taxonomy_drift"]["domain_unmatched_count"] == 1
+    assert diagnostics["taxonomy_drift"]["role_family_unmatched_count"] == 0
+    assert diagnostics["taxonomy_drift"]["neighbor_match_count"] == 1
+    assert diagnostics["taxonomy_drift"]["active_comparisons"] == 3
+    assert diagnostics["taxonomy_drift"]["unmatched_total"] == 1
+    assert diagnostics["taxonomy_drift"]["unmatched_rate"] == pytest.approx(1 / 3)
+    # alert threshold is added at pipeline aggregation level, not ranking helper level
+
+

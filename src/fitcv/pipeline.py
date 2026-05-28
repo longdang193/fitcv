@@ -125,6 +125,7 @@ from fitcv.ranking import (
     compute_must_have_match,
     compute_preference_fit_details,
     compute_preference_fit,
+    compute_ranking_runtime_diagnostics,
     compute_seniority_fit,
     compute_title_relevance,
     get_active_missing_value_defaults,
@@ -2880,7 +2881,7 @@ def _build_shortlist_quality_metrics(
     }
 
 
-def _build_ranking_quality_metrics(ranking_inputs: list[dict[str, Any]]) -> dict[str, Any]:
+def _build_ranking_quality_metrics(ranking_inputs: list[dict[str, Any]], config: dict[str, Any] | None = None) -> dict[str, Any]:
     strong_count = 0
     stretch_count = 0
     skip_count = 0
@@ -3335,7 +3336,7 @@ def _build_stage_transition_artifacts(
         backfilled_jobs_total=len(backfilled_job_urls),
         scoring_shortlisted_jobs_total=len(shortlist),
     )
-    ranking_quality_metrics = _build_ranking_quality_metrics(ranking_inputs)
+    ranking_quality_metrics = _build_ranking_quality_metrics(ranking_inputs, config=config)
     ranking_reuse_metrics = {
         "reused_ai_scores": sum(
             1 for row in ai_scores
@@ -6870,6 +6871,12 @@ def run_pipeline(
                     ),
                 )  # type: ignore[union-attr]
     return summary
+
+
+
+
+
+
 
 
 

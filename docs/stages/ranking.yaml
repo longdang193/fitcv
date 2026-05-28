@@ -84,7 +84,7 @@ inputs:
 - scoring shortlist
 - six-feature runtime ranking inputs
 outputs:
-- '`stage_transition_artifacts.ranking.decision_summary.quality_metrics` with strong/stretch/skip counts and rates over scored inputs'
+- 'stage_transition_artifacts.ranking.decision_summary.quality_metrics with strong/stretch/skip counts and rates over scored inputs, plus missing_feature_fallbacks and 	axonomy_drift detector metrics'
 - '`stage_transition_artifacts.ranking.decision_summary.reuse_metrics` with exact-match AI-score reuse counts and fresh counts over scored inputs'
 - authoritative ranking fit labels (`strong`, `stretch`, `skip`) that downstream stages must preserve as upstream truth
 - bounded `stage_transition_artifacts_v5.ranking` runtime block with six-feature weights, preference-fit weights, fit-label thresholds, effective-preference provenance, contribution visibility, reuse metrics, input samples, output samples, and scored-not-ranked samples

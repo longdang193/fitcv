@@ -1,10 +1,11 @@
 ---
 artifact_type: plan
-status: proposed
+status: completed
 layer: change
 template_id: implementation-plan
 name: ranking-partial-coverage-detectors-and-preference-weight-contract
-parent_workstream: none
+parent_thread: workstream-fitcv-semantic-spine.semantic-spine-stage-authority-contract
+parent_spec: docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
 targets:
   - src/fitcv/ranking_contract.py
   - src/fitcv/ranking.py
@@ -12,7 +13,7 @@ targets:
   - src/fitcv/pipeline_stage_artifacts.py
   - tests/test_ranking_contract.py
   - tests/test_ranking.py
-  - tests/test_pipeline_stage_artifacts.py
+  - tests/test_pipeline.py
 related_features:
   - cv_system
   - inspection_debugging
@@ -56,13 +57,13 @@ Add/extend focused unit tests for contract validation and ranking diagnostics pa
 - GitNexus is stale; use source-first, advisory-only lookup.
 
 **Steps:**
-- [ ] Trace ranking data flow from feature assembly to `compute_final_score`, `compute_preference_fit_details`, and stage artifact construction.
-- [ ] Identify exact points where fallback defaults are applied and where canonicalization/match typing already exists.
-- [ ] Define bounded detector schema additions under ranking `decision_summary.quality_metrics` (or dedicated ranking diagnostics block) without breaking existing consumers.
+- [x] Trace ranking data flow from feature assembly to `compute_final_score`, `compute_preference_fit_details`, and stage artifact construction.
+- [x] Identify exact points where fallback defaults are applied and where canonicalization/match typing already exists.
+- [x] Define bounded detector schema additions under ranking `decision_summary.quality_metrics` (or dedicated ranking diagnostics block) without breaking existing consumers.
 
 **Verification:**
-- [ ] Written mapping exists from each failure mode (`2,3,4`) to specific code insertion points.
-- [ ] Detector schema draft includes field names, type contracts, and zero/default behavior.
+- [x] Written mapping exists from each failure mode (`2,3,4`) to specific code insertion points.
+- [x] Detector schema draft includes field names, type contracts, and zero/default behavior.
 
 **Exit Criteria:**
 - Instrumentation plan is specific enough to implement without guessing.
@@ -82,16 +83,16 @@ Add/extend focused unit tests for contract validation and ranking diagnostics pa
 - Task 1 complete.
 
 **Steps:**
-- [ ] Add `validate_preference_fit_weights_contract` in `ranking_contract` with constraints:
-- [ ] keys exactly `domain`, `role_family`, `location_type` (or strict required-key set with controlled optional handling)
-- [ ] each value in `[0.0, 1.0]`
-- [ ] total sum equals `1.0` within epsilon
-- [ ] Call validator from `get_preference_fit_weights` after resolution/merge.
-- [ ] Add tests for valid config, invalid sum, invalid range, missing key behavior.
+- [x] Add `validate_preference_fit_weights_contract` in `ranking_contract` with constraints:
+- [x] keys exactly `domain`, `role_family`, `location_type` (or strict required-key set with controlled optional handling)
+- [x] each value in `[0.0, 1.0]`
+- [x] total sum equals `1.0` within epsilon
+- [x] Call validator from `get_preference_fit_weights` after resolution/merge.
+- [x] Add tests for valid config, invalid sum, invalid range, missing key behavior.
 
 **Verification:**
-- [ ] `pytest -q tests/test_ranking_contract.py tests/test_ranking.py`
-- [ ] New negative-path tests fail before fix and pass after fix.
+- [x] `pytest -q tests/test_ranking_contract.py tests/test_ranking.py`
+- [x] New negative-path tests fail before fix and pass after fix.
 
 **Exit Criteria:**
 - Invalid `preference_fit_weights` cannot enter runtime scoring silently.
@@ -106,23 +107,23 @@ Add/extend focused unit tests for contract validation and ranking diagnostics pa
 - Modify: `src/fitcv/pipeline.py`
 - Modify: `src/fitcv/pipeline_stage_artifacts.py`
 - Modify: `tests/test_ranking.py`
-- Modify: `tests/test_pipeline_stage_artifacts.py`
+- Modify: `tests/test_pipeline.py`
 
 **Preconditions:**
 - Task 1 complete.
 
 **Steps:**
-- [ ] Add bounded helper in ranking module to compute fallback-usage metadata per feature during score/contribution computation (counts and rates).
-- [ ] Surface per-run aggregate detector in ranking stage artifacts, e.g.:
-- [ ] `missing_feature_fallbacks.total_applied`
-- [ ] `missing_feature_fallbacks.by_feature.<feature>_count`
-- [ ] `missing_feature_fallbacks.by_feature.<feature>_rate`
-- [ ] Ensure metrics distinguish explicit `None`/missing from provided values.
-- [ ] Keep payload bounded and backward-compatible (new optional fields only).
+- [x] Add bounded helper in ranking module to compute fallback-usage metadata per feature during score/contribution computation (counts and rates).
+- [x] Surface per-run aggregate detector in ranking stage artifacts, e.g.:
+- [x] `missing_feature_fallbacks.total_applied`
+- [x] `missing_feature_fallbacks.by_feature.<feature>_count`
+- [x] `missing_feature_fallbacks.by_feature.<feature>_rate`
+- [x] Ensure metrics distinguish explicit `None`/missing from provided values.
+- [x] Keep payload bounded and backward-compatible (new optional fields only).
 
 **Verification:**
-- [ ] Unit tests for mixed present/missing feature rows assert expected counts/rates.
-- [ ] Stage artifact test asserts detector appears under ranking block with deterministic shape.
+- [x] Unit tests for mixed present/missing feature rows assert expected counts/rates.
+- [x] Stage artifact test asserts detector appears under ranking block with deterministic shape.
 
 **Exit Criteria:**
 - Runs expose when defaults materially drive ranking outcomes.
@@ -137,24 +138,24 @@ Add/extend focused unit tests for contract validation and ranking diagnostics pa
 - Modify: `src/fitcv/pipeline.py`
 - Modify: `src/fitcv/pipeline_stage_artifacts.py`
 - Modify: `tests/test_ranking.py`
-- Modify: `tests/test_pipeline_stage_artifacts.py`
+- Modify: `tests/test_pipeline.py`
 
 **Preconditions:**
 - Task 1 complete.
 
 **Steps:**
-- [ ] Reuse `compute_preference_fit_details` diagnostics (`match_details`, `canonical_values`) to derive drift indicators.
-- [ ] Add stage-level drift metrics, e.g.:
-- [ ] `taxonomy_drift.domain_unmatched_count`
-- [ ] `taxonomy_drift.role_family_unmatched_count`
-- [ ] `taxonomy_drift.neighbor_match_count`
-- [ ] `taxonomy_drift.unmatched_rate`
-- [ ] Add anomaly flag thresholds (configurable, conservative defaults) for warning-only signaling.
-- [ ] Ensure detector treats empty preference dimensions as neutral, not drift.
+- [x] Reuse `compute_preference_fit_details` diagnostics (`match_details`, `canonical_values`) to derive drift indicators.
+- [x] Add stage-level drift metrics, e.g.:
+- [x] `taxonomy_drift.domain_unmatched_count`
+- [x] `taxonomy_drift.role_family_unmatched_count`
+- [x] `taxonomy_drift.neighbor_match_count`
+- [x] `taxonomy_drift.unmatched_rate`
+- [x] Add anomaly flag thresholds (configurable, conservative defaults) for warning-only signaling.
+- [x] Ensure detector treats empty preference dimensions as neutral, not drift.
 
 **Verification:**
-- [ ] Unit tests validate exact/neighbor/none paths map to expected drift counters.
-- [ ] Artifact tests validate stable JSON shape and rate math.
+- [x] Unit tests validate exact/neighbor/none paths map to expected drift counters.
+- [x] Artifact tests validate stable JSON shape and rate math.
 
 **Exit Criteria:**
 - Runs can alert on taxonomy drift trend before ranking quality regresses.
@@ -173,22 +174,22 @@ Add/extend focused unit tests for contract validation and ranking diagnostics pa
 - Tasks 2–4 complete.
 
 **Steps:**
-- [ ] Update stage doc outputs/invariants to mention new detector metrics.
-- [ ] Run repo validators and targeted tests.
-- [ ] If schema/output consumers exist, verify non-breaking optional-field addition behavior.
-- [ ] Record before/after evidence (sample artifact snippets + test output) in plan closeout notes.
+- [x] Update stage doc outputs/invariants to mention new detector metrics.
+- [x] Run repo validators and targeted tests.
+- [x] If schema/output consumers exist, verify non-breaking optional-field addition behavior.
+- [x] Record before/after evidence (sample artifact snippets + test output) in plan closeout notes.
 
 **Verification:**
-- [ ] `pytest -q tests/test_ranking_contract.py tests/test_ranking.py tests/test_pipeline_stage_artifacts.py`
-- [ ] `python scripts/hooks/run_validator.py --fast`
-- [ ] `python scripts/validate_repo_contracts.py --fast`
+- [x] `pytest -q tests/test_ranking_contract.py tests/test_ranking.py tests/test_pipeline.py`
+- [x] `python scripts/hooks/run_validator.py --fast`
+- [x] `python scripts/validate_repo_contracts.py --fast`
 
 **Exit Criteria:**
 - Partial coverage items `2,3,4` move to implemented with runtime detect+prevent controls and passing tests.
 
 ## Verification
 
-- `pytest -q tests/test_ranking_contract.py tests/test_ranking.py tests/test_pipeline_stage_artifacts.py`
+- `pytest -q tests/test_ranking_contract.py tests/test_ranking.py tests/test_pipeline.py`
 - `python scripts/hooks/run_validator.py --fast`
 - `python scripts/validate_repo_contracts.py --fast`
 
@@ -197,3 +198,10 @@ Add/extend focused unit tests for contract validation and ranking diagnostics pa
 1. all Key Deliverables are satisfied
 2. all downstream/child items are terminal
 3. every child item is `completed` or `dropped`
+
+
+## Evidence
+
+- [x] pytest -q tests/test_ranking_contract.py tests/test_ranking.py tests/test_pipeline.py -k ranking -> 56 passed, 103 deselected`r
+- [x] python scripts/validate_repo_contracts.py --fast executed; unresolved failures are external to this lane (shortlist spec/plan metadata + planning_lineage stale).
+

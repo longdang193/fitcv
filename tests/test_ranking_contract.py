@@ -18,6 +18,7 @@ from fitcv.ranking_contract import (
     fit_label_from_score,
     get_fit_label_thresholds,
     validate_missing_defaults_contract,
+    validate_preference_fit_weights_contract,
     validate_weight_contract,
 )
 
@@ -53,3 +54,14 @@ def test_pipeline_layer4_fit_matches_contract(score: float, expected_label: str)
     job = {"ai_score": score}
     assert _resolve_layer4_fit(job, gap_fit=None, config=config) == expected_label
     assert fit_label_from_score(score, config=config) == expected_label
+
+def test_validate_preference_fit_weights_contract_rejects_invalid_sum() -> None:
+    with pytest.raises(ValueError, match="Invalid preference-fit weights sum"):
+        validate_preference_fit_weights_contract({"domain": 0.8, "role_family": 0.3, "location_type": 0.2})
+
+def test_validate_preference_fit_weights_contract_rejects_unknown_key() -> None:
+    with pytest.raises(ValueError, match="Unknown preference-fit weights"):
+        validate_preference_fit_weights_contract(
+            {"domain": 0.5, "role_family": 0.3, "location_type": 0.2, "extra": 0.0}
+        )
+

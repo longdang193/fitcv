@@ -4,7 +4,7 @@ artifact_type: spec
 status: proposed
 template_id: detailed-specification
 name: shortlist-bm25-upgrade-path
-parent_workstream: none
+parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-operator-diagnostics
 targets:
   - src/fitcv/vector_search.py
   - src/fitcv/pipeline.py
@@ -13,7 +13,7 @@ targets:
   - tests/test_vector_search.py
   - tests/test_pipeline.py
 related_features:
-  - shortlist_retrieval
+  - cv_system
 related_stages:
   - shortlist
 ---
