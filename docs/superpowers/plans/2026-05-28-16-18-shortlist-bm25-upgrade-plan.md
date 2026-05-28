@@ -13,7 +13,9 @@ targets:
   - config/shortlist_lexical.yaml
   - tests/test_vector_search.py
   - tests/test_pipeline.py
-related_features:`r`n  - cv_system`r`n  - pipeline_performance
+related_features:
+  - cv_system
+  - pipeline_performance
 related_stages:
   - shortlist
 ---
@@ -221,6 +223,8 @@ Unit/integration coverage for invariance, symmetry, protected terms, phrase boos
 1. all Key Deliverables are satisfied
 2. lexical policy is SSOT-config-driven with deterministic derivation and weighting/phrase controls
 3. invariance/symmetry/protected-term/phrase/tie-break proofs pass via tests and repo validators
+
+
 
 
 

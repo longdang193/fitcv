@@ -12,7 +12,9 @@ targets:
   - config/shortlist_lexical.yaml
   - tests/test_vector_search.py
   - tests/test_pipeline.py
-related_features:`r`n  - cv_system`r`n  - pipeline_performance
+related_features:
+  - cv_system
+  - pipeline_performance
 related_stages:
   - shortlist
 ---
@@ -256,6 +258,8 @@ For equal `lexical_score` values, ordering MUST be:
 1. all Key Deliverables are satisfied
 2. implementation plan aligned to MVP-v1 scope is approved
 3. verification evidence for invariance/symmetry/protected terms/phrase boosts exists and passes
+
+
 
 
 
