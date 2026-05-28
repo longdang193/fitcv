@@ -4,14 +4,15 @@ import json
 import sqlite3
 import pytest
 from unittest.mock import patch
-
 from fitcv.vector_search import (
     _dedupe_shortlist_rows,
     build_candidate_query_components,
     build_candidate_query_embedding_contract_fingerprint,
     build_candidate_query_signature_record,
     build_candidate_query_text,
+    build_protected_terms,
     build_vector_search_query,
+    build_weighted_bm25_query_terms,
     resolve_candidate_query_embedding,
     run_vector_search,
 )
@@ -219,7 +220,7 @@ def test_build_candidate_query_text_includes_target_role() -> None:
         "preferences": {"target_role": "Data Analyst", "domains": ["analytics"]},
     }
     text = build_candidate_query_text(profile)
-    assert "Target role: Data Analyst" in text
+    assert "Target Role: Data Analyst" in text
 
 
 def test_build_candidate_query_text_includes_recent_roles() -> None:
@@ -234,7 +235,7 @@ def test_build_candidate_query_text_includes_recent_roles() -> None:
         "preferences": {"domains": ["analytics"]},
     }
     text = build_candidate_query_text(profile)
-    assert "Recent roles:" in text
+    assert "Recent Roles:" in text
     assert "Junior Data Analyst" in text
 
 
@@ -259,8 +260,8 @@ def test_build_candidate_query_text_includes_role_family_and_domain_hints() -> N
 
     text = build_candidate_query_text(profile)
 
-    assert "Role families: analytics" in text
-    assert "Domain hints: banking, retail_banking, fintech" in text
+    assert "Role Families: analytics" in text
+    assert "Domains: banking | retail_banking | fintech" in text
 
 
 def test_build_candidate_query_signature_record_is_stable_for_same_effective_components() -> None:
@@ -652,3 +653,268 @@ tags:
   - fast
   - ci-safe
 """
+
+
+
+def test_build_protected_terms_includes_manual_seed_even_without_taxonomy() -> None:
+    config = {
+        "shortlist_lexical": {
+            "protected_terms": {
+                "manual_seed": ["ml", "etl", "dbt", "gcp", "sql", "nlp"],
+                "derive_from_taxonomy": False,
+            }
+        }
+    }
+
+    result = build_protected_terms(config)
+
+    assert result["protected_terms"] == ["dbt", "etl", "gcp", "ml", "nlp", "sql"]
+    assert result["protected_terms_count"] == 6
+    assert isinstance(result["protected_terms_hash"], str)
+
+
+def test_build_protected_terms_filters_taxonomy_candidates_deterministically() -> None:
+    config = {
+        "skill_synonyms": {
+            "dbt": "dbt",
+            "gcp": "google cloud platform",
+            "machine learning": "machine learning",
+            "etl": "extract transform load",
+            "python": "python",
+            "nlp": "natural language processing",
+        },
+        "shortlist_lexical": {
+            "protected_terms": {
+                "manual_seed": ["sql"],
+                "derive_from_taxonomy": True,
+                "max_len_auto_protect": 4,
+                "punctuation_markers": ["+", "#", "."],
+                "stopword_exclusions": ["and", "or", "the"],
+            }
+        },
+    }
+
+    result = build_protected_terms(config)
+
+    # Includes short/acronym candidates; excludes whitespace phrases.
+    assert "dbt" in result["protected_terms"]
+    assert "gcp" in result["protected_terms"]
+    assert "etl" in result["protected_terms"]
+    assert "nlp" in result["protected_terms"]
+    assert "sql" in result["protected_terms"]
+    assert "machine learning" not in result["protected_terms"]
+    assert result["protected_terms"] == sorted(result["protected_terms"])
+
+
+
+def test_build_weighted_bm25_query_terms_is_deterministic() -> None:
+    profile = {
+        "headline": "Senior Data Engineer",
+        "preferences": {
+            "target_role": "Lead Data Engineer",
+            "role_families": ["data engineering"],
+            "domains": ["fintech", "payments"],
+            "location_types": ["remote", "hybrid"],
+        },
+        "experiences": [
+            {"role": "Senior Data Engineer"},
+            {"role": "Data Engineer"},
+            {"role": "Analytics Engineer"},
+        ],
+        "skills": {"languages": ["Python", "SQL"], "tools": ["Airflow", "dbt", "BigQuery", "Kafka"]},
+    }
+    config = {
+        "shortlist_lexical": {
+            "field_weights": {
+                "target_role": 3.0,
+                "headline": 3.0,
+                "skills": 2.5,
+                "recent_roles": 1.5,
+                "role_families": 1.0,
+                "domains": 0.75,
+                "location_types": 0.5,
+            },
+            "protected_terms": {
+                "manual_seed": ["ml", "etl", "dbt", "gcp", "sql", "nlp"],
+                "derive_from_taxonomy": False,
+            },
+        }
+    }
+
+    components = build_candidate_query_components(profile, config)
+    first = build_weighted_bm25_query_terms(components, config)
+    second = build_weighted_bm25_query_terms(components, config)
+
+    assert first["bm25_terms_hash"] == second["bm25_terms_hash"]
+    assert first["payload"] == second["payload"]
+
+
+def test_build_weighted_bm25_query_terms_includes_role_phrases_and_weights() -> None:
+    components = {
+        "headline": "Senior Data Engineer",
+        "target_role": "Lead Data Engineer",
+        "recent_roles": ["Senior Data Engineer", "Data Engineer", "Analytics Engineer"],
+        "skills": ["Python", "SQL", "Airflow", "dbt", "BigQuery", "Kafka"],
+        "role_families": ["data engineering"],
+        "domains": ["fintech", "payments"],
+        "location_types": ["remote", "hybrid"],
+    }
+    config = {
+        "shortlist_lexical": {
+            "field_weights": {
+                "target_role": 3.0,
+                "headline": 3.0,
+                "skills": 2.5,
+                "recent_roles": 1.5,
+                "domains": 0.75,
+                "location_types": 0.5,
+            },
+            "protected_terms": {"manual_seed": ["dbt", "sql"], "derive_from_taxonomy": False},
+        }
+    }
+
+    result = build_weighted_bm25_query_terms(components, config)
+
+    phrases = result["payload"]["role_phrases"]
+    assert "data engineer" in phrases
+    assert "senior data engineer" in phrases
+    assert "lead data engineer" in phrases
+    assert result["payload"]["field_weights"]["skills"] == 2.5
+    assert "dbt" in result["payload"]["terms_by_field"]["skills"]
+
+
+def test_build_weighted_bm25_query_terms_normalizes_invalid_scoring_mode() -> None:
+    components = {
+        "headline": "Senior Data Engineer",
+        "target_role": "Lead Data Engineer",
+        "recent_roles": ["Senior Data Engineer"],
+        "skills": ["SQL", "dbt"],
+        "role_families": ["data engineering"],
+        "domains": ["fintech"],
+        "location_types": ["remote"],
+    }
+    config = {
+        "shortlist_lexical": {
+            "scoring_mode": "invalid_mode",
+            "protected_terms": {"manual_seed": ["sql", "dbt"], "derive_from_taxonomy": False},
+        }
+    }
+
+    result = build_weighted_bm25_query_terms(components, config)
+
+    assert result["payload"]["scoring_mode"] == "weighted_sum_fallback"
+    assert result["payload"]["scoring_formula"] == "sum_f(weight_f * bm25_f(doc, query_terms_f))"
+
+
+def test_build_weighted_bm25_query_terms_includes_phrase_boost_and_tie_break_contract() -> None:
+    components = {
+        "headline": "Senior Data Engineer",
+        "target_role": "Lead Data Engineer",
+        "recent_roles": ["Data Engineer"],
+        "skills": ["SQL"],
+        "role_families": ["data engineering"],
+        "domains": ["fintech"],
+        "location_types": ["remote"],
+    }
+    config = {
+        "shortlist_lexical": {
+            "scoring_mode": "bm25f",
+            "phrase_boost": {"per_phrase": 0.3, "cap_ratio_of_max_base": 0.2},
+            "protected_terms": {"manual_seed": ["sql"], "derive_from_taxonomy": False},
+        }
+    }
+
+    result = build_weighted_bm25_query_terms(components, config)
+
+    assert result["payload"]["scoring_mode"] == "bm25f"
+    assert result["payload"]["scoring_formula"] == "bm25f_weighted"
+    assert result["payload"]["phrase_boost"]["per_phrase"] == 0.3
+    assert result["payload"]["phrase_boost"]["cap_ratio_of_max_base"] == 0.2
+    assert result["payload"]["tie_break_order"] == [
+        "lexical_base_score_desc",
+        "phrase_hit_count_desc",
+        "job_url_asc",
+    ]
+
+def test_shortlist_intent_invariance_hashes_are_stable_for_same_profile_and_config() -> None:
+    profile = {
+        "headline": "Senior Data Engineer",
+        "preferences": {
+            "target_role": "Lead Data Engineer",
+            "role_families": ["data engineering"],
+            "domains": ["fintech", "payments"],
+            "location_types": ["remote", "hybrid"],
+        },
+        "experiences": [
+            {"role": "Senior Data Engineer"},
+            {"role": "Data Engineer"},
+            {"role": "Analytics Engineer"},
+        ],
+        "skills": {
+            "languages": ["Python", "SQL"],
+            "tools": ["Airflow", "dbt", "BigQuery", "Kafka"],
+        },
+    }
+    config = {
+        "shortlist_lexical": {
+            "protected_terms": {
+                "manual_seed": ["ml", "etl", "dbt", "gcp", "sql", "nlp"],
+                "derive_from_taxonomy": False,
+            }
+        }
+    }
+
+    components_first = build_candidate_query_components(profile, config)
+    components_second = build_candidate_query_components(profile, config)
+    signature_first = build_candidate_query_signature_record(components_first)
+    signature_second = build_candidate_query_signature_record(components_second)
+    text_first = build_candidate_query_text(profile, config)
+    text_second = build_candidate_query_text(profile, config)
+    weighted_first = build_weighted_bm25_query_terms(components_first, config)
+    weighted_second = build_weighted_bm25_query_terms(components_second, config)
+
+    assert components_first == components_second
+    assert signature_first["signature"] == signature_second["signature"]
+    assert text_first == text_second
+    assert weighted_first["bm25_terms_hash"] == weighted_second["bm25_terms_hash"]
+    assert weighted_first["protected_terms_hash"] == weighted_second["protected_terms_hash"]
+
+
+def test_shortlist_vector_and_lexical_channels_share_same_canonical_component_values() -> None:
+    profile = {
+        "headline": "Senior Data Engineer",
+        "preferences": {
+            "target_role": "Lead Data Engineer",
+            "role_families": ["data engineering"],
+            "domains": ["fintech", "payments"],
+            "location_types": ["remote", "hybrid"],
+        },
+        "experiences": [
+            {"role": "Senior Data Engineer"},
+            {"role": "Data Engineer"},
+            {"role": "Analytics Engineer"},
+        ],
+        "skills": {
+            "languages": ["Python", "SQL"],
+            "tools": ["Airflow", "dbt", "BigQuery", "Kafka"],
+        },
+    }
+    config = {
+        "shortlist_lexical": {
+            "protected_terms": {
+                "manual_seed": ["ml", "etl", "dbt", "gcp", "sql", "nlp"],
+                "derive_from_taxonomy": False,
+            }
+        }
+    }
+
+    components = build_candidate_query_components(profile, config)
+    text = build_candidate_query_text(profile, config)
+    weighted = build_weighted_bm25_query_terms(components, config)
+
+    assert f"Headline: {components['headline']}" in text
+    assert f"Target Role: {components['target_role']}" in text
+    assert " | ".join(components["recent_roles"]) in text
+    assert " | ".join(components["skills"]) in text
+    assert weighted["payload"]["terms_by_field"]["headline"] == ["senior", "data", "engineer"]
+    assert weighted["payload"]["terms_by_field"]["target_role"] == ["lead", "data", "engineer"]

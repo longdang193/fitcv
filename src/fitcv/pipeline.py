@@ -3203,6 +3203,12 @@ def _build_stage_transition_artifacts(
         "candidate_query_contract_fingerprint": str(
             candidate_query_debug.get("candidate_query_contract_fingerprint") or ""
         ),
+        "components_hash": str(candidate_query_debug.get("components_hash") or ""),
+        "canonical_text_hash": str(candidate_query_debug.get("canonical_text_hash") or ""),
+        "bm25_terms_hash": str(candidate_query_debug.get("bm25_terms_hash") or ""),
+        "protected_terms_hash": str(candidate_query_debug.get("protected_terms_hash") or ""),
+        "protected_terms_count": int(candidate_query_debug.get("protected_terms_count") or 0),
+        "shortlist_lexical_scoring_mode": str(candidate_query_debug.get("shortlist_lexical_scoring_mode") or ""),
     }
 
     shortlist_candidate_query_debug = {
@@ -3999,6 +4005,7 @@ def run_pipeline(
                     build_candidate_query_embedding_contract_fingerprint,
                     build_candidate_query_signature_record,
                     build_candidate_query_text,
+                    build_weighted_bm25_query_terms,
                 )
 
                 candidate_query_components = dict(
@@ -4009,6 +4016,11 @@ def run_pipeline(
                 )
                 signature_record = build_candidate_query_signature_record(candidate_query_components)
                 contract_record = build_candidate_query_embedding_contract_fingerprint(config)
+                bm25_term_record = build_weighted_bm25_query_terms(candidate_query_components, config)
+                components_hash = hashlib.sha256(
+                    json.dumps(candidate_query_components, sort_keys=True, ensure_ascii=False).encode("utf-8")
+                ).hexdigest()
+                canonical_text_hash = hashlib.sha256(candidate_summary.encode("utf-8")).hexdigest()
                 candidate_query_debug = {
                     "candidate_query_reuse_status": str(
                         candidate_query_record.get("candidate_query_reuse_status") or ""
@@ -4020,6 +4032,12 @@ def run_pipeline(
                         candidate_query_record.get("candidate_query_contract_fingerprint")
                         or contract_record["fingerprint"]
                     ),
+                    "components_hash": components_hash,
+                    "canonical_text_hash": canonical_text_hash,
+                    "bm25_terms_hash": str(bm25_term_record.get("bm25_terms_hash") or ""),
+                    "protected_terms_hash": str(bm25_term_record.get("protected_terms_hash") or ""),
+                    "protected_terms_count": int(bm25_term_record.get("protected_terms_count") or 0),
+                    "shortlist_lexical_scoring_mode": str((bm25_term_record.get("payload") or {}).get("scoring_mode") or ""),
                 }
                 shortlist_fail_fast = bool((config.get("pipeline", {}) or {}).get("shortlist_fail_fast_empty_raw_hits", False))
                 if shortlist_fail_fast and passed_jobs and not raw_shortlist:
@@ -6879,7 +6897,4 @@ def run_pipeline(
 
 
 
-
-
-
-
+`r`n

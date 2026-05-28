@@ -531,10 +531,12 @@ workstreams:
     - docs/superpowers/specs/2026-05-20-17-11-rule-filter-refactor-spec.md
     - docs/superpowers/specs/2026-05-20-17-35-ranking-ssot-symmetry-invariance-spec.md
     - docs/superpowers/specs/2026-05-28-14-09-shortlist-hybrid-retrieval-spec.md
+    - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     plans:
     - docs/superpowers/plans/2026-05-20-17-16-rule-filter-refactor-implementation-plan.md
     - docs/superpowers/plans/2026-05-20-17-45-ranking-ssot-symmetry-invariance-plan.md
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
+    - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     derived_completion: in_progress
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-operator-diagnostics
     status: proposed

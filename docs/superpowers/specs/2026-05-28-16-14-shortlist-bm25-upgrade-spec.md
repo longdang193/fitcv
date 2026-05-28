@@ -1,10 +1,10 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: completed
 template_id: detailed-specification
 name: shortlist-bm25-upgrade-path
-parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-operator-diagnostics
+parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
 targets:
   - src/fitcv/vector_search.py
   - src/fitcv/pipeline.py
@@ -12,8 +12,7 @@ targets:
   - config/shortlist_lexical.yaml
   - tests/test_vector_search.py
   - tests/test_pipeline.py
-related_features:
-  - cv_system
+related_features:`r`n  - cv_system`r`n  - pipeline_performance
 related_stages:
   - shortlist
 ---
@@ -38,13 +37,13 @@ MVP rollout with deterministic observability hashes and invariance/symmetry/prot
 **Purpose:** lock current retrieval/query behavior and contracts before MVP-v1 changes.
 
 **Steps:**
-- [ ] map current shortlist query component builder and vector query text rendering in `src/fitcv/vector_search.py`
-- [ ] map current shortlist stage orchestration and artifact/debug outputs in `src/fitcv/pipeline.py`
-- [ ] map current lexical/BM25 tokenization behavior and protected-term/phrase gaps
-- [ ] identify config keys and compatibility fallbacks touching shortlist query construction
+- [x] map current shortlist query component builder and vector query text rendering in `src/fitcv/vector_search.py`
+- [x] map current shortlist stage orchestration and artifact/debug outputs in `src/fitcv/pipeline.py`
+- [x] map current lexical/BM25 tokenization behavior and protected-term/phrase gaps
+- [x] identify config keys and compatibility fallbacks touching shortlist query construction
 
 **Verification:**
-- [ ] current-state behavior documented with symbol references and no unresolved ambiguity
+- [x] current-state behavior documented with symbol references and no unresolved ambiguity
 
 **Exit Criteria:**
 - deterministic current-state baseline captured, including known reuse behaviors
@@ -53,16 +52,16 @@ MVP rollout with deterministic observability hashes and invariance/symmetry/prot
 **Purpose:** freeze MVP-v1 lexical design and contracts before implementation.
 
 **Steps:**
-- [ ] define canonical component schema (SSOT) and deterministic ordering rules
-- [ ] define lexical term derivation rules from components: unigrams + key role/title bigrams/trigrams
-- [ ] define protected-term derivation rules from manual seed + taxonomy candidates
-- [ ] define field-weighting contract (`target_role/headline` high, `skills` high, `recent_roles` medium, `domains/location_types` low)
-- [ ] define phrase-boost contract for exact role/title phrases with deterministic cap
-- [ ] define normalization/tokenization policy with protected exact-term preservation (no drop/stem/mutate/split)
-- [ ] define fallback/compatibility behavior for missing fields and empty components
+- [x] define canonical component schema (SSOT) and deterministic ordering rules
+- [x] define lexical term derivation rules from components: unigrams + key role/title bigrams/trigrams
+- [x] define protected-term derivation rules from manual seed + taxonomy candidates
+- [x] define field-weighting contract (`target_role/headline` high, `skills` high, `recent_roles` medium, `domains/location_types` low)
+- [x] define phrase-boost contract for exact role/title phrases with deterministic cap
+- [x] define normalization/tokenization policy with protected exact-term preservation (no drop/stem/mutate/split)
+- [x] define fallback/compatibility behavior for missing fields and empty components
 
 **Verification:**
-- [ ] each contract decision has explicit rationale and rejected alternatives
+- [x] each contract decision has explicit rationale and rejected alternatives
 
 **Exit Criteria:**
 - no open decision blocks implementation plan handoff
@@ -71,14 +70,14 @@ MVP rollout with deterministic observability hashes and invariance/symmetry/prot
 **Purpose:** make proof obligations explicit for safe rollout.
 
 **Steps:**
-- [ ] define invariance test matrix (same profile+config => identical component hash/text hash/term hash/protected hash)
-- [ ] define symmetry tests (vector and BM25 share same canonical component payload)
-- [ ] define protected-term tests (`ml`, `etl`, `dbt`, `gcp`, `sql`, `nlp`) and taxonomy-derived candidate stability tests
-- [ ] define phrase-boost tests (exact role phrase outranks split-token-only match, bounded contribution)
-- [ ] define observability evidence fields and rollout success thresholds
+- [x] define invariance test matrix (same profile+config => identical component hash/text hash/term hash/protected hash)
+- [x] define symmetry tests (vector and BM25 share same canonical component payload)
+- [x] define protected-term tests (`ml`, `etl`, `dbt`, `gcp`, `sql`, `nlp`) and taxonomy-derived candidate stability tests
+- [x] define phrase-boost tests (exact role phrase outranks split-token-only match, bounded contribution)
+- [x] define observability evidence fields and rollout success thresholds
 
 **Verification:**
-- [ ] validation plan demonstrates deterministic and relevance-safe behavior
+- [x] validation plan demonstrates deterministic and relevance-safe behavior
 
 **Exit Criteria:**
 - specification ready for implementation execution
@@ -257,3 +256,8 @@ For equal `lexical_score` values, ordering MUST be:
 1. all Key Deliverables are satisfied
 2. implementation plan aligned to MVP-v1 scope is approved
 3. verification evidence for invariance/symmetry/protected terms/phrase boosts exists and passes
+
+
+
+
+

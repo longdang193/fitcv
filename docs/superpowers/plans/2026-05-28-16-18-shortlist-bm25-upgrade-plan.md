@@ -1,10 +1,10 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: shortlist-bm25-upgrade-implementation
-parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-operator-diagnostics
+parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
 parent_spec: docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
 targets:
   - src/fitcv/vector_search.py
@@ -13,8 +13,7 @@ targets:
   - config/shortlist_lexical.yaml
   - tests/test_vector_search.py
   - tests/test_pipeline.py
-related_features:
-  - cv_system
+related_features:`r`n  - cv_system`r`n  - pipeline_performance
 related_stages:
   - shortlist
 ---
@@ -48,14 +47,14 @@ Unit/integration coverage for invariance, symmetry, protected terms, phrase boos
 - schema-compatible output for existing vector query code path
 
 **Steps:**
-- [ ] Introduce/normalize one canonical component builder function with fixed field order:
+- [x] Introduce/normalize one canonical component builder function with fixed field order:
   - `headline`, `target_role`, `recent_roles`, `skills`, `role_families`, `domains`, `location_types`
-- [ ] Ensure deterministic list normalization (trim, dedupe, stable order, empty-field behavior)
-- [ ] Keep existing rendered query text generation consuming canonical components only
-- [ ] Add deterministic hash helper(s) for component payload and rendered canonical text
+- [x] Ensure deterministic list normalization (trim, dedupe, stable order, empty-field behavior)
+- [x] Keep existing rendered query text generation consuming canonical components only
+- [x] Add deterministic hash helper(s) for component payload and rendered canonical text
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_vector_search.py -k "component or query"`
+- [x] `python -m pytest -q tests/test_vector_search.py -k "component or query"`
 
 **Exit Criteria:**
 - vector path obtains its query text only from canonical component payload
@@ -77,13 +76,13 @@ Unit/integration coverage for invariance, symmetry, protected terms, phrase boos
   - `config/taxonomy/skill_synonyms.yaml`
 
 **Steps:**
-- [ ] Add lexical SSOT config with:
+- [x] Add lexical SSOT config with:
   - manual seed list (`ml`, `etl`, `dbt`, `gcp`, `sql`, `nlp`)
   - taxonomy derive toggle and source file list
   - deterministic protected-term filter knobs (`max_len_auto_protect`, punctuation markers, stopword/noise list)
   - field weights and phrase-boost cap settings
   - scoring mode key (`bm25f` or `weighted_sum_fallback`)
-- [ ] Implement deterministic protected-term builder using fixed algorithm order:
+- [x] Implement deterministic protected-term builder using fixed algorithm order:
   1. lowercase normalize candidate
   2. reject empty
   3. reject whitespace-containing tokens
@@ -91,10 +90,10 @@ Unit/integration coverage for invariance, symmetry, protected terms, phrase boos
   5. apply stopword/noise exclusion to non-manual candidates only
   6. union manual + filtered taxonomy candidates
   7. deterministic lexicographic sort output
-- [ ] Expose debug output fields: `protected_terms_hash`, `protected_terms_count`
+- [x] Expose debug output fields: `protected_terms_hash`, `protected_terms_count`
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_vector_search.py -k "protected or taxonomy or hash"`
+- [x] `python -m pytest -q tests/test_vector_search.py -k "protected or taxonomy or hash"`
 
 **Exit Criteria:**
 - protected-term set deterministic from config + taxonomy inputs
@@ -110,29 +109,29 @@ Unit/integration coverage for invariance, symmetry, protected terms, phrase boos
 - Task 2 complete
 
 **Steps:**
-- [ ] Build deterministic unigram terms from canonical components
-- [ ] Build key bigram/trigram phrases from role/title fields
-- [ ] Apply field-weighting contract:
+- [x] Build deterministic unigram terms from canonical components
+- [x] Build key bigram/trigram phrases from role/title fields
+- [x] Apply field-weighting contract:
   - high: `target_role`, `headline`, `skills`
   - medium: `recent_roles`
   - low: `domains`, `location_types`
-- [ ] Implement explicit scoring mode branch from config:
+- [x] Implement explicit scoring mode branch from config:
   - `bm25f` mode: BM25F using configured field weights
   - `weighted_sum_fallback` mode: `lexical_base_score(doc) = sum_f(weight_f * bm25_f(doc, query_terms_f))`
-- [ ] Enforce protected-term tokenizer policy:
+- [x] Enforce protected-term tokenizer policy:
   - no min-length drop for protected terms
   - no stemming/mutation/splitting for protected terms
-- [ ] Implement phrase boost exactly per spec contract:
+- [x] Implement phrase boost exactly per spec contract:
   - deterministic phrase set
   - deduped phrase-hit accumulation
   - bounded cap rule
-- [ ] Implement deterministic tie-break order for equal lexical scores:
+- [x] Implement deterministic tie-break order for equal lexical scores:
   1. higher `lexical_base_score`
   2. higher phrase-hit count
   3. lexicographic ascending `job_url`
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_vector_search.py -k "bm25 or token or protected or phrase or weight"`
+- [x] `python -m pytest -q tests/test_vector_search.py -k "bm25 or token or protected or phrase or weight"`
 
 **Exit Criteria:**
 - lexical term payload derives exclusively from canonical components with configured weighting, phrase boost, and tie-break behavior
@@ -148,18 +147,18 @@ Unit/integration coverage for invariance, symmetry, protected terms, phrase boos
 - Task 3 complete
 
 **Steps:**
-- [ ] Thread canonical component payload + lexical term debug payload through shortlist stage context
-- [ ] Emit shortlist debug/trace fields:
+- [x] Thread canonical component payload + lexical term debug payload through shortlist stage context
+- [x] Emit shortlist debug/trace fields:
   - `components_hash`
   - `canonical_text_hash`
   - `bm25_terms_hash`
   - `protected_terms_hash`
   - lexical policy version/mode
   - scoring mode actually used
-- [ ] Preserve shortlist universe constraint (`passed_job_urls`)
+- [x] Preserve shortlist universe constraint (`passed_job_urls`)
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_pipeline.py -k "shortlist or vector"`
+- [x] `python -m pytest -q tests/test_pipeline.py -k "shortlist or vector"`
 
 **Exit Criteria:**
 - shortlist artifacts provide deterministic evidence for symmetry/invariance checks
@@ -175,16 +174,16 @@ Unit/integration coverage for invariance, symmetry, protected terms, phrase boos
 - Tasks 1-4 complete
 
 **Steps:**
-- [ ] Add invariance tests: same profile/config => identical components/text/term/protected hashes
-- [ ] Add symmetry tests: vector render and BM25 lexical builder consume same canonical payload
-- [ ] Add protected-term tests for exact retention (`ml`, `etl`, `dbt`, `gcp`, `sql`, `nlp`)
-- [ ] Add phrase-boost tests for exact role/title phrase lift with bounded effect
-- [ ] Add tie-break tests for equal lexical scores to enforce stable order contract
-- [ ] Add taxonomy-derived stability test for deterministic sorted protected-term output
+- [x] Add invariance tests: same profile/config => identical components/text/term/protected hashes
+- [x] Add symmetry tests: vector render and BM25 lexical builder consume same canonical payload
+- [x] Add protected-term tests for exact retention (`ml`, `etl`, `dbt`, `gcp`, `sql`, `nlp`)
+- [x] Add phrase-boost tests for exact role/title phrase lift with bounded effect
+- [x] Add tie-break tests for equal lexical scores to enforce stable order contract
+- [x] Add taxonomy-derived stability test for deterministic sorted protected-term output
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_vector_search.py`
-- [ ] `python -m pytest -q tests/test_pipeline.py -k "shortlist or vector"`
+- [x] `python -m pytest -q tests/test_vector_search.py`
+- [x] `python -m pytest -q tests/test_pipeline.py -k "shortlist or vector"`
 
 **Exit Criteria:**
 - new contracts enforced by CI-facing tests
@@ -200,15 +199,15 @@ Unit/integration coverage for invariance, symmetry, protected terms, phrase boos
 - Tasks 1-5 complete
 
 **Steps:**
-- [ ] Run full shortlist-lane verification set
-- [ ] Run repo fast contract validation
-- [ ] Confirm spec/plan evidence alignment and unresolved risk list
-- [ ] Prepare execution handoff packet for lane execution
+- [x] Run full shortlist-lane verification set
+- [x] Run repo fast contract validation
+- [x] Confirm spec/plan evidence alignment and unresolved risk list
+- [x] Prepare execution handoff packet for lane execution
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_vector_search.py`
-- [ ] `python -m pytest -q tests/test_pipeline.py`
-- [ ] `python scripts/validate_repo_contracts.py --fast`
+- [x] `python -m pytest -q tests/test_vector_search.py`
+- [x] `python -m pytest -q tests/test_pipeline.py`
+- [x] `python scripts/validate_repo_contracts.py --fast`
 
 **Exit Criteria:**
 - plan execution can proceed lane-by-lane with deterministic next-action gating
@@ -222,3 +221,11 @@ Unit/integration coverage for invariance, symmetry, protected terms, phrase boos
 1. all Key Deliverables are satisfied
 2. lexical policy is SSOT-config-driven with deterministic derivation and weighting/phrase controls
 3. invariance/symmetry/protected-term/phrase/tie-break proofs pass via tests and repo validators
+
+
+
+
+
+
+
+

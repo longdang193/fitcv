@@ -5480,6 +5480,12 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
             "candidate_query_reuse_status": "reused_cached_query_embedding",
             "candidate_query_signature": "candidate-query-sig-1",
             "candidate_query_contract_fingerprint": "candidate-query-contract-1",
+            "components_hash": "components-hash-1",
+            "canonical_text_hash": "canonical-text-hash-1",
+            "bm25_terms_hash": "bm25-terms-hash-1",
+            "protected_terms_hash": "protected-terms-hash-1",
+            "protected_terms_count": 6,
+            "shortlist_lexical_scoring_mode": "weighted_sum_fallback",
         },
         ai_scores=[],
         ranking_inputs=[],
@@ -5501,6 +5507,12 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
     assert shortlist_block["decision_summary"]["candidate_query_reuse_status"] == "reused_cached_query_embedding"
     assert shortlist_block["decision_summary"]["candidate_query_signature"] == "candidate-query-sig-1"
     assert shortlist_block["decision_summary"]["candidate_query_contract_fingerprint"] == "candidate-query-contract-1"
+    assert shortlist_block["decision_summary"]["components_hash"] == "components-hash-1"
+    assert shortlist_block["decision_summary"]["canonical_text_hash"] == "canonical-text-hash-1"
+    assert shortlist_block["decision_summary"]["bm25_terms_hash"] == "bm25-terms-hash-1"
+    assert shortlist_block["decision_summary"]["protected_terms_hash"] == "protected-terms-hash-1"
+    assert shortlist_block["decision_summary"]["protected_terms_count"] == 6
+    assert shortlist_block["decision_summary"]["shortlist_lexical_scoring_mode"] == "weighted_sum_fallback"
     assert shortlist_block["outputs_sample"][1]["vector_rank"] == 2
     assert shortlist_block["outputs_sample"][1]["shortlist_outcome"] == "returned_by_vector_search"
     assert shortlist_block["outputs_sample"][1]["raw_hit_present"] is True
@@ -6107,6 +6119,12 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
             "candidate_query_reuse_status": "reused_cached_query_embedding",
             "candidate_query_signature": "candidate-query-sig-1",
             "candidate_query_contract_fingerprint": "candidate-query-contract-1",
+            "components_hash": "components-hash-1",
+            "canonical_text_hash": "canonical-text-hash-1",
+            "bm25_terms_hash": "bm25-terms-hash-1",
+            "protected_terms_hash": "protected-terms-hash-1",
+            "protected_terms_count": 6,
+            "shortlist_lexical_scoring_mode": "weighted_sum_fallback",
         },
     }
     mock_ai.return_value = [first_job, second_job]
