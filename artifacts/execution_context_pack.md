@@ -86,3 +86,15 @@ If context pack, source files, and raw log disagree:
 
 
 
+
+## 10) Reconciliation Evidence (Single-Lane Merge Prompt)
+
+- Prompt source: `docs/operating_system/prompt_templates/single-lane-merge-and-reconcile-prompt.md`
+- Item 2 (bounded doc lifecycle compliance): pass, bounded scope checked on changed files only; template-required-sections and lifecycle validators pass.
+- Item 3 (closure-evidence precedence): pass, lane-active/current plan treated as closure source of truth; predecessor context treated as historical only.
+- Item 7 (lifecycle/status/evidence reconciliation): pass, plan status terminal, checklist complete, checkpoint/context-pack synced to latest verification.
+- Validator evidence:
+  - `python scripts/validate_planning_lifecycle.py --strict` pass
+  - `python scripts/validate_checkpoint_packs.py` pass
+  - `python scripts/validate_repo_contracts.py --fast` pass
+

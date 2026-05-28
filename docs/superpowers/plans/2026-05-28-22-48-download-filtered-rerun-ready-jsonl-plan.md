@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: active
+status: completed
 template_id: implementation-plan
 name: run-detail-download-filtered-rerun-jsonl-manifest-implementation
 parent_thread: workstream-operator-control-plane.operator-control-plane-run-detail-truth
@@ -174,4 +174,5 @@ Canonical source-of-truth:
 - `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
 </LINK>
+
 
