@@ -1810,6 +1810,137 @@ def test_merge_scraped_and_enriched_supplements_sparse_required_skills_from_tech
     assert result["required_skills_canonical"] == ["excel/sheets", "excel", "sheets", "sql", "bi-tools"]
 
 
+def test_merge_scraped_and_enriched_supplements_sparse_generic_required_skills_from_description() -> None:
+    result = merge_scraped_and_enriched(
+        scraped={
+            "job_url": "https://example.com/jobs/account-manager",
+            "title": "Account Manager (w/m/d) in Elternzeitvertretung",
+            "company_name": "Example Co",
+            "company_id": "",
+            "location": "Germany",
+            "contract_type": "Full-time",
+            "experience_level": "Mid-Senior level",
+            "sector": "SaaS",
+            "salary_min": None,
+            "salary_max": None,
+            "salary_currency": None,
+            "applications_count_int": None,
+            "published_at": "2026-06-17",
+            "description": (
+                "3+ Jahre Erfahrung im Account Management, Customer Success oder B2B-Vertrieb "
+                "- idealerweise im SaaS-Umfeld.\n"
+                "Strukturierte, datenbasierte Arbeitsweise: Du nutzt CRM und Portfolioubersichten, "
+                "um Prioritaten zu setzen."
+            ),
+        },
+        enriched={
+            "location_type": "hybrid",
+            "seniority": "senior",
+            "job_family": "account_management",
+            "domain": "saas",
+            "required_skills": ["CRM"],
+            "required_skills_canonical": ["crm"],
+            "required_skill_entities": [],
+            "preferred_skills": [],
+            "preferred_skills_canonical": [],
+            "preferred_skill_entities": [],
+            "responsibilities": [],
+            "tech_stack": [],
+            "keywords": [],
+        },
+        config={},
+    )
+
+    assert result["required_skills"] == ["CRM", "Account Management", "Customer Success", "B2B-Vertrieb"]
+    assert result["required_skills_canonical"] == [
+        "crm",
+        "account management",
+        "customer success",
+        "b2b-vertrieb",
+    ]
+    assert result["required_skill_entities"] == []
+
+
+def test_derive_required_skills_display_prefers_structured_entities_when_raw_required_skills_are_verbose() -> None:
+    from fitcv.enrich import derive_required_skills_display
+
+    display = derive_required_skills_display(
+        {
+            "required_skills": [
+                "Overview of core space domains and applications around earth observation, satellite communication, satellite navigation, and space transportation",
+                "General know-how of space hardware design and requirements around assembly, integration and testing",
+                "Demonstrated hands-on mentality in functional work (production, quality, supply chain, industrial engineering, etc.) or mission management",
+            ],
+            "required_skill_entities": [
+                {
+                    "raw_text": "General know-how of space hardware design and requirements around assembly, integration and testing",
+                    "canonical": "space hardware design",
+                    "confidence": 0.95,
+                },
+                {
+                    "raw_text": "General know-how of space hardware design and requirements around assembly, integration and testing",
+                    "canonical": "assembly, integration and testing",
+                    "confidence": 0.95,
+                },
+                {
+                    "raw_text": "Demonstrated hands-on mentality in functional work (production, quality, supply chain, industrial engineering, etc.) or mission management",
+                    "canonical": "production",
+                    "confidence": 0.95,
+                },
+            ],
+            "tech_stack": [],
+            "keywords": [],
+        }
+    )
+
+    assert display["source"] == "required_skill_entities"
+    assert display["values"] == [
+        "space hardware design",
+        "assembly, integration and testing",
+        "production",
+    ]
+
+
+def test_merge_scraped_and_enriched_does_not_expand_specific_required_skill_without_description_evidence() -> None:
+    result = merge_scraped_and_enriched(
+        scraped={
+            "job_url": "https://example.com/jobs/sap-specialist",
+            "title": "SAP Specialist",
+            "company_name": "Example Co",
+            "company_id": "",
+            "location": "Germany",
+            "contract_type": "Full-time",
+            "experience_level": "Associate",
+            "sector": "Manufacturing",
+            "salary_min": None,
+            "salary_max": None,
+            "salary_currency": None,
+            "applications_count_int": None,
+            "published_at": "2026-06-17",
+            "description": "Own a SAP migration roadmap and coordinate stakeholders across finance.",
+        },
+        enriched={
+            "location_type": "hybrid",
+            "seniority": "mid",
+            "job_family": "erp",
+            "domain": "manufacturing",
+            "required_skills": ["SAP"],
+            "required_skills_canonical": ["sap"],
+            "required_skill_entities": [],
+            "preferred_skills": [],
+            "preferred_skills_canonical": [],
+            "preferred_skill_entities": [],
+            "responsibilities": [],
+            "tech_stack": [],
+            "keywords": [],
+        },
+        config={},
+    )
+
+    assert result["required_skills"] == ["SAP"]
+    assert result["required_skills_canonical"] == ["sap"]
+
+
 def test_lookup_reusable_structured_jobs_skips_semantically_blank_cached_row(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -1884,6 +2015,101 @@ def test_lookup_reusable_structured_jobs_skips_semantically_blank_cached_row(
     )
 
     assert reusable == {}
+
+
+def test_lookup_reusable_structured_jobs_repairs_sparse_generic_required_skills_from_description(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+
+    with sqlite3.connect(sqlite_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS structured_jobs_cache (
+                job_url TEXT PRIMARY KEY,
+                raw_job_fingerprint TEXT,
+                enrich_contract_fingerprint TEXT,
+                payload_json TEXT NOT NULL,
+                enriched_at TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO structured_jobs_cache(
+                job_url,
+                raw_job_fingerprint,
+                enrich_contract_fingerprint,
+                payload_json,
+                enriched_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                "https://example.com/jobs/reused-account-manager",
+                "fp-1",
+                "contract-1",
+                json.dumps(
+                    {
+                        "job_url": "https://example.com/jobs/reused-account-manager",
+                        "title": "Account Manager (w/m/d)",
+                        "required_skills": ["CRM"],
+                        "required_skills_canonical": ["crm"],
+                        "required_skill_entities": [],
+                        "preferred_skills": [],
+                        "preferred_skill_entities": [],
+                        "tech_stack": [],
+                        "keywords": [],
+                        "location_type": "hybrid",
+                        "seniority": "senior",
+                        "job_family": "account_management",
+                        "domain": "saas",
+                    }
+                ),
+                "2026-06-17T08:00:00+00:00",
+            ),
+        )
+        conn.commit()
+
+    reusable = lookup_reusable_structured_jobs(
+        normalized_jobs=[
+            {
+                "job_url": "https://example.com/jobs/reused-account-manager",
+                "title": "Account Manager (w/m/d)",
+                "company_name": "Example Co",
+                "location": "Hamburg, Germany",
+                "description": (
+                    "3+ Jahre Erfahrung im Account Management, Customer Success oder B2B-Vertrieb "
+                    "- idealerweise im SaaS-Umfeld.\n"
+                    "Strukturierte, datenbasierte Arbeitsweise: Du nutzt CRM und Portfolioubersichten, "
+                    "um Prioritaten zu setzen."
+                ),
+                "contract_type": "Full-time",
+                "experience_level": "Associate",
+                "source": "linkedin",
+            }
+        ],
+        config={},
+        raw_job_fingerprints={"https://example.com/jobs/reused-account-manager": "fp-1"},
+        enrich_contract_fingerprint="contract-1",
+    )
+
+    assert reusable["https://example.com/jobs/reused-account-manager"]["required_skills"] == [
+        "CRM",
+        "Account Management",
+        "Customer Success",
+        "B2B-Vertrieb",
+    ]
+    assert reusable["https://example.com/jobs/reused-account-manager"]["required_skills_canonical"] == [
+        "crm",
+        "account management",
+        "customer success",
+        "b2b-vertrieb",
+    ]
 
 
 def test_apply_structured_normalization_coerces_fractional_years_in_dict_payload() -> None:

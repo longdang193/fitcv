@@ -9147,6 +9147,58 @@ def test_admin_run_detail_enriched_jobs_falls_back_to_keywords_when_required_ski
     assert "Fallback: keywords" in resp.text
 
 
+def test_admin_run_detail_enriched_jobs_prefers_structured_entities_when_required_skills_are_verbose() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    enriched_jobs = [
+        {
+            "run_id": "test-456-entities",
+            "job_url": "https://example.com/job/4",
+            "title": "(Senior) Consultant (all genders) Accelerating to Space",
+            "location_type": "hybrid",
+            "seniority": "senior",
+            "job_family": "consulting",
+            "domain": "space",
+            "required_skills": [
+                "Overview of core space domains and applications around earth observation, satellite communication, satellite navigation, and space transportation",
+                "General know-how of space hardware design and requirements around assembly, integration and testing",
+            ],
+            "required_skill_entities_json": json.dumps(
+                [
+                    {
+                        "raw_text": "General know-how of space hardware design and requirements around assembly, integration and testing",
+                        "canonical": "space hardware design",
+                        "confidence": 0.95,
+                    },
+                    {
+                        "raw_text": "General know-how of space hardware design and requirements around assembly, integration and testing",
+                        "canonical": "assembly, integration and testing",
+                        "confidence": 0.95,
+                    },
+                ]
+            ),
+            "tech_stack": [],
+            "keywords": [],
+        }
+    ]
+
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-456-entities", status=RunStatus.SUCCEEDED,
+        cvs_generated=0, total_jobs=1, jobs_path="",
+        triggered_by="admin", trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc)
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched_jobs):
+        resp = TestClient(_app()).get("/admin/runs/test-456-entities/tabs/enriched")
+
+    assert resp.status_code == 200
+    assert "space hardware design, assembly, integration and testing" in resp.text
+    assert "Fallback: required skill entities" in resp.text
+    assert "Overview of core space domains and applications" not in resp.text
+
+
 def test_call_synonym_triage_provider_parses_chat_completions_json_with_trailing_sse_done(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
