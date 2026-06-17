@@ -53,6 +53,11 @@ from fitcv.contracts import (
     STAGE_TRANSITION_ARTIFACTS_STAGE_SCHEMA_VERSION,
     SYNONYM_PROPOSALS_QUEUE_SCHEMA_VERSION,
 )
+from fitcv.openai_compat import (
+    decode_openai_compat_response_body,
+    extract_openai_chat_completions_text,
+    extract_openai_responses_text,
+)
 from fitcv.prompts import render_prompt
 from fitcv.pipeline import (
     _infer_last_completed_stage_from_state,
@@ -3770,8 +3775,8 @@ def _call_synonym_triage_provider(
         with httpx.Client(timeout=timeout) as client:
             resp = client.post(url, headers=headers, json=payload)
             resp.raise_for_status()
-            body = resp.json()
-        output_text = _extract_responses_text(body)
+            body = decode_openai_compat_response_body(resp)
+        output_text = extract_openai_responses_text(body)
     else:
         url = base_url.rstrip("/") + "/chat/completions"
         payload = {
@@ -3782,8 +3787,8 @@ def _call_synonym_triage_provider(
         with httpx.Client(timeout=timeout) as client:
             resp = client.post(url, headers=headers, json=payload)
             resp.raise_for_status()
-            body = resp.json()
-        output_text = str((((body.get("choices") or [{}])[0].get("message") or {}).get("content")) or "").strip()
+            body = decode_openai_compat_response_body(resp)
+        output_text = extract_openai_chat_completions_text(body)
     if not output_text:
         raise RuntimeError("empty_provider_output")
     parsed = _json.loads(output_text)
@@ -4665,6 +4670,76 @@ def _fallback_enriched_rows_from_results_export(rows: list[dict[str, Any]]) -> l
         )
     return fallback_rows
 
+
+def _normalize_display_list(values: Any) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    display_values: list[str] = []
+    seen: set[str] = set()
+    for item in values:
+        text = str(item or "").strip()
+        normalized = text.lower()
+        if not text or normalized in seen:
+            continue
+        seen.add(normalized)
+        display_values.append(text)
+    return display_values
+
+
+def _parse_json_list_field(raw_value: Any) -> list[Any]:
+    if isinstance(raw_value, list):
+        return raw_value
+    if not isinstance(raw_value, str) or not raw_value.strip():
+        return []
+    try:
+        parsed = _json.loads(raw_value)
+    except _json.JSONDecodeError:
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def _parse_required_skill_entities_for_display(job: dict[str, Any]) -> list[str]:
+    entities = job.get("required_skill_entities")
+    if not isinstance(entities, list):
+        entities = _parse_json_list_field(job.get("required_skill_entities_json"))
+    display_values: list[str] = []
+    seen: set[str] = set()
+    for entity in entities:
+        if not isinstance(entity, dict):
+            continue
+        for candidate in (
+            str(entity.get("raw_text") or "").strip(),
+            str(entity.get("canonical") or "").strip(),
+        ):
+            normalized = candidate.lower()
+            if not candidate or normalized in seen:
+                continue
+            seen.add(normalized)
+            display_values.append(candidate)
+    return display_values
+
+
+def _with_required_skills_display(job: dict[str, Any]) -> dict[str, Any]:
+    normalized_job = dict(job)
+    display_values = _normalize_display_list(normalized_job.get("required_skills"))
+    display_source = "required_skills" if display_values else None
+    if not display_values:
+        display_values = _parse_required_skill_entities_for_display(normalized_job)
+        if display_values:
+            display_source = "required_skill_entities"
+    if not display_values:
+        display_values = _normalize_display_list(normalized_job.get("tech_stack"))
+        if display_values:
+            display_source = "tech_stack"
+    if not display_values:
+        display_values = _normalize_display_list(normalized_job.get("keywords"))
+        if display_values:
+            display_source = "keywords"
+    normalized_job["required_skills_display"] = display_values
+    normalized_job["required_skills_display_source"] = display_source
+    return normalized_job
+
+
 def _fallback_enriched_rows_from_stage_artifacts(run: PipelineRun) -> list[dict[str, Any]]:
     """Derive enriched-tab rows from enrich stage artifacts during in-flight runs."""
     stage_artifacts = _stage_artifacts_by_id(run)
@@ -4937,6 +5012,7 @@ def _build_enriched_tab_context(
         enriched_jobs = _fallback_enriched_rows_from_stage_artifacts(run)
     if not enriched_jobs:
         enriched_jobs = _fallback_enriched_rows_from_results_export(results_rows)
+    enriched_jobs = [_with_required_skills_display(job) for job in enriched_jobs]
     filter_results = list_filter_results_for_run(run_id, bq, project=project, dataset=dataset)
     if not filter_results and results_rows:
         # sqlite mode does not persist rule_filter_results; derive passed/rejected

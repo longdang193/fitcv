@@ -9112,6 +9112,103 @@ def test_admin_run_detail_enriched_jobs_shows_required_skills():
     assert "https://example.com/job/2" in resp.text
 
 
+def test_admin_run_detail_enriched_jobs_falls_back_to_keywords_when_required_skills_empty() -> None:
+    """Enriched tab surfaces fallback structured signals when required skills are empty."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    enriched_jobs = [
+        {
+            "run_id": "test-456-fallback",
+            "job_url": "https://example.com/job/3",
+            "title": "Assistenz / Operations & Customer Care (m/w/d)",
+            "location_type": "remote",
+            "seniority": "junior",
+            "job_family": "operations",
+            "domain": "construction",
+            "required_skills": [],
+            "tech_stack": [],
+            "keywords": ["Assistenz", "Operations", "Customer Care"],
+        }
+    ]
+
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-456-fallback", status=RunStatus.SUCCEEDED,
+        cvs_generated=0, total_jobs=1, jobs_path="",
+        triggered_by="admin", trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc)
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched_jobs):
+        resp = TestClient(_app()).get("/admin/runs/test-456-fallback/tabs/enriched")
+
+    assert resp.status_code == 200
+    assert "Assistenz, Operations, Customer Care" in resp.text
+    assert "Fallback: keywords" in resp.text
+
+
+def test_call_synonym_triage_provider_parses_chat_completions_json_with_trailing_sse_done(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv_cp import app as app_module
+
+    class _DummyResponse:
+        headers = {"content-type": "text/event-stream"}
+        text = (
+            'data: {"choices":[{"message":{"content":"{\\"recommended_action\\":\\"approve\\",'
+            '\\"recommendation_confidence\\":0.91,\\"recommendation_rationale\\":\\"High confidence\\",'
+            '\\"recommendation_risk_flags\\":[]}"}}]}\n\n'
+            "data: [DONE]\n\n"
+        )
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            raise json.JSONDecodeError("Extra data", self.text, 1)
+
+    class _DummyClient:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+
+        def __enter__(self) -> "_DummyClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def post(self, url: str, *, headers: dict[str, str], json: dict[str, Any]) -> _DummyResponse:
+            assert url.endswith("/chat/completions")
+            assert headers["Authorization"] == "Bearer test-key"
+            assert json["model"] == "gpt-4.1-mini"
+            return _DummyResponse()
+
+    monkeypatch.setattr("fitcv_cp.app.render_prompt", lambda name, payload: type("Rendered", (), {"text": "prompt"})())
+    monkeypatch.setattr("fitcv_cp.app.httpx.Client", _DummyClient)
+
+    result = app_module._call_synonym_triage_provider(
+        proposal={
+            "proposal_id": "proposal-1",
+            "proposal_status": "proposed_unreviewed",
+            "alias": "gcp",
+            "canonical": "google cloud",
+            "confidence": 0.9,
+        },
+        runtime={
+            "provider": "openai",
+            "base_url": "http://localhost:20128/v1",
+            "api_key": "test-key",
+            "model": "gpt-4.1-mini",
+            "wire_api": "chat_completions",
+        },
+        now_iso="2026-06-17T00:00:00Z",
+    )
+
+    assert result["recommended_action"] == "approve"
+    assert result["recommendation_confidence"] == 0.91
+    assert result["recommendation_rationale"] == "High confidence"
+
+
 
 
 
@@ -9887,6 +9984,23 @@ def _agentic_automation_section_form(
     }
 
 
+def _agentic_reuse_section_form(
+    *,
+    enrich_enabled: str = "true",
+    ranking_enabled: str = "true",
+    cv_analysis_enabled: str = "true",
+    cv_generation_enabled: str = "true",
+    synonym_triage_enabled: str = "true",
+) -> dict[str, str]:
+    return {
+        "reuse.enrich.enabled": enrich_enabled,
+        "reuse.ranking.enabled": ranking_enabled,
+        "reuse.cv_analysis.enabled": cv_analysis_enabled,
+        "reuse.cv_generation.enabled": cv_generation_enabled,
+        "reuse.synonym_triage.enabled": synonym_triage_enabled,
+    }
+
+
 def test_post_settings_section_valid_redirects():
     """Valid payload for retrieval core section returns 303."""
     with patch("fitcv_cp.app.save_settings_group"), \
@@ -10006,6 +10120,24 @@ def test_post_settings_section_agentic_enablement_valid_redirects() -> None:
     assert resp.status_code == 303
     assert captured["values"]["cv.agentic_late_stage.enabled"] is True
     assert captured["values"]["cv_analysis.semantic_alignment.enabled"] is True
+
+
+def test_post_settings_section_agentic_reuse_valid_redirects() -> None:
+    captured = {}
+
+    def _capture_save(values, *, updated_by, bq, project, dataset):
+        captured["values"] = values
+
+    with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
+        patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/agentic-reuse",
+            data=_agentic_reuse_section_form(cv_generation_enabled="false"),
+        )
+
+    assert resp.status_code == 303
+    assert captured["values"]["reuse.enrich.enabled"] is True
+    assert captured["values"]["reuse.cv_generation.enabled"] is False
 
 
 def test_post_settings_section_agentic_advanced_omits_metadata_only_input() -> None:
@@ -12810,6 +12942,7 @@ def test_settings_page_surfaces_late_stage_stage_runtime_controls_in_agentic_sec
     assert "Advanced Agentic Tuning" not in html
     assert "Advanced Runtime Tuning" not in html
     assert 'action="/admin/settings/section/agentic-enablement"' in html
+    assert 'action="/admin/settings/section/agentic-reuse"' in html
     assert 'action="/admin/settings/section/agentic-automation"' in html
     assert 'action="/admin/settings/section/agentic-advanced"' in html
 

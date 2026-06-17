@@ -108,8 +108,11 @@
           </div>
         </td>
         <td class="meta">
-          {% if job.required_skills %}
-            {{ job.required_skills[:5] | join(', ') }}{% if job.required_skills | length > 5 %}, <em class="meta">+{{ job.required_skills | length - 5 }} more</em>{% endif %}
+          {% if job.required_skills_display %}
+            {{ job.required_skills_display[:5] | join(', ') }}{% if job.required_skills_display | length > 5 %}, <em class="meta">+{{ job.required_skills_display | length - 5 }} more</em>{% endif %}
+            {% if job.required_skills_display_source and job.required_skills_display_source != 'required_skills' %}
+            <div class="meta" style="margin-top:0.3rem">Fallback: {{ job.required_skills_display_source | replace('_', ' ') }}</div>
+            {% endif %}
           {% else %}
             —
           {% endif %}

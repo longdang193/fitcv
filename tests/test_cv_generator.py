@@ -893,6 +893,73 @@ def test_generate_cv_uses_openai_compatible_routed_client(
     assert str(captured["url"]).endswith("/responses")
 
 
+def test_generate_cv_parses_chat_completions_json_with_trailing_sse_done(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        "fitcv.runtime_routing.resolve_model_routing_part",
+        lambda *args, **kwargs: {
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "base_url": "http://localhost:20128/v1",
+            "wire_api": "chat_completions",
+        },
+    )
+    template_path = tmp_path / "cv_template.md"
+    template_path.write_text("# {{ candidate.name }}\n## Summary\n{{ summary }}\n", encoding="utf-8")
+
+    class FakeResponse:
+        headers = {"content-type": "text/event-stream"}
+        text = (
+            '{"choices":[{"message":{"content":"{\\"sections\\":{\\"header\\":{\\"name\\":\\"Jane Doe\\",\\"title\\":\\"Data Engineer\\"},\\"summary\\":{\\"text\\":\\"Grounded summary.\\"}}}"}}]}'
+            "data: [DONE]\n\n"
+        )
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            raise json.JSONDecodeError("Extra data", self.text, 4321)
+
+    class FakeHTTPClient:
+        def __enter__(self) -> "FakeHTTPClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
+            return FakeResponse()
+
+    fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient(), HTTPStatusError=Exception)
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    result = generate_cv(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[{"name": "GA4 Project", "skills": ["SQL"]}],
+        gap={"matched": ["SQL"], "missing": []},
+        profile={"name": "Jane Doe"},
+        config={
+            "gcp_project": "fitcv-491123",
+            "vertex_location": "us-central1",
+            "cv": {
+                "generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"},
+                "preset": "europass",
+                "composition": {"summary": {"enabled": True}},
+                "content_rules": {"evidence_grounded_only": True},
+                "validation": {"max_pages": 2},
+            },
+            "_template_path": str(template_path),
+        },
+        fit_classification="strong",
+    )
+
+    assert result["structured_cv"]["sections"]["header"]["name"] == "Jane Doe"
+    assert "Grounded summary." in result["markdown"]
+
+
 # ── preset-based config reads ──────────────────────────────────────────────────
 
 def test_generate_cv_reads_model_from_nested_cv_config(

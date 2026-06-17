@@ -13,6 +13,8 @@ tags:
 """
 
 from datetime import datetime, timezone
+import json
+from pathlib import Path
 import sys
 import types
 
@@ -237,6 +239,100 @@ def test_make_genai_client_openai_compatible_requires_env_api_key(
 
     with pytest.raises(RuntimeError, match="Config-routed HTTP provider.*requires API key in env"):
         enrich_module._make_genai_client({"gemini_model": "gemini-2.5-flash"})
+
+
+def test_make_genai_client_openai_compatible_parses_sse_chat_completions_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeResponse:
+        headers = {"content-type": "text/event-stream"}
+        text = (
+            'data: {"choices":[{"message":{"content":"{\\"required_skills\\":[\\"SQL\\"],\\"location_type\\":\\"remote\\"}"}}]}\n\n'
+            "data: [DONE]\n"
+        )
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            raise json.JSONDecodeError("Extra data", self.text, 10155)
+
+    class FakeHTTPClient:
+        def __enter__(self) -> "FakeHTTPClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
+            return FakeResponse()
+
+    fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient())
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
+    monkeypatch.setattr(
+        enrich_module,
+        "resolve_model_routing_part",
+        lambda part, model_fallback=None: {
+            "provider": "openai_compatible",
+            "model": "ds/deepseek-v4-flash",
+            "base_url": "http://localhost:20128/v1",
+            "wire_api": "chat_completions",
+        },
+    )
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    client = enrich_module._make_genai_client({"gemini_model": "gemini-2.5-flash"})
+    result = client.models.generate_content(model="ignored", contents="hello")
+
+    assert result.text == '{"required_skills":["SQL"],"location_type":"remote"}'
+    assert result.parsed == {"required_skills": ["SQL"], "location_type": "remote"}
+
+
+def test_make_genai_client_openai_compatible_parses_json_with_trailing_sse_done(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeResponse:
+        headers = {"content-type": "text/event-stream"}
+        text = (
+            '{"choices":[{"message":{"content":"{\\"required_skills\\":[\\"SQL\\"],\\"location_type\\":\\"remote\\"}"}}]}'
+            "data: [DONE]\n\n"
+        )
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            raise json.JSONDecodeError("Extra data", self.text, 9660)
+
+    class FakeHTTPClient:
+        def __enter__(self) -> "FakeHTTPClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
+            return FakeResponse()
+
+    fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient())
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
+    monkeypatch.setattr(
+        enrich_module,
+        "resolve_model_routing_part",
+        lambda part, model_fallback=None: {
+            "provider": "openai_compatible",
+            "model": "ds/deepseek-v4-flash",
+            "base_url": "http://localhost:20128/v1",
+            "wire_api": "chat_completions",
+        },
+    )
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    client = enrich_module._make_genai_client({"gemini_model": "gemini-2.5-flash"})
+    result = client.models.generate_content(model="ignored", contents="hello")
+
+    assert result.text == '{"required_skills":["SQL"],"location_type":"remote"}'
+    assert result.parsed == {"required_skills": ["SQL"], "location_type": "remote"}
 
 
 def test_lookup_reusable_structured_jobs_normalises_datetime_enriched_at(
@@ -681,7 +777,15 @@ def test_load_structured_jobs_uses_explicit_staging_schema(
     monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
 
     load_structured_jobs(
-        enriched=[{"job_url": "url1", "salary_min": None, "salary_max": None}],
+        enriched=[
+            {
+                "job_url": "url1",
+                "required_skills": ["SQL"],
+                "required_skills_canonical": ["sql"],
+                "salary_min": None,
+                "salary_max": None,
+            }
+        ],
         config={
             "gcp_project": "fitcv-491123",
             "bigquery_dataset": "fitcv",
@@ -1325,6 +1429,53 @@ def test_load_run_structured_jobs_writes_sqlite_rows(
     assert payload["role_family_mapping_suggestions_json"] == '[{"field": "role_family", "alias": "data scientist", "canonical": "data_science"}]'
 
 
+def test_load_structured_jobs_skips_semantically_blank_sqlite_rows(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+
+    inserted = load_structured_jobs(
+        enriched=[
+            {
+                "job_url": "https://example.com/jobs/blank",
+                "title": "Blank enrichment row",
+                "required_skills": [],
+                "tech_stack": [],
+                "keywords": [],
+                "location_type": None,
+                "seniority": None,
+                "job_family": None,
+                "domain": None,
+            },
+            {
+                "job_url": "https://example.com/jobs/good",
+                "title": "Good enrichment row",
+                "required_skills": ["SQL"],
+                "required_skills_canonical": ["sql"],
+                "tech_stack": [],
+                "keywords": [],
+                "location_type": "hybrid",
+                "seniority": "junior",
+                "job_family": "analytics",
+                "domain": "technology",
+            },
+        ],
+        config={},
+    )
+
+    assert inserted == 1
+    with sqlite3.connect(sqlite_path) as conn:
+        rows = conn.execute(
+            "SELECT job_url FROM structured_jobs_cache ORDER BY job_url"
+        ).fetchall()
+    assert rows == [("https://example.com/jobs/good",)]
+
+
 # ── EnrichmentOutput + _apply_structured_normalization ───────────────────────
 
 def test_apply_structured_normalization_lowercases_domain() -> None:
@@ -1565,6 +1716,175 @@ def test_apply_structured_normalization_preserves_raw_scalar_companions() -> Non
     assert result["domain"] == "fintech"
     assert result["job_family_raw"] == " Data_Engineering "
     assert result["job_family"] == "data_engineering"
+
+
+def test_merge_scraped_and_enriched_repairs_required_skills_from_keyword_signal() -> None:
+    result = merge_scraped_and_enriched(
+        scraped={
+            "job_url": "https://example.com/jobs/keyword-fallback",
+            "title": "Bauingenieur in Tragwerksplaner/Statiker (m/w/d)",
+            "company_name": "Example Co",
+            "company_id": "",
+            "location": "Germany",
+            "contract_type": "Full-time",
+            "experience_level": "Entry level",
+            "sector": "Staffing",
+            "salary_min": None,
+            "salary_max": None,
+            "salary_currency": None,
+            "applications_count_int": None,
+            "published_at": "2026-06-16",
+            "description": "Tragwerksplanung in Holztafelbauweise mit statischen Berechnungen.",
+        },
+        enriched={
+            "location_type": "onsite",
+            "seniority": "junior",
+            "job_family": "structural_engineering",
+            "domain": "construction",
+            "required_skills": [],
+            "required_skills_canonical": [],
+            "required_skill_entities": [],
+            "preferred_skills": [],
+            "preferred_skills_canonical": [],
+            "preferred_skill_entities": [],
+            "responsibilities": [],
+            "tech_stack": [],
+            "keywords": [
+                "Bauingenieur",
+                "Tragwerksplaner",
+                "Statiker",
+                "Tragwerksplanung",
+                "Holztafelbauweise",
+            ],
+        },
+        config={},
+    )
+
+    assert result["required_skills"] == [
+        "Bauingenieur",
+        "Tragwerksplaner",
+        "Statiker",
+        "Tragwerksplanung",
+        "Holztafelbauweise",
+    ]
+    assert result["required_skill_entities"] == []
+
+
+def test_merge_scraped_and_enriched_supplements_sparse_required_skills_from_tech_stack() -> None:
+    result = merge_scraped_and_enriched(
+        scraped={
+            "job_url": "https://example.com/jobs/sparse-required-skills",
+            "title": "Venture Development Intern (w/m/d)",
+            "company_name": "Example Co",
+            "company_id": "",
+            "location": "Germany",
+            "contract_type": "Internship",
+            "experience_level": "Entry level",
+            "sector": "Venture Capital",
+            "salary_min": None,
+            "salary_max": None,
+            "salary_currency": None,
+            "applications_count_int": None,
+            "published_at": "2026-06-17",
+            "description": "Use Excel, Sheets, SQL and BI tools to support venture analysis.",
+        },
+        enriched={
+            "location_type": "onsite",
+            "seniority": "junior",
+            "job_family": "business_analysis",
+            "domain": "venture_capital",
+            "required_skills": ["Excel/Sheets"],
+            "required_skills_canonical": ["excel/sheets"],
+            "required_skill_entities": [],
+            "preferred_skills": [],
+            "preferred_skills_canonical": [],
+            "preferred_skill_entities": [],
+            "responsibilities": [],
+            "tech_stack": ["Excel", "Sheets", "SQL", "BI-Tools"],
+            "keywords": [],
+        },
+        config={},
+    )
+
+    assert result["required_skills"] == ["Excel/Sheets", "Excel", "Sheets", "SQL", "BI-Tools"]
+    assert result["required_skills_canonical"] == ["excel/sheets", "excel", "sheets", "sql", "bi-tools"]
+
+
+def test_lookup_reusable_structured_jobs_skips_semantically_blank_cached_row(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+
+    with sqlite3.connect(sqlite_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS structured_jobs_cache (
+                job_url TEXT PRIMARY KEY,
+                raw_job_fingerprint TEXT,
+                enrich_contract_fingerprint TEXT,
+                payload_json TEXT NOT NULL,
+                enriched_at TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO structured_jobs_cache(
+                job_url,
+                raw_job_fingerprint,
+                enrich_contract_fingerprint,
+                payload_json,
+                enriched_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                "https://example.com/jobs/blank-reuse",
+                "fp-1",
+                "contract-1",
+                json.dumps(
+                    {
+                        "job_url": "https://example.com/jobs/blank-reuse",
+                        "title": "Key Account Manager Defence (m/w/d)*",
+                        "required_skills": [],
+                        "required_skill_entities": [],
+                        "tech_stack": [],
+                        "keywords": [],
+                        "location_type": None,
+                        "seniority": None,
+                        "job_family": None,
+                        "domain": None,
+                    }
+                ),
+                "2026-06-16T22:08:59.920596+00:00",
+            ),
+        )
+        conn.commit()
+
+    reusable = lookup_reusable_structured_jobs(
+        normalized_jobs=[
+            {
+                "job_url": "https://example.com/jobs/blank-reuse",
+                "title": "Key Account Manager Defence (m/w/d)*",
+                "company_name": "Scalian Germany AG",
+                "location": "Hamburg, Germany",
+                "description": "Rich description with CRM, LinkedIn, reporting tools, KPIs, forecasts.",
+                "contract_type": "Full-time",
+                "experience_level": "Associate",
+                "source": "linkedin",
+            }
+        ],
+        config={},
+        raw_job_fingerprints={"https://example.com/jobs/blank-reuse": "fp-1"},
+        enrich_contract_fingerprint="contract-1",
+    )
+
+    assert reusable == {}
+
 
 def test_apply_structured_normalization_coerces_fractional_years_in_dict_payload() -> None:
     result = _apply_structured_normalization(
@@ -2007,7 +2327,7 @@ def test_enrich_batch_uses_configured_batch_size_and_concurrency() -> None:
 
     original_chunk = None
 
-    def capture_chunk(chunk, config):
+    def capture_chunk(chunk, config, *, job_event_callback=None):
         call_sizes.append(len(chunk))
         return [fake_enrich(j, config) for j in chunk]
 

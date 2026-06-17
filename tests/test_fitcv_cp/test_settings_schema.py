@@ -276,6 +276,7 @@ def test_feature_source_names_operator_facing_agentic_settings_capability() -> N
 def test_agentic_settings_sections_have_expected_slugs() -> None:
     assert set(AGENTIC_SETTINGS_SECTIONS.keys()) == {
         "agentic-enablement",
+        "agentic-reuse",
         "agentic-automation",
         "agentic-advanced",
     }
@@ -292,6 +293,13 @@ def test_agentic_settings_section_ownership_is_explicit() -> None:
         "synonym_management.propose_enabled",
         "synonym_management.apply_to_run_enabled",
         "synonym_management.promote_global_enabled",
+        "reuse.enrich.enabled",
+        "reuse.ranking.enabled",
+        "reuse.cv_analysis.enabled",
+        "reuse.cv_generation.enabled",
+        "reuse.synonym_triage.enabled",
+    ]
+    assert AGENTIC_SETTINGS_SECTIONS["agentic-reuse"] == [
         "reuse.enrich.enabled",
         "reuse.ranking.enabled",
         "reuse.cv_analysis.enabled",
