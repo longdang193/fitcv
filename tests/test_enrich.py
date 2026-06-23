@@ -2575,3 +2575,93 @@ def test_enrich_batch_uses_configured_batch_size_and_concurrency() -> None:
     assert len(result) == 4
     # Each chunk had at most batch_size=2 jobs
     assert all(s <= 2 for s in call_sizes), f"Chunk sizes: {call_sizes}"
+
+def test_enrich_batch_calls_on_chunk_complete_for_each_chunk() -> None:
+    """on_chunk_complete callback is invoked once per chunk with that chunk's results."""
+    from unittest.mock import patch
+    from fitcv.enrich import enrich_batch
+
+    jobs = [{"job_url": f"u{i}"} for i in range(6)]
+    chunk_calls: list[list[dict]] = []
+
+    def on_chunk_complete(chunk_rows: list[dict]) -> None:
+        chunk_calls.append(list(chunk_rows))
+
+    with patch("fitcv.enrich.enrich_job", side_effect=_fake_enrich_job), \
+         patch("time.sleep"):
+        result = enrich_batch(
+            jobs,
+            config={"enrichment_batch_size": 2, "enrichment_concurrency": 1},
+            on_chunk_complete=on_chunk_complete,
+        )
+
+    # 6 jobs / batch_size 2 = 3 chunks
+    assert len(chunk_calls) == 3
+    # Each chunk should have 2 jobs
+    assert all(len(chunk) == 2 for chunk in chunk_calls)
+    # All jobs should be accounted for across chunks
+    all_chunk_urls = [r["job_url"] for chunk in chunk_calls for r in chunk]
+    assert sorted(all_chunk_urls) == [f"u{i}" for i in range(6)]
+    # Final result should still match
+    assert [r["job_url"] for r in result] == [f"u{i}" for i in range(6)]
+
+
+def test_enrich_batch_on_chunk_complete_exception_does_not_propagate() -> None:
+    """If on_chunk_complete raises, enrich_batch continues and returns results."""
+    from unittest.mock import patch
+    from fitcv.enrich import enrich_batch
+
+    jobs = [{"job_url": f"u{i}"} for i in range(4)]
+
+    def failing_callback(chunk_rows: list[dict]) -> None:
+        raise RuntimeError("save failed")
+
+    with patch("fitcv.enrich.enrich_job", side_effect=_fake_enrich_job), \
+         patch("time.sleep"):
+        result = enrich_batch(
+            jobs,
+            config={"enrichment_batch_size": 2, "enrichment_concurrency": 1},
+            on_chunk_complete=failing_callback,
+        )
+
+    # Should still return all results despite callback failures
+    assert len(result) == 4
+    assert [r["job_url"] for r in result] == [f"u{i}" for i in range(4)]
+
+
+def test_enrich_batch_calls_on_chunk_complete_in_completion_order() -> None:
+    """Callback order follows finished chunk order, while returned rows keep input order."""
+    import time
+    from fitcv.enrich import enrich_batch
+
+    jobs = [{"job_url": f"u{i}"} for i in range(3)]
+    callback_order: list[str] = []
+
+    def delayed_chunk(chunk: list[dict], config: dict, job_event_callback=None) -> list[dict]:
+        first_url = str(chunk[0]["job_url"])
+        if first_url == "u0":
+            time.sleep(0.05)
+        elif first_url == "u1":
+            time.sleep(0.0)
+        else:
+            time.sleep(0.01)
+        return [{**row, "enriched": True} for row in chunk]
+
+    def on_chunk_complete(chunk_rows: list[dict]) -> None:
+        callback_order.append(str(chunk_rows[0]["job_url"]))
+
+    import fitcv.enrich as enrich_mod
+
+    original = enrich_mod._enrich_chunk
+    enrich_mod._enrich_chunk = delayed_chunk
+    try:
+        result = enrich_batch(
+            jobs,
+            config={"enrichment_batch_size": 1, "enrichment_concurrency": 3},
+            on_chunk_complete=on_chunk_complete,
+        )
+    finally:
+        enrich_mod._enrich_chunk = original
+
+    assert callback_order == ["u1", "u2", "u0"]
+    assert [row["job_url"] for row in result] == ["u0", "u1", "u2"]

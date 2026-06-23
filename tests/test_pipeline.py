@@ -5159,7 +5159,7 @@ def test_enrich_jobs_with_reuse_preserves_order_and_separates_shared_upserts(
     assert enriched_rows[1]["raw_job_fingerprint"] == "raw-2"
     assert all(row["enrich_contract_fingerprint"] == "contract-1" for row in enriched_rows)
     assert [row["job_url"] for row in fresh_rows] == ["https://example.com/2"]
-    mock_enrich_batch.assert_called_once_with([jobs[1]], {"gemini_model": "gemini-2.5-flash"}, job_event_callback=None)
+    mock_enrich_batch.assert_called_once_with([jobs[1]], {"gemini_model": "gemini-2.5-flash"}, job_event_callback=None, on_chunk_complete=None)
 
 
 def test_collect_mapping_suggestions_deduplicates_per_run_by_alias_canonical_and_must_have_skill() -> None:
@@ -9105,3 +9105,90 @@ def test_build_ranking_features_ignores_diagnostic_reranker_lists_for_scoring() 
 
 
 
+
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence_bundle")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_incremental_enrich_persists_each_store_exactly_once(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_store_ver: MagicMock,
+    mock_load_run_struct: MagicMock,
+) -> None:
+    """Incremental enrich persistence must not duplicate structured or run-scoped writes."""
+    from fitcv.pipeline import run_pipeline
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = []
+
+    def enrich_side_effect(rows, config, job_event_callback=None, on_chunk_complete=None):
+        enriched = [
+            {
+                **row,
+                "enrichment_version": "v1",
+                "enrichment_model": "gemini-2.5-flash",
+                "enriched_at": "2026-04-03T00:01:00+00:00",
+            }
+            for row in rows
+        ]
+        if on_chunk_complete is not None:
+            on_chunk_complete(enriched)
+        return enriched
+
+    mock_enrich.side_effect = enrich_side_effect
+
+    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="test-run-id")
+
+    assert mock_load_struct.call_count == 1
+    assert mock_load_run_struct.call_count == 1
