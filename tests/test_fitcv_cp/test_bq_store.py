@@ -12,6 +12,7 @@ tags:
   - ci-safe
 """
 
+import dataclasses
 from unittest.mock import MagicMock
 import json
 from pathlib import Path
@@ -1249,6 +1250,44 @@ def test_unarchive_run_local_mode_clears_local_state() -> None:
     assert stored.archived_at is None
     assert stored.archived_by is None
 
+def test_delete_archived_runs_local_mode_deletes_only_matching_archived_runs(tmp_path, monkeypatch) -> None:
+    from fitcv_cp import bq_store
+    from fitcv_cp.bq_store import delete_archived_runs
+
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv_cp.sqlite3"))
+    bq_store._LOCAL_RUNS.clear()
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    old_archived = _make_run()
+    old_archived = dataclasses.replace(
+        old_archived,
+        run_id="run-old-archived",
+        archived_at=now - datetime.timedelta(days=45),
+        archived_by="admin",
+    )
+    recent_archived = _make_run()
+    recent_archived = dataclasses.replace(
+        recent_archived,
+        run_id="run-recent-archived",
+        archived_at=now - datetime.timedelta(days=5),
+        archived_by="admin",
+    )
+    active_run = dataclasses.replace(_make_run(), run_id="run-active")
+
+    bq_store._local_save_run(old_archived)
+    bq_store._local_save_run(recent_archived)
+    bq_store._local_save_run(active_run)
+
+    result = delete_archived_runs(30, None, project="local", dataset="local", run_ids=["run-old-archived"])
+
+    assert result["deleted_count"] == 1
+    assert result["deleted_run_ids"] == ["run-old-archived"]
+    assert bq_store._local_get_run("run-old-archived") is None
+    assert bq_store._local_get_run("run-recent-archived") is not None
+    assert bq_store._local_get_run("run-active") is not None
+    bq_store._LOCAL_RUNS.clear()
+
+
 def test_list_runs_active_filters_archived():
     """@proves admin_control_plane_core.pipeline-runs-bigquery-table"""
     bq = MagicMock()
@@ -1274,3 +1313,5 @@ def test_list_runs_include_all():
     list_runs(bq, project="p", dataset="d", include_archived=True)
     sql_arg = bq.query.call_args[0][0]
     assert "archived_at" not in sql_arg
+
+

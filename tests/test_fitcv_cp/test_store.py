@@ -128,6 +128,28 @@ def test_control_plane_store_uses_injected_archive_fn() -> None:
     assert captured["archived_by"] == "admin"
 
 
+def test_control_plane_store_uses_injected_delete_archived_runs_fn() -> None:
+    captured: dict[str, object] = {}
+
+    def _delete_archived_runs(older_than_days, bq, *, project, dataset, run_ids=None):
+        captured["older_than_days"] = older_than_days
+        captured["project"] = project
+        captured["dataset"] = dataset
+        captured["run_ids"] = run_ids
+        return {"deleted_count": 2, "deleted_run_ids": ["rid-1", "rid-2"]}
+
+    store = ControlPlaneStore(
+        bq=None,
+        project="p",
+        dataset="d",
+        delete_archived_runs_fn=_delete_archived_runs,
+    )
+    result = store.delete_archived_runs(30, ["run-old-archived"])
+    assert captured["older_than_days"] == 30
+    assert captured["run_ids"] == ["run-old-archived"]
+    assert result["deleted_count"] == 2
+
+
 def test_control_plane_store_uses_injected_cv_read_fns() -> None:
     def _list_cvs(run_id, bq, *, project, dataset):
         assert run_id == "rid-1"
@@ -244,3 +266,4 @@ def test_control_plane_store_lists_run_attempt_payloads_from_events() -> None:
     payloads = store.list_run_attempt_payloads("rid-1")
     assert len(payloads) == 1
     assert payloads[0]["attempt"]["attempt_id"] == "a1"
+

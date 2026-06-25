@@ -10715,6 +10715,28 @@ def test_admin_bulk_lifecycle_rejects_unknown_run_ids():
     assert body["skipped_items"] == [{"run_id": "missing-run", "reason": "not_found"}]
 
 
+def test_admin_bulk_delete_archived_runs_returns_deleted_summary():
+    """@proves run_lifecycle_controls.delete-archived-runs-bulk-cleanup"""
+    with patch("fitcv_cp.app.delete_archived_runs", return_value={"deleted_count": 2, "deleted_run_ids": ["run-1", "run-2"]}):
+        resp = TestClient(_app()).post(
+            "/admin/runs/bulk/delete-archived",
+            json={"older_than_days": 30, "run_ids": ["run-1", "run-2"]},
+        )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "deleted"
+    assert body["deleted_count"] == 2
+    assert body["deleted_run_ids"] == ["run-1", "run-2"]
+
+
+def test_admin_bulk_delete_archived_runs_rejects_invalid_threshold():
+    resp = TestClient(_app()).post(
+        "/admin/runs/bulk/delete-archived",
+        json={"older_than_days": -1},
+    )
+    assert resp.status_code == 422
+
+
 def test_admin_runs_active_view_passes_archive_filter():
     with patch("fitcv_cp.app.list_runs", return_value=[]) as mock_list:
         resp = TestClient(_app()).get("/admin/runs?view=active")
@@ -10798,6 +10820,44 @@ def test_runs_list_renders_bulk_action_bar_hooks():
     assert "Unarchive selected" in html
 
 
+def test_runs_list_shows_delete_archived_controls_only_in_archived_view() -> None:
+    archived_run = _make_full_run_mock(
+        status="succeeded",
+        archived_at=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=45),
+        run_id="run-archived-ui-1",
+    )
+    with patch("fitcv_cp.app.list_runs", return_value=[archived_run]):
+        archived_resp = TestClient(_app()).get("/admin/runs?view=archived")
+    assert archived_resp.status_code == 200
+    archived_html = archived_resp.text
+    assert 'id="delete-archived-controls"' in archived_html
+    assert 'id="delete-archived-threshold"' in archived_html
+    assert 'Delete archived runs' in archived_html
+    assert 'Permanently deletes archived runs you no longer need.' in archived_html
+
+    with patch("fitcv_cp.app.list_runs", return_value=[archived_run]):
+        active_resp = TestClient(_app()).get("/admin/runs?view=active")
+    assert active_resp.status_code == 200
+    assert 'id="delete-archived-controls"' not in active_resp.text
+
+
+def test_runs_list_archived_delete_controls_include_default_filter_and_confirmation_copy() -> None:
+    archived_run = _make_full_run_mock(
+        status="succeeded",
+        archived_at=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=45),
+        run_id="run-archived-ui-2",
+    )
+    with patch("fitcv_cp.app.list_runs", return_value=[archived_run]):
+        resp = TestClient(_app()).get("/admin/runs?view=archived")
+    assert resp.status_code == 200
+    html = resp.text
+    assert '<option value="30" selected>Older than 30 days</option>' in html
+    assert 'Older than 7 days' in html
+    assert 'Older than 90 days' in html
+    assert 'All archived runs' in html
+    assert 'This permanently deletes ${matchedRunIds.length} archived run(s) and their stored artifacts. This cannot be undone.' in html
+    assert 'No archived runs match this filter.' in html
+    assert "bulkDeleteArchivedRuns(this)" in html
 def test_runs_list_shows_core_operational_columns_only():
     run = _make_full_run_mock(status="queued", run_id="run-compact-actions")
     with patch("fitcv_cp.app.list_runs", return_value=[run]):
@@ -14193,15 +14253,3 @@ def test_is_hitl_resolution_pending_uses_terminal_status_set() -> None:
     assert _is_hitl_resolution_pending("regeneration_requested") is True
     assert _is_hitl_resolution_pending("approved_as_is") is False
     assert _is_hitl_resolution_pending("rejected") is False
-
-
-
-
-
-
-
-
-
-
-
-
