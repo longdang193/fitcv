@@ -162,6 +162,19 @@ class TestBuildEmbeddingContractFingerprint:
         assert first["fingerprint"] != second["fingerprint"]
 
 
+    @patch("fitcv.embeddings.sqlite_mode_enabled", return_value=True)
+    def test_contract_changes_when_embedding_backend_changes(
+        self,
+        mock_sqlite_mode_enabled: object,
+    ) -> None:
+        del mock_sqlite_mode_enabled
+        sqlite_contract = build_embedding_contract_fingerprint({})
+
+        with patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False):
+            provider_contract = build_embedding_contract_fingerprint({})
+
+        assert sqlite_contract["fingerprint"] != provider_contract["fingerprint"]
+
 class TestEmbeddingFailurePolicy:
     def test_defaults_to_deterministic_fallback(self) -> None:
         assert get_embedding_failure_policy({}) == "deterministic_fallback"
@@ -307,6 +320,7 @@ def test_embed_and_store_jobs_returns_zero_for_empty_batch(
         "gcp_project": "fitcv-test",
         "bigquery_dataset": "fitcv",
         "service_account_key": "/tmp/fake.json",
+        "embedding_failure_policy": EMBEDDING_FAILURE_POLICY_RAISE,
     }
 
     inserted = embed_and_store_jobs([], config)
@@ -337,6 +351,7 @@ def test_embed_and_store_jobs_does_not_delete_existing_rows_before_insert(
         "gcp_project": "fitcv-test",
         "bigquery_dataset": "fitcv",
         "service_account_key": "/tmp/fake.json",
+        "embedding_failure_policy": EMBEDDING_FAILURE_POLICY_RAISE,
     }
     jobs = [{"job_url": "https://example.com/1", "title": "DE", "required_skills": []}]
 
@@ -371,6 +386,7 @@ def test_embed_and_store_jobs_reuses_matching_latest_embeddings_and_only_inserts
         "gcp_project": "fitcv-test",
         "bigquery_dataset": "fitcv",
         "service_account_key": "/tmp/fake.json",
+        "embedding_failure_policy": EMBEDDING_FAILURE_POLICY_RAISE,
     }
     jobs = [
         {
@@ -438,6 +454,55 @@ def test_embed_and_store_jobs_reuses_matching_latest_embeddings_and_only_inserts
 @patch("google.oauth2.service_account.Credentials.from_service_account_file")
 @patch("fitcv.embeddings.generate_embedding")
 @patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False)
+def test_embed_and_store_jobs_does_not_reuse_cached_rows_when_provider_can_fallback_locally(
+    mock_sqlite_mode_enabled: object,
+    mock_generate_embedding: object,
+    mock_from_service_account_file: object,
+    mock_bigquery_client: object,
+) -> None:
+    from fitcv.embeddings import embed_and_store_jobs
+
+    client = mock_bigquery_client.return_value
+    client.insert_rows_json.return_value = []
+
+    config = {
+        "gcp_project": "fitcv-test",
+        "bigquery_dataset": "fitcv",
+        "service_account_key": "/tmp/fake.json",
+    }
+    jobs = [
+        {
+            "job_url": "https://example.com/unsafe-reuse",
+            "title": "Data Engineer",
+            "required_skills_canonical": ["sql", "python"],
+            "preferred_skills_canonical": ["dbt"],
+            "seniority": "mid",
+            "job_family": "analytics",
+        },
+    ]
+
+    reused_signature = build_job_summary_signature_record(jobs[0])
+    contract = build_embedding_contract_fingerprint(config)
+    client.query.return_value.result.return_value = [
+        SimpleNamespace(
+            job_url=jobs[0]["job_url"],
+            embedding_input_signature=reused_signature["signature"],
+            embedding_contract_fingerprint=contract["fingerprint"],
+        ),
+    ]
+    mock_generate_embedding.return_value = [0.1, 0.2]
+
+    inserted = embed_and_store_jobs(jobs, config)
+
+    assert inserted == 1
+    mock_generate_embedding.assert_called_once()
+    client.insert_rows_json.assert_called_once()
+    assert jobs[0]["embedding_reuse_status"] == FRESH_EMBEDDING_STATUS
+
+@patch("google.cloud.bigquery.Client")
+@patch("google.oauth2.service_account.Credentials.from_service_account_file")
+@patch("fitcv.embeddings.generate_embedding")
+@patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False)
 def test_embed_and_store_jobs_handles_apostrophe_url_in_metadata_lookup(
     mock_sqlite_mode_enabled: object,
     mock_generate_embedding: object,
@@ -455,6 +520,7 @@ def test_embed_and_store_jobs_handles_apostrophe_url_in_metadata_lookup(
         "gcp_project": "fitcv-test",
         "bigquery_dataset": "fitcv",
         "service_account_key": "/tmp/fake.json",
+        "embedding_failure_policy": EMBEDDING_FAILURE_POLICY_RAISE,
     }
     jobs = [{"job_url": "https://example.com/o'hara", "title": "DE", "required_skills": []}]
 

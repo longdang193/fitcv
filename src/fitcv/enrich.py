@@ -2298,7 +2298,9 @@ def load_run_structured_jobs(
 
 
 def _sqlite_path() -> str:
-    return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+    from fitcv.persistence import get_local_sqlite_path
+
+    return get_local_sqlite_path()
 
 
 def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:

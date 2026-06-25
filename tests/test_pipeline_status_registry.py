@@ -16,6 +16,12 @@ from __future__ import annotations
 
 import pytest
 
+from fitcv.late_stage_contract import (
+    cv_generation_status_for_analysis_status,
+    deterministic_truth_fields,
+    shortlist_status_for_ranked_job,
+    validation_status_for_cv_status,
+)
 from fitcv.pipeline import (
     CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
     CV_ANALYSIS_FAILED_STATUS,
@@ -73,3 +79,16 @@ def test_validation_status_for_cv_status_parity(status: str, expected: str) -> N
 )
 def test_cv_generation_status_for_analysis_status_parity(analysis_status: str, expected: str) -> None:
     assert _cv_generation_status_for_analysis_status(analysis_status) == expected
+
+
+def test_pipeline_helpers_match_shared_late_stage_contract() -> None:
+    job = {"shortlist_origin": "backfill"}
+
+    assert _validation_status_for_cv_status("validation_failed") == validation_status_for_cv_status("validation_failed")
+    assert _validation_status_for_cv_status("persistence_failed") == validation_status_for_cv_status("persistence_failed")
+    assert _deterministic_truth_fields("accepted") == deterministic_truth_fields("accepted")
+    assert _deterministic_truth_fields(CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS) == deterministic_truth_fields(CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS)
+    assert _cv_generation_status_for_analysis_status(CV_ANALYSIS_READY_FOR_GENERATION_STATUS) == cv_generation_status_for_analysis_status(CV_ANALYSIS_READY_FOR_GENERATION_STATUS)
+    assert _cv_generation_status_for_analysis_status("unexpected_status") == cv_generation_status_for_analysis_status("unexpected_status")
+    assert shortlist_status_for_ranked_job(job) == "backfilled_for_scoring"
+

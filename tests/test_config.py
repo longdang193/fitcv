@@ -881,6 +881,38 @@ def test_apply_runtime_synonym_overlay_merges_multi_field_maps() -> None:
     assert updated["skill_synonyms_runtime"]["run_overlay_section_counts"]["domain_alias_map"] == 1
 
 
+
+def test_apply_runtime_synonym_overlay_keeps_role_taxonomy_neighbors_in_sync() -> None:
+    cfg = {
+        "role_taxonomy": {
+            "canonical_role_by_alias": {
+                "data engineer": "data engineer",
+                "platform engineer": "platform engineer",
+            },
+            "role_family_by_role": {
+                "data engineer": "data_engineering",
+                "platform engineer": "platform_engineering",
+            },
+            "role_family_neighbors": {},
+        },
+        "role_family_neighbors": {},
+        "skill_synonyms_runtime": {},
+    }
+
+    updated = apply_runtime_synonym_overlay(
+        cfg,
+        {
+            "role_family_neighbors": {"data_engineering": ("platform_engineering",)},
+        },
+        source="upload",
+        filename="role-neighbors.yaml",
+        uploaded_at="2026-06-25T15:10:00Z",
+    )
+
+    assert updated["role_family_neighbors"]["data_engineering"] == ("platform_engineering",)
+    assert updated["role_taxonomy"]["role_family_neighbors"]["data_engineering"] == (
+        "platform_engineering",
+    )
 def test_apply_runtime_skill_synonym_overlay_merges_entries_and_runtime_metadata() -> None:
     cfg = {
         "skill_synonyms": {
@@ -1104,7 +1136,12 @@ def test_load_config_ignores_retired_live_smoke_surface(tmp_path: Path, caplog: 
 def test_model_routing_part_owner_is_control_plane_not_pipeline_fallback() -> None:
     routing = resolve_model_routing_part("ranking_ai_score", model_fallback="fallback-only")
     assert routing["provider"] == "openai_compatible"
-    assert routing["model"] == "cx/gpt-5.2"
+    assert routing["model"] == "ocg/deepseek-v4-pro"
+
+def test_model_routing_part_includes_provider_timeout_seconds() -> None:
+    routing = resolve_model_routing_part("ranking_ai_score", model_fallback="fallback-only")
+
+    assert routing["timeout_seconds"] == "300"
 
 
 def test_load_config_nested_cv_validation_max_pages_positive(tmp_path: Path) -> None:
@@ -1487,3 +1524,4 @@ def test_load_config_rejects_invalid_ssot_mode(tmp_path: Path, monkeypatch: pyte
     )
     with pytest.raises(ValueError, match="SSOT enforcement mode must be one of"):
         load_config(env_yaml)
+

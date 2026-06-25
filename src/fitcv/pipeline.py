@@ -134,6 +134,12 @@ from fitcv.ranking import (
     rank_jobs,
     store_final_ranking,
 )
+from fitcv.late_stage_contract import (
+    cv_generation_status_for_analysis_status as _shared_cv_generation_status_for_analysis_status,
+    deterministic_truth_fields as _shared_deterministic_truth_fields,
+    shortlist_status_for_ranked_job as _shared_shortlist_status_for_ranked_job,
+    validation_status_for_cv_status as _shared_validation_status_for_cv_status,
+)
 from fitcv.ranking_contract import fit_label_from_score
 from fitcv.rule_filter import (
     apply_pre_enrichment_global_filters,
@@ -1336,6 +1342,10 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
         if key == "candidate_query_debug":
             payload[key] = json_safe_value(state.get(key) or {})
             continue
+        if key == "completed_stage":
+            value = str(state.get(key) or state.get("last_completed_stage") or "").strip()
+            payload[key] = value or None
+            continue
         payload[key] = json_safe_value(state.get(key) or [])
     return payload
 
@@ -1553,7 +1563,9 @@ def _build_checkpoint_summary(
         late_stage_mode=late_stage_mode_payload,
     )
     summary["paused_after_stage"] = paused_after_stage
-    summary["checkpoint_payload"] = _checkpoint_payload_from_state(state)
+    checkpoint_payload = _checkpoint_payload_from_state(state)
+    checkpoint_payload["completed_stage"] = paused_after_stage
+    summary["checkpoint_payload"] = checkpoint_payload
     return summary
 
 
@@ -1867,78 +1879,15 @@ def _shortlist_status_for_export_row(
 
 
 def _shortlist_status_for_ranked_job(job: dict[str, Any]) -> str:
-    shortlist_origin = str(job.get("shortlist_origin") or "").strip().lower()
-    if shortlist_origin == "backfill":
-        return "backfilled_for_scoring"
-    return "returned_by_vector_search"
+    return _shared_shortlist_status_for_ranked_job(job)
 
 
 def _validation_status_for_cv_status(status: str) -> str:
-    if status == "accepted":
-        return "accepted"
-    if status == "validation_failed":
-        return "failed"
-    if status == "persistence_failed":
-        return "accepted"
-    return "not_run"
+    return _shared_validation_status_for_cv_status(status)
 
 
 def _deterministic_truth_fields(status: str | None) -> dict[str, str | None]:
-    normalized_status = str(status or "").strip()
-    if not normalized_status:
-        return {
-            "deterministic_outcome": None,
-            "stage_owned_subreason": None,
-            "source_stage": None,
-        }
-    if normalized_status == "accepted":
-        return {
-            "deterministic_outcome": "accepted",
-            "stage_owned_subreason": normalized_status,
-            "source_stage": "cv_generation",
-        }
-    if normalized_status == CV_GENERATION_REVIEW_REQUIRED_STATUS:
-        return {
-            "deterministic_outcome": "not_applicable",
-            "stage_owned_subreason": normalized_status,
-            "source_stage": "cv_generation",
-        }
-    if normalized_status in {"validation_failed", "generation_failed", "persistence_failed"}:
-        return {
-            "deterministic_outcome": "rejected",
-            "stage_owned_subreason": normalized_status,
-            "source_stage": "cv_generation",
-        }
-    if normalized_status == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
-        return {
-            "deterministic_outcome": "blocked",
-            "stage_owned_subreason": normalized_status,
-            "source_stage": "cv_analysis",
-        }
-    if normalized_status == CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS:
-        return {
-            "deterministic_outcome": "skipped",
-            "stage_owned_subreason": normalized_status,
-            "source_stage": "cv_analysis",
-        }
-    if normalized_status in {CV_ANALYSIS_FAILED_STATUS}:
-        return {
-            "deterministic_outcome": "rejected",
-            "stage_owned_subreason": normalized_status,
-            "source_stage": "cv_analysis",
-        }
-    if normalized_status == CV_ANALYSIS_READY_FOR_GENERATION_STATUS:
-        return {
-            "deterministic_outcome": None,
-            "stage_owned_subreason": normalized_status,
-            "source_stage": "cv_analysis",
-        }
-    return {
-        "deterministic_outcome": None,
-        "stage_owned_subreason": None,
-        "source_stage": None,
-    }
-
+    return _shared_deterministic_truth_fields(status)
 
 _bounded_event_payload = _build_bounded_event_payload_observability
 
@@ -2199,14 +2148,7 @@ def _authoritative_ranking_fit_label(
 
 
 def _cv_generation_status_for_analysis_status(status: str) -> str:
-    if status in {
-        CV_ANALYSIS_READY_FOR_GENERATION_STATUS,
-        CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
-        CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
-        CV_ANALYSIS_FAILED_STATUS,
-    }:
-        return "not_attempted"
-    return "failed"
+    return _shared_cv_generation_status_for_analysis_status(status)
 
 
 def _build_decision_chain(

@@ -19,7 +19,10 @@ from pathlib import Path
 import pytest
 
 from fitcv import evidence as evidence_module
+from fitcv.config import apply_runtime_synonym_overlay
 from fitcv.evidence import retrieve_evidence, retrieve_evidence_bundle, score_evidence_item
+from fitcv.ranking import compute_title_relevance
+
 
 
 def _stable_contract_view(value: object) -> object:
@@ -642,6 +645,108 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_role_alignment(mon
     assert selected["semantic_alignment"]["semantic_methods"]["role_alignment"] == "embedding_similarity"
 
 
+def test_retrieve_evidence_bundle_role_alignment_honors_configured_role_family_neighbors(monkeypatch) -> None:
+    profile = {
+        "experiences": [
+            {
+                "id": "exp_neighbor",
+                "role": "Platform Engineer",
+                "company": "Data Co",
+                "role_family": "platform_engineering",
+                "bullets": [{"text": "Built platform tooling.", "skills": []}],
+            }
+        ],
+        "projects": [],
+        "achievements": [],
+        "skills": [],
+    }
+    job = {
+        "job_url": "https://example.com/job-role-neighbor",
+        "title": "Data Engineer",
+        "job_family": "data_engineering",
+        "domain": "",
+        "required_skills_canonical": [],
+        "responsibilities": [],
+    }
+    config = {
+        "cv_analysis": {"semantic_alignment": {"enabled": False}},
+        "role_taxonomy": {
+            "role_family_neighbors": {
+                "data_engineering": ["platform_engineering"],
+            }
+        },
+    }
+
+    monkeypatch.setattr(evidence_module, "infer_role_family", lambda _text: None)
+
+    bundle = retrieve_evidence_bundle(profile, job, top_k=1, config=config)
+
+    selected = bundle["selected_evidence"][0]
+    role_subscores = selected["channel_subscores"]["role_alignment"]
+
+    assert role_subscores["semantic"] == 0.0
+    assert role_subscores["lexical"] == evidence_module.ROLE_ALIGNMENT_NEIGHBOR_SCORE
+    assert role_subscores["combined"] == evidence_module.ROLE_ALIGNMENT_NEIGHBOR_SCORE
+
+
+def test_runtime_overlay_role_family_neighbors_drive_ranking_and_evidence(monkeypatch) -> None:
+    base_config = {
+        "cv_analysis": {"semantic_alignment": {"enabled": False}},
+        "role_taxonomy": {
+            "canonical_role_by_alias": {
+                "data engineer": "data engineer",
+                "platform engineer": "platform engineer",
+            },
+            "role_family_by_role": {
+                "data engineer": "data_engineering",
+                "platform engineer": "platform_engineering",
+            },
+            "role_family_neighbors": {},
+        },
+        "role_family_neighbors": {},
+        "skill_synonyms_runtime": {},
+    }
+    config = apply_runtime_synonym_overlay(
+        base_config,
+        {"role_family_neighbors": {"data_engineering": ("platform_engineering",)}},
+        source="upload",
+        filename="role-neighbors.yaml",
+        uploaded_at="2026-06-25T15:15:00Z",
+    )
+    profile = {
+        "experiences": [
+            {
+                "id": "exp_neighbor",
+                "role": "Platform Engineer",
+                "company": "Data Co",
+                "role_family": "platform_engineering",
+                "bullets": [{"text": "Built platform tooling.", "skills": []}],
+            }
+        ],
+        "projects": [],
+        "achievements": [],
+        "skills": [],
+    }
+    job = {
+        "job_url": "https://example.com/job-overlay-neighbor",
+        "title": "Data Engineer",
+        "job_family": "data_engineering",
+        "domain": "",
+        "required_skills_canonical": [],
+        "responsibilities": [],
+    }
+
+    monkeypatch.setattr(evidence_module, "infer_role_family", lambda _text: None)
+
+    assert compute_title_relevance("Platform Engineer", "Data Engineer", config=config) == 0.75
+
+    bundle = retrieve_evidence_bundle(profile, job, top_k=1, config=config)
+    selected = bundle["selected_evidence"][0]
+    role_subscores = selected["channel_subscores"]["role_alignment"]
+
+    assert role_subscores["semantic"] == 0.0
+    assert role_subscores["lexical"] == evidence_module.ROLE_ALIGNMENT_NEIGHBOR_SCORE
+    assert role_subscores["combined"] == evidence_module.ROLE_ALIGNMENT_NEIGHBOR_SCORE
 def test_retrieve_evidence_bundle_prefers_broader_channel_coverage_over_redundancy() -> None:
     profile = {
         "preferences": {
@@ -1147,4 +1252,5 @@ def test_normalize_evidence_selection_records_contract() -> None:
     assert bq_row["job_url"] == "https://example.com/job-3"
     assert bq_row["evidence_id"] == "exp_7"
     assert bq_row["score"] == 0.73
+
 

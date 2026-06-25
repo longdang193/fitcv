@@ -126,6 +126,7 @@ def test_create_cv_version_record_includes_structured_cv_and_generation_metadata
 
 def test_store_cv_version_falls_back_to_legacy_schema_when_structured_columns_missing(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
     record = create_cv_version_record(
@@ -154,16 +155,18 @@ def test_store_cv_version_falls_back_to_legacy_schema_when_structured_columns_mi
         "google.cloud.bigquery.Client",
         return_value=fake_client,
     ):
-        store_cv_version(
-            record,
-            {
-                "gcp_project": "fitcv-491123",
-                "bigquery_dataset": "fitcv",
-                "service_account_key": "sa_key.json",
-            },
-        )
+        with caplog.at_level("WARNING"):
+            store_cv_version(
+                record,
+                {
+                    "gcp_project": "fitcv-491123",
+                    "bigquery_dataset": "fitcv",
+                    "service_account_key": "sa_key.json",
+                },
+            )
 
     assert fake_client.insert_rows_json.call_count == 2
+    assert "legacy cv_versions schema fallback" in caplog.text
     retried_record = fake_client.insert_rows_json.call_args_list[1][0][1][0]
     assert "cv_prompt_version" not in retried_record
     assert "cv_generation_model" not in retried_record

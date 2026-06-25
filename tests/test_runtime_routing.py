@@ -16,9 +16,38 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from fitcv.runtime_routing import resolve_cv_generation_runtime_provenance
+from fitcv.runtime_routing import build_langgraph_env_overrides, resolve_cv_generation_runtime_provenance
 from fitcv.runtime_routing import validate_cv_generation_routing_ready
 
+
+def test_build_langgraph_env_overrides_uses_cv_generation_route_consistently() -> None:
+    def _route(part: str, model_fallback: str | None = None) -> dict[str, str]:
+        del model_fallback
+        if part == "enrich_extraction":
+            return {
+                "provider": "vertexai_gemini",
+                "model": "gemini-2.5-flash",
+                "base_url": "",
+                "wire_api": "",
+            }
+        if part == "cv_generation_structured_write":
+            return {
+                "provider": "openai_compatible",
+                "model": "cx/gpt-5.2",
+                "base_url": "http://localhost:1234/v1",
+                "wire_api": "responses",
+            }
+        raise AssertionError(f"unexpected routing part: {part}")
+
+    with patch("fitcv.runtime_routing.resolve_model_routing_part", side_effect=_route):
+        overrides = build_langgraph_env_overrides()
+
+    assert overrides == {
+        "FITCV_LANGGRAPH_PROVIDER": "openai_compatible",
+        "FITCV_LANGGRAPH_OPENAI_BASE_URL": "http://localhost:1234/v1",
+        "FITCV_LANGGRAPH_WIRE_API": "responses",
+        "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.2",
+    }
 
 def test_resolve_cv_generation_runtime_provenance_openai_compatible() -> None:
     with patch(
