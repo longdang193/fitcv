@@ -2565,7 +2565,7 @@ def test_persist_global_skill_synonyms_map_atomic_write_failure_preserves_existi
 def test_worker_marks_cancelled_when_cancel_already_requested():
     """@proves run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
 
-    Worker should check cancel_requested_at after RUNNING update and exit early.
+    Worker should exit before RUNNING when cancel_requested_at is already set.
     """
     import datetime
     bq = MagicMock()
@@ -2573,7 +2573,6 @@ def test_worker_marks_cancelled_when_cancel_already_requested():
 
     mock_run = MagicMock()
     mock_run.effective_settings_json = None
-    mock_run.cancel_requested_at = None
     mock_run.cancel_requested_at = datetime.datetime.now(datetime.timezone.utc)
 
     status_updates = []
@@ -2594,9 +2593,8 @@ def test_worker_marks_cancelled_when_cancel_already_requested():
 
     # pipeline should NOT have been called
     mock_pipeline.assert_not_called()
-    # Should have marked RUNNING then CANCELLED
     from fitcv_cp.models import RunStatus
-    assert RunStatus.RUNNING in status_updates
+    assert RunStatus.RUNNING not in status_updates
     assert RunStatus.CANCELLED in status_updates
 
 

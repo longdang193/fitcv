@@ -14,6 +14,7 @@ tags:
 
 import sqlite3
 
+from fitcv_cp.backend_runtime import BackendRuntime, set_backend_runtime
 from fitcv_cp import settings_store as ss
 
 
@@ -85,6 +86,23 @@ def test_local_settings_load_recovers_from_disk_io_error(tmp_path, monkeypatch):
     assert "settings.sqlite3" in moved_names
     assert "settings.sqlite3-wal" in moved_names
     assert "settings.sqlite3-shm" in moved_names
+
+
+def test_local_settings_path_prefers_active_backend_runtime_over_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SETTINGS_SQLITE_PATH", str(tmp_path / "env-settings.sqlite3"))
+    set_backend_runtime(
+        BackendRuntime(
+            backend_type="sqlite",
+            project="local",
+            dataset="fitcv",
+            sqlite_path=str(tmp_path / "runtime-settings.sqlite3"),
+        )
+    )
+
+    try:
+        assert ss._local_sqlite_path() == tmp_path / "runtime-settings.sqlite3"
+    finally:
+        set_backend_runtime(None)
 
 
 def test_local_settings_save_recovers_after_first_disk_io_error(tmp_path, monkeypatch):

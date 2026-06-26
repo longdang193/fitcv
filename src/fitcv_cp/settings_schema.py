@@ -1672,6 +1672,10 @@ _LEGACY_THROUGHPUT_ALIAS_TO_CANONICAL: dict[str, str] = {
     "enrichment_concurrency": "stage_runtime.enrich.concurrency",
 }
 
+def canonical_settings_key(key: str) -> str:
+    raw_key = str(key or "").strip()
+    return _LEGACY_THROUGHPUT_ALIAS_TO_CANONICAL.get(raw_key, raw_key)
+
 def _normalize_settings_aliases(settings: dict[str, Any]) -> dict[str, Any]:
     """Apply canonical-over-legacy precedence for throughput compatibility aliases."""
     normalized = dict(settings)

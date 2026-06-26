@@ -67,6 +67,7 @@ from fitcv.pipeline import (
 )
 from fitcv.tracker import create_cv_version_record
 import fitcv_cp.bq_store as bq_store_module
+from fitcv_cp.backend_runtime import BackendRuntime
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission, get_orchestration_adapter
 from fitcv_cp.queue import (
@@ -98,6 +99,7 @@ from fitcv_cp.settings_schema import (
     editable_settings_keys,
     hidden_deprecated_settings_keys,
     metadata_only_settings_keys,
+    canonical_settings_key,
     settings_ia_contract_for_key,
     settings_ia_metadata_by_key,
     settings_keys_for_control_surface,
@@ -733,8 +735,11 @@ REPLAY_MODES = {"strict", "policy_replay"}
 
 def _run_status_projection(run: PipelineRun) -> dict[str, Any]:
     status_value = run.status.value
+    raw_status = str(getattr(run, "raw_status", "") or "").strip() or None
     return {
         "status": status_value,
+        "raw_status": raw_status,
+        "display_status": raw_status or status_value,
         "is_active": status_value in RUN_STATUS_GROUPS["active"],
         "is_terminal": status_value in RUN_STATUS_GROUPS["terminal"],
         "is_awaiting_continue": status_value in RUN_STATUS_GROUPS["awaiting_continue"],
@@ -4837,7 +4842,7 @@ def _job_metadata_by_url_from_results_rows(rows: list[dict[str, Any]]) -> dict[s
         if not url:
             continue
         metadata[url] = {
-            "title": str(row.get("job_title") or "").strip(),
+            "title": str(row.get("job_title") or row.get("title") or "").strip(),
             "company": str(row.get("company") or "").strip(),
             "location": str(row.get("location") or "").strip(),
         }
@@ -5938,12 +5943,19 @@ def _can_unarchive_run(run: PipelineRun) -> bool:
     return run.archived_at is not None
 
 
-def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
+def create_app(
+    bq: Any,
+    project: str,
+    dataset: str,
+    redis_url: str,
+    backend_runtime: BackendRuntime | None = None,
+) -> FastAPI:
     global _CP_STORE
     _CP_STORE = ControlPlaneStore(
         bq=bq,
         project=project,
         dataset=dataset,
+        backend_runtime=backend_runtime,
         insert_run_fn=insert_run,
         update_run_queue_job_id_fn=update_run_queue_job_id,
         update_run_orchestration_binding_fn=update_run_orchestration_binding,
@@ -6005,7 +6017,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     def _filter_canonical_settings_payload(settings: dict[str, Any]) -> dict[str, Any]:
         """Drop throughput compatibility aliases from persisted settings payloads."""
         return {
-            key: value
+            canonical_settings_key(key): value
             for key, value in settings.items()
             if key in editable_keys and key not in compatibility_runtime_alias_keys
         }
@@ -7294,14 +7306,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             completed_stages=[],
         )
         _persist_run_initial(run, bq=bq, project=project, dataset=dataset)
-        _, queue_job_id = enqueue_run_with_job_id(
+        submission = submit_run(
             jobs_path=actual_jobs_path,
             config_path=config_path,
             triggered_by=triggered_by,
             redis_url=redis_url,
             run_id=run_id,
         )
-        submission = _resolve_submission_binding(run_id, queue_job_id)
         _persist_run_orchestration_binding(
             run_id,
             queue_job_id=submission.queue_job_id,
@@ -7484,14 +7495,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             completed_stages=[],
         )
         _persist_run_initial(run, bq=bq, project=project, dataset=dataset)
-        _, queue_job_id = enqueue_run_with_job_id(
+        submission = submit_run(
             jobs_path=jobs_path,
             config_path=config_path,
             triggered_by=triggered_by,
             redis_url=redis_url,
             run_id=run_id,
         )
-        submission = _resolve_submission_binding(run_id, queue_job_id)
         _persist_run_orchestration_binding(
             run_id,
             queue_job_id=submission.queue_job_id,
@@ -7772,14 +7782,15 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         key: str,
         raw_value: Any,
     ) -> Any:
+        canonical_key = canonical_settings_key(key)
         try:
-            coerced = coerce_value(key, raw_value)
+            coerced = coerce_value(canonical_key, raw_value)
         except KeyError:
             raise HTTPException(status_code=422, detail=f"Unknown setting key: {key!r}")
         except (ValueError, TypeError) as exc:
             raise HTTPException(status_code=422, detail=str(exc))
         try:
-            validate_settings({key: coerced})
+            validate_settings({canonical_key: coerced})
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=str(exc))
         return coerced
@@ -7812,16 +7823,20 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
     @app.post("/settings/{key}", status_code=200)
     def update_setting(key: str, body: SettingUpdate) -> dict:
-        if key in metadata_only_keys:
+        canonical_key = canonical_settings_key(key)
+        if canonical_key in metadata_only_keys:
             raise HTTPException(status_code=422, detail=f"Setting '{key}' is metadata-only and cannot be saved through single-key routes")
-        if key in hidden_deprecated_keys:
+        if canonical_key in hidden_deprecated_keys:
             raise HTTPException(
                 status_code=422,
                 detail=f"Setting '{key}' is hidden_deprecated and cannot be saved through settings routes",
             )
-        coerced = _coerce_and_validate_single_setting(key, body.value)
-        save_setting(key, coerced, updated_by=body.updated_by, bq=bq, project=project, dataset=dataset)
-        return {"key": key, "value": coerced}
+        coerced = _coerce_and_validate_single_setting(canonical_key, body.value)
+        try:
+            save_setting(canonical_key, coerced, updated_by=body.updated_by, bq=bq, project=project, dataset=dataset)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        return {"key": canonical_key, "value": coerced}
 
     @app.get("/admin/settings", response_class=HTMLResponse)
     def admin_settings_view(request: Request) -> HTMLResponse:
@@ -7837,7 +7852,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         from fastapi.responses import RedirectResponse
         form = await request.form()
         value = form.get("value", "")
-        if key in metadata_only_keys:
+        canonical_key = canonical_settings_key(key)
+        if canonical_key in metadata_only_keys:
             active = load_active_settings(bq=bq, project=project, dataset=dataset)
             return templates.TemplateResponse(
                 request=request,
@@ -7848,7 +7864,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 ),
                 status_code=422,
             )
-        if key in hidden_deprecated_keys:
+        if canonical_key in hidden_deprecated_keys:
             active = load_active_settings(bq=bq, project=project, dataset=dataset)
             return templates.TemplateResponse(
                 request=request,
@@ -7860,7 +7876,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 status_code=422,
             )
         try:
-            coerced = _coerce_and_validate_single_setting(key, value)
+            coerced = _coerce_and_validate_single_setting(canonical_key, value)
         except HTTPException as exc:
             active = load_active_settings(bq=bq, project=project, dataset=dataset)
             return templates.TemplateResponse(
@@ -7869,7 +7885,16 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 context=_build_settings_context(active, error=str(exc.detail)),
                 status_code=422,
             )
-        save_setting(key, coerced, updated_by="admin", bq=bq, project=project, dataset=dataset)
+        try:
+            save_setting(canonical_key, coerced, updated_by="admin", bq=bq, project=project, dataset=dataset)
+        except RuntimeError as exc:
+            active = load_active_settings(bq=bq, project=project, dataset=dataset)
+            return templates.TemplateResponse(
+                request=request,
+                name="settings.html",
+                context=_build_settings_context(active, error=f"Save failed: {exc}"),
+                status_code=422,
+            )
         return RedirectResponse("/admin/settings", status_code=303)
 
     @app.post("/admin/settings/group/{group_name}", response_class=HTMLResponse)
@@ -7990,7 +8015,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             else:
                 raw = _settings_form_value(form, key)
             try:
-                coerced[key] = _coerce_and_validate_single_setting(key, raw)
+                coerced[key] = _coerce_and_validate_single_setting(canonical_settings_key(key), raw)
             except HTTPException as exc:
                 section_errors[key] = str(exc.detail)
 
@@ -8260,11 +8285,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 )
                 return {"status": "cancelled", "run_id": run_id}
         if run.status == RunStatus.QUEUED and run.started_at is None:
-            request_run_cancel(run_id, "admin", RunStatus.CANCELLED.value, bq, project=project, dataset=dataset)
+            request_run_cancel(run_id, "admin", RunStatus.CANCELLING.value, bq, project=project, dataset=dataset)
             append_event(
                 RunEvent(
                     run_id=run_id, event_id=event_id, stage="cancel_requested",
-                    level="warning", message="Stop requested — cancelled before worker claim",
+                    level="warning", message="Stop requested — run will be cancelled at next checkpoint",
                     created_at=now,
                 ),
                 bq, project=project, dataset=dataset,
@@ -8277,7 +8302,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 ),
                 bq, project=project, dataset=dataset,
             )
-            return {"status": "cancelled", "run_id": run_id}
+            return {"status": "cancelling", "run_id": run_id}
         # Running (or queued but already claimed) — set cancelling
         request_run_cancel(run_id, "admin", RunStatus.CANCELLING.value, bq, project=project, dataset=dataset)
         append_event(
@@ -8627,7 +8652,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             checkpoint_payload_json=run.checkpoint_payload_json,
         )
         try:
-            _, queue_job_id = continue_run_with_job_id(
+            submission = continue_run_submission(
                 run_id=run.run_id,
                 jobs_path=run.jobs_path,
                 config_path=run.config_path,
@@ -8673,7 +8698,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 status_code=503,
                 detail="Continue enqueue failed; run restored to awaiting_continue. Check queue/redis connectivity and retry.",
             ) from exc
-        submission = _resolve_submission_binding(run.run_id, queue_job_id)
         _persist_run_orchestration_binding(
             run.run_id,
             queue_job_id=submission.queue_job_id,
@@ -8737,14 +8761,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=409, detail="Retry rejected: max_attempts exhausted")
 
         update_run_status(run.run_id, RunStatus.QUEUED, bq, project=project, dataset=dataset)
-        _, queue_job_id = enqueue_run_with_job_id(
+        submission = submit_run(
             jobs_path=run.jobs_path,
             config_path=run.config_path,
             triggered_by="admin_retry",
             redis_url=redis_url,
             run_id=run.run_id,
         )
-        submission = _resolve_submission_binding(run.run_id, queue_job_id)
         _persist_run_orchestration_binding(
             run.run_id,
             queue_job_id=submission.queue_job_id,
@@ -9024,7 +9047,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             row = dict(cv)
             job_url = str(row.get("job_url") or "").strip()
             metadata = job_metadata_by_url.get(job_url, {})
-            job_title = str(row.get("job_title") or metadata.get("title") or "View Job").strip()
+            job_title = str(row.get("job_title") or row.get("title") or metadata.get("title") or "View Job").strip()
             company = str(row.get("company") or metadata.get("company") or "").strip()
             location = str(row.get("location") or metadata.get("location") or "").strip()
             bookmark_key = bookmark_key_for_job(

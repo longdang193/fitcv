@@ -17,6 +17,7 @@ from unittest.mock import MagicMock
 import json
 from pathlib import Path
 from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, list_filter_results_for_run, update_run_results_export, update_run_cv_generation_debug, update_run_stage_transition_artifacts, update_run_settings_used, update_run_checkpoint, update_run_mapping_suggestions, update_run_synonym_proposals, update_run_effective_settings, request_run_cancel
+from fitcv_cp.settings_store import load_active_settings, save_setting
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import datetime
 import uuid
@@ -146,7 +147,27 @@ def test_sqlite_connection_creates_parent_dir(tmp_path):
     assert db_path.parent.exists()
 
 
-def test_list_runs_coerces_unknown_status_to_failed_for_admin_compatibility():
+def test_local_sqlite_path_prefers_active_backend_runtime_over_env(tmp_path, monkeypatch):
+    from fitcv_cp.backend_runtime import BackendRuntime, set_backend_runtime
+    from fitcv_cp import bq_store as module
+
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "env.sqlite3"))
+    set_backend_runtime(
+        BackendRuntime(
+            backend_type="sqlite",
+            project="local",
+            dataset="fitcv",
+            sqlite_path=str(tmp_path / "runtime.sqlite3"),
+        )
+    )
+
+    try:
+        assert module._local_sqlite_path() == str(tmp_path / "runtime.sqlite3")
+    finally:
+        set_backend_runtime(None)
+
+
+def test_list_runs_preserves_unknown_status_for_diagnostics():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([
         {
@@ -164,6 +185,57 @@ def test_list_runs_coerces_unknown_status_to_failed_for_admin_compatibility():
 
     assert len(runs) == 1
     assert runs[0].status == RunStatus.FAILED
+    assert runs[0].raw_status == "future_unknown_status"
+
+
+def test_load_active_settings_prefers_canonical_throughput_keys_over_legacy_aliases():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([
+        {
+            "setting_key": "enrichment_sleep_secs",
+            "setting_value_json": "3.5",
+        },
+        {
+            "setting_key": "stage_runtime.enrich.sleep_secs",
+            "setting_value_json": "4.0",
+        },
+    ])
+
+    active = load_active_settings(bq=bq, project="p", dataset="d")
+
+    assert active["stage_runtime.enrich.sleep_secs"] == 4.0
+    assert "enrichment_sleep_secs" not in active
+
+
+def test_save_setting_raises_on_bigquery_insert_error():
+    bq = MagicMock()
+    bq.insert_rows_json.return_value = [{"index": 0, "errors": [{"message": "boom"}]}]
+
+    with pytest.raises(RuntimeError, match="Failed to save setting"):
+        save_setting(
+            "stage_runtime.enrich.sleep_secs",
+            3.5,
+            updated_by="admin",
+            bq=bq,
+            project="p",
+            dataset="d",
+        )
+
+def test_save_setting_canonicalizes_legacy_throughput_alias_on_write():
+    bq = MagicMock()
+    bq.insert_rows_json.return_value = []
+
+    save_setting(
+        "enrichment_sleep_secs",
+        3.5,
+        updated_by="admin",
+        bq=bq,
+        project="p",
+        dataset="d",
+    )
+
+    row = bq.insert_rows_json.call_args.args[1][0]
+    assert row["setting_key"] == "stage_runtime.enrich.sleep_secs"
 
 
 def test_get_events_returns_list():

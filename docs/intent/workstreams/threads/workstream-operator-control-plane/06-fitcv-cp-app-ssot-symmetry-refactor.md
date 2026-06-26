@@ -1,6 +1,6 @@
 ---
 thread_id: workstream-operator-control-plane.fitcv-cp-app-ssot-symmetry-refactor
-status: proposed
+status: completed
 ---
 
 # fitcv-cp-app-ssot-symmetry-refactor
@@ -35,13 +35,13 @@ Refactor `src/fitcv_cp/app.py` control-plane surfaces to enforce SSOT, symmetry,
 - confirm exact slice this thread owns before downstream execution
 
 **Checks:**
-- [ ] confirm in-scope surfaces
-- [ ] confirm out-of-scope surfaces
-- [ ] identify required upstream dependencies
-- [ ] identify explicit downstream handoff target
+- [x] confirm in-scope surfaces
+- [x] confirm out-of-scope surfaces
+- [x] identify required upstream dependencies
+- [x] identify explicit downstream handoff target
 
 **Verification:**
-- [ ] scope bounded to `fitcv_cp` control-plane layer and does not overlap unrelated pipeline internals
+- [x] scope bounded to `fitcv_cp` control-plane layer and does not overlap unrelated pipeline internals
 
 **Exit Criteria:**
 - thread scope stable enough for spec/plan execution
@@ -52,11 +52,11 @@ Refactor `src/fitcv_cp/app.py` control-plane surfaces to enforce SSOT, symmetry,
 - prepare clean handoff to spec/plan execution
 
 **Steps:**
-- [ ] link downstream spec + plan artifacts
-- [ ] record follow-up work intentionally deferred
+- [x] link downstream spec + plan artifacts
+- [x] record follow-up work intentionally deferred
 
 **Verification:**
-- [ ] downstream artifacts exist and validator accepts their lineage
+- [x] downstream artifacts exist and validator accepts their lineage
 
 **Exit Criteria:**
 - thread ready for implementation execution
@@ -73,6 +73,7 @@ Refactor `src/fitcv_cp/app.py` control-plane surfaces to enforce SSOT, symmetry,
   - refactor of `fitcv.pipeline` internals
 - deferred:
   - broader contract consolidation for non-run-mode label dictionaries (timeline/stage labels) unless pulled in by R4
+  - unrelated repo-wide planning-lifecycle and whitespace cleanup outside this bounded thread
 
 ## Dependencies
 
@@ -83,6 +84,8 @@ Refactor `src/fitcv_cp/app.py` control-plane surfaces to enforce SSOT, symmetry,
 - downstream handoff:
   - `docs/superpowers/specs/2026-05-24-10-02-fitcv-cp-app-ssot-symmetry-refactor-spec.md`
   - `docs/superpowers/plans/2026-05-24-10-05-fitcv-cp-app-ssot-symmetry-refactor-plan.md`
+  - `docs/superpowers/specs/2026-06-26-11-20-fitcv-cp-ssot-immediate-patch-spec.md`
+  - `docs/superpowers/plans/2026-06-26-11-35-fitcv-cp-ssot-immediate-patch-plan.md`
 
 ## Completion Criteria
 

@@ -17,6 +17,19 @@ from fitcv_cp.queue import enqueue_run
 import fitcv_cp.queue as queue_module
 
 
+def test_get_queue_is_cached_per_normalized_redis_url() -> None:
+    queue_module._QUEUES_BY_REDIS_URL.clear()
+
+    first_queue = MagicMock(name="queue-one")
+    second_queue = MagicMock(name="queue-two")
+
+    with patch("fitcv_cp.queue.redis.from_url", side_effect=[MagicMock(name="conn-one"), MagicMock(name="conn-two")]), \
+         patch("fitcv_cp.queue.Queue", side_effect=[first_queue, second_queue]):
+        assert queue_module.get_queue("redis://one:6379/0") is first_queue
+        assert queue_module.get_queue("redis://one:6379/0") is first_queue
+        assert queue_module.get_queue("redis://two:6379/0") is second_queue
+
+
 def test_enqueue_run_returns_uuid():
     """@proves admin_control_plane_core.rq-background-worker-integration
     @proves trigger_run_management.manual-checkpoints-and-continue

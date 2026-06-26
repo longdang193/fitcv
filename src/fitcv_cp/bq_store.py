@@ -26,6 +26,7 @@ from typing import Any, Callable, Optional
 
 from google.cloud import bigquery as bq_module
 
+from fitcv_cp.backend_runtime import get_backend_runtime
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,9 @@ def _is_transient_sqlite_open_error(exc: sqlite3.OperationalError) -> bool:
 
 
 def _local_sqlite_path() -> str:
+    runtime = get_backend_runtime()
+    if runtime is not None and str(runtime.sqlite_path or "").strip():
+        return str(runtime.sqlite_path).strip()
     return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
 
 def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:
@@ -361,10 +365,14 @@ def _pipeline_run_from_json(run_json: str) -> Optional[PipelineRun]:
         return None
     if not isinstance(payload, dict):
         return None
+    raw_status = str(payload.get("raw_status") or "").strip().lower()
+    status_value = str(payload.get("status") or "").strip().lower()
     try:
-        status = RunStatus(str(payload.get("status") or "").strip().lower())
+        status = RunStatus(status_value)
+        raw_status_value: str | None = raw_status or None
     except ValueError:
         status = RunStatus.FAILED
+        raw_status_value = raw_status or status_value or None
     return PipelineRun(
         run_id=str(payload.get("run_id") or ""),
         status=status,
@@ -409,6 +417,7 @@ def _pipeline_run_from_json(run_json: str) -> Optional[PipelineRun]:
         cancel_requested_by=payload.get("cancel_requested_by"),
         archived_at=_parse_dt(payload.get("archived_at")),
         archived_by=payload.get("archived_by"),
+        raw_status=raw_status_value,
     )
 
 def _upsert_local_pipeline_run(run: PipelineRun) -> None:
@@ -1552,13 +1561,15 @@ def _row_to_run(row: Any) -> PipelineRun:
     raw_status = str(r.get("status") or "").strip().lower()
     try:
         status = RunStatus(raw_status)
+        raw_status_value: str | None = None
     except ValueError:
         logger.warning(
-            "Unknown pipeline run status %r for run_id=%s; coercing to failed for admin compatibility",
+            "Unknown pipeline run status %r for run_id=%s; preserving raw_status for diagnostics",
             raw_status,
             r.get("run_id"),
         )
         status = RunStatus.FAILED
+        raw_status_value = raw_status or None
     completed_stages_raw = r.get("completed_stages_json")
     completed_stages: list[str] | None = None
     if isinstance(completed_stages_raw, str) and completed_stages_raw.strip():
@@ -1608,6 +1619,7 @@ def _row_to_run(row: Any) -> PipelineRun:
         cancel_requested_by=r.get("cancel_requested_by"),
         archived_at=r.get("archived_at"),
         archived_by=r.get("archived_by"),
+        raw_status=raw_status_value,
     )
 
 
@@ -1866,7 +1878,7 @@ def list_run_structured_jobs(
         import json
         import sqlite3
 
-        db_path = str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+        db_path = _local_sqlite_path()
         try:
             with sqlite3.connect(db_path) as conn:
                 rows = conn.execute(
