@@ -21,7 +21,7 @@ import datetime
 import os
 import pytest
 from fastapi.testclient import TestClient
-from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _timeline_semantic_outcome, _timeline_stage_download_for_event, _timeline_stage_label, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, create_app
+from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _timeline_semantic_outcome, _timeline_stage_download_for_event, _timeline_stage_label, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, _normalize_hitl_resolution_status, create_app
 from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission
 
@@ -1899,6 +1899,8 @@ def test_admin_review_queue_page_guards_empty_batch_selection_with_alert() -> No
     assert resp.status_code == 200
     assert "Select at least one review-required row" in resp.text
     assert "window.alert('Select at least one review-required row.')" in resp.text
+    assert "if (selected.length === 0)" in resp.text
+    assert resp.text.index("if (selected.length === 0)") < resp.text.index("selectedAction !== 'regenerate_once'")
 
 
 def test_admin_review_queue_resolved_rows_render_locked_non_actionable_state() -> None:
@@ -11775,6 +11777,117 @@ def test_run_detail_cv_versions_use_results_title_when_job_title_missing():
     assert "View Job" not in resp.text.split("Principal Analytics Engineer")[0].split("Generated Outputs")[-1]
 
 
+def test_run_detail_cv_versions_match_results_title_by_normalized_job_url():
+    """Generated output link uses matching results title even when URLs differ by slash/query."""
+    import json as _json
+    import datetime as _dt
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    cv = {
+        "version_id": "cv-url-normalized",
+        "job_url": "https://jobs.example.com/title-match",
+        "fit_classification": "strong",
+        "generated_at": _dt.datetime.now(_dt.timezone.utc),
+    }
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://jobs.example.com/title-match/?utm_source=feed",
+                "job_title": "URL-Normalized Staff Engineer",
+                "pipeline_status": "ranked_with_cv",
+            }
+        ]
+    })
+    run_with_cv = PipelineRun(
+        run_id="run-detail-url-normalized",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
+        cvs_generated=1,
+        results_export_json=export_payload,
+    )
+    patches = _run_detail_patches(
+        cv_versions=[cv],
+        enriched_jobs=[],
+        filter_results=[{"job_url": "https://jobs.example.com/title-match/?utm_source=feed", "passed": True, "reasons": []}],
+        results_export_json=export_payload,
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-url-normalized")
+    assert resp.status_code == 200
+    assert "URL-Normalized Staff Engineer" in resp.text
+    assert "View Job" not in resp.text.split("URL-Normalized Staff Engineer")[0].split("Generated Outputs")[-1]
+
+
+def test_run_detail_cv_versions_use_debug_record_title_when_results_url_differs():
+    import json as _json
+    import datetime as _dt
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    cv = {
+        "version_id": "cv-debug-title",
+        "job_url": "https://de.indeed.com/viewjob?jk=debugtitle1",
+        "fit_classification": "strong",
+        "generated_at": _dt.datetime.now(_dt.timezone.utc),
+    }
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://jobs.example.com/redirected-debug-title",
+                "job_title": "Redirected Title Copy",
+                "pipeline_status": "ranked_with_cv",
+            }
+        ]
+    })
+    cv_debug = _json.dumps({
+        "debug_records": [
+            {
+                "job_url": "https://de.indeed.com/viewjob?jk=debugtitle1",
+                "job_title": "Debug Record Staff Engineer",
+                "status": "review_required",
+                "fit_classification": "strong",
+            }
+        ]
+    })
+    run_with_cv = PipelineRun(
+        run_id="run-detail-debug-title",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
+        cvs_generated=1,
+        results_export_json=export_payload,
+        cv_generation_debug_json=cv_debug,
+    )
+    patches = _run_detail_patches(
+        cv_versions=[cv],
+        enriched_jobs=[],
+        filter_results=[],
+        results_export_json=export_payload,
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-debug-title")
+    assert resp.status_code == 200
+    assert "Debug Record Staff Engineer" in resp.text
+    assert "View Job" not in resp.text.split("Debug Record Staff Engineer")[0].split("Generated Outputs")[-1]
+
+
+def test_normalize_job_url_key_keeps_indeed_jk_query_value() -> None:
+    from fitcv_cp.app import _normalize_job_url_key
+
+    first = _normalize_job_url_key("https://de.indeed.com/viewjob?jk=8409ba0a48f9ac29")
+    second = _normalize_job_url_key("https://de.indeed.com/viewjob?jk=f2c85e6e8a66e160")
+
+    assert first == "https://de.indeed.com/viewjob?jk=8409ba0a48f9ac29"
+    assert second == "https://de.indeed.com/viewjob?jk=f2c85e6e8a66e160"
+    assert first != second
+
+
 def test_run_detail_generated_outputs_render_bookmark_action():
     import datetime as _dt
     import json as _json
@@ -12178,6 +12291,794 @@ def test_run_detail_enriched_unknown_filter_not_counted_as_rejected():
 
 
 
+def test_run_detail_enriched_matches_filter_and_outcome_by_normalized_job_url():
+    import json as _json
+
+    enriched = [{
+        "job_url": "https://j.test/role-1",
+        "title": "Normalized Match Role",
+        "domain": "d",
+        "job_family": "f",
+        "required_skills": [],
+        "location_type": None,
+        "seniority": None,
+    }]
+    filter_results = [{
+        "job_url": "https://j.test/role-1/?utm_source=feed",
+        "passed": True,
+        "reasons": [],
+    }]
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://j.test/role-1/?utm_source=feed",
+                "pipeline_status": "ranked_with_cv",
+            }
+        ]
+    })
+    patches = _run_detail_patches(enriched_jobs=enriched, filter_results=filter_results, results_export_json=export_payload)
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
+    assert resp.status_code == 200
+    assert "CV created" in resp.text
+    assert "Passed: 1" in resp.text
+    assert "Rejected: 0" in resp.text
+
+
+def test_run_detail_enriched_falls_back_to_stage_artifacts_and_debug_records_when_results_truth_is_missing():
+    import json as _json
+    import datetime as _dt
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    enriched = [
+        {
+            "job_url": "https://de.indeed.com/viewjob?jk=strong1",
+            "title": "Strong Role",
+            "domain": "d",
+            "job_family": "f",
+            "required_skills": [],
+            "location_type": None,
+            "seniority": None,
+        },
+        {
+            "job_url": "https://de.indeed.com/viewjob?jk=stretch1",
+            "title": "Stretch Role",
+            "domain": "d",
+            "job_family": "f",
+            "required_skills": [],
+            "location_type": None,
+            "seniority": None,
+        },
+    ]
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://jobs.example.com/redirected-strong",
+                "job_title": "Strong Role",
+                "pipeline_status": "unknown_pipeline_state",
+            },
+            {
+                "job_url": "https://jobs.example.com/redirected-stretch",
+                "job_title": "Stretch Role",
+                "pipeline_status": "unknown_pipeline_state",
+            },
+        ]
+    })
+    stage_artifacts = _json.dumps({
+        "artifacts": {
+            "stages": {
+                "rule_filter": {
+                    "status": "completed",
+                    "outputs_sample": [
+                        {"job_url": "https://de.indeed.com/viewjob?jk=strong1", "job_title": "Strong Role"},
+                        {"job_url": "https://de.indeed.com/viewjob?jk=stretch1", "job_title": "Stretch Role"},
+                    ],
+                    "output_counts": {"passed_jobs": 2, "rejected_jobs": 0},
+                }
+            }
+        }
+    })
+    cv_debug = _json.dumps({
+        "debug_records": [
+            {
+                "job_url": "https://de.indeed.com/viewjob?jk=strong1",
+                "job_title": "Strong Role",
+                "status": "blocked_by_reranker_fit",
+                "fit_classification": "strong",
+            },
+            {
+                "job_url": "https://de.indeed.com/viewjob?jk=stretch1",
+                "job_title": "Stretch Role",
+                "status": "review_required",
+                "fit_classification": "stretch",
+            },
+        ]
+    })
+    run = PipelineRun(
+        run_id="run-detail-fallback-artifacts",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
+        results_export_json=export_payload,
+        stage_transition_artifacts_json=stage_artifacts,
+        cv_generation_debug_json=cv_debug,
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-detail-fallback-artifacts/tabs/enriched")
+    assert resp.status_code == 200
+    assert "Passed: 2" in resp.text
+    assert "Rejected: 0" in resp.text
+    assert "Ranked, blocked by reranker fit" in resp.text
+    assert "CV review required" in resp.text
+
+
+def test_run_detail_enriched_keeps_distinct_indeed_pipeline_outcomes_by_jk() -> None:
+    import json as _json
+    import datetime as _dt
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    job_url_review = "https://de.indeed.com/viewjob?jk=review123"
+    job_url_blocked = "https://de.indeed.com/viewjob?jk=blocked456"
+    run = PipelineRun(
+        run_id="run-enriched-indeed-jk",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
+        stage_transition_artifacts_json=_json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "rule_filter": {
+                            "status": "completed",
+                            "outputs_sample": [
+                                {"job_url": job_url_review, "passed": True, "marks": []},
+                                {"job_url": job_url_blocked, "passed": True, "marks": []},
+                            ],
+                            "output_counts": {"passed_jobs": 2, "rejected_jobs": 0},
+                        }
+                    }
+                }
+            }
+        ),
+        cv_generation_debug_json=_json.dumps(
+            {
+                "debug_records": [
+                    {"job_url": job_url_review, "job_title": "Review Job", "status": "review_required"},
+                    {"job_url": job_url_blocked, "job_title": "Blocked Job", "status": "blocked_by_reranker_fit"},
+                ]
+            }
+        ),
+        results_export_json=_json.dumps(
+            {
+                "results": [
+                    {"job_url": job_url_review, "job_title": "Review Job", "pipeline_status": "unknown_pipeline_state"},
+                    {"job_url": job_url_blocked, "job_title": "Blocked Job", "pipeline_status": "unknown_pipeline_state"},
+                ]
+            }
+        ),
+    )
+    enriched = [
+        {
+            "job_url": job_url_review,
+            "title": "Review Job",
+            "domain": "d",
+            "job_family": "f",
+            "required_skills": [],
+            "location_type": None,
+            "seniority": None,
+        },
+        {
+            "job_url": job_url_blocked,
+            "title": "Blocked Job",
+            "domain": "d",
+            "job_family": "f",
+            "required_skills": [],
+            "location_type": None,
+            "seniority": None,
+        },
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run),          patch("fitcv_cp.app.get_events", return_value=[]),          patch("fitcv_cp.app.list_cvs_for_run", return_value=[]),          patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched),          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-enriched-indeed-jk/tabs/enriched")
+    assert resp.status_code == 200
+    assert "Review Job" in resp.text
+    assert "Blocked Job" in resp.text
+    assert "CV review required" in resp.text
+    assert "Ranked, blocked by reranker fit" in resp.text
+
+def test_build_enriched_tab_context_does_not_guess_passed_for_unknown_rows() -> None:
+    from fitcv_cp.app import _build_enriched_tab_context
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-enriched-unknown-filter",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime(2026, 6, 26, 12, 0, 0, tzinfo=datetime.timezone.utc),
+        results_export_json=json.dumps(
+            {
+                "results": [
+                    {
+                        "job_url": "https://jobs.example.com/redirected-role",
+                        "job_title": "Redirected Role",
+                        "pipeline_status": "unknown_pipeline_state",
+                    }
+                ]
+            }
+        ),
+    )
+    enriched = [
+        {
+            "job_url": "https://de.indeed.com/viewjob?jk=unknown123",
+            "title": "Redirected Role",
+            "domain": "d",
+            "job_family": "f",
+            "required_skills": [],
+            "location_type": None,
+            "seniority": None,
+        }
+    ]
+
+    with patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        context = _build_enriched_tab_context(
+            run,
+            run_id=run.run_id,
+            project="p",
+            dataset="d",
+            bq=None,
+            filter_name="all",
+            query="",
+            pipeline_outcomes=[],
+            page=1,
+            page_size=25,
+        )
+
+    assert context["enriched_passed_count"] == 0
+    assert context["enriched_rejected_count"] == 0
+    assert context["filter_results_by_job_url"] == {}
+
+def test_build_enriched_tab_context_matches_truth_by_raw_job_fingerprint_when_urls_drift() -> None:
+    from fitcv_cp.app import _build_enriched_tab_context, _normalize_job_url_key
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-enriched-fingerprint-join",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime(2026, 6, 26, 12, 0, 0, tzinfo=datetime.timezone.utc),
+        results_export_json=json.dumps(
+            {
+                "results": [
+                    {
+                        "job_url": "https://jobs.example.com/redirected-role",
+                        "job_title": "Redirected Role",
+                        "raw_job_fingerprint": "raw-fp-join-1",
+                        "pipeline_status": "ranked_no_cv",
+                    }
+                ]
+            }
+        ),
+    )
+    enriched = [
+        {
+            "job_url": "https://de.indeed.com/viewjob?jk=join123",
+            "title": "Redirected Role",
+            "raw_job_fingerprint": "raw-fp-join-1",
+            "domain": "d",
+            "job_family": "f",
+            "required_skills": [],
+            "location_type": None,
+            "seniority": None,
+        }
+    ]
+    filter_rows = [
+        {
+            "job_url": "https://jobs.example.com/redirected-role",
+            "raw_job_fingerprint": "raw-fp-join-1",
+            "passed": True,
+            "reasons": [],
+            "marks": [],
+        }
+    ]
+
+    with patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=filter_rows):
+        context = _build_enriched_tab_context(
+            run,
+            run_id=run.run_id,
+            project="p",
+            dataset="d",
+            bq=None,
+            filter_name="all",
+            query="",
+            pipeline_outcomes=[],
+            page=1,
+            page_size=25,
+        )
+
+    enriched_key = context["enriched_jobs"][0]["job_url_lookup_key"]
+    assert context["enriched_passed_count"] == 1
+    assert context["pipeline_outcomes_by_job_url"][enriched_key]["status"] == "ranked_no_cv"
+
+
+def test_run_detail_enriched_uses_secondary_url_truth_when_enriched_primary_key_is_fingerprint() -> None:
+    import json as _json
+    import datetime as _dt
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    job_url = "https://de.indeed.com/viewjob?jk=fpurl123"
+    run = PipelineRun(
+        run_id="run-enriched-fingerprint-primary-url-truth",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 6, 26, 12, 0, 0, tzinfo=_dt.timezone.utc),
+        results_export_json=_json.dumps(
+            {
+                "results": [
+                    {
+                        "job_url": "https://jobs.example.com/redirected-fpurl123",
+                        "job_title": "Fingerprint First Role",
+                        "pipeline_status": "unknown_pipeline_state",
+                    }
+                ]
+            }
+        ),
+        cv_generation_debug_json=_json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": job_url,
+                        "job_title": "Fingerprint First Role",
+                        "status": "review_required",
+                    }
+                ]
+            }
+        ),
+    )
+    enriched = [
+        {
+            "job_url": job_url,
+            "title": "Fingerprint First Role",
+            "raw_job_fingerprint": "raw-fpurl-1",
+            "domain": "d",
+            "job_family": "f",
+            "required_skills": [],
+            "location_type": None,
+            "seniority": None,
+        }
+    ]
+    filter_rows = [
+        {
+            "job_url": job_url,
+            "passed": True,
+            "reasons": [],
+            "marks": [],
+        }
+    ]
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=filter_rows):
+        resp = TestClient(_app()).get("/admin/runs/run-enriched-fingerprint-primary-url-truth/tabs/enriched")
+
+    assert resp.status_code == 200
+    assert "Passed: 1" in resp.text
+    assert "Rejected: 0" in resp.text
+    assert "CV review required" in resp.text
+    assert "empty-value" not in resp.text
+
+def test_run_detail_enriched_renders_pipeline_outcome_when_filter_truth_prefers_fingerprint_key() -> None:
+    import json as _json
+    import datetime as _dt
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    job_url = "https://de.indeed.com/viewjob?jk=fp-render-1"
+    run = PipelineRun(
+        run_id="run-enriched-render-split-keys",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 6, 26, 12, 0, 0, tzinfo=_dt.timezone.utc),
+        results_export_json=_json.dumps(
+            {
+                "results": [
+                    {
+                        "job_url": "https://jobs.example.com/redirected-fp-render-1",
+                        "job_title": "Fingerprint Render Role",
+                        "pipeline_status": "unknown_pipeline_state",
+                    }
+                ]
+            }
+        ),
+        cv_generation_debug_json=_json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": job_url,
+                        "job_title": "Fingerprint Render Role",
+                        "status": "review_required",
+                    }
+                ]
+            }
+        ),
+    )
+    enriched = [
+        {
+            "job_url": job_url,
+            "title": "Fingerprint Render Role",
+            "raw_job_fingerprint": "raw-render-split-1",
+            "domain": "d",
+            "job_family": "f",
+            "required_skills": [],
+            "location_type": None,
+            "seniority": None,
+        }
+    ]
+    filter_rows = [
+        {
+            "job_url": job_url,
+            "raw_job_fingerprint": "raw-render-split-1",
+            "source_job_url": job_url,
+            "passed": True,
+            "reasons": [],
+            "marks": [],
+        }
+    ]
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=filter_rows):
+        resp = TestClient(_app()).get("/admin/runs/run-enriched-render-split-keys/tabs/enriched")
+
+    assert resp.status_code == 200
+    assert "CV review required" in resp.text
+    assert "empty-value" not in resp.text
+
+def test_build_enriched_tab_context_overrides_stale_review_required_with_terminal_hitl_approval() -> None:
+    import json as _json
+    import datetime as _dt
+
+    from fitcv_cp.app import _build_enriched_tab_context, _lookup_row_by_lookup_key
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    job_url = "https://de.indeed.com/viewjob?jk=hitl-approve-1"
+    run = PipelineRun(
+        run_id="run-enriched-hitl-approval",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 6, 26, 12, 0, 0, tzinfo=_dt.timezone.utc),
+        results_export_json=_json.dumps(
+            {
+                "results": [
+                    {
+                        "job_url": job_url,
+                        "job_title": "Approved Review Role",
+                        "pipeline_status": "ranked_no_cv",
+                    }
+                ]
+            }
+        ),
+        cv_generation_debug_json=_json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": job_url,
+                        "job_title": "Approved Review Role",
+                        "status": "review_required",
+                        "review_item_id": "ri_hitl_approve",
+                    }
+                ],
+                "hitl_review_actions": [
+                    {
+                        "review_item_id": "ri_hitl_approve",
+                        "job_url": job_url,
+                        "action": "approve",
+                        "resolution_status": "approved_as_is",
+                        "created_at": "2026-06-26T12:01:00+00:00",
+                    }
+                ],
+            }
+        ),
+    )
+    enriched = [
+        {
+            "job_url": job_url,
+            "title": "Approved Review Role",
+            "domain": "d",
+            "job_family": "f",
+            "required_skills": [],
+            "location_type": None,
+            "seniority": None,
+        }
+    ]
+    filter_rows = [{"job_url": job_url, "passed": True, "reasons": [], "marks": []}]
+
+    with patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=filter_rows):
+        context = _build_enriched_tab_context(
+            run,
+            run_id=run.run_id,
+            project="p",
+            dataset="d",
+            bq=object(),
+            filter_name="all",
+            query="",
+            pipeline_outcomes=[],
+            page=1,
+            page_size=50,
+        )
+
+    outcome = _lookup_row_by_lookup_key(context["pipeline_outcomes_by_job_url"], enriched[0])
+    assert outcome["status"] == "ranked_with_cv"
+    assert outcome["label"] == "CV created"
+
+def test_build_enriched_tab_context_overrides_stale_review_required_with_terminal_hitl_rejection() -> None:
+    import json as _json
+    import datetime as _dt
+
+    from fitcv_cp.app import _build_enriched_tab_context, _lookup_row_by_lookup_key
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    job_url = "https://de.indeed.com/viewjob?jk=hitl-reject-1"
+    run = PipelineRun(
+        run_id="run-enriched-hitl-reject",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 6, 26, 12, 0, 0, tzinfo=_dt.timezone.utc),
+        results_export_json=_json.dumps(
+            {
+                "results": [
+                    {
+                        "job_url": job_url,
+                        "job_title": "Rejected Review Role",
+                        "pipeline_status": "ranked_no_cv",
+                    }
+                ]
+            }
+        ),
+        cv_generation_debug_json=_json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": job_url,
+                        "job_title": "Rejected Review Role",
+                        "status": "review_required",
+                        "review_item_id": "ri_hitl_reject",
+                    }
+                ],
+                "hitl_review_actions": [
+                    {
+                        "review_item_id": "ri_hitl_reject",
+                        "job_url": job_url,
+                        "action": "reject",
+                        "resolution_status": "rejected",
+                        "created_at": "2026-06-26T12:01:00+00:00",
+                    }
+                ],
+            }
+        ),
+    )
+    enriched = [
+        {
+            "job_url": job_url,
+            "title": "Rejected Review Role",
+            "domain": "d",
+            "job_family": "f",
+            "required_skills": [],
+            "location_type": None,
+            "seniority": None,
+        }
+    ]
+    filter_rows = [{"job_url": job_url, "passed": True, "reasons": [], "marks": []}]
+
+    with patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=filter_rows):
+        context = _build_enriched_tab_context(
+            run,
+            run_id=run.run_id,
+            project="p",
+            dataset="d",
+            bq=object(),
+            filter_name="all",
+            query="",
+            pipeline_outcomes=[],
+            page=1,
+            page_size=50,
+        )
+
+    outcome = _lookup_row_by_lookup_key(context["pipeline_outcomes_by_job_url"], enriched[0])
+    assert outcome["status"] == "rejected_after_enrichment"
+    assert outcome["label"] == "Rejected after enrichment"
+
+def test_run_detail_enriched_falls_back_to_stage_artifacts_when_results_export_is_all_unknown() -> None:
+    import json as _json
+    import datetime as _dt
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    blocked_url = "https://de.indeed.com/viewjob?jk=blocked-stage1"
+    scored_not_ranked_url = "https://de.indeed.com/viewjob?jk=scored-stage2"
+    run = PipelineRun(
+        run_id="run-enriched-stage-artifact-outcomes",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 6, 26, 12, 0, 0, tzinfo=_dt.timezone.utc),
+        results_export_json=_json.dumps(
+            {
+                "results": [
+                    {
+                        "job_url": "https://jobs.example.com/redirected-blocked",
+                        "job_title": "Blocked Role",
+                        "pipeline_status": "unknown_pipeline_state",
+                    },
+                    {
+                        "job_url": "https://jobs.example.com/redirected-scored",
+                        "job_title": "Scored Role",
+                        "pipeline_status": "unknown_pipeline_state",
+                    },
+                ]
+            }
+        ),
+        stage_transition_artifacts_json=_json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "ranking": {
+                            "status": "completed",
+                            "input_counts": {"ai_scores": 2, "ranking_inputs": 2},
+                            "output_counts": {"ranked_jobs": 1, "final_top_n": 1},
+                            "outputs_sample": [
+                                {"job_url": blocked_url, "job_title": "Blocked Role"}
+                            ],
+                            "dropped_or_changed_sample": [],
+                        },
+                        "cv_analysis": {
+                            "status": "completed",
+                            "outputs_sample": [],
+                            "dropped_or_changed_sample": [
+                                {
+                                    "job_url": blocked_url,
+                                    "job_title": "Blocked Role",
+                                    "source_stage": "cv_analysis",
+                                    "stage_owned_subreason": "blocked_by_reranker_fit",
+                                    "deterministic_outcome": "blocked",
+                                    "change_type": "blocked_by_reranker_fit",
+                                }
+                            ],
+                        },
+                    }
+                }
+            }
+        ),
+    )
+    enriched = [
+        {
+            "job_url": blocked_url,
+            "title": "Blocked Role",
+            "raw_job_fingerprint": "raw-blocked-stage1",
+            "domain": "d",
+            "job_family": "f",
+            "required_skills": [],
+            "location_type": None,
+            "seniority": None,
+        },
+        {
+            "job_url": scored_not_ranked_url,
+            "title": "Scored Role",
+            "raw_job_fingerprint": "raw-scored-stage2",
+            "domain": "d",
+            "job_family": "f",
+            "required_skills": [],
+            "location_type": None,
+            "seniority": None,
+        },
+    ]
+    filter_rows = [
+        {"job_url": blocked_url, "passed": True, "reasons": [], "marks": []},
+        {"job_url": scored_not_ranked_url, "passed": True, "reasons": [], "marks": []},
+    ]
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=filter_rows):
+        resp = TestClient(_app()).get("/admin/runs/run-enriched-stage-artifact-outcomes/tabs/enriched")
+
+    assert resp.status_code == 200
+    assert "Passed: 2" in resp.text
+    assert "Ranked, blocked by reranker fit" in resp.text
+    assert "Scored, not final top-N" in resp.text
+
+def test_run_detail_enriched_uses_rule_filter_dropped_sample_for_rejected_rows() -> None:
+    import json as _json
+    import datetime as _dt
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    rejected_url = "https://de.indeed.com/viewjob?jk=rejected123"
+    enriched = [
+        {
+            "job_url": rejected_url,
+            "title": "Rejected Driving Instructor Role",
+            "domain": "automotive",
+            "job_family": None,
+            "required_skills": ["Driving instructor"],
+            "location_type": "onsite",
+            "seniority": "senior",
+        }
+    ]
+    stage_artifacts = _json.dumps({
+        "artifacts": {
+            "stages": {
+                "rule_filter": {
+                    "status": "completed",
+                    "outputs_sample": [],
+                    "dropped_or_changed_sample": [
+                        {
+                            "job_url": rejected_url,
+                            "change_type": "rejected_after_enrichment",
+                            "filter_outcome": "reject",
+                            "reasons": ["seniority_mismatch"],
+                            "marks": [],
+                        }
+                    ],
+                    "output_counts": {"passed_jobs": 0, "rejected_jobs": 1},
+                }
+            }
+        }
+    })
+    run = PipelineRun(
+        run_id="run-detail-fallback-rejected-row",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
+        stage_transition_artifacts_json=stage_artifacts,
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run),          patch("fitcv_cp.app.get_events", return_value=[]),          patch("fitcv_cp.app.list_cvs_for_run", return_value=[]),          patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched),          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-detail-fallback-rejected-row/tabs/enriched")
+    assert resp.status_code == 200
+    assert "Rejected Driving Instructor Role" in resp.text
+    assert "Rejected: 1" in resp.text
+    assert "Rejected after enrichment" in resp.text
+    assert "seniority_mismatch" in resp.text
+
 def test_run_detail_enriched_filters_by_pipeline_outcome_multi_select():
     import json as _json
 
@@ -12204,6 +13105,80 @@ def test_run_detail_enriched_filters_by_pipeline_outcome_multi_select():
     assert resp.status_code == 200
     assert "Not Shortlisted" in resp.text
     assert "Scored Not Ranked" in resp.text
+    assert "Rejected Role" not in resp.text
+
+def test_run_detail_enriched_filters_by_pipeline_outcome_multi_select_with_fallback_statuses() -> None:
+    import json as _json
+    import datetime as _dt
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    review_url = "https://de.indeed.com/viewjob?jk=review-filter-1"
+    blocked_url = "https://de.indeed.com/viewjob?jk=blocked-filter-1"
+    validation_url = "https://de.indeed.com/viewjob?jk=validation-filter-1"
+    scored_url = "https://de.indeed.com/viewjob?jk=scored-filter-1"
+    rejected_url = "https://de.indeed.com/viewjob?jk=rejected-filter-1"
+    run = PipelineRun(
+        run_id="run-detail-fallback-filter-multi",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 6, 26, 12, 0, 0, tzinfo=_dt.timezone.utc),
+        results_export_json=_json.dumps(
+            {
+                "results": [
+                    {"job_url": review_url, "job_title": "Review Role", "pipeline_status": "unknown_pipeline_state"},
+                    {"job_url": blocked_url, "job_title": "Blocked Role", "pipeline_status": "unknown_pipeline_state"},
+                    {"job_url": validation_url, "job_title": "Validation Role", "pipeline_status": "unknown_pipeline_state"},
+                    {"job_url": scored_url, "job_title": "Scored Role", "pipeline_status": "scored_not_ranked"},
+                    {"job_url": rejected_url, "job_title": "Rejected Role", "pipeline_status": "rejected_after_enrichment"},
+                ]
+            }
+        ),
+        cv_generation_debug_json=_json.dumps(
+            {
+                "debug_records": [
+                    {"job_url": review_url, "job_title": "Review Role", "status": "review_required"},
+                    {"job_url": blocked_url, "job_title": "Blocked Role", "status": "blocked_by_reranker_fit", "source_stage": "cv_analysis"},
+                    {"job_url": validation_url, "job_title": "Validation Role", "status": "validation_failed"},
+                ]
+            }
+        ),
+    )
+    enriched = [
+        {"job_url": review_url, "title": "Review Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": blocked_url, "title": "Blocked Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": validation_url, "title": "Validation Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": scored_url, "title": "Scored Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": rejected_url, "title": "Rejected Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+    ]
+    filter_rows = [
+        {"job_url": review_url, "passed": True, "reasons": [], "marks": []},
+        {"job_url": blocked_url, "passed": True, "reasons": [], "marks": []},
+        {"job_url": validation_url, "passed": True, "reasons": [], "marks": []},
+        {"job_url": scored_url, "passed": True, "reasons": [], "marks": []},
+        {"job_url": rejected_url, "passed": False, "reasons": ["seniority_mismatch"], "marks": []},
+    ]
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=filter_rows):
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-detail-fallback-filter-multi/tabs/enriched"
+            "?pipeline_outcome=ranked_no_cv"
+            "&pipeline_outcome=ranked_blocked_by_reranker_fit"
+            "&pipeline_outcome=scored_not_ranked"
+        )
+
+    assert resp.status_code == 200
+    assert "Review Role" in resp.text
+    assert "Blocked Role" in resp.text
+    assert "Validation Role" in resp.text
+    assert "Scored Role" in resp.text
     assert "Rejected Role" not in resp.text
 
 
@@ -14388,3 +15363,9 @@ def test_is_hitl_resolution_pending_uses_terminal_status_set() -> None:
     assert _is_hitl_resolution_pending("regeneration_requested") is True
     assert _is_hitl_resolution_pending("approved_as_is") is False
     assert _is_hitl_resolution_pending("rejected") is False
+
+def test_normalize_hitl_resolution_status_uses_shared_review_identity_truth() -> None:
+    from fitcv_cp.review_identity import normalize_review_resolution_status
+
+    assert _normalize_hitl_resolution_status("approve", None) == normalize_review_resolution_status("approve", None)
+    assert _normalize_hitl_resolution_status(None, "rejected") == normalize_review_resolution_status(None, "rejected")
