@@ -1,6 +1,7 @@
 """Tests for fitcv.rule_filter — all pure unit tests (no cloud calls)."""
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
@@ -106,6 +107,8 @@ def test_unselected_must_have_skill_missing_emits_mark_not_reject_by_default() -
     assert result["passed_records"] == [
         {
             "job_url": "http://mark-only",
+            "raw_job_fingerprint": None,
+            "source_job_url": "http://mark-only",
             "marks": [
                 {
                     "code": "must_have_skill_missing",
@@ -121,11 +124,73 @@ def test_selected_filter_defaults_match_runtime_contract_constant() -> None:
     result = apply_rule_filters([_job()], _prefs(), config={})
     assert DEFAULT_SELECTED_RULE_FILTERS == [
         "seniority_mismatch",
+        "missing_fit_context",
         "location_type_excluded",
         "contract_type_excluded",
         "experience_level_excluded",
     ]
     assert isinstance(result["passed_records"], list)
+
+def test_missing_fit_context_rejects_by_default() -> None:
+    result = apply_rule_filters(
+        [
+            _job(
+                job_url="http://missing-fit-context",
+                seniority=None,
+                location_type=None,
+                job_family=None,
+                domain=None,
+            )
+        ],
+        _prefs(),
+    )
+
+    assert result["passed"] == []
+    assert result["rejected"] == [
+        {
+            "job_url": "http://missing-fit-context",
+            "raw_job_fingerprint": None,
+            "source_job_url": "http://missing-fit-context",
+            "reasons": ["missing_fit_context"],
+            "marks": [],
+        }
+    ]
+
+def test_unselected_missing_fit_context_emits_mark_not_reject() -> None:
+    result = apply_rule_filters(
+        [
+            _job(
+                job_url="http://mark-missing-fit-context",
+                seniority=None,
+                location_type=None,
+                job_family=None,
+                domain=None,
+            )
+        ],
+        _prefs(),
+        config={"rule_filter": {"selected_filters": [
+            "seniority_mismatch",
+            "location_type_excluded",
+            "contract_type_excluded",
+            "experience_level_excluded",
+        ]}},
+    )
+
+    assert result["rejected"] == []
+    assert result["passed"] == ["http://mark-missing-fit-context"]
+    assert result["passed_records"] == [
+        {
+            "job_url": "http://mark-missing-fit-context",
+            "raw_job_fingerprint": None,
+            "source_job_url": "http://mark-missing-fit-context",
+            "marks": [
+                {
+                    "code": "missing_fit_context",
+                    "message": "Missing fit context",
+                }
+            ],
+        }
+    ]
 
 
 def test_selected_must_have_skill_missing_rejects() -> None:
@@ -145,6 +210,8 @@ def test_selected_must_have_skill_missing_rejects() -> None:
     assert result["rejected"] == [
         {
             "job_url": "http://reject-me",
+            "raw_job_fingerprint": None,
+            "source_job_url": "http://reject-me",
             "reasons": ["must_have_skill_missing"],
             "marks": [],
         }
@@ -167,6 +234,8 @@ def test_selected_and_unselected_failures_split_between_reasons_and_marks() -> N
     assert result["rejected"] == [
         {
             "job_url": "http://mixed",
+            "raw_job_fingerprint": None,
+            "source_job_url": "http://mixed",
             "reasons": ["seniority_mismatch"],
             "marks": [
                 {
@@ -198,6 +267,42 @@ def test_multiple_rejection_reasons_accumulated() -> None:
     assert len(result["rejected"]) == 1
     assert len(result["rejected"][0]["reasons"]) >= 2
 
+
+def test_apply_rule_filters_preserves_identity_fields_in_passed_and_rejected_records() -> None:
+    result = apply_rule_filters(
+        [
+            _job(
+                job_url="http://pass-id",
+                raw_job_fingerprint="raw-pass-id",
+                source_job_url="https://de.indeed.com/viewjob?jk=pass-id",
+            ),
+            _job(
+                job_url="http://reject-id",
+                seniority="lead",
+                raw_job_fingerprint="raw-reject-id",
+                source_job_url="https://de.indeed.com/viewjob?jk=reject-id",
+            ),
+        ],
+        _prefs(),
+    )
+
+    assert result["passed_records"] == [
+        {
+            "job_url": "http://pass-id",
+            "raw_job_fingerprint": "raw-pass-id",
+            "source_job_url": "https://de.indeed.com/viewjob?jk=pass-id",
+            "marks": [],
+        }
+    ]
+    assert result["rejected"] == [
+        {
+            "job_url": "http://reject-id",
+            "raw_job_fingerprint": "raw-reject-id",
+            "source_job_url": "https://de.indeed.com/viewjob?jk=reject-id",
+            "reasons": ["seniority_mismatch"],
+            "marks": [],
+        }
+    ]
 
 # ── seniority ladder ──────────────────────────────────────────────────────────
 
@@ -554,6 +659,53 @@ def test_store_filter_results_serializes_marks_json_as_string(monkeypatch: pytes
         }
     ]
 
+def test_store_filter_results_persists_sqlite_rows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv_cp.sqlite3"))
+    from fitcv.rule_filter import store_filter_results
+    from fitcv_cp.bq_store import list_filter_results_for_run
+
+    result = {
+        "passed": ["https://x.com/1"],
+        "passed_records": [
+            {
+                "job_url": "https://x.com/1",
+                "raw_job_fingerprint": "raw-pass-1",
+                "source_job_url": "https://de.indeed.com/viewjob?jk=pass1",
+                "marks": [{"code": "must_have_skill_missing"}],
+            }
+        ],
+        "rejected": [
+            {
+                "job_url": "https://x.com/2",
+                "raw_job_fingerprint": "raw-reject-1",
+                "source_job_url": "https://de.indeed.com/viewjob?jk=reject1",
+                "reasons": ["seniority_mismatch"],
+                "marks": [{"code": "seniority_mismatch"}],
+            }
+        ],
+    }
+
+    store_filter_results(
+        result,
+        "run-sqlite",
+        {
+            "sqlite_mode": True,
+            "gcp_project": "p",
+            "bigquery_dataset": "d",
+            "service_account_key": "",
+        },
+    )
+
+    rows = list_filter_results_for_run("run-sqlite", None, project="p", dataset="d")
+    assert len(rows) == 2
+    assert rows[0]["job_url"] == "https://x.com/1"
+    assert rows[0]["raw_job_fingerprint"] == "raw-pass-1"
+    assert rows[0]["source_job_url"] == "https://de.indeed.com/viewjob?jk=pass1"
+    assert rows[0]["marks"] == [{"code": "must_have_skill_missing"}]
+    assert rows[1]["job_url"] == "https://x.com/2"
+    assert rows[1]["passed"] is False
+    assert rows[1]["reasons"] == ["seniority_mismatch"]
+
 
 # ── check_applicant_count ─────────────────────────────────────────────────────
 
@@ -587,7 +739,7 @@ def test_applicant_count_passes_when_no_setting() -> None:
 
 def test_apply_rule_filters_global_settings_none_skips_applicant_check() -> None:
     """global_settings=None → applications_count_exceeded never appears."""
-    jobs = [{"job_url": "http://a", "applications_count": 9999}]
+    jobs = [{"job_url": "http://a", "applications_count": 9999, "location_type": "remote"}]
     result = apply_rule_filters(jobs, prefs={}, global_settings=None)
     assert "http://a" in result["passed"]
     all_reasons = [r for item in result["rejected"] for r in item["reasons"]]

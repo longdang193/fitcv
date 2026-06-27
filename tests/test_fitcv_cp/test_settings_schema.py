@@ -642,6 +642,7 @@ def test_rule_filter_selected_filters_default_matches_spec() -> None:
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["rule_filter.selected_filters"]["default"] == [
         "seniority_mismatch",
+        "missing_fit_context",
         "location_type_excluded",
         "contract_type_excluded",
         "experience_level_excluded",
@@ -712,6 +713,7 @@ def test_runtime_overlay_defaults_returns_independent_list_defaults_copy() -> No
     declared_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
     assert declared_by_key["rule_filter.selected_filters"]["default"] == [
         "seniority_mismatch",
+        "missing_fit_context",
         "location_type_excluded",
         "contract_type_excluded",
         "experience_level_excluded",
