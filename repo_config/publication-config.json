@@ -81,7 +81,8 @@
   ],
   "allowedGeneratedPaths": [],
   "publicExcludeGlobs": [
-    "config/env.private.yaml"
+    "config/env.private.yaml",
+    "src/fitcv/fitcv.zip"
   ],
   "scrubPrivateReferencePaths": [
     "README.md",
