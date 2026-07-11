@@ -48,7 +48,7 @@ pip install -r requirements.txt
 
 Canonical config ownership:
 
-- `config/env.yaml`
+- `.env.yaml`
   - base runtime entry config for control-plane runs
   - infra/environment keys and local candidate-profile path
 - `config/runtime/pipeline.yaml`
@@ -69,8 +69,8 @@ Notes:
 
 - Do not depend on `.env.yaml.example`.
 - `.env.yaml` may exist as local override in some setups, but canonical default
-  for control-plane runs is `config/env.yaml`.
-- Do not duplicate runtime/pipeline knobs in `config/env.yaml` when they are
+  for control-plane runs is `.env.yaml`.
+- Do not duplicate runtime/pipeline knobs in `.env.yaml` when they are
   already owned by `config/runtime/pipeline.yaml`.
 - For provider routing expectation, precedence is:
   1. non-empty `FITCV_LANGGRAPH_*` env overrides
@@ -85,7 +85,7 @@ $env:FITCV_CP_SQLITE_PATH = ".\data\fitcv_local.db"
 
 ## 4) Candidate Profile Contract (Canonical + Optional Private Source)
 
-Current default runtime path in `config/env.yaml`:
+Current default runtime path in `.env.yaml`:
 
 - `paths.candidate_profile: data/candidate_profile.yaml`
 

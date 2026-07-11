@@ -203,14 +203,14 @@ def test_run_inline_job_after_delay_waits_before_execution() -> None:
                     "inline-job-1",
                     "run-1",
                     "data/jobs.json",
-                    "config/env.yaml",
+                    ".env.yaml",
                 )
     sleep_mock.assert_called_once_with(0.25)
     run_mock.assert_called_once_with(
         "inline-job-1",
         "run-1",
         "data/jobs.json",
-        "config/env.yaml",
+        ".env.yaml",
     )
 
 

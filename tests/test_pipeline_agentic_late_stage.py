@@ -239,7 +239,7 @@ def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
     with patch.dict("os.environ", {"FITCV_ENRICH_HEARTBEAT_EVENTS": "1"}, clear=False):
         run_pipeline(
             "data/sample_jobs.json",
-            config_path="config/env.yaml",
+            config_path=".env.yaml",
             run_id="timeline-concurrency-check",
             stop_after_stage="ranking",
             reporter=reporter,
@@ -376,7 +376,7 @@ def test_run_pipeline_uses_agentic_late_stage_path_under_hard_flip(
             "error": None,
         },
     ) as mock_agentic_generation:
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="late-stage-default")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="late-stage-default")
 
     mock_agentic_analysis.assert_called_once()
     mock_agentic_generation.assert_called_once()
@@ -579,7 +579,7 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     ) as mock_agentic_generation:
         result = run_pipeline(
             "data/sample_jobs.json",
-            config_path="config/env.yaml",
+            config_path=".env.yaml",
             run_id="late-stage-agentic",
             reporter=reporter,
         )
@@ -728,7 +728,7 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
         create=True,
         return_value=agentic_generation_result,
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="late-stage-agentic-review")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="late-stage-agentic-review")
 
     assert result["cvs_generated"] == 0
     assert result["cv_generation_debug_records"][0]["status"] == "review_required"
@@ -852,7 +852,7 @@ def test_run_pipeline_marks_review_required_from_markdown_quality_flags(
         create=True,
         return_value=agentic_generation_result,
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="late-stage-agentic-markdown-review")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="late-stage-agentic-markdown-review")
 
     assert result["cvs_generated"] == 0
     assert result["cv_generation_debug_records"][0]["status"] == "review_required"

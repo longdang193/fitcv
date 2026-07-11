@@ -18,7 +18,6 @@ lifecycle:
 import logging
 import os
 import re
-import warnings
 from pathlib import Path
 from typing import Any
 
@@ -61,7 +60,7 @@ _POLICY_FILE_CANDIDATES = [
     ("cv", ("policy/cv.yaml", "cv.yaml")),
 ]
 
-_DEFAULT_ENV_CANDIDATES = (".env.yaml", "config/env.yaml")
+_DEFAULT_ENV_CANDIDATES = (".env.yaml",)
 _DEFAULT_CONTROL_PLANE_CONFIG_PATH = Path("config/runtime/control_plane.yaml")
 _RETIRED_CONFIG_SURFACES = (
     "live_smoke.yaml",
@@ -82,9 +81,6 @@ _DEFAULT_CV_REQUIRED_MATCH_POLICY = {
     },
     "force_review_when_any_required_missing_for_fits": ["stretch"],
 }
-_INFRA_ENV_OVERRIDES = {
-    "gcp_project": "GCP_PROJECT",
-}
 _CONTROL_PLANE_ENV_OVERRIDES = {
     # Portability override: local Windows host often needs localhost, while containers may use host.docker.internal.
     "FITCV_CP_OPENAI_COMPATIBLE_BASE_URL": ("providers", "openai_compatible", "base_url"),
@@ -93,9 +89,7 @@ _CONTROL_PLANE_ENV_OVERRIDES = {
 _SUPPORTED_PROVIDER_IDS = {"openai", "openai_compatible", "9router"}
 _RETIRED_PROVIDER_IDS = {"gemini", "vertex", "vertex_ai", "google", "google_genai", "google_vertex"}
 _DEFAULT_ACTIVE_MODEL = "cx/gpt-5.4-mini"
-_CANONICAL_INFRA_KEYS = {
-    "location",
-}
+_CANONICAL_INFRA_KEYS: set[str] = set()
 _CANONICAL_PIPELINE_TOP_LEVEL_KEYS = {
     "embedding_model",
     "enrichment_version",
@@ -369,13 +363,6 @@ def _find_config_dir(base_path: Path) -> Path:
 def _resolve_env_path(path: str | Path | None) -> Path:
     return config_loader.resolve_env_path(path, default_env_candidates=_DEFAULT_ENV_CANDIDATES)
 
-
-def _is_legacy_env_path(path: Path) -> bool:
-    return config_loader.is_legacy_env_path(path)
-
-
-def _merge_missing_keys(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
-    return config_loader.merge_missing_keys(base, extra)
 
 def _detect_pipeline_ssot_overlap(
     env_cfg: dict[str, Any],
@@ -867,14 +854,6 @@ def _normalize_cv_acceptance_policy_config(cfg: dict[str, Any]) -> dict[str, Any
     return cfg
 
 
-def _apply_infra_env_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Prefer standard environment variables for portable runtime configuration."""
-    for cfg_key, env_key in _INFRA_ENV_OVERRIDES.items():
-        env_value = os.environ.get(env_key, "").strip()
-        if env_value:
-            cfg[cfg_key] = env_value
-    return cfg
-
 def _strip_obsolete_env_keys(cfg: dict[str, Any]) -> dict[str, Any]:
     return config_compat.strip_obsolete_env_keys(
         cfg,
@@ -902,26 +881,8 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     env_path = _resolve_env_path(path)
     if not env_path.exists():
         raise FileNotFoundError(f"Config file not found: {env_path}")
-    if _is_legacy_env_path(env_path) and not (env_path.name == "env.yaml" and env_path.parent.name == "config"):
-        warnings.warn(
-            f"legacy config path in use: {env_path}",
-            UserWarning,
-            stacklevel=2,
-        )
-
-    try:
-        with open(env_path, encoding="utf-8") as f:
-            cfg: dict[str, Any] = yaml.safe_load(f) or {}
-    except PermissionError:
-        # On some hosts the repo-root `.env.yaml` may exist but be unreadable due to ACLs.
-        # Fall back to legacy `config/env.yaml` when present to keep local tooling/tests usable.
-        fallback_path = Path("config") / "env.yaml"
-        if env_path.name == ".env.yaml" and fallback_path.exists():
-            with open(fallback_path, encoding="utf-8") as f:
-                cfg = yaml.safe_load(f) or {}
-            env_path = fallback_path
-        else:
-            raise
+    with open(env_path, encoding="utf-8") as f:
+        cfg: dict[str, Any] = yaml.safe_load(f) or {}
 
     resolved_env_path = env_path.resolve()
     config_dir = _find_config_dir(resolved_env_path)
@@ -933,17 +894,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
                 "Use canonical runtime/control-plane config owners instead.",
                 retired_path,
             )
-    if env_path.name == ".env.yaml":
-        legacy_env_path = config_dir / "env.yaml"
-        if legacy_env_path.exists():
-            cfg = _merge_missing_keys(cfg, _load_yaml_file(legacy_env_path))
-    elif _is_legacy_env_path(env_path):
-        root_env_path = config_dir.parent / ".env.yaml"
-        if root_env_path.exists():
-            cfg = _merge_missing_keys(cfg, _load_yaml_file(root_env_path))
-
     cfg = _normalize_config_keys(cfg)
-    cfg = _apply_infra_env_overrides(cfg)
     env_cfg_snapshot = dict(cfg)
     ssot_mode = _resolve_ssot_enforcement_mode(cfg)
     env_ownership_overlaps = _detect_env_canonical_ownership_overlaps(env_cfg_snapshot)

@@ -72,7 +72,7 @@ Typical payload shape:
 ```json
 {
   "jobs_path": "data/sample_jobs.json",
-  "config_path": "config/env.yaml",
+  "config_path": ".env.yaml",
   "triggered_by": "admin",
   "config_overrides": {},
   "run_mode": "run_all"

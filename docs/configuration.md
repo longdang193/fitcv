@@ -17,7 +17,7 @@ FitCV uses layered configuration with clear ownership boundaries.
 
 ## Primary Runtime Inputs
 
-- trigger base config file (`config_path` in `/runs` request; default `config/env.yaml`)
+- trigger base config file (`config_path` in `/runs` request; default `.env.yaml`)
 - persisted control-plane settings (`/admin/settings` and `/settings` surfaces)
 - per-run trigger overrides (`config_overrides` in `/runs`)
 - process environment variables for backend/provider credentials and runtime toggles
@@ -32,13 +32,12 @@ This matrix defines current SSOT ownership for migration execution.
 | `config/runtime/pipeline.yaml` | pipeline execution knobs | Owns enrichment/rerank timing, top-N controls, lifecycle limits, replay health thresholds, model defaults used by runtime pipeline stages. |
 | `config/policy/cv.yaml` | CV generation and validation policy | Owns nested `cv.*` contract (`preset`, composition, validation, generation defaults). |
 | `config/taxonomy/taxonomy.yaml` | shared business taxonomy and enum families | Owns seniority taxonomy, location/contract/experience enums, role taxonomy maps. |
-| `config/env.yaml` | legacy compatibility base input + infra bridge | Current default `config_path`; still carries infra keys and some legacy policy/runtime-adjacent keys during migration window. |
+| `.env.yaml` | bootstrap trigger input | Current default `config_path`; now limited to small bootstrap-only values. |
 | `config/env.private.yaml` | no active canonical owner in this worktree | File not present in tracked worktree; treat as deprecated/removed unless explicitly reintroduced as local-only untracked override. |
 
 ### Legacy-Duplicate Classification (Current Baseline)
 
-- compatibility-only (to be drained from `config/env.yaml`): `seniority_ladder`, `application_statuses`, `cv_analysis_min_score`, overlap with runtime knobs that already live in `config/runtime/pipeline.yaml`
-- legacy infra bridge still tolerated in config loading: `gcp_project`, `location`
+- compatibility-only (to be drained from `.env.yaml`): `seniority_ladder`, `application_statuses`, `cv_analysis_min_score`, overlap with runtime knobs that already live in `config/runtime/pipeline.yaml`
 - removable private surface: `config/env.private.yaml` (no active tracked consumer in this worktree baseline)
 - removable smoke surface: `config/live_smoke.yaml` (duplicates infra/model ownership outside canonical runtime files)
 
@@ -46,17 +45,17 @@ This matrix defines current SSOT ownership for migration execution.
 
 | Candidate | Canonical owner | Decision | Consumer evidence |
 | --- | --- | --- | --- |
-| `config/env.yaml:cv_acceptance_policy` duplicate block | `config/env.yaml` (single block only) | remove duplicate declaration, keep one canonical block | `src/fitcv/pipeline.py` + `src/fitcv/config.py:get_cv_acceptance_policy` |
-| `max_cv_jobs`, `cv_analysis_min_score`, `required_skill_overlap_min`, `preferred_skill_overlap_min`, `language_match_min`, `summary_quality_min` in `config/env.yaml` | `config/runtime/pipeline.yaml` | drain from `env.yaml`; keep compatibility mapping only where active runtime still needs bridge | overlap warnings and compatibility projection in `src/fitcv/config.py` |
-| `seniority_ladder` in `config/env.yaml` | `config/taxonomy/taxonomy.yaml` | keep temporary compatibility-only bridge; block expansion | consumer in `src/fitcv/rule_filter.py` |
-| `application_statuses` in `config/env.yaml` | `config/taxonomy/taxonomy.yaml` | keep temporary compatibility-only bridge; block expansion | consumer in `src/fitcv/tracker.py` |
+| `cv_acceptance_policy` | `config/policy/cv.yaml` | keep policy with other CV rules; remove bootstrap ownership | `src/fitcv/pipeline.py` + `src/fitcv/config.py:get_cv_acceptance_policy` |
+| `max_cv_jobs`, `cv_analysis_min_score`, `required_skill_overlap_min`, `preferred_skill_overlap_min`, `language_match_min`, `summary_quality_min` in `.env.yaml` | `config/runtime/pipeline.yaml` | drain from `env.yaml`; keep compatibility mapping only where active runtime still needs bridge | overlap warnings and compatibility projection in `src/fitcv/config.py` |
+| `seniority_ladder` in `.env.yaml` | `config/taxonomy/taxonomy.yaml` | keep temporary compatibility-only bridge; block expansion | consumer in `src/fitcv/rule_filter.py` |
+| `application_statuses` in `.env.yaml` | `config/taxonomy/taxonomy.yaml` | keep temporary compatibility-only bridge; block expansion | consumer in `src/fitcv/tracker.py` |
 | `control_plane.model_routing.parts.cv_analysis_semantic_alignment` | none (no active runtime consumer) | remove key from `config/runtime/control_plane.yaml` | no source consumer found; only config declaration present |
 | `config/live_smoke.yaml` | none (retired in Razor+SSOT lane) | delete file; no runtime dependency allowed | current file duplicates infra/model keys and increases ownership ambiguity |
 | `config/env.private.yaml` | none (not tracked) | classify as deprecated local-only override; do not add tracked runtime dependency | file missing in tracked worktree baseline |
 
 ### CV Acceptance Strictness Policy (Option B)
 
-Canonical policy owner in this lane: `config/env.yaml` key `cv_acceptance_policy`.
+Canonical policy owner in this lane: `config/policy/cv.yaml` key `cv_acceptance_policy`.
 
 Policy meaning:
 
@@ -72,9 +71,9 @@ Policy meaning:
 - hard-failure statuses remain reserved for `validation_failed`, `generation_failed`, `persistence_failed`
 ### Planned Deprecation Boundaries
 
-1. `config/env.yaml` remains accepted as trigger default during transition, but ownership must shift to canonical runtime/policy/taxonomy files.
+1. `.env.yaml` remains accepted as trigger default during transition, but ownership must stay bootstrap-only.
 2. `config/env.private.yaml` is treated as deprecated in tracked repo state; no new runtime dependency may be introduced.
-3. Legacy `.env.yaml` references in scripts/tests/control-plane UI remain compatibility targets until explicit removal gates pass.
+3. Scripts/tests/control-plane UI should not restore removed bootstrap owners.
 
 ### Legacy Removal Gates
 
@@ -84,7 +83,7 @@ Remove legacy compatibility behavior only when all gates pass:
    - repo scan shows no required runtime entrypoint depends on removed legacy key/path shape
    - command: `rg -n "\\.env\\.yaml|config/env\\.yaml|seniority_ladder|application_statuses" src scripts tests docs -S`
 2. parity gate:
-   - legacy and canonical config inputs produce equivalent agreed projections in tests
+   - bootstrap `.env.yaml` and canonical policy/runtime files produce agreed projections in tests
    - command: `pytest tests/test_config.py -q`
 3. contract gate:
    - repo contract checks pass after any deprecation-path removal patch

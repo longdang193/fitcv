@@ -18,7 +18,7 @@ services:
       - FITCV_CP_SETTINGS_SQLITE_PATH=/app/runtime/fitcv_cp.sqlite3
     volumes:
       - ./.env:/app/.env:ro
-      - ./config/env.yaml:/app/config/env.yaml:ro
+      - ./.env.yaml:/app/.env.yaml:ro
       - ./config/runtime/control_plane.yaml:/app/config/runtime/control_plane.yaml:ro
       - ${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}:/opt/fitcv-langgraph:ro
       - ./data:/app/data
@@ -41,7 +41,7 @@ services:
       - FITCV_ENRICH_EMIT_JOB_EVENTS=true
     volumes:
       - ./.env:/app/.env:ro
-      - ./config/env.yaml:/app/config/env.yaml:ro
+      - ./.env.yaml:/app/.env.yaml:ro
       - ./config/runtime/control_plane.yaml:/app/config/runtime/control_plane.yaml:ro
       - ${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}:/opt/fitcv-langgraph:ro
       - ./data:/app/data

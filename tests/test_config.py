@@ -14,7 +14,6 @@ tags:
 import shutil
 import uuid
 import os
-import warnings
 from pathlib import Path
 
 import pytest
@@ -44,15 +43,15 @@ def test_get_cv_acceptance_policy_defaults_when_missing() -> None:
 
 
 def test_load_config_returns_dict() -> None:
-    cfg = load_config(Path(__file__).parent.parent / "config" / "env.yaml")
+    cfg = load_config(Path(__file__).parent.parent / ".env.yaml")
     assert isinstance(cfg, dict)
     assert "control_plane" not in cfg
     assert "pipeline" in cfg
 
 
 def test_load_config_has_required_keys() -> None:
-    cfg = load_config(Path(__file__).parent.parent / "config" / "env.yaml")
-    assert cfg["gcp_project"] == "fitcv-491123"
+    cfg = load_config(Path(__file__).parent.parent / ".env.yaml")
+    assert cfg["paths"]["candidate_profile"] == "data/candidate_profile.private.yaml"
     assert "bigquery_dataset" not in cfg
     assert "service_account_key" not in cfg
 
@@ -124,11 +123,11 @@ def test_load_config_sqlite_backend_allows_missing_cloud_keys(
     assert "service_account_key" not in cfg
 
 
-def test_load_config_prefers_standard_env_vars_for_infra_keys(
+def test_load_config_ignores_gcp_project_env_var(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     env_yaml = tmp_path / ".env.yaml"
-    env_yaml.write_text("gcp_project: file-project\n")
+    env_yaml.write_text("some_key: value\n")
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
     (cfg_dir / "cv.yaml").write_text(
@@ -147,11 +146,10 @@ def test_load_config_prefers_standard_env_vars_for_infra_keys(
 """
     )
     monkeypatch.setenv("GCP_PROJECT", "env-project")
-    monkeypatch.setenv("OPENAI_API_KEY", "/tmp/env-key.json")
 
     cfg = load_config(env_yaml)
 
-    assert cfg["gcp_project"] == "env-project"
+    assert "gcp_project" not in cfg
     assert "bigquery_dataset" not in cfg
     assert "service_account_key" not in cfg
 
@@ -221,12 +219,8 @@ def test_load_config_defaults_to_repo_config_shape() -> None:
     assert cfg["rerank_top_n"] == cfg["pipeline"]["ai_score_top_n"]
 
 
-def test_load_config_accepts_config_env_path_without_warning() -> None:
-    legacy_path = Path(__file__).parent.parent / "config" / "env.yaml"
-    with warnings.catch_warnings(record=True) as record:
-        warnings.simplefilter("always")
-        cfg = load_config(legacy_path)
-    assert not record
+def test_load_config_accepts_repo_root_env_yaml() -> None:
+    cfg = load_config(Path(__file__).parent.parent / ".env.yaml")
     assert "gemini_model" not in cfg
     assert "vertex_location" not in cfg
 
@@ -256,7 +250,7 @@ def test_load_config_warns_when_legacy_compatibility_keys_present(tmp_path: Path
     assert cfg["seniority"]["ladder"] == ["intern", "senior"]
     assert "Legacy compatibility keys detected in env config" in caplog.text
 
-def test_load_config_legacy_and_canonical_inputs_are_equivalent_for_pipeline_projection(tmp_path: Path) -> None:
+def test_load_config_rejects_deleted_legacy_env_path(tmp_path: Path) -> None:
     cfg_dir = tmp_path / "config"
     (cfg_dir / "runtime").mkdir(parents=True)
     (cfg_dir / "policy").mkdir(parents=True)
@@ -267,9 +261,6 @@ def test_load_config_legacy_and_canonical_inputs_are_equivalent_for_pipeline_pro
         "gcp_project: test\n"
         "vector_top_n: 50\n"
         "rerank_top_n: 40\n"
-    )
-    (cfg_dir / "env.yaml").write_text(
-        "gcp_project: test\n"
     )
     (cfg_dir / "runtime" / "pipeline.yaml").write_text(
         "pipeline:\n"
@@ -294,15 +285,14 @@ def test_load_config_legacy_and_canonical_inputs_are_equivalent_for_pipeline_pro
     (cfg_dir / "taxonomy" / "taxonomy.yaml").write_text("seniority:\n  ladder:\n    - intern\n")
 
     cfg_from_root = load_config(root_env)
-    cfg_from_legacy = load_config(cfg_dir / "env.yaml")
 
-    assert cfg_from_root["pipeline"]["vector_search_top_n"] == cfg_from_legacy["pipeline"]["vector_search_top_n"]
-    assert cfg_from_root["pipeline"]["ai_score_top_n"] == cfg_from_legacy["pipeline"]["ai_score_top_n"]
-    assert cfg_from_root["vector_top_n"] == cfg_from_legacy["vector_top_n"]
-    assert cfg_from_root["rerank_top_n"] == cfg_from_legacy["rerank_top_n"]
+    assert cfg_from_root["pipeline"]["vector_search_top_n"] == 50
+    assert cfg_from_root["pipeline"]["ai_score_top_n"] == 40
+    with pytest.raises(FileNotFoundError):
+        load_config(cfg_dir / "env.yaml")
 
 def test_resolve_data_backend_env_override_is_invariant(monkeypatch: pytest.MonkeyPatch) -> None:
-    cfg_a = {"gcp_project": "p1"}
+    cfg_a = {"some_key": "value"}
     cfg_b = {"control_plane": {"data_backend": {"type": "sqlite"}}}
     assert resolve_data_backend(cfg_a) == "sqlite"
     assert resolve_data_backend(cfg_b) == "sqlite"
@@ -319,9 +309,7 @@ def test_resolve_data_backend_prefers_control_plane_over_legacy_bridge_keys(
     )
     monkeypatch.chdir(tmp_path)
     
-    cfg = {
-        "gcp_project": "legacy-project",
-    }
+    cfg = {"some_key": "value"}
 
     assert resolve_data_backend(cfg) == "sqlite"
 
@@ -980,8 +968,8 @@ def test_load_config_cv_acceptance_policy_defaults_when_env_missing(tmp_path: Pa
     assert max_missing["stretch"] == 1
     assert runtime["force_review_when_any_required_missing_for_fits"] == []
 
-def test_env_yaml_has_single_cv_acceptance_policy_declaration() -> None:
-    env_yaml = (Path(__file__).parent.parent / "config" / "env.yaml").read_text(encoding="utf-8")
+def test_cv_policy_yaml_has_single_cv_acceptance_policy_declaration() -> None:
+    env_yaml = (Path(__file__).parent.parent / "config" / "policy" / "cv.yaml").read_text(encoding="utf-8")
     assert env_yaml.count("\ncv_acceptance_policy:") == 1
 
 def test_control_plane_config_does_not_expose_dead_cv_analysis_semantic_alignment_part() -> None:

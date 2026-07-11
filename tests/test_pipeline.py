@@ -1070,7 +1070,7 @@ def test_run_pipeline_manual_pause_after_enrich_returns_checkpoint_summary(
 
     result = run_pipeline(
         "data/sample_jobs.json",
-        config_path="config/env.yaml",
+        config_path=".env.yaml",
         run_id="manual-enrich",
         stop_after_stage="enrich",
     )
@@ -1123,7 +1123,7 @@ def test_run_pipeline_resume_from_ranking_uses_checkpoint_payload(
 
     result = run_pipeline(
         "data/sample_jobs.json",
-        config_path="config/env.yaml",
+        config_path=".env.yaml",
         run_id="resume-ranking",
         start_stage="ranking",
         stop_after_stage="ranking",
@@ -1189,7 +1189,7 @@ def test_run_pipeline_resume_from_checkpoint_uses_canonical_next_stage_only(
 
     result = run_pipeline(
         "data/sample_jobs.json",
-        config_path="config/env.yaml",
+        config_path=".env.yaml",
         run_id="resume-canonical-next-stage",
         start_stage="rule_filter",
         stop_after_stage="cv_analysis",
@@ -1281,7 +1281,7 @@ def test_run_pipeline_resume_from_cv_generation_recomputes_shortlist_debug_state
     ):
         result = run_pipeline(
             "data/sample_jobs.json",
-            config_path="config/env.yaml",
+            config_path=".env.yaml",
             run_id="resume-cv-generation",
             start_stage="cv_generation",
             checkpoint_payload=checkpoint_payload,
@@ -1346,7 +1346,7 @@ def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
 
     result = run_pipeline(
         "data/sample_jobs.json",
-        config_path="config/env.yaml",
+        config_path=".env.yaml",
         run_id="pause-cv-analysis",
         start_stage="cv_analysis",
         stop_after_stage="cv_analysis",
@@ -1414,7 +1414,7 @@ def test_run_pipeline_manual_pause_after_cv_analysis_preserves_reranker_blocked_
     with patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span):
         result = run_pipeline(
             "data/sample_jobs.json",
-            config_path="config/env.yaml",
+            config_path=".env.yaml",
             run_id="pause-cv-analysis-reranker-block",
             start_stage="cv_analysis",
             stop_after_stage="cv_analysis",
@@ -1528,7 +1528,7 @@ def test_run_pipeline_resume_from_cv_generation_preserves_reranker_blocked_final
 
     result = run_pipeline(
         "data/sample_jobs.json",
-        config_path="config/env.yaml",
+        config_path=".env.yaml",
         run_id="resume-cv-generation-reranker-block",
         start_stage="cv_generation",
         checkpoint_payload=checkpoint_payload,
@@ -1634,7 +1634,7 @@ def test_run_pipeline_logs_full_validation_reasons(
         ),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     record = result["cv_generation_debug_records"][0]
     assert record["status"] == "validation_failed"
@@ -1739,7 +1739,7 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
         patch("fitcv.pipeline.run_agentic_cv_generation", side_effect=[first_attempt, second_attempt]) as mock_agentic_gen,
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     assert result["cvs_generated"] == 1
     assert mock_agentic_gen.call_count == 2
@@ -1907,7 +1907,7 @@ def test_run_pipeline_repairs_candidate_name_placeholder_without_llm_retry(
             ),
         ),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     assert result["cvs_generated"] == 1
     mock_gen_cv.assert_not_called()
@@ -3784,7 +3784,7 @@ def test_run_pipeline_uses_supplied_run_id_for_summary_and_cv_records(
     ):
         result = run_pipeline(
             "data/sample_jobs.json",
-            config_path="config/env.yaml",
+            config_path=".env.yaml",
             run_id="cp-run-123",
         )
 
@@ -4102,7 +4102,7 @@ def test_run_pipeline_persists_structured_cv_and_includes_it_in_export(
         ),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="structured-run")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="structured-run")
 
     create_kwargs = mock_create_version.call_args.kwargs
     assert create_kwargs["cv_structured"] == structured_cv
@@ -4226,7 +4226,7 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
         ),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="debug-accepted")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="debug-accepted")
 
     debug_records = result["cv_generation_debug_records"]
     assert len(debug_records) == 1
@@ -4360,7 +4360,7 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
         ),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="parallel-order")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="parallel-order")
 
     debug_urls = [str(r.get("job_url") or "") for r in result["cv_generation_debug_records"]]
     assert debug_urls == [job_a["job_url"], job_b["job_url"]]
@@ -4472,7 +4472,7 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
         ),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="debug-validation")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="debug-validation")
 
     debug_records = result["cv_generation_debug_records"]
     assert len(debug_records) == 1
@@ -4600,7 +4600,7 @@ def test_run_pipeline_returns_debug_record_for_persistence_failed_cv(
         ),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="debug-persist")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="debug-persist")
 
     debug_records = result["cv_generation_debug_records"]
     assert len(debug_records) == 1
@@ -4692,7 +4692,7 @@ def test_run_pipeline_returns_correct_schema(
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     assert "run_id" in result
     assert "total_jobs" in result
@@ -6501,7 +6501,7 @@ def test_run_pipeline_skips_reranker_skip_fit_jobs(
     mock_evidence.return_value = []
     mock_gap.return_value = {"matched": [], "partial": [], "missing": ["SQL"]}
     mock_classify.return_value = "strong"
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+    result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
     assert result["cvs_generated"] == 0
 
 
@@ -6591,7 +6591,7 @@ def test_run_pipeline_skips_invalid_cv(
         ),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
     assert result["cvs_generated"] == 0
 
 
@@ -6664,7 +6664,7 @@ def test_run_pipeline_per_job_failure_skips_not_crashes(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
     mock_evidence.side_effect = RuntimeError("BQ connection failed")
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+    result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
     # Pipeline should still return without raising
     assert result["cvs_generated"] == 0
     assert result["total_jobs"] == 1
@@ -6754,7 +6754,7 @@ def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
     with patch("fitcv.pipeline.run_agentic_cv_analysis", side_effect=RuntimeError("BQ connection failed")):
-        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
+        run_pipeline("data/sample_jobs.json", config_path=".env.yaml", reporter=reporter)
 
     assert (
         "layer4_cv_error",
@@ -6880,7 +6880,7 @@ def test_run_pipeline_emits_shortlist_and_ai_score_counts(
         patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(jobs[0])),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
     ):
-        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
+        run_pipeline("data/sample_jobs.json", config_path=".env.yaml", reporter=reporter)
 
     assert ("layer3_shortlist", "info", "Vector shortlist: 2 raw hits", None) in reporter.events
     assert any(event[0] == "layer3_ai_score" for event in reporter.events)
@@ -6974,7 +6974,7 @@ def test_run_pipeline_emits_normalization_dedupe_event(
         ),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
     ):
-        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
+        run_pipeline("data/sample_jobs.json", config_path=".env.yaml", reporter=reporter)
 
     assert (
         "layer1_normalize",
@@ -7072,7 +7072,7 @@ def test_run_pipeline_emits_normalize_event_even_when_no_duplicates_removed(
         ),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
     ):
-        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
+        run_pipeline("data/sample_jobs.json", config_path=".env.yaml", reporter=reporter)
 
     assert (
         "layer1_normalize",
@@ -7183,7 +7183,7 @@ def test_run_pipeline_pipeline_complete_event_omits_export_rows(
         patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
     ):
-        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
+        run_pipeline("data/sample_jobs.json", config_path=".env.yaml", reporter=reporter)
 
     assert all("export_results" not in str(event[2]) for event in reporter.events)
 
@@ -7267,7 +7267,7 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
     mock_build_feat.return_value = [{**job, "fit_label": "skip", "fit_label_source": "reranker"}]
     mock_rank.return_value = [{**job, "fit_label": "skip", "fit_label_source": "reranker"}]
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
+    run_pipeline("data/sample_jobs.json", config_path=".env.yaml", reporter=reporter)
 
     cv_analysis_event = next(event for event in reporter.events if event[0] == "layer4_cv_analysis")
     payload = cv_analysis_event[3] or {}
@@ -7369,7 +7369,7 @@ def test_run_pipeline_cv_analysis_concurrency_preserves_result_order(
     ):
         result = run_pipeline(
             "data/sample_jobs.json",
-            config_path="config/env.yaml",
+            config_path=".env.yaml",
             stop_after_stage="cv_analysis",
         )
 
@@ -7520,7 +7520,7 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
             ),
         ),
     ):
-        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter, run_id="run-validation-event")
+        run_pipeline("data/sample_jobs.json", config_path=".env.yaml", reporter=reporter, run_id="run-validation-event")
 
     decision_event = next(
         event
@@ -7734,7 +7734,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-export")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="run-export")
 
     export_results = result["export_results"]
     assert [row["job_url"] for row in export_results] == [
@@ -7923,7 +7923,7 @@ def test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependenci
 
     result = run_pipeline(
         "data/sample_jobs.json",
-        config_path="config/env.yaml",
+        config_path=".env.yaml",
         start_stage="cv_analysis",
         checkpoint_payload=checkpoint_payload,
     )
@@ -8061,7 +8061,7 @@ def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-gap")
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="run-gap")
 
     analysis_job = mock_agentic_analysis.call_args.args[0]
     assert analysis_job["required_skills"] == ["Python", "SQL"]
@@ -8154,7 +8154,7 @@ def test_run_pipeline_shortlist_does_not_write_candidate_chunk_embeddings(
     mock_build_feat.return_value = [ranked_feature]
     mock_rank.return_value = []
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-no-candidate-chunks")
+    run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="run-no-candidate-chunks")
 
     mock_embed_jobs.assert_called_once()
     embed_jobs_args = mock_embed_jobs.call_args.args
@@ -8233,7 +8233,7 @@ def test_run_pipeline_export_marks_deduplicated_rows_explicitly(
     mock_build_feat.return_value = [enriched_job]
     mock_rank.return_value = []
 
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+    result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     assert len(result["export_results"]) == 2
     assert result["export_results"][0]["pipeline_status"] == "scored_not_ranked"
@@ -8248,9 +8248,9 @@ def test_run_pipeline_uses_shared_config_loader(mock_config: MagicMock) -> None:
     mock_config.side_effect = RuntimeError("shared loader called")
 
     with pytest.raises(RuntimeError, match="shared loader called"):
-        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+        run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
-    mock_config.assert_called_once_with("config/env.yaml")
+    mock_config.assert_called_once_with(".env.yaml")
 
 
 @patch("fitcv.pipeline.compute_gap")
@@ -8383,7 +8383,7 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
     ):
         result = run_pipeline(
             "data/sample_jobs.json",
-            config_path="config/env.yaml",
+            config_path=".env.yaml",
             run_id="cv-analysis-provenance",
             start_stage="cv_analysis",
             stop_after_stage="cv_analysis",
@@ -8459,7 +8459,7 @@ def test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage(
 
     result = run_pipeline(
         "data/sample_jobs.json",
-        config_path="config/env.yaml",
+        config_path=".env.yaml",
         run_id="cv-analysis-trace",
         start_stage="cv_analysis",
         stop_after_stage="cv_analysis",
@@ -8550,7 +8550,7 @@ def test_run_pipeline_calls_load_run_structured_jobs(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="test-run-id")
+    run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="test-run-id")
 
     # load_structured_jobs must also be called (existing behavior preserved)
     mock_load_struct.assert_called_once()
@@ -8692,7 +8692,7 @@ def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result) as mock_agentic_generation,
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-123")
+        run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="run-123")
 
     passed_analysis_record = mock_agentic_generation.call_args.kwargs["analysis_record"]
     assert passed_analysis_record["evidence_payload"][0]["evidence_id"] == "exp-1"
@@ -8772,7 +8772,7 @@ def test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="reg-test-id")
+    run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="reg-test-id")
 
     args, kwargs = mock_enrich.call_args
     passed_config = kwargs.get("config", args[1] if len(args) > 1 else {})
@@ -8838,7 +8838,7 @@ def test_run_pipeline_projects_canonical_enrich_runtime_to_legacy_keys(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="reg-test-canonical-enrich")
+    run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="reg-test-canonical-enrich")
 
     args, kwargs = mock_enrich.call_args
     passed_config = kwargs.get("config", args[1] if len(args) > 1 else {})
@@ -8903,7 +8903,7 @@ def test_run_pipeline_canonical_enrich_runtime_overrides_legacy_throughput_keys(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="reg-test-canonical-precedence")
+    run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="reg-test-canonical-precedence")
 
     args, kwargs = mock_enrich.call_args
     passed_config = kwargs.get("config", args[1] if len(args) > 1 else {})
@@ -8994,7 +8994,7 @@ def test_run_pipeline_blocks_pre_filtered_jobs_before_enrichment(
     mock_build_feat.return_value = [kept_job]
     mock_rank.return_value = []
 
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="pre-filter-proof")
+    result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="pre-filter-proof")
 
     args, kwargs = mock_enrich.call_args
     enriched_input = args[0] if args else kwargs.get("normalized_jobs", [])
@@ -9091,7 +9091,7 @@ def test_run_pipeline_preserves_agentic_evidence_selection_summary_contract(
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result) as mock_agentic_generation,
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-124")
+        run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="run-124")
 
     passed_analysis_record = mock_agentic_generation.call_args.kwargs["analysis_record"]
     summary = passed_analysis_record["evidence_selection_summary"]
@@ -9234,7 +9234,7 @@ def test_run_pipeline_incremental_enrich_persists_each_store_exactly_once(
 
     mock_enrich.side_effect = enrich_side_effect
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="test-run-id")
+    run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="test-run-id")
 
     assert mock_load_struct.call_count == 1
     assert mock_load_run_struct.call_count == 1

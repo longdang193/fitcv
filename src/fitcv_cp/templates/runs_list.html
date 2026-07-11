@@ -138,7 +138,7 @@
   </div>
 
   <div id="prof-pane-default" style="margin-bottom:1rem">
-    <span class="meta">Uses the candidate profile YAML path from <code>config/env.yaml</code></span>
+    <span class="meta">Uses the candidate profile YAML path from <code>.env.yaml</code></span>
   </div>
   <div id="prof-pane-upload" style="display:none;margin-bottom:1rem">
     <input type="file" id="candidate_profile_file" accept=".json,.yaml,.yml,application/json,text/yaml,application/x-yaml">
@@ -187,7 +187,7 @@
   <hr>
 
   <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
-    <input type="text" id="config_path" value="config/env.yaml" placeholder="config_path" style="width:140px">
+    <input type="text" id="config_path" value=".env.yaml" placeholder="config_path" style="width:140px">
     <button type="button" id="trigger-btn" class="btn-primary" onclick="triggerRun()" style="min-width:140px">▶ Trigger Run</button>
     <span id="trigger-status" class="meta"></span>
   </div>

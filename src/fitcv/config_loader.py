@@ -70,12 +70,3 @@ def resolve_env_path(path: str | Path | None, *, default_env_candidates: tuple[s
     return Path(default_env_candidates[0])
 
 
-def is_legacy_env_path(path: Path) -> bool:
-    return path.name == "env.yaml" and path.parent.name == "config"
-
-
-def merge_missing_keys(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
-    for key, value in extra.items():
-        if key not in base:
-            base[key] = value
-    return base

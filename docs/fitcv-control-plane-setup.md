@@ -147,7 +147,7 @@ The admin UI is available at `http://localhost:8000/admin/runs`.
 Notes:
 
 - Compose mounts repo `.env` into both containers at `/app/.env` and sets `FITCV_LANGGRAPH_ENV_FILE=/app/.env`
-- Compose mounts `./config/env.yaml` -> `/app/config/env.yaml` as base runtime config entrypoint
+- Compose mounts `./.env.yaml` -> `/app/.env.yaml` as base runtime config entrypoint
 - `config/runtime/pipeline.yaml` remains canonical owner for pipeline/ranking/retrieval knobs loaded by `load_config(...)`
 - Optional local override files can also be mounted when explicitly used via `config_path`
 - Compose bind-mounts `./runtime` into `/app/runtime` for the control-plane SQLite DB (`runtime/fitcv_cp.sqlite3`). Delete that file to reset the DB.
@@ -169,11 +169,11 @@ Invoke-RestMethod `
   -Method Post `
   -Uri "http://localhost:8000/runs" `
   -ContentType "application/json" `
-  -Body '{"jobs_path":"data/sample_jobs.json","config_path":"config/env.yaml","triggered_by":"admin","run_mode":"run_all"}'
+  -Body '{"jobs_path":"data/sample_jobs.json","config_path":".env.yaml","triggered_by":"admin","run_mode":"run_all"}'
 ```
 
 `config_path` must point to a config file resolvable by the running `web` process.
-In local mode use repo-relative canonical default `config/env.yaml` unless you intentionally provide an override path.
+In local mode use repo-relative canonical default `.env.yaml` unless you intentionally provide an override path.
 In Docker mode use paths available inside the container via mounted volumes.
 
 Expected run status progression:
@@ -242,7 +242,7 @@ docker compose up -d --build redis web worker
 | `src/fitcv_cp/app.py` | FastAPI routes, templates, and queue integration |
 | `src/fitcv_cp/worker_job.py` | Background job entrypoint |
 | `src/fitcv_cp/queue.py` | Redis and worker setup |
-| `config/env.yaml` | Base runtime config entrypoint (`config_path` default) |
+| `.env.yaml` | Base runtime config entrypoint (`config_path` default) |
 | `config/runtime/pipeline.yaml` | Canonical pipeline/ranking/retrieval config owner |
 | `docker-compose.yml` | Docker services for `redis`, `web`, and `worker` |
 | `Dockerfile` | Shared image for the web and worker containers |

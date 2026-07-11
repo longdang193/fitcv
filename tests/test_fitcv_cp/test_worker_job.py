@@ -2797,7 +2797,7 @@ def test_build_settings_used_payload_dict_has_required_shape() -> None:
     from fitcv_cp.worker_job import _build_settings_used_payload_dict
 
     run_record = SimpleNamespace(
-        config_path="config/env.yaml",
+        config_path=".env.yaml",
         jobs_input_source="path",
         candidate_profile_source="path",
     )
@@ -2805,7 +2805,7 @@ def test_build_settings_used_payload_dict_has_required_shape() -> None:
         run_id="run-shape-1",
         run_record=run_record,
         effective_config={"run_mode": "run_all"},
-        config_path="config/env.yaml",
+        config_path=".env.yaml",
         finished_at=datetime.datetime(2026, 5, 24, tzinfo=datetime.timezone.utc),
         replay_context={},
     )

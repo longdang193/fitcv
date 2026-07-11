@@ -23,6 +23,7 @@ data/*dataset_linkedin-jobs-scraper*.json
 .env
 .env.*
 !.env.example
+!.env.yaml
 *.private.*
 *.local.*
 
