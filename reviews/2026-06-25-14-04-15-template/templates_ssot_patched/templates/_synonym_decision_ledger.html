@@ -1,0 +1,37 @@
+{% if synonym_proposal_decision_ledger %}
+<div class="decision-ledger-scroll{% if decision_ledger_compact | default(false) %} is-compact{% endif %}">
+  <table class="decision-ledger-table">
+    <thead>
+      <tr>
+        <th>Alias</th>
+        <th>Canonical</th>
+        <th>Decision</th>
+        <th>Recommendation</th>
+        <th>Queue Source</th>
+        <th>Last Action / Why</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in synonym_proposal_decision_ledger %}
+      {% set decision_badge = 'warning' if row.decision == 'pending' else ('success' if row.decision == 'approve' else ('error' if row.decision == 'reject' else ('info' if row.decision == 'defer' else 'neutral'))) %}
+      <tr>
+        <td><code>{{ row.alias }}</code></td>
+        <td><code>{{ row.canonical }}</code></td>
+        <td>
+          <span class="badge badge-{{ decision_badge }}">{{ row.decision_display or row.decision or '—' }}</span>
+          {% if row.is_overridden %}<span class="badge badge-info">Overridden</span>{% endif %}
+        </td>
+        <td>{% if row.recommendation_display and row.recommendation_display != '—' %}<span class="badge badge-neutral">{{ row.recommendation_display }}</span>{% else %}—{% endif %}</td>
+        <td>{{ row.decision_source_display or row.decision_source }}</td>
+        <td>
+          <div>{{ row.last_action_display or '—' }}</div>
+          <div class="meta">{{ row.decision_reason_display or row.decision_reason }}</div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="meta decision-ledger-empty">Proposal Decision Ledger: no rows yet (all suppressed or none generated).</div>
+{% endif %}

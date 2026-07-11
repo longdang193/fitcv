@@ -448,15 +448,15 @@
           <option value="{{ opt }}" {% if item.form_value == opt %}selected{% endif %}>{{ opt | replace('_', ' ') | title }}</option>
         {% endfor %}
       </select>
-    {% elif entry.type == 'int' %}
+    {% elif entry.type in ['int', 'float'] %}
       <input
         type="number"
         name="{{ entry.key }}"
-        min="1"
         value="{{ item.form_value }}"
         data-value-type="{{ entry.type }}"
         data-default-value="{{ entry.default }}"
-        data-current-value="{{ item.effective_value }}">
+        data-current-value="{{ item.effective_value }}"
+        {% for attr_name, attr_value in item.native_input_attrs.items() %}{{ attr_name }}="{{ attr_value }}" {% endfor %}>
     {% else %}
       <input
         type="text"
@@ -679,8 +679,12 @@
                   <span>{{ card.error_message }}</span>
                 </div>
               {% endif %}
+              {% if card.read_only %}
+                <div class="settings-panel-body">
+              {% else %}
               <form id="{{ card.form_id }}" method="post" action="{{ card.action }}" data-dirty-card="{{ card.form_id }}" data-guarded-save="{{ 'true' if card.guarded_save else 'false' }}">
                 <div class="settings-panel-body">
+              {% endif %}
                   {% if card.layout == "composition_matrix" %}
                     <div class="composition-matrix">
                       <div class="composition-matrix-header">
@@ -719,11 +723,14 @@
                     </div>
                   {% endif %}
                 </div>
+                {% if card.read_only %}
+                {% else %}
                 <div class="sub-card-footer">
                   <button type="button" class="btn-secondary" data-reset-form="{{ card.form_id }}">Use Defaults</button>
                   <button type="submit" class="btn-section">{{ card.save_label }}</button>
                 </div>
               </form>
+                {% endif %}
             </div>
           {% endif %}
         {% endfor %}
@@ -925,49 +932,8 @@
     }
   }
 
-  function readNumber(form, name) {
-    const el = form.querySelector('[name="' + name + '"]');
-    if (!el) return null;
-    const value = parseFloat(el.value);
-    return Number.isFinite(value) ? value : null;
-  }
-
   function runPreflightGuardrails(form) {
-    const issues = [];
-    const rankingKeys = [
-      'ranking_weights.ai_score',
-      'ranking_weights.must_have_match',
-      'ranking_weights.vector_similarity',
-      'ranking_weights.title_relevance',
-      'ranking_weights.seniority_fit',
-      'ranking_weights.preference_fit',
-    ];
-    const rankingInputs = rankingKeys.map((k) => form.querySelector('[name="' + k + '"]')).filter(Boolean);
-    if (rankingInputs.length === rankingKeys.length) {
-      const total = rankingInputs.reduce((sum, el) => sum + (parseFloat(el.value) || 0), 0);
-      if (Math.abs(total - 1.0) > 0.01) issues.push('ranking_weights total must equal 1.0 (±0.01).');
-    }
-    const prefKeys = [
-      'preference_fit_weights.domain',
-      'preference_fit_weights.role_family',
-      'preference_fit_weights.location_type',
-    ];
-    const prefInputs = prefKeys.map((k) => form.querySelector('[name="' + k + '"]')).filter(Boolean);
-    if (prefInputs.length === prefKeys.length) {
-      const total = prefInputs.reduce((sum, el) => sum + (parseFloat(el.value) || 0), 0);
-      if (Math.abs(total - 1.0) > 0.01) issues.push('preference_fit_weights total must equal 1.0 (±0.01).');
-    }
-    const strongFit = readNumber(form, 'fit_label_thresholds.strong');
-    const stretchFit = readNumber(form, 'fit_label_thresholds.stretch');
-    if (strongFit !== null && stretchFit !== null && strongFit <= stretchFit) {
-      issues.push('fit_label_thresholds.strong must be greater than fit_label_thresholds.stretch.');
-    }
-    const strongGap = readNumber(form, 'gap_thresholds.strong_min_matched_ratio');
-    const stretchGap = readNumber(form, 'gap_thresholds.stretch_min_matched_ratio');
-    if (strongGap !== null && stretchGap !== null && strongGap <= stretchGap) {
-      issues.push('gap_thresholds.strong_min_matched_ratio must be greater than gap_thresholds.stretch_min_matched_ratio.');
-    }
-    return issues;
+    return [];
   }
 
   function coerceBoolField(form, name) {

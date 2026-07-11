@@ -371,7 +371,8 @@ Empty-match response:
 
 Notes:
 
-- route accepts optional preview-scoped `run_ids`; server still enforces archived status plus age-filter eligibility before deleting
+- admin UI contract is threshold-only: submit `older_than_days` and let backend decide matching archived runs
+- optional lower-layer `run_ids` compatibility remains an internal store concern, not an admin UI contract
 - action deletes matching archived run rows, event history, and deterministic local artifact mirrors
 - action does not clear shared caches or unrelated operator tables
 
@@ -524,7 +525,7 @@ Typical form fields:
 - `proposal_action__{proposal_id}` entries for batch route
 - `promote_proposal_id` entries for promotion preview
 - `acted_by`, `note` for apply-approved-to-run
-- `selected_ids_csv`, `acted_by`, `note` for promotion commit
+- `promote_proposal_id`, `acted_by`, `note` for promotion commit
 - `acted_by`, `note` for triage refresh
 
 Typical behavior:

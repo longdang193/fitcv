@@ -41,6 +41,7 @@ from fitcv_cp.settings_schema import (
     settings_ia_contract_for_key,
     settings_ia_metadata_by_key,
     settings_keys_for_workflow_stage,
+    settings_native_input_attrs,
     reason_code_is_blocking,
     validate_settings,
     ValidationError,
@@ -226,6 +227,12 @@ def test_schema_tracks_editable_keys_separately_from_metadata_only() -> None:
     assert "cv_preset" not in editable_keys
     assert "cv_analysis.semantic_alignment.model" not in editable_keys
 
+
+def test_settings_native_input_attrs_follow_existing_schema_conventions() -> None:
+    assert settings_native_input_attrs("cv_max_pages") == {"min": "1", "step": "1"}
+    assert settings_native_input_attrs("ranking_weights.ai_score") == {"min": "0", "max": "1", "step": "any"}
+    assert settings_native_input_attrs("stage_runtime.enrich.sleep_secs") == {"min": "0", "step": "any"}
+    assert settings_native_input_attrs("cv_generation_model") == {}
 
 
 def test_hidden_deprecated_editable_overlap_is_allowlist_only() -> None:

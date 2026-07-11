@@ -1,0 +1,3947 @@
+
+<div style="display:flex;gap:1rem;padding:0.75rem 1.25rem;border-bottom:1px solid var(--accent);flex-wrap:wrap;align-items:center">
+  <span class="meta">Post-dedupe enriched jobs: <strong>285</strong></span>
+  <span class="badge badge-success" style="padding:0.2rem 0.6rem;font-size:0.8rem">Passed: 160</span>
+  <span class="badge badge-error" style="padding:0.2rem 0.6rem;font-size:0.8rem">Rejected: 125</span>
+  
+  <span class="badge badge-warning" style="padding:0.2rem 0.6rem;font-size:0.8rem">Deduplicated before enrichment: 20</span>
+  
+  <span class="meta" style="margin-left:auto">
+    
+      Showing 1-100 of 160 filtered rows
+    
+  </span>
+</div>
+
+<form method="get" action="/admin/runs/8e9fba4e-8600-42af-83f7-8fa2dee401ad/tabs/enriched" onsubmit="return submitRunDetailTabForm(event, 'enriched', this)" class="enr-toolbar">
+  <input type="hidden" name="page" value="1">
+
+  <div class="enr-toolbar-group">
+    <label class="meta enr-toolbar-label" for="enr-filter">Filter</label>
+    <span class="enr-select-shell"><select id="enr-filter" name="filter_name" class="enr-toolbar-select enr-filter-select enr-select-caret">
+      <option value="all" >All</option>
+      <option value="passed" selected>Passed</option>
+      <option value="rejected" >Rejected</option>
+      <option value="unknown" >Unknown</option>
+    </select>
+  </div>
+
+  <input id="enr-search" type="search" name="q" value="" placeholder="Search title, domain, job family…" class="enr-toolbar-search">
+
+  <div class="enr-toolbar-group enr-toolbar-outcome" data-multiselect-root="pipeline-outcome">
+    <label class="meta enr-toolbar-label" for="enr-pipeline-outcome-toggle">Pipeline Outcome</label>
+    <details data-multiselect-details class="enr-multiselect-details">
+      <summary
+        id="enr-pipeline-outcome-toggle"
+        class="enr-multiselect-toggle"
+      >
+        <span data-multiselect-summary>All outcomes</span>
+        <span class="enr-caret" aria-hidden="true">▾</span>
+      </summary>
+      <div data-multiselect-panel class="enr-multiselect-panel">
+        <input type="search" placeholder="Search outcomes..." data-multiselect-search class="enr-multiselect-search">
+        <label class="enr-multiselect-row enr-multiselect-select-all">
+          <input type="checkbox" data-multiselect-select-all>
+          <span>(Select all)</span>
+        </label>
+        <div data-multiselect-options class="enr-multiselect-options">
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="ranked_with_cv"
+              data-label="CV created"
+              
+            >
+            <span>CV created</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="deduplicated_before_enrichment"
+              data-label="Deduplicated before enrichment"
+              
+            >
+            <span>Deduplicated before enrichment</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="not_shortlisted"
+              data-label="Passed filter, not shortlisted"
+              
+            >
+            <span>Passed filter, not shortlisted</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="ranked_blocked_by_reranker_fit"
+              data-label="Ranked, blocked by reranker fit"
+              
+            >
+            <span>Ranked, blocked by reranker fit</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="ranked_no_cv"
+              data-label="Ranked, CV failed"
+              
+            >
+            <span>Ranked, CV failed</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="rejected_after_enrichment"
+              data-label="Rejected after enrichment"
+              
+            >
+            <span>Rejected after enrichment</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="rejected_before_enrichment"
+              data-label="Rejected before enrichment"
+              
+            >
+            <span>Rejected before enrichment</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="scored_not_ranked"
+              data-label="Scored, not final top-N"
+              
+            >
+            <span>Scored, not final top-N</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="shortlisted_not_scored"
+              data-label="Shortlisted, not AI scored"
+              
+            >
+            <span>Shortlisted, not AI scored</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="ranked_skipped_fit_gate"
+              data-label="Skipped after CV analysis"
+              
+            >
+            <span>Skipped after CV analysis</span>
+          </label>
+          
+        </div>
+      </div>
+    </details>
+    <select id="enr-pipeline-outcome" name="pipeline_outcome" multiple class="enr-hidden-multiselect" aria-hidden="true" tabindex="-1">
+      
+      <option value="ranked_with_cv" >CV created</option>
+      
+      <option value="deduplicated_before_enrichment" >Deduplicated before enrichment</option>
+      
+      <option value="not_shortlisted" >Passed filter, not shortlisted</option>
+      
+      <option value="ranked_blocked_by_reranker_fit" >Ranked, blocked by reranker fit</option>
+      
+      <option value="ranked_no_cv" >Ranked, CV failed</option>
+      
+      <option value="rejected_after_enrichment" >Rejected after enrichment</option>
+      
+      <option value="rejected_before_enrichment" >Rejected before enrichment</option>
+      
+      <option value="scored_not_ranked" >Scored, not final top-N</option>
+      
+      <option value="shortlisted_not_scored" >Shortlisted, not AI scored</option>
+      
+      <option value="ranked_skipped_fit_gate" >Skipped after CV analysis</option>
+      
+    </select>
+  </div>
+
+  <div class="enr-toolbar-group">
+    <label class="meta enr-toolbar-label" for="enr-page-size">Rows</label>
+    <span class="enr-select-shell"><select id="enr-page-size" name="page_size" class="enr-toolbar-select enr-rows-select enr-select-caret">
+      
+      <option value="25" >25</option>
+      
+      <option value="50" >50</option>
+      
+      <option value="100" selected>100</option>
+      
+    </select>
+  </div>
+
+  <button type="submit" class="btn-secondary">Apply</button>
+  <a class="btn-secondary enr-export-btn" href="/admin/runs/8e9fba4e-8600-42af-83f7-8fa2dee401ad/enriched/export-filtered.zip?filter_name=passed&amp;q=" data-tab-fragment-skip="true">Export</a>
+</form>
+
+<div class="card" style="padding:0;overflow:hidden">
+  <table class="enr-table">
+    <thead>
+      <tr>
+        <th>Job</th>
+        <th>Fit Context</th>
+        <th>Required Skills (top 5)</th>
+        <th>Filter</th>
+        <th>Pipeline Outcome</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4428013811" target="_blank">(Junior) Business Development Manager (m/w/d) Heavy Transport E-Mobility</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> business_development</span>
+            <span><strong>Domain:</strong> e_mobility</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Business Development, Vertrieb, Marktanalyse, Projektmanagement
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://de.linkedin.com/jobs/view/junior-consultant-einkauf-scm-m-w-x-at-amc-4429239331?trk=public_jobs_topcard-title" target="_blank">(Junior) Consultant Einkauf/SCM (m/w/x)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> supply_chain_consulting</span>
+            <span><strong>Domain:</strong> supply_chain</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Projektmanagement, MS Office, PowerPoint, Excel, Power BI, <em class="meta">+1 more</em>
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://de.linkedin.com/jobs/view/junior-consultant-einkauf-scm-m-w-x-at-amc-4429242238?trk=public_jobs_topcard-title" target="_blank">(Junior) Consultant Einkauf/SCM (m/w/x)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> consulting</span>
+            <span><strong>Domain:</strong> supply_chain_management</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Project Management, Microsoft PowerPoint, Microsoft Excel, Microsoft Power BI, Microsoft Visio
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4369763629" target="_blank">2026 Applied Scientist Intern, Amazon University Talent Acquisition</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> data_science</span>
+            <span><strong>Domain:</strong> ecommerce</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Programming in Java, C++, Python or related language
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4422914668" target="_blank">Applied AI Engineer Intern (all genders)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> ml_engineering</span>
+            <span><strong>Domain:</strong> cybersecurity</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Python, prompt engineering, low-code development platforms, make.com, n8n
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426492429" target="_blank">Assistenz / Operations &amp; Customer Care (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> remote</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> operations</span>
+            <span><strong>Domain:</strong> construction</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426811748" target="_blank">Ausbildung Elektroniker für Betriebstechnik (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> electrical_engineering</span>
+            <span><strong>Domain:</strong> manufacturing</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4419175109" target="_blank">Aushilfe Prüfungsaufsicht Bochum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> administration</span>
+            <span><strong>Domain:</strong> education</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426831889" target="_blank">Bauingenieur in Tragwerksplaner/Statiker (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> structural_engineering</span>
+            <span><strong>Domain:</strong> construction</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4190487310" target="_blank">Business Analyst - Thesis Internship (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> analytics</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            data analytics, business consulting, data modeling
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://de.linkedin.com/jobs/view/business-development-representative-bdr-software-sales-d-f-m-at-vivenu-4428049677?trk=public_jobs_topcard-title" target="_blank">Business Development Representative (BDR) - Software Sales (d/f/m)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> sales</span>
+            <span><strong>Domain:</strong> live_entertainment</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            KI-Tools intuitiv nutzen
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426856654" target="_blank">Business Operations Intern (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> operations</span>
+            <span><strong>Domain:</strong> ecommerce</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4428049129" target="_blank">Consultant ERP-Software (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> erp_consulting</span>
+            <span><strong>Domain:</strong> consulting</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Erfahrung als Berater oder Key-User, Kenntnisse in Microsoft Dynamics 365 Business Central, Optimierung von Geschäftsprozessen, Workshop-Durchführung, Erstellung von Spezifikationen und Dokumentationen
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4416144589" target="_blank">Customer Service Manager (all genders)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> customer_service</span>
+            <span><strong>Domain:</strong> e-commerce</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            KPI analysis, analytical skills
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426488182" target="_blank">Customer Success Manager (w/m/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> customer_success</span>
+            <span><strong>Domain:</strong> knowledge management</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Vertriebsorientierung und Vernetzungsfähigkeit, Kommunikative Fähigkeiten, Struktur und Genauigkeit, Lernbereitschaft
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429587009" target="_blank">Data Center Technician Trainee, Data Center Operations</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> —</span>
+            <span><strong>Domain:</strong> it_services</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://de.linkedin.com/jobs/view/digital-marketing-analytics-intern-at-impossible-cloud-4429247821?trk=public_jobs_topcard-title" target="_blank">Digital Marketing &amp; Analytics Intern</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> marketing_analytics</span>
+            <span><strong>Domain:</strong> cloud infrastructure</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Search Engine Optimization (SEO), Search Engine Advertising (SEA), LinkedIn Ads, Marketing Automation, Customer Relationship Management (CRM), <em class="meta">+2 more</em>
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4428018944" target="_blank">Duales Studium 2026 - Bachelor of Arts (m/w/d) Fitnessökonomie Aspria Hannover Maschsee</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> sports_management</span>
+            <span><strong>Domain:</strong> wellness_and_fitness</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Microsoft Office, Word, Excel
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426851199" target="_blank">ERP-System Developer</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> software_engineering</span>
+            <span><strong>Domain:</strong> renewable_energy</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            JavaScript, Python, programming
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://de.linkedin.com/jobs/view/embodied-ai-algorithm-intern-m-w-d-at-liangdao-4426485190?trk=public_jobs_topcard-title" target="_blank">Embodied AI Algorithm Intern (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> ml_engineering</span>
+            <span><strong>Domain:</strong> autonomous driving</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Good knowledge of C++ and Python, Familiarity with Linux development environments, Strong understanding of data structures and algorithms, MLOps fundamentals, Basic knowledge of databases and Git
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://de.linkedin.com/jobs/view/founders%E2%80%99-associate-entrepreneur-investor-in-residence-intern-m-w-d-at-cito-4429563422?trk=public_jobs_topcard-title" target="_blank">Founders’ Associate / Entrepreneur &amp; Investor in Residence (Intern) (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> other</span>
+            <span><strong>Domain:</strong> investment_management</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            ChatGPT, Claude, Perplexity
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429569051" target="_blank">Future Leader (f_m_d) in Sales &amp; Marketing, Cologne</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> sales_and_marketing</span>
+            <span><strong>Domain:</strong> food_and_beverage</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426824042" target="_blank">Group Audit: IT Audit</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> analytics</span>
+            <span><strong>Domain:</strong> banking</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office (Word, Excel, PowerPoint)
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426463910" target="_blank">Growth &amp; Sales Intern (Office of the VP)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> sales</span>
+            <span><strong>Domain:</strong> professional services</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Strong academic record, Commit to 6-month internship, Excellent verbal and written communication skills, Based in or willing to relocate to Berlin, Fluency in English
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4419844789" target="_blank">Growth Intern (all genders)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> growth_marketing</span>
+            <span><strong>Domain:</strong> cybersecurity awareness training</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            growth experiments, lead generation, sales funnel management, outreach automation
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4401335567" target="_blank">HR Intern - Munich</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> human_resources</span>
+            <span><strong>Domain:</strong> e-commerce</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4278062487" target="_blank">HR Payroll Praktikant / Werkstudent (m/w/d) in Hannover</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> human_resources</span>
+            <span><strong>Domain:</strong> consulting</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office, Excel, interest in administrative HR processes
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429561091" target="_blank">Hiwi/Werkstudent: in RDR (f/m/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> —</span>
+            <span><strong>Domain:</strong> healthcare</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Polymer synthesis, Polymer physics, Surface modifications, 3D printing, Injection molding, <em class="meta">+15 more</em>
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4357362947" target="_blank">IT Internship or Bachelor/Master Thesis (m/f/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> analytics</span>
+            <span><strong>Domain:</strong> consumer_goods</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://de.linkedin.com/jobs/view/intern-at-renesas-electronics-4429531923?trk=public_jobs_topcard-title" target="_blank">Intern</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> analytics</span>
+            <span><strong>Domain:</strong> semiconductor manufacturing</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429237792" target="_blank">Intern (all gender) Destinations</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> operations</span>
+            <span><strong>Domain:</strong> tourism</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429168357" target="_blank">Intern (m/f/d) Venture Capital in Africa</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> venture_capital</span>
+            <span><strong>Domain:</strong> venture_capital</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429276560" target="_blank">Intern - Quantitative Portfolio Management - Studentjob.de</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> data_science</span>
+            <span><strong>Domain:</strong> energy</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            student of a quantitative discipline, strong mathematical and numerical skills, advanced programming skills (preferably Python)
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4419148917" target="_blank">Intern Business Development BMW Group Financial Services (f/m/x)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> business_development</span>
+            <span><strong>Domain:</strong> automotive finance</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office, Outlook, Teams, Excel, PowerPoint
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426499876" target="_blank">Intern Event DACH (m/f/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> event_management</span>
+            <span><strong>Domain:</strong> entertainment</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426861715" target="_blank">Intern Marketing (m/f/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> marketing</span>
+            <span><strong>Domain:</strong> luxury retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Marketing experience, MS Office
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4419136996" target="_blank">Intern Passive Safety Simulation High-Voltage Batteries (f/m/x)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> simulation_engineering</span>
+            <span><strong>Domain:</strong> automotive</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Computed tomography, Digital volume correlation, Data analysis, Python, MATLAB
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429561970" target="_blank">Intern Private Debt (f/m/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> data_analytics</span>
+            <span><strong>Domain:</strong> asset_management</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Python, SQL, Power BI, Microsoft Copilot, data visualization, <em class="meta">+4 more</em>
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429548167" target="_blank">Intern Product Operations – France (SaaS, Greentech)(m/f/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> product_operations</span>
+            <span><strong>Domain:</strong> renewable_energy</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4415283832" target="_blank">Intern Sales Division (All genders welcome)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> analytics</span>
+            <span><strong>Domain:</strong> automotive</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426805877" target="_blank">Intern Supply Chain Analysis (m/f/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> supply_chain</span>
+            <span><strong>Domain:</strong> entertainment</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429506156" target="_blank">Intern Sustainability &amp; Environmental Development (m/f/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> sustainability</span>
+            <span><strong>Domain:</strong> luxury_goods</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Excel, data analysis, analytical skills
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429547493" target="_blank">Intern Trading &amp; Dispatch (f/m/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> analytics</span>
+            <span><strong>Domain:</strong> utilities</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            programming proficiency in Python, analytical and problem-solving skills, understanding of financial instruments and their valuation via optimization
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429236858" target="_blank">Intern – Sales Development &amp; AI Automation (m/f/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> sales_development</span>
+            <span><strong>Domain:</strong> real_estate</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429266915" target="_blank">Intern- Portfolio Management Markets &amp; Pricing , Southern European Origination (6 months), Düsseldorf, (m/f) - Studentjob.de</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> analytics</span>
+            <span><strong>Domain:</strong> energy</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            quantitative skills, analytical skills, Excel, Python, interest in renewables, <em class="meta">+3 more</em>
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429505497" target="_blank">Intern- Portfolio Strategy, Southern European Origination (6 months), Düsseldorf, (m/f) - Studentjob.de</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> analytics</span>
+            <span><strong>Domain:</strong> energy</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Excel, Python, R, Matlab, data analysis
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4428895692" target="_blank">Intern: Sozialarbeiter/-in ASD (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> social_work</span>
+            <span><strong>Domain:</strong> government_administration</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Hochschulabschluss in Sozialer Arbeit oder Sozialpädagogik mit staatlicher Anerkennung, Praktische Erfahrungen im Allgemeinen Sozialdienst oder Hilfen zur Erziehung (oder Bereitschaft zur Einarbeitung), Gute Kenntnisse zu SGB VIII, SGB X und angrenzenden Rechtsgebieten des BGB, Umfassende Fach- und Methodenkompetenz, Kommunikative und teamorientierte Fähigkeiten, <em class="meta">+7 more</em>
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429568537" target="_blank">Intern: zahnmedizinische/-r Fachangestellte/-r im Kinder- und Jugendzahnärztlichen Dienst (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> healthcare</span>
+            <span><strong>Domain:</strong> public_health</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            PC-Kenntnisse, zahnmedizinische Fachangestellte Ausbildung
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4425612781" target="_blank">Internship - Global Travel and Project Management - REF4314U</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> project_management</span>
+            <span><strong>Domain:</strong> —</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office, IT ticketing system, UAT, technical documentation
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426810705" target="_blank">Internship Communications at the Lufthansa Group Internship start date: August 2026, duration: 6 months</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> communications</span>
+            <span><strong>Domain:</strong> aviation</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426828975" target="_blank">Internship M&amp;A | Q1 2027</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> investment_banking</span>
+            <span><strong>Domain:</strong> banking</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Excel, PowerPoint, financial modeling, valuation analysis, market research
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429217805" target="_blank">Internship Optics/Electronics (f/m/x)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> optical_engineering</span>
+            <span><strong>Domain:</strong> semiconductor</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4408655601" target="_blank">Internship Resilient 6G Networks (m/f/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> research</span>
+            <span><strong>Domain:</strong> telecommunications</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Python, Java, C++, MATLAB
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426813917" target="_blank">Internship Strategy &amp; Value Creation (m/f/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> strategy_consulting</span>
+            <span><strong>Domain:</strong> telecommunications</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429578528" target="_blank">Internship in Alternative Assets (m/f/d)*</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> —</span>
+            <span><strong>Domain:</strong> insurance</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office (Word, Excel, PowerPoint, Outlook), teamwork, communication
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4201239737" target="_blank">Jahrespraktikum (w/m/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> —</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Motivation, offene Art, Spaß am Umgang mit Menschen, Neugierde
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429261119" target="_blank">Junior CRM Manager (all genders) - ABOUT YOU Outlet</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> crm</span>
+            <span><strong>Domain:</strong> e-commerce</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4428069610" target="_blank">Key Account Manager Defence (m/w/d)*</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> —</span>
+            <span><strong>Seniority:</strong> —</span>
+            <span><strong>Family:</strong> —</span>
+            <span><strong>Domain:</strong> —</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4427782163" target="_blank">Kundenservice-Mitarbeiter (m/w/d) im Lebensmittelgroßhandel</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> customer_service</span>
+            <span><strong>Domain:</strong> food wholesale</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Kaufmännische Ausbildung, Gastronomiekenntnisse, Hotelleriekenntnisse, Kommunikationsfähigkeit, MS Office Grundkenntnisse, <em class="meta">+5 more</em>
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://de.linkedin.com/jobs/view/legal-ai-adoption-intern-at-emma-%E2%80%93-the-sleep-company-4428062858?trk=public_jobs_topcard-title" target="_blank">Legal AI Adoption Intern</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> —</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> ml_engineering</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426836147" target="_blank">Merchandising Intern</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> category_management</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Microsoft Word, Microsoft PowerPoint, Microsoft Excel
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429561556" target="_blank">Mitarbeiter (m/w/d) Retourenabwicklung</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> logistics</span>
+            <span><strong>Domain:</strong> logistics</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4427798889" target="_blank">Persönliche Assistenz bei Jürgen (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> personal_assistance</span>
+            <span><strong>Domain:</strong> healthcare</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4427798874" target="_blank">Persönliche Assistenz bei Kerstin (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> personal_assistance</span>
+            <span><strong>Domain:</strong> healthcare</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Geduld und Toleranz, Flexibilität, Kommunikationsfähigkeit, Reflexion, Selbstorganisation, <em class="meta">+1 more</em>
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426476175" target="_blank">Praktikant (d/w/m) im Supply Management</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> supply_chain_management</span>
+            <span><strong>Domain:</strong> defense</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Supply Chain, Process Management, Project Management, MS Office, Excel, <em class="meta">+2 more</em>
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429239561" target="_blank">Praktikant (m/w/d) - AI Transformation</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> ml_engineering</span>
+            <span><strong>Domain:</strong> govtech</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Prompt Engineering, API-Integrationen, Workflows, AI-Agents
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429269768" target="_blank">Praktikant (m/w/d) - Studentjob.de</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> marketing</span>
+            <span><strong>Domain:</strong> real_estate</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS-Office
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429705273" target="_blank">Praktikant (m/w/d) Corporate Governance, Risikomanagement und Compliance im Bereich Risk Advisory Services</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> compliance</span>
+            <span><strong>Domain:</strong> legal_services</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426845971" target="_blank">Praktikant (m/w/d) Projektmanagement</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> project_management</span>
+            <span><strong>Domain:</strong> renewable_energy</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429262872" target="_blank">Praktikant (m/w/d) Social Media Management &amp; Recruiting - Studentjob.de</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> remote</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> marketing</span>
+            <span><strong>Domain:</strong> coaching</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Social Media
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429700015" target="_blank">Praktikant (m/w/d) Sustainability Management</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> sustainability_management</span>
+            <span><strong>Domain:</strong> machinery manufacturing</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426888247" target="_blank">Praktikant (m/w/d) für FOS-Wirtschaft - Ab August 2026</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> retail</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429594861" target="_blank">Praktikant (m/w/d) im Bereich Cyber Security</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> cyber_security</span>
+            <span><strong>Domain:</strong> consulting</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Cyber Security, ISO 27001, Vulnerability Scanning
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429229024" target="_blank">Praktikant (m/w/d) im Bereich Qualitätssicherung</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> quality_assurance</span>
+            <span><strong>Domain:</strong> food_services</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4289770961" target="_blank">Praktikant / Werkstudent Global Trade Advisory - Indirect Tax (m/w/d) in Stuttgart</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> tax</span>
+            <span><strong>Domain:</strong> business_consulting</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Student:in der Wirtschafts- oder Rechtswissenschaften, idealerweise mit Schwerpunkt im Außenhandel / Außenwirtschaftsrecht, EU-Recht, Logistikmanagement oder Student:in der Wirtschaftsinformatik mit Schnittpunkten zur Wirtschaftslehre, Idealerweise Praxiserfahrung im Rahmen einer kaufmännischen Berufsausbildung oder eines Praktikums, erste praktische Erfahrungen in der Logistik, Versand- oder Zollabteilung, Ausgeprägtes Interesse an internationalen betriebswirtschaftlichen Thematiken und aktuellen Wirtschaftsthemen, Hohes Engagement und Teamgeist sowie eine systematische und lösungsorientierte Arbeitsweise, Deutsch und Englisch sehr gut in Wort und Schrift, <em class="meta">+1 more</em>
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4262633208" target="_blank">Praktikant / Werkstudent IT Audit &amp; IT Assurance - Data Analytics (m/w/d) in Nürnberg</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> data_analytics</span>
+            <span><strong>Domain:</strong> consulting</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4278063245" target="_blank">Praktikant / Werkstudent Transfer Pricing (m/w/d) in Düsseldorf</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> tax</span>
+            <span><strong>Domain:</strong> tax_consulting</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4278062485" target="_blank">Praktikant / Werkstudent Transfer Pricing (m/w/d) in München</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> tax</span>
+            <span><strong>Domain:</strong> tax</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4417738785" target="_blank">Praktikant Global IT Transformation (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> it_project_management</span>
+            <span><strong>Domain:</strong> insurance</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4264171803" target="_blank">Praktikant Turnaround &amp; Restructuring (m/w/d) in München</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> consulting</span>
+            <span><strong>Domain:</strong> restructuring</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429533295" target="_blank">Praktikant im Bereich TikTok Content (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> content_creation</span>
+            <span><strong>Domain:</strong> manufacturing</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Laufendes Studium im Bereich Marketing, Medien, Kommunikation, Journalismus, Digitale Medien oder eines vergleichbaren Studiengangs, Hohe Affinität zu Social Media und insbesondere zu TikTok, Instagram und aktuellen Content-Trends, Kreativität und ein gutes Gespür für Storytelling, Videoformate und zielgruppengerechte Kommunikation, Erste Erfahrungen in der Erstellung und Bearbeitung von Social-Media-Content von Vorteil, Sicherer Umgang mit gängigen Video- und Content-Tools (z. B. CapCut, Adobe Premiere Pro, Canva oder vergleichbare Programme), <em class="meta">+3 more</em>
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429546285" target="_blank">Praktikum (all genders) People and Organizational Development bei BNP Paribas Group Human Resources</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> hr</span>
+            <span><strong>Domain:</strong> banking</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4415275695" target="_blank">Praktikum - Allgemeine Beschaffung Fahrzeug- und Aggregatefertigung (w/m/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> procurement</span>
+            <span><strong>Domain:</strong> automotive</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            aktuell in einem Bachelor- oder Masterstudium des Wirtschaftsingenieurwesens, der Betriebswirtschaftslehre, des Maschinenbaus oder vergleichbare Studiengänge, erste Erfahrungen im Bereich Beschaffung, gute Kenntnisse in MS-Office, Teamfähigkeit, Eigeninitiative, sicheres Auftreten
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426843734" target="_blank">Praktikum - Prozessplanung Inbound (w/m/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> logistics_planning</span>
+            <span><strong>Domain:</strong> automotive</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429274889" target="_blank">Praktikum - Studentjob.de</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> it</span>
+            <span><strong>Domain:</strong> manufacturing</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426869405" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> —</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426873287" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> retail_sales</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426877289" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> —</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426879269" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> sales</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            curiosity, reliability, teamwork, openness to new experiences
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426880204" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> general</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426881223" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> —</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426882199" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> —</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426882201" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> retail_operations</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Umgang mit Menschen, Zuverlässigkeit, Teamfähigkeit, Lernbereitschaft
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426883191" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> store_operations</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426886190" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> general</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426889158" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> store_operations</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426889160" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> —</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-warning" title="Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit">Ranked, blocked by reranker fit</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip | CV analysis: blocked by reranker fit</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426892091" target="_blank">Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum - Berlin Lichtenberg</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> other</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            —
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4428062918" target="_blank">Praktikum Audit / ESG-Assurance / Sustainability Reporting (w/m/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> esg_assurance</span>
+            <span><strong>Domain:</strong> sustainability</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Mindestens drei abgeschlossene Fachsemester im Bereich der Wirtschaftswissenschaften, des Wirtschaftsingenieurwesens, Wirtschaftsinformatik, Informatik, Naturwissenschaften, Umweltwissenschaften oder Rechtswissenschaften, Sichere Deutschkenntnisse auf C1-Niveau, Englischkenntnisse mindestens B2
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429155061" target="_blank">Praktikum Brand Management (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> marketing</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+    </tbody>
+  </table>
+</div>
+
+
+<div style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1.25rem;justify-content:flex-end">
+  
+  <span class="meta">Page 1 of 2</span>
+  
+    <a href="/admin/runs/8e9fba4e-8600-42af-83f7-8fa2dee401ad/tabs/enriched?page=2&page_size=100&filter_name=passed"
+     class="btn-secondary"
+     data-tab-fragment-url="/admin/runs/8e9fba4e-8600-42af-83f7-8fa2dee401ad/tabs/enriched?page=2&page_size=100&filter_name=passed"
+     data-tab-id="enriched">Next →</a>
+  
+</div>
+
+
+
+
+
+
+<div class="section-card" style="margin:1.5rem 0;padding:0;overflow:hidden">
+  <details>
+    <summary style="padding:0.75rem 1.25rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;user-select:none">
+      <span class="badge badge-warning">↺ Deduplicated before enrichment</span>
+      <span class="badge badge-warning" style="border-radius:999px">20</span>
+      <span class="meta" style="margin-left:auto">Removed during normalization before enrichment/filtering.</span>
+    </summary>
+    <table>
+      <thead>
+        <tr>
+          <th>Job</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429234244" target="_blank" class="meta">Schülerpraktikum in der Filiale (m/w/d)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4426815643" target="_blank" class="meta">Internship Communications at the Lufthansa Group Internship start date: August 2026, duration: 6 months</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429577186" target="_blank" class="meta">Intern Private Debt (f/m/d)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4352830339" target="_blank" class="meta">Production / Engineering - Internship / Thesis (m/f/d)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4352791453" target="_blank" class="meta">Production / Engineering - Internship / Thesis (m/f/d)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4352755140" target="_blank" class="meta">Production / Engineering - Internship / Thesis (m/f/d)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4352860258" target="_blank" class="meta">Production / Engineering - Internship / Thesis (m/f/d)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429249697" target="_blank" class="meta">Consultant Funktionale Sicherheit (m/w/d)*</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429290974" target="_blank" class="meta">Inhouse Consultant Partner Management &amp; Business Development (m/w/d) CPCCUC</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429506140" target="_blank" class="meta">Inhouse Consultant Partner Management &amp; Business Development (m/w/d) CPCCUC</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429508066" target="_blank" class="meta">Inhouse Consultant Partner Management &amp; Business Development (m/w/d) CPCCUC</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429578269" target="_blank" class="meta">Referendare (m/w/d) in Anwaltskanzlei</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4427798863" target="_blank" class="meta">Elektriker/Elektroniker (m/w/d) Mobilitätsbranche</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429580153" target="_blank" class="meta">Data Center Technician Trainee, Data Center Operations</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429236514" target="_blank" class="meta">Werkstudent/-in Recruiting Management (all genders)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4428020435" target="_blank" class="meta">Account Manager (m/w/d) im Außendienst</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429229638" target="_blank" class="meta">Werkstudent/-in Recruiting Management (all genders)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4428009859" target="_blank" class="meta">Elektrotechniker (m/w/d) Inbetriebnahme  Elektromobilität</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4322470600" target="_blank" class="meta">Bauleitung und Projektleitung für Medizintechnik (m/w/x)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4322420692" target="_blank" class="meta">Bauleitung und Projektleitung für Medizintechnik (m/w/x)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </details>
+</div>
+
+
+
+
+
+
+
+
+

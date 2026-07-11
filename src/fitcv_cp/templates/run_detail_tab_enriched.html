@@ -25,7 +25,7 @@
       <option value="passed" {% if enriched_filter == 'passed' %}selected{% endif %}>Passed</option>
       <option value="rejected" {% if enriched_filter == 'rejected' %}selected{% endif %}>Rejected</option>
       <option value="unknown" {% if enriched_filter == 'unknown' %}selected{% endif %}>Unknown</option>
-    </select>
+    </select></span>
   </div>
 
   <input id="enr-search" type="search" name="q" value="{{ enriched_query }}" placeholder="Search title, domain, job family…" class="enr-toolbar-search">
@@ -75,7 +75,7 @@
       {% for size in (25, 50, 100) %}
       <option value="{{ size }}" {% if enriched_page_size == size %}selected{% endif %}>{{ size }}</option>
       {% endfor %}
-    </select>
+    </select></span>
   </div>
 
   <button type="submit" class="btn-secondary">Apply</button>
@@ -100,7 +100,7 @@
       {% set fr = filter_results_by_job_url.get(filter_lookup_key) %}
       {% set outcome = pipeline_outcomes_by_job_url.get(outcome_lookup_key) %}
       <tr>
-        <td><a href="{{ job.job_url }}" target="_blank">{{ job.title or job.job_url }}</a></td>
+        <td><a href="{{ job.job_url }}" target="_blank" rel="noopener">{{ job.title or job.job_url }}</a></td>
         <td class="meta">
           <div class="fit-context-stack">
             <span><strong>Location:</strong> {{ job.location_type or '—' }}</span>
@@ -201,7 +201,7 @@
       <tbody>
         {% for row in pre_enrichment_rejects %}
         <tr>
-          <td><a href="{{ row.job_url }}" target="_blank" class="meta">{{ row.job_url }}</a></td>
+          <td><a href="{{ row.job_url }}" target="_blank" rel="noopener" class="meta">{{ row.job_url }}</a></td>
           <td class="field-error">{{ row.reasons | join(', ') }}</td>
         </tr>
         {% endfor %}
@@ -231,7 +231,7 @@
         <tr>
           <td>
             {% if row.job_url %}
-            <a href="{{ row.job_url }}" target="_blank" class="meta">{{ row.job_title or row.job_url }}</a>
+            <a href="{{ row.job_url }}" target="_blank" rel="noopener" class="meta">{{ row.job_title or row.job_url }}</a>
             {% else %}
             <span class="meta">{{ row.job_title or 'Unknown job' }}</span>
             {% endif %}

@@ -1,0 +1,11 @@
+schema_version: 1
+audit_id: 20260711-remaining-fitcv-cp-closeout
+artifacts:
+  - path: evidence/broader_slice_pytest.log
+    sha256: eaca8766e03616358771a572680b251118db755c049656394e2cbdca6ecff13b
+  - path: evidence/validator_fast.log
+    sha256: 814a8b3435bb4438153b8aadf851655f2ac6d0f05acdd503286ab01694fde316
+  - path: repro/repro_steps.txt
+    sha256: b8e165357ed52cb08e2f0125a33dabed8c8a7f92f326928d5ae721b0ad3685cb
+repro:
+  - path: repro/repro_steps.txt

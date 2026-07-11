@@ -1,0 +1,201 @@
+diff --git a/mnt/data/fitcv_review/runtime_routing.py b/mnt/data/fitcv_ssot_patched/runtime_routing.py
+index 8869b5d..d6335fb 100644
+--- a/mnt/data/fitcv_review/runtime_routing.py
++++ b/mnt/data/fitcv_ssot_patched/runtime_routing.py
+@@ -52,15 +52,15 @@ def resolve_cv_generation_routing(config: dict[str, Any]) -> CvGenerationRouting
+ 
+ 
+ def build_langgraph_env_overrides() -> dict[str, str]:
++    """Project one canonical CV-generation route into LangGraph environment values."""
+     try:
+-        enrich_route = resolve_model_routing_part("enrich_extraction")
+         cv_route = resolve_model_routing_part("cv_generation_structured_write")
+     except Exception:
+         return {}
+ 
+-    provider = str(enrich_route.get("provider") or "").strip()
+-    base_url = str(enrich_route.get("base_url") or "").strip()
+-    wire_api = str(enrich_route.get("wire_api") or "").strip()
++    provider = str(cv_route.get("provider") or "").strip()
++    base_url = str(cv_route.get("base_url") or "").strip()
++    wire_api = str(cv_route.get("wire_api") or "").strip()
+     model = str(cv_route.get("model") or "").strip()
+     overrides: dict[str, str] = {}
+     if provider:
+@@ -75,8 +75,10 @@ def build_langgraph_env_overrides() -> dict[str, str]:
+ 
+ 
+ def resolve_openai_compatible_api_key() -> str:
++    """Resolve the shared API-key precedence used by every HTTP LLM stage."""
+     return (
+-        str(os.environ.get("OPENAI_API_KEY") or "").strip()
++        str(os.environ.get("FITCV_LLM_API_KEY") or "").strip()
++        or str(os.environ.get("OPENAI_API_KEY") or "").strip()
+         or str(os.environ.get("OPENAI_COMPATIBLE_API_KEY") or "").strip()
+     )
+ 
+@@ -90,11 +92,12 @@ def resolve_cv_generation_runtime_provenance(
+     fallback_model = str(default_model or "").strip()
+     try:
+         routing = resolve_cv_generation_routing(config)
+-    except Exception:
++    except Exception as exc:
+         return {
+-            "runtime_path": "fitcv_cv_generation_builtin",
+-            "provider": "fitcv_builtin",
++            "runtime_path": "fitcv_cv_generation_unresolved",
++            "provider": None,
+             "model": fallback_model or None,
++            "routing_error": f"{type(exc).__name__}: {exc}",
+         }
+     provider = str(routing.provider or "").strip().lower() or "fitcv_builtin"
+     model = str(routing.model or "").strip() or fallback_model or None
+@@ -114,6 +117,11 @@ def validate_cv_generation_routing_ready(config: dict[str, Any]) -> None:
+     """Raise when resolved CV-generation routing lacks required runtime inputs."""
+     routing = resolve_cv_generation_routing(config)
+     provider = str(routing.provider or "").strip().lower()
++    if provider not in _OPENAI_COMPATIBLE_PROVIDERS:
++        raise RuntimeError(
++            "cv_generation_structured_write provider must be one of: "
++            + ", ".join(sorted(_OPENAI_COMPATIBLE_PROVIDERS))
++        )
+     if provider in _OPENAI_COMPATIBLE_PROVIDERS:
+         if not str(routing.base_url or "").strip():
+             raise RuntimeError(
+diff --git a/mnt/data/fitcv_review/agentic_cv_analysis.py b/mnt/data/fitcv_ssot_patched/agentic_cv_analysis.py
+index 1c62f41..c5952bd 100644
+--- a/mnt/data/fitcv_review/agentic_cv_analysis.py
++++ b/mnt/data/fitcv_ssot_patched/agentic_cv_analysis.py
+@@ -26,13 +26,14 @@ from fitcv.evidence import (
+     retrieve_evidence_bundle,
+ )
+ from fitcv.gap_analysis import compute_gap
++from fitcv.ranking_contract import VALID_FIT_LABELS, fit_label_from_score
+ 
+ BLOCKED_BY_RERANKER_STATUS: Final[Literal["blocked_by_reranker_fit"]] = "blocked_by_reranker_fit"
+ READY_FOR_GENERATION_STATUS: Final[Literal["ready_for_generation"]] = "ready_for_generation"
+ SKIPPED_FIT_GATE_STATUS: Final[Literal["skipped_fit_gate"]] = "skipped_fit_gate"
+ ANALYSIS_FAILED_STATUS: Final[Literal["analysis_failed"]] = "analysis_failed"
+ 
+-_FIT_LABEL_ORDER = {"strong", "stretch", "skip"}
++_FIT_LABEL_ORDER = VALID_FIT_LABELS
+ 
+ AnalysisStatus = Literal[
+     "blocked_by_reranker_fit",
+@@ -132,14 +133,7 @@ def _build_runtime_provenance() -> dict[str, Any]:
+ 
+ 
+ def _fit_label_from_ai_score(score: float, config: dict[str, Any]) -> FitClassification:
+-    thresholds = dict(config.get("fit_label_thresholds") or {})
+-    strong_threshold = float(thresholds.get("strong", 0.70))
+-    stretch_threshold = float(thresholds.get("stretch", 0.40))
+-    if score >= strong_threshold:
+-        return "strong"
+-    if score >= stretch_threshold:
+-        return "stretch"
+-    return "skip"
++    return cast(FitClassification, fit_label_from_score(score, config))
+ 
+ 
+ def resolve_ranked_job_fit(job: dict[str, Any], config: dict[str, Any]) -> FitClassification:
+diff --git a/mnt/data/fitcv_review/ranking.py b/mnt/data/fitcv_ssot_patched/ranking.py
+index 2009089..a2b7734 100644
+--- a/mnt/data/fitcv_review/ranking.py
++++ b/mnt/data/fitcv_ssot_patched/ranking.py
+@@ -98,7 +98,13 @@ def _domain_neighbors(config: dict[str, Any] | None = None) -> dict[str, frozens
+ 
+ 
+ def _role_family_neighbors(config: dict[str, Any] | None = None) -> dict[str, frozenset[str]]:
+-    raw_neighbors = ((config or {}).get("role_taxonomy") or {}).get("role_family_neighbors")
++    cfg = config or {}
++    # Runtime overlays currently materialize this map at the top level; the
++    # normalized taxonomy keeps it nested. Accept both during migration, with
++    # the run-scoped top-level overlay taking precedence.
++    raw_neighbors = cfg.get("role_family_neighbors")
++    if not isinstance(raw_neighbors, dict):
++        raw_neighbors = (cfg.get("role_taxonomy") or {}).get("role_family_neighbors")
+     if not isinstance(raw_neighbors, dict):
+         return {}
+     return {
+diff --git a/mnt/data/fitcv_review/evidence.py b/mnt/data/fitcv_ssot_patched/evidence.py
+index 78943fc..b27ef63 100644
+--- a/mnt/data/fitcv_review/evidence.py
++++ b/mnt/data/fitcv_ssot_patched/evidence.py
+@@ -1174,16 +1174,24 @@ def _score_required_skill_support_components(
+     )
+ 
+ 
+-def _score_role_alignment(item: dict[str, Any], job_context: dict[str, Any]) -> float:
++def _score_role_alignment(
++    item: dict[str, Any],
++    job_context: dict[str, Any],
++    *,
++    config: dict[str, Any] | None = None,
++) -> float:
+     job_title = _normalize_optional_text(job_context.get("job_title"))
+-    job_family = _normalize_text(job_context.get("job_family")) or infer_role_family(job_title)
++    job_family = _normalize_text(job_context.get("job_family")) or infer_role_family(
++        job_title,
++        config=config,
++    )
+     item_family = _item_role_family(item)
+ 
+     family_score = 0.0
+     if job_family and item_family:
+         if job_family == item_family:
+             family_score = 1.0
+-        elif item_family in _role_family_neighbors().get(job_family, frozenset()):
++        elif item_family in _role_family_neighbors(config).get(job_family, frozenset()):
+             family_score = ROLE_ALIGNMENT_NEIGHBOR_SCORE
+ 
+     lexical_score = _overlap_ratio(
+@@ -1207,7 +1215,11 @@ def _score_role_alignment_components(
+         config=config,
+         semantic_settings=semantic_settings,
+         runtime_state=runtime_state,
+-        lexical_score_fn=_score_role_alignment,
++        lexical_score_fn=lambda candidate_item, context: _score_role_alignment(
++            candidate_item,
++            context,
++            config=config,
++        ),
+         semantic_job_texts_fn=_job_role_texts,
+         semantic_item_text_fn=_item_role_text,
+         lexical_weight_key="role_lexical_weight",
+diff --git a/mnt/data/fitcv_review/cv_generator.py b/mnt/data/fitcv_ssot_patched/cv_generator.py
+index ee8a16c..69c0b4c 100644
+--- a/mnt/data/fitcv_review/cv_generator.py
++++ b/mnt/data/fitcv_ssot_patched/cv_generator.py
+@@ -57,7 +57,6 @@ from fitcv.section_policy import (
+     certification_policy_decisions,
+ )
+ from fitcv.rule_filter import canonicalize_skill
+-from fitcv.runtime_routing import resolve_cv_generation_routing, resolve_openai_compatible_api_key
+ 
+ # ── template variant map ─────────────────────────────────────────────────────
+ # Maps job_family values (populated by enrichment) to styling hints.
+diff --git a/mnt/data/fitcv_review/pipeline_stage_context.py b/mnt/data/fitcv_ssot_patched/pipeline_stage_context.py
+index 348e417..fd71fbf 100644
+--- a/mnt/data/fitcv_review/pipeline_stage_context.py
++++ b/mnt/data/fitcv_ssot_patched/pipeline_stage_context.py
+@@ -53,6 +53,12 @@ class PipelineState:
+         payload = checkpoint_payload or {}
+         if isinstance(payload.get("checkpoint_payload"), dict):
+             payload = dict(payload["checkpoint_payload"])
++        schema_version = payload.get("schema_version")
++        if schema_version is not None and int(schema_version) != cls.CHECKPOINT_SCHEMA_VERSION:
++            raise ValueError(
++                f"Unsupported checkpoint schema_version={schema_version}; "
++                f"expected {cls.CHECKPOINT_SCHEMA_VERSION}"
++            )
+         state = cls(run_id=run_id)
+         for key in cls.payload_keys():
+             value = payload.get(key)
+@@ -111,6 +117,7 @@ class PipelineState:
+ 
+ def infer_last_completed_stage_from_state(state: dict[str, Any]) -> str | None:
+     stage_state_keys = (
++        ("cv_generation", ("cv_results", "cv_generation_debug_records")),
+         ("cv_analysis", ("cv_analysis_results",)),
+         ("ranking", ("ranked", "ranking_inputs", "ai_scores")),
+         ("shortlist", ("shortlist", "raw_shortlist", "backfilled_job_urls", "candidate_query_debug")),

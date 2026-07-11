@@ -106,6 +106,7 @@ from fitcv_cp.settings_schema import (
     settings_keys_for_control_surface,
     settings_keys_for_domain,
     settings_keys_for_stage,
+    settings_native_input_attrs,
     settings_keys_for_workflow_stage,
     settings_schema_with_runtime_defaults,
     validate_settings,
@@ -5476,7 +5477,7 @@ def _build_enriched_tab_context(
         if normalized_pipeline_outcomes:
             outcome_row = _lookup_row_by_lookup_key(pipeline_outcomes_by_job_url, job)
             outcome_status = str(outcome_row.get("status") or "").strip()
-            if outcome_status not in normalized_pipeline_outcomes:
+            if outcome_status and outcome_status not in normalized_pipeline_outcomes:
                 continue
         filter_scoped_rows.append(job)
 
@@ -7160,6 +7161,7 @@ def create_app(
                         "entry": entry,
                         "effective_value": effective_value,
                         "form_value": form_value,
+                        "native_input_attrs": settings_native_input_attrs(key),
                         "effective_display": _display_value_for_settings(effective_value, str(entry["type"])),
                         "current_display": _display_value_for_settings(comparison_value, str(entry["type"])),
                         "current_source_label": "Persisted override" if key in active else "Baseline default",
@@ -7223,6 +7225,8 @@ def create_app(
                                 "entries": stage_entries,
                             }
                         )
+            layout = card_spec.get("layout", "list")
+            use_standard_shell = layout == "composition_matrix"
             return {
                 "id": card_spec["id"],
                 "title": card_spec["title"],
@@ -7236,10 +7240,10 @@ def create_app(
                 "keys": list(visible_keys),
                 "dirty_count": dirty_count,
                 "error_message": _card_error_for(submit_kind, submit_slug, list(visible_keys)),
-                "layout": card_spec.get("layout", "list"),
-                "is_advanced": bool(card_spec.get("is_advanced", False)),
-                "is_collapsible": bool(card_spec.get("is_collapsible", False)),
-                "collapsed_by_default": bool(card_spec.get("collapsed_by_default", False)),
+                "layout": layout,
+                "is_advanced": False if use_standard_shell else bool(card_spec.get("is_advanced", False)),
+                "is_collapsible": False if use_standard_shell else bool(card_spec.get("is_collapsible", False)),
+                "collapsed_by_default": False if use_standard_shell else bool(card_spec.get("collapsed_by_default", False)),
                 "read_only": card_read_only,
                 "stage_groups": stage_groups,
                 "domains": card_domains,
@@ -8902,7 +8906,7 @@ def create_app(
 
     @app.post("/admin/runs/bulk/delete-archived")
     def admin_bulk_delete_archived_runs(payload: BulkDeleteArchivedRunsRequest) -> dict[str, Any]:
-        result = delete_archived_runs(payload.older_than_days, bq, project=project, dataset=dataset, run_ids=payload.run_ids)
+        result = delete_archived_runs(payload.older_than_days, bq, project=project, dataset=dataset)
         deleted_count = int(result.get("deleted_count") or 0)
         deleted_run_ids = [str(item) for item in list(result.get("deleted_run_ids") or []) if str(item).strip()]
         status = "deleted" if deleted_count > 0 else "no_matches"
@@ -10840,7 +10844,6 @@ def create_app(
             context={
                 "run": run,
                 "preview": preview,
-                "selected_ids_csv": ",".join(selected_ids),
             },
         )
 
@@ -10902,9 +10905,6 @@ def create_app(
         form = await request.form()
         selected_ids = [str(value or "").strip() for value in form.getlist("promote_proposal_id")]
         selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
-        if not selected_ids:
-            selected_csv = str(form.get("selected_ids_csv") or "").strip()
-            selected_ids = [value.strip() for value in selected_csv.split(",") if value and value.strip()]
         if not selected_ids:
             raise HTTPException(status_code=422, detail="No proposals selected for promotion")
         acted_by = str(form.get("acted_by") or "admin").strip() or "admin"

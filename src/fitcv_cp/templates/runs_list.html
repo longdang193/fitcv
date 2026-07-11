@@ -529,33 +529,13 @@ function deleteArchivedThresholdLabel() {
   return selected ? selected.text : 'Older than 30 days';
 }
 
-function matchingArchivedRunIds(olderThanDays) {
-  const archivedCheckboxes = selectedRunCheckboxes().filter((checkbox) => Boolean(checkbox.dataset.archivedAt));
-  if (olderThanDays === 'all') {
-    return archivedCheckboxes.map((checkbox) => checkbox.value);
-  }
-  const cutoff = Date.now() - (Number(olderThanDays) * 24 * 60 * 60 * 1000);
-  return archivedCheckboxes
-    .filter((checkbox) => {
-      const archivedAt = Date.parse(checkbox.dataset.archivedAt || '');
-      return !Number.isNaN(archivedAt) && archivedAt <= cutoff;
-    })
-    .map((checkbox) => checkbox.value);
-}
-
 async function bulkDeleteArchivedRuns(btn) {
   const olderThanDays = deleteArchivedThresholdValue();
   const thresholdLabel = deleteArchivedThresholdLabel();
-  const matchedRunIds = matchingArchivedRunIds(olderThanDays);
-  if (!matchedRunIds.length) {
-    showLifecycleBanner('No archived runs match this filter.', 'info');
-    return;
-  }
-
   const confirmMessage = [
     'Delete archived runs?',
-    `This permanently deletes ${matchedRunIds.length} archived run(s) and their stored artifacts. This cannot be undone.`,
-    `Filter: ${thresholdLabel}`,
+    `This permanently deletes archived runs matching ${thresholdLabel} and their stored artifacts. This cannot be undone.`,
+    `Threshold: ${thresholdLabel}`,
   ].join('\n\n');
   if (!confirm(confirmMessage)) {
     return;
@@ -568,7 +548,7 @@ async function bulkDeleteArchivedRuns(btn) {
     const resp = await fetch('/admin/runs/bulk/delete-archived', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ older_than_days: olderThanDays, run_ids: matchedRunIds }),
+      body: JSON.stringify({ older_than_days: olderThanDays }),
     });
     const body = await resp.json().catch(() => ({}));
     if (!resp.ok) {
@@ -577,8 +557,8 @@ async function bulkDeleteArchivedRuns(btn) {
     }
     const deletedCount = Number(body.deleted_count || 0);
     const summary = deletedCount > 0
-      ? `Deleted ${deletedCount} archived run(s) ${thresholdLabel.toLowerCase()}.`
-      : 'No archived runs match this filter.';
+      ? `Deleted ${deletedCount} archived run(s) matching ${thresholdLabel.toLowerCase()}.`
+      : `No archived runs match this threshold.`;
     persistLifecycleNotice(summary, deletedCount > 0 ? 'success' : 'info');
     location.href = '/admin/runs?view=archived';
   } catch (e) {

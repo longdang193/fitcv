@@ -1,0 +1,3903 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <!-- Apply saved theme before CSS renders — prevents flash -->
+  <script>
+    (function() {
+      var t = localStorage.getItem('fitcv-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Run 84c1c6a2 — FitCV Admin</title>
+  <style>
+    /* ── CSS Custom Properties (tokens) ──────────────────────────────────── */
+    :root[data-theme="dark"] {
+      --bg:          #0f1117;
+      --surface-1:   #1a1d2e;
+      --surface-2:   #1e2235;
+      --border:      #2d3148;
+      --border-soft: #1e2235;
+      --text-primary:   #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-muted:     #64748b;
+      --accent:      #6366f1;
+      --accent-hover:#4f46e5;
+      --accent-dim:  #312e81;
+      --accent-text: #a5b4fc;
+      --success-fg:  #4ade80;
+      --badge-success-bg: #14532d; --badge-success-fg: #4ade80;
+      --badge-error-bg:   #450a0a; --badge-error-fg:   #f87171;
+      --badge-warning-bg: #422006; --badge-warning-fg: #fb923c;
+      --badge-info-bg:    #1e3a5f; --badge-info-fg:    #60a5fa;
+      --badge-neutral-bg: #334155; --badge-neutral-fg: #94a3b8;
+      --table-header-bg: var(--surface-2);
+      --table-row-hover: #1a1e30;
+      --input-bg:    var(--surface-2);
+      --code-bg:     #0f0f1a;
+      --code-color:  #c7d2fe;
+      --code-border: #312e81;
+      --divider:     #1e293b;
+    }
+    :root[data-theme="light"] {
+      --bg:          #f8fafc;
+      --surface-1:   #ffffff;
+      --surface-2:   #f1f5f9;
+      --border:      #e2e8f0;
+      --border-soft: #f1f5f9;
+      --text-primary:   #0f172a;
+      --text-secondary: #475569;
+      --text-muted:     #94a3b8;
+      --accent:      #4f46e5;
+      --accent-hover:#3730a3;
+      --accent-dim:  #e0e7ff;
+      --accent-text: #4338ca;
+      --success-fg:  #166534;
+      --badge-success-bg: #dcfce7; --badge-success-fg: #166534;
+      --badge-error-bg:   #fee2e2; --badge-error-fg:   #991b1b;
+      --badge-warning-bg: #ffedd5; --badge-warning-fg: #9a3412;
+      --badge-info-bg:    #dbeafe; --badge-info-fg:    #1e40af;
+      --badge-neutral-bg: #f1f5f9; --badge-neutral-fg: #475569;
+      --table-header-bg: #f8fafc;
+      --table-row-hover: #f1f5f9;
+      --input-bg:    #ffffff;
+      --code-bg:     #f1f5f9;
+      --code-color:  #4338ca;
+      --code-border: #c7d2fe;
+      --divider:     #e2e8f0;
+    }
+
+    /* ── Reset & base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* ── Navigation ───────────────────────────────────────────────────────── */
+    nav {
+      background: var(--surface-1);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    nav a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    nav a:hover { color: var(--text-primary); }
+    .brand { color: var(--accent); font-weight: 700; font-size: 1.05rem; }
+    .nav-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1.5rem; }
+    h2 { font-size: 1.1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .page-header h1 { margin-bottom: 0; }
+
+    /* ── Card & section ───────────────────────────────────────────────────── */
+    .card, .section-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .section-title  { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+    .section-helper { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; }
+    .section-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 1rem;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    /* ── Sub-card (grouped sibling forms inside a section-card) ─────────────── */
+    /* Used by the three ranking groups inside the Ranking section.              */
+    .sub-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface-1);
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    /* Last sub-card in a group: no bottom margin (flush with section bottom) */
+    .sub-card:last-child {
+      margin-bottom: 0;
+    }
+    .sub-card-header {
+      padding: 0.75rem 1rem 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .sub-card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .sub-card-helper {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+    .sub-card-body {
+      padding: 0.75rem 1rem;
+    }
+    /* Pairs label + value in a row (scoped to sub-card internals — does not
+       override the existing .kv shared rule used by run-detail metadata grids) */
+    .sub-card .kv { display: grid; grid-template-columns: 12rem 1fr; gap: 0.25rem 0.5rem; font-size: 0.8rem; }
+    .sub-card-footer {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border-soft);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
+    /* ── Inspection card with attached tab bar ────────────────────────────────── */
+    /* Used by the run-detail inspection area.                                      */
+    /* One shared container for tab bar + pane body.                               */
+    .inspection-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-1);
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Tab bar sits flush on the top edge of the inspection card.                   */
+    .tab-bar--attached {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-1);
+      padding: 0 0.75rem;
+    }
+    .tab-bar--attached .tab-btn {
+      padding: 0.6rem 1rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      margin-bottom: -1px;    /* overlaps the card top border */
+    }
+    .tab-bar--attached .tab-btn:hover {
+      color: var(--text-primary);
+    }
+    .tab-bar--attached .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Pane container — one consistent border/radius/padding for all three panes.  */
+    .pane-container {
+      border: none;
+      border-top: none;
+      background: var(--surface-1);
+      padding: 1rem;
+    }
+    /* Default: hidden; .active: shown */
+    .pane-container.tab-pane {
+      display: none;
+    }
+    .pane-container.tab-pane.active {
+      display: block;
+    }
+    .pane-container .card { padding: 0; border: none; }
+    /* ── Table ────────────────────────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th {
+      background: var(--table-header-bg);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-align: left;
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+    }
+    td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border-soft); color: var(--text-secondary); }
+    tr:hover td { background: var(--table-row-hover); }
+    .empty-row td { color: var(--text-muted); text-align: center; padding: 2rem; }
+
+    /* ── Links ────────────────────────────────────────────────────────────── */
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Buttons ──────────────────────────────────────────────────────────── */
+    /* Primary — main CTA (Trigger Run, grouped ranking saves) */
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1.1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+
+    /* Secondary — supporting actions (Refresh, theme toggle, mode tabs) */
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      padding: 0.4rem 0.9rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    a.btn-secondary:hover { text-decoration: none; }
+    .btn-secondary[aria-pressed="true"],
+    .btn-secondary[data-active="true"] {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent-text);
+      font-weight: 600;
+    }
+    .btn-secondary[aria-pressed="false"],
+    .btn-secondary[data-active="false"] {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    a.truncate-link {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: bottom;
+    }
+    a.truncate-link:hover { text-decoration: none; }
+    a.job-title-link { color: var(--accent); text-decoration: none; }
+    a.job-title-link:hover,
+    a.job-title-link:focus-visible { text-decoration: underline; }
+    .decision-toggle[aria-pressed="true"],
+    .decision-toggle[data-active="true"] {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent-text);
+      font-weight: 600;
+    }
+    .decision-toggle[aria-pressed="false"]:not(:hover):not(:focus-visible),
+    .decision-toggle[data-active="false"]:not(:hover):not(:focus-visible) {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .decision-toggle:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    /* Section — settings section saves (Save Retrieval Settings, etc.) */
+    .btn-section {
+      background: var(--surface-2);
+      color: var(--accent);
+      border: 1px solid var(--border);
+      padding: 0.45rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-section:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .btn-secondary:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      border-color: var(--border);
+      color: var(--text-muted);
+      background: transparent;
+    }
+
+    /* Legacy fallback — default button style (same as primary) */
+    button { background: var(--accent); color: #fff; border: none; padding: 0.5rem 1.1rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; font-family: inherit; cursor: pointer; transition: background 0.15s; }
+    button:not(.btn-secondary):hover { background: var(--accent-hover); }
+
+    /* ── Badges ───────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-queued    { background: var(--badge-neutral-bg); color: var(--badge-neutral-fg); }
+    .badge-running   { background: var(--badge-info-bg);    color: var(--badge-info-fg); }
+    .badge-succeeded { background: var(--badge-success-bg); color: var(--badge-success-fg); }
+    .badge-failed    { background: var(--badge-error-bg);   color: var(--badge-error-fg); }
+    .badge-info      { background: var(--badge-info-bg);    color: var(--badge-info-fg); }
+    .badge-warning   { background: var(--badge-warning-bg); color: var(--badge-warning-fg); }
+    .badge-error     { background: var(--badge-error-bg);   color: var(--badge-error-fg); }
+    .fit-classification-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
+      line-height: 1.1;
+      cursor: default;
+    }
+
+    /* ── Forms & inputs ───────────────────────────────────────────────────── */
+    input[type="text"],
+    input[type="number"],
+    input[type="file"],
+    textarea,
+    select {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 0.5rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    input[type="text"]   { width: 360px; }
+    input[type="number"] { width: 96px; }
+    textarea { width: 100%; }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+    *:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* ── Code ─────────────────────────────────────────────────────────────── */
+    code, .code-area {
+      background: var(--code-bg);
+      color: var(--code-color);
+      border: 1px solid var(--code-border);
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-family: monospace;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    .code-area { padding: 0.5rem; }
+
+    /* ── State helpers ────────────────────────────────────────────────────── */
+    .meta          { font-size: 0.8rem; color: var(--text-muted); }
+    .current-value { color: var(--success-fg); font-weight: 600; }
+    .empty-value   { color: var(--text-muted); }
+    .field-error   { font-size: 0.78rem; color: var(--badge-error-fg); margin-top: 0.2rem; }
+
+    /* ── Error box ──────────────────────────────────────────────────────────*/
+    .error-box {
+      background: var(--badge-error-bg);
+      border: 1px solid var(--badge-error-fg);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .error-box strong { color: var(--badge-error-fg); display: block; margin-bottom: 0.35rem; }
+
+    /* ── KV grid ──────────────────────────────────────────────────────────── */
+    .kv { display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 1.25rem; font-size: 0.875rem; }
+    .kv .k { color: var(--text-muted); }
+    .kv .v { color: var(--text-primary); font-weight: 500; }
+
+    /* ── Divider ──────────────────────────────────────────────────────────── */
+    hr { border: none; border-top: 1px solid var(--divider); margin: 1rem 0; }
+
+    /* ── Details / summary ────────────────────────────────────────────────── */
+    /* Hide browser-native disclosure triangle — we use our own ▾ character. */
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+
+    /* ── Tab bar ──────────────────────────────────────────────────────────── */
+    .tab-bar { display: flex; gap: 0.5rem; margin-bottom: 0; border-bottom: 2px solid var(--border); padding-bottom: 0; }
+    .tab-btn {
+      background: var(--surface-2); color: var(--text-muted);
+      border: 1px solid var(--border); border-bottom: none;
+      border-radius: 6px 6px 0 0;
+      padding: 0.5rem 1rem; font-size: 0.85rem; cursor: pointer;
+      transition: all 0.15s; position: relative; top: 2px;
+    }
+    .tab-btn:hover { background: var(--surface-1); color: var(--text-primary); }
+    .tab-btn.active { background: var(--surface-1); color: var(--accent-text); border-color: var(--accent); border-bottom-color: var(--surface-1); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    .tab-pane > .card { border-top-left-radius: 0; border-top: none; }
+
+    /* ── Results card ─────────────────────────────────────────────────────── */
+    .results-card {
+      background: var(--accent-dim); border: 1px solid var(--accent);
+      border-radius: 10px; padding: 1.5rem; margin-bottom: 2rem;
+    }
+    .results-card h3 { color: var(--accent-text); font-size: 1.05rem; margin: 0 0 0.5rem; }
+    .cv-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface-1); border: 1px solid var(--accent);
+      padding: 0.6rem 0.8rem; border-radius: 6px;
+    }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .container { padding: 1rem; }
+      .page-header { flex-direction: column; align-items: flex-start; }
+      nav { padding: 0 1rem; gap: 1rem; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="brand">⚡ FitCV Admin</span>
+    <a href="/admin/runs">Runs</a>
+    <a href="/admin/bookmarks">Bookmarks</a>
+    <a href="/admin/settings">Settings</a>
+    <a href="/healthz">Health</a>
+    <div class="nav-actions">
+      <button class="btn-secondary" id="theme-toggle" aria-label="Toggle theme" onclick="toggleTheme()">
+        <span id="theme-icon">☀️</span> <span id="theme-label">Light</span>
+      </button>
+    </div>
+  </nav>
+  <div class="container">
+    
+
+
+<div class="page-header">
+  <h1>Run <code>84c1c6a2-4b5f-49d6-991c-b3197e94f1bb</code></h1>
+  <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+    
+    
+      <button class="btn-secondary" onclick="lifecycleAction('84c1c6a2-4b5f-49d6-991c-b3197e94f1bb', 'archive', this)">Archive Run</button>
+    
+    <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb" class="btn-secondary" id="manual-refresh-link">⟳ Refresh Status</a>
+    <a href="/admin/runs" class="btn-secondary">← All Runs</a>
+  </div>
+</div>
+
+<!-- ── Run Overview (canonical single summary block) ─────────────────────── -->
+<div class="card" id="run-overview-core">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <h3 style="margin:0">Run Overview</h3>
+    <span class="meta">Summary for next decision.</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+    <span class="badge badge-succeeded">succeeded</span>
+    <span class="badge badge-info">Run All</span>
+    
+  </div>
+  <div class="kv">
+    <span class="k">Triggered By</span><span class="v">admin</span>
+    <span class="k">Run Mode</span><span class="v">Run All</span>
+    <span class="k">Jobs Path</span><span class="v"><code>data/uploads/12aad5d660d3408dae6f7e365627967a_merged_jobs.json (merged from: student-2026-05-29-09-25-04-jobs.filtered.jsonl)</code></span>
+    
+    <span class="k">Jobs Source</span><span class="v"><span class="badge badge-info">upload</span></span>
+    
+    <span class="k">Config</span><span class="v"><code>config/env.yaml</code></span>
+    
+    <span class="k">Profile Source</span><span class="v"><span class="badge badge-info">default_config</span></span>
+    
+    <span class="k">Created</span><span class="v">2026-05-29 07:25 UTC</span>
+    <span class="k">Started</span><span class="v">2026-05-29 07:25 UTC</span>
+    <span class="k">Finished</span><span class="v">2026-05-29 07:28 UTC</span>
+    
+    <span class="k">Last Completed</span><span class="v"><code>cv_generation</code></span>
+    <span class="k">Completed Stages</span><span class="v"><code>normalize, enrich, rule_filter, shortlist, ranking, cv_analysis, cv_generation</code></span>
+    
+    
+    
+    <span class="k">Duration</span><span class="v">197s</span>
+    
+    <span class="k">Total Jobs</span><span class="v">295</span>
+    <span class="k">Passed Filter</span><span class="v">295</span>
+    <span class="k">Ranked</span><span class="v">15</span>
+  </div>
+  
+</div>
+
+
+
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
+    <div>
+      <h3 style="margin:0 0 0.35rem">Agentic Review Queue</h3>
+      <div class="meta">
+        0 pending of 2 review-required job(s).
+      </div>
+    </div>
+    <span class="badge badge-info">2 action(s) logged</span>
+  </div>
+  <form id="hitl-batch-form" method="post" action="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/cv-review-batch-action" style="display:flex;flex-direction:column;gap:0.55rem;margin-bottom:0.85rem">
+    <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+      <span class="enr-select-shell"><select name="action" class="enr-toolbar-select enr-select-caret">
+        <option value="approve_as_is">Batch Accept Draft As Final CV</option>
+        <option value="regenerate_once">Batch Regenerate Once</option>
+        <option value="reject">Batch Reject</option>
+      </select></span>
+      <input type="text" name="actor" value="admin" placeholder="actor (optional)" style="min-width:10rem">
+      <input type="text" name="note" placeholder="note (optional)" style="min-width:14rem">
+    </div>
+    <div style="display:flex;align-items:center;gap:0.7rem;flex-wrap:wrap">
+      <label class="meta" style="display:inline-flex;align-items:center;gap:0.35rem">
+        <input type="checkbox" name="confirm_no_accepted_cv_closure" value="true">
+        <span>Allow closure with zero accepted CV artifacts</span>
+      </label>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+      <span class="meta">Apply one action to selected jobs.</span>
+      <button
+        class="btn-secondary"
+        type="submit"
+        form="hitl-batch-form"
+        formaction="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/cv-review-batch-action"
+        formmethod="post"
+      >Apply to Selected Jobs</button>
+      <span class="meta">Select one or more rows below.</span>
+    </div>
+  </form>
+  <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin:-0.35rem 0 0.75rem 0">
+    <button class="btn-secondary" id="hitl-select-all-btn" type="button">Select All</button>
+    <button class="btn-secondary" id="hitl-clear-all-btn" type="button">Clear All</button>
+    <span class="meta" id="hitl-selected-count">Selected: 0</span>
+    <span class="meta">Scope: visible jobs</span>
+  </div>
+  
+  
+  
+  
+    
+  
+    
+  
+  <div style="display:flex;flex-direction:column;gap:0.85rem">
+    
+    <div class="meta" style="padding:0.6rem 0.7rem;border:1px dashed var(--border);border-radius:0.55rem">
+      <span style="display:none">No pending review rows shown here. Open dedicated review queue page for resolved history.</span>
+      No pending review rows shown here.
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/review-queue">Open dedicated review queue page</a>
+      for resolved history.
+    </div>
+    
+    
+  </div>
+</div>
+
+<script>
+(function initHitlSelectionControls() {
+  if (window.__hitlSelectionControlsInitialized) return;
+  window.__hitlSelectionControlsInitialized = true;
+
+  const selectAllBtn = document.getElementById('hitl-select-all-btn');
+  const clearAllBtn = document.getElementById('hitl-clear-all-btn');
+  const batchForm = document.getElementById('hitl-batch-form');
+  const selectedCount = document.getElementById('hitl-selected-count');
+  const selectableCheckboxes = () => Array.from(document.querySelectorAll('input[type="checkbox"][data-hitl-selectable="true"]'));
+
+  const refreshSelectedCount = () => {
+    if (!selectedCount) return;
+    const selected = selectableCheckboxes().filter((cb) => cb.checked).length;
+    selectedCount.textContent = `Selected: ${selected}`;
+  };
+
+  selectableCheckboxes().forEach((cb) => cb.addEventListener('change', refreshSelectedCount));
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+      selectableCheckboxes().forEach((cb) => { cb.checked = true; });
+      refreshSelectedCount();
+    });
+  }
+
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', () => {
+      selectableCheckboxes().forEach((cb) => { cb.checked = false; });
+      refreshSelectedCount();
+    });
+  }
+
+  if (batchForm) {
+    batchForm.addEventListener('submit', (event) => {
+      const actionField = batchForm.querySelector('select[name="action"]');
+      const selectedAction = actionField ? String(actionField.value || '').trim() : '';
+      if (selectedAction !== 'regenerate_once') return;
+      const selected = selectableCheckboxes().filter((cb) => cb.checked);
+      const hasMissingUrlSelection = selected.some((cb) => String(cb.dataset.hasJobUrl || '').toLowerCase() !== 'true');
+      if (!hasMissingUrlSelection) return;
+      event.preventDefault();
+      window.alert('Regenerate once requires job URL. Deselect rows with missing URL or choose approve/reject.');
+    });
+  }
+
+  refreshSelectedCount();
+})();
+</script>
+
+<style>
+.cv-preview-details {
+  margin-top: 0.25rem;
+}
+
+.cv-preview-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.34rem 0.62rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.cv-preview-summary:hover {
+  border-color: rgba(120, 170, 255, 0.55);
+  background: rgba(120, 170, 255, 0.08);
+}
+
+.cv-preview-details[open] .cv-preview-summary {
+  border-color: rgba(120, 170, 255, 0.65);
+  background: rgba(120, 170, 255, 0.1);
+}
+
+.cv-preview-wrap {
+  margin-top: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+.cv-preview-markdown {
+  margin: 0;
+  padding: 0.75rem 0.8rem;
+  max-height: 18rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+  font-size: 0.86rem;
+  letter-spacing: 0.01em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  background:
+    linear-gradient(transparent 27px, rgba(255, 255, 255, 0.04) 28px) 0 0 / 100% 28px;
+}
+</style>
+
+
+
+
+
+<!-- ── Run Metadata Card ─────────────────────────────────────────────────── -->
+
+
+
+
+
+
+
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <div>
+      <h3 style="margin:0">Synonyms (List Entities)</h3>
+    </div>
+  </div>
+  
+  
+  
+  <div style="margin:0.2rem 0 0.85rem 0">
+    <div class="meta" style="margin-bottom:0.15rem"><strong>Synonym Decisions</strong></div>
+    <div class="meta" style="margin-bottom:0.35rem">Decision = current state. Recommendation = model suggestion. Queue Source = provenance only.</div>
+    <div style="overflow:auto;max-height:14rem;border:1px solid var(--accent);border-radius:6px">
+      <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+        <thead>
+          <tr style="background:var(--panel-bg)">
+            <th style="text-align:left;padding:0.35rem 0.5rem">Alias</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Canonical</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Decision</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Recommendation</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Queue Source</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Last Action / Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>3d design/cad skills</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>3d cad</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>ad-hoc analyses</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>business analysis</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>administrative and support services</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>e-commerce</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>advertising services</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>advertising</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>airlines and aviation</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>airlines</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>appliances, electrical, and electronics manufacturing</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>corporate finance</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>arbeitest gerne mit regeln/checklisten</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>process checklists</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>assist in technical sizing</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>technical sizing</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>automatische hubwägen</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>bedienung von hubwagen</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>banking</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>asset_management</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>biotechnology research, pharmaceutical manufacturing, and veterinary services</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>healthcare</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>business consulting and services</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>marketing/communications consulting</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>civento prozessdesign / prozessdesigner</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>civento</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>consumer services</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>banking</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>crm- oder hr-systemen</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>crm systems</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>data preparation and analysis</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>data analysis</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>data security software products</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>cybersecurity</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>dev tooling</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>developer tooling</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>development of automation systems</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>industrial automation</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>digitalisierungsprojekten</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>digitalisierung</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>energy technology</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>energy</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>entertainment providers</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>e-commerce</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>erfahrung mit praxis?/kliniksoftware</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>clinic management software</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>erfahrung mit videoschnitt-programmen</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>video editing</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>erste erfahrungen im projektmanagement</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>projektmanagement</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>erste labor-erfahrung ist wünschenswert</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>laboratory experience</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>execute go-to-market initiatives</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>go-to-market (gtm)</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>familiar with git/github</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>git</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>financial services</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>asset management</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>financial services and insurance</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>insurance</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>food and beverage services</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>fmcg food &amp; beverage (coffee)</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>from database to ui</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>databases</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>gute edv-kenntnisse</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>computer literacy</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>handwerklich begabt</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>handwerkliche fähigkeiten</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>hilfsgeräten wie hebearmen</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>bedienung von hebearmen</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>hospitality</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>catering</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>including testing and validation</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>model testing and validation</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>industry and company research</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>company research</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>information technology &amp; services</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>enterprise software (process mining / process intelligence)</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>interest in social media</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>social media</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>it services and it consulting</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>automotive</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>kleineren wartungsarbeiten</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>it maintenance</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>machinery manufacturing</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>hospitality</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>manufacturing</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>consumer goods manufacturing</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>market and competition analysis</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>competitive analysis</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>markt- und wettbewerbsrecherchen</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>competitive analysis</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>mess- und prüftätigkeiten</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>inspection</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>model creation and evaluation</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>mathematical modeling</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>motor vehicle manufacturing</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>automotive</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>motor vehicle manufacturing, renewable energy semiconductor manufacturing, and utilities</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>automotive</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>ms-office- und crm-programmen</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>crm software</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>ob kundengespräche oder präsentationen</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>client presentations</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>oil and gas</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>energy utilities</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>passion for data analytics</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>data analytics</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>personal care product manufacturing</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>beauty and personal care</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>preparation of rfp/rfq documents</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>rfp</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>preparing analyses</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>data analysis</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>presentations</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>presentation development</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>price analysis and pricing</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>pricing</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>proficiency with excel/google sheets</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>google sheets</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>python &amp; tableau</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>python</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>religious institutions</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>childcare</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>renewable energy equipment manufacturing</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>battery energy storage</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>renewable energy semiconductor manufacturing</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>renewable energy</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>reports</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>reporting</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>required skills office management</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>office administration</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>retail apparel and fashion</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>fashion retail</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>retail luxury goods and jewelry</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>e-commerce</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>run structured growth experiments</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>growth experimentation</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>semiconductor manufacturing</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>semiconductor</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>semiconductor manufacturing, appliances, electrical, and electronics manufacturing, and computer hardware manufacturing</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>semiconductor</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>server verbindung</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>server connectivity troubleshooting</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>software development</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>automotive</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>software development and it services and it consulting</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>food delivery</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>sourcing &amp; due diligence</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>due diligence</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>störungsbeseitigung</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>troubleshooting</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>technical and capex analysis</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>capex analysis</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>technology, information and internet</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>ai research</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>technology, information and media</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>fintech</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>venture capital and private equity principals</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>energy</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>wartung des lokalen rechenzentrums</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>data center operations</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">Seen repeatedly with same meaning</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>wellness and fitness services</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>fitness and wellness club services</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>wholesale</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>e-commerce</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-info">Deferred</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem"><span class="badge badge-neutral">Recommend Defer</span></td>
+            <td style="padding:0.3rem 0.5rem">Reviewed</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>defer by system 29.05.2026 09:26 CEST</div>
+              <div class="meta">alias conflict</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>analytics</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>data analytics</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-neutral">Suppressed</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem">—</td>
+            <td style="padding:0.3rem 0.5rem">Suppressed (already global)</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>—</div>
+              <div class="meta">Already exists in global synonyms</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>business operations</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>business_operations</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-neutral">Suppressed</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem">—</td>
+            <td style="padding:0.3rem 0.5rem">Suppressed (already global)</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>—</div>
+              <div class="meta">Already exists in global synonyms</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>content management</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>content_management</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-neutral">Suppressed</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem">—</td>
+            <td style="padding:0.3rem 0.5rem">Suppressed (already global)</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>—</div>
+              <div class="meta">Already exists in global synonyms</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>customer support</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>customer_support</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-neutral">Suppressed</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem">—</td>
+            <td style="padding:0.3rem 0.5rem">Suppressed (already global)</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>—</div>
+              <div class="meta">Already exists in global synonyms</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>einheitliche reportingstrukturen</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>reporting</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-neutral">Suppressed</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem">—</td>
+            <td style="padding:0.3rem 0.5rem">Suppressed (already global)</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>—</div>
+              <div class="meta">Already exists in global synonyms</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>financial services, investment management, and investment banking</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>banking</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-neutral">Suppressed</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem">—</td>
+            <td style="padding:0.3rem 0.5rem">Suppressed (already global)</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>—</div>
+              <div class="meta">Already exists in global synonyms</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>go to market</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>go_to_market</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-neutral">Suppressed</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem">—</td>
+            <td style="padding:0.3rem 0.5rem">Suppressed (already global)</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>—</div>
+              <div class="meta">Already exists in global synonyms</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>human resources</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>human_resources</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-neutral">Suppressed</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem">—</td>
+            <td style="padding:0.3rem 0.5rem">Suppressed (already global)</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>—</div>
+              <div class="meta">Already exists in global synonyms</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>ml engineering</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>ml_engineering</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-neutral">Suppressed</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem">—</td>
+            <td style="padding:0.3rem 0.5rem">Suppressed (already global)</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>—</div>
+              <div class="meta">Already exists in global synonyms</div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>transparente kpis</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>kpi reporting</code></td>
+            <td style="padding:0.3rem 0.5rem">
+              <span class="badge badge-neutral">Suppressed</span>
+              
+            </td>
+            <td style="padding:0.3rem 0.5rem">—</td>
+            <td style="padding:0.3rem 0.5rem">Suppressed (already global)</td>
+            <td style="padding:0.3rem 0.5rem">
+              <div>—</div>
+              <div class="meta">Already exists in global synonyms</div>
+            </td>
+          </tr>
+          
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <div style="margin:0 0 0.35rem 0;display:flex;gap:0.6rem;flex-wrap:wrap">
+    <form method="post" action="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/synonym-proposals/ai-fast-path-execute" style="display:inline" onsubmit="return confirm('Confirm AI fast-path execute? This will apply AI recommendations and promote approved mappings to global.');">
+      <input type="hidden" name="acted_by" value="admin">
+      <input type="hidden" name="note" value="ai_fast_path">
+      <button class="btn-secondary decision-toggle" type="submit">AI-Assisted Decide + Promote</button>
+    </form>
+    <a class="btn-secondary decision-toggle" href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/synonym-review">Manual Decide + Promote</a>
+  </div>
+</div>
+
+
+
+
+
+<div class="card">
+  
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <h3 style="margin:0">Run Health</h3>
+    <span class="meta">Compact stage quality and late-stage reuse diagnostics.</span>
+  </div>
+  <div class="run-health-grid">
+    
+    <div class="run-health-tile run-health-success">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">Shortlist Backfill Rate</div>
+          <div class="meta">High values usually mean shortlist recall is relying on backfill.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-success">
+            
+              0%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Healthy</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>0 / 50</code>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-error">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">Ranking Strong Rate</div>
+          <div class="meta">Strong labels among scored ranking inputs.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-error">
+            
+              0%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Needs attention</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>0 / 50</code>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-info">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">Ranking Stretch Rate</div>
+          <div class="meta">Stretch labels among scored ranking inputs.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-info">
+            
+              8%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Observed</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>4 / 50</code>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-error">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">Ranking Skip Rate</div>
+          <div class="meta">Skip labels among scored ranking inputs.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-error">
+            
+              92%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Needs attention</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>46 / 50</code>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-info">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">CV Analysis Reranker Block Rate</div>
+          <div class="meta">Ranked jobs stopped before CV analysis because reranker fit was skip.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-info">
+            
+              87%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Observed</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>13 / 15</code>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-success">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">CV Analysis Skip Rate</div>
+          <div class="meta">Jobs blocked by the fit gate after ranking.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-success">
+            
+              0%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Healthy</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>0 / 15</code>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-error">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">CV Analysis Ready Rate</div>
+          <div class="meta">Jobs that are ready to hand off to CV generation.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-error">
+            
+              13%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Needs attention</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>2 / 15</code>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-success">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">CV Analysis Failure Rate</div>
+          <div class="meta">Analysis records that failed before generation handoff.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-success">
+            
+              0%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Healthy</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>0 / 15</code>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-error">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">CV Generation Accepted Rate</div>
+          <div class="meta">Accepted CV outputs among attempted generation jobs.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-error">
+            
+              0%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Needs attention</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>0 / 2</code>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-success">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">CV Generation Validation-Fail Rate</div>
+          <div class="meta">Generated CVs rejected by validation.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-success">
+            
+              0%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Healthy</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>0 / 2</code>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-success">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">CV Generation Failure Rate</div>
+          <div class="meta">Runtime failures during CV generation.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-success">
+            
+              0%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Healthy</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>0 / 2</code>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-success">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">CV Generation Persistence-Fail Rate</div>
+          <div class="meta">Generated CVs that failed while saving.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-success">
+            
+              0%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Healthy</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>0 / 2</code>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-success">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">Enrich Reuse Rate</div>
+          <div class="meta">Exact-match enrich rows reused from prior runs with matching fingerprints.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-success">
+            
+              100%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Healthy</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>295 / 295</code>
+        
+        <span class="meta">fresh: 0</span>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-muted">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">CV Analysis Reuse Rate</div>
+          <div class="meta">Exact-match analysis records reused from previous successful runs.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-info">
+            
+              0%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Fresh only</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>0 / 2</code>
+        
+        <span class="meta">fresh: 2</span>
+        
+      </div>
+    </div>
+    
+    <div class="run-health-tile run-health-muted">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">CV Generation Reuse Rate</div>
+          <div class="meta">Exact-match CV generation outputs reused from prior runs.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-info">
+            
+              0%
+            
+          </span>
+          <span class="meta" style="font-weight:600">Fresh only</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>0 / 2</code>
+        
+        <span class="meta">fresh: 2</span>
+        
+      </div>
+    </div>
+    
+  </div>
+  
+  
+</div>
+
+
+<!-- ── Error Banner ──────────────────────────────────────────────────────── -->
+
+
+<!-- ── CV Results Banner ─────────────────────────────────────────────────── -->
+<div class="results-card" id="generated-outputs">
+  <h3>Pipeline Results</h3>
+  <div class="meta" style="margin-bottom:0.55rem">
+    Compatibility note: outputs/download actions moved to <strong>Artifacts</strong>.
+  </div>
+  
+    <p style="font-size:0.9rem;color:var(--badge-success-fg)">
+      CV generation succeeded. Download/export files from <strong>Artifacts</strong>.
+    </p>
+    
+      <div style="margin-top:1rem;border-top:1px solid var(--accent);padding-top:1rem">
+        <h4 class="section-title" style="font-size:0.95rem;margin:0 0 0.75rem;display:flex;align-items:center;gap:0.4rem"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  <path d="M7 10l5 5 5-5" />
+  <path d="M12 15V3" />
+</svg> Generated Outputs:</h4>
+        <div style="display:flex;flex-direction:column;gap:0.75rem">
+        
+          
+          <div class="cv-row">
+            <div style="display:flex;align-items:center;gap:0.8rem">
+              <span class="badge badge-success">stretch</span>
+              <a class="truncate-link job-title-link" href="https://www.linkedin.com/jobs/view/4417202749" target="_blank" rel="noopener">Reservierungsmitarbeiter (m/w/d) (Hotel Esplanade Resort &amp; SPA) ↗</a>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.45rem">
+              
+              <form method="post" action="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/bookmarks/save" style="display:inline">
+                <input type="hidden" name="job_id" value="">
+                <input type="hidden" name="version_id" value="b4047cfa-b140-4e1e-a360-131724dcf465">
+                <input type="hidden" name="title" value="Reservierungsmitarbeiter (m/w/d)">
+                <input type="hidden" name="company" value="Hotel Esplanade Resort &amp; SPA">
+                <input type="hidden" name="location" value="">
+                <input type="hidden" name="url" value="https://www.linkedin.com/jobs/view/4417202749">
+                <input type="hidden" name="fit_classification" value="stretch">
+                <input type="hidden" name="source" value="pipeline_results">
+                <input type="hidden" name="redirect_to" value="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb">
+                <button type="submit" class="btn-secondary" title="Save bookmark" aria-label="Save bookmark" style="display:inline-flex;align-items:center;justify-content:center;line-height:1;padding:0.35rem 0.5rem"><!-- ☆ -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z" />
+</svg></button>
+              </form>
+              
+              <a href="/admin/cvs/b4047cfa-b140-4e1e-a360-131724dcf465/download" class="btn-secondary" title="Download CV" aria-label="Download CV" style="display:inline-flex;align-items:center;justify-content:center;line-height:1;padding:0.35rem 0.5rem"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  <path d="M7 10l5 5 5-5" />
+  <path d="M12 15V3" />
+</svg></a>
+            </div>
+          </div>
+          
+        
+          
+          <div class="cv-row">
+            <div style="display:flex;align-items:center;gap:0.8rem">
+              <span class="badge badge-success">stretch</span>
+              <a class="truncate-link job-title-link" href="https://de.linkedin.com/jobs/view/praktikum-marketing-content-creation-m-w-d-at-qool-4415236430?trk=public_jobs_topcard-title" target="_blank" rel="noopener">Praktikum Marketing &amp; Content Creation (m/w/d) (QOOL) ↗</a>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.45rem">
+              
+              <form method="post" action="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/bookmarks/save" style="display:inline">
+                <input type="hidden" name="job_id" value="">
+                <input type="hidden" name="version_id" value="c5879596-bcd3-4f47-802d-8de5dfc0cc31">
+                <input type="hidden" name="title" value="Praktikum Marketing &amp; Content Creation (m/w/d)">
+                <input type="hidden" name="company" value="QOOL">
+                <input type="hidden" name="location" value="">
+                <input type="hidden" name="url" value="https://de.linkedin.com/jobs/view/praktikum-marketing-content-creation-m-w-d-at-qool-4415236430?trk=public_jobs_topcard-title">
+                <input type="hidden" name="fit_classification" value="stretch">
+                <input type="hidden" name="source" value="pipeline_results">
+                <input type="hidden" name="redirect_to" value="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb">
+                <button type="submit" class="btn-secondary" title="Save bookmark" aria-label="Save bookmark" style="display:inline-flex;align-items:center;justify-content:center;line-height:1;padding:0.35rem 0.5rem"><!-- ☆ -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z" />
+</svg></button>
+              </form>
+              
+              <a href="/admin/cvs/c5879596-bcd3-4f47-802d-8de5dfc0cc31/download" class="btn-secondary" title="Download CV" aria-label="Download CV" style="display:inline-flex;align-items:center;justify-content:center;line-height:1;padding:0.35rem 0.5rem"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  <path d="M7 10l5 5 5-5" />
+  <path d="M12 15V3" />
+</svg></a>
+            </div>
+          </div>
+          
+        
+        </div>
+      </div>
+    
+  
+</div>
+
+<div class="inspection-card">
+<!-- ── Inspection Tab Bar ────────────────────────────────────────────────── -->
+<div class="tab-bar--attached">
+  <button class="tab-btn active" id="tab-btn-enriched"   onclick="showTab('enriched')">📊 Enriched Jobs</button>
+  <button class="tab-btn"        id="tab-btn-jobs-input" onclick="showTab('jobs-input')">📄 Original Job Input</button>
+  <button class="tab-btn"        id="tab-btn-profile"    onclick="showTab('profile')">👤 Candidate Profile</button>
+</div>
+
+<div class="pane-container tab-pane active" id="pane-enriched" data-tab-id="enriched" data-tab-url="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/tabs/enriched">
+  <div class="card tab-loading-state">
+    <p class="meta">Enriched job diagnostics load on demand.</p>
+  </div>
+</div>
+
+<div class="pane-container tab-pane" id="pane-jobs-input" data-tab-id="jobs-input" data-tab-url="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/tabs/jobs-input">
+  <div class="card tab-loading-state">
+    <p class="meta">Original trigger input snapshot loads on demand.</p>
+  </div>
+</div>
+
+<div class="pane-container tab-pane" id="pane-profile" data-tab-id="profile" data-tab-url="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/tabs/profile">
+  <div class="card tab-loading-state">
+    <p class="meta">Candidate profile snapshot loads on demand.</p>
+  </div>
+</div>
+</div><!-- /.inspection-card -->
+
+<!-- ── Event Timeline (always visible) ──────────────────────────────────── -->
+<h2>Event Timeline</h2>
+<div class="card" style="padding:0;overflow:hidden">
+  <table>
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Stage</th>
+        <th>Level</th>
+        <th>Message</th>
+        <th>Artifacts</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr>
+        <td class="meta">07:25:40</td>
+        <td><span class="badge badge-info">Synonym Proposal Triage Completed</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Synonym triage complete: scope proposals, triaged 83, reused 0, fallback 0, skipped 0, failed 0.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:25:40</td>
+        <td><span class="badge badge-info">Synonym Proposal Auto Apply Completed</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Synonym auto-apply complete: scope proposals, applied 83, skipped 0, failed 0.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:25:40</td>
+        <td><span class="badge badge-info">Synonym Proposal Suppression Summary</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Suppressed synonym proposals already covered by global map: 203</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:25:40</td>
+        <td><span class="badge badge-info">Candidate Profile</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Candidate profile loaded</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:25:40</td>
+        <td><span class="badge badge-info">Rule Filter</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">295 passed rule filter</td>
+        <td class="meta">
+          
+          <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/stage-artifacts/rule_filter.json">Download Rule Filter JSON</a>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:25:43</td>
+        <td><span class="badge badge-info">Synonym Proposal Auto Apply Completed</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Synonym auto-apply complete: scope proposals, applied 83, skipped 0, failed 0.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:25:43</td>
+        <td><span class="badge badge-info">Shortlist</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Shortlist complete: shortlisted 50.</td>
+        <td class="meta">
+          
+          <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/stage-artifacts/shortlist.json">Download Shortlist JSON</a>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:25:45</td>
+        <td><span class="badge badge-info">Synonym Proposal Auto Apply Completed</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Synonym auto-apply complete: scope proposals, applied 83, skipped 0, failed 0.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:25:58</td>
+        <td><span class="badge badge-info">Ranking</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">AI scored: 50 jobs</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:25:58</td>
+        <td><span class="badge badge-info">Ranking</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Ranking complete: ranked 15, concurrency 4, reused 46, fresh 4.</td>
+        <td class="meta">
+          
+          <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/stage-artifacts/ranking.json">Download Ranking JSON</a>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:01</td>
+        <td><span class="badge badge-info">Synonym Proposal Auto Apply Completed</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Synonym auto-apply complete: scope proposals, applied 83, skipped 0, failed 0.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:01</td>
+        <td><span class="badge badge-info">CV Analysis</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">CV analysis invoked: concurrency 4</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:04</td>
+        <td><span class="badge badge-info">CV Analysis</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">CV analysis complete: ready 2, blocked 13, skipped 0, failed 0, reused 0, fresh 2, concurrency 4.</td>
+        <td class="meta">
+          
+          <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/stage-artifacts/cv_analysis.json">Download CV Analysis JSON</a>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:04</td>
+        <td><span class="badge badge-info">CV Analysis Blocked Details</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Blocked by reranker diagnostics: 10 job(s)</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:07</td>
+        <td><span class="badge badge-info">Synonym Proposal Auto Apply Completed</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Synonym auto-apply complete: scope proposals, applied 83, skipped 0, failed 0.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:07</td>
+        <td><span class="badge badge-info">Layer4 Cv Generation Started</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">CV generation started: item 1/2, job <a href="https://de.linkedin.com/jobs/view/praktikum-marketing-content-creation-m-w-d-at-qool-4415236430?trk=public_jobs_topcard-title" target="_blank" rel="noopener noreferrer">Praktikum Marketing Content Creation (m/w/d) (Qool)</a>, concurrency 4.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:07</td>
+        <td><span class="badge badge-info">Layer4 Cv Generation Started</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">CV generation started: item 2/2, job <a href="https://www.linkedin.com/jobs/view/4417202749" target="_blank" rel="noopener noreferrer">4417202749</a>, concurrency 4.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:35</td>
+        <td><span class="badge badge-info">Layer4 Cv Generation Result</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">CV generation result: job <a href="https://de.linkedin.com/jobs/view/praktikum-marketing-content-creation-m-w-d-at-qool-4415236430?trk=public_jobs_topcard-title" target="_blank" rel="noopener noreferrer">Praktikum Marketing Content Creation (m/w/d) (Qool)</a>, outcome review required, cache miss, compute fresh, reason unsupported_requirement_gap, evidence fingerprint aef91e1d523d, concurrency 4.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:35</td>
+        <td><span class="badge badge-info">Layer4 Cv Generation Result</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">CV generation result: job <a href="https://www.linkedin.com/jobs/view/4417202749" target="_blank" rel="noopener noreferrer">4417202749</a>, outcome review required, cache miss, compute fresh, reason unsupported_requirement_gap, evidence fingerprint aef91e1d523d, concurrency 4.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:35</td>
+        <td><span class="badge badge-info">CV Generation</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">CV generation complete: 2 accepted, 0 review required, 0 validation failed, 0 generation failed, 0 persistence failed</td>
+        <td class="meta">
+          
+          <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/stage-artifacts/cv_generation.json">Download CV Generation JSON</a>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:37</td>
+        <td><span class="badge badge-info">Run Attempt</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Run attempt finished</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:37</td>
+        <td><span class="badge badge-info">Cv Review Required</span></td>
+        <td><span class="badge badge-warning">warning</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Run paused: review-required items pending operator action 2, auto-accepted 0.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:26:41</td>
+        <td><span class="badge badge-info">Synonym Proposal Auto Apply Completed</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">Synonym auto-apply complete: scope proposals, applied 83, skipped 0, failed 0.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:28:47</td>
+        <td><span class="badge badge-info">Cv Review Batch Action</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">CV review batch decision: action approve_as_is, applied 2, skipped 0, failed 0.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="meta">07:28:48</td>
+        <td><span class="badge badge-info">Cv Review Completed</span></td>
+        <td><span class="badge badge-info">info</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">CV review complete.</td>
+        <td class="meta">
+          
+          <span class="empty-value">—</span>
+          
+        </td>
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+
+<div style="display:flex;justify-content:flex-end;margin-top:0.75rem">
+  <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb?timeline_limit=50" class="btn-secondary">Load older events</a>
+</div>
+
+
+
+<div class="card" id="artifacts">
+  <h3 style="margin:0 0 0.85rem">Artifacts</h3>
+  <div class="run-export-grid">
+    
+    <div class="run-export-item">
+      <a href="/admin/synonyms/global.yaml" class="run-export-link">⬇ Download Global Synonyms YAML</a>
+      
+      <div class="meta" style="margin-top:0.35rem">Canonical global skill synonym map used as baseline across runs.</div>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/synonyms/global-domain.yaml" class="run-export-link">⬇ Download Global Domain Aliases YAML</a>
+      
+      <div class="meta" style="margin-top:0.35rem">Canonical global domain alias map used as baseline across runs.</div>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/synonyms/global-role-family.yaml" class="run-export-link">⬇ Download Global Role Family Aliases YAML</a>
+      
+      <div class="meta" style="margin-top:0.35rem">Canonical global role family alias map used as baseline across runs.</div>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/artifacts.zip" class="run-export-link">⬇ Download All Artifacts (.zip)</a>
+      
+      <div class="meta" style="margin-top:0.35rem">Includes all currently available run artifacts.</div>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/export.json" class="run-export-link">⬇ Results JSON (Job Ledger)</a>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/hitl-review-audit.json" class="run-export-link">⬇ HITL Review Audit JSON</a>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/cv-debug.json" class="run-export-link">⬇ CV Debug JSON</a>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/cv-generation-review-required.json" class="run-export-link">⬇ CV Generation Review-Required JSON</a>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/cv-analysis-trace.json" class="run-export-link">⬇ CV Analysis Trace JSON</a>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/agentic-live-trace.json" class="run-export-link">⬇ Agentic Live Trace JSON</a>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/settings-used.json" class="run-export-link">⬇ Settings Used JSON</a>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/mapping-suggestions.json" class="run-export-link">⬇ Mapping Suggestions JSON</a>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/synonym-proposals.json" class="run-export-link">⬇ Synonym Proposals JSON</a>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/synonym-proposals-trace.json" class="run-export-link">⬇ Synonym Proposals Trace JSON</a>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/synonym-suppression-diff.json" class="run-export-link">⬇ Synonym Suppression Diff JSON</a>
+      
+    </div>
+    
+    <div class="run-export-item">
+      <a href="/admin/runs/84c1c6a2-4b5f-49d6-991c-b3197e94f1bb/stage-artifacts.json" class="run-export-link">⬇ Stage Artifacts JSON (Diagnostics)</a>
+      
+    </div>
+    
+  </div>
+</div>
+
+
+
+<details class="card" id="advanced-diagnostics">
+  <summary style="cursor:pointer;user-select:none;font-weight:700">Advanced &amp; Diagnostics</summary>
+  <div style="margin-top:0.85rem">
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Runtime and Backend Details</h3>
+    <span class="badge badge-info">technical</span>
+  </div>
+  <div class="kv">
+    <span class="k">Orchestration Backend</span><span class="v"><code>queue</code></span>
+    <span class="k">Backend Run ID</span><span class="v"><code>b2d94bea-aa7c-49af-aa4d-6085dbfa4889</code></span>
+    <span class="k">Backend Status</span><span class="v"><code>not_available</code> <span class="meta">(not polled)</span></span>
+    <span class="k">Replay Mode</span><span class="v"><code>strict</code></span>
+    <span class="k">Replay Source Run</span><span class="v"><code>84c1c6a2-4b5f-49d6-991c-b3197e94f1bb</code></span>
+    <span class="k">Policy Registry</span><span class="v"><code>policy_registry.v1</code></span>
+    <span class="k">Runtime Mode</span><span class="v"><code>full</code></span>
+    <span class="k">State Backend</span><span class="v"><code>sqlite</code></span>
+    <span class="k">Artifact Backend</span><span class="v"><code>sqlite_json</code></span>
+    <span class="k">Telemetry Backend</span><span class="v"><code>otel_json</code></span>
+  </div>
+</div>
+
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Run Attempt Timeline</h3>
+    <span class="badge badge-info">3 event(s)</span>
+  </div>
+  <div class="meta" style="margin-bottom:0.75rem">
+    Attempt events are SSOT-sourced from run events (`run_attempt.v1`). Use this to confirm retry and crash recovery behavior.
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Created</th>
+        <th>Attempt ID</th>
+        <th>Status</th>
+        <th>RQ Job</th>
+        <th>Worker</th>
+        <th>Lease Expires</th>
+        <th>Error</th>
+        <th>Retry</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr>
+        <td><code>2026-05-29 07:26:37.610133+00:00</code></td>
+        <td><code>adf76971-4661-4821-8bbe-db79467aa952</code></td>
+        <td><code>succeeded</code></td>
+        <td><code>b2d94bea-aa7c-49af-aa4d-6085dbfa4889</code></td>
+        <td><code>f564132f22a0</code></td>
+        <td><code>—</code></td>
+        <td><code>—</code></td>
+        <td><code>—</code></td>
+      </tr>
+      
+      <tr>
+        <td><code>2026-05-29 07:25:36.400715+00:00</code></td>
+        <td><code>adf76971-4661-4821-8bbe-db79467aa952</code></td>
+        <td><code>running</code></td>
+        <td><code>b2d94bea-aa7c-49af-aa4d-6085dbfa4889</code></td>
+        <td><code>f564132f22a0</code></td>
+        <td><code>2026-05-29T07:40:36.400630+00:00</code></td>
+        <td><code>—</code></td>
+        <td><code>—</code></td>
+      </tr>
+      
+      <tr>
+        <td><code>2026-05-29 07:25:29.707725+00:00</code></td>
+        <td><code>adf76971-4661-4821-8bbe-db79467aa952</code></td>
+        <td><code>running</code></td>
+        <td><code>b2d94bea-aa7c-49af-aa4d-6085dbfa4889</code></td>
+        <td><code>f564132f22a0</code></td>
+        <td><code>2026-05-29T07:40:29.707638+00:00</code></td>
+        <td><code>—</code></td>
+        <td><code>—</code></td>
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+
+
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Stage Result Policy + Trace Summary</h3>
+    <span class="badge badge-info">7 stage(s)</span>
+  </div>
+  <div class="meta" style="margin-bottom:0.75rem">
+    Run-level summary of stage-owned decision policy and trace continuity from the canonical StageResult envelope.
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Stage</th>
+        <th>Status</th>
+        <th>Policy Version</th>
+        <th>Trace ID</th>
+        <th>Span ID</th>
+        <th>Parent Span ID</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr>
+        <td><code>normalize</code></td>
+        <td><code>completed</code></td>
+        <td><code>policy.normalize.v1</code></td>
+        <td><code>ff6398773838e1d743bca046160f53ab</code></td>
+        <td><code>5d0bb518fa41c191</code></td>
+        <td><code>ab9a6caeea21dad7</code></td>
+      </tr>
+      
+      <tr>
+        <td><code>enrich</code></td>
+        <td><code>completed</code></td>
+        <td><code>policy.enrich.v1</code></td>
+        <td><code>0c0a5967c7dd40168bdf81c09f762402</code></td>
+        <td><code>49f0d7286941ac2b</code></td>
+        <td><code>93caed83e676fdc5</code></td>
+      </tr>
+      
+      <tr>
+        <td><code>rule_filter</code></td>
+        <td><code>completed</code></td>
+        <td><code>policy.rule_filter.v1</code></td>
+        <td><code>df221014f1613dce788843bc83016266</code></td>
+        <td><code>e4c88e14663bbbcf</code></td>
+        <td><code>180bf1f000c1db8f</code></td>
+      </tr>
+      
+      <tr>
+        <td><code>shortlist</code></td>
+        <td><code>completed</code></td>
+        <td><code>policy.shortlist.v1</code></td>
+        <td><code>cbd9ab472e74a9f0497c68965f42365d</code></td>
+        <td><code>c9e89c2a3800a751</code></td>
+        <td><code>4efadc643f68c2dc</code></td>
+      </tr>
+      
+      <tr>
+        <td><code>ranking</code></td>
+        <td><code>completed</code></td>
+        <td><code>policy.ranking.v1</code></td>
+        <td><code>828e9141559e004a554983d1c297e2eb</code></td>
+        <td><code>ed89e5ac86bb4383</code></td>
+        <td><code>68adce1cbf7f3036</code></td>
+      </tr>
+      
+      <tr>
+        <td><code>cv_analysis</code></td>
+        <td><code>completed</code></td>
+        <td><code>policy.cv_analysis.v1</code></td>
+        <td><code>9ae468f055ee7c2f6ca4f91352666bb1</code></td>
+        <td><code>e1d84820f9f77247</code></td>
+        <td><code>60ef7e7862be0552</code></td>
+      </tr>
+      
+      <tr>
+        <td><code>cv_generation</code></td>
+        <td><code>completed</code></td>
+        <td><code>policy.cv_generation.v1</code></td>
+        <td><code>3fe3ebbc5c1d4aa808490ae0f37b9468</code></td>
+        <td><code>83e41602443fc940</code></td>
+        <td><code>765f438c6e114ca6</code></td>
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Event Delivery Health</h3>
+    
+      <span class="badge badge-success">healthy</span>
+    
+  </div>
+  <div class="kv">
+    <span class="k">Dead-lettered Events</span><span class="v">0</span>
+    <span class="k">Last Dead-letter Timestamp</span><span class="v">—</span>
+    <span class="k">Degradation Reason</span><span class="v"><code>—</code></span>
+    <span class="k">Max Retry Attempts</span><span class="v">0</span>
+    <span class="k">Dead-letter Path</span><span class="v"><code>tmp/fitcv_pipeline_run_events_dead_letter.jsonl</code></span>
+  </div>
+  
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Telemetry Export Health</h3>
+    
+      <span class="badge badge-success">healthy</span>
+    
+  </div>
+  <div class="kv">
+    <span class="k">Degraded Telemetry Events</span><span class="v">0</span>
+    <span class="k">Last Degraded Stage</span><span class="v">—</span>
+  </div>
+  <div class="meta" style="margin-top:0.85rem">
+    Stage artifacts remain the evidence source of truth even when telemetry export is degraded.
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Langfuse Trace-Link Health</h3>
+    
+      <span class="badge badge-neutral">disabled</span>
+    
+  </div>
+  <div class="kv">
+    <span class="k">Unverified Link Events</span><span class="v">0</span>
+    <span class="k">Degraded Link Events</span><span class="v">0</span>
+    <span class="k">Last Degraded Stage</span><span class="v">—</span>
+    <span class="k">Latest Trace URL</span><span class="v">—</span>
+  </div>
+  <div class="meta" style="margin-top:0.85rem">
+    Trace URLs are navigation links only and do not confirm ingestion. Stage artifacts remain authoritative for runtime decisions.
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Dead-letter Replay Summary</h3>
+    
+      <span class="badge badge-neutral">none</span>
+    
+  </div>
+  <div class="kv">
+    <span class="k">Last Replay Timestamp</span><span class="v">—</span>
+    <span class="k">Replay Success Ratio</span><span class="v">0.00</span>
+    <span class="k">Replayed / Candidates</span><span class="v">0 / 0</span>
+    <span class="k">Failed Replays</span><span class="v">0</span>
+    <span class="k">Remaining Dead-letter Total</span><span class="v">0</span>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Agentic Runtime Alignment</h3>
+    
+      <span class="badge badge-info">not_applicable</span>
+    
+  </div>
+  <div class="meta" style="margin-bottom:0.75rem">No attempted live-generation provenance was captured for this run.</div>
+  <div class="kv">
+    <span class="k">Expected Provider</span><span class="v"><code>openai_compatible</code></span>
+    <span class="k">Actual Provider</span><span class="v"><code>—</code></span>
+    <span class="k">Expected Model</span><span class="v"><code>cx/gpt-5.2</code></span>
+    <span class="k">Actual Model</span><span class="v"><code>—</code></span>
+  </div>
+</div>
+
+
+
+  </div></details><script>
+function showTab(id) {
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    p.style.display = 'none';
+    p.classList.remove('active');
+  });
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const pane = document.getElementById('pane-' + id);
+  pane.style.display = 'block';
+  pane.classList.add('active');
+  document.getElementById('tab-btn-' + id).classList.add('active');
+  ensureTabLoaded(id);
+}
+
+async function ensureTabLoaded(id, overrideUrl = null) {
+  const pane = document.getElementById('pane-' + id);
+  if (!pane) return;
+  const url = overrideUrl || pane.dataset.tabUrl;
+  if (!url || pane.dataset.loading === 'true') return;
+  if (!overrideUrl && pane.dataset.loaded === 'true') return;
+  pane.dataset.loading = 'true';
+  if (pane.dataset.loaded !== 'true') {
+    pane.innerHTML = '<div class="card tab-loading-state"><p class="meta">Loading…</p></div>';
+  }
+  try {
+    const resp = await fetch(url, {
+      headers: { 'Accept': 'text/html', 'X-Requested-With': 'fitcv-tab-fragment' },
+      cache: 'no-store',
+    });
+    if (!resp.ok) throw new Error('Failed to load tab');
+    pane.innerHTML = await resp.text();
+    initEnrichedOutcomeMultiselect(pane);
+    pane.dataset.loaded = 'true';
+  } catch (err) {
+    pane.innerHTML = '<div class="card"><p class="field-error">Could not load this tab right now.</p></div>';
+  } finally {
+    pane.dataset.loading = 'false';
+  }
+}
+
+function initEnrichedOutcomeMultiselect(scope = document) {
+  const root = scope.querySelector('[data-multiselect-root="pipeline-outcome"]');
+  if (!root || root.dataset.initialized === 'true') return;
+  root.dataset.initialized = 'true';
+
+  const details = root.querySelector('[data-multiselect-details]');
+  const summary = root.querySelector('[data-multiselect-summary]');
+  const search = root.querySelector('[data-multiselect-search]');
+  const selectAll = root.querySelector('[data-multiselect-select-all]');
+  const checkboxes = Array.from(root.querySelectorAll('[data-multiselect-option]'));
+  const rows = Array.from(root.querySelectorAll('[data-multiselect-option-row]'));
+  const selectEl = root.querySelector('#enr-pipeline-outcome');
+  const optionMap = new Map(Array.from(selectEl.options).map((opt) => [opt.value, opt]));
+
+  const visibleRows = () => rows.filter((row) => row.style.display !== 'none');
+  const syncSummary = () => {
+    const selected = checkboxes.filter((box) => box.checked);
+    if (selected.length === 0) { summary.textContent = 'All outcomes'; return; }
+    if (selected.length <= 2) { summary.textContent = selected.map((box) => box.dataset.label || box.value).join(', '); return; }
+    summary.textContent = `${selected.length} selected`;
+  };
+  const syncSelectAll = () => {
+    const visible = visibleRows().map((row) => row.querySelector('[data-multiselect-option]'));
+    const selectedVisible = visible.filter((box) => box && box.checked).length;
+    selectAll.checked = visible.length > 0 && selectedVisible === visible.length;
+    selectAll.indeterminate = selectedVisible > 0 && selectedVisible < visible.length;
+  };
+  const syncHiddenSelect = () => {
+    checkboxes.forEach((box) => {
+      const opt = optionMap.get(box.value);
+      if (opt) opt.selected = box.checked;
+    });
+  };
+  const syncAll = () => { syncHiddenSelect(); syncSelectAll(); syncSummary(); };
+
+  const form = root.closest('form');
+  if (form) form.addEventListener('submit', () => syncHiddenSelect(), true);
+  if (details) details.addEventListener('toggle', () => { if (details.open && search) search.focus(); });
+  if (search) {
+    search.addEventListener('input', () => {
+      const q = search.value.trim().toLowerCase();
+      rows.forEach((row) => {
+        const label = (row.textContent || '').toLowerCase();
+        row.style.display = !q || label.includes(q) ? 'flex' : 'none';
+      });
+      syncSelectAll();
+    });
+  }
+  if (selectAll) {
+    selectAll.addEventListener('change', () => {
+      const setChecked = selectAll.checked;
+      visibleRows().forEach((row) => {
+        const box = row.querySelector('[data-multiselect-option]');
+        if (box) box.checked = setChecked;
+      });
+      syncAll();
+    });
+  }
+  checkboxes.forEach((box) => box.addEventListener('change', syncAll));
+  syncAll();
+}
+function submitRunDetailTabForm(event, tabId, form) {
+  event.preventDefault();
+  const url = new URL(form.action, window.location.origin);
+  const params = new URLSearchParams();
+  for (const [key, value] of new FormData(form).entries()) {
+    if (value !== null && String(value).length > 0) {
+      params.append(key, String(value));
+    }
+  }
+  const target = url.pathname + (params.toString() ? '?' + params.toString() : '');
+  ensureTabLoaded(tabId, target);
+  return false;
+}
+
+document.addEventListener('click', event => {
+  const link = event.target.closest('[data-tab-fragment-url]');
+  if (!link) return;
+  event.preventDefault();
+  const tabId = link.dataset.tabId || link.closest('.tab-pane')?.dataset.tabId;
+  if (!tabId) return;
+  ensureTabLoaded(tabId, link.dataset.tabFragmentUrl);
+});
+
+async function lifecycleAction(runId, action, btn) {
+  btn.disabled = true;
+  const origText = btn.textContent;
+  btn.textContent = '…';
+  try {
+    const resp = await fetch('/admin/runs/' + runId + '/' + action, { method: 'POST' });
+    if (resp.ok) {
+      location.reload();
+    } else {
+      const body = await resp.json().catch(() => ({ detail: resp.statusText }));
+      let banner = document.getElementById('lifecycle-error-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'lifecycle-error-banner';
+        banner.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);background:var(--badge-error-bg);color:var(--badge-error-fg);border:1px solid var(--badge-error-fg);padding:0.75rem 1.5rem;border-radius:8px;z-index:9999;font-size:0.9rem';
+        document.body.appendChild(banner);
+      }
+      banner.textContent = '⚠ ' + (body.detail || 'Action failed');
+      setTimeout(() => { if (banner) banner.remove(); }, 4000);
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+(function autoRefreshRunDetail() {
+   const liveStatuses = new Set(['queued', 'running', 'cancelling']);
+   const currentStatus = 'succeeded';
+   if (!liveStatuses.has(currentStatus)) return;
+   const runId = '84c1c6a2-4b5f-49d6-991c-b3197e94f1bb';
+   const pollIntervalMs = 15000;
+   const currentLastCompleted = 'cv_generation';
+   const currentNextStage = '';
+   const currentCheckpoint = 'completed';
+   const currentFinishedAt = '2026-05-29T07:28:47.275007+00:00';
+   let pollTimer = null;
+   let inFlight = false;
+
+  function scheduleNextPoll(delayMs = pollIntervalMs) {
+    if (pollTimer) {
+      window.clearTimeout(pollTimer);
+    }
+    pollTimer = window.setTimeout(poll, delayMs);
+  }
+
+  async function poll() {
+    if (document.visibilityState === 'hidden') {
+      scheduleNextPoll();
+      return;
+    }
+    if (inFlight) {
+      scheduleNextPoll();
+      return;
+    }
+    inFlight = true;
+    try {
+      const resp = await fetch('/runs/' + runId, {
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
+      });
+      if (!resp.ok) return;
+      const payload = await resp.json();
+      const nextStatus = payload.status || '';
+      const nextLastCompleted = payload.last_completed_stage || '';
+      const nextNextStage = payload.next_stage || '';
+      const nextCheckpoint = payload.checkpoint_status || '';
+      const nextFinishedAt = payload.finished_at || '';
+      if (
+        nextStatus !== currentStatus ||
+        nextLastCompleted !== currentLastCompleted ||
+        nextNextStage !== currentNextStage ||
+        nextCheckpoint !== currentCheckpoint ||
+        nextFinishedAt !== currentFinishedAt
+      ) {
+        window.location.reload();
+      }
+    } catch (e) {
+      // Keep polling quiet; manual refresh remains available.
+    } finally {
+      inFlight = false;
+      scheduleNextPoll();
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      scheduleNextPoll(1000);
+    }
+  });
+
+  scheduleNextPoll();
+})();
+</script>
+
+<style>
+.run-export-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(14rem, 1fr));
+  gap:0.75rem;
+}
+
+.run-export-link {
+  display:flex;
+  align-items:center;
+  gap:0.5rem;
+  padding:0.7rem 0.9rem;
+  border:1px solid var(--accent);
+  border-radius:10px;
+  background:rgba(255,255,255,0.02);
+  text-decoration:none;
+}
+
+.run-export-item {
+  display:flex;
+  flex-direction:column;
+}
+
+.run-health-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(16rem, 1fr));
+  gap:0.85rem;
+}
+
+.run-health-tile {
+  padding:0.9rem 1rem;
+  border:1px solid var(--accent);
+  border-radius:12px;
+  background:rgba(255,255,255,0.02);
+}
+
+.run-health-success {
+  border-color:rgba(46, 204, 113, 0.45);
+  background:rgba(46, 204, 113, 0.08);
+}
+
+.run-health-warning {
+  border-color:rgba(243, 156, 18, 0.45);
+  background:rgba(243, 156, 18, 0.08);
+}
+
+.run-health-error {
+  border-color:rgba(231, 76, 60, 0.45);
+  background:rgba(231, 76, 60, 0.08);
+}
+
+.run-health-info {
+  border-color:rgba(52, 152, 219, 0.35);
+  background:rgba(52, 152, 219, 0.06);
+}
+
+.run-health-muted {
+  border-color:rgba(255, 255, 255, 0.08);
+  background:rgba(255,255,255,0.02);
+}
+
+.run-health-label {
+  font-weight:600;
+  margin-bottom:0.2rem;
+}
+
+.fit-context-stack {
+  display:flex;
+  flex-direction:column;
+  gap:0.2rem;
+  min-width:11rem;
+}
+
+.tab-loading-state {
+  min-height:8rem;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+
+.enr-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--table-header-bg, var(--card-bg, #1a1b2e));
+}
+
+.enr-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--accent);
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow-x: visible;
+}
+
+.enr-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.enr-toolbar-label {
+  font-size: 0.85rem;
+}
+
+.enr-toolbar-select {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+  appearance: auto;
+}
+
+
+.enr-filter-select {
+  min-width: 7rem;
+}
+
+.enr-rows-select {
+  min-width: 4.5rem;
+}
+
+.enr-toolbar-search {
+  flex: 1;
+  min-width: 14rem;
+  max-width: 22rem;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.6rem;
+}
+
+.enr-toolbar-outcome {
+  position: relative;
+}
+
+.enr-multiselect-details {
+  position: relative;
+}
+
+.enr-multiselect-toggle {
+  min-width: 15rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 0.5rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  line-height: 1.2;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+  min-height: 2.15rem;
+}
+
+
+.enr-multiselect-toggle::marker {
+  content: "";
+}
+
+.enr-multiselect-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.enr-multiselect-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 200;
+  min-width: 20rem;
+  max-width: 24rem;
+  max-height: 18rem;
+  overflow: auto;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+
+.enr-multiselect-search {
+  width: 100%;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.enr-multiselect-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.enr-multiselect-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.enr-multiselect-select-all {
+  margin-bottom: 0.35rem;
+}
+
+.enr-hidden-multiselect {
+  display: none;
+}
+
+.enr-export-btn {
+  margin-left: auto;
+}
+
+.inspection-card {
+  overflow: visible;
+}
+
+.pane-container {
+  overflow: visible;
+}
+
+.enr-caret {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1;
+  font-weight: 500;
+  margin-left: 0.35rem;
+}
+.enr-select-shell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.enr-select-caret {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 1.6rem;
+  min-height: 2.15rem;
+}
+
+.enr-select-shell::after {
+  content: "▾";
+  position: absolute;
+  right: 0.55rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.enr-multiselect-toggle:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.enr-multiselect-row:hover {
+  background: var(--surface-2);
+  border-radius: 4px;
+}
+
+.enr-multiselect-toggle,
+.enr-multiselect-panel,
+.enr-multiselect-search,
+.enr-multiselect-row,
+.enr-multiselect-row input,
+.enr-multiselect-panel input,
+.enr-multiselect-panel label {
+  font-family: inherit;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  
+  const pipelineResultsCard = document.getElementById('generated-outputs');
+  const runOverviewCard = document.getElementById('run-overview-core');
+  if (pipelineResultsCard && runOverviewCard && pipelineResultsCard !== runOverviewCard.previousElementSibling) {
+    runOverviewCard.parentNode.insertBefore(pipelineResultsCard, runOverviewCard);
+  }
+  
+  window.setTimeout(() => ensureTabLoaded('enriched'), 50);
+  initEnrichedOutcomeMultiselect(document);
+  const promoteSelectAllBtn = document.getElementById('promote-select-all-btn');
+  const promoteClearAllBtn = document.getElementById('promote-clear-all-btn');
+  const promoteSelectedCount = document.getElementById('promote-selected-count');
+  const promoteControls = document.getElementById('promote-controls');
+  const promoteEmptyNote = document.getElementById('promote-empty-note');
+  const promoteCheckboxes = () => Array.from(document.querySelectorAll('input[type="checkbox"][name="promote_proposal_id"][data-promote-selectable="true"]'));
+
+  const refreshPromoteSelectedCount = () => {
+    if (!promoteSelectedCount) {
+      return;
+    }
+    const selected = promoteCheckboxes().filter((cb) => cb.checked).length;
+    promoteSelectedCount.textContent = `Selected: ${selected}`;
+  };
+
+  const promoteRows = promoteCheckboxes();
+  if (promoteControls && promoteEmptyNote) {
+    if (promoteRows.length === 0) {
+      promoteControls.style.display = 'none';
+      promoteEmptyNote.style.display = '';
+    } else {
+      promoteControls.style.display = 'flex';
+      promoteEmptyNote.style.display = 'none';
+    }
+  }
+
+  promoteRows.forEach((checkboxEl) => {
+    checkboxEl.addEventListener('change', refreshPromoteSelectedCount);
+  });
+  refreshPromoteSelectedCount();
+
+  if (promoteSelectAllBtn) {
+    promoteSelectAllBtn.addEventListener('click', () => {
+      promoteCheckboxes().forEach((checkboxEl) => {
+        checkboxEl.checked = true;
+      });
+      refreshPromoteSelectedCount();
+    });
+  }
+
+  if (promoteClearAllBtn) {
+    promoteClearAllBtn.addEventListener('click', () => {
+      promoteCheckboxes().forEach((checkboxEl) => {
+        checkboxEl.checked = false;
+      });
+      refreshPromoteSelectedCount();
+    });
+  }
+
+});
+</script>
+
+  </div>
+  <script>
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    localStorage.setItem('fitcv-theme', t);
+    var icon  = document.getElementById('theme-icon');
+    var label = document.getElementById('theme-label');
+    if (icon && label) {
+      icon.textContent  = t === 'dark' ? '☀️' : '🌙';
+      label.textContent = t === 'dark' ? 'Light' : 'Dark';
+    }
+  }
+  function toggleTheme() {
+    applyTheme(
+      document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+    );
+  }
+  // Sync toggle label on every page load
+  applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+  </script>
+</body>
+</html>

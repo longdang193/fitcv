@@ -1,0 +1,4217 @@
+{
+  "run_id": "aa1ae763-fcb5-41f2-af6a-5e761db7d192",
+  "stage_id": "cv_generation",
+  "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+  "created_at": "2026-06-17T07:34:15.326761+00:00",
+  "stage_artifact": {
+    "stage_id": "cv_generation",
+    "stage": "cv_generation",
+    "status": "completed",
+    "stage_result": {
+      "stage_id": "cv_generation",
+      "status": "completed",
+      "stage_version": "1.0.0",
+      "output": {
+        "accepted": 9,
+        "review_required": 0,
+        "validation_failed": 0,
+        "generation_failed": 0,
+        "persistence_failed": 0
+      },
+      "evidence": {
+        "input_counts": {
+          "analysis_ready_jobs": 9
+        },
+        "decision_summary": {
+          "debug_records_captured": 15,
+          "analysis_ready_jobs_total": 9,
+          "quality_metrics": {
+            "validation_fail_rate": 0.0,
+            "accepted_rate": 0.0,
+            "review_required_rate": 1.0,
+            "generation_failed_rate": 0.0,
+            "persistence_failed_rate": 0.0,
+            "accepted": 0,
+            "review_required": 9,
+            "validation_failed": 0,
+            "generation_failed": 0,
+            "persistence_failed": 0,
+            "total_attempted": 9
+          },
+          "reuse_metrics": {
+            "reused_rows": 0,
+            "fresh_rows": 9,
+            "total_rows": 9,
+            "reuse_rate": 0.0
+          },
+          "cv_generation_model": "ds/deepseek-v4-flash",
+          "cv_generation_provider": "openai_compatible",
+          "cv_prompt_id": "cv_generation.structured_write.v1",
+          "cv_prompt_template_path": "/app/src/fitcv/prompts/templates/cv_generation_structured_write_v1.md"
+        }
+      },
+      "validation": {
+        "checks": [],
+        "summary": {
+          "status": "completed"
+        }
+      },
+      "decision": "pass",
+      "policy_version": "policy.cv_generation.v1",
+      "trace_context": {
+        "trace_id": "3fe3ebbc5c1d4aa808490ae0f37b9468",
+        "span_id": "83e41602443fc940",
+        "parent_span_id": "765f438c6e114ca6"
+      }
+    },
+    "input_counts": {
+      "analysis_ready_jobs": 9
+    },
+    "output_counts": {
+      "accepted": 9,
+      "review_required": 0,
+      "validation_failed": 0,
+      "generation_failed": 0,
+      "persistence_failed": 0
+    },
+    "decision_summary": {
+      "debug_records_captured": 15,
+      "analysis_ready_jobs_total": 9,
+      "quality_metrics": {
+        "validation_fail_rate": 0.0,
+        "accepted_rate": 0.0,
+        "review_required_rate": 1.0,
+        "generation_failed_rate": 0.0,
+        "persistence_failed_rate": 0.0,
+        "accepted": 0,
+        "review_required": 9,
+        "validation_failed": 0,
+        "generation_failed": 0,
+        "persistence_failed": 0,
+        "total_attempted": 9
+      },
+      "reuse_metrics": {
+        "reused_rows": 0,
+        "fresh_rows": 9,
+        "total_rows": 9,
+        "reuse_rate": 0.0
+      },
+      "cv_generation_model": "ds/deepseek-v4-flash",
+      "cv_generation_provider": "openai_compatible",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "/app/src/fitcv/prompts/templates/cv_generation_structured_write_v1.md"
+    },
+    "outputs_sample": [],
+    "dropped_or_changed_sample": [],
+    "inputs_sample": [
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4429266915",
+        "job_title": "Intern- Portfolio Management Markets & Pricing , Southern European Origination (6 months), Düsseldorf, (m/f) - Studentjob.de",
+        "status": "ready_for_generation",
+        "stage_owned_subreason": "ready_for_generation",
+        "source_stage": "cv_analysis",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "580bfe42759f66677a04a8146f68a34559b0641297ba76b14ad9b5be5666b157",
+        "ranking_fit_label": "stretch",
+        "fit_classification": "stretch",
+        "evidence_used": [
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[1]",
+            "name": "Customer Churn Prediction on Azure ML",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment"
+            ],
+            "selection_reasons": [
+              "required_skill_support",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.5,
+                "semantic": 0.160412,
+                "combined": 0.398124
+              },
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.164682,
+                "combined": 0.065873
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[0]",
+            "name": "Designed FitCV as a staged decision workflow that filters, evaluates, and refines opportunities before CV generation, improving reviewability and reducing wasted effort on weak matches.",
+            "matched_channels": [
+              "required_skill_support",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.0,
+                "semantic": 0.451594,
+                "combined": 0.135478
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0625,
+                "semantic": 0.449723,
+                "combined": 0.352917
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "R&D Staff — KOKUYO Vietnam Trading",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.313499,
+                "combined": 0.1254
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[3]",
+            "name": "Contributed to a top-5 revenue-performing newly developed category by aligning product planning with customer demand and commercial priorities.",
+            "matched_channels": [
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.231538,
+                "combined": 0.138923
+              },
+              "responsibility_alignment": {
+                "lexical": 0.09375,
+                "semantic": 0.302199,
+                "combined": 0.250087
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[0]",
+            "name": "FitCV",
+            "matched_channels": [
+              "required_skill_support"
+            ],
+            "selection_reasons": [
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.5,
+                "semantic": 0.171579,
+                "combined": 0.401474
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Brand Marketing Executive — Long Hung ITS",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.1875,
+                "semantic": 0.120683,
+                "combined": 0.137387
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[2]",
+            "name": "Ecommerce Analytics Bruin",
+            "matched_channels": [
+              "required_skill_support"
+            ],
+            "selection_reasons": [
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.5,
+                "semantic": 0.13028,
+                "combined": 0.389084
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Combined clear screening rules, exact signals, and evidence-based review in FitCV to improve shortlist quality and make match decisions easier to explain and validate.",
+            "matched_channels": [
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.237251,
+                "combined": 0.0949
+              },
+              "responsibility_alignment": {
+                "lexical": 0.03125,
+                "semantic": 0.23331,
+                "combined": 0.182795
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[4]",
+            "name": "Supported delivery of a top-5 social marketing campaign in the F&B category by combining consumer research, brand analysis, and performance reporting.",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.160314,
+                "combined": 0.064125
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          }
+        ],
+        "evidence_selection_summary": {
+          "channel_counts": {
+            "required_skill_support": 4,
+            "role_alignment": 4,
+            "domain_alignment": 1,
+            "responsibility_alignment": 4
+          },
+          "fallback_used": false,
+          "effective_channel_pool_size": 4,
+          "merged_pool_size": 13,
+          "deduped_pool_size": 9,
+          "selected_evidence_count": 9,
+          "selected_evidence_ids": [
+            "proj_customer_churn_azureml",
+            "ach_fitcv_workflow_design",
+            "exp_kokuyo_vn_2021_2023",
+            "ach_kokuyo_top5_revenue",
+            "proj_fitcv",
+            "exp_longhung_pushmax_2019_2021",
+            "proj_ecommerce_analytics_bruin",
+            "ach_fitcv_traceable_matching",
+            "ach_pushmax_top5_campaign"
+          ],
+          "hybrid_alignment": {
+            "required_skill_support": {
+              "lexical_weight": 0.7,
+              "semantic_weight": 0.3
+            },
+            "role_alignment": {
+              "lexical_weight": 0.6,
+              "semantic_weight": 0.4
+            },
+            "responsibility_alignment": {
+              "lexical_weight": 0.25,
+              "semantic_weight": 0.75
+            },
+            "domain_alignment": {
+              "lexical_weight": 0.4,
+              "semantic_weight": 0.6
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 25,
+                "reused": 15
+              },
+              "job_context": {
+                "fresh": 11,
+                "reused": 99
+              }
+            }
+          }
+        },
+        "gap_summary": {
+          "matched": [
+            "Python"
+          ],
+          "partial": [],
+          "missing": [
+            "quantitative skills",
+            "analytical skills",
+            "Excel",
+            "interest in renewables",
+            "structured way of working",
+            "communication skills",
+            "fluency in English"
+          ],
+          "matchable_required_count": 6,
+          "ignored_for_fit": [
+            "analytical skills",
+            "fluency in English"
+          ],
+          "years_risk": false,
+          "overclaim_risk": []
+        }
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4190487310",
+        "job_title": "Business Analyst - Thesis Internship (m/w/d)",
+        "status": "ready_for_generation",
+        "stage_owned_subreason": "ready_for_generation",
+        "source_stage": "cv_analysis",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "9964df0161510c9ac8cf39eb95217d88bb82dc496063da05e6f6cdcfb2c71cf3",
+        "ranking_fit_label": "stretch",
+        "fit_classification": "stretch",
+        "evidence_used": [
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Combined clear screening rules, exact signals, and evidence-based review in FitCV to improve shortlist quality and make match decisions easier to explain and validate.",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "required_skill_support",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.0,
+                "semantic": 0.351645,
+                "combined": 0.105493
+              },
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.237251,
+                "combined": 0.0949
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.12127,
+                "combined": 0.072762
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.384566,
+                "combined": 0.288424
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 14,
+                  "reused": 126
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[2]",
+            "name": "Ecommerce Analytics Bruin",
+            "matched_channels": [
+              "required_skill_support"
+            ],
+            "selection_reasons": [
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.333333,
+                "semantic": 0.0,
+                "combined": 0.233333
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 14,
+                  "reused": 126
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "R&D Staff — KOKUYO Vietnam Trading",
+            "matched_channels": [
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.313499,
+                "combined": 0.1254
+              },
+              "responsibility_alignment": {
+                "lexical": 0.2,
+                "semantic": 0.318174,
+                "combined": 0.288631
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 14,
+                  "reused": 126
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Brand Marketing Executive — Long Hung ITS",
+            "matched_channels": [
+              "required_skill_support",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "required_skill_support",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.0,
+                "semantic": 0.288267,
+                "combined": 0.08648
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.043655,
+                "combined": 0.026193
+              },
+              "responsibility_alignment": {
+                "lexical": 0.175,
+                "semantic": 0.254856,
+                "combined": 0.234892
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 14,
+                  "reused": 126
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[0]",
+            "name": "FitCV",
+            "matched_channels": [
+              "required_skill_support",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.0,
+                "semantic": 0.276911,
+                "combined": 0.083073
+              },
+              "responsibility_alignment": {
+                "lexical": 0.15,
+                "semantic": 0.30878,
+                "combined": 0.269085
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 14,
+                  "reused": 126
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Developed and launched 38 SKUs across B2B and B2C stationery categories, supporting portfolio expansion and new revenue opportunities.",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.160202,
+                "combined": 0.096121
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 14,
+                  "reused": 126
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[4]",
+            "name": "Supported delivery of a top-5 social marketing campaign in the F&B category by combining consumer research, brand analysis, and performance reporting.",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.222499,
+                "combined": 0.089
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.091099,
+                "combined": 0.054659
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 14,
+                  "reused": 126
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[3]",
+            "name": "Contributed to a top-5 revenue-performing newly developed category by aligning product planning with customer demand and commercial priorities.",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.205602,
+                "combined": 0.082241
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 14,
+                  "reused": 126
+                }
+              }
+            }
+          }
+        ],
+        "evidence_selection_summary": {
+          "channel_counts": {
+            "required_skill_support": 4,
+            "role_alignment": 4,
+            "domain_alignment": 4,
+            "responsibility_alignment": 4
+          },
+          "fallback_used": false,
+          "effective_channel_pool_size": 4,
+          "merged_pool_size": 16,
+          "deduped_pool_size": 8,
+          "selected_evidence_count": 8,
+          "selected_evidence_ids": [
+            "ach_fitcv_traceable_matching",
+            "proj_ecommerce_analytics_bruin",
+            "exp_kokuyo_vn_2021_2023",
+            "exp_longhung_pushmax_2019_2021",
+            "proj_fitcv",
+            "ach_kokuyo_38_skus",
+            "ach_pushmax_top5_campaign",
+            "ach_kokuyo_top5_revenue"
+          ],
+          "hybrid_alignment": {
+            "required_skill_support": {
+              "lexical_weight": 0.7,
+              "semantic_weight": 0.3
+            },
+            "role_alignment": {
+              "lexical_weight": 0.6,
+              "semantic_weight": 0.4
+            },
+            "responsibility_alignment": {
+              "lexical_weight": 0.25,
+              "semantic_weight": 0.75
+            },
+            "domain_alignment": {
+              "lexical_weight": 0.4,
+              "semantic_weight": 0.6
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 25,
+                "reused": 15
+              },
+              "job_context": {
+                "fresh": 14,
+                "reused": 126
+              }
+            }
+          }
+        },
+        "gap_summary": {
+          "matched": [
+            "data modeling"
+          ],
+          "partial": [],
+          "missing": [
+            "data analytics",
+            "business consulting"
+          ],
+          "matchable_required_count": 3,
+          "ignored_for_fit": [],
+          "years_risk": false,
+          "overclaim_risk": []
+        }
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4426856654",
+        "job_title": "Business Operations Intern (m/w/d)",
+        "status": "ready_for_generation",
+        "stage_owned_subreason": "ready_for_generation",
+        "source_stage": "cv_analysis",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "e7bd8469a37a38dc8b7cc99ef2483a5f8ba5f6ff2e25bda973a05b68b8f5ac6a",
+        "ranking_fit_label": "stretch",
+        "fit_classification": "stretch",
+        "evidence_used": [
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Developed and launched 38 SKUs across B2B and B2C stationery categories, supporting portfolio expansion and new revenue opportunities.",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "domain_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.281601,
+                "combined": 0.112641
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.344386,
+                "combined": 0.206631
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.426545,
+                "combined": 0.319908
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[2]",
+            "name": "Ecommerce Analytics Bruin",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "domain_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.413627,
+                "combined": 0.165451
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.0,
+                "combined": 0.2
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.336361,
+                "combined": 0.25227
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[0]",
+            "name": "FitCV",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.434115,
+                "combined": 0.173646
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.176072,
+                "combined": 0.105643
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[3]",
+            "name": "Contributed to a top-5 revenue-performing newly developed category by aligning product planning with customer demand and commercial priorities.",
+            "matched_channels": [
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.190377,
+                "combined": 0.076151
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.410699,
+                "combined": 0.308025
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[4]",
+            "name": "Supported delivery of a top-5 social marketing campaign in the F&B category by combining consumer research, brand analysis, and performance reporting.",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.324705,
+                "combined": 0.243529
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[0]",
+            "name": "Designed FitCV as a staged decision workflow that filters, evaluates, and refines opportunities before CV generation, improving reviewability and reducing wasted effort on weak matches.",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.225427,
+                "combined": 0.135256
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          }
+        ],
+        "evidence_selection_summary": {
+          "channel_counts": {
+            "required_skill_support": 0,
+            "role_alignment": 4,
+            "domain_alignment": 4,
+            "responsibility_alignment": 4
+          },
+          "fallback_used": false,
+          "effective_channel_pool_size": 4,
+          "merged_pool_size": 12,
+          "deduped_pool_size": 6,
+          "selected_evidence_count": 6,
+          "selected_evidence_ids": [
+            "ach_kokuyo_38_skus",
+            "proj_ecommerce_analytics_bruin",
+            "proj_fitcv",
+            "ach_kokuyo_top5_revenue",
+            "ach_pushmax_top5_campaign",
+            "ach_fitcv_workflow_design"
+          ],
+          "hybrid_alignment": {
+            "required_skill_support": {
+              "lexical_weight": 0.7,
+              "semantic_weight": 0.3
+            },
+            "role_alignment": {
+              "lexical_weight": 0.6,
+              "semantic_weight": 0.4
+            },
+            "responsibility_alignment": {
+              "lexical_weight": 0.25,
+              "semantic_weight": 0.75
+            },
+            "domain_alignment": {
+              "lexical_weight": 0.4,
+              "semantic_weight": 0.6
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 20,
+                "reused": 10
+              },
+              "job_context": {
+                "fresh": 11,
+                "reused": 99
+              }
+            }
+          }
+        },
+        "gap_summary": {
+          "matched": [],
+          "partial": [],
+          "missing": [],
+          "matchable_required_count": 0,
+          "ignored_for_fit": [],
+          "years_risk": false,
+          "overclaim_risk": []
+        }
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4426466890",
+        "job_title": "Praktikum im BrotHaus",
+        "status": "ready_for_generation",
+        "stage_owned_subreason": "ready_for_generation",
+        "source_stage": "cv_analysis",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "ef80e297f4142e3efa8ad13990e383e5079eacccb1c5b3ed13559faeb96f1314",
+        "ranking_fit_label": "stretch",
+        "fit_classification": "stretch",
+        "evidence_used": [
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Brand Marketing Executive — Long Hung ITS",
+            "matched_channels": [
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.269466,
+                "combined": 0.161679
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.405973,
+                "combined": 0.30448
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 9,
+                  "reused": 81
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[2]",
+            "name": "Ecommerce Analytics Bruin",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.442398,
+                "combined": 0.176959
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.150872,
+                "combined": 0.090523
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.32312,
+                "combined": 0.24234
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 9,
+                  "reused": 81
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[4]",
+            "name": "Supported delivery of a top-5 social marketing campaign in the F&B category by combining consumer research, brand analysis, and performance reporting.",
+            "matched_channels": [
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.152648,
+                "combined": 0.091589
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.249996,
+                "combined": 0.187497
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 9,
+                  "reused": 81
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[1]",
+            "name": "Customer Churn Prediction on Azure ML",
+            "matched_channels": [
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.204357,
+                "combined": 0.081743
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.409179,
+                "combined": 0.306884
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 9,
+                  "reused": 81
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "R&D Staff — KOKUYO Vietnam Trading",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.364788,
+                "combined": 0.145915
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.035954,
+                "combined": 0.021573
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 9,
+                  "reused": 81
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Developed and launched 38 SKUs across B2B and B2C stationery categories, supporting portfolio expansion and new revenue opportunities.",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.281601,
+                "combined": 0.112641
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 9,
+                  "reused": 81
+                }
+              }
+            }
+          }
+        ],
+        "evidence_selection_summary": {
+          "channel_counts": {
+            "required_skill_support": 0,
+            "role_alignment": 4,
+            "domain_alignment": 4,
+            "responsibility_alignment": 4
+          },
+          "fallback_used": false,
+          "effective_channel_pool_size": 4,
+          "merged_pool_size": 12,
+          "deduped_pool_size": 6,
+          "selected_evidence_count": 6,
+          "selected_evidence_ids": [
+            "exp_longhung_pushmax_2019_2021",
+            "proj_ecommerce_analytics_bruin",
+            "ach_pushmax_top5_campaign",
+            "proj_customer_churn_azureml",
+            "exp_kokuyo_vn_2021_2023",
+            "ach_kokuyo_38_skus"
+          ],
+          "hybrid_alignment": {
+            "required_skill_support": {
+              "lexical_weight": 0.7,
+              "semantic_weight": 0.3
+            },
+            "role_alignment": {
+              "lexical_weight": 0.6,
+              "semantic_weight": 0.4
+            },
+            "responsibility_alignment": {
+              "lexical_weight": 0.25,
+              "semantic_weight": 0.75
+            },
+            "domain_alignment": {
+              "lexical_weight": 0.4,
+              "semantic_weight": 0.6
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 20,
+                "reused": 10
+              },
+              "job_context": {
+                "fresh": 9,
+                "reused": 81
+              }
+            }
+          }
+        },
+        "gap_summary": {
+          "matched": [],
+          "partial": [],
+          "missing": [],
+          "matchable_required_count": 0,
+          "ignored_for_fit": [],
+          "years_risk": false,
+          "overclaim_risk": []
+        }
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4429506156",
+        "job_title": "Intern Sustainability & Environmental Development (m/f/d)",
+        "status": "ready_for_generation",
+        "stage_owned_subreason": "ready_for_generation",
+        "source_stage": "cv_analysis",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "b01b98072addd1ea82ca054dbe44473c15c6dcdc6f416edb84bbac6dcc20285f",
+        "ranking_fit_label": "stretch",
+        "fit_classification": "stretch",
+        "evidence_used": [
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "R&D Staff — KOKUYO Vietnam Trading",
+            "matched_channels": [
+              "required_skill_support",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "required_skill_support",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.5,
+                "semantic": 0.0,
+                "combined": 0.35
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.167867,
+                "combined": 0.10072
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 10,
+                  "reused": 90
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Developed and launched 38 SKUs across B2B and B2C stationery categories, supporting portfolio expansion and new revenue opportunities.",
+            "matched_channels": [
+              "required_skill_support",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.0,
+                "semantic": 0.424886,
+                "combined": 0.127466
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.385202,
+                "combined": 0.288901
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 10,
+                  "reused": 90
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[0]",
+            "name": "FitCV",
+            "matched_channels": [
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.23208,
+                "combined": 0.092832
+              },
+              "responsibility_alignment": {
+                "lexical": 0.153846,
+                "semantic": 0.247581,
+                "combined": 0.224147
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 10,
+                  "reused": 90
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Brand Marketing Executive — Long Hung ITS",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.402482,
+                "combined": 0.160993
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 10,
+                  "reused": 90
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[1]",
+            "name": "Customer Churn Prediction on Azure ML",
+            "matched_channels": [
+              "required_skill_support",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.0,
+                "semantic": 0.326868,
+                "combined": 0.09806
+              },
+              "responsibility_alignment": {
+                "lexical": 0.153846,
+                "semantic": 0.167298,
+                "combined": 0.163935
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 10,
+                  "reused": 90
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[3]",
+            "name": "Contributed to a top-5 revenue-performing newly developed category by aligning product planning with customer demand and commercial priorities.",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.318095,
+                "combined": 0.127238
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.205021,
+                "combined": 0.123013
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 10,
+                  "reused": 90
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[2]",
+            "name": "Ecommerce Analytics Bruin",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.230769,
+                "semantic": 0.250566,
+                "combined": 0.245617
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 10,
+                  "reused": 90
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[0]",
+            "name": "Designed FitCV as a staged decision workflow that filters, evaluates, and refines opportunities before CV generation, improving reviewability and reducing wasted effort on weak matches.",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment"
+            ],
+            "selection_reasons": [
+              "required_skill_support",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.0,
+                "semantic": 0.451594,
+                "combined": 0.135478
+              },
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.313077,
+                "combined": 0.125231
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 10,
+                  "reused": 90
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[4]",
+            "name": "Supported delivery of a top-5 social marketing campaign in the F&B category by combining consumer research, brand analysis, and performance reporting.",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.160135,
+                "combined": 0.096081
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 10,
+                  "reused": 90
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Combined clear screening rules, exact signals, and evidence-based review in FitCV to improve shortlist quality and make match decisions easier to explain and validate.",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.12919,
+                "combined": 0.077514
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 10,
+                  "reused": 90
+                }
+              }
+            }
+          }
+        ],
+        "evidence_selection_summary": {
+          "channel_counts": {
+            "required_skill_support": 4,
+            "role_alignment": 4,
+            "domain_alignment": 4,
+            "responsibility_alignment": 4
+          },
+          "fallback_used": false,
+          "effective_channel_pool_size": 4,
+          "merged_pool_size": 16,
+          "deduped_pool_size": 10,
+          "selected_evidence_count": 10,
+          "selected_evidence_ids": [
+            "exp_kokuyo_vn_2021_2023",
+            "ach_kokuyo_38_skus",
+            "proj_fitcv",
+            "exp_longhung_pushmax_2019_2021",
+            "proj_customer_churn_azureml",
+            "ach_kokuyo_top5_revenue",
+            "proj_ecommerce_analytics_bruin",
+            "ach_fitcv_workflow_design",
+            "ach_pushmax_top5_campaign",
+            "ach_fitcv_traceable_matching"
+          ],
+          "hybrid_alignment": {
+            "required_skill_support": {
+              "lexical_weight": 0.7,
+              "semantic_weight": 0.3
+            },
+            "role_alignment": {
+              "lexical_weight": 0.6,
+              "semantic_weight": 0.4
+            },
+            "responsibility_alignment": {
+              "lexical_weight": 0.25,
+              "semantic_weight": 0.75
+            },
+            "domain_alignment": {
+              "lexical_weight": 0.4,
+              "semantic_weight": 0.6
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 25,
+                "reused": 15
+              },
+              "job_context": {
+                "fresh": 10,
+                "reused": 90
+              }
+            }
+          }
+        },
+        "gap_summary": {
+          "matched": [
+            "data analysis"
+          ],
+          "partial": [],
+          "missing": [
+            "Excel",
+            "analytical skills"
+          ],
+          "matchable_required_count": 2,
+          "ignored_for_fit": [
+            "analytical skills"
+          ],
+          "years_risk": false,
+          "overclaim_risk": []
+        }
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4429569051",
+        "job_title": "Future Leader (f_m_d) in Sales & Marketing, Cologne",
+        "status": "ready_for_generation",
+        "stage_owned_subreason": "ready_for_generation",
+        "source_stage": "cv_analysis",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "ca19dc58bb4f5fc4f1a90feb16bfc46b01b24d384c7904eed1d71f508d462f1a",
+        "ranking_fit_label": "stretch",
+        "fit_classification": "stretch",
+        "evidence_used": [
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Brand Marketing Executive — Long Hung ITS",
+            "matched_channels": [
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.166667,
+                "semantic": 0.176,
+                "combined": 0.1704
+              },
+              "responsibility_alignment": {
+                "lexical": 0.129032,
+                "semantic": 0.386931,
+                "combined": 0.322456
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 13,
+                  "reused": 117
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[0]",
+            "name": "FitCV",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.236493,
+                "combined": 0.141896
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 13,
+                  "reused": 117
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[4]",
+            "name": "Supported delivery of a top-5 social marketing campaign in the F&B category by combining consumer research, brand analysis, and performance reporting.",
+            "matched_channels": [
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.166667,
+                "semantic": 0.035928,
+                "combined": 0.114371
+              },
+              "responsibility_alignment": {
+                "lexical": 0.064516,
+                "semantic": 0.381253,
+                "combined": 0.302069
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 13,
+                  "reused": 117
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "R&D Staff — KOKUYO Vietnam Trading",
+            "matched_channels": [
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.220858,
+                "combined": 0.088343
+              },
+              "responsibility_alignment": {
+                "lexical": 0.112903,
+                "semantic": 0.303597,
+                "combined": 0.255924
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 13,
+                  "reused": 117
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[2]",
+            "name": "Ecommerce Analytics Bruin",
+            "matched_channels": [
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.225462,
+                "combined": 0.090185
+              },
+              "responsibility_alignment": {
+                "lexical": 0.096774,
+                "semantic": 0.323907,
+                "combined": 0.267124
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 13,
+                  "reused": 117
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Developed and launched 38 SKUs across B2B and B2C stationery categories, supporting portfolio expansion and new revenue opportunities.",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.111394,
+                "combined": 0.066836
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 13,
+                  "reused": 117
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[1]",
+            "name": "Customer Churn Prediction on Azure ML",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.158843,
+                "combined": 0.095306
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 13,
+                  "reused": 117
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Combined clear screening rules, exact signals, and evidence-based review in FitCV to improve shortlist quality and make match decisions easier to explain and validate.",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.105506,
+                "combined": 0.063304
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 13,
+                  "reused": 117
+                }
+              }
+            }
+          }
+        ],
+        "evidence_selection_summary": {
+          "channel_counts": {
+            "required_skill_support": 0,
+            "role_alignment": 4,
+            "domain_alignment": 4,
+            "responsibility_alignment": 4
+          },
+          "fallback_used": false,
+          "effective_channel_pool_size": 4,
+          "merged_pool_size": 12,
+          "deduped_pool_size": 8,
+          "selected_evidence_count": 8,
+          "selected_evidence_ids": [
+            "exp_longhung_pushmax_2019_2021",
+            "proj_fitcv",
+            "ach_pushmax_top5_campaign",
+            "exp_kokuyo_vn_2021_2023",
+            "proj_ecommerce_analytics_bruin",
+            "ach_kokuyo_38_skus",
+            "proj_customer_churn_azureml",
+            "ach_fitcv_traceable_matching"
+          ],
+          "hybrid_alignment": {
+            "required_skill_support": {
+              "lexical_weight": 0.7,
+              "semantic_weight": 0.3
+            },
+            "role_alignment": {
+              "lexical_weight": 0.6,
+              "semantic_weight": 0.4
+            },
+            "responsibility_alignment": {
+              "lexical_weight": 0.25,
+              "semantic_weight": 0.75
+            },
+            "domain_alignment": {
+              "lexical_weight": 0.4,
+              "semantic_weight": 0.6
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 20,
+                "reused": 10
+              },
+              "job_context": {
+                "fresh": 13,
+                "reused": 117
+              }
+            }
+          }
+        },
+        "gap_summary": {
+          "matched": [],
+          "partial": [],
+          "missing": [],
+          "matchable_required_count": 0,
+          "ignored_for_fit": [],
+          "years_risk": false,
+          "overclaim_risk": []
+        }
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4429168357",
+        "job_title": "Intern (m/f/d) Venture Capital in Africa",
+        "status": "ready_for_generation",
+        "stage_owned_subreason": "ready_for_generation",
+        "source_stage": "cv_analysis",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "5562448116285b9a115bcce22cb4c67ed376579af67d69a2a8ef2d19da85cb16",
+        "ranking_fit_label": "stretch",
+        "fit_classification": "stretch",
+        "evidence_used": [
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[1]",
+            "name": "Customer Churn Prediction on Azure ML",
+            "matched_channels": [
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.184121,
+                "combined": 0.073648
+              },
+              "responsibility_alignment": {
+                "lexical": 0.033333,
+                "semantic": 0.242958,
+                "combined": 0.190552
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 7,
+                  "reused": 63
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Developed and launched 38 SKUs across B2B and B2C stationery categories, supporting portfolio expansion and new revenue opportunities.",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.328705,
+                "combined": 0.131482
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.199203,
+                "combined": 0.119522
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 7,
+                  "reused": 63
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Brand Marketing Executive — Long Hung ITS",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.28652,
+                "combined": 0.114608
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.114925,
+                "combined": 0.068955
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 7,
+                  "reused": 63
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[0]",
+            "name": "FitCV",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.227714,
+                "combined": 0.091085
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.070394,
+                "combined": 0.042237
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 7,
+                  "reused": 63
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "R&D Staff — KOKUYO Vietnam Trading",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.033333,
+                "semantic": 0.211065,
+                "combined": 0.166632
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 7,
+                  "reused": 63
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[3]",
+            "name": "Contributed to a top-5 revenue-performing newly developed category by aligning product planning with customer demand and commercial priorities.",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.033333,
+                "semantic": 0.226047,
+                "combined": 0.177868
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 7,
+                  "reused": 63
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[2]",
+            "name": "Ecommerce Analytics Bruin",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.033333,
+                "semantic": 0.20931,
+                "combined": 0.165316
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 7,
+                  "reused": 63
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[0]",
+            "name": "Designed FitCV as a staged decision workflow that filters, evaluates, and refines opportunities before CV generation, improving reviewability and reducing wasted effort on weak matches.",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.086322,
+                "combined": 0.051793
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 7,
+                  "reused": 63
+                }
+              }
+            }
+          }
+        ],
+        "evidence_selection_summary": {
+          "channel_counts": {
+            "required_skill_support": 0,
+            "role_alignment": 4,
+            "domain_alignment": 4,
+            "responsibility_alignment": 4
+          },
+          "fallback_used": false,
+          "effective_channel_pool_size": 4,
+          "merged_pool_size": 12,
+          "deduped_pool_size": 8,
+          "selected_evidence_count": 8,
+          "selected_evidence_ids": [
+            "proj_customer_churn_azureml",
+            "ach_kokuyo_38_skus",
+            "exp_longhung_pushmax_2019_2021",
+            "proj_fitcv",
+            "exp_kokuyo_vn_2021_2023",
+            "ach_kokuyo_top5_revenue",
+            "proj_ecommerce_analytics_bruin",
+            "ach_fitcv_workflow_design"
+          ],
+          "hybrid_alignment": {
+            "required_skill_support": {
+              "lexical_weight": 0.7,
+              "semantic_weight": 0.3
+            },
+            "role_alignment": {
+              "lexical_weight": 0.6,
+              "semantic_weight": 0.4
+            },
+            "responsibility_alignment": {
+              "lexical_weight": 0.25,
+              "semantic_weight": 0.75
+            },
+            "domain_alignment": {
+              "lexical_weight": 0.4,
+              "semantic_weight": 0.6
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 20,
+                "reused": 10
+              },
+              "job_context": {
+                "fresh": 7,
+                "reused": 63
+              }
+            }
+          }
+        },
+        "gap_summary": {
+          "matched": [],
+          "partial": [],
+          "missing": [],
+          "matchable_required_count": 0,
+          "ignored_for_fit": [],
+          "years_risk": false,
+          "overclaim_risk": []
+        }
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4426889160",
+        "job_title": "Praktikum / Praktikant (m/w/d) für ein Schülerpraktikum",
+        "status": "ready_for_generation",
+        "stage_owned_subreason": "ready_for_generation",
+        "source_stage": "cv_analysis",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "460b5c4a26ad5fb4c19e31f9f0191875ddb23ea6716f3b423f265d0269e83f37",
+        "ranking_fit_label": "stretch",
+        "fit_classification": "stretch",
+        "evidence_used": [
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[1]",
+            "name": "Customer Churn Prediction on Azure ML",
+            "matched_channels": [
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.214851,
+                "combined": 0.128911
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.324474,
+                "combined": 0.243355
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 8,
+                  "reused": 72
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Combined clear screening rules, exact signals, and evidence-based review in FitCV to improve shortlist quality and make match decisions easier to explain and validate.",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.306135,
+                "combined": 0.122454
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.204913,
+                "combined": 0.122948
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 8,
+                  "reused": 72
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "R&D Staff — KOKUYO Vietnam Trading",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.164487,
+                "combined": 0.065795
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.250548,
+                "combined": 0.150329
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 8,
+                  "reused": 72
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[0]",
+            "name": "Designed FitCV as a staged decision workflow that filters, evaluates, and refines opportunities before CV generation, improving reviewability and reducing wasted effort on weak matches.",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.357016,
+                "combined": 0.267762
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 8,
+                  "reused": 72
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[0]",
+            "name": "FitCV",
+            "matched_channels": [
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.160896,
+                "combined": 0.096538
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.3106,
+                "combined": 0.23295
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 8,
+                  "reused": 72
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Brand Marketing Executive — Long Hung ITS",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.178036,
+                "combined": 0.071215
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 8,
+                  "reused": 72
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[4]",
+            "name": "Supported delivery of a top-5 social marketing campaign in the F&B category by combining consumer research, brand analysis, and performance reporting.",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.353643,
+                "combined": 0.265232
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 8,
+                  "reused": 72
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Developed and launched 38 SKUs across B2B and B2C stationery categories, supporting portfolio expansion and new revenue opportunities.",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.095922,
+                "combined": 0.038369
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 20,
+                  "reused": 10
+                },
+                "job_context": {
+                  "fresh": 8,
+                  "reused": 72
+                }
+              }
+            }
+          }
+        ],
+        "evidence_selection_summary": {
+          "channel_counts": {
+            "required_skill_support": 0,
+            "role_alignment": 4,
+            "domain_alignment": 4,
+            "responsibility_alignment": 4
+          },
+          "fallback_used": false,
+          "effective_channel_pool_size": 4,
+          "merged_pool_size": 12,
+          "deduped_pool_size": 8,
+          "selected_evidence_count": 8,
+          "selected_evidence_ids": [
+            "proj_customer_churn_azureml",
+            "ach_fitcv_traceable_matching",
+            "exp_kokuyo_vn_2021_2023",
+            "ach_fitcv_workflow_design",
+            "proj_fitcv",
+            "exp_longhung_pushmax_2019_2021",
+            "ach_pushmax_top5_campaign",
+            "ach_kokuyo_38_skus"
+          ],
+          "hybrid_alignment": {
+            "required_skill_support": {
+              "lexical_weight": 0.7,
+              "semantic_weight": 0.3
+            },
+            "role_alignment": {
+              "lexical_weight": 0.6,
+              "semantic_weight": 0.4
+            },
+            "responsibility_alignment": {
+              "lexical_weight": 0.25,
+              "semantic_weight": 0.75
+            },
+            "domain_alignment": {
+              "lexical_weight": 0.4,
+              "semantic_weight": 0.6
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 20,
+                "reused": 10
+              },
+              "job_context": {
+                "fresh": 8,
+                "reused": 72
+              }
+            }
+          }
+        },
+        "gap_summary": {
+          "matched": [],
+          "partial": [],
+          "missing": [],
+          "matchable_required_count": 0,
+          "ignored_for_fit": [],
+          "years_risk": false,
+          "overclaim_risk": []
+        }
+      },
+      {
+        "job_url": "https://www.linkedin.com/jobs/view/4201239737",
+        "job_title": "Jahrespraktikum (w/m/d)",
+        "status": "ready_for_generation",
+        "stage_owned_subreason": "ready_for_generation",
+        "source_stage": "cv_analysis",
+        "analysis_reuse_status": "fresh_compute",
+        "analysis_input_fingerprint": "3d8b5470548712137e10e38bdaf4a464bc5771a67481565b4508170c762f0854",
+        "ranking_fit_label": "stretch",
+        "fit_classification": "stretch",
+        "evidence_used": [
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Brand Marketing Executive — Long Hung ITS",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "required_skill_support",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.0,
+                "semantic": 0.27041,
+                "combined": 0.081123
+              },
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.139992,
+                "combined": 0.055997
+              },
+              "responsibility_alignment": {
+                "lexical": 0.033333,
+                "semantic": 0.196128,
+                "combined": 0.155429
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[4]",
+            "name": "Supported delivery of a top-5 social marketing campaign in the F&B category by combining consumer research, brand analysis, and performance reporting.",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.033333,
+                "semantic": 0.339101,
+                "combined": 0.262659
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[0]",
+            "name": "FitCV",
+            "matched_channels": [
+              "required_skill_support",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment",
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.0,
+                "semantic": 0.297135,
+                "combined": 0.089141
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.160896,
+                "combined": 0.096538
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[0]",
+            "name": "Designed FitCV as a staged decision workflow that filters, evaluates, and refines opportunities before CV generation, improving reviewability and reducing wasted effort on weak matches.",
+            "matched_channels": [
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.393096,
+                "combined": 0.157239
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.2026,
+                "combined": 0.15195
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "R&D Staff — KOKUYO Vietnam Trading",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.141717,
+                "combined": 0.056687
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.250548,
+                "combined": 0.150329
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[2]",
+            "name": "Ecommerce Analytics Bruin",
+            "matched_channels": [
+              "required_skill_support"
+            ],
+            "selection_reasons": [
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.0,
+                "semantic": 0.308337,
+                "combined": 0.092501
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Developed and launched 38 SKUs across B2B and B2C stationery categories, supporting portfolio expansion and new revenue opportunities.",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "role_alignment",
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.0,
+                "semantic": 0.172457,
+                "combined": 0.051737
+              },
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.186815,
+                "combined": 0.074726
+              },
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.211646,
+                "combined": 0.158735
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[1]",
+            "name": "Customer Churn Prediction on Azure ML",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.214851,
+                "combined": 0.128911
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Combined clear screening rules, exact signals, and evidence-based review in FitCV to improve shortlist quality and make match decisions easier to explain and validate.",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.204913,
+                "combined": 0.122948
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 25,
+                  "reused": 15
+                },
+                "job_context": {
+                  "fresh": 11,
+                  "reused": 99
+                }
+              }
+            }
+          }
+        ],
+        "evidence_selection_summary": {
+          "channel_counts": {
+            "required_skill_support": 4,
+            "role_alignment": 4,
+            "domain_alignment": 4,
+            "responsibility_alignment": 4
+          },
+          "fallback_used": false,
+          "effective_channel_pool_size": 4,
+          "merged_pool_size": 16,
+          "deduped_pool_size": 9,
+          "selected_evidence_count": 9,
+          "selected_evidence_ids": [
+            "exp_longhung_pushmax_2019_2021",
+            "ach_pushmax_top5_campaign",
+            "proj_fitcv",
+            "ach_fitcv_workflow_design",
+            "exp_kokuyo_vn_2021_2023",
+            "proj_ecommerce_analytics_bruin",
+            "ach_kokuyo_38_skus",
+            "proj_customer_churn_azureml",
+            "ach_fitcv_traceable_matching"
+          ],
+          "hybrid_alignment": {
+            "required_skill_support": {
+              "lexical_weight": 0.7,
+              "semantic_weight": 0.3
+            },
+            "role_alignment": {
+              "lexical_weight": 0.6,
+              "semantic_weight": 0.4
+            },
+            "responsibility_alignment": {
+              "lexical_weight": 0.25,
+              "semantic_weight": 0.75
+            },
+            "domain_alignment": {
+              "lexical_weight": 0.4,
+              "semantic_weight": 0.6
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 25,
+                "reused": 15
+              },
+              "job_context": {
+                "fresh": 11,
+                "reused": 99
+              }
+            }
+          }
+        },
+        "gap_summary": {
+          "matched": [],
+          "partial": [],
+          "missing": [
+            "Motivation",
+            "offene Art",
+            "Spaß am Umgang mit Menschen",
+            "Neugierde"
+          ],
+          "matchable_required_count": 4,
+          "ignored_for_fit": [],
+          "years_risk": false,
+          "overclaim_risk": []
+        }
+      }
+    ],
+    "settings_refs": [
+      "cv.generation.model",
+      "prompts.cv_generation.structured_write.prompt_id"
+    ],
+    "late_stage_mode": {
+      "late_stage_mode": "agentic",
+      "agentic_late_stage_enabled": true,
+      "mode_source": "cv.agentic_late_stage.unified_runtime",
+      "agentic_status": "completed"
+    }
+  }
+}

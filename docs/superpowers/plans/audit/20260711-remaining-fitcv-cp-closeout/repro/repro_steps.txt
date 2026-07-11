@@ -1,0 +1,17 @@
+Preconditions:
+- Windows workspace with JOB-PROJECT repo
+- Python 3.13 environment available
+
+Reproduction commands:
+python -m pytest tests/test_fitcv_cp/test_app.py -k "settings or promote or archived or enriched"
+python -m pytest tests/test_fitcv_cp/test_app.py::test_admin_run_synonym_promote_commit_updates_global_policy_and_redirects -q
+python -m pytest tests/test_fitcv_cp/test_app.py::test_run_detail_enriched_tab_paginates_server_side -q
+python scripts/hooks/run_validator.py --fast
+
+Observed before fix:
+- stale synonym-promotion tests still posted selected_ids_csv and expected hidden proposal ids in review HTML
+- enriched tab default outcome selection filtered out rows with unknown pipeline outcome, causing empty-state and pagination failures
+
+Observed after fix:
+- broader control-plane slice passes
+- fast validator still fails only on pre-existing Indeed adapter doc metadata issues outside this patch

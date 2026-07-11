@@ -130,3 +130,17 @@ def test_overview_consistency_summary_matches_diagnostics_sources() -> None:
     assert summary["dead_letter_events"] == 3
 
 
+
+
+def test_enriched_tab_select_shell_wrappers_are_closed() -> None:
+    template_path = "src/fitcv_cp/templates/run_detail_tab_enriched.html"
+    content = open(template_path, encoding="utf-8").read()
+    assert '<span class="enr-select-shell"><select id="enr-filter"' in content
+    assert '</select></span>' in content
+    assert content.count('</select></span>') >= 2
+
+
+def test_enriched_tab_blank_links_use_noopener() -> None:
+    template_path = "src/fitcv_cp/templates/run_detail_tab_enriched.html"
+    content = open(template_path, encoding="utf-8").read()
+    assert 'target="_blank" rel="noopener"' in content

@@ -1,0 +1,1251 @@
+{% extends "base.html" %}
+{% block title %}Run {{ run.run_id[:8] }} — FitCV Admin{% endblock %}
+{% block content %}
+{% import "_icons.html" as icons %}
+
+<div class="page-header">
+  <h1>Run <code>{{ run.run_id }}</code></h1>
+  <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+    {% if run_status_projection.is_archived %}
+      <span class="badge badge-warning">Archived</span>
+    {% endif %}
+    {% if can_continue_manual_run %}
+      <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'continue', this)">Run Next Stage</button>
+      <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'stop', this)">Stop Run</button>
+    {% elif run_status_projection.is_active and run_status_projection.status != 'cancelling' %}
+      <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'stop', this)">Stop Run</button>
+    {% elif is_stale_cancelling(run) %}
+      <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'repair-cancellation', this)">Repair Status</button>
+    {% elif run_status_projection.status == 'cancelling' %}
+      <span class="meta" title="Waiting for next pipeline checkpoint">Cancellation pending…</span>
+    {% elif run_status_projection.is_terminal and not run_status_projection.is_archived %}
+      <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'archive', this)">Archive Run</button>
+    {% elif run_status_projection.is_archived %}
+      <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'unarchive', this)">Unarchive Run</button>
+    {% endif %}
+    <a href="/admin/runs/{{ run.run_id }}" class="btn-secondary" id="manual-refresh-link">⟳ Refresh Status</a>
+    <a href="/admin/runs" class="btn-secondary">← All Runs</a>
+  </div>
+</div>
+
+<!-- ── Run Overview (canonical single summary block) ─────────────────────── -->
+<div class="card" id="run-overview-core">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <h3 style="margin:0">Run Overview</h3>
+    <span class="meta">Summary for next decision.</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+    <span class="badge badge-{{ run.status.value }}">{{ run.status.value }}</span>
+    <span class="badge badge-info">{{ run_mode_label }}</span>
+    {% if run.error_stage %}<span class="meta">failed at: <strong>{{ run.error_stage }}</strong></span>{% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Triggered By</span><span class="v">{{ run.triggered_by }}</span>
+    <span class="k">Run Mode</span><span class="v">{{ run_mode_label }}</span>
+    <span class="k">Jobs Path</span><span class="v"><code>{{ run.jobs_path_display or run.jobs_path }}</code></span>
+    {% if run.jobs_input_source %}
+    <span class="k">Jobs Source</span><span class="v"><span class="badge badge-info">{{ run.jobs_input_source }}</span></span>
+    {% endif %}
+    <span class="k">Config</span><span class="v"><code>{{ run.config_path }}</code></span>
+    {% if run.candidate_profile_source %}
+    <span class="k">Profile Source</span><span class="v"><span class="badge badge-info">{{ run.candidate_profile_source }}</span></span>
+    {% endif %}
+    <span class="k">Created</span><span class="v">{{ run.created_at.strftime('%Y-%m-%d %H:%M UTC') if run.created_at else '—' }}</span>
+    <span class="k">Started</span><span class="v">{{ run.started_at.strftime('%Y-%m-%d %H:%M UTC') if run.started_at else '—' }}</span>
+    <span class="k">Finished</span><span class="v">{{ run.finished_at.strftime('%Y-%m-%d %H:%M UTC') if run.finished_at else '—' }}</span>
+    {% if run.last_completed_stage or run.completed_stages %}
+    <span class="k">Last Completed</span><span class="v"><code>{{ run.last_completed_stage or '—' }}</code></span>
+    <span class="k">Completed Stages</span><span class="v">{% if run.completed_stages %}<code>{{ run.completed_stages | join(', ') }}</code>{% else %}—{% endif %}</span>
+    {% endif %}
+    {% if run.run_mode == 'manual_staged' %}
+    <span class="k">Checkpoint</span><span class="v">{{ run.checkpoint_status or '—' }}</span>
+    <span class="k">Next Stage</span><span class="v"><code>{{ run.next_stage or 'complete' }}</code></span>
+    {% endif %}
+    {% if run.started_at and run.finished_at %}
+    <span class="k">Duration</span><span class="v">{{ ((run.finished_at - run.started_at).total_seconds() | int) }}s</span>
+    {% endif %}
+    <span class="k">Total Jobs</span><span class="v">{{ run.total_jobs if run.total_jobs is not none else '—' }}</span>
+    <span class="k">Passed Filter</span><span class="v">{{ run.passed_filter if run.passed_filter is not none else '—' }}</span>
+    <span class="k">Ranked</span><span class="v">{{ run.ranked if run.ranked is not none else '—' }}</span>
+  </div>
+  {% if run.run_mode == 'manual_staged' %}
+  <div class="meta" style="margin-top:1rem">Stage by Stage pauses for operator review. Manual wait time is also governed by the Maximum Run Duration safety guard.</div>
+  {% endif %}
+</div>
+
+{% if hitl_review_queue.total_review_required and hitl_review_queue.total_review_required > 0 %}
+{% if show_inline_review_queue %}
+{% with show_resolved_rows=false %}
+{% include "_cv_review_queue.html" %}
+{% endwith %}
+{% elif show_review_queue_cta %}
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
+    <div>
+      <h3 style="margin:0 0 0.35rem">Agentic Review Queue</h3>
+      <div class="meta">
+        {{ hitl_review_queue.pending_count }} pending of {{ hitl_review_queue.total_review_required }} review-required job(s).
+      </div>
+      <div class="meta" style="margin-top:0.25rem">
+        Large queue mode enabled for more than {{ review_queue_inline_threshold }} pending jobs.
+      </div>
+    </div>
+    <span class="badge badge-info">{{ hitl_review_queue.actions_count }} action(s) logged</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+    <a class="btn-secondary" href="{{ review_queue_page_url }}">Open Full Review Queue</a>
+    <span class="meta">Review One by One or use batch actions on dedicated page.</span>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- ── Run Metadata Card ─────────────────────────────────────────────────── -->
+
+{% if request.query_params.get("synonym_regenerated_total") is not none %}
+<div class="card">
+  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Regeneration summary:
+    generated={{ request.query_params.get("synonym_regenerated_total") }},
+    suppressed={{ request.query_params.get("synonym_regenerated_suppressed") or "0" }},
+    failed={{ request.query_params.get("synonym_regenerated_failed") or "0" }}.
+  </div>
+</div>
+{% endif %}
+
+{% if request.query_params.get("synonym_workspace_status") == "unavailable" %}
+<div class="card">
+  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Synonym review workspace is unavailable for this run right now. Continue pipeline, or regenerate proposals when new synonym candidates exist.
+  </div>
+</div>
+{% endif %}
+{% if request.query_params.get("synonym_promote_preview_status") == "no_approved" %}
+<div class="card">
+  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    No approved proposals available to preview promotion.
+  </div>
+</div>
+{% endif %}
+
+{% if synonym_review_section_state != "hidden" %}
+{% set manual_synonym_workspace_active = false %}
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <div>
+      <h3 style="margin:0">Synonyms (List Entities)</h3>
+    </div>
+  </div>
+  {% if request.query_params.get("synonym_fast_path_applied") is not none %}
+  <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Synonym fast-path completed. Open Synonym Workspace for detailed action summary.
+  </div>
+  {% endif %}
+  {% if synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay %}
+  <div style="margin:0 0 0.85rem 0;padding:0.75rem;border:1px solid var(--accent);border-radius:6px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;flex-wrap:wrap;margin-bottom:0.6rem">
+      <div style="font-weight:700">Synonym Overlay</div>
+      <span class="badge badge-info">{% if synonym_overlay_info.has_run_overlay %}run-specific overlay active{% else %}using global default synonyms (no run overlay){% endif %}</span>
+    </div>
+    {% if can_upload_synonym_overlay %}
+    {% include "_synonym_overlay_upload_form.html" %}
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if synonym_proposal_decision_ledger %}
+  {% include "_synonym_decision_ledger.html" %}
+  {% else %}
+  <div class="meta" style="margin:0.2rem 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Proposal Decision Ledger: no rows yet (all suppressed or none generated).
+  </div>
+  {% endif %}
+  <div style="margin:0 0 0.35rem 0;display:flex;gap:0.6rem;flex-wrap:wrap">
+    <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/ai-fast-path-execute" style="display:inline" onsubmit="return confirm('Confirm AI fast-path execute? This will apply AI recommendations and promote approved mappings to global.');">
+      <input type="hidden" name="acted_by" value="admin">
+      <input type="hidden" name="note" value="ai_fast_path">
+      <button class="btn-secondary decision-toggle" type="submit">AI-Assisted Decide + Promote</button>
+    </form>
+    <a class="btn-secondary decision-toggle" href="/admin/runs/{{ run.run_id }}/synonym-review">Manual Decide + Promote</a>
+  </div>
+</div>
+{% endif %}
+
+
+
+{% if run_health_rows or (reuse_anomaly_summary and reuse_anomaly_summary.status == 'breached' and reuse_anomaly_summary.stages) %}
+<div class="card">
+  {% if run_health_rows %}
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <h3 style="margin:0">Run Health</h3>
+    <span class="meta">Compact stage quality and late-stage reuse diagnostics.</span>
+  </div>
+  <div class="run-health-grid">
+    {% for metric in run_health_rows %}
+    <div class="run-health-tile run-health-{{ metric.severity or 'info' }}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">{{ metric.label }}</div>
+          <div class="meta">{{ metric.hint }}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-{{ 'error' if metric.severity == 'error' else ('warning' if metric.severity == 'warning' else ('success' if metric.severity == 'success' else 'info')) }}">
+            {% if metric.denominator and metric.denominator > 0 %}
+              {{ metric.rate_percent }}%
+            {% else %}
+              —
+            {% endif %}
+          </span>
+          <span class="meta" style="font-weight:600">{{ metric.severity_label }}</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
+        <code>{{ metric.numerator }} / {{ metric.denominator }}</code>
+        {% if metric.fresh_count is defined %}
+        <span class="meta">fresh: {{ metric.fresh_count }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if reuse_anomaly_summary and reuse_anomaly_summary.status == 'breached' and reuse_anomaly_summary.stages %}
+  <div style="margin-top:0.9rem;padding:0.65rem;border:1px solid var(--badge-warning-fg);border-radius:6px;background:rgba(245,158,11,0.08)">
+    <div style="font-weight:600">Reuse anomaly detected</div>
+    <div class="meta" style="margin-top:0.25rem">
+      Floor {{ (reuse_anomaly_summary.reuse_rate_floor * 100)|int }}%, min overlap {{ reuse_anomaly_summary.min_overlap }}.
+      {% if reuse_anomaly_summary.occurred_at_display %}Last observed {{ reuse_anomaly_summary.occurred_at_display }}.{% endif %}
+    </div>
+    <div style="margin-top:0.35rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+      {% for stage in reuse_anomaly_summary.stages %}
+      <code>{{ stage.stage_id }}: {{ stage.reused }}/{{ stage.total }} ({{ stage.reuse_rate_percent }}%)</code>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ── Error Banner ──────────────────────────────────────────────────────── -->
+{% if run.status.value == 'failed' and run.error_message %}
+<div class="error-box">
+  <strong>⚠ Pipeline Error{% if run.error_stage %} — {{ run.error_stage }}{% endif %}</strong>
+  <code>{{ run.error_message }}</code>
+</div>
+{% endif %}
+
+<!-- ── CV Results Banner ─────────────────────────────────────────────────── -->
+<div class="results-card" id="generated-outputs">
+  <h3>Pipeline Results</h3>
+  <div class="meta" style="margin-bottom:0.55rem">
+    Compatibility note: outputs/download actions moved to <strong>Artifacts</strong>.
+  </div>
+  {% if output_availability.state == 'available' %}
+    <p style="font-size:0.9rem;color:var(--badge-success-fg)">
+      CV generation succeeded. Download/export files from <strong>Artifacts</strong>.
+    </p>
+    {% if cv_versions %}
+      <div style="margin-top:1rem;border-top:1px solid var(--accent);padding-top:1rem">
+        <h4 class="section-title" style="font-size:0.95rem;margin:0 0 0.75rem;display:flex;align-items:center;gap:0.4rem">{{ icons.icon_download() }} Generated Outputs:</h4>
+        <div style="display:flex;flex-direction:column;gap:0.75rem">
+        {% for cv in cv_versions %}
+          {% if cv.version_id %}
+          <div class="cv-row">
+            <div style="display:flex;align-items:center;gap:0.8rem">
+              <span class="badge badge-success">{{ cv.fit_classification }}</span>
+              <a class="truncate-link job-title-link" href="{{ cv.job_url }}" target="_blank" rel="noopener">{{ cv.job_primary_label }} ↗</a>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.45rem">
+              {% if cv.bookmarked %}
+              <form method="post" action="/admin/runs/{{ run.run_id }}/bookmarks/delete" style="display:inline">
+                <input type="hidden" name="bookmark_key" value="{{ cv.bookmark_key }}">
+                <input type="hidden" name="redirect_to" value="/admin/runs/{{ run.run_id }}">
+                <button type="submit" class="btn-secondary" title="Remove bookmark" aria-label="Remove bookmark" style="{{ icons.icon_button_style() }}">{{ icons.icon_star_filled() }}</button>
+              </form>
+              {% else %}
+              <form method="post" action="/admin/runs/{{ run.run_id }}/bookmarks/save" style="display:inline">
+                <input type="hidden" name="job_id" value="{{ cv.job_id or '' }}">
+                <input type="hidden" name="version_id" value="{{ cv.version_id or '' }}">
+                <input type="hidden" name="title" value="{{ cv.job_title }}">
+                <input type="hidden" name="company" value="{{ cv.company or '' }}">
+                <input type="hidden" name="location" value="{{ cv.location or '' }}">
+                <input type="hidden" name="url" value="{{ cv.job_url }}">
+                <input type="hidden" name="fit_classification" value="{{ cv.fit_classification }}">
+                <input type="hidden" name="source" value="pipeline_results">
+                <input type="hidden" name="redirect_to" value="/admin/runs/{{ run.run_id }}">
+                <button type="submit" class="btn-secondary" title="Save bookmark" aria-label="Save bookmark" style="{{ icons.icon_button_style() }}">{{ icons.icon_star_outline() }}</button>
+              </form>
+              {% endif %}
+              <a href="/admin/cvs/{{ cv.version_id }}/download" class="btn-secondary" title="Download CV" aria-label="Download CV" style="{{ icons.icon_button_style() }}">{{ icons.icon_download() }}</a>
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  {% elif output_availability.state == 'mismatch' %}
+    <p style="font-size:0.9rem;color:var(--badge-warning-fg)">
+      CV generation completed with visibility mismatch. Use <strong>Artifacts</strong> for export/download evidence.
+    </p>
+    <div class="meta">State: <code>mismatch</code>. Refresh later; if persists, inspect persistence/logs for `cv_versions` write delay or query mismatch.</div>
+  {% elif output_availability.state == 'not_ready' %}
+    <p style="font-size:0.9rem;color:var(--badge-info-fg)">
+      Outputs not ready. Run status: <strong>{{ run.status.value }}</strong>.
+    </p>
+  {% else %}
+    <p style="font-size:0.9rem;color:var(--badge-error-fg)">
+      <strong>0</strong> candidate CVs were generated.
+      {% if reranker_blocked_ranked_count and run.ranked and reranker_blocked_ranked_count == run.ranked %}
+        {{ run.ranked }} ranked job(s) were blocked by reranker-fit gating before CV generation.
+      {% elif run.ranked %}
+        Ranked outcome breakdown:
+        fit-gated={{ ranked_cv_outcome_summary.ranked_fit_gated_count }},
+        review-required={{ ranked_cv_outcome_summary.ranked_review_required_count }},
+        generation-failed={{ ranked_cv_outcome_summary.ranked_generation_failed_count }},
+        other={{ ranked_cv_outcome_summary.ranked_other_no_cv_count }}.
+        {% if cv_generation_failure_reason_summary.reason_rows %}
+        <br>
+        Failure reasons:
+        {% for row in cv_generation_failure_reason_summary.reason_rows[:3] %}
+        [{{ row.count }}] {{ row.reason }}{% if not loop.last %}; {% endif %}
+        {% endfor %}
+        {% endif %}
+      {% else %}
+        No candidates passed the final AI ranking threshold.
+      {% endif %}
+    </p>
+  {% endif %}
+</div>
+
+<div class="inspection-card">
+<!-- ── Inspection Tab Bar ────────────────────────────────────────────────── -->
+<div class="tab-bar--attached" role="tablist" aria-label="Run inspection views">
+  <button class="tab-btn active" id="tab-btn-enriched" type="button" role="tab" aria-controls="pane-enriched" aria-selected="true" onclick="showTab('enriched')">📊 Enriched Jobs</button>
+  <button class="tab-btn"        id="tab-btn-jobs-input" type="button" role="tab" aria-controls="pane-jobs-input" aria-selected="false" onclick="showTab('jobs-input')">📄 Original Job Input</button>
+  <button class="tab-btn"        id="tab-btn-profile" type="button" role="tab" aria-controls="pane-profile" aria-selected="false" onclick="showTab('profile')">👤 Candidate Profile</button>
+</div>
+
+<div class="pane-container tab-pane active" id="pane-enriched" role="tabpanel" aria-labelledby="tab-btn-enriched" data-tab-id="enriched" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/enriched">
+  <div class="card tab-loading-state">
+    <p class="meta">Enriched job diagnostics load on demand.</p>
+  </div>
+</div>
+
+<div class="pane-container tab-pane" id="pane-jobs-input" role="tabpanel" aria-labelledby="tab-btn-jobs-input" hidden data-tab-id="jobs-input" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/jobs-input">
+  <div class="card tab-loading-state">
+    <p class="meta">Original trigger input snapshot loads on demand.</p>
+  </div>
+</div>
+
+<div class="pane-container tab-pane" id="pane-profile" role="tabpanel" aria-labelledby="tab-btn-profile" hidden data-tab-id="profile" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/profile">
+  <div class="card tab-loading-state">
+    <p class="meta">Candidate profile snapshot loads on demand.</p>
+  </div>
+</div>
+</div><!-- /.inspection-card -->
+
+<!-- ── Event Timeline (always visible) ──────────────────────────────────── -->
+<h2>Event Timeline</h2>
+<div class="card" style="padding:0;overflow:hidden">
+  <table>
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Stage</th>
+        <th>Level</th>
+        <th>Message</th>
+        <th>Artifacts</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ev in events %}
+      <tr>
+        <td class="meta">{{ ev.created_at.strftime('%H:%M:%S') if ev.created_at else '—' }}</td>
+        <td><span class="badge badge-info">{{ ev.stage_label }}</span></td>
+        <td><span class="badge badge-{{ ev.level }}">{{ ev.level }}</span></td>
+        <td class="meta" style="max-width:600px;word-break:break-word">{% if ev.message_html %}{{ ev.message_html|safe }}{% else %}{{ ev.message }}{% endif %}{% if ev.show_repeat_suffix and ev.repeat_count and ev.repeat_count > 1 %} <span class="meta" style="font-weight:600">(x{{ ev.repeat_count }})</span>{% endif %}</td>
+        <td class="meta">
+          {% if ev.stage_download_url %}
+          <a href="{{ ev.stage_download_url }}">{{ ev.stage_download_label or 'Download Stage JSON' }}</a>
+          {% else %}
+          <span class="empty-value">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr class="empty-row"><td colspan="5">No events yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if timeline_has_more %}
+<div style="display:flex;justify-content:flex-end;margin-top:0.75rem">
+  <a href="/admin/runs/{{ run.run_id }}?timeline_limit={{ timeline_next_limit }}" class="btn-secondary">Load older events</a>
+</div>
+{% endif %}
+
+{% if run_export_links %}
+<div class="card" id="artifacts">
+  <h3 style="margin:0 0 0.85rem">Artifacts</h3>
+  <div class="run-export-grid">
+    {% for export_link in run_export_links %}
+    <div class="run-export-item">
+      <a href="{{ export_link.href }}" class="run-export-link">⬇ {{ export_link.label }}</a>
+      {% if export_link.helper_text %}
+      <div class="meta" style="margin-top:0.35rem">{{ export_link.helper_text }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+
+<details class="card" id="advanced-diagnostics">
+  <summary style="cursor:pointer;user-select:none;font-weight:700">Advanced &amp; Diagnostics</summary>
+  <div style="margin-top:0.85rem">
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Runtime and Backend Details</h3>
+    <span class="badge badge-info">technical</span>
+  </div>
+  <div class="kv">
+    <span class="k">Orchestration Backend</span><span class="v"><code>{{ orchestration_diagnostics.backend }}</code></span>
+    <span class="k">Backend Run ID</span><span class="v"><code>{{ orchestration_diagnostics.backend_run_id or '—' }}</code></span>
+    <span class="k">Backend Status</span><span class="v"><code>{{ orchestration_diagnostics.status }}</code>{% if not orchestration_diagnostics.status_checked %} <span class="meta">(not polled)</span>{% endif %}</span>
+    <span class="k">Replay Mode</span><span class="v"><code>{{ replay_context_summary.replay_mode or 'strict' }}</code></span>
+    <span class="k">Replay Source Run</span><span class="v"><code>{{ replay_context_summary.replay_source_run_id or run.run_id }}</code></span>
+    <span class="k">Policy Registry</span><span class="v"><code>{{ replay_context_summary.policy_registry_version or 'policy_registry.v1' }}</code></span>
+    <span class="k">Runtime Mode</span><span class="v"><code>{{ data_plane_summary.runtime_mode or 'full' }}</code></span>
+    <span class="k">State Backend</span><span class="v"><code>{{ data_plane_summary.state_backend or 'unknown' }}</code></span>
+    <span class="k">Artifact Backend</span><span class="v"><code>{{ data_plane_summary.artifact_backend or 'unknown' }}</code></span>
+    <span class="k">Telemetry Backend</span><span class="v"><code>{{ data_plane_summary.telemetry_backend or 'otel_json' }}</code></span>
+  </div>
+</div>
+
+{% if run_attempt_events %}
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Run Attempt Timeline</h3>
+    <span class="badge badge-info">{{ run_attempt_events|length }} event(s)</span>
+  </div>
+  <div class="meta" style="margin-bottom:0.75rem">
+    Attempt events are SSOT-sourced from run events (`run_attempt.v1`). Use this to confirm retry and crash recovery behavior.
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Created</th>
+        <th>Attempt ID</th>
+        <th>Status</th>
+        <th>RQ Job</th>
+        <th>Worker</th>
+        <th>Lease Expires</th>
+        <th>Error</th>
+        <th>Retry</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in run_attempt_events %}
+      <tr>
+        <td><code>{{ row.created_at }}</code></td>
+        <td><code>{{ row.attempt_id or '—' }}</code></td>
+        <td><code>{{ row.status or '—' }}</code></td>
+        <td><code>{{ row.rq_job_id or '—' }}</code></td>
+        <td><code>{{ row.worker_id or '—' }}</code></td>
+        <td><code>{{ row.lease_expires_at or '—' }}</code></td>
+        <td><code>{{ row.error_summary or '—' }}</code></td>
+        <td><code>{{ row.retry_eligible if row.retry_eligible is not none else '—' }}</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if stage_result_summary_rows %}
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Stage Result Policy + Trace Summary</h3>
+    <span class="badge badge-info">{{ stage_result_summary_rows|length }} stage(s)</span>
+  </div>
+  <div class="meta" style="margin-bottom:0.75rem">
+    Run-level summary of stage-owned decision policy and trace continuity from the canonical StageResult envelope.
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Stage</th>
+        <th>Status</th>
+        <th>Policy Version</th>
+        <th>Trace ID</th>
+        <th>Span ID</th>
+        <th>Parent Span ID</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in stage_result_summary_rows %}
+      <tr>
+        <td><code>{{ row.stage_id or '—' }}</code></td>
+        <td><code>{{ row.status or '—' }}</code></td>
+        <td><code>{{ row.policy_version or '—' }}</code></td>
+        <td><code>{{ row.trace_id or '—' }}</code></td>
+        <td><code>{{ row.span_id or '—' }}</code></td>
+        <td><code>{{ row.parent_span_id or '—' }}</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Event Delivery Health</h3>
+    {% if event_delivery_health.status == 'degraded' %}
+      <span class="badge badge-warning">degraded</span>
+    {% elif event_delivery_health.status == 'unknown' %}
+      <span class="badge badge-info">unknown</span>
+    {% else %}
+      <span class="badge badge-success">healthy</span>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Dead-lettered Events</span><span class="v">{{ event_delivery_health.count }}</span>
+    <span class="k">Last Dead-letter Timestamp</span><span class="v">{% if event_delivery_health.last_failed_at %}{{ event_delivery_health.last_failed_at }}{% else %}{{ event_delivery_health.last_failed_at_display or '—' }}{% endif %}</span>
+    <span class="k">Degradation Reason</span><span class="v"><code>{{ event_delivery_health.last_degradation_reason or '—' }}</code></span>
+    <span class="k">Max Retry Attempts</span><span class="v">{{ event_delivery_health.max_retry_attempts or 0 }}</span>
+    <span class="k">Dead-letter Path</span><span class="v"><code>{{ event_delivery_health.dead_letter_path }}</code></span>
+  </div>
+  {% if event_delivery_health.status == 'degraded' %}
+  <div class="meta" style="margin-top:0.85rem">
+    Some pipeline events for this run were dead-lettered after retry exhaustion. Inspect the dead-letter file and replay those rows to restore full event lineage.
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Telemetry Export Health</h3>
+    {% if telemetry_export_health.status == 'degraded' %}
+      <span class="badge badge-warning">degraded</span>
+    {% else %}
+      <span class="badge badge-success">healthy</span>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Degraded Telemetry Events</span><span class="v">{{ telemetry_export_health.degraded_count }}</span>
+    <span class="k">Last Degraded Stage</span><span class="v">{{ telemetry_export_health.last_degraded_stage or '—' }}</span>
+  </div>
+  <div class="meta" style="margin-top:0.85rem">
+    Stage artifacts remain the evidence source of truth even when telemetry export is degraded.
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Langfuse Trace-Link Health</h3>
+    {% if langfuse_link_health.status == 'degraded' %}
+      <span class="badge badge-warning">degraded</span>
+    {% elif langfuse_link_health.status == 'unverified' %}
+      <span class="badge badge-info">unverified</span>
+    {% else %}
+      <span class="badge badge-neutral">disabled</span>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Unverified Link Events</span><span class="v">{{ langfuse_link_health.unverified_count }}</span>
+    <span class="k">Degraded Link Events</span><span class="v">{{ langfuse_link_health.degraded_count }}</span>
+    <span class="k">Last Degraded Stage</span><span class="v">{{ langfuse_link_health.last_degraded_stage or '—' }}</span>
+    <span class="k">Latest Trace URL</span><span class="v">{% if langfuse_link_health.last_trace_url %}<code>{{ langfuse_link_health.last_trace_url }}</code>{% else %}—{% endif %}</span>
+  </div>
+  <div class="meta" style="margin-top:0.85rem">
+    Trace URLs are navigation links only and do not confirm ingestion. Stage artifacts remain authoritative for runtime decisions.
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Dead-letter Replay Summary</h3>
+    {% if dead_letter_replay_summary.replay_candidates > 0 %}
+      <span class="badge badge-info">available</span>
+    {% else %}
+      <span class="badge badge-neutral">none</span>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Last Replay Timestamp</span><span class="v">{{ dead_letter_replay_summary.occurred_at_display or '—' }}</span>
+    <span class="k">Replay Success Ratio</span><span class="v">{{ '%.2f'|format(dead_letter_replay_summary.replay_success_ratio) }}</span>
+    <span class="k">Replayed / Candidates</span><span class="v">{{ dead_letter_replay_summary.replayed }} / {{ dead_letter_replay_summary.replay_candidates }}</span>
+    <span class="k">Failed Replays</span><span class="v">{{ dead_letter_replay_summary.failed }}</span>
+    <span class="k">Remaining Dead-letter Total</span><span class="v">{{ dead_letter_replay_summary.remaining_dead_letter_total }}</span>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Agentic Runtime Alignment</h3>
+    {% if agentic_runtime_drift.status == 'aligned' %}
+      <span class="badge badge-success">aligned</span>
+    {% elif agentic_runtime_drift.status == 'drifted' %}
+      <span class="badge badge-warning">drifted</span>
+    {% else %}
+      <span class="badge badge-info">not_applicable</span>
+    {% endif %}
+  </div>
+  <div class="meta" style="margin-bottom:0.75rem">{{ agentic_runtime_drift.message }}</div>
+  <div class="kv">
+    <span class="k">Expected Provider</span><span class="v"><code>{{ agentic_runtime_drift.expected_provider or '—' }}</code></span>
+    <span class="k">Actual Provider</span><span class="v"><code>{{ agentic_runtime_drift.actual_provider or '—' }}</code></span>
+    <span class="k">Expected Model</span><span class="v"><code>{{ agentic_runtime_drift.expected_model or '—' }}</code></span>
+    <span class="k">Actual Model</span><span class="v"><code>{{ agentic_runtime_drift.actual_model or '—' }}</code></span>
+  </div>
+</div>
+
+{% if markdown_quality_summary.attempted_total and markdown_quality_summary.attempted_total > 0 %}
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
+    <div>
+      <h3 style="margin:0 0 0.35rem">Markdown Quality</h3>
+      <div class="meta">
+        {{ markdown_quality_summary.review_required_total }} review-required and {{ markdown_quality_summary.blocking_total }} blocking markdown-quality outcome(s) across {{ markdown_quality_summary.attempted_total }} attempted generation job(s).
+      </div>
+    </div>
+    <span class="badge badge-info">cv_generation quality</span>
+  </div>
+  {% if markdown_quality_summary.review_reasons_sample %}
+  <div class="meta" style="margin-bottom:0.35rem;font-weight:600">Review-required reasons</div>
+  <ul style="margin:0 0 0.75rem 1.15rem;padding:0">
+    {% for item in markdown_quality_summary.review_reasons_sample %}
+    <li class="meta">{{ item }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if markdown_quality_summary.blocking_reasons_sample %}
+  <div class="meta" style="margin-bottom:0.35rem;font-weight:600">Blocking reasons</div>
+  <ul style="margin:0 0 0 1.15rem;padding:0">
+    {% for item in markdown_quality_summary.blocking_reasons_sample %}
+    <li class="meta">{{ item }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if (synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay) and synonym_review_section_state == "hidden" %}
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <div>
+      <h3 style="margin:0 0 0.35rem">Synonym Overlay</h3>
+      <div class="meta">
+        {% if synonym_overlay_info.has_run_overlay %}
+          Run-scoped synonym mappings are active for skills, domain, and role family.
+        {% elif can_upload_synonym_overlay %}
+          No run-specific overlay is active yet. You can replace default skill/domain/role-family synonym config before continuing into <code>rule_filter</code>.
+        {% endif %}
+      </div>
+    </div>
+    {% if synonym_overlay_info.has_run_overlay %}
+    <span class="badge badge-info">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
+    {% endif %}
+  </div>
+
+  <div class="kv">
+    <span class="k">Status</span>
+    <span class="v">{% if synonym_overlay_info.has_run_overlay %}<span class="badge badge-info">run-specific overlay active</span>{% else %}default config only{% endif %}</span>
+    {% if synonym_overlay_info.has_run_overlay %}
+    <span class="k">Source</span><span class="v">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
+    <span class="k">Overlay File</span><span class="v"><code>{{ synonym_overlay_info.filename or '—' }}</code></span>
+    <span class="k">Skill Entries</span><span class="v">{{ synonym_overlay_info.entry_count }}</span>
+    <span class="k">Domain Entries</span><span class="v">{{ synonym_overlay_info.section_counts.domain_alias_map or 0 }}</span>
+    <span class="k">Role Family Entries</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_alias_map or 0 }}</span>
+    <span class="k">Domain Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.domain_neighbors or 0 }}</span>
+    <span class="k">Role Family Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_neighbors or 0 }}</span>
+    <span class="k">Uploaded</span><span class="v">{{ synonym_overlay_info.uploaded_at_display or '—' }}</span>
+    {% endif %}
+    <span class="k">Effective Entries</span><span class="v">{{ synonym_overlay_info.effective_entry_count or '—' }}</span>
+  </div>
+
+  {% if synonym_overlay_info.snapshot_yaml %}
+  <details style="margin-top:1rem">
+    <summary class="meta" style="cursor:pointer;user-select:none">
+      ▾ {{ synonym_overlay_info.snapshot_label or 'Synonym' }} YAML Snapshot
+    </summary>
+    <pre class="code-area" style="overflow-x:auto;max-height:320px;overflow-y:auto;margin-top:0.75rem">{{ synonym_overlay_info.snapshot_yaml }}</pre>
+  </details>
+  {% endif %}
+
+  {% if can_upload_synonym_overlay %}
+  <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">
+    <div class="meta" style="margin-bottom:0.65rem">Stage by Stage runs can replace the current run overlay after <code>enrich</code> and before <code>rule_filter</code>. This override does not change the shared default config.</div>
+    {% include "_synonym_overlay_upload_form.html" %}
+    <div class="meta" style="margin-top:0.4rem">Field-specific scopes reject mixed sections to avoid accidental cross-field updates.</div>
+  </div>
+  {% elif run.run_mode == 'run_all' and synonym_overlay_info.has_run_overlay %}
+  <div class="meta" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">Run All uses trigger-time synonym uploads only.</div>
+  {% endif %}
+</div>{% endif %}  </div></details><script>
+function showTab(id) {
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    p.classList.remove('active');
+    p.hidden = true;
+  });
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
+  const pane = document.getElementById('pane-' + id);
+  pane.classList.add('active');
+  pane.hidden = false;
+  const button = document.getElementById('tab-btn-' + id);
+  button.classList.add('active');
+  button.setAttribute('aria-selected', 'true');
+  ensureTabLoaded(id);
+}
+
+async function ensureTabLoaded(id, overrideUrl = null) {
+  const pane = document.getElementById('pane-' + id);
+  if (!pane) return;
+  const url = overrideUrl || pane.dataset.tabUrl;
+  if (!url || pane.dataset.loading === 'true') return;
+  if (!overrideUrl && pane.dataset.loaded === 'true') return;
+  pane.dataset.loading = 'true';
+  if (pane.dataset.loaded !== 'true') {
+    pane.innerHTML = '<div class="card tab-loading-state"><p class="meta">Loading…</p></div>';
+  }
+  try {
+    const resp = await fetch(url, {
+      headers: { 'Accept': 'text/html', 'X-Requested-With': 'fitcv-tab-fragment' },
+      cache: 'no-store',
+    });
+    if (!resp.ok) throw new Error('Failed to load tab');
+    pane.innerHTML = await resp.text();
+    initEnrichedOutcomeMultiselect(pane);
+    pane.dataset.loaded = 'true';
+  } catch (err) {
+    pane.innerHTML = '<div class="card"><p class="field-error">Could not load this tab right now.</p></div>';
+  } finally {
+    pane.dataset.loading = 'false';
+  }
+}
+
+function initEnrichedOutcomeMultiselect(scope = document) {
+  const root = scope.querySelector('[data-multiselect-root="pipeline-outcome"]');
+  if (!root || root.dataset.initialized === 'true') return;
+  root.dataset.initialized = 'true';
+
+  const details = root.querySelector('[data-multiselect-details]');
+  const summary = root.querySelector('[data-multiselect-summary]');
+  const search = root.querySelector('[data-multiselect-search]');
+  const selectAll = root.querySelector('[data-multiselect-select-all]');
+  const checkboxes = Array.from(root.querySelectorAll('[data-multiselect-option]'));
+  const rows = Array.from(root.querySelectorAll('[data-multiselect-option-row]'));
+  const selectEl = root.querySelector('#enr-pipeline-outcome');
+  const optionMap = new Map(Array.from(selectEl.options).map((opt) => [opt.value, opt]));
+
+  const visibleRows = () => rows.filter((row) => row.style.display !== 'none');
+  const syncSummary = () => {
+    const selected = checkboxes.filter((box) => box.checked);
+    if (selected.length === 0) { summary.textContent = 'All outcomes'; return; }
+    if (selected.length <= 2) { summary.textContent = selected.map((box) => box.dataset.label || box.value).join(', '); return; }
+    summary.textContent = `${selected.length} selected`;
+  };
+  const syncSelectAll = () => {
+    const visible = visibleRows().map((row) => row.querySelector('[data-multiselect-option]'));
+    const selectedVisible = visible.filter((box) => box && box.checked).length;
+    selectAll.checked = visible.length > 0 && selectedVisible === visible.length;
+    selectAll.indeterminate = selectedVisible > 0 && selectedVisible < visible.length;
+  };
+  const syncHiddenSelect = () => {
+    checkboxes.forEach((box) => {
+      const opt = optionMap.get(box.value);
+      if (opt) opt.selected = box.checked;
+    });
+  };
+  const syncAll = () => { syncHiddenSelect(); syncSelectAll(); syncSummary(); };
+
+  const form = root.closest('form');
+  if (form) form.addEventListener('submit', () => syncHiddenSelect(), true);
+  if (details) details.addEventListener('toggle', () => { if (details.open && search) search.focus(); });
+  if (search) {
+    search.addEventListener('input', () => {
+      const q = search.value.trim().toLowerCase();
+      rows.forEach((row) => {
+        const label = (row.textContent || '').toLowerCase();
+        row.style.display = !q || label.includes(q) ? 'flex' : 'none';
+      });
+      syncSelectAll();
+    });
+  }
+  if (selectAll) {
+    selectAll.addEventListener('change', () => {
+      const setChecked = selectAll.checked;
+      visibleRows().forEach((row) => {
+        const box = row.querySelector('[data-multiselect-option]');
+        if (box) box.checked = setChecked;
+      });
+      syncAll();
+    });
+  }
+  checkboxes.forEach((box) => box.addEventListener('change', syncAll));
+  syncAll();
+}
+function submitRunDetailTabForm(event, tabId, form) {
+  event.preventDefault();
+  const url = new URL(form.action, window.location.origin);
+  const params = new URLSearchParams();
+  for (const [key, value] of new FormData(form).entries()) {
+    if (value !== null && String(value).length > 0) {
+      params.append(key, String(value));
+    }
+  }
+  const target = url.pathname + (params.toString() ? '?' + params.toString() : '');
+  ensureTabLoaded(tabId, target);
+  return false;
+}
+
+document.addEventListener('click', event => {
+  const link = event.target.closest('[data-tab-fragment-url]');
+  if (!link) return;
+  event.preventDefault();
+  const tabId = link.dataset.tabId || link.closest('.tab-pane')?.dataset.tabId;
+  if (!tabId) return;
+  ensureTabLoaded(tabId, link.dataset.tabFragmentUrl);
+});
+
+async function lifecycleAction(runId, action, btn) {
+  btn.disabled = true;
+  const origText = btn.textContent;
+  btn.textContent = '…';
+  try {
+    const resp = await fetch('/admin/runs/' + runId + '/' + action, { method: 'POST' });
+    if (resp.ok) {
+      location.reload();
+    } else {
+      const body = await resp.json().catch(() => ({ detail: resp.statusText }));
+      let banner = document.getElementById('lifecycle-error-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'lifecycle-error-banner';
+        banner.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);background:var(--badge-error-bg);color:var(--badge-error-fg);border:1px solid var(--badge-error-fg);padding:0.75rem 1.5rem;border-radius:8px;z-index:9999;font-size:0.9rem';
+        document.body.appendChild(banner);
+      }
+      banner.textContent = '⚠ ' + (body.detail || 'Action failed');
+      setTimeout(() => { if (banner) banner.remove(); }, 4000);
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+(function autoRefreshRunDetail() {
+   const liveStatuses = new Set(['queued', 'running', 'cancelling']);
+   const currentStatus = '{{ run.status.value }}';
+   if (!liveStatuses.has(currentStatus)) return;
+   const runId = '{{ run.run_id }}';
+   const pollIntervalMs = 15000;
+   const currentLastCompleted = '{{ run.last_completed_stage or "" }}';
+   const currentNextStage = '{{ run.next_stage or "" }}';
+   const currentCheckpoint = '{{ run.checkpoint_status or "" }}';
+   const currentFinishedAt = '{{ run.finished_at.isoformat() if run.finished_at else "" }}';
+   let pollTimer = null;
+   let inFlight = false;
+
+  function scheduleNextPoll(delayMs = pollIntervalMs) {
+    if (pollTimer) {
+      window.clearTimeout(pollTimer);
+    }
+    pollTimer = window.setTimeout(poll, delayMs);
+  }
+
+  async function poll() {
+    if (document.visibilityState === 'hidden') {
+      scheduleNextPoll();
+      return;
+    }
+    if (inFlight) {
+      scheduleNextPoll();
+      return;
+    }
+    inFlight = true;
+    try {
+      const resp = await fetch('/runs/' + runId, {
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
+      });
+      if (!resp.ok) return;
+      const payload = await resp.json();
+      const nextStatus = payload.status || '';
+      const nextLastCompleted = payload.last_completed_stage || '';
+      const nextNextStage = payload.next_stage || '';
+      const nextCheckpoint = payload.checkpoint_status || '';
+      const nextFinishedAt = payload.finished_at || '';
+      if (
+        nextStatus !== currentStatus ||
+        nextLastCompleted !== currentLastCompleted ||
+        nextNextStage !== currentNextStage ||
+        nextCheckpoint !== currentCheckpoint ||
+        nextFinishedAt !== currentFinishedAt
+      ) {
+        window.location.reload();
+      }
+    } catch (e) {
+      // Keep polling quiet; manual refresh remains available.
+    } finally {
+      inFlight = false;
+      scheduleNextPoll();
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      scheduleNextPoll(1000);
+    }
+  });
+
+  scheduleNextPoll();
+})();
+</script>
+
+<style>
+.run-export-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(14rem, 1fr));
+  gap:0.75rem;
+}
+
+.run-export-link {
+  display:flex;
+  align-items:center;
+  gap:0.5rem;
+  padding:0.7rem 0.9rem;
+  border:1px solid var(--accent);
+  border-radius:10px;
+  background:rgba(255,255,255,0.02);
+  text-decoration:none;
+}
+
+.run-export-item {
+  display:flex;
+  flex-direction:column;
+}
+
+.run-health-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(16rem, 1fr));
+  gap:0.85rem;
+}
+
+.run-health-tile {
+  padding:0.9rem 1rem;
+  border:1px solid var(--accent);
+  border-radius:12px;
+  background:rgba(255,255,255,0.02);
+}
+
+.run-health-success {
+  border-color:rgba(46, 204, 113, 0.45);
+  background:rgba(46, 204, 113, 0.08);
+}
+
+.run-health-warning {
+  border-color:rgba(243, 156, 18, 0.45);
+  background:rgba(243, 156, 18, 0.08);
+}
+
+.run-health-error {
+  border-color:rgba(231, 76, 60, 0.45);
+  background:rgba(231, 76, 60, 0.08);
+}
+
+.run-health-info {
+  border-color:rgba(52, 152, 219, 0.35);
+  background:rgba(52, 152, 219, 0.06);
+}
+
+.run-health-muted {
+  border-color:rgba(255, 255, 255, 0.08);
+  background:rgba(255,255,255,0.02);
+}
+
+.run-health-label {
+  font-weight:600;
+  margin-bottom:0.2rem;
+}
+
+.fit-context-stack {
+  display:flex;
+  flex-direction:column;
+  gap:0.2rem;
+  min-width:11rem;
+}
+
+.tab-loading-state {
+  min-height:8rem;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+
+.enr-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--table-header-bg, var(--card-bg, #1a1b2e));
+}
+
+.enr-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--accent);
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow-x: visible;
+}
+
+.enr-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.enr-toolbar-label {
+  font-size: 0.85rem;
+}
+
+.enr-toolbar-select {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+  appearance: auto;
+}
+
+
+.enr-filter-select {
+  min-width: 7rem;
+}
+
+.enr-rows-select {
+  min-width: 4.5rem;
+}
+
+.enr-toolbar-search {
+  flex: 1;
+  min-width: 14rem;
+  max-width: 22rem;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.6rem;
+}
+
+.enr-toolbar-outcome {
+  position: relative;
+}
+
+.enr-multiselect-details {
+  position: relative;
+}
+
+.enr-multiselect-toggle {
+  min-width: 15rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 0.5rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  line-height: 1.2;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+  min-height: 2.15rem;
+}
+
+
+.enr-multiselect-toggle::marker {
+  content: "";
+}
+
+.enr-multiselect-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.enr-multiselect-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 200;
+  min-width: 20rem;
+  max-width: 24rem;
+  max-height: 18rem;
+  overflow: auto;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+
+.enr-multiselect-search {
+  width: 100%;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.enr-multiselect-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.enr-multiselect-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.enr-multiselect-select-all {
+  margin-bottom: 0.35rem;
+}
+
+.enr-hidden-multiselect {
+  display: none;
+}
+
+.enr-export-btn {
+  margin-left: auto;
+}
+
+.inspection-card {
+  overflow: visible;
+}
+
+.pane-container {
+  overflow: visible;
+}
+
+.enr-caret {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1;
+  font-weight: 500;
+  margin-left: 0.35rem;
+}
+.enr-select-shell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.enr-select-caret {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 1.6rem;
+  min-height: 2.15rem;
+}
+
+.enr-select-shell::after {
+  content: "▾";
+  position: absolute;
+  right: 0.55rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.enr-multiselect-toggle:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.enr-multiselect-row:hover {
+  background: var(--surface-2);
+  border-radius: 4px;
+}
+
+.enr-multiselect-toggle,
+.enr-multiselect-panel,
+.enr-multiselect-search,
+.enr-multiselect-row,
+.enr-multiselect-row input,
+.enr-multiselect-panel input,
+.enr-multiselect-panel label {
+  font-family: inherit;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  {% if output_availability.state == 'available' %}
+  const pipelineResultsCard = document.getElementById('generated-outputs');
+  const runOverviewCard = document.getElementById('run-overview-core');
+  if (pipelineResultsCard && runOverviewCard && pipelineResultsCard !== runOverviewCard.previousElementSibling) {
+    runOverviewCard.parentNode.insertBefore(pipelineResultsCard, runOverviewCard);
+  }
+  {% endif %}
+  window.setTimeout(() => ensureTabLoaded('enriched'), 50);
+  initEnrichedOutcomeMultiselect(document);
+  const promoteSelectAllBtn = document.getElementById('promote-select-all-btn');
+  const promoteClearAllBtn = document.getElementById('promote-clear-all-btn');
+  const promoteSelectedCount = document.getElementById('promote-selected-count');
+  const promoteControls = document.getElementById('promote-controls');
+  const promoteEmptyNote = document.getElementById('promote-empty-note');
+  const promoteCheckboxes = () => Array.from(document.querySelectorAll('input[type="checkbox"][name="promote_proposal_id"][data-promote-selectable="true"]'));
+
+  const refreshPromoteSelectedCount = () => {
+    if (!promoteSelectedCount) {
+      return;
+    }
+    const selected = promoteCheckboxes().filter((cb) => cb.checked).length;
+    promoteSelectedCount.textContent = `Selected: ${selected}`;
+  };
+
+  const promoteRows = promoteCheckboxes();
+  if (promoteControls && promoteEmptyNote) {
+    if (promoteRows.length === 0) {
+      promoteControls.style.display = 'none';
+      promoteEmptyNote.style.display = '';
+    } else {
+      promoteControls.style.display = 'flex';
+      promoteEmptyNote.style.display = 'none';
+    }
+  }
+
+  promoteRows.forEach((checkboxEl) => {
+    checkboxEl.addEventListener('change', refreshPromoteSelectedCount);
+  });
+  refreshPromoteSelectedCount();
+
+  if (promoteSelectAllBtn) {
+    promoteSelectAllBtn.addEventListener('click', () => {
+      promoteCheckboxes().forEach((checkboxEl) => {
+        checkboxEl.checked = true;
+      });
+      refreshPromoteSelectedCount();
+    });
+  }
+
+  if (promoteClearAllBtn) {
+    promoteClearAllBtn.addEventListener('click', () => {
+      promoteCheckboxes().forEach((checkboxEl) => {
+        checkboxEl.checked = false;
+      });
+      refreshPromoteSelectedCount();
+    });
+  }
+
+});
+</script>
+{% endblock %}

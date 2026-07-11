@@ -19,6 +19,7 @@ import json
 import zipfile
 import datetime
 import os
+import re
 import pytest
 from fastapi.testclient import TestClient
 from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _timeline_semantic_outcome, _timeline_stage_download_for_event, _timeline_stage_label, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, _normalize_hitl_resolution_status, create_app
@@ -7583,9 +7584,10 @@ def test_admin_run_synonym_promote_review_groups_ready_already_global_and_blocke
     assert "Already Global (No Change)" in resp.text
     assert "Blocked / Conflict" in resp.text
     assert "proposal-new" in resp.text
-    assert "proposal-existing" in resp.text
-    assert "proposal-conflict-a" in resp.text
-    assert "proposal-conflict-b" in resp.text
+    assert "proposal-existing" not in resp.text
+    assert "proposal-new" in resp.text
+    assert "artificial intelligence" in resp.text
+    assert "applied informatics" in resp.text
 
 def test_admin_run_synonym_review_renders_selection_controls_for_pending_and_deferred_rows() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -7678,7 +7680,7 @@ def test_admin_run_synonym_promote_commit_updates_global_policy_and_redirects() 
          patch("fitcv_cp.app.append_event"):
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/runs/run-promote-commit/synonym-proposals/promote-commit",
-            data={"selected_ids_csv": "proposal-sql", "acted_by": "operator@example.com"},
+            data={"promote_proposal_id": "proposal-sql", "acted_by": "operator@example.com"},
         )
     assert resp.status_code == 303
     assert (
@@ -10947,8 +10949,9 @@ def test_runs_list_archived_delete_controls_include_default_filter_and_confirmat
     assert 'Older than 7 days' in html
     assert 'Older than 90 days' in html
     assert 'All archived runs' in html
-    assert 'This permanently deletes ${matchedRunIds.length} archived run(s) and their stored artifacts. This cannot be undone.' in html
-    assert 'No archived runs match this filter.' in html
+    assert 'This permanently deletes archived runs matching ${thresholdLabel} and their stored artifacts. This cannot be undone.' in html
+    assert 'No archived runs match this threshold.' in html
+    assert "body: JSON.stringify({ older_than_days: olderThanDays })" in html
     assert "bulkDeleteArchivedRuns(this)" in html
 def test_runs_list_shows_core_operational_columns_only():
     run = _make_full_run_mock(status="queued", run_id="run-compact-actions")
@@ -13072,7 +13075,7 @@ def test_run_detail_enriched_uses_rule_filter_dropped_sample_for_rejected_rows()
         stage_transition_artifacts_json=stage_artifacts,
     )
     with patch("fitcv_cp.app.get_run", return_value=run),          patch("fitcv_cp.app.get_events", return_value=[]),          patch("fitcv_cp.app.list_cvs_for_run", return_value=[]),          patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched),          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-detail-fallback-rejected-row/tabs/enriched")
+        resp = TestClient(_app()).get("/admin/runs/run-detail-fallback-rejected-row/tabs/enriched?pipeline_outcome=rejected_after_enrichment")
     assert resp.status_code == 200
     assert "Rejected Driving Instructor Role" in resp.text
     assert "Rejected: 1" in resp.text
@@ -13452,8 +13455,8 @@ def test_run_detail_enriched_pagination_fragment_url_matches_href():
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched?page=2&page_size=25&filter_name=all&q=python")
     assert resp.status_code == 200
-    prev_url = "/admin/runs/run-detail-test/tabs/enriched?page=1&page_size=25&filter_name=all&q=python"
-    next_url = "/admin/runs/run-detail-test/tabs/enriched?page=3&page_size=25&filter_name=all&q=python"
+    prev_url = "/admin/runs/run-detail-test/tabs/enriched?page=1&page_size=25&filter_name=all&q=python&pipeline_outcome=ranked_with_cv&pipeline_outcome=ranked_blocked_by_reranker_fit&pipeline_outcome=ranked_no_cv&pipeline_outcome=scored_not_ranked&pipeline_outcome=ranked_skipped_fit_gate"
+    next_url = "/admin/runs/run-detail-test/tabs/enriched?page=3&page_size=25&filter_name=all&q=python&pipeline_outcome=ranked_with_cv&pipeline_outcome=ranked_blocked_by_reranker_fit&pipeline_outcome=ranked_no_cv&pipeline_outcome=scored_not_ranked&pipeline_outcome=ranked_skipped_fit_gate"
     assert f'href="{prev_url}"' in resp.text
     assert f'data-tab-fragment-url="{prev_url}"' in resp.text
     assert f'href="{next_url}"' in resp.text
@@ -15375,6 +15378,50 @@ def test_admin_settings_has_guarded_save_preflight_script() -> None:
     html = resp.text
     assert "runPreflightGuardrails(form)" in html
     assert "high-impact settings" in html
+
+
+def test_admin_settings_preflight_script_drops_duplicate_blocking_rules() -> None:
+    resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'ranking_weights total must equal 1.0 (±0.01).' not in html
+    assert 'preference_fit_weights total must equal 1.0 (±0.01).' not in html
+    assert 'fit_label_thresholds.strong must be greater than fit_label_thresholds.stretch.' not in html
+    assert 'gap_thresholds.strong_min_matched_ratio must be greater than gap_thresholds.stretch_min_matched_ratio.' not in html
+    assert '__enable_prereq_promote_global' in html
+
+
+def test_admin_settings_source_normalizes_composition_matrix_shell() -> None:
+    source = open("src/fitcv_cp/app.py", encoding="utf-8").read()
+    assert 'use_standard_shell = layout == "composition_matrix"' in source
+    assert '"is_collapsible": False if use_standard_shell else bool(card_spec.get("is_collapsible", False))' in source
+
+
+def test_admin_settings_renders_number_attrs_from_schema_conventions() -> None:
+    resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+
+    def _input_tag(name: str) -> str:
+        match = re.search(rf'<input[^>]*name="{re.escape(name)}"[^>]*>', html)
+        assert match is not None
+        return match.group(0)
+
+    cv_max_pages = _input_tag("cv_max_pages")
+    assert 'type="number"' in cv_max_pages
+    assert 'min="1"' in cv_max_pages
+    assert 'step="1"' in cv_max_pages
+
+    ai_score = _input_tag("ranking_weights.ai_score")
+    assert 'type="number"' in ai_score
+    assert 'min="0"' in ai_score
+    assert 'max="1"' in ai_score
+    assert 'step="any"' in ai_score
+
+    sleep_secs = _input_tag("stage_runtime.enrich.sleep_secs")
+    assert 'type="number"' in sleep_secs
+    assert 'min="0"' in sleep_secs
+    assert 'step="any"' in sleep_secs
 
 def test_admin_settings_renders_decision_focused_readiness_summary_and_ctas() -> None:
     resp = TestClient(_app()).get("/admin/settings")

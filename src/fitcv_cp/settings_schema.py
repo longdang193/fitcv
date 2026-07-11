@@ -1534,6 +1534,18 @@ def hidden_deprecated_settings_keys() -> set[str]:
     return set(_HIDDEN_DEPRECATED_KEYS)
 
 
+def settings_native_input_attrs(key: str) -> dict[str, str]:
+    entry = _ALL_SCHEMA_BY_KEY[key]
+    entry_type = str(entry.get("type") or "")
+    if entry_type == "int":
+        return {"min": "1", "step": "1"}
+    if entry_type != "float":
+        return {}
+    if key.endswith("_secs"):
+        return {"min": "0", "step": "any"}
+    return {"min": "0", "max": "1", "step": "any"}
+
+
 # ── coercion ──────────────────────────────────────────────────────────────────
 
 def coerce_value(key: str, raw: Any) -> int | float | str | bool | list[str]:

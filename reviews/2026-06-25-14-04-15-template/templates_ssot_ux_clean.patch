@@ -1,0 +1,512 @@
+diff --git a/templates/_synonym_decision_ledger.html b/templates/_synonym_decision_ledger.html
+new file mode 100644
+index 0000000..58bf7bb
+--- /dev/null
++++ b/templates/_synonym_decision_ledger.html
+@@ -0,0 +1,37 @@
++{% if synonym_proposal_decision_ledger %}
++<div class="decision-ledger-scroll{% if decision_ledger_compact | default(false) %} is-compact{% endif %}">
++  <table class="decision-ledger-table">
++    <thead>
++      <tr>
++        <th>Alias</th>
++        <th>Canonical</th>
++        <th>Decision</th>
++        <th>Recommendation</th>
++        <th>Queue Source</th>
++        <th>Last Action / Why</th>
++      </tr>
++    </thead>
++    <tbody>
++      {% for row in synonym_proposal_decision_ledger %}
++      {% set decision_badge = 'warning' if row.decision == 'pending' else ('success' if row.decision == 'approve' else ('error' if row.decision == 'reject' else ('info' if row.decision == 'defer' else 'neutral'))) %}
++      <tr>
++        <td><code>{{ row.alias }}</code></td>
++        <td><code>{{ row.canonical }}</code></td>
++        <td>
++          <span class="badge badge-{{ decision_badge }}">{{ row.decision_display or row.decision or '—' }}</span>
++          {% if row.is_overridden %}<span class="badge badge-info">Overridden</span>{% endif %}
++        </td>
++        <td>{% if row.recommendation_display and row.recommendation_display != '—' %}<span class="badge badge-neutral">{{ row.recommendation_display }}</span>{% else %}—{% endif %}</td>
++        <td>{{ row.decision_source_display or row.decision_source }}</td>
++        <td>
++          <div>{{ row.last_action_display or '—' }}</div>
++          <div class="meta">{{ row.decision_reason_display or row.decision_reason }}</div>
++        </td>
++      </tr>
++      {% endfor %}
++    </tbody>
++  </table>
++</div>
++{% else %}
++<div class="meta decision-ledger-empty">Proposal Decision Ledger: no rows yet (all suppressed or none generated).</div>
++{% endif %}
+diff --git a/templates/_synonym_overlay_upload_form.html b/templates/_synonym_overlay_upload_form.html
+index 2897dd8..7e12361 100644
+--- a/templates/_synonym_overlay_upload_form.html
++++ b/templates/_synonym_overlay_upload_form.html
+@@ -1,5 +1,5 @@
+ <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
+-  <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem">
++  <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem" required>
+   <select name="overlay_upload_scope" style="min-width:11rem">
+     <option value="combined">Combined Upload</option>
+     <option value="skill">Skills Upload</option>
+diff --git a/templates/base.html b/templates/base.html
+index 2dd67a8..a96a4cf 100644
+--- a/templates/base.html
++++ b/templates/base.html
+@@ -18,7 +18,8 @@ canonical: true
+   <!-- Apply saved theme before CSS renders — prevents flash -->
+   <script>
+     (function() {
+-      var t = localStorage.getItem('fitcv-theme') || 'dark';
++      var saved = localStorage.getItem('fitcv-theme');
++      var t = saved === 'light' || saved === 'dark' ? saved : 'dark';
+       document.documentElement.setAttribute('data-theme', t);
+     })();
+   </script>
+@@ -29,8 +30,11 @@ canonical: true
+     /* ── CSS Custom Properties (tokens) ──────────────────────────────────── */
+     :root[data-theme="dark"] {
+       --bg:          #0f1117;
++      --surface-0:   #151824;
+       --surface-1:   #1a1d2e;
+       --surface-2:   #1e2235;
++      --card-bg:     var(--surface-1);
++      --panel-bg:    var(--surface-2);
+       --border:      #2d3148;
+       --border-soft: #1e2235;
+       --text-primary:   #e2e8f0;
+@@ -56,8 +60,11 @@ canonical: true
+     }
+     :root[data-theme="light"] {
+       --bg:          #f8fafc;
++      --surface-0:   #f8fafc;
+       --surface-1:   #ffffff;
+       --surface-2:   #f1f5f9;
++      --card-bg:     var(--surface-1);
++      --panel-bg:    var(--surface-2);
+       --border:      #e2e8f0;
+       --border-soft: #f1f5f9;
+       --text-primary:   #0f172a;
+@@ -389,6 +396,11 @@ canonical: true
+     .badge-info      { background: var(--badge-info-bg);    color: var(--badge-info-fg); }
+     .badge-warning   { background: var(--badge-warning-bg); color: var(--badge-warning-fg); }
+     .badge-error     { background: var(--badge-error-bg);   color: var(--badge-error-fg); }
++    .badge-neutral   { background: var(--badge-neutral-bg); color: var(--badge-neutral-fg); }
++    .badge-awaiting_continue,
++    .badge-cancelling { background: var(--badge-info-bg); color: var(--badge-info-fg); }
++    .badge-cancelled,
++    .badge-archived  { background: var(--badge-neutral-bg); color: var(--badge-neutral-fg); }
+     .fit-classification-chip {
+       display: inline-flex;
+       align-items: center;
+@@ -458,6 +470,24 @@ canonical: true
+     .kv .k { color: var(--text-muted); }
+     .kv .v { color: var(--text-primary); font-weight: 500; }
+ 
++    /* ── Shared decision ledger ────────────────────────────────────────────── */
++    .decision-ledger-scroll {
++      overflow: auto;
++      max-height: 18rem;
++      border: 1px solid var(--accent);
++      border-radius: 6px;
++    }
++    .decision-ledger-scroll.is-compact { max-height: 14rem; }
++    .decision-ledger-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
++    .decision-ledger-table thead tr { background: var(--panel-bg); }
++    .decision-ledger-table th { text-align: left; padding: 0.35rem 0.5rem; }
++    .decision-ledger-table td { padding: 0.3rem 0.5rem; }
++    .decision-ledger-empty {
++      padding: 0.55rem 0.65rem;
++      border: 1px solid var(--accent);
++      border-radius: 6px;
++    }
++
+     /* ── Divider ──────────────────────────────────────────────────────────── */
+     hr { border: none; border-top: 1px solid var(--divider); margin: 1rem 0; }
+ 
+@@ -520,6 +550,7 @@ canonical: true
+   </div>
+   <script>
+   function applyTheme(t) {
++    t = t === 'light' || t === 'dark' ? t : 'dark';
+     document.documentElement.setAttribute('data-theme', t);
+     localStorage.setItem('fitcv-theme', t);
+     var icon  = document.getElementById('theme-icon');
+diff --git a/templates/bookmarks.html b/templates/bookmarks.html
+index 424dc62..b771e56 100644
+--- a/templates/bookmarks.html
++++ b/templates/bookmarks.html
+@@ -88,6 +88,11 @@
+       {{ render_bookmark_rows(submitted_bookmarks) }}
+     {% endif %}
+ 
++    {% if archived_bookmarks %}
++      <div style="font-weight:700;margin-top:0.9rem;margin-bottom:0.55rem">Archived</div>
++      {{ render_bookmark_rows(archived_bookmarks) }}
++    {% endif %}
++
+     {% if not active_bookmarks and not submitted_bookmarks and not archived_bookmarks %}
+       <div class="meta">No bookmarked jobs yet. Save jobs from Pipeline Results to see them here.</div>
+     {% endif %}
+diff --git a/templates/run_detail.html b/templates/run_detail.html
+index 6284fb2..217bdb9 100644
+--- a/templates/run_detail.html
++++ b/templates/run_detail.html
+@@ -152,48 +152,12 @@
+     {% endif %}
+   </div>
+   {% endif %}
+-  {% if synonym_proposal_decision_ledger %}
+   <div style="margin:0.2rem 0 0.85rem 0">
+     <div class="meta" style="margin-bottom:0.15rem"><strong>Synonym Decisions</strong></div>
+     <div class="meta" style="margin-bottom:0.35rem">Decision = current state. Recommendation = model suggestion. Queue Source = provenance only.</div>
+-    <div style="overflow:auto;max-height:14rem;border:1px solid var(--accent);border-radius:6px">
+-      <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+-        <thead>
+-          <tr style="background:var(--panel-bg)">
+-            <th style="text-align:left;padding:0.35rem 0.5rem">Alias</th>
+-            <th style="text-align:left;padding:0.35rem 0.5rem">Canonical</th>
+-            <th style="text-align:left;padding:0.35rem 0.5rem">Decision</th>
+-            <th style="text-align:left;padding:0.35rem 0.5rem">Recommendation</th>
+-            <th style="text-align:left;padding:0.35rem 0.5rem">Queue Source</th>
+-            <th style="text-align:left;padding:0.35rem 0.5rem">Last Action / Why</th>
+-          </tr>
+-        </thead>
+-        <tbody>
+-          {% for row in synonym_proposal_decision_ledger %}
+-          <tr>
+-            <td style="padding:0.3rem 0.5rem"><code>{{ row.alias }}</code></td>
+-            <td style="padding:0.3rem 0.5rem"><code>{{ row.canonical }}</code></td>
+-            <td style="padding:0.3rem 0.5rem">
+-              <span class="badge badge-{{ 'warning' if row.decision == 'pending' else ('success' if row.decision == 'approve' else ('error' if row.decision == 'reject' else ('info' if row.decision == 'defer' else 'neutral'))) }}">{{ row.decision_display or row.decision or '—' }}</span>
+-              {% if row.is_overridden %}<span class="badge badge-info" style="margin-left:0.25rem">Overridden</span>{% endif %}
+-            </td>
+-            <td style="padding:0.3rem 0.5rem">{% if row.recommendation_display and row.recommendation_display != '—' %}<span class="badge badge-neutral">{{ row.recommendation_display }}</span>{% else %}—{% endif %}</td>
+-            <td style="padding:0.3rem 0.5rem">{{ row.decision_source_display or row.decision_source }}</td>
+-            <td style="padding:0.3rem 0.5rem">
+-              <div>{{ row.last_action_display or '—' }}</div>
+-              <div class="meta">{{ row.decision_reason_display or row.decision_reason }}</div>
+-            </td>
+-          </tr>
+-          {% endfor %}
+-        </tbody>
+-      </table>
+-    </div>
+-  </div>
+-  {% else %}
+-  <div class="meta" style="margin:0.2rem 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+-    Proposal Decision Ledger: no rows yet (all suppressed or none generated).
++    {% set decision_ledger_compact = true %}
++    {% include "_synonym_decision_ledger.html" %}
+   </div>
+-  {% endif %}
+   <div style="margin:0 0 0.35rem 0;display:flex;gap:0.6rem;flex-wrap:wrap">
+     <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/ai-fast-path-execute" style="display:inline" onsubmit="return confirm('Confirm AI fast-path execute? This will apply AI recommendations and promote approved mappings to global.');">
+       <input type="hidden" name="acted_by" value="admin">
+@@ -354,25 +318,25 @@
+ 
+ <div class="inspection-card">
+ <!-- ── Inspection Tab Bar ────────────────────────────────────────────────── -->
+-<div class="tab-bar--attached">
+-  <button class="tab-btn active" id="tab-btn-enriched"   onclick="showTab('enriched')">📊 Enriched Jobs</button>
+-  <button class="tab-btn"        id="tab-btn-jobs-input" onclick="showTab('jobs-input')">📄 Original Job Input</button>
+-  <button class="tab-btn"        id="tab-btn-profile"    onclick="showTab('profile')">👤 Candidate Profile</button>
++<div class="tab-bar--attached" role="tablist" aria-label="Run inspection">
++  <button type="button" role="tab" class="tab-btn active" id="tab-btn-enriched" data-tab-target="enriched" aria-selected="true" aria-controls="pane-enriched" tabindex="0">📊 Enriched Jobs</button>
++  <button type="button" role="tab" class="tab-btn" id="tab-btn-jobs-input" data-tab-target="jobs-input" aria-selected="false" aria-controls="pane-jobs-input" tabindex="-1">📄 Original Job Input</button>
++  <button type="button" role="tab" class="tab-btn" id="tab-btn-profile" data-tab-target="profile" aria-selected="false" aria-controls="pane-profile" tabindex="-1">👤 Candidate Profile</button>
+ </div>
+ 
+-<div class="pane-container tab-pane active" id="pane-enriched" data-tab-id="enriched" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/enriched">
++<div class="pane-container tab-pane active" role="tabpanel" aria-labelledby="tab-btn-enriched" id="pane-enriched" data-tab-id="enriched" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/enriched">
+   <div class="card tab-loading-state">
+     <p class="meta">Enriched job diagnostics load on demand.</p>
+   </div>
+ </div>
+ 
+-<div class="pane-container tab-pane" id="pane-jobs-input" data-tab-id="jobs-input" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/jobs-input">
++<div class="pane-container tab-pane" role="tabpanel" aria-labelledby="tab-btn-jobs-input" id="pane-jobs-input" data-tab-id="jobs-input" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/jobs-input" hidden>
+   <div class="card tab-loading-state">
+     <p class="meta">Original trigger input snapshot loads on demand.</p>
+   </div>
+ </div>
+ 
+-<div class="pane-container tab-pane" id="pane-profile" data-tab-id="profile" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/profile">
++<div class="pane-container tab-pane" role="tabpanel" aria-labelledby="tab-btn-profile" id="pane-profile" data-tab-id="profile" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/profile" hidden>
+   <div class="card tab-loading-state">
+     <p class="meta">Candidate profile snapshot loads on demand.</p>
+   </div>
+@@ -720,19 +684,48 @@
+   <div class="meta" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">Run All uses trigger-time synonym uploads only.</div>
+   {% endif %}
+ </div>{% endif %}  </div></details><script>
+-function showTab(id) {
+-  document.querySelectorAll('.tab-pane').forEach(p => {
+-    p.style.display = 'none';
+-    p.classList.remove('active');
++function showTab(id, focusTab = false) {
++  const card = document.querySelector('.inspection-card');
++  if (!card) return;
++  const pane = card.querySelector('#pane-' + id);
++  const tab = card.querySelector('#tab-btn-' + id);
++  if (!pane || !tab) return;
++
++  card.querySelectorAll('[role="tabpanel"]').forEach((candidate) => {
++    const active = candidate === pane;
++    candidate.hidden = !active;
++    candidate.classList.toggle('active', active);
+   });
+-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+-  const pane = document.getElementById('pane-' + id);
+-  pane.style.display = 'block';
+-  pane.classList.add('active');
+-  document.getElementById('tab-btn-' + id).classList.add('active');
++  card.querySelectorAll('[role="tab"]').forEach((candidate) => {
++    const active = candidate === tab;
++    candidate.classList.toggle('active', active);
++    candidate.setAttribute('aria-selected', active ? 'true' : 'false');
++    candidate.tabIndex = active ? 0 : -1;
++  });
++  if (focusTab) tab.focus();
+   ensureTabLoaded(id);
+ }
+ 
++function initRunDetailTabs() {
++  const card = document.querySelector('.inspection-card');
++  if (!card || card.dataset.tabsInitialized === 'true') return;
++  card.dataset.tabsInitialized = 'true';
++  const tabs = Array.from(card.querySelectorAll('[role="tab"]'));
++  tabs.forEach((tab, index) => {
++    tab.addEventListener('click', () => showTab(tab.dataset.tabTarget));
++    tab.addEventListener('keydown', (event) => {
++      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
++      event.preventDefault();
++      let nextIndex = index;
++      if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
++      if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
++      if (event.key === 'Home') nextIndex = 0;
++      if (event.key === 'End') nextIndex = tabs.length - 1;
++      showTab(tabs[nextIndex].dataset.tabTarget, true);
++    });
++  });
++}
++
+ async function ensureTabLoaded(id, overrideUrl = null) {
+   const pane = document.getElementById('pane-' + id);
+   if (!pane) return;
+@@ -1225,6 +1218,7 @@ document.addEventListener('DOMContentLoaded', () => {
+     runOverviewCard.parentNode.insertBefore(pipelineResultsCard, runOverviewCard);
+   }
+   {% endif %}
++  initRunDetailTabs();
+   window.setTimeout(() => ensureTabLoaded('enriched'), 50);
+   initEnrichedOutcomeMultiselect(document);
+   const promoteSelectAllBtn = document.getElementById('promote-select-all-btn');
+diff --git a/templates/settings.html b/templates/settings.html
+index 5868b4b..b9052b5 100644
+--- a/templates/settings.html
++++ b/templates/settings.html
+@@ -758,12 +758,16 @@
+     });
+     const card = document.getElementById('form-ranking-weights');
+     if (!card) return;
+-    let target = card.parentElement.querySelector('.settings-panel-helper');
++    const target = card.parentElement.querySelector('.settings-panel-helper');
+     if (target) {
+       const formatted = total.toFixed(3);
+-      target.innerHTML = 'All six weights must sum to 1.0 (±0.01). Current total: <strong style="color:' +
+-        (Math.abs(total - 1.0) < 0.011 ? 'var(--badge-success-fg)' : 'var(--badge-error-fg)') +
+-        ';">' + formatted + '</strong>';
++      const value = document.createElement('strong');
++      value.className = Math.abs(total - 1.0) < 0.011 ? 'current-value' : 'field-error';
++      value.textContent = formatted;
++      target.replaceChildren(
++        document.createTextNode(`All ${keys.length} weights must sum to 1.0 (±0.01). Current total: `),
++        value,
++      );
+     }
+   }
+ 
+@@ -874,24 +878,31 @@
+     return complexityOk && stageOk && controlSurfaceOk;
+   }
+ 
+-  function applyAxisFilters() {
++  function applySettingsFilters() {
++    const searchInput = document.getElementById('settings-search');
++    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
++
+     document.querySelectorAll('[data-entry-key]').forEach(function(row) {
+-      const visible = entryMatchesFilters(row);
+-      row.classList.toggle('is-filter-hidden', !visible);
++      const searchOk = !query || row.textContent.toLowerCase().includes(query);
++      row.classList.toggle('is-filter-hidden', !(entryMatchesFilters(row) && searchOk));
+     });
++
+     document.querySelectorAll('.settings-panel').forEach(function(panel) {
+       const hasVisible = panel.querySelector('[data-entry-key]:not(.is-filter-hidden)') !== null;
+       panel.classList.toggle('is-filter-hidden', !hasVisible);
+     });
++
+     document.querySelectorAll('.settings-advanced-details').forEach(function(details) {
+       const panel = details.querySelector('.settings-panel');
+-      const hidden = panel ? panel.classList.contains('is-filter-hidden') : false;
+-      details.classList.toggle('is-filter-hidden', hidden);
++      details.classList.toggle('is-filter-hidden', !!panel && panel.classList.contains('is-filter-hidden'));
+     });
++
+     document.querySelectorAll('[data-task-section]').forEach(function(section) {
++      if (section.getAttribute('data-task-section') === 'danger-zone') return;
+       const hasVisiblePanel = section.querySelector('.settings-panel:not(.is-filter-hidden)') !== null;
+       section.classList.toggle('is-filter-hidden', !hasVisiblePanel);
+     });
++
+     const emptyState = document.getElementById('empty-filter-state');
+     if (emptyState) {
+       const hasVisibleRow = document.querySelector('[data-entry-key]:not(.is-filter-hidden)') !== null;
+@@ -908,14 +919,8 @@
+ 
+   function runPreflightGuardrails(form) {
+     const issues = [];
+-    const rankingKeys = [
+-      'ranking_weights.ai_score',
+-      'ranking_weights.must_have_match',
+-      'ranking_weights.vector_similarity',
+-      'ranking_weights.title_relevance',
+-      'ranking_weights.seniority_fit',
+-      'ranking_weights.preference_fit',
+-    ];
++    const keysNode = document.getElementById('ranking-weight-keys-data');
++    const rankingKeys = keysNode ? JSON.parse(keysNode.textContent) : [];
+     const rankingInputs = rankingKeys.map((k) => form.querySelector('[name="' + k + '"]')).filter(Boolean);
+     if (rankingInputs.length === rankingKeys.length) {
+       const total = rankingInputs.reduce((sum, el) => sum + (parseFloat(el.value) || 0), 0);
+@@ -1015,7 +1020,7 @@
+           const pressed = (other.getAttribute('data-complexity-filter') || 'basic') === value;
+           other.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+         });
+-        applyAxisFilters();
++        applySettingsFilters();
+       });
+     });
+     stageChips.forEach(function(chip) {
+@@ -1026,7 +1031,7 @@
+           const pressed = (other.getAttribute('data-stage-filter') || 'all') === value;
+           other.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+         });
+-        applyAxisFilters();
++        applySettingsFilters();
+       });
+     });
+     controlSurfaceChips.forEach(function(chip) {
+@@ -1037,35 +1042,14 @@
+           const pressed = (other.getAttribute('data-control-surface-filter') || 'all') === value;
+           other.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+         });
+-        applyAxisFilters();
++        applySettingsFilters();
+       });
+     });
+-    applyAxisFilters();
++    applySettingsFilters();
+ 
+     const searchInput = document.getElementById('settings-search');
+-    function applySearchFilter(term) {
+-      const q = (term || '').trim().toLowerCase();
+-      document.querySelectorAll('[data-entry-key]').forEach(function(row) {
+-        const text = row.textContent.toLowerCase();
+-        const match = q.length === 0 || text.includes(q);
+-        if (!match) row.classList.add('is-filter-hidden');
+-      });
+-      document.querySelectorAll('.settings-panel').forEach(function(panel) {
+-        const hasVisible = panel.querySelector('[data-entry-key]:not(.is-filter-hidden)') !== null;
+-        panel.classList.toggle('is-filter-hidden', !hasVisible);
+-      });
+-      document.querySelectorAll('[data-task-section]').forEach(function(section) {
+-        const hasVisiblePanel = section.querySelector('.settings-panel:not(.is-filter-hidden)') !== null;
+-        if (section.getAttribute('data-task-section') !== 'danger-zone') {
+-          section.classList.toggle('is-filter-hidden', !hasVisiblePanel);
+-        }
+-      });
+-    }
+     if (searchInput) {
+-      searchInput.addEventListener('input', function() {
+-        applyAxisFilters();
+-        applySearchFilter(searchInput.value);
+-      });
++      searchInput.addEventListener('input', applySettingsFilters);
+     }
+ 
+     document.querySelectorAll('form[data-dirty-card]').forEach(function(form) {
+diff --git a/templates/synonym_review.html b/templates/synonym_review.html
+index 5364eae..a9be918 100644
+--- a/templates/synonym_review.html
++++ b/templates/synonym_review.html
+@@ -12,16 +12,7 @@
+   <h3 style="margin:0 0 0.65rem">Synonym Overlay (Run-Scoped)</h3>
+   <div class="meta" style="margin-bottom:0.6rem">{% if synonym_overlay_info.has_run_overlay %}run-specific overlay active{% else %}using global default synonyms (no run overlay){% endif %}</div>
+   {% if can_upload_synonym_overlay %}
+-  <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
+-    <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem">
+-    <select name="overlay_upload_scope" style="min-width:11rem">
+-      <option value="combined">Combined Upload</option>
+-      <option value="skill">Skills Upload</option>
+-      <option value="domain">Domain Upload</option>
+-      <option value="role_family">Role Family Upload</option>
+-    </select>
+-    <button type="submit" class="btn-secondary">Replace Run Overlay YAML</button>
+-  </form>
++  {% include "_synonym_overlay_upload_form.html" %}
+   {% endif %}
+ </div>
+ 
+@@ -204,44 +195,8 @@
+ <div class="card">
+   <h3 style="margin:0 0 0.15rem">Synonym Decisions</h3>
+   <div class="meta" style="margin:0 0 0.35rem">Decision = current state. Recommendation = model suggestion. Queue Source = provenance only.</div>
+-  {% if synonym_proposal_decision_ledger %}
+-  <div style="overflow:auto;max-height:18rem;border:1px solid var(--accent);border-radius:6px">
+-    <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+-      <thead>
+-        <tr style="background:var(--panel-bg)">
+-          <th style="text-align:left;padding:0.35rem 0.5rem">Alias</th>
+-          <th style="text-align:left;padding:0.35rem 0.5rem">Canonical</th>
+-          <th style="text-align:left;padding:0.35rem 0.5rem">Decision</th>
+-          <th style="text-align:left;padding:0.35rem 0.5rem">Recommendation</th>
+-          <th style="text-align:left;padding:0.35rem 0.5rem">Queue Source</th>
+-          <th style="text-align:left;padding:0.35rem 0.5rem">Last Action / Why</th>
+-        </tr>
+-      </thead>
+-      <tbody>
+-        {% for row in synonym_proposal_decision_ledger %}
+-        <tr>
+-          <td style="padding:0.3rem 0.5rem"><code>{{ row.alias }}</code></td>
+-          <td style="padding:0.3rem 0.5rem"><code>{{ row.canonical }}</code></td>
+-          <td style="padding:0.3rem 0.5rem">
+-            <span class="badge badge-{{ 'warning' if row.decision == 'pending' else ('success' if row.decision == 'approve' else ('error' if row.decision == 'reject' else ('info' if row.decision == 'defer' else 'neutral'))) }}">{{ row.decision_display or row.decision or '—' }}</span>
+-            {% if row.is_overridden %}<span class="badge badge-info" style="margin-left:0.25rem">Overridden</span>{% endif %}
+-          </td>
+-          <td style="padding:0.3rem 0.5rem">{% if row.recommendation_display and row.recommendation_display != '—' %}<span class="badge badge-neutral">{{ row.recommendation_display }}</span>{% else %}—{% endif %}</td>
+-          <td style="padding:0.3rem 0.5rem">{{ row.decision_source_display or row.decision_source }}</td>
+-          <td style="padding:0.3rem 0.5rem">
+-            <div>{{ row.last_action_display or '—' }}</div>
+-            <div class="meta">{{ row.decision_reason_display or row.decision_reason }}</div>
+-          </td>
+-        </tr>
+-        {% endfor %}
+-      </tbody>
+-    </table>
+-  </div>
+-  {% else %}
+-  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+-    Proposal Decision Ledger: no rows yet (all suppressed or none generated).
+-  </div>
+-  {% endif %}
++  {% set decision_ledger_compact = false %}
++  {% include "_synonym_decision_ledger.html" %}
+ </div>
+ <script>
+ document.addEventListener('DOMContentLoaded', () => {

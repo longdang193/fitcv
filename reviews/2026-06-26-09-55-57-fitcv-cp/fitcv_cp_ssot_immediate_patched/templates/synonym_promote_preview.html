@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Promote Synonyms - {{ run.run_id }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 style="margin:0 0 0.4rem">Promote Synonyms to Global Policy</h1>
+    <div class="meta">Run: <code>{{ run.run_id }}</code></div>
+  </div>
+  <a class="btn-secondary" href="/admin/runs/{{ run.run_id }}">Back to Run Detail</a>
+</div>
+
+<div class="card">
+  <h3 style="margin:0 0 0.6rem">Review Summary</h3>
+  <div class="meta" style="margin-bottom:0.8rem">
+    approved_selected={{ preview.selected_count }},
+    ready={{ preview.ready_rows|length }},
+    already_global={{ preview.already_global_rows|length }},
+    blocked={{ preview.blocked_rows|length }},
+    new={{ preview.counts.new_aliases }},
+    unchanged={{ preview.counts.unchanged_aliases }},
+    overridden={{ preview.counts.overridden_aliases }},
+    conflict={{ preview.counts.conflict }},
+    skip={{ preview.counts.skip }}.
+  </div>
+  {% set field_groups = [("skill", "Skills"), ("domain", "Domain"), ("role_family", "Role Family"), ("unknown", "Unknown")] %}
+  <div class="meta" style="margin-bottom:0.8rem">
+    {% for field_key, field_label in field_groups %}
+      {% set counts = preview.counts_by_field.get(field_key, {}) %}
+      {% if counts %}
+        {{ field_label }}: ready={{ (preview.ready_rows_by_field.get(field_key, [])|length) }}, already_global={{ (preview.already_global_rows_by_field.get(field_key, [])|length) }}, blocked={{ (preview.blocked_rows_by_field.get(field_key, [])|length) }}{% if not loop.last %}; {% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="meta" style="margin-bottom:0.8rem">
+    This promotion is a merge/overlay into the global policy maps, not a full replacement.
+  </div>
+  <h4 style="margin:0.25rem 0 0.45rem">Ready to Promote</h4>
+  {% for field_key, field_label in field_groups %}
+    {% set rows = preview.ready_rows_by_field.get(field_key, []) %}
+    {% if rows %}
+      <div class="meta" style="margin:0.35rem 0 0.35rem 0">{{ field_label }}</div>
+      <table style="margin-bottom:0.85rem">
+        <thead><tr><th>Select</th><th>Field</th><th>Proposal</th><th>Status</th><th>Diff</th><th>Reason</th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td><input type="checkbox" name="promote_proposal_id" value="{{ row.proposal_id }}" form="promote-commit-form" checked></td>
+            <td>{{ row.field or "—" }}</td>
+            <td><code>{{ row.alias or "—" }}</code> → <code>{{ row.canonical or "—" }}</code></td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.diff_type }}</td>
+            <td>{{ row.reason }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  {% endfor %}
+  {% if not preview.ready_rows %}
+    <div class="meta" style="margin-bottom:0.85rem">No rows ready to promote.</div>
+  {% endif %}
+
+  <h4 style="margin:0.25rem 0 0.45rem">Already Global (No Change)</h4>
+  {% for field_key, field_label in field_groups %}
+    {% set rows = preview.already_global_rows_by_field.get(field_key, []) %}
+    {% if rows %}
+      <div class="meta" style="margin:0.35rem 0 0.35rem 0">{{ field_label }}</div>
+      <table style="margin-bottom:0.85rem">
+        <thead><tr><th>Field</th><th>Proposal</th><th>Status</th><th>Diff</th><th>Reason</th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.field or "—" }}</td>
+            <td><code>{{ row.alias or "—" }}</code> → <code>{{ row.canonical or "—" }}</code></td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.diff_type }}</td>
+            <td>{{ row.reason }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  {% endfor %}
+  {% if not preview.already_global_rows %}
+    <div class="meta" style="margin-bottom:0.85rem">No already-global rows in this review set.</div>
+  {% endif %}
+
+  <h4 style="margin:0.25rem 0 0.45rem">Blocked / Conflict</h4>
+  {% for field_key, field_label in field_groups %}
+    {% set rows = preview.blocked_rows_by_field.get(field_key, []) %}
+    {% if rows %}
+      <div class="meta" style="margin:0.35rem 0 0.35rem 0">{{ field_label }}</div>
+      <table style="margin-bottom:0.85rem">
+        <thead><tr><th>Field</th><th>Proposal</th><th>Status</th><th>Diff</th><th>Reason</th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.field or "—" }}</td>
+            <td><code>{{ row.alias or "—" }}</code> → <code>{{ row.canonical or "—" }}</code></td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.diff_type }}</td>
+            <td>{{ row.reason }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  {% endfor %}
+  {% if not preview.blocked_rows %}
+    <div class="meta">No blocked rows in this review set.</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3 style="margin:0 0 0.6rem">Confirm Promotion</h3>
+  <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;margin-bottom:0.65rem">
+    <button class="btn-secondary" type="button" id="promote-select-all-btn">Select All</button>
+    <button class="btn-secondary" type="button" id="promote-clear-all-btn">Clear Selection</button>
+    <span class="meta" id="promote-selected-count">Selected: {{ preview.ready_rows|length }}</span>
+  </div>
+  {% if preview.counts.conflict > 0 %}
+  <div class="error-box">
+    <strong>Conflicts present</strong>
+    Conflicting fields will be skipped on commit. Review the Blocked / Conflict section for details.
+  </div>
+  {% endif %}
+  <form id="promote-commit-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-commit" style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+    <input type="hidden" name="selected_ids_csv" value="{{ selected_ids_csv }}">
+    <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
+    <input type="hidden" name="note" value="ui:promote-to-global">
+    <button class="btn-primary" type="submit">Confirm Promote to Global</button>
+  </form>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const promoteSelectAllBtn = document.getElementById('promote-select-all-btn');
+  const promoteClearAllBtn = document.getElementById('promote-clear-all-btn');
+  const promoteSelectedCount = document.getElementById('promote-selected-count');
+  const promoteCheckboxes = () => Array.from(
+    document.querySelectorAll('input[type="checkbox"][name="promote_proposal_id"]')
+  );
+
+  const refreshPromoteSelectedCount = () => {
+    if (!promoteSelectedCount) return;
+    const selected = promoteCheckboxes().filter((cb) => cb.checked).length;
+    promoteSelectedCount.textContent = `Selected: ${selected}`;
+  };
+
+  promoteCheckboxes().forEach((checkboxEl) => {
+    checkboxEl.addEventListener('change', refreshPromoteSelectedCount);
+  });
+
+  if (promoteSelectAllBtn) {
+    promoteSelectAllBtn.addEventListener('click', () => {
+      promoteCheckboxes().forEach((checkboxEl) => {
+        checkboxEl.checked = true;
+      });
+      refreshPromoteSelectedCount();
+    });
+  }
+  if (promoteClearAllBtn) {
+    promoteClearAllBtn.addEventListener('click', () => {
+      promoteCheckboxes().forEach((checkboxEl) => {
+        checkboxEl.checked = false;
+      });
+      refreshPromoteSelectedCount();
+    });
+  }
+
+  refreshPromoteSelectedCount();
+});
+</script>
+{% endblock %}

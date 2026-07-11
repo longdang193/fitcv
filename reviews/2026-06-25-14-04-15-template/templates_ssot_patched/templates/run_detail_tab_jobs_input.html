@@ -1,0 +1,8 @@
+{% set snapshot_payload = run.jobs_input_json %}
+{% set snapshot_source_badge = run.jobs_input_source or 'paste' %}
+{% set snapshot_intro_text = "Raw job payload captured at trigger time (immutable snapshot)" %}
+{% set snapshot_source = run.jobs_input_source %}
+{% set snapshot_path = run.jobs_path %}
+{% set snapshot_empty_title = "No immutable raw snapshot was stored for this run." %}
+{% set snapshot_empty_reason = "This record was created before snapshot capture was available for this trigger mode." %}
+{% include "_run_detail_snapshot_tab.html" %}

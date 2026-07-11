@@ -125,7 +125,6 @@
   </div>
   {% endif %}
   <form id="promote-commit-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-commit" style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
-    <input type="hidden" name="selected_ids_csv" value="{{ selected_ids_csv }}">
     <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
     <input type="hidden" name="note" value="ui:promote-to-global">
     <button class="btn-primary" type="submit">Confirm Promote to Global</button>

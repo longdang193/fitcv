@@ -72,7 +72,7 @@ Archive and delete stay separate on purpose:
 
 - `Archive` hides run from active view but keeps run detail, events, and exports.
 - `Delete archived runs` is available only from `/admin/runs?view=archived`.
-- delete uses `archived_at` age, defaults to `Older than 30 days`, and sends the currently matched archived run ids from the UI preview so confirmation and execution stay aligned.
+- delete uses `archived_at` age, defaults to `Older than 30 days`, submits threshold only, and relies on backend `deleted_count` for the final result.
 - delete does not clear shared caches, embeddings, bookmarks, or settings.
 
 ## Settings Workflow

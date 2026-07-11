@@ -1,0 +1,8 @@
+{% set snapshot_payload = candidate_profile_pretty %}
+{% set snapshot_source_badge = run.candidate_profile_source %}
+{% set snapshot_intro_text = "Candidate profile captured at trigger time (immutable snapshot)" %}
+{% set snapshot_source = run.candidate_profile_source %}
+{% set snapshot_path = none %}
+{% set snapshot_empty_title = "No candidate profile snapshot was stored for this run." %}
+{% set snapshot_empty_reason = "This record was created before snapshot capture was available for this trigger mode." %}
+{% include "_run_detail_snapshot_tab.html" %}

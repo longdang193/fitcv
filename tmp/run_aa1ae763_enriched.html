@@ -1,0 +1,1344 @@
+
+<div style="display:flex;gap:1rem;padding:0.75rem 1.25rem;border-bottom:1px solid var(--accent);flex-wrap:wrap;align-items:center">
+  <span class="meta">Post-dedupe enriched jobs: <strong>285</strong></span>
+  <span class="badge badge-success" style="padding:0.2rem 0.6rem;font-size:0.8rem">Passed: 160</span>
+  <span class="badge badge-error" style="padding:0.2rem 0.6rem;font-size:0.8rem">Rejected: 125</span>
+  
+  <span class="badge badge-warning" style="padding:0.2rem 0.6rem;font-size:0.8rem">Deduplicated before enrichment: 20</span>
+  
+  <span class="meta" style="margin-left:auto">
+    
+      Showing 1-25 of 285
+    
+  </span>
+</div>
+
+<form method="get" action="/admin/runs/aa1ae763-fcb5-41f2-af6a-5e761db7d192/tabs/enriched" onsubmit="return submitRunDetailTabForm(event, 'enriched', this)" class="enr-toolbar">
+  <input type="hidden" name="page" value="1">
+
+  <div class="enr-toolbar-group">
+    <label class="meta enr-toolbar-label" for="enr-filter">Filter</label>
+    <span class="enr-select-shell"><select id="enr-filter" name="filter_name" class="enr-toolbar-select enr-filter-select enr-select-caret">
+      <option value="all" selected>All</option>
+      <option value="passed" >Passed</option>
+      <option value="rejected" >Rejected</option>
+      <option value="unknown" >Unknown</option>
+    </select>
+  </div>
+
+  <input id="enr-search" type="search" name="q" value="" placeholder="Search title, domain, job family…" class="enr-toolbar-search">
+
+  <div class="enr-toolbar-group enr-toolbar-outcome" data-multiselect-root="pipeline-outcome">
+    <label class="meta enr-toolbar-label" for="enr-pipeline-outcome-toggle">Pipeline Outcome</label>
+    <details data-multiselect-details class="enr-multiselect-details">
+      <summary
+        id="enr-pipeline-outcome-toggle"
+        class="enr-multiselect-toggle"
+      >
+        <span data-multiselect-summary>All outcomes</span>
+        <span class="enr-caret" aria-hidden="true">▾</span>
+      </summary>
+      <div data-multiselect-panel class="enr-multiselect-panel">
+        <input type="search" placeholder="Search outcomes..." data-multiselect-search class="enr-multiselect-search">
+        <label class="enr-multiselect-row enr-multiselect-select-all">
+          <input type="checkbox" data-multiselect-select-all>
+          <span>(Select all)</span>
+        </label>
+        <div data-multiselect-options class="enr-multiselect-options">
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="ranked_with_cv"
+              data-label="CV created"
+              
+            >
+            <span>CV created</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="deduplicated_before_enrichment"
+              data-label="Deduplicated before enrichment"
+              
+            >
+            <span>Deduplicated before enrichment</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="not_shortlisted"
+              data-label="Passed filter, not shortlisted"
+              
+            >
+            <span>Passed filter, not shortlisted</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="ranked_blocked_by_reranker_fit"
+              data-label="Ranked, blocked by reranker fit"
+              
+            >
+            <span>Ranked, blocked by reranker fit</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="ranked_no_cv"
+              data-label="Ranked, CV failed"
+              
+            >
+            <span>Ranked, CV failed</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="rejected_after_enrichment"
+              data-label="Rejected after enrichment"
+              
+            >
+            <span>Rejected after enrichment</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="rejected_before_enrichment"
+              data-label="Rejected before enrichment"
+              
+            >
+            <span>Rejected before enrichment</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="scored_not_ranked"
+              data-label="Scored, not final top-N"
+              
+            >
+            <span>Scored, not final top-N</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="shortlisted_not_scored"
+              data-label="Shortlisted, not AI scored"
+              
+            >
+            <span>Shortlisted, not AI scored</span>
+          </label>
+          
+          <label data-multiselect-option-row class="enr-multiselect-row">
+            <input
+              type="checkbox"
+              data-multiselect-option
+              value="ranked_skipped_fit_gate"
+              data-label="Skipped after CV analysis"
+              
+            >
+            <span>Skipped after CV analysis</span>
+          </label>
+          
+        </div>
+      </div>
+    </details>
+    <select id="enr-pipeline-outcome" name="pipeline_outcome" multiple class="enr-hidden-multiselect" aria-hidden="true" tabindex="-1">
+      
+      <option value="ranked_with_cv" >CV created</option>
+      
+      <option value="deduplicated_before_enrichment" >Deduplicated before enrichment</option>
+      
+      <option value="not_shortlisted" >Passed filter, not shortlisted</option>
+      
+      <option value="ranked_blocked_by_reranker_fit" >Ranked, blocked by reranker fit</option>
+      
+      <option value="ranked_no_cv" >Ranked, CV failed</option>
+      
+      <option value="rejected_after_enrichment" >Rejected after enrichment</option>
+      
+      <option value="rejected_before_enrichment" >Rejected before enrichment</option>
+      
+      <option value="scored_not_ranked" >Scored, not final top-N</option>
+      
+      <option value="shortlisted_not_scored" >Shortlisted, not AI scored</option>
+      
+      <option value="ranked_skipped_fit_gate" >Skipped after CV analysis</option>
+      
+    </select>
+  </div>
+
+  <div class="enr-toolbar-group">
+    <label class="meta enr-toolbar-label" for="enr-page-size">Rows</label>
+    <span class="enr-select-shell"><select id="enr-page-size" name="page_size" class="enr-toolbar-select enr-rows-select enr-select-caret">
+      
+      <option value="25" selected>25</option>
+      
+      <option value="50" >50</option>
+      
+      <option value="100" >100</option>
+      
+    </select>
+  </div>
+
+  <button type="submit" class="btn-secondary">Apply</button>
+  <a class="btn-secondary enr-export-btn" href="/admin/runs/aa1ae763-fcb5-41f2-af6a-5e761db7d192/enriched/export-filtered.zip?filter_name=all&amp;q=" data-tab-fragment-skip="true">Export</a>
+</form>
+
+<div class="card" style="padding:0;overflow:hidden">
+  <table class="enr-table">
+    <thead>
+      <tr>
+        <th>Job</th>
+        <th>Fit Context</th>
+        <th>Required Skills (top 5)</th>
+        <th>Filter</th>
+        <th>Pipeline Outcome</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4428013811" target="_blank">(Junior) Business Development Manager (m/w/d) Heavy Transport E-Mobility</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> business_development</span>
+            <span><strong>Domain:</strong> e_mobility</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Business Development, Vertrieb, Marktanalyse, Projektmanagement
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://de.linkedin.com/jobs/view/junior-consultant-einkauf-scm-m-w-x-at-amc-4429239331?trk=public_jobs_topcard-title" target="_blank">(Junior) Consultant Einkauf/SCM (m/w/x)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> supply_chain_consulting</span>
+            <span><strong>Domain:</strong> supply_chain</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Projektmanagement, MS Office, PowerPoint, Excel, Power BI, <em class="meta">+1 more</em>
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://de.linkedin.com/jobs/view/junior-consultant-einkauf-scm-m-w-x-at-amc-4429242238?trk=public_jobs_topcard-title" target="_blank">(Junior) Consultant Einkauf/SCM (m/w/x)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> consulting</span>
+            <span><strong>Domain:</strong> supply_chain_management</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Project Management, Microsoft PowerPoint, Microsoft Excel, Microsoft Power BI, Microsoft Visio
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429296027" target="_blank">(Senior) Account Manager (m/w/d) - Programmatic Advertising - Jobbird.com</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> senior</span>
+            <span><strong>Family:</strong> sales</span>
+            <span><strong>Domain:</strong> recruitment</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            B2B solution sales, performance marketing
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429512506" target="_blank">(Senior) Account Manager (m/w/d) für performancebasierte Recruiting-Lösungen - Jobbird.com</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> senior</span>
+            <span><strong>Family:</strong> sales</span>
+            <span><strong>Domain:</strong> hr tech</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Erfahrung im B2B-Lösungsvertrieb oder Performance-Marketing, Sicherer Umgang mit KPIs und analytisches Denkvermögen, Verhandlungsgeschick und strukturierte Arbeitsweise, Fließende Deutsch- und Englischkenntnisse
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4369763629" target="_blank">2026 Applied Scientist Intern, Amazon University Talent Acquisition</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> data_science</span>
+            <span><strong>Domain:</strong> ecommerce</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Programming in Java, C++, Python or related language
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426845335" target="_blank">ARCHITEKT/PROJEKTLEITER HOCHBAU (w/m/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> senior</span>
+            <span><strong>Family:</strong> project_management</span>
+            <span><strong>Domain:</strong> construction</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Hochbau, Objektplanung, Projektleitung, Ausschreibung, Objektüberwachung
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429257677" target="_blank">Abteilungsleitung Technik (w/m/d) - Wäscherei - Jobbird.com</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> lead</span>
+            <span><strong>Family:</strong> operations_management</span>
+            <span><strong>Domain:</strong> healthcare</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            MS Office, Fahrerlaubnis Klasse B, Elektrik, Sanitär, Klima, <em class="meta">+2 more</em>
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4414355008" target="_blank">Account Executive (M/W/X) (Outbound)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> mid</span>
+            <span><strong>Family:</strong> sales</span>
+            <span><strong>Domain:</strong> edtech</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            B2B-Sales experience, B2C-Sales experience (counts also), German C2 level, English fluent, Salesforce knowledge (plus), <em class="meta">+5 more</em>
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4429249156" target="_blank">Account Executive - NRW (w/m/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> mid</span>
+            <span><strong>Family:</strong> sales</span>
+            <span><strong>Domain:</strong> public_sector</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            HubSpot
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4428032408" target="_blank">Account Manager (m/w/d) im Außendienst</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> mid</span>
+            <span><strong>Family:</strong> sales</span>
+            <span><strong>Domain:</strong> electronics</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Account Manager, Außendienst, Elektronik, Vertrieb, Kundenbetreuung, <em class="meta">+1 more</em>
+            
+            <div class="meta" style="margin-top:0.3rem">Fallback: keywords</div>
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4419014820" target="_blank">Anwendungstechniker Fenstermontage (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> mid</span>
+            <span><strong>Family:</strong> technical_support</span>
+            <span><strong>Domain:</strong> construction</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Fensterbefestigung, Abdichtung
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426842030" target="_blank">Anwendungstechniker im Außendienst (m/w/d)  - Europa (Schwerpunkt Osteuropa)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> mid</span>
+            <span><strong>Family:</strong> application_engineering</span>
+            <span><strong>Domain:</strong> machinery_manufacturing</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Zerspanungsmechaniker, Zerspanung, Drehen, Fräsen, Schleifen
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4422914668" target="_blank">Applied AI Engineer Intern (all genders)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> ml_engineering</span>
+            <span><strong>Domain:</strong> cybersecurity</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Python, prompt engineering, low-code development platforms, make.com, n8n
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426492429" target="_blank">Assistenz / Operations &amp; Customer Care (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> remote</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> operations</span>
+            <span><strong>Domain:</strong> construction</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Assistenz, Operations, Customer Care, KI, Handwerk, <em class="meta">+3 more</em>
+            
+            <div class="meta" style="margin-top:0.3rem">Fallback: keywords</div>
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426490691" target="_blank">Assistenz der Geschäftsführung</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> senior</span>
+            <span><strong>Family:</strong> executive_assistant</span>
+            <span><strong>Domain:</strong> events</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Hervorragende Beherrschung der deutschen und englischen Sprache in Wort und Schrift, Sichere Anwendung von Reporting Tools, insbesondere HubSpot CRM und Microsoft Excel auf fortgeschrittenem Niveau, ergänzt durch Routine im Umgang mit Linear, MS Teams und PowerPoint, Hohe Zahlenaffinität und fundiertes Verständnis für Budgetlogik, Controlling und Finanzreporting, Grundverständnis für Vertragsrecht, Reisebereitschaft im Umfang von etwa 20 bis 30 Prozent
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426811748" target="_blank">Ausbildung Elektroniker für Betriebstechnik (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> electrical_engineering</span>
+            <span><strong>Domain:</strong> manufacturing</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Ausbildung, Elektroniker, Betriebstechnik, Schaltschrank, Elektrotechnik, <em class="meta">+1 more</em>
+            
+            <div class="meta" style="margin-top:0.3rem">Fallback: keywords</div>
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4419175109" target="_blank">Aushilfe Prüfungsaufsicht Bochum</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> administration</span>
+            <span><strong>Domain:</strong> education</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Prüfungsaufsicht, Examenaufsicht, Hochschule, Studentenbetreuung
+            
+            <div class="meta" style="margin-top:0.3rem">Fallback: keywords</div>
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: returned by vector search | Primary fit: skip">Scored, not final top-N</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: skip</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426479954" target="_blank">B2B Sales Manager (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> mid</span>
+            <span><strong>Family:</strong> sales</span>
+            <span><strong>Domain:</strong> e-commerce</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            LinkedIn Sales Navigator, HubSpot, Clay, Webflow, Brevo/Klaviyo, <em class="meta">+4 more</em>
+            
+            <div class="meta" style="margin-top:0.3rem">Fallback: tech stack</div>
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426499778" target="_blank">Back Office WIKUS Italia (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> mid</span>
+            <span><strong>Family:</strong> customer_service_operations</span>
+            <span><strong>Domain:</strong> industrial_manufacturing</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Fluency in Italian and English, MS Office skills, especially Excel, Knowledge of modern CRM systems, ERP system familiarity
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426831889" target="_blank">Bauingenieur in Tragwerksplaner/Statiker (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> structural_engineering</span>
+            <span><strong>Domain:</strong> construction</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Bauingenieur, Tragwerksplaner, Statiker, Tragwerksplanung, Holztafelbauweise, <em class="meta">+3 more</em>
+            
+            <div class="meta" style="margin-top:0.3rem">Fallback: keywords</div>
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-info" title="Shortlist: not returned in raw hits">Passed filter, not shortlisted</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: not returned in raw hits</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4322340826" target="_blank">Bauleitung und Projektleitung für Medizintechnik (m/w/x)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> mid</span>
+            <span><strong>Family:</strong> construction_management</span>
+            <span><strong>Domain:</strong> healthcare</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Bauleitung/Bauüberwachung Medizintechnik nach HOAI Leistungsphase 8, Koordination und Steuerung Baupartner und Gewerke, Planung medizin- und labortechnischer Anlagen nach HOAI Leistungsphasen 1-5, Umsetzung gesetzlicher Vorgaben und Richtlinien für Medizinprodukte, Hygienevorgaben, <em class="meta">+5 more</em>
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4426479358" target="_blank">Bauprojektmanager - Produkt &amp; Digitalisierung (m/w/*)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> hybrid</span>
+            <span><strong>Seniority:</strong> mid</span>
+            <span><strong>Family:</strong> product_management</span>
+            <span><strong>Domain:</strong> construction</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            construction project management, construction processes, complex construction project management, process analysis, agile methodologies, <em class="meta">+2 more</em>
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4190487310" target="_blank">Business Analyst - Thesis Internship (m/w/d)</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> onsite</span>
+            <span><strong>Seniority:</strong> junior</span>
+            <span><strong>Family:</strong> analytics</span>
+            <span><strong>Domain:</strong> retail</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            data analytics, business consulting, data modeling
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-success" title="Shortlist: returned by vector search | Primary fit: stretch | CV: accepted">CV created</span>
+            
+            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">Shortlist: returned by vector search | Primary fit: stretch | CV: accepted</div>
+            
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td><a href="https://www.linkedin.com/jobs/view/4427792269" target="_blank">Business Analyst / (UX-)Consultant – SaaS Product (m/w/d) - full remote</a></td>
+        <td class="meta">
+          <div class="fit-context-stack">
+            <span><strong>Location:</strong> remote</span>
+            <span><strong>Seniority:</strong> senior</span>
+            <span><strong>Family:</strong> business_analysis</span>
+            <span><strong>Domain:</strong> construction</span>
+          </div>
+        </td>
+        <td class="meta">
+          
+            Business Analysis, Requirements Engineering, User Research, Scrum, Design Thinking, <em class="meta">+10 more</em>
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            
+              <span class="badge badge-error" title="">&#10007; reject</span>
+              <div class="field-error" style="margin-top:0.3rem"></div>
+              
+            
+          
+        </td>
+        <td style="white-space:nowrap">
+          
+            <span class="badge badge-error" >Rejected after enrichment</span>
+            
+          
+        </td>
+      </tr>
+      
+      
+    </tbody>
+  </table>
+</div>
+
+
+<div style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1.25rem;justify-content:flex-end">
+  
+  <span class="meta">Page 1 of 12</span>
+  
+    <a href="/admin/runs/aa1ae763-fcb5-41f2-af6a-5e761db7d192/tabs/enriched?page=2&page_size=25&filter_name=all"
+     class="btn-secondary"
+     data-tab-fragment-url="/admin/runs/aa1ae763-fcb5-41f2-af6a-5e761db7d192/tabs/enriched?page=2&page_size=25&filter_name=all"
+     data-tab-id="enriched">Next →</a>
+  
+</div>
+
+
+
+
+
+
+<div class="section-card" style="margin:1.5rem 0;padding:0;overflow:hidden">
+  <details>
+    <summary style="padding:0.75rem 1.25rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;user-select:none">
+      <span class="badge badge-warning">↺ Deduplicated before enrichment</span>
+      <span class="badge badge-warning" style="border-radius:999px">20</span>
+      <span class="meta" style="margin-left:auto">Removed during normalization before enrichment/filtering.</span>
+    </summary>
+    <table>
+      <thead>
+        <tr>
+          <th>Job</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429234244" target="_blank" class="meta">Schülerpraktikum in der Filiale (m/w/d)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4426815643" target="_blank" class="meta">Internship Communications at the Lufthansa Group Internship start date: August 2026, duration: 6 months</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429577186" target="_blank" class="meta">Intern Private Debt (f/m/d)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4352830339" target="_blank" class="meta">Production / Engineering - Internship / Thesis (m/f/d)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4352791453" target="_blank" class="meta">Production / Engineering - Internship / Thesis (m/f/d)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4352755140" target="_blank" class="meta">Production / Engineering - Internship / Thesis (m/f/d)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4352860258" target="_blank" class="meta">Production / Engineering - Internship / Thesis (m/f/d)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429249697" target="_blank" class="meta">Consultant Funktionale Sicherheit (m/w/d)*</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429290974" target="_blank" class="meta">Inhouse Consultant Partner Management &amp; Business Development (m/w/d) CPCCUC</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429506140" target="_blank" class="meta">Inhouse Consultant Partner Management &amp; Business Development (m/w/d) CPCCUC</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429508066" target="_blank" class="meta">Inhouse Consultant Partner Management &amp; Business Development (m/w/d) CPCCUC</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429578269" target="_blank" class="meta">Referendare (m/w/d) in Anwaltskanzlei</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4427798863" target="_blank" class="meta">Elektriker/Elektroniker (m/w/d) Mobilitätsbranche</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429580153" target="_blank" class="meta">Data Center Technician Trainee, Data Center Operations</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429236514" target="_blank" class="meta">Werkstudent/-in Recruiting Management (all genders)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4428020435" target="_blank" class="meta">Account Manager (m/w/d) im Außendienst</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4429229638" target="_blank" class="meta">Werkstudent/-in Recruiting Management (all genders)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4428009859" target="_blank" class="meta">Elektrotechniker (m/w/d) Inbetriebnahme  Elektromobilität</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4322470600" target="_blank" class="meta">Bauleitung und Projektleitung für Medizintechnik (m/w/x)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+        <tr>
+          <td>
+            
+            <a href="https://www.linkedin.com/jobs/view/4322420692" target="_blank" class="meta">Bauleitung und Projektleitung für Medizintechnik (m/w/x)</a>
+            
+          </td>
+          <td class="field-error">near_duplicate_job_posting</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </details>
+</div>
+
+
+
+
+
+
+
+
+

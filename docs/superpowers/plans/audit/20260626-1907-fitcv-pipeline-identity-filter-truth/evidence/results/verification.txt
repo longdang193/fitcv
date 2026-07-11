@@ -1,0 +1,39 @@
+Captured At: 2026-06-26T19:07:35.2162003+02:00
+Producer: Codex / local terminal
+
+Red-phase failures observed before fix:
+- `python -m pytest tests/test_pipeline.py::test_build_export_results_uses_raw_job_fingerprint_when_urls_drift -q`
+  - failed: expected `ranked_no_cv`, got `unknown_pipeline_state`
+- `python -m pytest tests/test_fitcv_cp/test_app.py::test_build_enriched_tab_context_does_not_guess_passed_for_unknown_rows -q`
+  - failed: fallback populated `filter_results_by_job_url` with synthetic `passed=True`
+- `python -m pytest tests/test_fitcv_cp/test_app.py::test_build_enriched_tab_context_matches_truth_by_raw_job_fingerprint_when_urls_drift -q`
+  - failed: `enriched_passed_count == 0` under URL drift despite matching fingerprint
+- `python -m pytest tests/test_fitcv_cp/test_storage_backend_parity.py::test_filter_results_contract_parity_sqlite_vs_bigquery -q`
+  - failed: sqlite returned `[]`, BigQuery returned row
+
+Green verification after fix:
+- `python -m pytest tests/test_pipeline.py::test_build_export_results_uses_raw_job_fingerprint_when_urls_drift -q`
+  - passed
+- `python -m pytest tests/test_fitcv_cp/test_app.py::test_build_enriched_tab_context_does_not_guess_passed_for_unknown_rows -q`
+  - passed
+- `python -m pytest tests/test_fitcv_cp/test_app.py::test_build_enriched_tab_context_matches_truth_by_raw_job_fingerprint_when_urls_drift -q`
+  - passed
+- `python -m pytest tests/test_fitcv_cp/test_storage_backend_parity.py::test_filter_results_contract_parity_sqlite_vs_bigquery -q`
+  - passed
+- `python -m pytest tests/test_pipeline.py -k "build_export_results_uses_raw_job_fingerprint_when_urls_drift or export_results or pipeline_status" -q`
+  - passed: `2 passed, 121 deselected`
+- `python -m pytest tests/test_fitcv_cp/test_app.py -k "build_enriched_tab_context or enriched and (pipeline or filter or fallback or unknown)" -q`
+  - passed: `13 passed, 496 deselected`
+- `python -m pytest tests/test_fitcv_cp/test_bq_store.py -k "filter_results" -q`
+  - passed: `2 passed, 71 deselected`
+- `python -m pytest tests/test_fitcv_cp/test_storage_backend_parity.py -q`
+  - passed: `5 passed`
+
+Additional closeout checks:
+- `python scripts/hooks/run_validator.py --fast`
+  - failed on unrelated pre-existing planning drift:
+    - `docs/superpowers/specs/2026-06-26-00-49-indeed-job-input-adapter-spec.md`
+    - `docs/superpowers/plans/2026-06-26-00-50-indeed-job-input-adapter-plan.md`
+    - `docs/generated/planning_lineage.yaml`
+- bounded runtime-style replay attempt using `data/fitcv_live_runs.db`
+  - result: no persisted runs found locally, so no live-style replay evidence available in this workspace
