@@ -6,7 +6,7 @@ covers:
   - fitcv_cp.app admin retry endpoint policy caps
 excludes:
   - live redis workers
-  - live BigQuery
+  - live remote database
 tags:
   - fast
   - ci-safe
@@ -60,8 +60,8 @@ def test_admin_retry_run_rejects_when_max_attempts_exhausted() -> None:
         ),
     ]
 
-    with patch("fitcv_cp.bq_store.get_run", return_value=run):
-        with patch("fitcv_cp.bq_store.get_events", return_value=attempts):
+    with patch("fitcv_cp.sqlite_store.get_run", return_value=run):
+        with patch("fitcv_cp.sqlite_store.get_events", return_value=attempts):
             with patch(
                 "fitcv_cp.retry_settings.load_retry_settings",
                 return_value=RetrySettings(
@@ -106,12 +106,12 @@ def test_admin_retry_run_enqueues_when_under_cap() -> None:
     update_job_id = MagicMock(return_value={"persistence_status": "persisted", "degradation_reason": "none"})
     append_event = MagicMock(return_value={"persistence_status": "persisted", "degradation_reason": "none"})
 
-    with patch("fitcv_cp.bq_store.get_run", return_value=run):
-        with patch("fitcv_cp.bq_store.get_events", return_value=attempts):
-            with patch("fitcv_cp.bq_store.update_run_status", update_run_status):
-                with patch("fitcv_cp.bq_store.update_run_orchestration_binding", update_binding):
-                    with patch("fitcv_cp.bq_store.update_run_queue_job_id", update_job_id):
-                        with patch("fitcv_cp.bq_store.append_event", append_event):
+    with patch("fitcv_cp.sqlite_store.get_run", return_value=run):
+        with patch("fitcv_cp.sqlite_store.get_events", return_value=attempts):
+            with patch("fitcv_cp.sqlite_store.update_run_status", update_run_status):
+                with patch("fitcv_cp.sqlite_store.update_run_orchestration_binding", update_binding):
+                    with patch("fitcv_cp.sqlite_store.update_run_queue_job_id", update_job_id):
+                        with patch("fitcv_cp.sqlite_store.append_event", append_event):
                             with patch(
                                 "fitcv_cp.queue.enqueue_run_with_job_id",
                                 return_value=("r1", "job-1"),
@@ -132,5 +132,7 @@ def test_admin_retry_run_enqueues_when_under_cap() -> None:
     assert resp.status_code == 200
     update_run_status.assert_called()
     append_event.assert_called()
+
+
 
 

@@ -1083,7 +1083,7 @@ def test_cv_settings_have_correct_group():
 def test_cv_settings_defaults():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["cv_preset"]["default"] == "europass"
-    assert schema_by_key["cv_generation_model"]["default"] == "gemini-2.5-flash"
+    assert schema_by_key["cv_generation_model"]["default"] == "cx/gpt-5.4-mini"
     assert schema_by_key["cv_max_pages"]["default"] == 2
 
 
@@ -1410,9 +1410,9 @@ def test_apply_settings_to_config_cv_generation_nested():
     """@proves settings_system.cv-generation-settings"""
     config: dict = {}
     apply_settings_to_config(config, {
-        "cv_generation_model": "gemini-2.5-flash",
+        "cv_generation_model": "cx/gpt-5.4-mini",
     })
-    assert config["cv"]["generation"]["model"] == "gemini-2.5-flash"
+    assert config["cv"]["generation"]["model"] == "cx/gpt-5.4-mini"
 
 
 def test_apply_settings_to_config_cv_preset_with_existing_cv_structure():
@@ -1427,7 +1427,7 @@ def test_valid_cv_preset_group_payload_passes():
     """All cv-preset group fields pass validation together."""
     validate_settings({
         "cv_preset": "europass",
-        "cv_generation_model": "gemini-2.5-flash",
+        "cv_generation_model": "cx/gpt-5.4-mini",
     })  # must not raise
 
 
@@ -1454,15 +1454,15 @@ def test_cv_preset_defaults_match_cv_yaml():
 
 def test_cv_generation_model_default_uses_25_flash():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["cv_generation_model"]["default"] == "gemini-2.5-flash"
+    assert schema_by_key["cv_generation_model"]["default"] == "cx/gpt-5.4-mini"
 
 
 def test_cv_generation_model_options_are_constrained() -> None:
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["cv_generation_model"]["options"] == [
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-pro",
+        "cx/gpt-5.2",
+        "cx/gpt-5.4-mini",
+        "cx/gpt-5.5",
     ]
 
 
@@ -1534,14 +1534,14 @@ def test_coerce_list_str_from_single_value():
 
 def test_coerce_cv_generation_model_strips_whitespace():
     from fitcv_cp.settings_schema import coerce_value
-    result = coerce_value("cv_generation_model", "  gemini-2.5-flash  ")
-    assert result == "gemini-2.5-flash"
+    result = coerce_value("cv_generation_model", "  cx/gpt-5.4-mini  ")
+    assert result == "cx/gpt-5.4-mini"
     assert isinstance(result, str)
 
 
 def test_validate_settings_rejects_unknown_cv_generation_model() -> None:
     with pytest.raises(ValidationError, match="cv_generation_model"):
-        validate_settings({"cv_generation_model": "gemini-3-flash"})
+        validate_settings({"cv_generation_model": "cx/unsupported-model"})
 
 
 def test_all_group_registries_has_ranking_and_cv():

@@ -33,7 +33,7 @@ Owns stage execution, ranking and CV lanes, validation, artifact emission, and s
 
 ## Portability and Routing
 
-- backend portability: sqlite and bigquery execution paths are selected through control-plane backend runtime resolution
+- backend portability: sqlite execution path is selected through control-plane backend runtime resolution
 - provider portability: model routing is config/runtime controlled (with optional `FITCV_LANGGRAPH_*` env overrides) and resolved at runtime
 - secrets: runtime credentials are supplied via environment variables
 
@@ -57,7 +57,8 @@ Owns stage execution, ranking and CV lanes, validation, artifact emission, and s
 - CV-generation env overrides now resolve from one route owner
 - role-taxonomy neighbor scoring now uses configured runtime taxonomy consistently across ranking/evidence, including run-scoped overlay parity
 - embedding reuse now treats fallback-capable provider mode as non-reusable by default
-- sqlite helper consolidation landed for local path wrappers; broader BigQuery helper consolidation remains deferred because shared client construction is high-blast-radius
+- sqlite helper consolidation landed for local path wrappers; remaining cleanup focuses on deleting stale compatibility residue rather than preserving alternate backend paths
 - large cleanup refactors such as pipeline-stage-runner adoption and reuse-engine deletion remain deferred; current characterization shows these modules are not imported by active `src/` or `tests/` surfaces
+
 
 

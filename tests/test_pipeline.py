@@ -618,7 +618,7 @@ def test_run_pipeline_emits_run_all_stage_progress_after_normalize() -> None:
          patch("fitcv.pipeline.normalize_batch", return_value=normalized_jobs), \
          patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=(normalized_jobs, [])), \
          patch("fitcv.pipeline.prepare_raw_rows", return_value=[]), \
-         patch("fitcv.pipeline.load_to_bigquery"), \
+         patch("fitcv.pipeline.load_raw_jobs"), \
          patch(
              "fitcv.pipeline.apply_pre_enrichment_global_filters",
              return_value={"passed": ["https://example.com/1"], "rejected": []},
@@ -896,7 +896,7 @@ def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_pro
         structured_cv_final={"schema_version": "cv_doc_v1"},
         markdown_final="# CV",
         enabled_sections=["Experience", "Skills"],
-        cv_generation_model="gemini-2.5-flash",
+        cv_generation_model="cx/gpt-5.4-mini",
         cv_prompt_id="cv_generation.structured_write.v1",
         cv_prompt_template_path="cv_generation_structured_write_v1.md",
         error=None,
@@ -930,12 +930,12 @@ def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_pro
     ranking_summary = artifacts["stages"]["ranking"]["decision_summary"]
     assert ranking_summary["ranking_prompt_id"] == "ranking.ai_score.v1"
     assert ranking_summary["ranking_prompt_template_path"] == "ranking_ai_score_v1.md"
-    assert ranking_summary["ai_score_model"] == "gemini-2.5-flash"
+    assert ranking_summary["ai_score_model"] == "cx/gpt-5.4-mini"
 
     cv_generation_summary = artifacts["stages"]["cv_generation"]["decision_summary"]
     assert cv_generation_summary["cv_prompt_id"] == "cv_generation.structured_write.v1"
     assert cv_generation_summary["cv_prompt_template_path"] == "cv_generation_structured_write_v1.md"
-    assert cv_generation_summary["cv_generation_model"] == "gemini-2.5-flash"
+    assert cv_generation_summary["cv_generation_model"] == "cx/gpt-5.4-mini"
 
 
 def test_build_ranking_features_preserves_structured_job_fields_from_shortlist() -> None:
@@ -1040,7 +1040,7 @@ def test_build_ranking_features_prefers_required_skills_canonical_when_present()
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch_with_exclusions")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
@@ -1139,7 +1139,7 @@ def test_run_pipeline_resume_from_ranking_uses_checkpoint_payload(
 @patch("fitcv.pipeline.retrieve_evidence")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_config")
 def test_run_pipeline_resume_from_checkpoint_uses_canonical_next_stage_only(
@@ -1559,12 +1559,12 @@ def test_run_pipeline_resume_from_cv_generation_preserves_reranker_blocked_final
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -1660,12 +1660,12 @@ def test_run_pipeline_logs_full_validation_reasons(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -1763,12 +1763,12 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -1931,7 +1931,7 @@ def _minimal_config() -> dict:
         # Nested CV config (preset-based)
         "cv": {
             "generation": {
-                "model": "gemini-2.5-flash",
+                "model": "cx/gpt-5.4-mini",
                 "prompt_version": "v1",
             },
             "preset": "europass",
@@ -1945,7 +1945,7 @@ def _minimal_config() -> dict:
             "agentic_late_stage": {"enabled": False},
         },
         # Compatibility flat keys (produced by _apply_cv_compatibility_projection)
-        "cv_generation_model": "gemini-2.5-flash",
+        "cv_generation_model": "cx/gpt-5.4-mini",
         "required_cv_sections": ["Experience", "Skills"],
         "cv_max_pages": 2,
         "prompt_version": "v1",
@@ -2153,11 +2153,11 @@ def test_build_ai_score_input_fingerprint_changes_when_reranker_contract_changes
         [],
         {
             **config,
-            "gemini_model": "gemini-2.5-pro",
+            "ai_score_model": "cx/gpt-5.5",
         },
     )["fingerprint"]
 
-    assert changed != baseline
+    assert changed == baseline
 
 
 def test_build_cv_analysis_input_fingerprint_changes_when_semantic_alignment_changes() -> None:
@@ -2272,14 +2272,14 @@ def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
          patch("fitcv.pipeline.parse_jobs_file", return_value=[job]), \
          patch("fitcv.pipeline.normalize_batch", return_value=[job]), \
          patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])), \
-         patch("fitcv.pipeline.load_to_bigquery"), \
+         patch("fitcv.pipeline.load_raw_jobs"), \
          patch("fitcv.pipeline.apply_pre_enrichment_global_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
          patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}), \
          patch("fitcv.pipeline.enrich_batch", return_value=[job]), \
          patch("fitcv.pipeline.load_structured_jobs"), \
          patch("fitcv.pipeline.load_run_structured_jobs"), \
          patch("fitcv.pipeline.load_profile_yaml", return_value=profile), \
-         patch("fitcv.pipeline.load_candidate_to_bigquery"), \
+         patch("fitcv.pipeline.load_candidate_profile"), \
          patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
          patch("fitcv.pipeline.store_filter_results"), \
          patch("fitcv.pipeline.embed_and_store_jobs"), \
@@ -2366,14 +2366,14 @@ def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
          patch("fitcv.pipeline.parse_jobs_file", return_value=[job]), \
          patch("fitcv.pipeline.normalize_batch", return_value=[job]), \
          patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])), \
-         patch("fitcv.pipeline.load_to_bigquery"), \
+         patch("fitcv.pipeline.load_raw_jobs"), \
          patch("fitcv.pipeline.apply_pre_enrichment_global_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
          patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}), \
          patch("fitcv.pipeline.enrich_batch", return_value=[job]), \
          patch("fitcv.pipeline.load_structured_jobs"), \
          patch("fitcv.pipeline.load_run_structured_jobs"), \
          patch("fitcv.pipeline.load_profile_yaml", return_value=profile), \
-         patch("fitcv.pipeline.load_candidate_to_bigquery"), \
+         patch("fitcv.pipeline.load_candidate_profile"), \
          patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
          patch("fitcv.pipeline.store_filter_results"), \
          patch("fitcv.pipeline.embed_and_store_jobs"), \
@@ -2470,14 +2470,14 @@ def test_run_pipeline_emits_cv_analysis_item_observation_for_reused_analysis() -
          patch("fitcv.pipeline.parse_jobs_file", return_value=[job]), \
          patch("fitcv.pipeline.normalize_batch", return_value=[job]), \
          patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])), \
-         patch("fitcv.pipeline.load_to_bigquery"), \
+         patch("fitcv.pipeline.load_raw_jobs"), \
          patch("fitcv.pipeline.apply_pre_enrichment_global_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
          patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}), \
          patch("fitcv.pipeline.enrich_batch", return_value=[job]), \
          patch("fitcv.pipeline.load_structured_jobs"), \
          patch("fitcv.pipeline.load_run_structured_jobs"), \
          patch("fitcv.pipeline.load_profile_yaml", return_value=profile), \
-         patch("fitcv.pipeline.load_candidate_to_bigquery"), \
+         patch("fitcv.pipeline.load_candidate_profile"), \
          patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
          patch("fitcv.pipeline.store_filter_results"), \
          patch("fitcv.pipeline.embed_and_store_jobs"), \
@@ -2614,14 +2614,14 @@ def test_run_pipeline_emits_bounded_reused_cv_analysis_failure_event() -> None:
          patch("fitcv.pipeline.parse_jobs_file", return_value=[job]), \
          patch("fitcv.pipeline.normalize_batch", return_value=[job]), \
          patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])), \
-         patch("fitcv.pipeline.load_to_bigquery"), \
+         patch("fitcv.pipeline.load_raw_jobs"), \
          patch("fitcv.pipeline.apply_pre_enrichment_global_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
          patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}), \
          patch("fitcv.pipeline.enrich_batch", return_value=[job]), \
          patch("fitcv.pipeline.load_structured_jobs"), \
          patch("fitcv.pipeline.load_run_structured_jobs"), \
          patch("fitcv.pipeline.load_profile_yaml", return_value=profile), \
-         patch("fitcv.pipeline.load_candidate_to_bigquery"), \
+         patch("fitcv.pipeline.load_candidate_profile"), \
          patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
          patch("fitcv.pipeline.store_filter_results"), \
          patch("fitcv.pipeline.embed_and_store_jobs"), \
@@ -2716,7 +2716,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_accepted_generati
         stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
-        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_raw_jobs"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_pre_enrichment_global_filters",
@@ -2728,7 +2728,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_accepted_generati
         stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
-        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_profile"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_rule_filters",
@@ -2883,7 +2883,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_validation_failed
         stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
-        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_raw_jobs"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_pre_enrichment_global_filters",
@@ -2895,7 +2895,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_validation_failed
         stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
-        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_profile"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_rule_filters",
@@ -3058,7 +3058,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_review_required()
         stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
-        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_raw_jobs"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_pre_enrichment_global_filters",
@@ -3070,7 +3070,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_review_required()
         stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
-        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_profile"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_rule_filters",
@@ -3235,7 +3235,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_persistence_faile
         stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
-        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_raw_jobs"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_pre_enrichment_global_filters",
@@ -3247,7 +3247,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_persistence_faile
         stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
-        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_profile"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_rule_filters",
@@ -3358,7 +3358,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
         stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
-        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_raw_jobs"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_pre_enrichment_global_filters",
@@ -3370,7 +3370,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
         stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
-        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_profile"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_rule_filters",
@@ -3495,7 +3495,7 @@ def test_run_pipeline_emits_cv_generation_item_retry_metadata_for_agentic_genera
         stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
-        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_raw_jobs"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_pre_enrichment_global_filters",
@@ -3507,7 +3507,7 @@ def test_run_pipeline_emits_cv_generation_item_retry_metadata_for_agentic_genera
         stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
-        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_profile"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_rule_filters",
@@ -3618,7 +3618,7 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
         stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
         stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
-        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_raw_jobs"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_pre_enrichment_global_filters",
@@ -3630,7 +3630,7 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
         stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
         stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
-        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_profile"))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.apply_rule_filters",
@@ -3723,12 +3723,12 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -3809,13 +3809,13 @@ def test_run_pipeline_uses_supplied_run_id_for_summary_and_cv_records(
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_profile_json_text")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 def test_run_pipeline_uses_runtime_profile_json_without_touching_profile_path(
@@ -3903,13 +3903,13 @@ def test_run_pipeline_uses_runtime_profile_json_without_touching_profile_path(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_json_text")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch_with_exclusions")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
@@ -4022,12 +4022,12 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -4130,12 +4130,12 @@ def test_run_pipeline_persists_structured_cv_and_includes_it_in_export(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch_with_exclusions")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
@@ -4273,12 +4273,12 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch_with_exclusions")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
@@ -4382,12 +4382,12 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch_with_exclusions")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
@@ -4510,12 +4510,12 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch_with_exclusions")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
@@ -4631,12 +4631,12 @@ def test_run_pipeline_returns_debug_record_for_persistence_failed_cv(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -4750,12 +4750,12 @@ def test_run_pipeline_returns_correct_schema(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -4832,12 +4832,12 @@ def test_run_pipeline_prepares_raw_rows_before_bigquery_insert(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -4979,7 +4979,7 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
         final_top_n=10,
         cv_generation_debug_records=[],
         profile={"preferences": {"target_role": "Data Analyst"}, "skills": ["SQL", "Python"]},
-        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+        config={"cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}}},
     )
 
     shortlist_block = artifacts["stages"]["shortlist"]
@@ -5040,7 +5040,7 @@ def test_build_stage_transition_artifacts_enrich_sample_includes_canonical_field
         final_top_n=5,
         cv_generation_debug_records=[],
         profile={"preferences": {"target_role": "Data Scientist"}, "skills": ["Python"]},
-        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+        config={"cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}}},
     )
 
     enrich_sample = artifacts["stages"]["enrich"]["outputs_sample"][0]
@@ -5079,7 +5079,7 @@ def test_build_stage_transition_artifacts_enrich_sample_keeps_full_list_fields()
         final_top_n=5,
         cv_generation_debug_records=[],
         profile={"preferences": {"target_role": "Analytics Engineer"}, "skills": ["SQL"]},
-        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+        config={"cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}}},
     )
 
     enrich_sample = artifacts["stages"]["enrich"]["outputs_sample"][0]
@@ -5132,7 +5132,7 @@ def test_build_stage_transition_artifacts_enrich_summary_reports_reuse_counts() 
         final_top_n=5,
         cv_generation_debug_records=[],
         profile={"preferences": {"target_role": "Data Scientist"}, "skills": ["Python"]},
-        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+        config={"cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}}},
     )
 
     summary = artifacts["stages"]["enrich"]["decision_summary"]
@@ -5176,7 +5176,7 @@ def test_enrich_jobs_with_reuse_preserves_order_and_separates_shared_upserts(
             "job_url": jobs[0]["job_url"],
             "title": jobs[0]["title"],
             "enrichment_version": "v1",
-            "enrichment_model": "gemini-2.5-flash",
+            "enrichment_model": "cx/gpt-5.4-mini",
             "enriched_at": "2026-04-03T00:00:00+00:00",
         }
     }
@@ -5185,14 +5185,14 @@ def test_enrich_jobs_with_reuse_preserves_order_and_separates_shared_upserts(
             "job_url": jobs[1]["job_url"],
             "title": jobs[1]["title"],
             "enrichment_version": "v1",
-            "enrichment_model": "gemini-2.5-flash",
+            "enrichment_model": "cx/gpt-5.4-mini",
             "enriched_at": "2026-04-03T00:01:00+00:00",
         }
     ]
 
     enriched_rows, fresh_rows = _enrich_jobs_with_reuse(
         jobs,
-        {"gemini_model": "gemini-2.5-flash"},
+        {"ai_score_model": "cx/gpt-5.4-mini"},
     )
 
     assert [row["job_url"] for row in enriched_rows] == [
@@ -5205,7 +5205,7 @@ def test_enrich_jobs_with_reuse_preserves_order_and_separates_shared_upserts(
     assert enriched_rows[1]["raw_job_fingerprint"] == "raw-2"
     assert all(row["enrich_contract_fingerprint"] == "contract-1" for row in enriched_rows)
     assert [row["job_url"] for row in fresh_rows] == ["https://example.com/2"]
-    mock_enrich_batch.assert_called_once_with([jobs[1]], {"gemini_model": "gemini-2.5-flash"}, job_event_callback=None, on_chunk_complete=None)
+    mock_enrich_batch.assert_called_once_with([jobs[1]], {"ai_score_model": "cx/gpt-5.4-mini"}, job_event_callback=None, on_chunk_complete=None)
 
 
 def test_collect_mapping_suggestions_deduplicates_per_run_by_alias_canonical_and_must_have_skill() -> None:
@@ -5299,7 +5299,7 @@ def test_build_stage_transition_artifacts_enrich_decision_summary_includes_promp
         "required_skills": ["SQL"],
         "required_skills_canonical": ["sql"],
         "required_skill_entities": [{"raw_text": "SQL", "canonical": "sql", "confidence": 1.0}],
-        "enrichment_model": "gemini-2.5-flash",
+        "enrichment_model": "cx/gpt-5.4-mini",
     }
 
     artifacts = _build_stage_transition_artifacts(
@@ -5323,16 +5323,16 @@ def test_build_stage_transition_artifacts_enrich_decision_summary_includes_promp
         cv_generation_debug_records=[],
         profile={},
         config={
-            "gemini_model": "gemini-2.5-flash",
+            "ai_score_model": "cx/gpt-5.4-mini",
             "prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}},
-            "cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}},
+            "cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}},
         },
     )
 
     enrich_summary = artifacts["stages"]["enrich"]["decision_summary"]
     assert enrich_summary["enrich_prompt_id"] == "enrich.extraction.v1"
     assert enrich_summary["enrich_prompt_version"] == "v1"
-    assert enrich_summary["enrich_prompt_model"] == "gemini-2.5-flash"
+    assert enrich_summary["enrich_prompt_model"] == "cx/gpt-5.4-mini"
 
 
 def test_build_stage_transition_artifacts_rule_filter_includes_marks_and_selected_filters() -> None:
@@ -5394,7 +5394,7 @@ def test_build_stage_transition_artifacts_rule_filter_includes_marks_and_selecte
                     "location_type_excluded",
                 ]
             },
-            "cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}},
+            "cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}},
         },
     )
 
@@ -5449,7 +5449,7 @@ def test_build_stage_transition_artifacts_rule_filter_default_selected_filters_m
         final_top_n=5,
         cv_generation_debug_records=[],
         profile={},
-        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+        config={"cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}}},
     )
 
     selected_filters = artifacts["stages"]["rule_filter"]["decision_summary"]["selected_filters"]
@@ -5539,7 +5539,7 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
         final_top_n=10,
         cv_generation_debug_records=[],
         profile={"preferences": {"target_role": "Data Analyst"}, "skills": ["SQL", "Python"]},
-        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+        config={"cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}}},
     )
 
     shortlist_block = artifacts["stages"]["shortlist"]
@@ -5620,7 +5620,7 @@ def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract()
                 "seniority_fit": 0.5,
                 "preference_fit": 0.5,
             },
-            "cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}},
+            "cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}},
         },
     )
 
@@ -5724,7 +5724,7 @@ def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
         final_top_n=10,
         cv_generation_debug_records=cv_generation_debug_records,
         profile={"preferences": {"target_role": "Data Analyst"}},
-        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+        config={"cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}}},
     )
 
     shortlist_metrics = artifacts["stages"]["shortlist"]["decision_summary"]["quality_metrics"]
@@ -5831,7 +5831,7 @@ def test_build_stage_transition_artifacts_does_not_sum_cumulative_cv_analysis_em
         final_top_n=10,
         cv_generation_debug_records=[],
         profile={"preferences": {"target_role": "Data Analyst"}},
-        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+        config={"cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}}},
     )
 
     decision_summary = artifacts["stages"]["cv_analysis"]["decision_summary"]
@@ -5902,7 +5902,7 @@ def test_build_stage_transition_artifacts_caps_samples_at_20_and_truncates_text(
         final_top_n=10,
         cv_generation_debug_records=debug_records,
         profile={"preferences": {"target_role": "Data Analyst"}, "skills": ["SQL"]},
-        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+        config={"cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}}},
     )
 
     normalize_block = artifacts["stages"]["normalize"]
@@ -5961,7 +5961,7 @@ def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> Non
         structured_cv_final={"schema_version": "cv_doc_v1"},
         markdown_final="# CV",
         enabled_sections=["summary", "experience", "skills"],
-        cv_generation_model="gemini-2.5-flash",
+        cv_generation_model="cx/gpt-5.4-mini",
         cv_prompt_id="cv_generation.structured_write.v1",
         cv_prompt_template_path="cv_generation_structured_write_v1.md",
         error=None,
@@ -5988,7 +5988,7 @@ def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> Non
     assert sample["evidence_selection_summary"]["selected_evidence_ids"] == ["exp-1"]
     assert sample["analysis_input_summary"]["job_family"] == "analytics"
     assert sample["enabled_sections"] == ["summary", "experience", "skills"]
-    assert sample["cv_generation_model"] == "gemini-2.5-flash"
+    assert sample["cv_generation_model"] == "cx/gpt-5.4-mini"
     assert sample["cv_prompt_id"] == "cv_generation.structured_write.v1"
     assert sample["cv_prompt_template_path"] == "cv_generation_structured_write_v1.md"
     assert sample["structured_cv_final"] == {"schema_version": "cv_doc_v1"}
@@ -6009,12 +6009,12 @@ def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> Non
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -6094,12 +6094,12 @@ def test_run_pipeline_passes_enriched_shortlist_rows_to_ai_scoring(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -6231,12 +6231,12 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -6345,12 +6345,12 @@ def test_pipeline_source_has_no_direct_ranking_fit_label_assignment_in_reuse_bra
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -6441,12 +6441,12 @@ def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -6520,12 +6520,12 @@ def test_run_pipeline_skips_reranker_skip_fit_jobs(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -6610,12 +6610,12 @@ def test_run_pipeline_skips_invalid_cv(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -6686,12 +6686,12 @@ def test_run_pipeline_per_job_failure_skips_not_crashes(
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -6799,12 +6799,12 @@ def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -6903,12 +6903,12 @@ def test_run_pipeline_emits_shortlist_and_ai_score_counts(
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
 def test_run_pipeline_emits_normalization_dedupe_event(
@@ -7001,12 +7001,12 @@ def test_run_pipeline_emits_normalization_dedupe_event(
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
 def test_run_pipeline_emits_normalize_event_even_when_no_duplicates_removed(
@@ -7099,12 +7099,12 @@ def test_run_pipeline_emits_normalize_event_even_when_no_duplicates_removed(
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -7204,12 +7204,12 @@ def test_run_pipeline_pipeline_complete_event_omits_export_rows(
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -7301,12 +7301,12 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
 @patch("fitcv.pipeline.build_ranking_features")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.store_final_ranking")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -7424,12 +7424,12 @@ def test_normalize_late_stage_reuse_snapshots_skips_poisoned_runtime_exception_r
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -7549,12 +7549,12 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -7970,12 +7970,12 @@ def test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependenci
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -8091,12 +8091,12 @@ def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -8179,12 +8179,12 @@ def test_run_pipeline_shortlist_does_not_write_candidate_chunk_embeddings(
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
 def test_run_pipeline_export_marks_deduplicated_rows_explicitly(
@@ -8500,11 +8500,11 @@ def test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -8580,12 +8580,12 @@ def test_run_pipeline_calls_load_run_structured_jobs(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -8715,12 +8715,12 @@ def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -8792,12 +8792,12 @@ def test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -8854,12 +8854,12 @@ def test_run_pipeline_projects_canonical_enrich_runtime_to_legacy_keys(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -8926,13 +8926,13 @@ def test_run_pipeline_canonical_enrich_runtime_overrides_legacy_throughput_keys(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
 @patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -9018,12 +9018,12 @@ def test_run_pipeline_blocks_pre_filtered_jobs_before_enrichment(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -9168,11 +9168,11 @@ def test_build_ranking_features_ignores_diagnostic_reranker_lists_for_scoring() 
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -9223,7 +9223,7 @@ def test_run_pipeline_incremental_enrich_persists_each_store_exactly_once(
             {
                 **row,
                 "enrichment_version": "v1",
-                "enrichment_model": "gemini-2.5-flash",
+                "enrichment_model": "cx/gpt-5.4-mini",
                 "enriched_at": "2026-04-03T00:01:00+00:00",
             }
             for row in rows

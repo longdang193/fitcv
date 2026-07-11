@@ -539,7 +539,6 @@ def test_domain_preference_matches_job_family_when_domains_use_role_taxonomy() -
 
 @pytest.mark.integration
 def test_store_filter_results_integration(config: dict) -> None:
-    """Integration — inserts filter results into BigQuery."""
     from fitcv.rule_filter import store_filter_results
     result = {
         "passed": ["http://example.com/job/1"],
@@ -550,119 +549,13 @@ def test_store_filter_results_integration(config: dict) -> None:
 
 # ── Task 2: run-scoped filter results (unit) ─────────────────────────────────
 
-def test_store_filter_results_row_includes_run_id(monkeypatch: pytest.MonkeyPatch) -> None:
-    """store_filter_results includes run_id in every inserted row."""
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-    from unittest.mock import MagicMock, patch
-    captured: dict = {}
-
-    mock_client = MagicMock()
-    def _fake_insert_1(table: str, rows: list) -> list:
-        captured["rows"] = rows
-        return []  # no errors
-    mock_client.insert_rows_json.side_effect = _fake_insert_1
-
-    with patch("google.oauth2.service_account.Credentials") as mock_creds, \
-         patch("google.cloud.bigquery.Client") as mock_bq_client:
-        mock_creds.from_service_account_file.return_value = MagicMock()
-        mock_bq_client.return_value = mock_client
-        from fitcv.rule_filter import store_filter_results
-        result = {
-            "passed": ["http://example.com/job/1"],
-            "rejected": [{"job_url": "http://example.com/job/2", "reasons": ["location_type_excluded"]}],
-        }
-        store_filter_results(result, "run-abc", {
-            "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "/tmp/key.json",
-        })
-
-    rows = captured.get("rows", [])
-    assert len(rows) == 2
-    assert all(r.get("run_id") == "run-abc" for r in rows), "All rows must include run_id"
 
 
-def test_store_filter_results_run_id_in_rejected_rows(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Rejected rows include run_id and reasons unchanged."""
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-    from unittest.mock import MagicMock, patch
-    captured: dict = {}
-
-    mock_client = MagicMock()
-    def _fake_insert_2(table: str, rows: list) -> list:
-        captured["rows"] = rows
-        return []  # no errors
-    mock_client.insert_rows_json.side_effect = _fake_insert_2
-
-    with patch("google.oauth2.service_account.Credentials"), \
-         patch("google.cloud.bigquery.Client") as mock_bq_client:
-        mock_bq_client.return_value = mock_client
-        from fitcv.rule_filter import store_filter_results
-        result = {
-            "passed": [],
-            "rejected": [{"job_url": "https://x.com/1", "reasons": ["seniority_mismatch"]}],
-        }
-        store_filter_results(result, "run-xyz", {
-            "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "/key.json",
-        })
-
-    rows = captured.get("rows", [])
-    assert rows[0]["run_id"] == "run-xyz"
-    assert rows[0]["reasons"] == ["seniority_mismatch"]
-    assert rows[0]["passed"] is False
-
-
-def test_store_filter_results_serializes_marks_json_as_string(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-    from unittest.mock import MagicMock, patch
-    import json as _json
-
-    captured: dict = {}
-    mock_client = MagicMock()
-
-    def _fake_insert(table: str, rows: list) -> list:
-        captured["rows"] = rows
-        return []
-
-    mock_client.insert_rows_json.side_effect = _fake_insert
-
-    with patch("google.oauth2.service_account.Credentials"), \
-         patch("google.cloud.bigquery.Client") as mock_bq_client:
-        mock_bq_client.return_value = mock_client
-        from fitcv.rule_filter import store_filter_results
-
-        result = {
-            "passed": ["https://x.com/1"],
-            "passed_records": [
-                {
-                    "job_url": "https://x.com/1",
-                    "marks": [
-                        {
-                            "code": "must_have_skill_missing",
-                            "message": "Missing must-have skills",
-                            "details": {"missing_count": 1, "missing_skills": ["dbt"]},
-                        }
-                    ],
-                }
-            ],
-            "rejected": [],
-        }
-        store_filter_results(result, "run-marks", {
-            "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "/key.json",
-        })
-
-    rows = captured["rows"]
-    assert isinstance(rows[0]["marks_json"], str)
-    assert _json.loads(rows[0]["marks_json"]) == [
-        {
-            "code": "must_have_skill_missing",
-            "message": "Missing must-have skills",
-            "details": {"missing_count": 1, "missing_skills": ["dbt"]},
-        }
-    ]
 
 def test_store_filter_results_persists_sqlite_rows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv_cp.sqlite3"))
     from fitcv.rule_filter import store_filter_results
-    from fitcv_cp.bq_store import list_filter_results_for_run
+    from fitcv_cp.sqlite_store import list_filter_results_for_run
 
     result = {
         "passed": ["https://x.com/1"],
@@ -691,8 +584,6 @@ def test_store_filter_results_persists_sqlite_rows(monkeypatch: pytest.MonkeyPat
         {
             "sqlite_mode": True,
             "gcp_project": "p",
-            "bigquery_dataset": "d",
-            "service_account_key": "",
         },
     )
 
@@ -873,3 +764,4 @@ tags:
   - fast
   - ci-safe
 """
+

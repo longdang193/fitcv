@@ -345,8 +345,7 @@ def test_post_runs_inserts_before_enqueue(tmp_path):
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.load_config", return_value={
-             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10},
+             "gcp_project": "p","pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": str(profile_path)},
          }):
         resp = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
@@ -374,8 +373,7 @@ def test_post_runs_persists_backend_binding_from_submission(tmp_path):
          patch("fitcv_cp.app.update_run_orchestration_binding") as binding_mock, \
          patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.load_config", return_value={
-             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10},
+             "gcp_project": "p","pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": str(profile_path)},
          }):
         resp = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
@@ -690,8 +688,7 @@ def test_post_runs_persists_manual_staged_mode(tmp_path) -> None:
          patch("fitcv_cp.app.submit_run", return_value=RunSubmission(run_id="run-123", queue_job_id="rq-job-abc", backend_run_id="rq-job-abc", backend="default_queue")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
-             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10},
+             "gcp_project": "p","pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": str(profile_path)},
          }):
         resp = TestClient(_app()).post("/runs", json={
@@ -722,8 +719,6 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
-             "bigquery_dataset": "d",
-             "service_account_key": "k",
              "pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": str(profile_path)},
          }):
@@ -768,8 +763,6 @@ def test_post_runs_path_trigger_captures_agentic_runtime_expectation(tmp_path) -
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
-             "bigquery_dataset": "d",
-             "service_account_key": "k",
              "pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": str(profile_path)},
          }):
@@ -797,8 +790,6 @@ def test_post_runs_run_all_and_manual_staged_share_canonical_runtime_envelope(tm
 
     config = {
         "gcp_project": "p",
-        "bigquery_dataset": "d",
-        "service_account_key": "k",
         "pipeline": {"final_top_n": 10},
         "paths": {"candidate_profile": str(profile_path)},
     }
@@ -1034,7 +1025,7 @@ def test_post_settings_key_rejects_unknown_key():
 def test_post_settings_key_rejects_hidden_deprecated_key():
     resp = TestClient(_app()).post(
         "/settings/cv_generation_model",
-        json={"value": "gemini-2.5-flash", "updated_by": "admin"},
+        json={"value": "cx/gpt-5.4-mini", "updated_by": "admin"},
     )
     assert resp.status_code == 422
     assert "hidden_deprecated" in resp.text
@@ -1055,8 +1046,7 @@ def test_post_runs_with_config_overrides(tmp_path):
          patch("fitcv_cp.app.submit_run", return_value=RunSubmission(run_id="run-123", queue_job_id="rq-job-abc", backend_run_id="rq-job-abc", backend="default_queue")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
-             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10},
+             "gcp_project": "p","pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": str(profile_path)},
          }):
         resp = TestClient(_app()).post("/runs", json={
@@ -1072,8 +1062,6 @@ def test_post_runs_rejects_invalid_config_overrides():
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
-             "bigquery_dataset": "d",
-             "service_account_key": "k",
              "pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": "data/candidate_profile.yaml"},
          }):
@@ -1099,8 +1087,7 @@ def test_post_runs_accepts_nested_stage_runtime_overrides(tmp_path):
          patch("fitcv_cp.app.submit_run", return_value=RunSubmission(run_id="run-123", queue_job_id="rq-job-abc", backend_run_id="rq-job-abc", backend="default_queue")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
-             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10},
+             "gcp_project": "p","pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": str(profile_path)},
          }):
         resp = TestClient(_app()).post("/runs", json={
@@ -1127,8 +1114,7 @@ def test_post_runs_accepts_mixed_nested_and_flat_same_value(tmp_path):
          patch("fitcv_cp.app.submit_run", return_value=RunSubmission(run_id="run-123", queue_job_id="rq-job-abc", backend_run_id="rq-job-abc", backend="default_queue")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
-             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10},
+             "gcp_project": "p","pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": str(profile_path)},
          }):
         resp = TestClient(_app()).post("/runs", json={
@@ -1148,8 +1134,7 @@ def test_post_runs_rejects_mixed_nested_and_flat_conflict(tmp_path):
 
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.load_config", return_value={
-             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10},
+             "gcp_project": "p","pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": str(profile_path)},
          }):
         resp = TestClient(_app()).post("/runs", json={
@@ -1170,8 +1155,7 @@ def test_post_runs_rejects_unknown_nested_override_key(tmp_path):
 
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.load_config", return_value={
-             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10},
+             "gcp_project": "p","pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": str(profile_path)},
          }):
         resp = TestClient(_app()).post("/runs", json={
@@ -1189,8 +1173,6 @@ def test_post_runs_rejects_missing_config_path_with_clear_error():
             raise FileNotFoundError("Config file not found: config/missing.yaml")
         return {
             "gcp_project": "p",
-            "bigquery_dataset": "d",
-            "service_account_key": "k",
             "pipeline": {"final_top_n": 10},
             "paths": {"candidate_profile": "data/candidate_profile.yaml"},
         }
@@ -1213,8 +1195,7 @@ def test_admin_upload_trigger_success(tmp_path):
          patch("fitcv_cp.app.submit_run", return_value=RunSubmission(run_id="run-123", queue_job_id="rq-job-abc", backend_run_id="rq-job-abc", backend="default_queue")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
-             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10},
+             "gcp_project": "p","pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": "data/candidate_profile.yaml"},
          }):
 
@@ -1245,8 +1226,6 @@ def test_admin_upload_trigger_persists_run_scoped_synonym_overlay() -> None:
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
-             "bigquery_dataset": "d",
-             "service_account_key": "k",
              "pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": "data/candidate_profile.yaml"},
              "skill_synonyms": {"gcp": "google cloud"},
@@ -1288,8 +1267,6 @@ def test_admin_upload_trigger_persists_multi_field_synonym_overlay() -> None:
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
-             "bigquery_dataset": "d",
-             "service_account_key": "k",
              "pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": "data/candidate_profile.yaml"},
              "skill_synonyms": {"gcp": "google cloud"},
@@ -1340,8 +1317,6 @@ def test_admin_upload_trigger_honors_explicit_overlay_upload_scope() -> None:
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
-             "bigquery_dataset": "d",
-             "service_account_key": "k",
              "pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": "data/candidate_profile.yaml"},
              "domain_alias_map": {},
@@ -3363,8 +3338,6 @@ def test_admin_upload_synonym_overlay_updates_run_effective_settings() -> None:
         completed_stages=["normalize", "enrich"],
         effective_settings_json=json.dumps({
             "gcp_project": "p",
-            "bigquery_dataset": "d",
-            "service_account_key": "k",
             "skill_synonyms": {"gcp": "google cloud"},
             "skill_synonyms_runtime": {
                 "base_policy_path": "config/skill_synonyms.yaml",
@@ -3418,8 +3391,6 @@ def test_admin_upload_synonym_overlay_updates_non_skill_effective_maps() -> None
         completed_stages=["normalize", "enrich"],
         effective_settings_json=json.dumps({
             "gcp_project": "p",
-            "bigquery_dataset": "d",
-            "service_account_key": "k",
             "skill_synonyms": {"gcp": "google cloud"},
             "domain_alias_map": {},
             "role_family_alias_map": {},
@@ -3475,8 +3446,6 @@ def test_admin_upload_synonym_overlay_regenerates_synonym_proposals_with_updated
         mapping_suggestions_json='{"suggestions":[{"alias":"ga4","canonical":"google analytics","confidence":0.9}]}',
         effective_settings_json=json.dumps({
             "gcp_project": "p",
-            "bigquery_dataset": "d",
-            "service_account_key": "k",
             "skill_synonyms": {"gcp": "google cloud"},
             "skill_synonyms_runtime": {
                 "base_policy_path": "config/skill_synonyms.yaml",
@@ -3551,8 +3520,6 @@ def test_admin_upload_trigger_rejects_scope_mismatch_for_skill_scope() -> None:
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
-             "bigquery_dataset": "d",
-             "service_account_key": "k",
              "pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": "data/candidate_profile.yaml"},
              "skill_synonyms": {"gcp": "google cloud"},
@@ -3590,8 +3557,6 @@ def test_admin_upload_trigger_accepts_domain_scope_with_domain_sections_only() -
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
-             "bigquery_dataset": "d",
-             "service_account_key": "k",
              "pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": "data/candidate_profile.yaml"},
              "skill_synonyms": {"gcp": "google cloud"},
@@ -3669,8 +3634,7 @@ def _upload_patches():
         patch("fitcv_cp.app.submit_run", return_value=RunSubmission(run_id="run-multi", queue_job_id="rq-job-1", backend_run_id="rq-job-1", backend="default_queue")),
         patch("fitcv_cp.app.update_run_queue_job_id"),
         patch("fitcv_cp.app.load_config", return_value={
-            "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-            "pipeline": {"final_top_n": 10},
+            "gcp_project": "p","pipeline": {"final_top_n": 10},
             "paths": {"candidate_profile": "data/candidate_profile.yaml"},
         }),
     )
@@ -10708,7 +10672,7 @@ def test_runs_list_hides_schema_fallback_banner_for_unknown_schema_status() -> N
              return_value={
                  "status": "unknown",
                  "missing_columns": [],
-                 "warning": "sqlite_mode_no_bigquery_schema_check",
+                 "warning": "sqlite_mode_no_remote_schema_check",
              },
          ):
         resp = TestClient(_app()).get("/admin/runs")
@@ -13106,8 +13070,7 @@ def test_admin_upload_trigger_accepts_jsonl_rerun_input():
          patch("fitcv_cp.app.submit_run", return_value=RunSubmission(run_id="run-123", queue_job_id="rq-job-abc", backend_run_id="rq-job-abc", backend="default_queue")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
-             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10},
+             "gcp_project": "p","pipeline": {"final_top_n": 10},
              "paths": {"candidate_profile": "data/candidate_profile.yaml"},
          }):
         resp = TestClient(_app()).post(
@@ -13378,8 +13341,7 @@ def test_base_template_uses_wrapping_rules_for_shared_layout_surfaces():
 def _path_mode_patches(profile_path: str = "/tmp/dummy_profile.yaml"):
     """Return standard patches for path-mode upload-trigger tests."""
     base_config = {
-        "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-        "pipeline": {"final_top_n": 10},
+        "gcp_project": "p","pipeline": {"final_top_n": 10},
         "paths": {"candidate_profile": profile_path},
     }
     return (
@@ -13527,8 +13489,7 @@ def test_admin_upload_trigger_default_config_stores_profile_snapshot(tmp_path):
         captured["run"] = run
 
     config = {
-        "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-        "pipeline": {"final_top_n": 10},
+        "gcp_project": "p","pipeline": {"final_top_n": 10},
         "paths": {"candidate_profile": str(profile_path)},
     }
     p = (
@@ -13562,8 +13523,7 @@ def test_admin_upload_trigger_default_config_missing_profile_returns_422(tmp_pat
     jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
 
     config = {
-        "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-        "pipeline": {"final_top_n": 10},
+        "gcp_project": "p","pipeline": {"final_top_n": 10},
         "paths": {"candidate_profile": str(tmp_path / "nonexistent.yaml")},
     }
     p = (
@@ -13600,8 +13560,7 @@ def test_admin_upload_trigger_candidate_profile_modes_share_canonical_runtime_pa
     expected_payload = profile_payload
 
     config = {
-        "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-        "pipeline": {"final_top_n": 10},
+        "gcp_project": "p","pipeline": {"final_top_n": 10},
         "paths": {"candidate_profile": str(profile_path)},
     }
 
@@ -13788,7 +13747,7 @@ def test_grouped_save_cv_generation_valid_redirects():
             "/admin/settings/group/cv-preset",
             data={
                 "cv_preset": "europass",
-                "cv_generation_model": "gemini-2.5-flash",
+                "cv_generation_model": "cx/gpt-5.4-mini",
             },
         )
     assert resp.status_code == 422
@@ -14233,7 +14192,7 @@ def test_settings_page_hides_deprecated_cv_generation_model_input() -> None:
     assert resp.status_code == 200
     html = resp.text
     assert 'name="cv_generation_model"' not in html
-    assert '<option value="gemini-2.5-flash"' not in html
+    assert '<option value="cx/gpt-5.4-mini"' not in html
 
 
 def test_settings_page_uses_shared_cv_setting_row_class_across_blocks() -> None:
@@ -14456,7 +14415,7 @@ def test_grouped_save_cv_preset_rejects_hidden_deprecated_payload_key():
         resp = TestClient(_app()).post(
             "/admin/settings/group/cv-preset",
             data={
-                "cv_generation_model": "gemini-2.5-flash",
+                "cv_generation_model": "cx/gpt-5.4-mini",
             },
         )
     assert resp.status_code == 422
@@ -14552,7 +14511,7 @@ def test_grouped_save_cv_preset_invalid_does_not_partial_save():
             "/admin/settings/group/cv-preset",
             data={
                 "cv_preset": "",
-                "cv_generation_model": "gemini-2.5-flash",
+                "cv_generation_model": "cx/gpt-5.4-mini",
             },
         )
     assert resp.status_code == 422
@@ -14593,7 +14552,7 @@ def test_section_save_rejects_hidden_deprecated_payload_key():
                 "pipeline.ai_score_top_n": "50",
                 "pipeline.final_top_n": "10",
                 "pipeline.evidence_top_k": "5",
-                "cv_generation_model": "gemini-2.5-flash",
+                "cv_generation_model": "cx/gpt-5.4-mini",
             },
         )
     assert resp.status_code == 422

@@ -6,7 +6,7 @@ covers:
   - reconcile_abandoned_attempts end-to-end sqlite SSOT events
 excludes:
   - live redis worker execution
-  - live BigQuery
+  - live remote database
 tags:
   - fast
   - ci-safe
@@ -18,7 +18,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from fitcv_cp.bq_store import append_event, get_run, insert_run
+from fitcv_cp.sqlite_store import append_event, get_run, insert_run
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.reconciler import reconcile_abandoned_attempts
 from fitcv_cp.retry_settings import RetrySettings
@@ -83,3 +83,5 @@ def test_reconciler_sqlite_requeues_and_marks_queued() -> None:
             refreshed = get_run("r1", bq=None, project="local", dataset="local")
             assert refreshed is not None
             assert refreshed.status == RunStatus.QUEUED
+
+

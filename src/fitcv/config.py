@@ -29,10 +29,11 @@ from fitcv.prompts import get_prompt_definition
 
 logger = logging.getLogger(__name__)
 
-_REQUIRED_BIGQUERY_BRIDGE_KEYS = [
-    "gcp_project",
+_OBSOLETE_ENV_KEYS = [
     "bigquery_dataset",
+    "gemini_model",
     "service_account_key",
+    "vertex_location",
 ]
 
 # Optional — only needed when using the Apify API source
@@ -83,21 +84,19 @@ _DEFAULT_CV_REQUIRED_MATCH_POLICY = {
 }
 _INFRA_ENV_OVERRIDES = {
     "gcp_project": "GCP_PROJECT",
-    "bigquery_dataset": "BIGQUERY_DATASET",
-    "service_account_key": "GOOGLE_APPLICATION_CREDENTIALS",
 }
 _CONTROL_PLANE_ENV_OVERRIDES = {
-    "FITCV_CP_DATA_BACKEND": ("data_backend", "type"),
     # Portability override: local Windows host often needs localhost, while containers may use host.docker.internal.
     "FITCV_CP_OPENAI_COMPATIBLE_BASE_URL": ("providers", "openai_compatible", "base_url"),
     "FITCV_CP_OPENAI_COMPATIBLE_WIRE_API": ("providers", "openai_compatible", "wire_api"),
 }
+_SUPPORTED_PROVIDER_IDS = {"openai", "openai_compatible", "9router"}
+_RETIRED_PROVIDER_IDS = {"gemini", "vertex", "vertex_ai", "google", "google_genai", "google_vertex"}
+_DEFAULT_ACTIVE_MODEL = "cx/gpt-5.4-mini"
 _CANONICAL_INFRA_KEYS = {
     "location",
-    "vertex_location",
 }
 _CANONICAL_PIPELINE_TOP_LEVEL_KEYS = {
-    "gemini_model",
     "embedding_model",
     "enrichment_version",
     "enrichment_sleep_secs",
@@ -221,59 +220,12 @@ def _apply_control_plane_env_overrides(control_plane: dict[str, Any]) -> dict[st
     return updated
 
 def resolve_data_backend(config: dict[str, Any] | None = None) -> str:
-    """Resolve active persistence backend from canonical control-plane settings.
-
-    Precedence:
-    1. explicit FITCV_CP_DATA_BACKEND env override
-    2. passed config["control_plane"]["data_backend"]["type"]
-    3. passed config["data_backend"]["type"]
-    4. legacy passed config["sqlite_mode"] bool bridge
-    5. load_control_plane_config() when available
-    6. default to bigquery for backward compatibility
-    """
-    env_backend = str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower()
-    if env_backend:
-        if env_backend not in {"bigquery", "sqlite"}:
-            raise ValueError("FITCV_CP_DATA_BACKEND must be one of: bigquery, sqlite")
-        return env_backend
-
-    cfg = config or {}
-    nested_control_plane = dict(cfg.get("control_plane") or {})
-    nested_backend = dict(nested_control_plane.get("data_backend") or {})
-    direct_backend = dict(cfg.get("data_backend") or {})
-    backend = str(
-        nested_backend.get("type")
-        or direct_backend.get("type")
-        or ""
-    ).strip().lower()
-    if backend:
-        if backend not in {"bigquery", "sqlite"}:
-            raise ValueError("data_backend.type must be one of: bigquery, sqlite")
-        return backend
-
-    legacy_sqlite_mode = cfg.get("sqlite_mode")
-    if isinstance(legacy_sqlite_mode, bool):
-        return "sqlite" if legacy_sqlite_mode else "bigquery"
-
-    try:
-        control_plane_cfg = load_control_plane_config()
-    except FileNotFoundError:
-        control_plane_cfg = {}
-    backend_from_control_plane = str(
-        (control_plane_cfg.get("data_backend") or {}).get("type") or ""
-    ).strip().lower()
-    if backend_from_control_plane:
-        if backend_from_control_plane not in {"bigquery", "sqlite"}:
-            raise ValueError("control_plane.data_backend.type must be one of: bigquery, sqlite")
-        return backend_from_control_plane
-
-    return "bigquery"
-
-
+    """Return sole supported persistence backend."""
+    return "sqlite"
 
 def sqlite_mode_enabled(config: dict[str, Any] | None = None) -> bool:
-    """Return True when sqlite persistence mode is active."""
-    return resolve_data_backend(config) == "sqlite"
+    """Return True for sole supported persistence mode."""
+    return True
 
 
 
@@ -288,12 +240,10 @@ def load_control_plane_config(path: str | Path | None = None) -> dict[str, Any]:
     _validate_control_plane_secret_hygiene(control_plane)
 
     data_backend = dict(control_plane.get("data_backend") or {})
-    backend_type = str(data_backend.get("type") or "bigquery").strip().lower() or "bigquery"
-    if backend_type not in {"bigquery", "sqlite"}:
-        raise ValueError(
-            "control_plane.data_backend.type must be one of: bigquery, sqlite"
-        )
-    data_backend["type"] = backend_type
+    backend_type = str(data_backend.get("type") or "sqlite").strip().lower() or "sqlite"
+    if backend_type != "sqlite":
+        raise ValueError("control_plane.data_backend.type must be sqlite")
+    data_backend["type"] = "sqlite"
     control_plane["data_backend"] = data_backend
     control_plane["providers"] = dict(control_plane.get("providers") or {})
     model_routing = dict(control_plane.get("model_routing") or {})
@@ -318,6 +268,15 @@ def resolve_model_routing_part(
     part_cfg = dict(parts.get(part_name) or {})
     providers = dict(cp_cfg.get("providers") or {})
     provider_name = str(part_cfg.get("provider") or "").strip().lower()
+    if provider_name:
+        if provider_name in _RETIRED_PROVIDER_IDS:
+            raise ValueError(
+                f"Unsupported retired provider id '{provider_name}' for model_routing.parts.{part_name}.provider"
+            )
+        if provider_name not in _SUPPORTED_PROVIDER_IDS:
+            raise ValueError(
+                f"Unsupported provider id '{provider_name}' for model_routing.parts.{part_name}.provider"
+            )
     provider_cfg = dict(providers.get(provider_name) or {})
     model_name = str(part_cfg.get("model") or "").strip() or str(model_fallback or "").strip()
     base_url = str(provider_cfg.get("base_url") or "").strip()
@@ -357,6 +316,18 @@ def resolve_langgraph_runtime_expectation(
         if env_wire_api:
             wire_api = env_wire_api
         source = "env_override"
+
+    if provider:
+        provider_lower = provider.lower()
+        if provider_lower in _RETIRED_PROVIDER_IDS:
+            raise ValueError(
+                f"Unsupported retired provider id '{provider_lower}' for LangGraph runtime expectation"
+            )
+        if provider_lower not in _SUPPORTED_PROVIDER_IDS:
+            raise ValueError(
+                f"Unsupported provider id '{provider_lower}' for LangGraph runtime expectation"
+            )
+        provider = provider_lower
 
     missing: list[str] = []
     if not provider:
@@ -839,12 +810,6 @@ def _load_skill_synonym_overlays(
 
 def _normalize_config_keys(cfg: dict[str, Any]) -> dict[str, Any]:
     """Normalize legacy config keys into the canonical runtime shape."""
-    if "gemini_model" not in cfg and "ai_score_model" in cfg:
-        cfg["gemini_model"] = cfg["ai_score_model"]
-    if "vertex_location" not in cfg:
-        location = str(cfg.get("location", "")).strip()
-        if location and location.lower() != "us":
-            cfg["vertex_location"] = location
     pipeline_cfg = dict(cfg.get("pipeline") or {})
     if "vector_search_top_n" not in pipeline_cfg and "vector_top_n" in cfg:
         pipeline_cfg["vector_search_top_n"] = cfg["vector_top_n"]
@@ -910,10 +875,10 @@ def _apply_infra_env_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
             cfg[cfg_key] = env_value
     return cfg
 
-def _strip_legacy_bigquery_bridge_keys_for_sqlite(cfg: dict[str, Any]) -> dict[str, Any]:
-    return config_compat.strip_legacy_bigquery_bridge_keys_for_sqlite(
+def _strip_obsolete_env_keys(cfg: dict[str, Any]) -> dict[str, Any]:
+    return config_compat.strip_obsolete_env_keys(
         cfg,
-        required_bigquery_bridge_keys=_REQUIRED_BIGQUERY_BRIDGE_KEYS,
+        keys_to_strip=_OBSOLETE_ENV_KEYS,
     )
 
 
@@ -937,7 +902,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     env_path = _resolve_env_path(path)
     if not env_path.exists():
         raise FileNotFoundError(f"Config file not found: {env_path}")
-    if _is_legacy_env_path(env_path):
+    if _is_legacy_env_path(env_path) and not (env_path.name == "env.yaml" and env_path.parent.name == "config"):
         warnings.warn(
             f"legacy config path in use: {env_path}",
             UserWarning,
@@ -996,16 +961,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         )
     cfg = _apply_legacy_env_compatibility_projection(cfg)
 
-    backend = resolve_data_backend(cfg)
-    if backend == "sqlite":
-        cfg = _strip_legacy_bigquery_bridge_keys_for_sqlite(cfg)
-
-    required_keys = _REQUIRED_BIGQUERY_BRIDGE_KEYS if backend == "bigquery" else []
-    missing = [k for k in required_keys if k not in cfg]
-    if missing:
-        raise ValueError(
-            f"Missing config keys for {backend} backend: {missing}"
-        )
+    cfg = _strip_obsolete_env_keys(cfg)
 
     loaded_policy_paths: dict[str, Path] = {}
     pipeline_policy_snapshot: dict[str, Any] = {}
@@ -1201,14 +1157,6 @@ def get_required_structured_section_keys(config: dict[str, Any]) -> list[str]:
     return keys
 
 
-def get_vertex_location(config: dict[str, Any]) -> str:
-    """Return the Vertex AI region, separate from BigQuery location."""
-    vertex_location = str(config.get("vertex_location", "")).strip()
-    if vertex_location:
-        return vertex_location
-    return "us-central1"
-
-
 def get_stage_runtime_value(
     config: dict[str, Any],
     *,
@@ -1269,8 +1217,14 @@ def get_stage_runtime_sleep_secs(
         return float(default)
 
 
-def get_gemini_model(config: dict[str, Any]) -> str:
-    return str(config.get("gemini_model") or "gemini-2.5-flash")
+def get_ranking_ai_score_model(config: dict[str, Any]) -> str:
+    model_fallback = str(config.get("ai_score_model") or _DEFAULT_ACTIVE_MODEL).strip()
+    return str(resolve_model_routing_part("ranking_ai_score", model_fallback=model_fallback).get("model") or "").strip() or model_fallback
+
+
+def get_enrich_extraction_model(config: dict[str, Any]) -> str:
+    model_fallback = str(config.get("ai_score_model") or _DEFAULT_ACTIVE_MODEL).strip()
+    return str(resolve_model_routing_part("enrich_extraction", model_fallback=model_fallback).get("model") or "").strip() or model_fallback
 
 
 def _normalize_cv_acceptance_policy(raw: Any) -> dict[str, Any]:
@@ -1323,7 +1277,7 @@ def get_cv_generation_structured_prompt_id(config: dict[str, Any]) -> str:
 
 
 def get_cv_generation_model(config: dict[str, Any]) -> str:
-    return str((((config.get("cv") or {}).get("generation") or {}).get("model")) or config.get("cv_generation_model") or "gemini-2.5-flash")
+    return str((((config.get("cv") or {}).get("generation") or {}).get("model")) or config.get("cv_generation_model") or _DEFAULT_ACTIVE_MODEL)
 
 
 def get_cv_generation_prompt_version(config: dict[str, Any]) -> str:

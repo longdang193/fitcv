@@ -38,7 +38,7 @@ This matrix defines current SSOT ownership for migration execution.
 ### Legacy-Duplicate Classification (Current Baseline)
 
 - compatibility-only (to be drained from `config/env.yaml`): `seniority_ladder`, `application_statuses`, `cv_analysis_min_score`, overlap with runtime knobs that already live in `config/runtime/pipeline.yaml`
-- legacy infra bridge still tolerated in config loading: `gcp_project`, `bigquery_dataset`, `service_account_key`, `location`
+- legacy infra bridge still tolerated in config loading: `gcp_project`, `location`
 - removable private surface: `config/env.private.yaml` (no active tracked consumer in this worktree baseline)
 - removable smoke surface: `config/live_smoke.yaml` (duplicates infra/model ownership outside canonical runtime files)
 
@@ -187,7 +187,6 @@ Canonical AI auth contract:
 
 - primary key: `FITCV_LLM_API_KEY`
 - temporary compatibility aliases (deprecation window only): `OPENAI_API_KEY`, `OPENAI_COMPATIBLE_API_KEY`
-- `service_account_key` is not an AI credential; any remaining BigQuery-oriented handling is legacy migration-only and unsupported for normal control-plane startup
 
 Fail-fast runtime contract:
 

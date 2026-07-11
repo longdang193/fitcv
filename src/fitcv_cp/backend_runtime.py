@@ -60,7 +60,7 @@ def resolve_backend_runtime() -> BackendRuntime:
         or "data/fitcv_cp.sqlite3"
     ).strip() or "data/fitcv_cp.sqlite3"
     project = str(os.environ.get("GCP_PROJECT") or "local").strip() or "local"
-    dataset = str(os.environ.get("BIGQUERY_DATASET") or "fitcv").strip() or "fitcv"
+    dataset = str(os.environ.get("FITCV_CP_DATASET") or "fitcv").strip() or "fitcv"
     return BackendRuntime(
         backend_type="sqlite",
         project=project,

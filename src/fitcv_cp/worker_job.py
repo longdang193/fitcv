@@ -46,7 +46,7 @@ from fitcv.telemetry import (
     set_span_attributes,
 )
 from fitcv_cp.backend_runtime import resolve_backend_runtime, resolve_backend_runtime_or_active, set_backend_runtime
-from fitcv_cp.bq_store import (
+from fitcv_cp.sqlite_store import (
     append_event,
     get_events,
     get_run,
@@ -337,50 +337,6 @@ def execute_cv_regenerate_once(
         raise
 
 
-def _normalize_runtime_service_account_key(
-    effective_config: dict[str, Any] | None,
-    *,
-    run_id: str,
-) -> dict[str, Any] | None:
-    """Normalize service_account_key for Linux/container runtime safety."""
-    if not isinstance(effective_config, dict):
-        return effective_config
-    key_path = str(effective_config.get("service_account_key") or "").strip()
-    if not key_path:
-        return effective_config
-    if os.name == "nt":
-        return effective_config
-    if not _WINDOWS_ABSOLUTE_PATH_PATTERN.match(key_path):
-        return effective_config
-
-    normalized = dict(effective_config)
-    env_key_path = str(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") or "").strip()
-    if env_key_path and Path(env_key_path).exists():
-        normalized["service_account_key"] = env_key_path
-        logger.warning(
-            "[run_id=%s] Normalized Windows service_account_key %r to runtime credential path %r",
-            run_id,
-            key_path,
-            env_key_path,
-        )
-        return normalized
-
-    fallback_path = "/app/sa_key.json"
-    if Path(fallback_path).exists():
-        normalized["service_account_key"] = fallback_path
-        logger.warning(
-            "[run_id=%s] Normalized Windows service_account_key %r to container fallback %r",
-            run_id,
-            key_path,
-            fallback_path,
-        )
-    else:
-        logger.warning(
-            "[run_id=%s] Windows service_account_key %r detected in non-Windows runtime and no fallback key file was found.",
-            run_id,
-            key_path,
-        )
-    return normalized
 
 
 def _run_cancelled_event(run_id: str, message: str) -> RunEvent:
@@ -887,15 +843,11 @@ def _build_settings_used_payload_dict(
 
     _materialize_stage_runtime_snapshot(effective_settings)
     sqlite_mode = resolve_backend_runtime_or_active().backend_type == "sqlite"
-    if sqlite_mode:
-        effective_settings.pop("service_account_key", None)
     compatibility_projection = {
         key: effective_settings.pop(key)
         for key in list(effective_settings.keys())
         if key in _SETTINGS_COMPATIBILITY_KEYS
     }
-    if sqlite_mode and isinstance(compatibility_projection, dict):
-        compatibility_projection.pop("service_account_key", None)
     payload = {
         "run_id": run_id,
         "settings_schema_version": SETTINGS_USED_SCHEMA_VERSION,
@@ -928,7 +880,7 @@ def _build_settings_used_payload_dict(
     if sqlite_mode:
         data_plane = dict(payload.get("data_plane") or {})
         data_plane["state_backend"] = "sqlite"
-        if str(data_plane.get("artifact_backend") or "").strip().lower() in {"", "bigquery_json"}:
+        if str(data_plane.get("artifact_backend") or "").strip().lower() == "":
             data_plane["artifact_backend"] = "sqlite_json"
         payload["data_plane"] = data_plane
     if compatibility_projection:
@@ -2081,7 +2033,6 @@ def execute_pipeline_run(
                         effective_config = json.loads(run_record.effective_settings_json)
                     except Exception as exc:
                         logger.warning("[run_id=%s] Failed to parse effective_settings_json: %s", run_id, exc)
-                effective_config = _normalize_runtime_service_account_key(effective_config, run_id=run_id)
                 replay_context = _resolve_run_replay_context(
                     effective_config=effective_config,
                     run_id=run_id,
@@ -3026,6 +2977,7 @@ def execute_pipeline_run(
                 )
             except Exception as mirror_exc:
                 logger.warning("[run_id=%s] Failed to persist terminal artifact mirror: %s", run_id, mirror_exc)
+
 
 
 

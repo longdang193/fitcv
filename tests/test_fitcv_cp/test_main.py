@@ -23,12 +23,11 @@ from fitcv_cp.backend_runtime import BackendRuntime
 
 
 def _reload_main_module(monkeypatch: pytest.MonkeyPatch) -> Any:
-    monkeypatch.delenv("FITCV_CP_DATA_BACKEND", raising=False)
     sys.modules.pop("fitcv_cp.main", None)
     return importlib.import_module("fitcv_cp.main")
 
 
-def test_build_app_sqlite_mode_skips_bigquery_client(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_app_uses_sqlite_runtime_without_remote_client(monkeypatch: pytest.MonkeyPatch) -> None:
     module = _reload_main_module(monkeypatch)
 
     captured: dict[str, Any] = {}
@@ -76,3 +75,4 @@ def test_build_app_always_uses_sqlite_runtime(monkeypatch: pytest.MonkeyPatch) -
     assert module.build_app() == "ok"
     assert captured["bq"] is None
     assert captured["backend_runtime"].backend_type == "sqlite"
+

@@ -22,11 +22,11 @@ capabilities:
 - capability_id: admin_control_plane_core.pipelinereporter-integration
   statement: PipelineReporter integration
   state: active
-- capability_id: admin_control_plane_core.pipeline-runs-bigquery-table
-  statement: pipeline_runs BigQuery table
+- capability_id: admin_control_plane_core.pipeline-runs-sqlite-store
+  statement: pipeline_runs SQLite store
   state: active
-- capability_id: admin_control_plane_core.pipeline-run-events-bigquery-table
-  statement: pipeline_run_events BigQuery table
+- capability_id: admin_control_plane_core.pipeline-run-events-sqlite-store
+  statement: pipeline_run_events SQLite store
   state: active
 - capability_id: admin_control_plane_core.insert-before-enqueue-invariant
   statement: insert-before-enqueue invariant
@@ -36,7 +36,6 @@ refs:
   code: []
   tests:
   - tests/test_fitcv_cp/test_app.py
-  - tests/test_fitcv_cp/test_bq_store.py
   - tests/test_fitcv_cp/test_models.py
   - tests/test_fitcv_cp/test_queue.py
   - tests/test_fitcv_cp/test_reporter.py
@@ -48,6 +47,14 @@ refs:
   - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
   - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
   - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+  - docs/superpowers/specs/2026-05-15-13-04-run-detail-download-visibility-spec.md
+  - docs/superpowers/specs/2026-05-15-23-00-provider-baseurl-ssot-centralization-spec.md
+  - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+  - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+  - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+  - docs/superpowers/specs/2026-05-19-22-45-synonym-workspace-action-model-simplification-spec.md
+  - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
+  - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
   - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -57,6 +64,16 @@ refs:
   - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
   - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
   - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+  - docs/superpowers/plans/2026-05-12-21-07-env-config-sot-plan.md
+  - docs/superpowers/plans/2026-05-15-14-10-run-detail-download-visibility-plan.md
+  - docs/superpowers/plans/2026-05-15-23-10-provider-baseurl-ssot-centralization-plan.md
+  - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+  - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+  - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+  - docs/superpowers/plans/2026-05-19-23-10-synonym-workspace-action-model-simplification-plan.md
+  - docs/superpowers/plans/2026-05-20-09-24-hitl-review-queue-identity-alignment-plan.md
+  - docs/superpowers/plans/2026-05-20-13-20-timeline-concurrency-messaging-and-dedupe-plan.md
+  - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
   docs:
   - docs/features/admin_control_plane_core/history.md
   configs: []

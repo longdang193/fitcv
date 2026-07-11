@@ -16,7 +16,7 @@
 cv:
   preset: europass
   generation:
-    model: gemini-2.5-flash
+    model: cx/gpt-5.4-mini
     prompt_version: v1
   composition:
     summary:

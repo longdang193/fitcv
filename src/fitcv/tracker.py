@@ -21,9 +21,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fitcv.config import sqlite_mode_enabled
 from fitcv.contracts import DEFAULT_APPLICATION_STATUSES
-from fitcv.persistence import build_bigquery_client
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +67,7 @@ def create_cv_version_record(
     - All kwargs passed through verbatim.
     - gap_summary    : stored as a JSON string.
 
-    Does not write to BigQuery — call store_cv_version() for persistence.
+    Does not persist by itself — call store_cv_version() for persistence.
     """
     return {
         "version_id": str(uuid.uuid4()),
@@ -140,62 +138,29 @@ def lookup_reusable_cv_versions(
     normalized = [str(item or "").strip() for item in fingerprints if str(item or "").strip()]
     if not normalized:
         return {}
-    if sqlite_mode_enabled(config):
-        from fitcv_cp import bq_store as cp_bq_store
+    from fitcv_cp import sqlite_store as cp_sqlite_store
 
-        return cp_bq_store.lookup_reusable_cv_versions(
-            normalized,
-            bq=None,
-            project="",
-            dataset="",
-            limit=limit,
-        )
-
-    project = str(config["gcp_project"])
-    dataset = str(config["bigquery_dataset"])
-    client = build_bigquery_client(config)
-    from fitcv_cp import bq_store as cp_bq_store
-
-    return cp_bq_store.lookup_reusable_cv_versions(
+    return cp_sqlite_store.lookup_reusable_cv_versions(
         normalized,
-        bq=client,
-        project=project,
-        dataset=dataset,
+        bq=None,
+        project="",
+        dataset="",
         limit=limit,
     )
 
 
 def store_cv_version(record: dict[str, Any], config: dict[str, Any]) -> None:
-    """Insert a cv_version record into fitcv.cv_versions.
+    """Insert a cv_version record into local sqlite store."""
+    from fitcv_cp import sqlite_store as cp_sqlite_store
 
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
-    Decorated with @pytest.mark.integration in tests.
-    """
-    if sqlite_mode_enabled(config):
-        from fitcv_cp import bq_store as cp_bq_store
-
-        errors = cp_bq_store.insert_cv_version_row(
-            record,
-            bq=None,
-            project="",
-            dataset="",
-        )
-        if errors:
-            raise RuntimeError(f"SQLite insert errors for cv_versions: {errors}")
-        return
-
-    project = str(config["gcp_project"])
-    dataset = str(config["bigquery_dataset"])
-    client = build_bigquery_client(config)
-    table_ref = f"{project}.{dataset}.cv_versions"
-
-    errors = client.insert_rows_json(table_ref, [record])
-    if errors and _is_missing_structured_cv_column_error(errors):
-        logger.warning("legacy cv_versions schema fallback for %s", record.get("job_url") or "")
-        legacy_record = _legacy_cv_version_record(record)
-        errors = client.insert_rows_json(table_ref, [legacy_record])
+    errors = cp_sqlite_store.insert_cv_version_row(
+        record,
+        bq=None,
+        project="",
+        dataset="",
+    )
     if errors:
-        raise RuntimeError(f"BigQuery insert errors for cv_versions: {errors}")
+        raise RuntimeError(f"SQLite insert errors for cv_versions: {errors}")
 
 
 # ── application status record ─────────────────────────────────────────────────
@@ -234,32 +199,18 @@ def update_application_status(
 
 
 def store_application_status(record: dict[str, Any], config: dict[str, Any]) -> None:
-    """Insert an application_tracker record into fitcv.application_tracker.
+    """Insert an application_tracker record into local sqlite store."""
+    from fitcv_cp import sqlite_store as cp_sqlite_store
 
-    Requires GOOGLE_APPLICATION_CREDENTIALS for BigQuery mode.
-    Decorated with @pytest.mark.integration in tests.
-    """
-    if sqlite_mode_enabled(config):
-        from fitcv_cp import bq_store as cp_bq_store
-
-        errors = cp_bq_store.insert_application_tracker_row(
-            record,
-            bq=None,
-            project="",
-            dataset="",
-        )
-        if errors:
-            raise RuntimeError(f"SQLite insert errors for application_tracker: {errors}")
-        return
-
-    project = str(config["gcp_project"])
-    dataset = str(config["bigquery_dataset"])
-    client = build_bigquery_client(config)
-    table_ref = f"{project}.{dataset}.application_tracker"
-
-    errors = client.insert_rows_json(table_ref, [record])
+    errors = cp_sqlite_store.insert_application_tracker_row(
+        record,
+        bq=None,
+        project="",
+        dataset="",
+    )
     if errors:
-        raise RuntimeError(f"BigQuery insert errors for application_tracker: {errors}")
+        raise RuntimeError(f"SQLite insert errors for application_tracker: {errors}")
+
 
 
 

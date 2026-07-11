@@ -39,7 +39,6 @@ refs:
   code: []
   tests:
   - tests/test_fitcv_cp/test_app.py
-  - tests/test_fitcv_cp/test_bq_store.py
   - tests/test_fitcv_cp/test_models.py
   specs:
   - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md

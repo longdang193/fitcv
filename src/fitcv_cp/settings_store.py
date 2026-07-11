@@ -183,6 +183,20 @@ def _load_local_settings_rows() -> list[sqlite3.Row]:
             raise
     return []
 
+def _delete_local_settings_rows(rows: list[tuple[str, str]]) -> None:
+    if not rows:
+        return
+    db_path = _local_sqlite_path()
+    if not db_path.exists():
+        return
+    with sqlite3.connect(db_path, timeout=30) as conn:
+        _ensure_local_pipeline_settings_table(conn)
+        conn.executemany(
+            "DELETE FROM pipeline_settings WHERE setting_key = ? AND setting_value_json = ?",
+            rows,
+        )
+        conn.commit()
+
 
 def _normalize_bookmark_key(
     *,
@@ -474,20 +488,14 @@ def save_setting(
 ) -> None:
     """Append a new row for this key. Current value = latest row per key."""
     canonical_key = canonical_settings_key(key)
+    coerced_value = coerce_value(canonical_key, value)
     row = {
         "setting_key": canonical_key,
-        "setting_value_json": json.dumps(value),
+        "setting_value_json": json.dumps(coerced_value),
         "updated_by": updated_by,
         "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
-    if bq is None:
-        _save_local_settings_rows([row])
-        return
-    table = f"{project}.{dataset}.pipeline_settings"
-    errors = bq.insert_rows_json(table, [row])
-    if errors:
-        logger.error("BQ save_setting errors: %s", errors)
-        raise RuntimeError(f"Failed to save setting: {errors}")
+    _save_local_settings_rows([row])
 
 
 def save_settings_group(
@@ -500,24 +508,18 @@ def save_settings_group(
 ) -> None:
     """Write all keys in the group with a shared updated_at timestamp.
 
-    All rows are submitted in a single insert_rows_json batch call.
-    Raises RuntimeError if BigQuery rejects the batch, so callers can surface
-    the failure to the user rather than silently reporting success.
-
-    WARNING: BigQuery streaming inserts are not transactional. Validation must
-    always be completed before calling this function. Partial writes on BQ-level
-    partial failures are possible but accepted for this admin tool.
+    All rows are written into local SQLite with one shared timestamp.
     """
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     canonical_payload: dict[str, Any] = {}
     for key, value in keys_values.items():
         canonical_key = canonical_settings_key(key)
         if canonical_key == key:
-            canonical_payload[canonical_key] = value
+            canonical_payload[canonical_key] = coerce_value(canonical_key, value)
     for key, value in keys_values.items():
         canonical_key = canonical_settings_key(key)
         if canonical_key not in canonical_payload:
-            canonical_payload[canonical_key] = value
+            canonical_payload[canonical_key] = coerce_value(canonical_key, value)
     rows = [
         {
             "setting_key": key,
@@ -527,14 +529,7 @@ def save_settings_group(
         }
         for key, value in canonical_payload.items()
     ]
-    if bq is None:
-        _save_local_settings_rows(rows)
-        return
-    table = f"{project}.{dataset}.pipeline_settings"
-    errors = bq.insert_rows_json(table, rows)
-    if errors:
-        logger.error("BQ save_settings_group errors: %s", errors)
-        raise RuntimeError(f"Failed to save settings group: {errors}")
+    _save_local_settings_rows(rows)
 
 
 def load_active_settings(*, bq: Any, project: str, dataset: str) -> dict[str, Any]:
@@ -542,15 +537,7 @@ def load_active_settings(*, bq: Any, project: str, dataset: str) -> dict[str, An
 
     Returns an empty dict if no settings have been saved yet.
     """
-    if bq is None:
-        rows = _load_local_settings_rows()
-    else:
-        sql = (
-            f"SELECT setting_key, setting_value_json "
-            f"FROM `{project}.{dataset}.pipeline_settings` "
-            f"ORDER BY updated_at DESC"
-        )
-        rows = list(bq.query(sql).result())
+    rows = _load_local_settings_rows()
 
     ordered_rows = sorted(
         enumerate(rows),
@@ -560,18 +547,23 @@ def load_active_settings(*, bq: Any, project: str, dataset: str) -> dict[str, An
         ),
     )
     seen_valid: set[str] = set()
+    invalid_rows_to_delete: list[tuple[str, str]] = []
     result: dict[str, Any] = {}
     for _, row in ordered_rows:
         original_key = str(row["setting_key"])
         canonical_key = canonical_settings_key(original_key)
         if canonical_key in seen_valid:
             continue
-        raw = json.loads(str(row["setting_value_json"]))
+        raw_value_json = str(row["setting_value_json"])
+        raw = json.loads(raw_value_json)
         try:
             result[canonical_key] = coerce_value(canonical_key, raw)
             seen_valid.add(canonical_key)
         except (KeyError, ValueError) as exc:
-            logger.warning("Skipping unknown/invalid setting key=%s: %s", original_key, exc)
+            invalid_rows_to_delete.append((original_key, raw_value_json))
+            logger.info("Removing stale invalid setting key=%s: %s", original_key, exc)
+
+    _delete_local_settings_rows(invalid_rows_to_delete)
 
     return result
 

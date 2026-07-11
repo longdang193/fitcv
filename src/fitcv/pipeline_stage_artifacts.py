@@ -438,7 +438,7 @@ def build_ranking_stage_block(
     sample_rows_builder: Callable[[list[Any], Callable[[Any], dict[str, Any] | None]], list[dict[str, Any]]],
     ranking_row_sample_builder: Callable[[dict[str, Any]], dict[str, Any] | None],
     extract_job_url: Callable[[dict[str, Any]], str],
-    gemini_model_resolver: Callable[[dict[str, Any]], str],
+    ai_score_model_resolver: Callable[[dict[str, Any]], str],
     effective_preferences_resolver: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]],
 ) -> dict[str, Any]:
     if not ranking_reached:
@@ -461,7 +461,7 @@ def build_ranking_stage_block(
             "ranking_prompt_id": ranking_prompt_provenance["prompt_id"],
             "ranking_prompt_version": ranking_prompt_provenance["prompt_version"],
             "ranking_prompt_template_path": ranking_prompt_provenance["template_path"],
-            "ai_score_model": gemini_model_resolver(config),
+            "ai_score_model": ai_score_model_resolver(config),
             "configured_ranking_weights": ranking_weights,
             "configured_missing_value_defaults": ranking_defaults,
             "configured_preference_fit_weights": preference_fit_weights,

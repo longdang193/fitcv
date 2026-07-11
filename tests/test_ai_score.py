@@ -233,7 +233,7 @@ def test_make_genai_client_requires_supported_routing_provider(
         },
     )
     with pytest.raises(RuntimeError, match="ranking_ai_score provider must be configured"):
-        _make_genai_client({"gemini_model": "gemini-2.5-flash"})
+        _make_genai_client({})
 
 
 def test_make_genai_client_openai_compatible_requires_env_api_key(
@@ -254,7 +254,7 @@ def test_make_genai_client_openai_compatible_requires_env_api_key(
     monkeypatch.delenv("OPENAI_COMPATIBLE_API_KEY", raising=False)
 
     with pytest.raises(RuntimeError, match="requires API key in env"):
-        _make_genai_client({"gemini_model": "gemini-2.5-flash"})
+        _make_genai_client({})
 
 
 def test_make_genai_client_openai_compatible_falls_back_to_chat_completions_on_responses_404(
@@ -305,7 +305,7 @@ def test_make_genai_client_openai_compatible_falls_back_to_chat_completions_on_r
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("FITCV_LANGGRAPH_WIRE_API", "responses")
 
-    client = _make_genai_client({"gemini_model": "gemini-2.5-flash"})
+    client = _make_genai_client({})
     result = client.models.generate_content(model="any", contents="hello")
 
     assert '"fit_label":"strong"' in result.text
@@ -352,8 +352,8 @@ def test_make_genai_client_openai_compatible_uses_routed_model_override(
     monkeypatch.setenv("FITCV_LANGGRAPH_WIRE_API", "responses")
     monkeypatch.setenv("FITCV_LANGGRAPH_MODEL", "cx/gpt-5.2")
 
-    client = _make_genai_client({"gemini_model": "gemini-2.5-flash"})
-    _ = client.models.generate_content(model="gemini-2.5-flash", contents="hello")
+    client = _make_genai_client({})
+    _ = client.models.generate_content(model="cx/gpt-5.4-mini", contents="hello")
     assert captured_models == ["cx/gpt-5.2"]
 
 def test_make_genai_client_openai_compatible_uses_routed_timeout_seconds(
@@ -398,7 +398,7 @@ def test_make_genai_client_openai_compatible_uses_routed_timeout_seconds(
     )
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
-    client = _make_genai_client({"gemini_model": "gemini-2.5-flash"})
+    client = _make_genai_client({})
     _ = client.models.generate_content(model="any", contents="hello")
 
     assert captured_timeouts == [300.0]
@@ -445,7 +445,7 @@ def test_make_genai_client_openai_compatible_parses_json_with_trailing_sse_done(
     )
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
-    client = _make_genai_client({"gemini_model": "gemini-2.5-flash"})
+    client = _make_genai_client({})
     result = client.models.generate_content(model="any", contents="hello")
 
     assert result.text == '{"ai_score":0.8,"fit_label":"stretch"}'
@@ -484,7 +484,7 @@ def test_score_job_uses_versioned_default_model(
         config={},
     )
 
-    assert captured["model"] == "gemini-2.5-flash"
+    assert captured["model"] == "cx/gpt-5.4-mini"
 
 
 def test_run_ai_scoring_prefers_nested_pipeline_top_n_over_legacy_flat_key() -> None:
@@ -697,7 +697,6 @@ def test_store_ai_scores_writes_sqlite_rows(
     from fitcv.ai_score import store_ai_scores
 
     db_path = tmp_path / "fitcv_cp.sqlite3"
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
 
     scores = [
@@ -744,71 +743,12 @@ def test_store_ai_scores_writes_sqlite_rows(
     assert json.loads(str(rows[1][5])) == []
 
 
-def test_store_ai_scores_bigquery_mode_uses_bigquery_client(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from fitcv.ai_score import store_ai_scores
-
-    calls: dict[str, object] = {}
-
-    class FakeCredentials:
-        @staticmethod
-        def from_service_account_file(path: str) -> str:
-            calls["credential_path"] = path
-            return "fake-creds"
-
-    class FakeClient:
-        def __init__(self, *, project: str, credentials: object) -> None:
-            calls["project"] = project
-            calls["credentials"] = credentials
-
-        def insert_rows_json(self, table_ref: str, rows: list[dict[str, object]]) -> list[object]:
-            calls["table_ref"] = table_ref
-            calls["rows"] = rows
-            return []
-
-    fake_bigquery = types.SimpleNamespace(Client=FakeClient)
-    fake_service_account = types.SimpleNamespace(Credentials=FakeCredentials)
-    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
-    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
-    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
-    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-
-    store_ai_scores(
-        [
-            {
-                "job_url": "https://example.com/job-9",
-                "ai_score": 0.88,
-                "fit_label": "strong",
-                "score_reasoning": "Good fit",
-                "matched_strengths": ["SQL"],
-                "key_risks": [],
-            }
-        ],
-        config={
-            "gcp_project": "demo-project",
-            "bigquery_dataset": "fitcv",
-            "service_account_key": "C:/fake/key.json",
-        },
-    )
-
-    assert calls["credential_path"] == "C:/fake/key.json"
-    assert calls["project"] == "demo-project"
-    assert calls["table_ref"] == "demo-project.fitcv.ai_score_results"
-    rows = calls["rows"]
-    assert isinstance(rows, list)
-    assert rows[0]["job_url"] == "https://example.com/job-9"
-    assert rows[0]["matched_strengths"] == ["SQL"]
-    assert rows[0]["key_risks"] == []
-    assert float(rows[0]["ai_score"]) == 0.88
-
 
 # ── integration tests ─────────────────────────────────────────────────────────
 
 @pytest.mark.integration
 def test_score_job_integration(config: dict) -> None:
-    """Integration — calls Vertex AI ML.GENERATE_TEXT and returns a parsed score."""
+    """Integration — calls routed OpenAI-compatible scoring provider and returns a parsed score."""
     from fitcv.ai_score import score_job
     job = {
         "job_url": "http://test.url/1",

@@ -18,7 +18,7 @@ from fitcv_cp.models import RunStatus, EventLevel, PipelineRun, RunEvent
 
 
 def test_run_status_values():
-    """@proves admin_control_plane_core.pipeline-runs-bigquery-table"""
+    """@proves admin_control_plane_core.pipeline-runs-sqlite-store"""
     assert set(RunStatus) == {
         RunStatus.QUEUED,
         RunStatus.RUNNING,
@@ -52,7 +52,7 @@ def test_pipeline_run_fields():
 
 
 def test_pipeline_run_lifecycle_fields():
-    """@proves admin_control_plane_core.pipeline-runs-bigquery-table"""
+    """@proves admin_control_plane_core.pipeline-runs-sqlite-store"""
     fields = {f.name for f in dataclasses.fields(PipelineRun)}
     assert {
         "queue_job_id",
@@ -66,7 +66,7 @@ def test_pipeline_run_lifecycle_fields():
 
 
 def test_pipeline_run_lifecycle_fields_default_none():
-    """@proves admin_control_plane_core.pipeline-runs-bigquery-table"""
+    """@proves admin_control_plane_core.pipeline-runs-sqlite-store"""
     import datetime
     run = PipelineRun(
         run_id="r1",
@@ -87,6 +87,7 @@ def test_pipeline_run_lifecycle_fields_default_none():
 
 
 def test_run_event_fields():
-    """@proves admin_control_plane_core.pipeline-run-events-bigquery-table"""
+    """@proves admin_control_plane_core.pipeline-run-events-sqlite-store"""
     fields = {f.name for f in dataclasses.fields(RunEvent)}
     assert {"run_id", "event_id", "stage", "level", "message", "created_at"} <= fields
+

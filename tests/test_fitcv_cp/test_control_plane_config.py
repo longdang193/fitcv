@@ -39,18 +39,10 @@ def test_load_control_plane_config_env_override_openai_compatible_provider(monke
     assert "observability" in cfg
 
 
-def test_load_control_plane_config_env_override_backend_type(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
-
-    cfg = load_control_plane_config()
-
-    assert cfg["data_backend"]["type"] == "sqlite"
-
 
 def test_load_control_plane_config_rejects_invalid_backend_type(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.delenv("FITCV_CP_DATA_BACKEND", raising=False)
     config_path = tmp_path / "control_plane.yaml"
     config_path.write_text(
         "control_plane:\n"
@@ -162,3 +154,4 @@ def test_resolve_langgraph_runtime_expectation_fails_when_missing_required_field
 
     with pytest.raises(ValueError, match="Missing resolved LangGraph runtime routing fields: wire_api"):
         resolve_langgraph_runtime_expectation()
+

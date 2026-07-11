@@ -419,6 +419,7 @@ def _generate_cv_with_live_provider(
     structured_cv = _normalize_structured_cv(
         response_payload,
         jd=job,
+        evidence=evidence,
         profile=profile,
         config=config,
         fit_classification=fit_classification,

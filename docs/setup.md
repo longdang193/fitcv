@@ -77,12 +77,6 @@ Notes:
   2. control-plane defaults in `config/runtime/control_plane.yaml`
   3. fail fast on unresolved required fields
 
-Minimum backend env for local SQLite mode:
-
-```powershell
-$env:FITCV_CP_DATA_BACKEND = "sqlite"
-```
-
 Optional SQLite path override:
 
 ```powershell
@@ -156,23 +150,10 @@ Open:
 - confirm run transitions queued -> running -> succeeded/failed
 - confirm run detail shows artifacts/events
 
-## 6) Backend Modes
+## 6) Backend Mode
 
-### SQLite (recommended local default)
-
-- `FITCV_CP_DATA_BACKEND=sqlite`
+- built-in local SQLite runtime
 - optional `FITCV_CP_SQLITE_PATH`
-
-### BigQuery (advanced)
-
-Use after SQLite path works.
-
-Required env:
-
-- `FITCV_CP_DATA_BACKEND=bigquery`
-- `GCP_PROJECT`
-- `BIGQUERY_DATASET`
-- `GOOGLE_APPLICATION_CREDENTIALS`
 
 ## 7) Troubleshooting
 
@@ -192,3 +173,4 @@ Required env:
 - [usage.md](usage.md)
 - [pipeline.md](pipeline.md)
 - [architecture.md](architecture.md)
+

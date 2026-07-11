@@ -4,6 +4,8 @@ skill_synonyms:
   academic writing: academic writing
   acceptance criteria: acceptance criteria
   accounting: accounting
+  accreditation processes: accreditation
+  acquisition of funding: grant writing
   acting: acting
   acting techniques: acting
   ad hoc analysis: ad hoc analysis
@@ -166,6 +168,7 @@ skill_synonyms:
   candidate screening: candidate screening
   capital iq: capital iq
   capitaliq: capital iq
+  carry out field simulations: simulation
   cash flow analysis: cash flow analysis
   cash-flow analysen: cash flow analysis
   category management: category management
@@ -175,7 +178,7 @@ skill_synonyms:
   chassis maintenance: chassis maintenance
   ci weiterentwickeln: corporate identity
   ci/cd: ci/cd
-  ci/cd pipelines: ci/cd pipelines
+  ci/cd pipelines: ci/cd
   ci/cd-prozesse: ci/cd pipelines
   circuit design: electrical circuit design
   classification algorithms: classification algorithms
@@ -330,6 +333,7 @@ skill_synonyms:
   derivatives valuation: derivatives valuation
   design agentic workflows: agentic workflows
   design and maintain dashboards: dashboard development
+  designing data architecture: data modeling
   designing scalable transformations: data transformation
   developer tools: developer tools
   developing critical dashboards: dashboard development
@@ -385,6 +389,7 @@ skill_synonyms:
   engine control calibration: engine control calibration
   engine maintenance: engine maintenance
   ensure accurate bookkeeping: bookkeeping
+  ensure data governance: data governance
   entwickelst darauf produktive dashboards: dashboard development
   entwicklung von kpis: kpi development
   entwicklung von metabase-dashboards: metabase dashboarding
@@ -411,6 +416,7 @@ skill_synonyms:
   excel macros: excel macros
   excel pivottables: excel pivottables
   executive reporting: executive reporting
+  experience handling large datasets: large datasets
   exploratory analysis: exploratory data analysis
   exploratory data analysis: exploratory data analysis
   facebook ads: meta ads
@@ -601,6 +607,7 @@ skill_synonyms:
   marketing performance analysis: marketing analytics
   marketplace platforms: marketplace platforms
   materials characterization: materials characterization
+  maximalen datenqualität: data quality
   measurement data analysis: measurement data analysis
   measurement technology: metrology
   medical terminology: medical terminology
@@ -697,6 +704,7 @@ skill_synonyms:
   office administration: office administration
   office management: office management
   office-anwendungen: microsoft office
+  onboarding and compliance risks: compliance risk management
   ooh advertising: out-of-home advertising
   operational planning: operational planning
   operational planning process: operational planning
@@ -804,6 +812,7 @@ skill_synonyms:
   relational databases: relational databases
   relationale datenbanken: relational databases
   relationalen datenbanksystemen: relational databases
+  reliable internet connection: internet connection
   reporting: reporting
   reporting dashboards: dashboard reporting
   reportings an die bafin: regulatory reporting
@@ -812,7 +821,9 @@ skill_synonyms:
   requirements management: requirements management
   requirements specification: requirements specification
   research: research
+  research experience: research
   resource planning: resource planning
+  rest-apis: rest api
   retrieval-augmented generation: retrieval-augmented generation
   retrieval-augmented generation (rag): retrieval-augmented generation
   retry mechanisms: retry mechanisms
@@ -898,6 +909,7 @@ skill_synonyms:
   splunk es: splunk enterprise security
   spreadsheets: spreadsheets
   sql: sql
+  sql auf expertenniveau: sql
   sql common table expressions: sql common table expressions
   sql joins: sql joins
   sql query optimization: sql query optimization
@@ -933,6 +945,7 @@ skill_synonyms:
   tax audits: tax audits
   tax compliance consulting: tax compliance consulting
   tax returns: tax returns
+  teaching in university classrooms: university teaching
   teamerfahrung in einem scale-up: scale-up team experience
   technical proposal preparation: technical proposal preparation
   technical sizing: technical sizing
@@ -940,6 +953,7 @@ skill_synonyms:
   terraform: terraform
   test case design: test case design
   test management: test management
+  test new programs: software testing
   test strategy: test strategy
   test-driven development: test-driven development
   test-driven development (tdd): test-driven development
@@ -979,6 +993,7 @@ skill_synonyms:
   umgang mit ms office: microsoft office
   und datenvisualisierung: data visualization
   understanding of sql: sql
+  underwriting or finance: underwriting
   unit economics analysis: unit economics analysis
   unternehmensbewertungen: business valuation
   user acceptance testing: user acceptance testing

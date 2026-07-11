@@ -3,9 +3,9 @@ feature_id: settings_system
 source: docs/features/settings_system/feature.source.yaml
 invariants: {}
 capabilities:
-  settings_system.bigquery-backed-pipeline-settings-store:
+  settings_system.sqlite-backed-pipeline-settings-store:
     state: active
-    statement: BigQuery-backed pipeline settings store
+    statement: SQLite-backed pipeline settings store
     satisfies: []
     code: []
     tests:
@@ -20,7 +20,7 @@ capabilities:
       source:
       - python_proves
       symbols:
-      - test_save_setting_calls_bq
+      - test_save_setting_persists_sqlite_row
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -50,6 +50,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -66,6 +67,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -98,6 +116,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -146,6 +184,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -162,6 +201,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -194,6 +250,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -236,6 +312,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -252,6 +329,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -284,6 +378,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -334,6 +448,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -350,6 +465,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -382,6 +514,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -430,6 +582,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -446,6 +599,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -478,6 +648,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -526,6 +716,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -542,6 +733,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -574,6 +782,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -622,6 +850,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -638,6 +867,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -670,6 +916,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -718,6 +984,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -734,6 +1001,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -766,6 +1050,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -814,6 +1118,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -830,6 +1135,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -862,6 +1184,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -922,6 +1264,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -938,6 +1281,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -970,6 +1330,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1024,6 +1404,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -1040,6 +1421,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1072,6 +1470,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1126,6 +1544,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -1142,6 +1561,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1174,6 +1610,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1222,6 +1678,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -1238,6 +1695,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1270,6 +1744,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1318,6 +1812,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -1334,6 +1829,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1366,6 +1878,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1414,6 +1946,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -1430,6 +1963,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1462,6 +2012,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1516,6 +2086,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -1532,6 +2103,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1564,6 +2152,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1618,6 +2226,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -1634,6 +2243,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1666,6 +2292,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1720,6 +2366,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -1736,6 +2383,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1768,6 +2432,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1780,13 +2464,7 @@ capabilities:
     statement: Trigger-time effective settings snapshot
     satisfies: []
     code: []
-    tests:
-    - path: tests/test_fitcv_cp/test_bq_store.py
-      confidence: high
-      source:
-      - python_proves
-      symbols:
-      - test_update_run_effective_settings_updates_only_effective_settings_field
+    tests: []
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -1816,6 +2494,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -1832,6 +2511,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1864,10 +2560,32 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
+    - missing_test_evidence
     allowed_evidence_gaps:
     - missing_code_evidence
+    - missing_test_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: incomplete
@@ -1918,6 +2636,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -1934,6 +2653,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1966,6 +2702,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2020,6 +2776,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
@@ -2036,6 +2793,23 @@ capabilities:
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-13-36-runtime-throughput-ssot-ux-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -2068,6 +2842,26 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-13-40-runtime-throughput-ssot-ux-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-21-11-08-routing-symmetry-and-settings-wording-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

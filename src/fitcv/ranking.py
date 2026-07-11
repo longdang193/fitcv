@@ -20,8 +20,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fitcv.candidate import canonicalize_role_title, infer_role_family
-from fitcv.config import sqlite_mode_enabled
-from fitcv.persistence import build_bigquery_client
 from fitcv.ranking_contract import (
     validate_missing_defaults_contract,
     validate_preference_fit_weights_contract,
@@ -475,47 +473,15 @@ def rank_jobs(jobs: list[dict[str, Any]], top_n: int) -> list[dict[str, Any]]:
     return ranked
 
 
-# ── integration: store to bigquery ────────────────────────────────────────────
+# ── integration: persist results ─────────────────────────────────────────────
 
 def store_final_ranking(
     ranked_jobs: list[dict[str, Any]],
     config: dict[str, Any],
 ) -> None:
-    """Insert final ranking rows into fitcv.final_ranking.
-
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
-    Decorated with @pytest.mark.integration in tests.
-    """
+    """Ranking persistence is trimmed from live SQLite product path."""
     if not ranked_jobs:
         return
-    if sqlite_mode_enabled(config):
-        return
-
-    project = str(config["gcp_project"])
-    dataset = str(config["bigquery_dataset"])
-    client = build_bigquery_client(config)
-    table_ref = f"{project}.{dataset}.final_ranking"
-    now = datetime.now(tz=timezone.utc).isoformat()
-
-    rows = []
-    for job in ranked_jobs:
-        rows.append({
-            "job_url": str(job["job_url"]),
-            "final_rank": int(job["final_rank"]),
-            "final_score": float(job["final_score"]),
-            "ai_score": float(job.get("ai_score", 0.0)),
-            "must_have_match": float(job.get("must_have_match", 0.0)),
-            "vector_similarity": float(job.get("vector_similarity", 0.0)),
-            "title_relevance": float(job.get("title_relevance", 0.5)),
-            "seniority_fit": float(job.get("seniority_fit", 0.5)),
-            "preference_fit": float(job.get("preference_fit", 0.5)),
-            "fit_label": str(job.get("fit_label", "skip")),
-            "ranked_at": now,
-        })
-
-    errors = client.insert_rows_json(table_ref, rows)
-    if errors:
-        raise RuntimeError(f"BigQuery insert errors for final_ranking: {errors}")
 def compute_ranking_runtime_diagnostics(
     ranking_inputs: list[dict[str, Any]],
     *,

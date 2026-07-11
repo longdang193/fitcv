@@ -29,7 +29,7 @@ from typing import Any, Callable, TypedDict
 from types import SimpleNamespace
 
 from pydantic import BaseModel as _BaseModel, Field as _Field, ValidationError as _ValidationError
-from fitcv.config import get_gemini_model, resolve_model_routing_part, sqlite_mode_enabled
+from fitcv.config import get_enrich_extraction_model, resolve_model_routing_part, sqlite_mode_enabled
 from fitcv.candidate import infer_role_family
 from fitcv.openai_compat import (
     decode_openai_compat_response_body as _decode_openai_compat_response_body,
@@ -1081,7 +1081,7 @@ def get_enrich_extraction_prompt_id(config: dict[str, Any] | None = None) -> str
 def get_enrich_prompt_provenance(config: dict[str, Any] | None = None) -> dict[str, str]:
     prompt_id = get_enrich_extraction_prompt_id(config)
     definition = get_prompt_definition(prompt_id)
-    model_name = get_gemini_model(config or {})
+    model_name = get_enrich_extraction_model(config or {})
     return {
         "prompt_id": definition.prompt_id,
         "prompt_version": definition.version,
@@ -1182,7 +1182,7 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
         if raw is not None:
             pass
         else:
-        # Thinking models (e.g. gemini-2.5-flash) sometimes emit malformed JSON
+        # Some models sometimes emit malformed JSON
         # (missing commas, trailing commas, etc.). Try json_repair before giving up.
             try:
                 from json_repair import repair_json  # type: ignore[import-untyped]
@@ -1276,7 +1276,7 @@ def merge_scraped_and_enriched(
         Merged dict matching fitcv.structured_jobs schema including audit fields.
     """
     cfg = config or {}
-    model = str(enriched.get("enrichment_model") or cfg.get("gemini_model") or cfg.get("ai_score_model") or "")
+    model = str(enriched.get("enrichment_model") or get_enrich_extraction_model(cfg) or cfg.get("ai_score_model") or "")
     version = str(enriched.get("enrichment_version") or cfg.get("enrichment_version", "v1"))
 
     merged: dict[str, Any] = {
@@ -1450,84 +1450,6 @@ def lookup_reusable_structured_jobs(
     if not normalized_jobs:
         return {}
 
-    project = str(config.get("gcp_project") or "").strip()
-    dataset = str(config.get("bigquery_dataset") or "").strip()
-    key_path = str(config.get("service_account_key") or "").strip()
-    if sqlite_mode_enabled(config):
-        job_urls = [
-            str(job.get("job_url") or "")
-            for job in normalized_jobs
-            if str(job.get("job_url") or "")
-        ]
-        if not job_urls:
-            return {}
-        normalized_by_url = {
-            str(job.get("job_url") or ""): job
-            for job in normalized_jobs
-            if str(job.get("job_url") or "")
-        }
-        placeholders = ",".join("?" for _ in job_urls)
-        sql = (
-            "SELECT job_url, raw_job_fingerprint, enrich_contract_fingerprint, payload_json "
-            f"FROM {_SQLITE_STRUCTURED_JOBS_TABLE} "
-            f"WHERE job_url IN ({placeholders})"
-        )
-        reusable_rows: dict[str, dict[str, Any]] = {}
-        with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
-            _configure_sqlite_connection(conn)
-            _ensure_sqlite_structured_jobs_table(conn)
-            for job_url, raw_fingerprint, contract_fingerprint, payload_json in conn.execute(sql, job_urls).fetchall():
-                if not isinstance(job_url, str) or not job_url:
-                    continue
-                if job_url in reusable_rows:
-                    continue
-                if str(raw_fingerprint or "") != str(raw_job_fingerprints.get(job_url) or ""):
-                    continue
-                if str(contract_fingerprint or "") != str(enrich_contract_fingerprint or ""):
-                    continue
-                normalized_job = normalized_by_url.get(job_url)
-                if normalized_job is None:
-                    continue
-                try:
-                    cached_payload = json.loads(str(payload_json or "{}"))
-                except json.JSONDecodeError:
-                    continue
-                if not isinstance(cached_payload, dict):
-                    continue
-                merged_row = merge_scraped_and_enriched(
-                    normalized_job,
-                    {
-                        **cached_payload,
-                        "raw_job_fingerprint": raw_job_fingerprints[job_url],
-                        "enrich_contract_fingerprint": enrich_contract_fingerprint,
-                        "enrich_reuse_status": REUSED_CACHED_ENRICHMENT_STATUS,
-                    },
-                    config,
-                )
-                if _is_semantically_blank_enrichment_row(merged_row):
-                    continue
-                reusable_rows[job_url] = merged_row
-        return reusable_rows
-    if not project or not dataset or not key_path:
-        logger.info(
-            "Skipping enrich reuse lookup because BigQuery reuse config is incomplete",
-            extra={
-                "has_gcp_project": bool(project),
-                "has_bigquery_dataset": bool(dataset),
-                "has_service_account_key": bool(key_path),
-            },
-        )
-        return {}
-
-    from google.cloud import bigquery  # type: ignore[import-untyped]
-    from google.oauth2 import service_account  # type: ignore[import-untyped]
-
-    if key_path:
-        credentials = service_account.Credentials.from_service_account_file(key_path)
-        client = bigquery.Client(project=project, credentials=credentials)
-    else:
-        client = bigquery.Client(project=project)
-
     job_urls = [
         str(job.get("job_url") or "")
         for job in normalized_jobs
@@ -1535,56 +1457,52 @@ def lookup_reusable_structured_jobs(
     ]
     if not job_urls:
         return {}
-
-    table = f"`{project}.{dataset}.structured_jobs`"
-    sql = f"""
-        SELECT *
-        FROM {table}
-        WHERE job_url IN UNNEST(@job_urls)
-    """
-    job_config = bigquery.QueryJobConfig(
-        query_parameters=[
-            bigquery.ArrayQueryParameter("job_urls", "STRING", job_urls),
-        ],
-        use_query_cache=False,
-    )
-    try:
-        rows = client.query(sql, job_config=job_config).result()
-    except Exception as exc:
-        logger.warning("Enrich reuse lookup failed; falling back to fresh enrichment: %s", exc)
-        return {}
-
     normalized_by_url = {
         str(job.get("job_url") or ""): job
         for job in normalized_jobs
         if str(job.get("job_url") or "")
     }
+    placeholders = ",".join("?" for _ in job_urls)
+    sql = (
+        "SELECT job_url, raw_job_fingerprint, enrich_contract_fingerprint, payload_json "
+        f"FROM {_SQLITE_STRUCTURED_JOBS_TABLE} "
+        f"WHERE job_url IN ({placeholders})"
+    )
     reusable_rows: dict[str, dict[str, Any]] = {}
-    for row in rows:
-        row_dict = dict(row.items())
-        job_url = str(row_dict.get("job_url") or "")
-        if not job_url or job_url in reusable_rows:
-            continue
-        if row_dict.get("raw_job_fingerprint") != raw_job_fingerprints.get(job_url):
-            continue
-        if row_dict.get("enrich_contract_fingerprint") != enrich_contract_fingerprint:
-            continue
-        normalized_job = normalized_by_url.get(job_url)
-        if normalized_job is None:
-            continue
-        merged_row = merge_scraped_and_enriched(
-            normalized_job,
-            {
-                **_cached_structured_row_to_enriched_payload(row_dict),
-                "raw_job_fingerprint": raw_job_fingerprints[job_url],
-                "enrich_contract_fingerprint": enrich_contract_fingerprint,
-                "enrich_reuse_status": REUSED_CACHED_ENRICHMENT_STATUS,
-            },
-            config,
-        )
-        if _is_semantically_blank_enrichment_row(merged_row):
-            continue
-        reusable_rows[job_url] = merged_row
+    with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
+        _configure_sqlite_connection(conn)
+        _ensure_sqlite_structured_jobs_table(conn)
+        for job_url, raw_fingerprint, contract_fingerprint, payload_json in conn.execute(sql, job_urls).fetchall():
+            if not isinstance(job_url, str) or not job_url:
+                continue
+            if job_url in reusable_rows:
+                continue
+            if str(raw_fingerprint or "") != str(raw_job_fingerprints.get(job_url) or ""):
+                continue
+            if str(contract_fingerprint or "") != str(enrich_contract_fingerprint or ""):
+                continue
+            normalized_job = normalized_by_url.get(job_url)
+            if normalized_job is None:
+                continue
+            try:
+                cached_payload = json.loads(str(payload_json or "{}"))
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(cached_payload, dict):
+                continue
+            merged_row = merge_scraped_and_enriched(
+                normalized_job,
+                {
+                    **cached_payload,
+                    "raw_job_fingerprint": raw_job_fingerprints[job_url],
+                    "enrich_contract_fingerprint": enrich_contract_fingerprint,
+                    "enrich_reuse_status": REUSED_CACHED_ENRICHMENT_STATUS,
+                },
+                config,
+            )
+            if _is_semantically_blank_enrichment_row(merged_row):
+                continue
+            reusable_rows[job_url] = merged_row
     return reusable_rows
 
 
@@ -1593,7 +1511,7 @@ def lookup_reusable_structured_jobs(
 def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
     """Return an HTTP LLM shim client when configured via control-plane routing."""
     try:
-        routing = resolve_model_routing_part("enrich_extraction", model_fallback=get_gemini_model(config or {}))
+        routing = resolve_model_routing_part("enrich_extraction", model_fallback=get_enrich_extraction_model(config or {}))
     except Exception:
         return None
 
@@ -1603,7 +1521,6 @@ def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
 
     base_url = str(routing.get("base_url") or "").strip()
     if not base_url:
-        # No HTTP base_url configured for this routed provider; defer to Gemini path.
         return None
     api_key_candidates = (
         "FITCV_LLM_API_KEY",
@@ -1617,10 +1534,6 @@ def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
             api_key = candidate
             break
     if not api_key:
-        # Allow Gemini-native fallback when a Gemini key is present but OpenAI-compatible
-        # keys are intentionally unset in local/test environments.
-        if str(os.environ.get("GEMINI_API_KEY", "")).strip():
-            return None
         raise RuntimeError(
             "Config-routed HTTP provider for enrich_extraction requires API key in env "
             "(FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY)."
@@ -1629,7 +1542,7 @@ def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
     timeout_seconds = float(str(routing.get("timeout_seconds") or "").strip() or "120")
     model_override = (
         str(routing.get("model") or "").strip()
-        or get_gemini_model(config)
+        or get_enrich_extraction_model(config)
     )
 
     import httpx
@@ -1686,52 +1599,21 @@ def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
 
 
 def _make_genai_client(config: dict[str, Any]) -> Any:
-    """Return configured enrich client: OpenAI-compatible env-key path first, then Gemini."""
+    """Return configured enrich client."""
     openai_client = _build_openai_compat_client(config)
     if openai_client is not None:
         return openai_client
-
-    """Return a google.genai client using API key first, then Vertex AI."""
-    import google.auth  # type: ignore[import-untyped]
-    from google import genai  # type: ignore[import-untyped]
-    from fitcv.config import get_vertex_location
-
-    api_key = os.environ.get("GEMINI_API_KEY", "")
-    if api_key:
-        return genai.Client(api_key=api_key)
-
-    creds, _ = google.auth.default(  # type: ignore[misc]
-        scopes=["https://www.googleapis.com/auth/cloud-platform"]
+    raise RuntimeError(
+        "enrich_extraction requires routed OpenAI-compatible provider config with base_url and API key."
     )
-    return genai.Client(
-        vertexai=True,
-        project=str(config["gcp_project"]),
-        location=get_vertex_location(config),
-        credentials=creds,
-    )
-
-
-def _build_extraction_generation_config() -> "Any":
-    """Return structured-output config using EnrichmentOutput Pydantic schema.
-
-    Both response_mime_type and response_schema are required: Vertex AI
-    rejects response_schema when mime type defaults to 'text/plain'.
-    """
-    from google.genai import types as _genai_types  # type: ignore[import-untyped]
-    return _genai_types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=EnrichmentOutput,
-    )
-
 
 def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
-    """Call Gemini to extract structured fields from one normalized job.
+    """Call routed provider to extract structured fields from one normalized job.
 
-    Primary path: uses response_schema structured output (EnrichmentOutput),
-    which the API guarantees to be valid JSON matching the schema.
+    Primary path: uses structured JSON output when provider returns parsed data.
     Fallback: response.text + json_repair when response.parsed is None.
 
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
+    Requires routed OpenAI-compatible provider config and API key.
     Decorated with @pytest.mark.integration in tests.
 
     Returns:
@@ -1740,7 +1622,7 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     import logging as _logging
     _log = _logging.getLogger(__name__)
 
-    model_name = get_gemini_model(config)
+    model_name = get_enrich_extraction_model(config)
     client = _make_genai_client(config)
     model_name = str(getattr(client, "_fitcv_model_override", model_name) or model_name)
     title_for_log = job.get("title") or job.get("job_url")
@@ -1757,11 +1639,7 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
         config=config,
     )
 
-    response = client.models.generate_content(
-        model=model_name,
-        contents=prompt,
-        config=_build_extraction_generation_config(),
-    )
+    response = client.models.generate_content(model=model_name, contents=prompt, config=None)
 
     # ── Primary path: structured output ──────────────────────────────────────
     if response.parsed is not None:
@@ -1805,11 +1683,9 @@ def _enrich_chunk(
     API request execution.
 
     Raises:
-        Any exception that enrich_job raises after exhausting retries (ResourceExhausted,
-        ClientError, etc.) — non-recoverable failures propagate to the caller.
+        Any exception that enrich_job raises after exhausting retries —
+        non-recoverable failures propagate to the caller.
     """
-    from google.api_core.exceptions import ResourceExhausted  # type: ignore[import-untyped]
-    from google.genai.errors import ClientError  # type: ignore[import-untyped]
     import httpx
 
     sleep_secs = float(config.get("enrichment_sleep_secs", 1.0))
@@ -1842,16 +1718,6 @@ def _enrich_chunk(
                     except Exception:  # noqa: BLE001
                         pass
                 break
-            except ResourceExhausted:
-                if attempts >= max_retries:
-                    raise
-                attempts += 1
-                time.sleep(sleep_secs * (2 ** (attempts - 1)))
-            except ClientError as exc:
-                if getattr(exc, "status_code", None) != 429 or attempts >= max_retries:
-                    raise
-                attempts += 1
-                time.sleep(sleep_secs * (2 ** (attempts - 1)))
             except httpx.HTTPStatusError as exc:
                 if getattr(getattr(exc, "response", None), "status_code", None) != 429 or attempts >= max_retries:
                     raise
@@ -1939,7 +1805,7 @@ def enrich_batch(
     return results
 
 
-# ── integration: BigQuery upsert ──────────────────────────────────────────────
+# ── structured-job upsert ─────────────────────────────────────────────────────
 
 _MERGE_COLUMNS = [
     "title", "company_name", "company_id", "location", "contract_type",
@@ -2047,106 +1913,46 @@ def load_structured_jobs(
     enriched: list[dict[str, Any]],
     config: dict[str, Any],
 ) -> int:
-    """Upsert enriched job rows into fitcv.structured_jobs via MERGE on job_url.
-
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
-    Decorated with @pytest.mark.integration in tests.
-
-    Returns:
-        Number of rows upserted.
-    """
+    """Upsert enriched job rows into local sqlite structured-jobs cache."""
     cacheable_rows = [row for row in enriched if not _is_semantically_blank_enrichment_row(row)]
     if not cacheable_rows:
         return 0
 
-    if sqlite_mode_enabled(config):
-        with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
-            _configure_sqlite_connection(conn)
-            _ensure_sqlite_structured_jobs_table(conn)
-            rows = []
-            for row in cacheable_rows:
-                job_url = str(row.get("job_url") or "").strip()
-                if not job_url:
-                    continue
-                rows.append(
-                    (
-                        job_url,
-                        str(row.get("raw_job_fingerprint") or ""),
-                        str(row.get("enrich_contract_fingerprint") or ""),
-                        json.dumps(row, ensure_ascii=False),
-                        _normalise_enriched_at(row.get("enriched_at")) or datetime.now(tz=timezone.utc).isoformat(),
-                    )
+    with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
+        _configure_sqlite_connection(conn)
+        _ensure_sqlite_structured_jobs_table(conn)
+        rows = []
+        for row in cacheable_rows:
+            job_url = str(row.get("job_url") or "").strip()
+            if not job_url:
+                continue
+            rows.append(
+                (
+                    job_url,
+                    str(row.get("raw_job_fingerprint") or ""),
+                    str(row.get("enrich_contract_fingerprint") or ""),
+                    json.dumps(row, ensure_ascii=False),
+                    _normalise_enriched_at(row.get("enriched_at")) or datetime.now(tz=timezone.utc).isoformat(),
                 )
-            conn.executemany(
-                f"""
-                INSERT INTO {_SQLITE_STRUCTURED_JOBS_TABLE}
-                    (job_url, raw_job_fingerprint, enrich_contract_fingerprint, payload_json, enriched_at)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(job_url) DO UPDATE SET
-                    raw_job_fingerprint=excluded.raw_job_fingerprint,
-                    enrich_contract_fingerprint=excluded.enrich_contract_fingerprint,
-                    payload_json=excluded.payload_json,
-                    enriched_at=excluded.enriched_at
-                """,
-                rows,
             )
-            conn.commit()
-        return len(rows)
-    from google.cloud import bigquery  # type: ignore[import-untyped]
-    from google.oauth2 import service_account  # type: ignore[import-untyped]
-
-    project = str(config["gcp_project"])
-    dataset = str(config["bigquery_dataset"])
-    key_path = str(config["service_account_key"])
-
-    if key_path:
-        credentials = service_account.Credentials.from_service_account_file(key_path)
-        client = bigquery.Client(project=project, credentials=credentials)
-    else:
-        client = bigquery.Client(project=project)
-
-    target = f"`{project}.{dataset}.structured_jobs`"
-    update_set = ",\n    ".join(
-        f"T.{col} = S.{col}" for col in _MERGE_COLUMNS
-    )
-    insert_cols = ", ".join(["job_url"] + _MERGE_COLUMNS)
-    insert_vals = ", ".join([f"S.{c}" for c in ["job_url"] + _MERGE_COLUMNS])
-
-    temp_table = f"`{project}.{dataset}._enrich_staging`"
-    schema = [
-        bigquery.SchemaField(name, field_type, mode=mode)
-        for name, field_type, mode in _STAGING_SCHEMA_FIELDS
-    ]
-
-    # Load to a temp table first, then MERGE
-    staging_ref = f"{project}.{dataset}._enrich_staging"
-    job_config = bigquery.LoadJobConfig(
-        write_disposition="WRITE_TRUNCATE",
-        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
-        schema=schema,
-    )
-    load_rows = [_map_to_structured_jobs_row(row) for row in cacheable_rows]
-    load_job = client.load_table_from_json(
-        load_rows,
-        staging_ref,
-        job_config=job_config,
-    )
-    load_job.result()
-
-    merge_sql = f"""
-    MERGE {target} AS T
-    USING {temp_table} AS S
-    ON T.job_url = S.job_url
-    WHEN MATCHED THEN UPDATE SET
-        {update_set}
-    WHEN NOT MATCHED THEN INSERT ({insert_cols})
-    VALUES ({insert_vals})
-    """
-    client.query(merge_sql).result()
-    return len(load_rows)
+        conn.executemany(
+            f"""
+            INSERT INTO {_SQLITE_STRUCTURED_JOBS_TABLE}
+                (job_url, raw_job_fingerprint, enrich_contract_fingerprint, payload_json, enriched_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(job_url) DO UPDATE SET
+                raw_job_fingerprint=excluded.raw_job_fingerprint,
+                enrich_contract_fingerprint=excluded.enrich_contract_fingerprint,
+                payload_json=excluded.payload_json,
+                enriched_at=excluded.enriched_at
+            """,
+            rows,
+        )
+        conn.commit()
+    return len(rows)
 
 
-# ── integration: run-scoped append ───────────────────────────────────────────────
+# ── run-scoped append ──────────────────────────────────────────────────────────
 
 # Ordered columns for run_structured_jobs (same order as DDL).
 _RUN_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
@@ -2229,71 +2035,32 @@ def load_run_structured_jobs(
     run_id: str,
     config: dict[str, Any],
 ) -> int:
-    """Append run-scoped enriched job rows into fitcv.run_structured_jobs.
-
-    Uses WRITE_APPEND semantics — no MERGE, no staging table.  One job can
-    appear multiple times across different runs (that is intentional).
-
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
-    Decorated with @pytest.mark.integration in tests.
-
-    Returns:
-        Number of rows appended.
-    """
-    if sqlite_mode_enabled(config):
-        rows = [_map_to_run_structured_jobs_row(row, run_id) for row in enriched]
-        db_path = _sqlite_path()
-        os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
-        with sqlite3.connect(db_path) as conn:
-            _configure_sqlite_connection(conn)
-            _ensure_sqlite_run_structured_jobs_table(conn)
-            conn.executemany(
-                """
-                INSERT INTO run_structured_jobs(run_id, job_url, payload_json, enriched_at)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(run_id, job_url) DO UPDATE SET
-                    payload_json = excluded.payload_json,
-                    enriched_at = excluded.enriched_at
-                """,
-                [
-                    (
-                        str(row["run_id"]),
-                        str(row["job_url"]),
-                        json.dumps(row, ensure_ascii=False),
-                        str(row.get("enriched_at") or ""),
-                    )
-                    for row in rows
-                ],
-            )
-            conn.commit()
-        return len(rows)
-    from google.cloud import bigquery  # type: ignore[import-untyped]
-    from google.oauth2 import service_account  # type: ignore[import-untyped]
-
-    project = str(config["gcp_project"])
-    dataset = str(config["bigquery_dataset"])
-    key_path = str(config["service_account_key"])
-
-    if key_path:
-        credentials = service_account.Credentials.from_service_account_file(key_path)
-        client = bigquery.Client(project=project, credentials=credentials)
-    else:
-        client = bigquery.Client(project=project)
-
+    """Append run-scoped enriched job rows into local sqlite table."""
     rows = [_map_to_run_structured_jobs_row(row, run_id) for row in enriched]
-
-    schema = [
-        bigquery.SchemaField(name, field_type, mode=mode)
-        for name, field_type, mode in _RUN_SCHEMA_FIELDS
-    ]
-    table_ref = f"{project}.{dataset}.run_structured_jobs"
-    job_config = bigquery.LoadJobConfig(
-        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
-        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
-        schema=schema,
-    )
-    load_job = client.load_table_from_json(rows, table_ref, job_config=job_config)
-    load_job.result()
+    db_path = _sqlite_path()
+    os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        _configure_sqlite_connection(conn)
+        _ensure_sqlite_run_structured_jobs_table(conn)
+        conn.executemany(
+            """
+            INSERT INTO run_structured_jobs(run_id, job_url, payload_json, enriched_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(run_id, job_url) DO UPDATE SET
+                payload_json = excluded.payload_json,
+                enriched_at = excluded.enriched_at
+            """,
+            [
+                (
+                    str(row["run_id"]),
+                    str(row["job_url"]),
+                    json.dumps(row, ensure_ascii=False),
+                    str(row.get("enriched_at") or ""),
+                )
+                for row in rows
+            ],
+        )
+        conn.commit()
     return len(rows)
 
 

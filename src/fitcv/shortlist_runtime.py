@@ -94,9 +94,3 @@ def build_contract_fingerprint(payload: dict[str, Any]) -> str:
     payload_json = json.dumps(canonical_payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
 
-
-def build_bigquery_client(config: dict[str, Any]) -> Any:
-    """Build BigQuery client using optional service-account key path."""
-    from fitcv.persistence import build_bigquery_client as _build_bigquery_client
-
-    return _build_bigquery_client(config)

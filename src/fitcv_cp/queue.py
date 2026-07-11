@@ -107,7 +107,7 @@ def _run_inline_job(
     attempt_id: str | None = None,
 ) -> None:
     from fitcv_cp import worker_job  # noqa: F401
-    from fitcv_cp.bq_store import append_event, update_run_status
+    from fitcv_cp.sqlite_store import append_event, update_run_status
     from fitcv_cp.models import RunEvent, RunStatus
 
     _INLINE_JOB_STATUS[job_id] = "started"
@@ -343,3 +343,4 @@ def get_queue_job_status(queue_job_id: str, redis_url: str = "redis://redis:6379
         return normalize_orchestration_status("missing")
     except Exception:
         return normalize_orchestration_status("unknown")
+

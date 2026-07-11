@@ -15,8 +15,8 @@ capabilities:
   - capability_id: pipeline_performance.explicit-rejection-reasons-in-rule-filter-results
     statement: Explicit rejection reasons in rule_filter_results
     state: active
-  - capability_id: pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
-    statement: Gemini structured output with response_schema and Pydantic
+  - capability_id: pipeline_performance.structured-output-with-json-schema-and-pydantic
+    statement: Structured output with JSON-schema parsing and Pydantic
     state: active
   - capability_id: pipeline_performance.fallback-path-for-unparseable-responses
     statement: Fallback path for unparseable responses
@@ -77,10 +77,10 @@ stage_participation:
       - pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
       - pipeline_performance.fallback-path-for-unparseable-responses
       - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
-      - pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
       - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
       - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
       - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
+      - pipeline_performance.structured-output-with-json-schema-and-pydantic
   - stage_id: rule_filter
     role: primary
     capability_ids:

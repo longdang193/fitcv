@@ -22,7 +22,7 @@ def _minimal_config() -> dict:
         },
         "cv": {
             "generation": {
-                "model": "gemini-2.5-flash",
+                "model": "cx/gpt-5.4-mini",
                 "prompt_version": "v1",
             },
             "preset": "europass",
@@ -35,7 +35,7 @@ def _minimal_config() -> dict:
             "validation": {"max_pages": 2},
             "agentic_late_stage": {"enabled": False},
         },
-        "cv_generation_model": "gemini-2.5-flash",
+        "cv_generation_model": "cx/gpt-5.4-mini",
         "required_cv_sections": ["Experience", "Skills"],
         "cv_max_pages": 2,
         "prompt_version": "v1",
@@ -170,12 +170,12 @@ def test_backfill_required_sections_from_profile_populates_missing_required_sect
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -183,12 +183,12 @@ def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_normalize: MagicMock,
-    mock_load_to_bigquery: MagicMock,
+    mock_load_raw_jobs: MagicMock,
     mock_enrich: MagicMock,
     mock_load_run_structured: MagicMock,
     mock_load_structured: MagicMock,
     mock_load_profile: MagicMock,
-    mock_load_candidate_to_bigquery: MagicMock,
+    mock_load_candidate_profile: MagicMock,
     mock_apply_rule_filters: MagicMock,
     mock_store_filter_results: MagicMock,
     mock_embed_jobs: MagicMock,
@@ -269,12 +269,12 @@ def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -282,12 +282,12 @@ def test_run_pipeline_uses_agentic_late_stage_path_under_hard_flip(
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_normalize: MagicMock,
-    mock_load_to_bigquery: MagicMock,
+    mock_load_raw_jobs: MagicMock,
     mock_enrich: MagicMock,
     mock_load_run_structured: MagicMock,
     mock_load_structured: MagicMock,
     mock_load_profile: MagicMock,
-    mock_load_candidate_to_bigquery: MagicMock,
+    mock_load_candidate_profile: MagicMock,
     mock_apply_rule_filters: MagicMock,
     mock_store_filter_results: MagicMock,
     mock_embed_jobs: MagicMock,
@@ -400,12 +400,12 @@ def test_run_pipeline_uses_agentic_late_stage_path_under_hard_flip(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -413,12 +413,12 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_normalize: MagicMock,
-    mock_load_to_bigquery: MagicMock,
+    mock_load_raw_jobs: MagicMock,
     mock_enrich: MagicMock,
     mock_load_run_structured: MagicMock,
     mock_load_structured: MagicMock,
     mock_load_profile: MagicMock,
-    mock_load_candidate_to_bigquery: MagicMock,
+    mock_load_candidate_profile: MagicMock,
     mock_apply_rule_filters: MagicMock,
     mock_store_filter_results: MagicMock,
     mock_embed_jobs: MagicMock,
@@ -632,12 +632,12 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -645,12 +645,12 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_normalize: MagicMock,
-    mock_load_to_bigquery: MagicMock,
+    mock_load_raw_jobs: MagicMock,
     mock_enrich: MagicMock,
     mock_load_run_structured: MagicMock,
     mock_load_structured: MagicMock,
     mock_load_profile: MagicMock,
-    mock_load_candidate_to_bigquery: MagicMock,
+    mock_load_candidate_profile: MagicMock,
     mock_apply_rule_filters: MagicMock,
     mock_store_filter_results: MagicMock,
     mock_embed_jobs: MagicMock,
@@ -751,12 +751,12 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_candidate_profile")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.load_raw_jobs")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
@@ -764,12 +764,12 @@ def test_run_pipeline_marks_review_required_from_markdown_quality_flags(
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_normalize: MagicMock,
-    mock_load_to_bigquery: MagicMock,
+    mock_load_raw_jobs: MagicMock,
     mock_enrich: MagicMock,
     mock_load_run_structured: MagicMock,
     mock_load_structured: MagicMock,
     mock_load_profile: MagicMock,
-    mock_load_candidate_to_bigquery: MagicMock,
+    mock_load_candidate_profile: MagicMock,
     mock_apply_rule_filters: MagicMock,
     mock_store_filter_results: MagicMock,
     mock_embed_jobs: MagicMock,
@@ -974,7 +974,7 @@ def test_generate_from_analysis_fallback_path_has_no_live_trace(
         result = generate_from_analysis(analysis_record, profile, config)
 
     assert result["status"] in {"accepted", "validation_failed"}
-    assert result["runtime_provenance"]["runtime_path"] == "fitcv_builtin_gemini"
+    assert result["runtime_provenance"]["runtime_path"] == "fitcv_cv_generation_openai_compatible"
     assert "agentic_live_trace" not in result
 
 

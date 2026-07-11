@@ -67,7 +67,7 @@ from fitcv.pipeline import (
     next_pipeline_stage,
 )
 from fitcv.tracker import create_cv_version_record
-import fitcv_cp.bq_store as bq_store_module
+import fitcv_cp.sqlite_store as sqlite_store_module
 from fitcv_cp.backend_runtime import BackendRuntime
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission, get_orchestration_adapter
@@ -113,9 +113,9 @@ from fitcv_cp.settings_schema import (
 )
 
 # Back-compat module-level store symbols (tests + patch surfaces).
-insert_run = bq_store_module.insert_run
-update_run_queue_job_id = bq_store_module.update_run_queue_job_id
-update_run_orchestration_binding = bq_store_module.update_run_orchestration_binding
+insert_run = sqlite_store_module.insert_run
+update_run_queue_job_id = sqlite_store_module.update_run_queue_job_id
+update_run_orchestration_binding = sqlite_store_module.update_run_orchestration_binding
 from fitcv_cp.settings_store import (
     bookmark_key_for_job,
     delete_bookmarked_job,
@@ -416,7 +416,7 @@ def update_run_results_export_snapshot(
 ) -> dict[str, str]:
     # ControlPlaneStore has no dedicated results_export mutator yet.
     # Persist via canonical store module path.
-    return dict(bq_store_module.update_run_results_export(
+    return dict(sqlite_store_module.update_run_results_export(
         run_id,
         results_export_json,
         bq,
@@ -6061,25 +6061,25 @@ def create_app(
         insert_run_fn=insert_run,
         update_run_queue_job_id_fn=update_run_queue_job_id,
         update_run_orchestration_binding_fn=update_run_orchestration_binding,
-        get_run_fn=bq_store_module.get_run,
-        list_runs_fn=bq_store_module.list_runs,
-        get_events_fn=bq_store_module.get_events,
-        update_run_status_fn=bq_store_module.update_run_status,
-        update_run_checkpoint_fn=bq_store_module.update_run_checkpoint,
-        request_run_cancel_fn=bq_store_module.request_run_cancel,
-        archive_run_fn=bq_store_module.archive_run,
-        unarchive_run_fn=bq_store_module.unarchive_run,
-        list_cvs_for_run_fn=bq_store_module.list_cvs_for_run,
-        get_cv_markdown_fn=bq_store_module.get_cv_markdown,
-        list_run_structured_jobs_fn=bq_store_module.list_run_structured_jobs,
-        list_filter_results_for_run_fn=bq_store_module.list_filter_results_for_run,
-        get_pipeline_runs_schema_status_fn=bq_store_module.get_pipeline_runs_schema_status,
-        append_event_fn=bq_store_module.append_event,
-        update_run_effective_settings_fn=bq_store_module.update_run_effective_settings,
-        update_run_synonym_proposals_fn=bq_store_module.update_run_synonym_proposals,
-        update_run_cv_generation_debug_fn=bq_store_module.update_run_cv_generation_debug,
-        update_run_stage_transition_artifacts_fn=bq_store_module.update_run_stage_transition_artifacts,
-        insert_cv_version_row_fn=bq_store_module.insert_cv_version_row,
+        get_run_fn=sqlite_store_module.get_run,
+        list_runs_fn=sqlite_store_module.list_runs,
+        get_events_fn=sqlite_store_module.get_events,
+        update_run_status_fn=sqlite_store_module.update_run_status,
+        update_run_checkpoint_fn=sqlite_store_module.update_run_checkpoint,
+        request_run_cancel_fn=sqlite_store_module.request_run_cancel,
+        archive_run_fn=sqlite_store_module.archive_run,
+        unarchive_run_fn=sqlite_store_module.unarchive_run,
+        list_cvs_for_run_fn=sqlite_store_module.list_cvs_for_run,
+        get_cv_markdown_fn=sqlite_store_module.get_cv_markdown,
+        list_run_structured_jobs_fn=sqlite_store_module.list_run_structured_jobs,
+        list_filter_results_for_run_fn=sqlite_store_module.list_filter_results_for_run,
+        get_pipeline_runs_schema_status_fn=sqlite_store_module.get_pipeline_runs_schema_status,
+        append_event_fn=sqlite_store_module.append_event,
+        update_run_effective_settings_fn=sqlite_store_module.update_run_effective_settings,
+        update_run_synonym_proposals_fn=sqlite_store_module.update_run_synonym_proposals,
+        update_run_cv_generation_debug_fn=sqlite_store_module.update_run_cv_generation_debug,
+        update_run_stage_transition_artifacts_fn=sqlite_store_module.update_run_stage_transition_artifacts,
+        insert_cv_version_row_fn=sqlite_store_module.insert_cv_version_row,
     )
     app = FastAPI(title="FitCV Admin Control Plane")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -11698,6 +11698,7 @@ def _run_to_dict(run: PipelineRun) -> dict:
         "cv_generation_debug_json": run.cv_generation_debug_json,
         "stage_transition_artifacts_json": run.stage_transition_artifacts_json,
     }
+
 
 
 

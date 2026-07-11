@@ -188,7 +188,6 @@ refs:
   code: []
   tests:
   - tests/test_fitcv_cp/test_app.py
-  - tests/test_fitcv_cp/test_bq_store.py
   - tests/test_fitcv_cp/test_worker_job.py
   specs:
   - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
@@ -270,6 +269,13 @@ refs:
   - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
   - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
   - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+  - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+  - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+  - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+  - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+  - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+  - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+  - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
   - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -350,6 +356,15 @@ refs:
   - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
   - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
   - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+  - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+  - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+  - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+  - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+  - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+  - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+  - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+  - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+  - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
   docs:
   - docs/features/inspection_debugging/history.md
   configs:

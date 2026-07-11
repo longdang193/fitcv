@@ -162,18 +162,6 @@ class TestBuildEmbeddingContractFingerprint:
         assert first["fingerprint"] != second["fingerprint"]
 
 
-    @patch("fitcv.embeddings.sqlite_mode_enabled", return_value=True)
-    def test_contract_changes_when_embedding_backend_changes(
-        self,
-        mock_sqlite_mode_enabled: object,
-    ) -> None:
-        del mock_sqlite_mode_enabled
-        sqlite_contract = build_embedding_contract_fingerprint({})
-
-        with patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False):
-            provider_contract = build_embedding_contract_fingerprint({})
-
-        assert sqlite_contract["fingerprint"] != provider_contract["fingerprint"]
 
 class TestEmbeddingFailurePolicy:
     def test_defaults_to_deterministic_fallback(self) -> None:
@@ -181,21 +169,6 @@ class TestEmbeddingFailurePolicy:
 
     def test_unknown_policy_falls_back_to_default(self) -> None:
         assert get_embedding_failure_policy({"embedding_failure_policy": "unknown"}) == "deterministic_fallback"
-
-    @patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False)
-    @patch("fitcv.embeddings._generate_vertex_embedding", side_effect=RuntimeError("provider down"))
-    def test_generate_embedding_raises_when_failure_policy_raise(
-        self,
-        mock_generate_vertex_embedding: object,
-        mock_sqlite_mode_enabled: object,
-    ) -> None:
-        from fitcv.embeddings import generate_embedding
-
-        with pytest.raises(RuntimeError, match="failure policy is set to raise"):
-            generate_embedding(
-                "Data Engineer",
-                {"embedding_failure_policy": EMBEDDING_FAILURE_POLICY_RAISE, "gcp_project": "p"},
-            )
 
 
 class TestBuildJobSummaryChunk:
@@ -306,20 +279,14 @@ class TestBuildCandidateChunks:
         assert build_candidate_chunks(profile) == []
 
 
-@patch("google.cloud.bigquery.Client")
-@patch("google.oauth2.service_account.Credentials.from_service_account_file")
 @patch("fitcv.embeddings.generate_embedding")
 def test_embed_and_store_jobs_returns_zero_for_empty_batch(
     mock_generate_embedding: object,
-    mock_from_service_account_file: object,
-    mock_bigquery_client: object,
 ) -> None:
     from fitcv.embeddings import embed_and_store_jobs
 
     config = {
         "gcp_project": "fitcv-test",
-        "bigquery_dataset": "fitcv",
-        "service_account_key": "/tmp/fake.json",
         "embedding_failure_policy": EMBEDDING_FAILURE_POLICY_RAISE,
     }
 
@@ -327,217 +294,14 @@ def test_embed_and_store_jobs_returns_zero_for_empty_batch(
 
     assert inserted == 0
     mock_generate_embedding.assert_not_called()
-    mock_from_service_account_file.assert_not_called()
-    mock_bigquery_client.assert_not_called()
 
 
-@patch("google.cloud.bigquery.Client")
-@patch("google.oauth2.service_account.Credentials.from_service_account_file")
-@patch("fitcv.embeddings.generate_embedding")
-@patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False)
-def test_embed_and_store_jobs_does_not_delete_existing_rows_before_insert(
-    mock_sqlite_mode_enabled: object,
-    mock_generate_embedding: object,
-    mock_from_service_account_file: object,
-    mock_bigquery_client: object,
-) -> None:
-    from fitcv.embeddings import embed_and_store_jobs
-
-    mock_generate_embedding.return_value = [0.1, 0.2]
-    client = mock_bigquery_client.return_value
-    client.insert_rows_json.return_value = []
-
-    config = {
-        "gcp_project": "fitcv-test",
-        "bigquery_dataset": "fitcv",
-        "service_account_key": "/tmp/fake.json",
-        "embedding_failure_policy": EMBEDDING_FAILURE_POLICY_RAISE,
-    }
-    jobs = [{"job_url": "https://example.com/1", "title": "DE", "required_skills": []}]
-
-    inserted = embed_and_store_jobs(jobs, config)
-
-    assert inserted == 1
-    client.query.assert_called_once()
-    assert client.query.call_args.kwargs.get("job_config") is not None
-    assert "DELETE" not in client.query.call_args.args[0]
-    client.insert_rows_json.assert_called_once()
 
 
-@patch("google.cloud.bigquery.Client")
-@patch("google.oauth2.service_account.Credentials.from_service_account_file")
-@patch("fitcv.embeddings.generate_embedding")
-@patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False)
-def test_embed_and_store_jobs_reuses_matching_latest_embeddings_and_only_inserts_misses(
-    mock_sqlite_mode_enabled: object,
-    mock_generate_embedding: object,
-    mock_from_service_account_file: object,
-    mock_bigquery_client: object,
-) -> None:
-    """@proves pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
-    @proves pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
-    """
-    from fitcv.embeddings import embed_and_store_jobs
 
-    client = mock_bigquery_client.return_value
-    client.insert_rows_json.return_value = []
-
-    config = {
-        "gcp_project": "fitcv-test",
-        "bigquery_dataset": "fitcv",
-        "service_account_key": "/tmp/fake.json",
-        "embedding_failure_policy": EMBEDDING_FAILURE_POLICY_RAISE,
-    }
-    jobs = [
-        {
-            "job_url": "https://example.com/1",
-            "title": "Data Engineer",
-            "location_type": "remote",
-            "required_skills_canonical": ["sql", "python"],
-            "preferred_skills_canonical": ["dbt"],
-            "seniority": "mid",
-            "job_family": "analytics",
-        },
-        {
-            "job_url": "https://example.com/2",
-            "title": "Analytics Engineer",
-            "location_type": "hybrid",
-            "required_skills_canonical": ["sql", "dbt"],
-            "preferred_skills_canonical": ["apache airflow"],
-            "seniority": "mid",
-            "job_family": "analytics",
-        },
-    ]
-
-    reused_signature = build_job_summary_signature_record(jobs[0])
-    contract = build_embedding_contract_fingerprint(config)
-    client.query.return_value.result.return_value = [
-        SimpleNamespace(
-            job_url=jobs[0]["job_url"],
-            embedding_input_signature=reused_signature["signature"],
-            embedding_contract_fingerprint=contract["fingerprint"],
-        ),
-        SimpleNamespace(
-            job_url=jobs[1]["job_url"],
-            embedding_input_signature="stale-signature",
-            embedding_contract_fingerprint=contract["fingerprint"],
-        ),
-    ]
-    mock_generate_embedding.return_value = [0.1, 0.2]
-
-    inserted = embed_and_store_jobs(jobs, config)
-
-    assert inserted == 1
-    mock_generate_embedding.assert_called_once()
-    client.insert_rows_json.assert_called_once()
-    inserted_rows = client.insert_rows_json.call_args.args[1]
-    assert inserted_rows == [
-        {
-            "job_url": "https://example.com/2",
-            "chunk_type": "job_summary",
-            "chunk_text": build_job_summary_chunk(jobs[1])[0]["chunk_text"],
-            "embedding": [0.1, 0.2],
-            "created_at": inserted_rows[0]["created_at"],
-            "embedding_input_signature": build_job_summary_signature_record(jobs[1])["signature"],
-            "embedding_contract_fingerprint": contract["fingerprint"],
-            "embedding_input_signature_payload_json": inserted_rows[0]["embedding_input_signature_payload_json"],
-        }
-    ]
-    assert jobs[0]["embedding_reuse_status"] == REUSED_CACHED_EMBEDDING_STATUS
-    assert jobs[0]["embedding_input_signature"] == reused_signature["signature"]
-    assert jobs[0]["embedding_contract_fingerprint"] == contract["fingerprint"]
-    assert jobs[1]["embedding_reuse_status"] == FRESH_EMBEDDING_STATUS
-    assert jobs[1]["embedding_contract_fingerprint"] == contract["fingerprint"]
-
-
-@patch("google.cloud.bigquery.Client")
-@patch("google.oauth2.service_account.Credentials.from_service_account_file")
-@patch("fitcv.embeddings.generate_embedding")
-@patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False)
-def test_embed_and_store_jobs_does_not_reuse_cached_rows_when_provider_can_fallback_locally(
-    mock_sqlite_mode_enabled: object,
-    mock_generate_embedding: object,
-    mock_from_service_account_file: object,
-    mock_bigquery_client: object,
-) -> None:
-    from fitcv.embeddings import embed_and_store_jobs
-
-    client = mock_bigquery_client.return_value
-    client.insert_rows_json.return_value = []
-
-    config = {
-        "gcp_project": "fitcv-test",
-        "bigquery_dataset": "fitcv",
-        "service_account_key": "/tmp/fake.json",
-    }
-    jobs = [
-        {
-            "job_url": "https://example.com/unsafe-reuse",
-            "title": "Data Engineer",
-            "required_skills_canonical": ["sql", "python"],
-            "preferred_skills_canonical": ["dbt"],
-            "seniority": "mid",
-            "job_family": "analytics",
-        },
-    ]
-
-    reused_signature = build_job_summary_signature_record(jobs[0])
-    contract = build_embedding_contract_fingerprint(config)
-    client.query.return_value.result.return_value = [
-        SimpleNamespace(
-            job_url=jobs[0]["job_url"],
-            embedding_input_signature=reused_signature["signature"],
-            embedding_contract_fingerprint=contract["fingerprint"],
-        ),
-    ]
-    mock_generate_embedding.return_value = [0.1, 0.2]
-
-    inserted = embed_and_store_jobs(jobs, config)
-
-    assert inserted == 1
-    mock_generate_embedding.assert_called_once()
-    client.insert_rows_json.assert_called_once()
-    assert jobs[0]["embedding_reuse_status"] == FRESH_EMBEDDING_STATUS
-
-@patch("google.cloud.bigquery.Client")
-@patch("google.oauth2.service_account.Credentials.from_service_account_file")
-@patch("fitcv.embeddings.generate_embedding")
-@patch("fitcv.embeddings.sqlite_mode_enabled", return_value=False)
-def test_embed_and_store_jobs_handles_apostrophe_url_in_metadata_lookup(
-    mock_sqlite_mode_enabled: object,
-    mock_generate_embedding: object,
-    mock_from_service_account_file: object,
-    mock_bigquery_client: object,
-) -> None:
-    from fitcv.embeddings import embed_and_store_jobs
-
-    client = mock_bigquery_client.return_value
-    client.insert_rows_json.return_value = []
-    client.query.return_value.result.return_value = []
-    mock_generate_embedding.return_value = [0.1, 0.2]
-
-    config = {
-        "gcp_project": "fitcv-test",
-        "bigquery_dataset": "fitcv",
-        "service_account_key": "/tmp/fake.json",
-        "embedding_failure_policy": EMBEDDING_FAILURE_POLICY_RAISE,
-    }
-    jobs = [{"job_url": "https://example.com/o'hara", "title": "DE", "required_skills": []}]
-
-    inserted = embed_and_store_jobs(jobs, config)
-
-    assert inserted == 1
-    assert client.query.call_count == 1
-    assert "UNNEST(@job_urls)" in client.query.call_args.args[0]
-
-
-# ── integration tests (require GOOGLE_APPLICATION_CREDENTIALS) ────────────────
-
-@pytest.mark.integration
-def test_generate_embedding_returns_floats(config: dict) -> None:
-    """Integration — calls Vertex AI text-embedding-005."""
+def test_generate_embedding_returns_floats() -> None:
     from fitcv.embeddings import generate_embedding
-    result = generate_embedding("Data Engineer with SQL and Python skills", config)
+    result = generate_embedding("Data Engineer with SQL and Python skills", {})
     assert isinstance(result, list)
     assert len(result) > 0
     assert all(isinstance(v, float) for v in result)

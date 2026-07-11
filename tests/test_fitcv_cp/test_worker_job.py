@@ -24,8 +24,8 @@ from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import pytest
 
 @pytest.fixture(autouse=True)
-def _force_bigquery_mode(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
+def _force_sqlite_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", "data/fitcv_cp.sqlite3")
 
 def test_execute_cv_regenerate_once_updates_target_record_and_emits_success() -> None:
     from fitcv_cp.worker_job import execute_cv_regenerate_once
@@ -230,7 +230,7 @@ def test_worker_persists_terminal_artifact_mirror_for_succeeded_run(tmp_path: Pa
     assert payload["run_id"] == "r-mirror-1"
 
 
-def test_worker_sqlite_mode_skips_bigquery_client_bootstrap():
+def test_worker_uses_local_runtime_without_remote_client_bootstrap():
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     with patch(
@@ -243,7 +243,7 @@ def test_worker_sqlite_mode_skips_bigquery_client_bootstrap():
         ),
     ), patch(
         "fitcv_cp.worker_job._get_bq",
-        side_effect=RuntimeError("should not build bigquery client in sqlite mode"),
+        side_effect=RuntimeError("should not build remote client in sqlite mode"),
     ), patch(
         "fitcv_cp.worker_job.get_run",
         return_value=mock_run,
@@ -314,39 +314,23 @@ def test_worker_results_export_keeps_ai_plane_payload_equivalent_across_backends
             execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
         return json.loads(mock_store_export.call_args.args[1])
 
-    bigquery_payload = _capture_results_export("bigquery")
+    legacy_payload = _capture_results_export("legacy")
     sqlite_payload = _capture_results_export("sqlite")
 
-    assert bigquery_payload["data_plane"]["state_backend"] == sqlite_payload["data_plane"]["state_backend"]
+    assert legacy_payload["data_plane"]["state_backend"] == sqlite_payload["data_plane"]["state_backend"]
     # Allowed backend-only diff set: persistence substrate metadata.
-    bq_normalized = deepcopy(bigquery_payload)
+    legacy_normalized = deepcopy(legacy_payload)
     sqlite_normalized = deepcopy(sqlite_payload)
-    bq_normalized["data_plane"]["state_backend"] = "<backend>"
+    legacy_normalized["data_plane"]["state_backend"] = "<backend>"
     sqlite_normalized["data_plane"]["state_backend"] = "<backend>"
-    bq_normalized["data_plane"]["artifact_backend"] = "<artifact_backend>"
+    legacy_normalized["data_plane"]["artifact_backend"] = "<artifact_backend>"
     sqlite_normalized["data_plane"]["artifact_backend"] = "<artifact_backend>"
-    bq_normalized["finished_at"] = "<finished_at>"
+    legacy_normalized["finished_at"] = "<finished_at>"
     sqlite_normalized["finished_at"] = "<finished_at>"
 
-    assert bq_normalized == sqlite_normalized
+    assert legacy_normalized == sqlite_normalized
 
 
-def test_worker_normalizes_windows_service_account_key_in_non_windows_runtime():
-    from fitcv_cp.worker_job import _normalize_runtime_service_account_key
-
-    effective_config = {
-        "service_account_key": "C:\\Users\\someone\\fitcv-key.json",
-        "gcp_project": "fitcv-491123",
-        "bigquery_dataset": "fitcv",
-    }
-
-    with patch("fitcv_cp.worker_job.os.name", "posix"), \
-         patch.dict("fitcv_cp.worker_job.os.environ", {"GOOGLE_APPLICATION_CREDENTIALS": "/app/sa_key.json"}, clear=False), \
-         patch("fitcv_cp.worker_job.Path") as mock_path:
-        mock_path.return_value.exists.return_value = True
-        normalized = _normalize_runtime_service_account_key(effective_config, run_id="r1")
-
-    assert normalized["service_account_key"] == "/app/sa_key.json"
 
 
 def test_worker_persists_results_export_json_on_success():
@@ -485,7 +469,7 @@ def test_worker_persists_compact_cv_fields_in_results_export_json():
                 "cv": {
                     "version_id": "v1",
                     "ranking_fit_label": "strong",
-                    "model_used": "gemini-2.5-pro",
+                    "model_used": "cx/gpt-5.5",
                     "schema_version": "cv_doc_v1",
                     "created_at": "2026-03-29T12:00:00+00:00",
                 },
@@ -501,7 +485,7 @@ def test_worker_persists_compact_cv_fields_in_results_export_json():
     assert payload["results"][0]["source_stage"] == "cv_generation"
     assert payload["results"][0]["decision_chain"]["primary_fit"]["label"] == "strong"
     assert payload["results"][0]["cv"]["ranking_fit_label"] == "strong"
-    assert payload["results"][0]["cv"]["model_used"] == "gemini-2.5-pro"
+    assert payload["results"][0]["cv"]["model_used"] == "cx/gpt-5.5"
     assert payload["results"][0]["cv"]["schema_version"] == "cv_doc_v1"
     assert "structured" not in payload["results"][0]["cv"]
     assert "markdown" not in payload["results"][0]["cv"]
@@ -1120,7 +1104,7 @@ def test_worker_persists_settings_used_json_on_success():
     mock_run = MagicMock()
     mock_run.effective_settings_json = json.dumps({
         "pipeline": {"final_top_n": 10},
-        "cv": {"generation": {"model": "gemini-2.5-flash"}},
+        "cv": {"generation": {"model": "cx/gpt-5.4-mini"}},
         "prompts_runtime": {
             "enrich": {
                 "extraction": {
@@ -1178,7 +1162,7 @@ def test_worker_settings_used_export_canonicalizes_legacy_compatibility_keys():
         "cv_generation_model": "legacy-model",
         "cv_max_pages": 3,
         "pipeline": {"vector_search_top_n": 50, "ai_score_top_n": 10, "final_top_n": 5},
-        "cv": {"generation": {"model": "gemini-2.5-flash"}, "validation": {"max_pages": 2}},
+        "cv": {"generation": {"model": "cx/gpt-5.4-mini"}, "validation": {"max_pages": 2}},
         "prompts_runtime": {
             "ranking": {"ai_score": {"prompt_id": "ranking.ai_score.v1", "template_path": "ranking.md"}},
         },
@@ -1868,12 +1852,11 @@ def test_worker_error_event_has_correct_level():
     assert any(getattr(ev, "level", "") == "error" and getattr(ev, "stage", "") == "pipeline_failed" for ev in events)
 
 
-def test_worker_uses_effective_settings_not_bq_settings():
-    """Worker must use the stored effective_settings_json, not re-read BQ settings."""
+def test_worker_uses_effective_settings_snapshot():
+    """Worker must use stored effective_settings_json without rebuilding runtime config."""
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
-    effective = {"pipeline": {"final_top_n": 5}, "gcp_project": "p",
-                 "bigquery_dataset": "d", "service_account_key": "k"}
+    effective = {"pipeline": {"final_top_n": 5}, "gcp_project": "p"}
     mock_run = MagicMock()
     mock_run.effective_settings_json = json.dumps(effective)
     mock_run.cancel_requested_at = None
@@ -2135,8 +2118,6 @@ def test_worker_manual_resume_uses_uploaded_run_scoped_synonym_overlay() -> None
     mock_run = MagicMock()
     mock_run.effective_settings_json = json.dumps({
         "gcp_project": "p",
-        "bigquery_dataset": "d",
-        "service_account_key": "k",
         "skill_synonyms": {
             "gcp": "google cloud",
             "ga4": "google analytics",
@@ -2853,6 +2834,7 @@ def test_build_stage_transition_artifacts_payload_dict_has_required_shape() -> N
     assert payload["artifact_schema_version"] == STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION
     assert payload["created_at"] == finished_at.isoformat()
     assert isinstance(payload["artifacts"], dict)
+
 
 
 

@@ -27,9 +27,9 @@ class ValidationError(ValueError):
 
 
 _CV_GENERATION_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-pro",
+    "cx/gpt-5.2",
+    "cx/gpt-5.4-mini",
+    "cx/gpt-5.5",
 ]
 _CV_PRESET_OPTIONS = sorted(SUPPORTED_PRESETS)
 _RULE_FILTER_SELECTABLE_OPTIONS = [str(item["code"]) for item in RULE_FILTER_SIGNALS]
@@ -647,7 +647,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "cv_generation_model",
         "type": "str",
-        "default": "gemini-2.5-flash",
+        "default": "cx/gpt-5.4-mini",
         "label": "CV Generation Model",
         "description": "Choose the model that writes final CV content for future runs.",
         "options": _CV_GENERATION_MODELS,

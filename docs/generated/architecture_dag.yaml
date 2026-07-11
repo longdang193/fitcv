@@ -18,13 +18,13 @@ nodes:
   feature_id: admin_control_plane_core
   state: active
   path: docs/features/admin_control_plane_core/lineage.generated.yaml
-- id: admin_control_plane_core.pipeline-run-events-bigquery-table
+- id: admin_control_plane_core.pipeline-run-events-sqlite-store
   type: capability
   kind: capability
   feature_id: admin_control_plane_core
   state: active
   path: docs/features/admin_control_plane_core/lineage.generated.yaml
-- id: admin_control_plane_core.pipeline-runs-bigquery-table
+- id: admin_control_plane_core.pipeline-runs-sqlite-store
   type: capability
   kind: capability
   feature_id: admin_control_plane_core
@@ -318,7 +318,7 @@ nodes:
   feature_id: pipeline_performance
   state: active
   path: docs/features/pipeline_performance/lineage.generated.yaml
-- id: pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
+- id: pipeline_performance.structured-output-with-json-schema-and-pydantic
   type: capability
   kind: capability
   feature_id: pipeline_performance
@@ -438,12 +438,6 @@ nodes:
   feature_id: settings_system
   state: active
   path: docs/features/settings_system/lineage.generated.yaml
-- id: settings_system.bigquery-backed-pipeline-settings-store
-  type: capability
-  kind: capability
-  feature_id: settings_system
-  state: active
-  path: docs/features/settings_system/lineage.generated.yaml
 - id: settings_system.compact-cv-visibility-controls
   type: capability
   kind: capability
@@ -529,6 +523,12 @@ nodes:
   state: active
   path: docs/features/settings_system/lineage.generated.yaml
 - id: settings_system.settings-used-exports
+  type: capability
+  kind: capability
+  feature_id: settings_system
+  state: active
+  path: docs/features/settings_system/lineage.generated.yaml
+- id: settings_system.sqlite-backed-pipeline-settings-store
   type: capability
   kind: capability
   feature_id: settings_system
@@ -808,10 +808,10 @@ edges:
   to: admin_control_plane_core.jinja2-admin-pages
   type: owns_capability
 - from: admin_control_plane_core
-  to: admin_control_plane_core.pipeline-run-events-bigquery-table
+  to: admin_control_plane_core.pipeline-run-events-sqlite-store
   type: owns_capability
 - from: admin_control_plane_core
-  to: admin_control_plane_core.pipeline-runs-bigquery-table
+  to: admin_control_plane_core.pipeline-runs-sqlite-store
   type: owns_capability
 - from: admin_control_plane_core
   to: admin_control_plane_core.pipelinereporter-integration
@@ -1200,7 +1200,7 @@ edges:
   to: pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
   type: owns_capability
 - from: pipeline_performance
-  to: pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
+  to: pipeline_performance.structured-output-with-json-schema-and-pydantic
   type: owns_capability
 - from: pipeline_performance
   to: pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
@@ -1245,7 +1245,7 @@ edges:
   - pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
   - pipeline_performance.fallback-path-for-unparseable-responses
   - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
-  - pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
+  - pipeline_performance.structured-output-with-json-schema-and-pydantic
   - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
   - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
   - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
@@ -1405,9 +1405,6 @@ edges:
   to: settings_system.baseline-default-hydration
   type: owns_capability
 - from: settings_system
-  to: settings_system.bigquery-backed-pipeline-settings-store
-  type: owns_capability
-- from: settings_system
   to: settings_system.compact-cv-visibility-controls
   type: owns_capability
 - from: settings_system
@@ -1451,6 +1448,9 @@ edges:
   type: owns_capability
 - from: settings_system
   to: settings_system.settings-used-exports
+  type: owns_capability
+- from: settings_system
+  to: settings_system.sqlite-backed-pipeline-settings-store
   type: owns_capability
 - from: settings_system
   to: settings_system.task-first-settings-ui

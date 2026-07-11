@@ -9,7 +9,6 @@ covers:
   - compute_gap: matched/partial/missing classification, years_risk, overclaim_risk
   - classify_fit: config-driven strong/stretch/skip thresholds
 excludes:
-  - BigQuery integration (store_gap_analysis)
 tags:
   - fast
   - ci-safe
@@ -359,7 +358,6 @@ def test_store_gap_analysis_writes_sqlite_row(
     from fitcv.gap_analysis import store_gap_analysis
 
     db_path = tmp_path / "fitcv_cp.sqlite3"
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
 
     gap = {
@@ -394,62 +392,3 @@ def test_store_gap_analysis_writes_sqlite_row(
     assert json.loads(str(row[5])) == ["years_gap: candidate has 3 years, 5 required"]
 
 
-def test_store_gap_analysis_bigquery_mode_uses_bigquery_client(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    import sys
-    import types
-
-    from fitcv.gap_analysis import store_gap_analysis
-
-    calls: dict[str, object] = {}
-
-    class FakeCredentials:
-        @staticmethod
-        def from_service_account_file(path: str) -> str:
-            calls["credential_path"] = path
-            return "fake-creds"
-
-    class FakeClient:
-        def __init__(self, *, project: str, credentials: object) -> None:
-            calls["project"] = project
-            calls["credentials"] = credentials
-
-        def insert_rows_json(self, table_ref: str, rows: list[dict[str, object]]) -> list[object]:
-            calls["table_ref"] = table_ref
-            calls["rows"] = rows
-            return []
-
-    fake_bigquery = types.SimpleNamespace(Client=FakeClient)
-    fake_service_account = types.SimpleNamespace(Credentials=FakeCredentials)
-    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
-    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
-    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
-    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-
-    store_gap_analysis(
-        "https://example.com/job-2",
-        {
-            "matched": ["SQL"],
-            "partial": [{"required": "Google Cloud", "candidate": "GCP", "canonical": "google cloud"}],
-            "missing": [],
-            "years_risk": False,
-            "overclaim_risk": [],
-        },
-        config={
-            "gcp_project": "demo-project",
-            "bigquery_dataset": "fitcv",
-            "service_account_key": "C:/fake/key.json",
-        },
-    )
-
-    assert calls["credential_path"] == "C:/fake/key.json"
-    assert calls["project"] == "demo-project"
-    assert calls["table_ref"] == "demo-project.fitcv.gap_analysis"
-    rows = calls["rows"]
-    assert isinstance(rows, list)
-    assert rows[0]["job_url"] == "https://example.com/job-2"
-    assert rows[0]["partial_skills"] == [
-        '{"required": "Google Cloud", "candidate": "GCP", "canonical": "google cloud"}'
-    ]

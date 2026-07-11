@@ -26,7 +26,7 @@ def test_build_langgraph_env_overrides_uses_cv_generation_route_consistently() -
         if part == "enrich_extraction":
             return {
                 "provider": "vertexai_gemini",
-                "model": "gemini-2.5-flash",
+                "model": "cx/gpt-5.4-mini",
                 "base_url": "",
                 "wire_api": "",
             }
@@ -70,7 +70,7 @@ def test_resolve_cv_generation_runtime_provenance_builtin_provider() -> None:
         "fitcv.runtime_routing.resolve_model_routing_part",
         return_value={
             "provider": "vertexai_gemini",
-            "model": "gemini-2.5-flash",
+            "model": "cx/gpt-5.4-mini",
             "base_url": "",
             "wire_api": "",
         },
@@ -78,7 +78,7 @@ def test_resolve_cv_generation_runtime_provenance_builtin_provider() -> None:
         provenance = resolve_cv_generation_runtime_provenance({}, default_model="fallback-model")
     assert provenance["runtime_path"] == "fitcv_cv_generation_builtin"
     assert provenance["provider"] == "vertexai_gemini"
-    assert provenance["model"] == "gemini-2.5-flash"
+    assert provenance["model"] == "cx/gpt-5.4-mini"
 
 
 def test_resolve_cv_generation_runtime_provenance_falls_back_on_routing_error() -> None:
@@ -116,7 +116,7 @@ def test_validate_cv_generation_routing_ready_builtin_provider_no_api_key_needed
         "fitcv.runtime_routing.resolve_model_routing_part",
         return_value={
             "provider": "vertexai_gemini",
-            "model": "gemini-2.5-flash",
+            "model": "cx/gpt-5.4-mini",
             "base_url": "",
             "wire_api": "",
         },

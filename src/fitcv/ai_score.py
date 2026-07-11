@@ -28,12 +28,11 @@ from typing import Any
 from types import SimpleNamespace
 
 from fitcv.config import (
-    get_gemini_model,
+    get_ranking_ai_score_model,
     get_ranking_prompt_id,
     get_stage_runtime_concurrency,
     get_stage_runtime_sleep_secs,
     resolve_model_routing_part,
-    sqlite_mode_enabled,
 )
 from fitcv.contracts import RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION
 from fitcv.openai_compat import (
@@ -41,7 +40,7 @@ from fitcv.openai_compat import (
     extract_openai_chat_completions_text,
     extract_openai_responses_text as _extract_openai_responses_text,
 )
-from fitcv.persistence import build_bigquery_client, get_local_sqlite_path
+from fitcv.persistence import get_local_sqlite_path
 from fitcv.prompts import render_prompt
 from fitcv.ranking_contract import (
     DEFAULT_FIT_LABEL_STRONG_THRESHOLD,
@@ -66,7 +65,7 @@ def _stable_json_fingerprint(payload: dict[str, Any]) -> str:
 def build_ai_score_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
     thresholds = dict(config.get("fit_label_thresholds") or {})
     payload = {
-        "gemini_model": get_gemini_model(config),
+        "ai_score_model": get_ranking_ai_score_model(config),
         "prompt_schema_version": RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION,
         "prompt_id": get_ranking_prompt_id(config),
         "strong_threshold": float(thresholds.get("strong", DEFAULT_FIT_LABEL_STRONG_THRESHOLD)),
@@ -220,18 +219,10 @@ def parse_score_response(response_text: str, config: dict[str, Any] | None = Non
 # ── integration: score one job ────────────────────────────────────────────────
 
 def _make_genai_client(config: dict[str, Any]) -> Any:
-    """Return a google.genai Client.
-
-    Priority:
-    1. GEMINI_API_KEY env var  → uses Gemini API (generativelanguage.googleapis.com)
-       - Instant access, no Vertex AI Model Garden approval needed.
-       - Get a key at https://aistudio.google.com/apikey
-    2. GOOGLE_APPLICATION_CREDENTIALS → uses Vertex AI endpoint
-       - Requires Vertex AI publisher model access for the project.
-    """
+    """Return routed OpenAI-compatible client for ranking stage."""
     import httpx
 
-    routing = resolve_model_routing_part("ranking_ai_score", model_fallback=get_gemini_model(config))
+    routing = resolve_model_routing_part("ranking_ai_score", model_fallback=get_ranking_ai_score_model(config))
 
     provider_name = str(routing.get("provider") or "").strip().lower()
     allowed_http_providers = {"openai", "openai_compatible", "9router"}
@@ -246,13 +237,14 @@ def _make_genai_client(config: dict[str, Any]) -> Any:
         if not base_url:
             raise RuntimeError("OpenAI-compatible reranker routing requires provider base_url in control-plane config.")
         api_key = (
-            str(os.environ.get("OPENAI_API_KEY") or "").strip()
+            str(os.environ.get("FITCV_LLM_API_KEY") or "").strip()
+            or str(os.environ.get("OPENAI_API_KEY") or "").strip()
             or str(os.environ.get("OPENAI_COMPATIBLE_API_KEY") or "").strip()
         )
         if not api_key:
             raise RuntimeError(
                 "Config-routed OpenAI-compatible provider for ranking_ai_score requires API key in env "
-                "(OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY)."
+                "(FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY)."
             )
         wire_api = str(routing.get("wire_api") or "").strip().lower() or "responses"
         timeout_seconds = float(str(routing.get("timeout_seconds") or "").strip() or "120")
@@ -319,11 +311,7 @@ def score_job(
     top_evidence: list[str],
     config: dict[str, Any],
 ) -> dict[str, Any]:
-    """Score one job via Gemini and return a parsed score dict.
-
-    Auth priority: GEMINI_API_KEY > GOOGLE_APPLICATION_CREDENTIALS (Vertex AI).
-    See _make_genai_client() for details.
-    """
+    """Score one job via routed provider and return a parsed score dict."""
     from fitcv.embeddings import build_job_summary_text
 
     jd_summary = build_job_summary_text(job)
@@ -337,7 +325,7 @@ def score_job(
         config=config,
     )
 
-    model_name = get_gemini_model(config)
+    model_name = get_ranking_ai_score_model(config)
     client = _make_genai_client(config)
     response = client.models.generate_content(model=model_name, contents=prompt)
     raw_text = str(response.text or "")
@@ -365,7 +353,7 @@ def run_ai_scoring(
                structured JD fields). Each item may optionally include
                "top_evidence" (list[str]).
 
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
+    Requires routed OpenAI-compatible provider config and API key.
     """
     import time
 
@@ -454,73 +442,47 @@ def store_ai_scores(
     scores: list[dict[str, Any]],
     config: dict[str, Any],
 ) -> None:
-    """Insert AI scoring results into fitcv.ai_score_results."""
+    """Insert AI scoring results into local sqlite store."""
     if not scores:
         return
 
     now = datetime.now(tz=timezone.utc).isoformat()
-
-    if sqlite_mode_enabled(config):
-        db_path = Path(get_local_sqlite_path())
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(db_path) as conn:
-            _ensure_local_ai_score_results_table(conn)
-            conn.executemany(
-                """
-                INSERT INTO ai_score_results(
-                    job_url,
-                    ai_score,
-                    fit_label,
-                    score_reasoning,
-                    matched_strengths_json,
-                    key_risks_json,
-                    scored_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(job_url) DO UPDATE SET
-                    ai_score = excluded.ai_score,
-                    fit_label = excluded.fit_label,
-                    score_reasoning = excluded.score_reasoning,
-                    matched_strengths_json = excluded.matched_strengths_json,
-                    key_risks_json = excluded.key_risks_json,
-                    scored_at = excluded.scored_at
-                """,
-                [
-                    (
-                        str(score["job_url"]),
-                        float(score["ai_score"]),
-                        str(score["fit_label"]),
-                        str(score.get("score_reasoning") or ""),
-                        json.dumps(list(score.get("matched_strengths") or []), ensure_ascii=False),
-                        json.dumps(list(score.get("key_risks") or []), ensure_ascii=False),
-                        now,
-                    )
-                    for score in scores
-                ],
+    db_path = Path(get_local_sqlite_path())
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        _ensure_local_ai_score_results_table(conn)
+        conn.executemany(
+            """
+            INSERT INTO ai_score_results(
+                job_url,
+                ai_score,
+                fit_label,
+                score_reasoning,
+                matched_strengths_json,
+                key_risks_json,
+                scored_at
             )
-            conn.commit()
-        return
-
-
-    project = str(config["gcp_project"])
-    dataset = str(config["bigquery_dataset"])
-    client = build_bigquery_client(config)
-    table_ref = f"{project}.{dataset}.ai_score_results"
-
-    rows = [
-        {
-            "job_url": s["job_url"],
-            "ai_score": s["ai_score"],
-            "fit_label": s["fit_label"],
-            "score_reasoning": s.get("score_reasoning", ""),
-            "matched_strengths": s.get("matched_strengths", []),
-            "key_risks": s.get("key_risks", []),
-            "scored_at": now,
-        }
-        for s in scores
-    ]
-
-    errors = client.insert_rows_json(table_ref, rows)
-    if errors:
-        raise RuntimeError(f"BigQuery insert errors for ai_score_results: {errors}")
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(job_url) DO UPDATE SET
+                ai_score = excluded.ai_score,
+                fit_label = excluded.fit_label,
+                score_reasoning = excluded.score_reasoning,
+                matched_strengths_json = excluded.matched_strengths_json,
+                key_risks_json = excluded.key_risks_json,
+                scored_at = excluded.scored_at
+            """,
+            [
+                (
+                    str(score["job_url"]),
+                    float(score["ai_score"]),
+                    str(score["fit_label"]),
+                    str(score.get("score_reasoning") or ""),
+                    json.dumps(list(score.get("matched_strengths") or []), ensure_ascii=False),
+                    json.dumps(list(score.get("key_risks") or []), ensure_ascii=False),
+                    now,
+                )
+                for score in scores
+            ],
+        )
+        conn.commit()
 

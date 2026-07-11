@@ -45,7 +45,6 @@ if (-not (Test-Path -LiteralPath $pythonExe)) { $pythonExe = "python" }
 
 $env:PYTHONPATH = "src"
 $env:REDIS_URL = $RedisUrl
-$env:FITCV_CP_DATA_BACKEND = "sqlite"
 if (-not $env:FITCV_OTEL_ENABLED) { $env:FITCV_OTEL_ENABLED = "true" }
 if (-not $env:FITCV_LANGFUSE_PROJECT_PUBLIC_KEY) { $env:FITCV_LANGFUSE_PROJECT_PUBLIC_KEY = "pk-lf-localdev" }
 if (-not $env:FITCV_LANGFUSE_PROJECT_SECRET_KEY) { $env:FITCV_LANGFUSE_PROJECT_SECRET_KEY = "sk-lf-localdev-secret" }

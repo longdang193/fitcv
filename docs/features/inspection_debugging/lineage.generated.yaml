@@ -106,6 +106,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -186,6 +193,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -302,6 +318,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -382,6 +405,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -492,6 +524,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -572,6 +611,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -688,6 +736,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -768,6 +823,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -878,6 +942,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -958,6 +1029,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -983,12 +1063,6 @@ capabilities:
       - python_proves
       symbols:
       - test_download_settings_used_json_endpoint_200
-    - path: tests/test_fitcv_cp/test_bq_store.py
-      confidence: high
-      source:
-      - python_proves
-      symbols:
-      - test_update_run_settings_used_updates_only_settings_snapshot_field
     - path: tests/test_fitcv_cp/test_worker_job.py
       confidence: high
       source:
@@ -1086,6 +1160,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1166,6 +1247,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1191,18 +1281,6 @@ capabilities:
       - python_proves
       symbols:
       - test_run_detail_enriched_shows_pipeline_outcome_for_reranker_blocked_job
-    - path: tests/test_fitcv_cp/test_bq_store.py
-      confidence: high
-      source:
-      - python_proves
-      symbols:
-      - test_row_to_run_maps_results_export_json
-    - path: tests/test_fitcv_cp/test_bq_store.py
-      confidence: high
-      source:
-      - python_proves
-      symbols:
-      - test_update_run_results_export_uses_parameterized_query
     - path: tests/test_fitcv_cp/test_worker_job.py
       confidence: high
       source:
@@ -1300,6 +1378,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1380,6 +1465,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1399,12 +1493,6 @@ capabilities:
       - python_proves
       symbols:
       - test_download_stage_transition_artifacts_json_endpoint_200
-    - path: tests/test_fitcv_cp/test_bq_store.py
-      confidence: high
-      source:
-      - python_proves
-      symbols:
-      - test_update_run_stage_transition_artifacts_updates_only_stage_artifacts_field
     - path: tests/test_fitcv_cp/test_worker_job.py
       confidence: high
       source:
@@ -1502,6 +1590,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1582,6 +1677,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1697,6 +1801,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1777,6 +1888,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1887,6 +2007,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1967,6 +2094,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2077,6 +2213,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2157,6 +2300,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2273,6 +2425,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2353,6 +2512,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2469,6 +2637,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2549,6 +2724,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2671,6 +2855,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2751,6 +2942,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2867,6 +3067,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2947,6 +3154,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2966,12 +3182,6 @@ capabilities:
       - python_proves
       symbols:
       - test_admin_run_detail_shows_enriched_jobs_section
-    - path: tests/test_fitcv_cp/test_bq_store.py
-      confidence: high
-      source:
-      - python_proves
-      symbols:
-      - test_list_run_structured_jobs_parses_canonical_json_companions
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -3063,6 +3273,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -3143,6 +3360,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3162,12 +3388,6 @@ capabilities:
       - python_proves
       symbols:
       - test_run_detail_shows_marks_for_passed_jobs
-    - path: tests/test_fitcv_cp/test_bq_store.py
-      confidence: high
-      source:
-      - python_proves
-      symbols:
-      - test_list_filter_results_for_run_parses_marks_json
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -3259,6 +3479,13 @@ capabilities:
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -3339,6 +3566,15 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

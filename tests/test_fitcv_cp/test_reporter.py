@@ -6,7 +6,7 @@ domain: admin_ui
 covers:
   - control-plane reporting behavior
 excludes:
-  - live BigQuery or queue integrations
+  - live remote database or queue integrations
 tags:
   - fast
   - ci-safe
@@ -203,3 +203,4 @@ def test_reporter_uses_bounded_fallback_without_emitting_span_when_no_active_con
     event = append_mock.call_args[0][0]
     emitted = json.loads(str(event.payload_json or "{}"))
     assert emitted.get("trace_context") == fallback_context
+

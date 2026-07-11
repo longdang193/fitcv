@@ -364,7 +364,7 @@ def test_build_langfuse_item_observation_attributes_renders_reviewer_markdown() 
         metadata={"stage_id": "cv_analysis", "selected": True},
         usage_details={"input_tokens": 12, "output_tokens": 34},
         cost_details={"total_cost": 0.12},
-        model="gemini-2.5-flash",
+        model="cx/gpt-5.4-mini",
         prompt_name="cv_analysis_prompt",
         extra_attributes={"fitcv.run_id": "run-123", "fitcv.job_id": "job-456"},
     )
@@ -378,7 +378,7 @@ def test_build_langfuse_item_observation_attributes_renders_reviewer_markdown() 
     assert metadata["output_structured"] == {"fit_decision": "strong", "evidence": ["Built ETL pipelines"]}
     assert metadata["selected"] is True
     assert metadata["observation_type"] == "generation"
-    assert metadata["model"] == "gemini-2.5-flash"
+    assert metadata["model"] == "cx/gpt-5.4-mini"
     assert attributes["fitcv.run_id"] == "run-123"
     assert attributes["fitcv.job_id"] == "job-456"
 

@@ -27,11 +27,11 @@ def apply_legacy_env_compatibility_projection(cfg: dict[str, Any]) -> dict[str, 
     return cfg
 
 
-def strip_legacy_bigquery_bridge_keys_for_sqlite(
+def strip_obsolete_env_keys(
     cfg: dict[str, Any],
     *,
-    required_bigquery_bridge_keys: list[str],
+    keys_to_strip: list[str],
 ) -> dict[str, Any]:
-    for key in required_bigquery_bridge_keys:
+    for key in keys_to_strip:
         cfg.pop(key, None)
     return cfg

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from fitcv.ingest import (
-    load_to_bigquery,
+    load_raw_jobs,
     parse_jobs_file,
     prepare_raw_rows,
     snake_case_keys,
@@ -224,7 +224,7 @@ def test_prepare_raw_rows_handles_indeed_string_description() -> None:
     assert rows[0]["location"] == "Parkstein, Deutschland"
 
 
-def test_load_to_bigquery_writes_sqlite_rows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_load_raw_jobs_writes_sqlite_rows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     rows = [
         {
             "job_url": "https://example.com/job-1",
@@ -252,10 +252,9 @@ def test_load_to_bigquery_writes_sqlite_rows(monkeypatch: pytest.MonkeyPatch, tm
     import sqlite3
 
     db_path = tmp_path / "fitcv_cp.sqlite3"
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
 
-    inserted = load_to_bigquery(rows, config={})
+    inserted = load_raw_jobs(rows, config={})
 
     assert inserted == 1
     with sqlite3.connect(db_path) as conn:
@@ -271,61 +270,14 @@ def test_load_to_bigquery_writes_sqlite_rows(monkeypatch: pytest.MonkeyPatch, tm
 
 
 @pytest.mark.integration
-def test_load_to_bigquery_inserts_rows(sample_jobs_path: Path, config: dict) -> None:
-    """Integration test — requires GOOGLE_APPLICATION_CREDENTIALS."""
+def test_load_raw_jobs_inserts_rows(sample_jobs_path: Path, config: dict) -> None:
+    """Integration test — requires OPENAI_API_KEY."""
     jobs = parse_jobs_file(sample_jobs_path)
     rows = prepare_raw_rows(jobs)
-    inserted = load_to_bigquery(rows, config)
+    inserted = load_raw_jobs(rows, config)
     assert inserted == len(rows)
 
 
-def test_load_to_bigquery_bigquery_mode_uses_bigquery_client(monkeypatch: pytest.MonkeyPatch) -> None:
-    import sys
-    import types
-
-    calls: dict[str, object] = {}
-
-    class FakeCredentials:
-        @staticmethod
-        def from_service_account_file(path: str) -> str:
-            calls["credential_path"] = path
-            return "fake-creds"
-
-    class FakeClient:
-        def __init__(self, *, project: str, credentials: object | None = None) -> None:
-            calls["project"] = project
-            calls["credentials"] = credentials
-
-        def insert_rows_json(self, table_ref: str, rows: list[dict[str, object]]) -> list[object]:
-            calls["table_ref"] = table_ref
-            calls["rows"] = rows
-            return []
-
-    fake_bigquery = types.SimpleNamespace(Client=FakeClient)
-    fake_service_account = types.SimpleNamespace(Credentials=FakeCredentials)
-    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
-    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
-    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
-    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-
-    rows = [{"job_url": "https://example.com/job-2", "title": "Analytics Engineer"}]
-    inserted = load_to_bigquery(
-        rows,
-        config={
-            "gcp_project": "demo-project",
-            "bigquery_dataset": "fitcv",
-            "service_account_key": "C:/fake/key.json",
-        },
-    )
-
-    assert inserted == 1
-    assert calls["credential_path"] == "C:/fake/key.json"
-    assert calls["project"] == "demo-project"
-    assert calls["table_ref"] == "demo-project.fitcv.raw_jobs"
-    sent_rows = calls["rows"]
-    assert isinstance(sent_rows, list)
-    assert sent_rows[0]["job_url"] == "https://example.com/job-2"
 
 
 def test_fetch_from_apify_returns_list(sample_jobs_path: Path) -> None:

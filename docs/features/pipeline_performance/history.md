@@ -135,7 +135,7 @@ Completed the phase 10 settings and performance residual evidence audit.
 
 ### 1.1.0 — active
 
-- Gemini structured output with Pydantic fallback
+- Structured output with Pydantic fallback
 - Specs/plans: see `refs` in the feature contract
 
 ### 1.0.0 — active

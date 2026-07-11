@@ -18,8 +18,6 @@
 # ── AI model compatibility fallbacks ───────────────────────────────────────────
 # Canonical active owner for stage model selection is control-plane model routing:
 #   control_plane.model_routing.parts.<stage>.model
-# These remain fallback defaults for compatibility paths only.
-gemini_model: gemini-2.5-flash
 embedding_model: text-embedding-005
 
 # ── Enrichment (Task 4) ────────────────────────────────────────────────────────

@@ -59,7 +59,7 @@ Owns:
 Primary surfaces:
 
 - `src/fitcv_cp/reporter.py`
-- `src/fitcv_cp/bq_store.py` event persistence path
+- `src/fitcv_cp/sqlite_store.py` event persistence path
 - run-detail telemetry degradation surfaces
 
 ### 4) Policy Engine
@@ -85,8 +85,8 @@ Owns:
 
 Primary surfaces:
 
-- `src/fitcv_cp/bq_store.py`
-- adapter boundaries for BigQuery-now and Postgres/object-storage-later
+- `src/fitcv_cp/sqlite_store.py`
+- adapter boundaries for SQLite-now and Postgres/object-storage-later
 
 ### 6) AI Runtime
 
@@ -133,5 +133,6 @@ Forbidden:
 - `src/fitcv_cp/app.py` -> control_plane
 - `src/fitcv_cp/worker_job.py` -> orchestration
 - `src/fitcv_cp/reporter.py` -> telemetry adapter
-- `src/fitcv_cp/bq_store.py` -> data_plane adapter
+- `src/fitcv_cp/sqlite_store.py` -> data_plane adapter
 - `src/fitcv/pipeline.py` -> evidence contract + policy + ai runtime integration
+

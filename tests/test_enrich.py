@@ -120,7 +120,7 @@ def test_build_enrich_contract_fingerprint_changes_when_prompt_contract_changes(
 ) -> None:
     """@proves pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes"""
     config = {
-        "gemini_model": "gemini-2.5-flash",
+        "ai_score_model": "cx/gpt-5.4-mini",
         "prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}},
     }
     baseline = build_enrich_contract_fingerprint(config)
@@ -141,85 +141,6 @@ def test_build_enrich_contract_fingerprint_changes_when_prompt_contract_changes(
     assert baseline["fingerprint"] != changed["fingerprint"]
 
 
-def test_lookup_reusable_structured_jobs_returns_exact_fingerprint_and_contract_matches(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """@proves pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table"""
-    captured: dict[str, object] = {}
-
-    class FakeRow:
-        def items(self):
-            return [
-                ("job_url", "https://example.com/jobs/1"),
-                ("required_skills", ["SQL", "Python"]),
-                ("required_skills_canonical", ["sql", "python"]),
-                ("required_skill_entities_json", '[{"raw_text":"SQL","canonical":"sql"}]'),
-                ("mapping_suggestions_json", '[{"must_have_skill":"sql","matches":true,"alias":"sql","canonical":"sql","confidence":1.0}]'),
-                ("raw_job_fingerprint", "raw-fingerprint-match"),
-                ("enrich_contract_fingerprint", "contract-fingerprint-match"),
-                ("enrich_reuse_status", "fresh_enrichment"),
-                ("enrichment_version", "v1"),
-                ("enrichment_model", "gemini-2.5-flash"),
-                ("enriched_at", "2026-04-03T00:00:00+00:00"),
-            ]
-
-    class FakeResult:
-        def result(self):
-            return self
-
-        def __iter__(self):
-            return iter([FakeRow()])
-
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            captured["client_kwargs"] = kwargs
-
-        def query(self, sql: str, job_config: object) -> FakeResult:
-            captured["sql"] = sql
-            captured["job_config"] = job_config
-            return FakeResult()
-
-    fake_bigquery = types.SimpleNamespace(
-        Client=FakeClient,
-        QueryJobConfig=lambda **kwargs: types.SimpleNamespace(**kwargs),
-        ArrayQueryParameter=lambda name, field_type, values: types.SimpleNamespace(name=name, field_type=field_type, values=values),
-    )
-    fake_service_account = types.SimpleNamespace(
-        Credentials=types.SimpleNamespace(
-            from_service_account_file=lambda path: "creds"
-        )
-    )
-    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
-    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
-    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
-    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-
-    jobs = [
-        {
-            "job_url": "https://example.com/jobs/1",
-            "title": "Data Analyst",
-            "company_name": "Acme",
-            "description": "Build dashboards with SQL and Python.",
-        }
-    ]
-
-    reusable = lookup_reusable_structured_jobs(
-        jobs,
-        {
-            "gcp_project": "fitcv-491123",
-            "bigquery_dataset": "fitcv",
-            "service_account_key": "/tmp/key.json",
-        },
-        raw_job_fingerprints={"https://example.com/jobs/1": "raw-fingerprint-match"},
-        enrich_contract_fingerprint="contract-fingerprint-match",
-    )
-
-    assert list(reusable) == ["https://example.com/jobs/1"]
-    assert reusable["https://example.com/jobs/1"]["required_skill_entities"] == [
-        {"raw_text": "SQL", "canonical": "sql"}
-    ]
-    assert reusable["https://example.com/jobs/1"]["mapping_suggestions"][0]["canonical"] == "sql"
 
 def test_make_genai_client_openai_compatible_requires_env_api_key(
     monkeypatch: pytest.MonkeyPatch,
@@ -238,7 +159,7 @@ def test_make_genai_client_openai_compatible_requires_env_api_key(
     monkeypatch.delenv("OPENAI_COMPATIBLE_API_KEY", raising=False)
 
     with pytest.raises(RuntimeError, match="Config-routed HTTP provider.*requires API key in env"):
-        enrich_module._make_genai_client({"gemini_model": "gemini-2.5-flash"})
+        enrich_module._make_genai_client({"ai_score_model": "cx/gpt-5.4-mini"})
 
 
 def test_make_genai_client_openai_compatible_parses_sse_chat_completions_payload(
@@ -281,7 +202,7 @@ def test_make_genai_client_openai_compatible_parses_sse_chat_completions_payload
     )
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
-    client = enrich_module._make_genai_client({"gemini_model": "gemini-2.5-flash"})
+    client = enrich_module._make_genai_client({"ai_score_model": "cx/gpt-5.4-mini"})
     result = client.models.generate_content(model="ignored", contents="hello")
 
     assert result.text == '{"required_skills":["SQL"],"location_type":"remote"}'
@@ -328,7 +249,7 @@ def test_make_genai_client_openai_compatible_parses_json_with_trailing_sse_done(
     )
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
-    client = enrich_module._make_genai_client({"gemini_model": "gemini-2.5-flash"})
+    client = enrich_module._make_genai_client({"ai_score_model": "cx/gpt-5.4-mini"})
     result = client.models.generate_content(model="ignored", contents="hello")
 
     assert result.text == '{"required_skills":["SQL"],"location_type":"remote"}'
@@ -375,82 +296,11 @@ def test_make_genai_client_openai_compatible_uses_routed_timeout_seconds(
     )
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
-    client = enrich_module._make_genai_client({"gemini_model": "gemini-2.5-flash"})
+    client = enrich_module._make_genai_client({"ai_score_model": "cx/gpt-5.4-mini"})
     _ = client.models.generate_content(model="ignored", contents="hello")
 
     assert captured_timeouts == [300.0]
 
-
-def test_lookup_reusable_structured_jobs_normalises_datetime_enriched_at(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    class FakeRow:
-        def items(self):
-            return [
-                ("job_url", "https://example.com/jobs/1"),
-                ("required_skills", ["SQL", "Python"]),
-                ("required_skills_canonical", ["sql", "python"]),
-                ("required_skill_entities_json", '[{"raw_text":"SQL","canonical":"sql"}]'),
-                ("mapping_suggestions_json", "[]"),
-                ("raw_job_fingerprint", "raw-fingerprint-match"),
-                ("enrich_contract_fingerprint", "contract-fingerprint-match"),
-                ("enrich_reuse_status", "fresh_enrichment"),
-                ("enrichment_version", "v1"),
-                ("enrichment_model", "gemini-2.5-flash"),
-                ("enriched_at", datetime(2026, 4, 3, 12, 0, 0, tzinfo=timezone.utc)),
-            ]
-
-    class FakeResult:
-        def result(self):
-            return self
-
-        def __iter__(self):
-            return iter([FakeRow()])
-
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            pass
-
-        def query(self, sql: str, job_config: object) -> FakeResult:
-            return FakeResult()
-
-    fake_bigquery = types.SimpleNamespace(
-        Client=FakeClient,
-        QueryJobConfig=lambda **kwargs: types.SimpleNamespace(**kwargs),
-        ArrayQueryParameter=lambda name, field_type, values: types.SimpleNamespace(name=name, field_type=field_type, values=values),
-    )
-    fake_service_account = types.SimpleNamespace(
-        Credentials=types.SimpleNamespace(
-            from_service_account_file=lambda path: "creds"
-        )
-    )
-    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
-    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
-    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
-    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-
-    jobs = [
-        {
-            "job_url": "https://example.com/jobs/1",
-            "title": "Data Analyst",
-            "company_name": "Acme",
-            "description": "Build dashboards with SQL and Python.",
-        }
-    ]
-
-    reusable = lookup_reusable_structured_jobs(
-        jobs,
-        {
-            "gcp_project": "fitcv-491123",
-            "bigquery_dataset": "fitcv",
-            "service_account_key": "/tmp/key.json",
-        },
-        raw_job_fingerprints={"https://example.com/jobs/1": "raw-fingerprint-match"},
-        enrich_contract_fingerprint="contract-fingerprint-match",
-    )
-
-    assert reusable["https://example.com/jobs/1"]["enriched_at"] == "2026-04-03T12:00:00+00:00"
 
 
 def test_sqlite_reuse_lookup_uses_cached_structured_jobs(
@@ -458,7 +308,6 @@ def test_sqlite_reuse_lookup_uses_cached_structured_jobs(
     tmp_path: pytest.TempPathFactory,
 ) -> None:
     sqlite_path = tmp_path / "fitcv.sqlite3"
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
 
     load_structured_jobs(
@@ -508,7 +357,6 @@ def test_sqlite_reuse_lookup_rejects_contract_or_fingerprint_mismatch(
     tmp_path: pytest.TempPathFactory,
 ) -> None:
     sqlite_path = tmp_path / "fitcv.sqlite3"
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
 
     load_structured_jobs(
@@ -675,9 +523,9 @@ def test_merge_scraped_and_enriched_normalizes_datetime_enriched_at() -> None:
 def test_merge_scraped_and_enriched_uses_config_model() -> None:
     scraped = {"job_url": "url1", "title": "DE"}
     enriched = {}
-    config = {"ai_score_model": "gemini-2.0-flash", "enrichment_version": "v1"}
+    config = {"ai_score_model": "cx/gpt-5.4-mini", "enrichment_version": "v1"}
     merged = merge_scraped_and_enriched(scraped, enriched, config=config)
-    assert merged["enrichment_model"] == "gemini-2.0-flash"
+    assert merged["enrichment_model"] == "cx/gpt-5.4-mini"
     assert merged["enrichment_version"] == "v1"
 
 
@@ -722,7 +570,7 @@ def test_enrich_job_renders_prompt_via_prompt_registry(monkeypatch: pytest.Monke
             "description": "Need SQL for analytics work.",
         },
         {
-            "gemini_model": "gemini-2.5-flash",
+            "ai_score_model": "cx/gpt-5.4-mini",
             "prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}},
         },
     )
@@ -769,87 +617,6 @@ def test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields() 
     assert merged["domain"] == "fintech"
 
 
-def test_load_structured_jobs_uses_explicit_staging_schema(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeSchemaField:
-        def __init__(self, name: str, field_type: str, mode: str = "NULLABLE") -> None:
-            self.name = name
-            self.field_type = field_type
-            self.mode = mode
-
-    class FakeLoadJobConfig:
-        def __init__(self, **kwargs: object) -> None:
-            captured["job_config"] = kwargs
-
-    class FakeJob:
-        def result(self) -> None:
-            return None
-
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            captured["client_kwargs"] = kwargs
-
-        def load_table_from_json(self, rows: list[dict[str, object]], table: str, job_config: object) -> FakeJob:
-            captured["rows"] = rows
-            captured["table"] = table
-            captured["load_job_config_obj"] = job_config
-            return FakeJob()
-
-        def query(self, sql: str) -> FakeJob:
-            captured["merge_sql"] = sql
-            return FakeJob()
-
-    fake_bigquery = types.SimpleNamespace(
-        Client=FakeClient,
-        LoadJobConfig=FakeLoadJobConfig,
-        SchemaField=FakeSchemaField,
-        SourceFormat=types.SimpleNamespace(NEWLINE_DELIMITED_JSON="NEWLINE_DELIMITED_JSON"),
-    )
-    fake_service_account = types.SimpleNamespace(
-        Credentials=types.SimpleNamespace(
-            from_service_account_file=lambda path: "creds"
-        )
-    )
-    fake_google_cloud = types.SimpleNamespace(bigquery=fake_bigquery)
-    fake_google_oauth2 = types.SimpleNamespace(service_account=fake_service_account)
-
-    monkeypatch.setitem(sys.modules, "google.cloud", fake_google_cloud)
-    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
-    monkeypatch.setitem(sys.modules, "google.oauth2", fake_google_oauth2)
-    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-
-    load_structured_jobs(
-        enriched=[
-            {
-                "job_url": "url1",
-                "required_skills": ["SQL"],
-                "required_skills_canonical": ["sql"],
-                "salary_min": None,
-                "salary_max": None,
-            }
-        ],
-        config={
-            "gcp_project": "fitcv-491123",
-            "bigquery_dataset": "fitcv",
-            "service_account_key": "/tmp/key.json",
-        },
-    )
-
-    job_config_kwargs = captured["job_config"]
-    assert isinstance(job_config_kwargs, dict)
-    schema = job_config_kwargs["schema"]
-    assert isinstance(schema, list)
-    salary_min = next(field for field in schema if field.name == "salary_min")
-    salary_max = next(field for field in schema if field.name == "salary_max")
-    applications_count = next(field for field in schema if field.name == "applications_count")
-    assert salary_min.field_type == "FLOAT64"
-    assert salary_max.field_type == "FLOAT64"
-    assert applications_count.field_type == "INT64"
-
 
 def test_enrich_batch_retries_resource_exhausted_once(
     monkeypatch: pytest.MonkeyPatch,
@@ -859,20 +626,21 @@ def test_enrich_batch_retries_resource_exhausted_once(
     attempts = {"count": 0}
     sleeps: list[float] = []
 
-    class FakeResourceExhausted(Exception):
-        pass
+    class FakeHTTPStatusError(Exception):
+        def __init__(self, status_code: int) -> None:
+            self.response = types.SimpleNamespace(status_code=status_code)
 
     def fake_enrich_job(job: dict[str, object], config: dict[str, object]) -> dict[str, object]:
         attempts["count"] += 1
         if attempts["count"] == 1:
-            raise FakeResourceExhausted("quota")
+            raise FakeHTTPStatusError(429)
         return {"job_url": "url1"}
 
-    fake_exceptions = types.SimpleNamespace(ResourceExhausted=FakeResourceExhausted)
+    fake_httpx = types.SimpleNamespace(HTTPStatusError=FakeHTTPStatusError)
 
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
     monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
-    monkeypatch.setitem(sys.modules, "google.api_core.exceptions", fake_exceptions)
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
     monkeypatch.setattr("time.sleep", lambda secs: sleeps.append(secs))
 
     result = enrich_batch(
@@ -893,20 +661,21 @@ def test_enrich_chunk_isolates_single_job_retry_from_following_jobs(
 
     attempts_by_url = {"url1": 0, "url2": 0}
 
-    class FakeResourceExhausted(Exception):
-        pass
+    class FakeHTTPStatusError(Exception):
+        def __init__(self, status_code: int) -> None:
+            self.response = types.SimpleNamespace(status_code=status_code)
 
     def fake_enrich_job(job: dict[str, object], config: dict[str, object]) -> dict[str, object]:
         job_url = str(job["job_url"])
         attempts_by_url[job_url] += 1
         if job_url == "url1" and attempts_by_url[job_url] == 1:
-            raise FakeResourceExhausted("quota")
+            raise FakeHTTPStatusError(429)
         return {"job_url": job_url, "enriched": True}
 
-    fake_exceptions = types.SimpleNamespace(ResourceExhausted=FakeResourceExhausted)
+    fake_httpx = types.SimpleNamespace(HTTPStatusError=FakeHTTPStatusError)
 
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
-    monkeypatch.setitem(sys.modules, "google.api_core.exceptions", fake_exceptions)
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
     monkeypatch.setattr("time.sleep", lambda secs: None)
 
     result = enrich_batch(
@@ -931,31 +700,21 @@ def test_enrich_batch_retries_genai_client_error_429_once(
     attempts = {"count": 0}
     sleeps: list[float] = []
 
-    class FakeResourceExhausted(Exception):
-        pass
-
-    class FakeClientError(Exception):
+    class FakeHTTPStatusError(Exception):
         def __init__(self, status_code: int) -> None:
-            super().__init__(f"status={status_code}")
-            self.status_code = status_code
+            self.response = types.SimpleNamespace(status_code=status_code)
 
     def fake_enrich_job(job: dict[str, object], config: dict[str, object]) -> dict[str, object]:
         attempts["count"] += 1
         if attempts["count"] == 1:
-            raise FakeClientError(429)
+            raise FakeHTTPStatusError(429)
         return {"job_url": "url1"}
 
-    fake_exceptions = types.SimpleNamespace(ResourceExhausted=FakeResourceExhausted)
-    fake_errors = types.SimpleNamespace(ClientError=FakeClientError)
-    fake_genai = types.SimpleNamespace(errors=fake_errors)
-    fake_google = types.SimpleNamespace(genai=fake_genai)
+    fake_httpx = types.SimpleNamespace(HTTPStatusError=FakeHTTPStatusError)
 
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
     monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
-    monkeypatch.setitem(sys.modules, "google.api_core.exceptions", fake_exceptions)
-    monkeypatch.setitem(sys.modules, "google", fake_google)
-    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
-    monkeypatch.setitem(sys.modules, "google.genai.errors", fake_errors)
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
     monkeypatch.setattr("time.sleep", lambda secs: sleeps.append(secs))
 
     result = enrich_batch(
@@ -976,31 +735,21 @@ def test_enrich_batch_uses_exponential_backoff_for_repeated_429s(
     attempts = {"count": 0}
     sleeps: list[float] = []
 
-    class FakeResourceExhausted(Exception):
-        pass
-
-    class FakeClientError(Exception):
+    class FakeHTTPStatusError(Exception):
         def __init__(self, status_code: int) -> None:
-            super().__init__(f"status={status_code}")
-            self.status_code = status_code
+            self.response = types.SimpleNamespace(status_code=status_code)
 
     def fake_enrich_job(job: dict[str, object], config: dict[str, object]) -> dict[str, object]:
         attempts["count"] += 1
         if attempts["count"] < 3:
-            raise FakeClientError(429)
+            raise FakeHTTPStatusError(429)
         return {"job_url": "url1"}
 
-    fake_exceptions = types.SimpleNamespace(ResourceExhausted=FakeResourceExhausted)
-    fake_errors = types.SimpleNamespace(ClientError=FakeClientError)
-    fake_genai = types.SimpleNamespace(errors=fake_errors)
-    fake_google = types.SimpleNamespace(genai=fake_genai)
+    fake_httpx = types.SimpleNamespace(HTTPStatusError=FakeHTTPStatusError)
 
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
     monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
-    monkeypatch.setitem(sys.modules, "google.api_core.exceptions", fake_exceptions)
-    monkeypatch.setitem(sys.modules, "google", fake_google)
-    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
-    monkeypatch.setitem(sys.modules, "google.genai.errors", fake_errors)
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
     monkeypatch.setattr("time.sleep", lambda secs: sleeps.append(secs))
 
     result = enrich_batch(
@@ -1013,411 +762,10 @@ def test_enrich_batch_uses_exponential_backoff_for_repeated_429s(
     assert sleeps == [1.5, 3.0]
 
 
-def test_enrich_job_uses_google_genai_client(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeGenerateContentConfig:
-        def __init__(self, **kwargs: object) -> None:
-            captured["gen_config_kwargs"] = kwargs
-
-    class FakeResponse:
-        text = '{"required_skills": ["SQL"], "location_type": "remote"}'
-        parsed = None  # trigger fallback path
-
-    class FakeModels:
-        def generate_content(
-            self, *, model: str, contents: str, config: object
-        ) -> FakeResponse:
-            captured["model"] = model
-            captured["contents"] = contents
-            captured["config"] = config
-            return FakeResponse()
-
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            captured["client_kwargs"] = kwargs
-            self.models = FakeModels()
-
-    fake_genai_types = types.SimpleNamespace(GenerateContentConfig=FakeGenerateContentConfig)
-    fake_genai = types.SimpleNamespace(Client=FakeClient, types=fake_genai_types)
-    fake_google = types.SimpleNamespace(
-        auth=types.SimpleNamespace(default=lambda scopes=None: ("creds", "project"))
-    )
-
-    monkeypatch.setitem(sys.modules, "google", fake_google)
-    monkeypatch.setitem(sys.modules, "google.auth", fake_google.auth)
-    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
-    monkeypatch.setitem(sys.modules, "google.genai.types", fake_genai_types)
-    setattr(fake_google, "genai", fake_genai)
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-
-    result = enrich_job(
-        job={
-            "job_url": "https://example.com/jobs/1",
-            "title": "Data Engineer",
-            "description": "Build pipelines with SQL.",
-            "experience_level": "Mid-Senior level",
-            "contract_type": "Full-time",
-            "sector": "Software",
-            "location": "Remote",
-        },
-        config={
-            "gcp_project": "fitcv-491123",
-            "vertex_location": "us-central1",
-            "gemini_model": "gemini-2.5-flash",
-            "ai_score_model": "gemini-2.5-flash",
-        },
-    )
-
-    assert result["required_skills"] == ["SQL"]
-    assert result["location_type"] == "remote"
-    assert captured["model"] == "gemini-2.5-flash"
-    # GenerateContentConfig should have been constructed with response_schema=EnrichmentOutput
-    from fitcv.enrich import EnrichmentOutput as _EO
-    assert captured["gen_config_kwargs"].get("response_schema") is _EO
-    client_kwargs = captured["client_kwargs"]
-    assert isinstance(client_kwargs, dict)
-    assert (client_kwargs.get("vertexai") is True) or bool(client_kwargs.get("api_key"))
-    if "location" in client_kwargs:
-        assert client_kwargs["location"] == "us-central1"
-
-
-def test_enrich_job_prefers_gemini_api_key(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeGenerateContentConfig:
-        def __init__(self, **kwargs: object) -> None:
-            captured["gen_config_kwargs"] = kwargs
-
-    class FakeResponse:
-        text = '{"required_skills": ["SQL"]}'
-        parsed = None  # trigger fallback path
-
-    class FakeModels:
-        def generate_content(
-            self, *, model: str, contents: str, config: object
-        ) -> FakeResponse:
-            captured["model"] = model
-            captured["contents"] = contents
-            captured["config"] = config
-            return FakeResponse()
-
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            captured["client_kwargs"] = kwargs
-            self.models = FakeModels()
-
-    fake_genai_types = types.SimpleNamespace(GenerateContentConfig=FakeGenerateContentConfig)
-    fake_genai = types.SimpleNamespace(Client=FakeClient, types=fake_genai_types)
-    fake_google = types.SimpleNamespace(
-        auth=types.SimpleNamespace(default=lambda scopes=None: (_ for _ in ()).throw(AssertionError("google.auth.default should not be called")))
-    )
-
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.setitem(sys.modules, "google", fake_google)
-    monkeypatch.setitem(sys.modules, "google.auth", fake_google.auth)
-    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
-    monkeypatch.setitem(sys.modules, "google.genai.types", fake_genai_types)
-    setattr(fake_google, "genai", fake_genai)
-
-    result = enrich_job(
-        job={"job_url": "https://example.com/jobs/1", "description": "SQL"},
-        config={"gcp_project": "fitcv-491123", "gemini_model": "gemini-2.5-flash"},
-    )
-
-    assert result["required_skills"] == ["SQL"]
-    client_kwargs = captured["client_kwargs"]
-    assert isinstance(client_kwargs, dict)
-    assert client_kwargs["api_key"] == "test-key"
-    assert "vertexai" not in client_kwargs
-    # GenerateContentConfig should have been called with response_schema
-    assert "response_schema" in captured.get("gen_config_kwargs", {})
-
-
 # ── load_run_structured_jobs ──────────────────────────────────────────────────
 
-def test_load_run_structured_jobs_inserts_to_correct_table(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeSchemaField:
-        def __init__(self, name: str, field_type: str, mode: str = "NULLABLE") -> None:
-            self.name = name
-            self.field_type = field_type
-            self.mode = mode
-
-    class FakeLoadJobConfig:
-        def __init__(self, **kwargs: object) -> None:
-            captured["job_config"] = kwargs
-
-    class FakeJob:
-        def result(self) -> None:
-            return None
-
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            captured["client_kwargs"] = kwargs
-
-        def load_table_from_json(
-            self, rows: list[dict[str, object]], table: str, job_config: object
-        ) -> FakeJob:
-            captured["rows"] = rows
-            captured["table"] = table
-            captured["load_job_config_obj"] = job_config
-            return FakeJob()
-
-    fake_bigquery = types.SimpleNamespace(
-        Client=FakeClient,
-        LoadJobConfig=FakeLoadJobConfig,
-        SchemaField=FakeSchemaField,
-        SourceFormat=types.SimpleNamespace(NEWLINE_DELIMITED_JSON="NEWLINE_DELIMITED_JSON"),
-        WriteDisposition=types.SimpleNamespace(WRITE_APPEND="WRITE_APPEND"),
-    )
-    fake_service_account = types.SimpleNamespace(
-        Credentials=types.SimpleNamespace(
-            from_service_account_file=lambda path: "creds"
-        )
-    )
-    fake_google_cloud = types.SimpleNamespace(bigquery=fake_bigquery)
-    fake_google_oauth2 = types.SimpleNamespace(service_account=fake_service_account)
-
-    monkeypatch.setitem(sys.modules, "google.cloud", fake_google_cloud)
-    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
-    monkeypatch.setitem(sys.modules, "google.oauth2", fake_google_oauth2)
-    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
-
-    enriched = [
-        {
-            "job_url": "https://example.com/1",
-            "title": "Data Engineer",
-            "company_name": "ACME",
-            "location": "Remote",
-            "contract_type": "Full-time",
-            "experience_level": "mid",
-            "published_at": "2026-01-01",
-            "location_type": "remote",
-            "seniority": "senior",
-            "required_skills": ["SQL", "Python"],
-            "preferred_skills": [],
-            "responsibilities": [],
-            "domain": "fintech",
-            "tech_stack": [],
-            "years_experience_min": 3,
-            "years_experience_max": None,
-            "keywords": [],
-            "job_family": "data_engineering",
-            "description_cleaned": "Build pipelines.",
-            "enrichment_version": "v1",
-            "enrichment_model": "gemini-2.0-flash",
-            "enriched_at": "2026-01-01T00:00:00+00:00",
-            # extra fields NOT in run_structured_jobs schema:
-            "company_id": "123",
-            "sector": "Software",
-            "salary_min": 50000.0,
-            "salary_max": 80000.0,
-            "salary_currency": "EUR",
-            "applications_count": 10,
-        }
-    ]
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-
-    load_run_structured_jobs(
-        enriched=enriched,
-        run_id="run-abc",
-        config={
-            "gcp_project": "fitcv-491123",
-            "bigquery_dataset": "fitcv",
-            "service_account_key": "/tmp/key.json",
-        },
-    )
-
-    table = captured["table"]
-    assert "run_structured_jobs" in table, f"Expected run_structured_jobs table, got: {table}"
-    assert "structured_jobs" not in table.replace("run_structured_jobs", ""), (
-        "Table must be run_structured_jobs, not structured_jobs"
-    )
 
 
-def test_load_run_structured_jobs_injects_run_id_into_rows(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeJob:
-        def result(self) -> None:
-            return None
-
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            pass
-
-        def load_table_from_json(
-            self, rows: list[dict[str, object]], table: str, job_config: object
-        ) -> FakeJob:
-            captured["rows"] = rows
-            return FakeJob()
-
-    fake_bigquery = types.SimpleNamespace(
-        Client=FakeClient,
-        LoadJobConfig=lambda **kw: None,
-        SchemaField=lambda name, ft, mode="NULLABLE": None,
-        SourceFormat=types.SimpleNamespace(NEWLINE_DELIMITED_JSON="NEWLINE_DELIMITED_JSON"),
-        WriteDisposition=types.SimpleNamespace(WRITE_APPEND="WRITE_APPEND"),
-    )
-    fake_service_account = types.SimpleNamespace(
-        Credentials=types.SimpleNamespace(
-            from_service_account_file=lambda path: "creds"
-        )
-    )
-    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
-    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
-    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
-    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-
-    enriched = [{"job_url": "https://example.com/1", "title": "DE"}]
-    load_run_structured_jobs(
-        enriched=enriched,
-        run_id="run-xyz",
-        config={
-            "gcp_project": "fitcv-491123",
-            "bigquery_dataset": "fitcv",
-            "service_account_key": "/tmp/key.json",
-        },
-    )
-
-    rows = captured["rows"]
-    assert isinstance(rows, list)
-    assert len(rows) == 1
-    assert rows[0]["run_id"] == "run-xyz"
-    assert rows[0]["job_url"] == "https://example.com/1"
-
-
-def test_load_run_structured_jobs_uses_write_append(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeJob:
-        def result(self) -> None:
-            return None
-
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            pass
-
-        def load_table_from_json(
-            self, rows: list[dict[str, object]], table: str, job_config: object
-        ) -> FakeJob:
-            captured["job_config_kwargs"] = getattr(job_config, "_kwargs", {})
-            return FakeJob()
-
-    class FakeLoadJobConfig:
-        def __init__(self, **kwargs: object) -> None:
-            self._kwargs = kwargs
-
-    fake_bigquery = types.SimpleNamespace(
-        Client=FakeClient,
-        LoadJobConfig=FakeLoadJobConfig,
-        SchemaField=lambda name, ft, mode="NULLABLE": None,
-        SourceFormat=types.SimpleNamespace(NEWLINE_DELIMITED_JSON="NEWLINE_DELIMITED_JSON"),
-        WriteDisposition=types.SimpleNamespace(WRITE_APPEND="WRITE_APPEND"),
-    )
-    fake_service_account = types.SimpleNamespace(
-        Credentials=types.SimpleNamespace(
-            from_service_account_file=lambda path: "creds"
-        )
-    )
-    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
-    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
-    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
-    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-
-    enriched = [{"job_url": "https://example.com/1"}]
-    load_run_structured_jobs(
-        enriched=enriched,
-        run_id="run-xyz",
-        config={
-            "gcp_project": "fitcv-491123",
-            "bigquery_dataset": "fitcv",
-            "service_account_key": "/tmp/key.json",
-        },
-    )
-
-    kwargs = captured["job_config_kwargs"]
-    assert kwargs.get("write_disposition") == "WRITE_APPEND", (
-        f"Expected WRITE_APPEND, got: {kwargs.get('write_disposition')}"
-    )
-
-
-def test_load_run_structured_jobs_excludes_schema_extra_fields(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Extra fields from structured_jobs (company_id, sector, salary_*) must not appear in rows."""
-    captured: dict[str, object] = {}
-
-    class FakeJob:
-        def result(self) -> None:
-            return None
-
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            pass
-
-        def load_table_from_json(
-            self, rows: list[dict[str, object]], table: str, job_config: object
-        ) -> FakeJob:
-            captured["rows"] = rows
-            return FakeJob()
-
-    fake_bigquery = types.SimpleNamespace(
-        Client=FakeClient,
-        LoadJobConfig=lambda **kw: None,
-        SchemaField=lambda name, ft, mode="NULLABLE": None,
-        SourceFormat=types.SimpleNamespace(NEWLINE_DELIMITED_JSON="NEWLINE_DELIMITED_JSON"),
-        WriteDisposition=types.SimpleNamespace(WRITE_APPEND="WRITE_APPEND"),
-    )
-    fake_service_account = types.SimpleNamespace(
-        Credentials=types.SimpleNamespace(
-            from_service_account_file=lambda path: "creds"
-        )
-    )
-    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
-    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
-    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
-    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-
-    enriched = [
-        {
-            "job_url": "https://example.com/1",
-            "company_id": "SHOULD_NOT_APPEAR",
-            "sector": "SHOULD_NOT_APPEAR",
-            "salary_min": 99999.0,
-            "salary_max": 99999.0,
-            "salary_currency": "USD",
-            "applications_count": 42,
-        }
-    ]
-    load_run_structured_jobs(
-        enriched=enriched,
-        run_id="run-abc",
-        config={
-            "gcp_project": "fitcv-491123",
-            "bigquery_dataset": "fitcv",
-            "service_account_key": "/tmp/key.json",
-        },
-    )
-
-    row = captured["rows"][0]  # type: ignore[index]
-    for excluded in ("company_id", "sector", "salary_min", "salary_max", "salary_currency", "applications_count"):
-        assert excluded not in row, f"Field {excluded!r} should not be in run_structured_jobs row"
 
 
 def test_load_run_structured_jobs_writes_sqlite_rows(
@@ -1427,7 +775,6 @@ def test_load_run_structured_jobs_writes_sqlite_rows(
     import sqlite3
 
     sqlite_path = tmp_path / "fitcv_cp.sqlite3"
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
 
     enriched = [
@@ -1482,7 +829,6 @@ def test_load_structured_jobs_skips_semantically_blank_sqlite_rows(
     import sqlite3
 
     sqlite_path = tmp_path / "fitcv_cp.sqlite3"
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
 
     inserted = load_structured_jobs(
@@ -1994,7 +1340,6 @@ def test_lookup_reusable_structured_jobs_skips_semantically_blank_cached_row(
     import sqlite3
 
     sqlite_path = tmp_path / "fitcv_cp.sqlite3"
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
 
     with sqlite3.connect(sqlite_path) as conn:
@@ -2070,7 +1415,6 @@ def test_lookup_reusable_structured_jobs_repairs_sparse_generic_required_skills_
     import sqlite3
 
     sqlite_path = tmp_path / "fitcv_cp.sqlite3"
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
 
     with sqlite3.connect(sqlite_path) as conn:
@@ -2351,8 +1695,8 @@ def _job_fixture() -> dict:
 def _config_fixture() -> dict:
     return {
         "gcp_project": "test-proj",
-        "gemini_model": "gemini-2.5-flash",
-        "ai_score_model": "gemini-2.5-flash",
+        "ai_score_model": "cx/gpt-5.4-mini",
+        "ai_score_model": "cx/gpt-5.4-mini",
         "location": "us-central1",
         "enrichment_version": "v1",
     }
@@ -2389,7 +1733,7 @@ def test_enrich_job_fallback_when_parsed_is_none(caplog: pytest.LogCaptureFixtur
 
     mock_response = MagicMock()
     mock_response.parsed = None
-    # malformed JSON — missing comma (what gemini-2.5-flash sometimes produces)
+    # malformed JSON — missing comma (what cx/gpt-5.4-mini sometimes produces)
     mock_response.text = '{"required_skills": ["SQL" "Python"], "location_type": "remote"}'
 
     with patch("fitcv.enrich._make_genai_client") as mk, \
@@ -2573,14 +1917,7 @@ def test_enrich_batch_non_recoverable_error_propagates() -> None:
 
     with pytest.raises(RuntimeError, match="catastrophic"):
         with patch("fitcv.enrich.enrich_job", side_effect=boom), \
-             patch("time.sleep"), \
-             patch("fitcv.enrich._GOOGLE_EXCEPTIONS", (FakeResourceExhausted,), create=True):
-            # Inject minimal module stubs needed by enrich_batch imports
-            import types as _types, sys as _sys
-            _fe = _types.SimpleNamespace(ResourceExhausted=FakeResourceExhausted)
-            _fce = _types.SimpleNamespace(ClientError=Exception)
-            _sys.modules.setdefault("google.api_core.exceptions", _fe)
-            _sys.modules.setdefault("google.genai.errors", _fce)
+             patch("time.sleep"):
             enrich_batch(
                 [{"job_url": "x"}],
                 config={"enrichment_batch_size": 1, "enrichment_concurrency": 1},

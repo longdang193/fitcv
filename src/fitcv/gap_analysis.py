@@ -21,8 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fitcv.config import sqlite_mode_enabled
-from fitcv.persistence import build_bigquery_client, get_local_sqlite_path
+from fitcv.persistence import get_local_sqlite_path
 from fitcv.rule_filter import canonicalize_skill, get_skill_synonyms
 
 
@@ -357,7 +356,7 @@ def classify_fit(
     return "skip"
 
 
-# ── integration: store to bigquery ────────────────────────────────────────────
+# ── integration: persist results ─────────────────────────────────────────────
 
 def _ensure_local_gap_analysis_table(conn: sqlite3.Connection) -> None:
     conn.execute(
@@ -382,7 +381,7 @@ def store_gap_analysis(
     gap: dict[str, Any],
     config: dict[str, Any],
 ) -> None:
-    """Insert a gap analysis row into fitcv.gap_analysis."""
+    """Insert a gap analysis row into local sqlite store."""
     import json
 
     now = datetime.now(tz=timezone.utc).isoformat()
@@ -391,61 +390,39 @@ def store_gap_analysis(
     missing = list(gap.get("missing") or [])
     overclaim_risk = list(gap.get("overclaim_risk") or [])
 
-    if sqlite_mode_enabled(config):
-        db_path = Path(get_local_sqlite_path())
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(db_path) as conn:
-            _ensure_local_gap_analysis_table(conn)
-            conn.execute(
-                """
-                INSERT INTO gap_analysis(
-                    job_url,
-                    matched_skills_json,
-                    partial_skills_json,
-                    missing_skills_json,
-                    years_risk,
-                    overclaim_risk_json,
-                    analysed_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(job_url) DO UPDATE SET
-                    matched_skills_json = excluded.matched_skills_json,
-                    partial_skills_json = excluded.partial_skills_json,
-                    missing_skills_json = excluded.missing_skills_json,
-                    years_risk = excluded.years_risk,
-                    overclaim_risk_json = excluded.overclaim_risk_json,
-                    analysed_at = excluded.analysed_at
-                """,
-                (
-                    str(job_id),
-                    json.dumps(matched, ensure_ascii=False),
-                    json.dumps(partial, ensure_ascii=False),
-                    json.dumps(missing, ensure_ascii=False),
-                    int(bool(gap.get("years_risk", False))),
-                    json.dumps(overclaim_risk, ensure_ascii=False),
-                    now,
-                ),
+    db_path = Path(get_local_sqlite_path())
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        _ensure_local_gap_analysis_table(conn)
+        conn.execute(
+            """
+            INSERT INTO gap_analysis(
+                job_url,
+                matched_skills_json,
+                partial_skills_json,
+                missing_skills_json,
+                years_risk,
+                overclaim_risk_json,
+                analysed_at
             )
-            conn.commit()
-        return
-
-    project = str(config["gcp_project"])
-    dataset = str(config["bigquery_dataset"])
-    client = build_bigquery_client(config)
-    table_ref = f"{project}.{dataset}.gap_analysis"
-
-    partial_serialised = [json.dumps(item, ensure_ascii=False) for item in partial]
-    row = {
-        "job_url": str(job_id),
-        "matched_skills": matched,
-        "partial_skills": partial_serialised,
-        "missing_skills": missing,
-        "years_risk": bool(gap.get("years_risk", False)),
-        "overclaim_risk": overclaim_risk,
-        "analysed_at": now,
-    }
-
-    errors = client.insert_rows_json(table_ref, [row])
-    if errors:
-        raise RuntimeError(f"BigQuery insert errors for gap_analysis: {errors}")
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(job_url) DO UPDATE SET
+                matched_skills_json = excluded.matched_skills_json,
+                partial_skills_json = excluded.partial_skills_json,
+                missing_skills_json = excluded.missing_skills_json,
+                years_risk = excluded.years_risk,
+                overclaim_risk_json = excluded.overclaim_risk_json,
+                analysed_at = excluded.analysed_at
+            """,
+            (
+                str(job_id),
+                json.dumps(matched, ensure_ascii=False),
+                json.dumps(partial, ensure_ascii=False),
+                json.dumps(missing, ensure_ascii=False),
+                int(bool(gap.get("years_risk", False))),
+                json.dumps(overclaim_risk, ensure_ascii=False),
+                now,
+            ),
+        )
+        conn.commit()
 

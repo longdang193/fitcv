@@ -8,7 +8,6 @@ covers:
   - score_evidence_item: weighted scoring
   - retrieve_evidence: ranking, top_k, all evidence types
 excludes:
-  - BigQuery integration (store_evidence_selection)
 tags:
   - fast
   - ci-safe
@@ -880,7 +879,7 @@ def test_retrieve_evidence_bundle_contract_is_deterministic_across_repeated_runs
     second = retrieve_evidence_bundle(profile, job, top_k=2)
 
     assert _stable_contract_view(first) == _stable_contract_view(second)
-    assert first["selected_evidence_ids"] == ["proj_a", "exp_a"]
+    assert first["selected_evidence_ids"] == ["exp_a", "proj_a"]
 
     selected = first["selected_evidence"]
     assert len(selected) == 2
@@ -1047,7 +1046,6 @@ def test_store_evidence_selection_writes_sqlite_rows(
     from fitcv.evidence import store_evidence_selection
 
     db_path = tmp_path / "fitcv_cp.sqlite3"
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
 
     selected = [
@@ -1103,7 +1101,6 @@ def test_store_evidence_selection_sqlite_upsert_is_idempotent(
     from fitcv.evidence import store_evidence_selection
 
     db_path = tmp_path / "fitcv_cp.sqlite3"
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
 
     first = [
@@ -1154,70 +1151,6 @@ def test_store_evidence_selection_sqlite_upsert_is_idempotent(
     assert row[2] == "v2"
     assert float(row[3]) == 0.88
     assert row[4] == "projects[1]"
-def test_store_evidence_selection_bigquery_mode_uses_bigquery_client(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    import sys
-    import types
-
-    from fitcv.evidence import store_evidence_selection
-
-    calls: dict[str, object] = {}
-
-    class FakeCredentials:
-        @staticmethod
-        def from_service_account_file(path: str) -> str:
-            calls["credential_path"] = path
-            return "fake-creds"
-
-    class FakeClient:
-        def __init__(self, *, project: str, credentials: object) -> None:
-            calls["project"] = project
-            calls["credentials"] = credentials
-
-        def insert_rows_json(self, table_ref: str, rows: list[dict[str, object]]) -> list[object]:
-            calls["table_ref"] = table_ref
-            calls["rows"] = rows
-            return []
-
-    fake_bigquery = types.SimpleNamespace(Client=FakeClient)
-    fake_service_account = types.SimpleNamespace(Credentials=FakeCredentials)
-    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
-    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
-    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
-    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-
-    store_evidence_selection(
-        "https://example.com/job-2",
-        [
-            {
-                "evidence_id": "proj_9",
-                "evidence_type": "project_entry",
-                "name": "Warehouse Modernization",
-                "skills": ["dbt"],
-                "business_value": "Improved reporting reliability",
-                "selection_score": 0.88,
-                "source_ref": "projects[2]",
-            }
-        ],
-        config={
-            "gcp_project": "demo-project",
-            "bigquery_dataset": "fitcv",
-            "service_account_key": "C:/fake/key.json",
-        },
-    )
-
-    assert calls["credential_path"] == "C:/fake/key.json"
-    assert calls["project"] == "demo-project"
-    assert calls["table_ref"] == "demo-project.fitcv.evidence_selections"
-    rows = calls["rows"]
-    assert isinstance(rows, list)
-    assert rows[0]["job_url"] == "https://example.com/job-2"
-    assert rows[0]["evidence_id"] == "proj_9"
-    assert rows[0]["skills"] == ["dbt"]
-    assert float(rows[0]["score"]) == 0.88
-
 
 def test_normalize_evidence_selection_records_contract() -> None:
     records = evidence_module._normalize_evidence_selection_records(
@@ -1248,9 +1181,5 @@ def test_normalize_evidence_selection_records_contract() -> None:
     assert sqlite_params[1] == "exp_7"
     assert sqlite_params[6] == 0.73
 
-    bq_row = evidence_module._record_to_bigquery_row(record)
-    assert bq_row["job_url"] == "https://example.com/job-3"
-    assert bq_row["evidence_id"] == "exp_7"
-    assert bq_row["score"] == 0.73
 
 

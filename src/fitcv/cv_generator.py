@@ -559,13 +559,7 @@ def _build_generation_prompt_context(
 
     enabled_section_names = _get_enabled_section_names(config)
 
-    allowed_skill_set: set[str] = set()
-    for item in evidence:
-        for raw_skill in item.get("skills") or []:
-            text = str(raw_skill or "").strip()
-            if not text:
-                continue
-            allowed_skill_set.add(canonicalize_skill(text, config or {}))
+    allowed_skill_set = _collect_allowed_skill_set(evidence, config=config)
     allowed_skills = sorted(skill for skill in allowed_skill_set if skill)
 
     allowed_certifications: list[str] = []
@@ -1260,7 +1254,12 @@ def _normalize_education_section(raw_sections: dict[str, Any], *, config: dict[s
         )
     return _sanitize_education_entries(education_entries, config=config)
 
-def _normalize_skills_section(raw_sections: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+def _normalize_skills_section(
+    raw_sections: dict[str, Any],
+    *,
+    allowed_skill_set: set[str] | None = None,
+    config: dict[str, Any] | None = None,
+) -> dict[str, list[dict[str, Any]]]:
     raw_skills = raw_sections.get("skills")
     raw_groups = raw_skills.get("groups") if isinstance(raw_skills, dict) else []
     normalized_groups: list[dict[str, Any]] = []
@@ -1268,10 +1267,19 @@ def _normalize_skills_section(raw_sections: dict[str, Any]) -> dict[str, list[di
         for group in raw_groups:
             if not isinstance(group, dict):
                 continue
+            items = _coerce_string_list(group.get("items"))
+            if allowed_skill_set is not None:
+                items = [
+                    item
+                    for item in items
+                    if canonicalize_skill(item, config or {}) in allowed_skill_set
+                ]
+            if not items:
+                continue
             normalized_groups.append(
                 {
                     "label": str(group.get("label") or "").strip(),
-                    "items": _coerce_string_list(group.get("items")),
+                    "items": items,
                 }
             )
     return {"groups": normalized_groups}
@@ -1316,6 +1324,7 @@ def _normalize_structured_cv(
     raw_structured_cv: dict[str, Any],
     *,
     jd: dict[str, Any],
+    evidence: list[dict[str, Any]] | None,
     profile: dict[str, Any] | None,
     config: dict[str, Any],
     fit_classification: str,
@@ -1337,7 +1346,11 @@ def _normalize_structured_cv(
     normalized["sections"]["experience"] = _normalize_experience_section(raw_sections, config=config)
     normalized["sections"]["projects"] = _normalize_projects_section(raw_sections, config=config)
     normalized["sections"]["education"] = _normalize_education_section(raw_sections, config=config)
-    normalized["sections"]["skills"] = _normalize_skills_section(raw_sections)
+    normalized["sections"]["skills"] = _normalize_skills_section(
+        raw_sections,
+        allowed_skill_set=_collect_allowed_skill_set(evidence or [], config=config),
+        config=config,
+    )
 
     normalized["sections"]["certifications"] = _normalize_certifications_section(raw_sections, config=config)
     normalized["sections"]["publications"] = _normalize_publications_section(raw_sections, config=config)
@@ -1489,6 +1502,22 @@ def render_cv_template(
         headline=headline,
         summary=summary,
     )
+
+def _collect_allowed_skill_set(
+    evidence: list[dict[str, Any]],
+    *,
+    config: dict[str, Any] | None,
+) -> set[str]:
+    allowed_skill_set: set[str] = set()
+    for item in evidence:
+        for raw_skill in item.get("skills") or []:
+            text = str(raw_skill or "").strip()
+            if not text:
+                continue
+            canonical = canonicalize_skill(text, config or {})
+            if canonical:
+                allowed_skill_set.add(canonical)
+    return allowed_skill_set
 
 def _normalize_cv_markdown(markdown: str) -> str:
     """Deterministically normalize rendered CV markdown formatting."""
@@ -1682,6 +1711,7 @@ def generate_structured_cv(
     return _normalize_structured_cv(
         response_payload,
         jd=jd,
+        evidence=evidence,
         profile=profile,
         config=config,
         fit_classification=fit_classification,

@@ -22,7 +22,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from fitcv_cp.bq_store import get_events, get_run
+from fitcv_cp.sqlite_store import get_events, get_run
 from fitcv_cp.models import RunEvent, RunStatus
 
 logger = logging.getLogger(__name__)
@@ -124,3 +124,4 @@ def persist_terminal_run_artifact_mirror(
     mirror_dir.mkdir(parents=True, exist_ok=True)
     for filename, payload in payloads.items():
         _write_json_atomic(mirror_dir / filename, payload)
+

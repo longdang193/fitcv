@@ -23,7 +23,7 @@ normalise_evidence_item  : convert a raw profile entry to the canonical evidence
 score_evidence_item      : compatibility skill-support score for one evidence item
 retrieve_evidence_bundle : retrieve channel pools, merge/dedupe, and select final evidence
 retrieve_evidence        : compatibility wrapper that returns final selected evidence only
-store_evidence_selection : persist selected evidence to BigQuery (integration)
+store_evidence_selection : persist selected evidence to local sqlite store
 """
 
 import hashlib
@@ -37,7 +37,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fitcv.config import get_embedding_model, sqlite_mode_enabled
+from fitcv.config import get_embedding_model
 from fitcv.contracts import (
     ANALYSIS_CHANNEL_IDS,
     CV_ANALYSIS_REUSE_SCHEMA_VERSION,
@@ -1943,20 +1943,6 @@ def _record_to_sqlite_params(record: EvidenceSelectionRecord) -> tuple[str, str,
     )
 
 
-def _record_to_bigquery_row(record: EvidenceSelectionRecord) -> dict[str, Any]:
-    return {
-        "job_url": record.job_url,
-        "evidence_id": record.evidence_id,
-        "evidence_type": record.evidence_type,
-        "name": record.name,
-        "skills": list(record.skills),
-        "business_value": record.business_value,
-        "score": record.score,
-        "source_ref": record.source_ref,
-        "selected_at": record.selected_at,
-    }
-
-
 
 def _persist_selection_sqlite(records: list[EvidenceSelectionRecord]) -> None:
     db_path = Path(_local_sqlite_path())
@@ -1990,34 +1976,12 @@ def _persist_selection_sqlite(records: list[EvidenceSelectionRecord]) -> None:
         )
         conn.commit()
 
-def _persist_selection_bigquery(
-    records: list[EvidenceSelectionRecord],
-    config: dict[str, Any],
-) -> None:
-    from google.cloud import bigquery  # type: ignore[import-not-found]
-    from google.oauth2 import service_account  # type: ignore[import-not-found]
-
-    project = str(config["gcp_project"])
-    dataset = str(config["bigquery_dataset"])
-    key_path = str(config["service_account_key"])
-
-    if key_path:
-        credentials = service_account.Credentials.from_service_account_file(key_path)
-        client = bigquery.Client(project=project, credentials=credentials)
-    else:
-        client = bigquery.Client(project=project)
-    table_ref = f"{project}.{dataset}.evidence_selections"
-    rows = [_record_to_bigquery_row(record) for record in records]
-    errors = client.insert_rows_json(table_ref, rows)
-    if errors:
-        raise RuntimeError(f"BigQuery insert errors for evidence_selections: {errors}")
-
 def store_evidence_selection(
     job_url: str,
     evidence: list[dict[str, Any]],
     config: dict[str, Any],
 ) -> None:
-    """Insert evidence selection rows into fitcv.evidence_selections."""
+    """Insert evidence selection rows into local sqlite store."""
     if not evidence:
         return
 
@@ -2027,9 +1991,4 @@ def store_evidence_selection(
         evidence,
         selected_at=now,
     )
-
-    if sqlite_mode_enabled(config):
-        _persist_selection_sqlite(records)
-        return
-
-    _persist_selection_bigquery(records, config)
+    _persist_selection_sqlite(records)

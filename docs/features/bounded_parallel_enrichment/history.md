@@ -64,7 +64,7 @@ Completed the phase 6 lineage evidence hydration.
 
 - ThreadPoolExecutor-based parallel enrichment in `enrich.py`
 - `enrichment_batch_size` / `enrichment_concurrency` config keys consumed from settings
-- Global rate lock (`_ENRICH_RATE_LOCK`) prevents concurrent threads from exceeding Vertex AI quotas
+- Global rate lock (`_ENRICH_RATE_LOCK`) prevents concurrent threads from exceeding provider rate limits
 - Admin UI fields for batch size and concurrency in `settings_schema.py`
 - Conservative defaults: batch_size=10, concurrency=1
 - Deterministic output order preserved across parallel batches

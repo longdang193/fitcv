@@ -7,7 +7,7 @@ responsibility:
   - Provide dedicated reconciler process for abandoned attempt recovery.
 inputs:
   - control-plane config (retry.reconciler_interval_seconds)
-  - backend runtime (sqlite or BigQuery)
+  - backend runtime (SQLite)
 outputs:
   - periodic reconcile_abandoned_attempts() side effects
 lifecycle:
@@ -21,7 +21,6 @@ import logging
 import time
 
 from fitcv_cp.backend_runtime import resolve_backend_runtime
-from fitcv_cp.bigquery_client import build_bigquery_client
 from fitcv_cp.reconciler import reconcile_abandoned_attempts
 from fitcv_cp.retry_settings import load_retry_settings
 from fitcv_cp.store import ControlPlaneStore
@@ -31,16 +30,12 @@ logger = logging.getLogger(__name__)
 
 def _build_store() -> ControlPlaneStore:
     runtime = resolve_backend_runtime()
-    if runtime.backend_type == "sqlite":
-        return ControlPlaneStore(
-            bq=None,
-            project=str(runtime.project or "local"),
-            dataset=str(runtime.dataset or "local"),
-            backend_runtime=runtime,
-        )
-
-    bq = build_bigquery_client()
-    return ControlPlaneStore(bq=bq, project=str(runtime.project), dataset=str(runtime.dataset), backend_runtime=runtime)
+    return ControlPlaneStore(
+        bq=None,
+        project=str(runtime.project or "local"),
+        dataset=str(runtime.dataset or "local"),
+        backend_runtime=runtime,
+    )
 
 
 def run_reconciler_forever() -> None:

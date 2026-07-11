@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from fitcv_cp.backend_runtime import BackendRuntime, set_backend_runtime
-from fitcv_cp import bq_store
+from fitcv_cp import sqlite_store
 from fitcv_cp.models import PipelineRun, RunEvent
 from fitcv_cp.run_artifact_contracts import decode_run_attempt_payload_or_none
 
@@ -127,7 +127,7 @@ class ControlPlaneStore:
     def insert_run(self, run: PipelineRun) -> None:
         self._call(
             self.insert_run_fn,
-            bq_store.insert_run,
+            sqlite_store.insert_run,
             run,
             self.bq,
             project=self.project,
@@ -137,7 +137,7 @@ class ControlPlaneStore:
     def update_run_queue_job_id(self, run_id: str, queue_job_id: str) -> dict[str, str]:
         return self._call_dict(
             self.update_run_queue_job_id_fn,
-            bq_store.update_run_queue_job_id,
+            sqlite_store.update_run_queue_job_id,
             run_id,
             queue_job_id,
             self.bq,
@@ -155,7 +155,7 @@ class ControlPlaneStore:
     ) -> dict[str, str]:
         return self._call_dict(
             self.update_run_orchestration_binding_fn,
-            bq_store.update_run_orchestration_binding,
+            sqlite_store.update_run_orchestration_binding,
             run_id,
             queue_job_id=queue_job_id,
             orchestration_backend=orchestration_backend,
@@ -168,7 +168,7 @@ class ControlPlaneStore:
     def get_run(self, run_id: str) -> PipelineRun | None:
         return self._call(
             self.get_run_fn,
-            bq_store.get_run,
+            sqlite_store.get_run,
             run_id,
             self.bq,
             project=self.project,
@@ -184,7 +184,7 @@ class ControlPlaneStore:
     ) -> list[PipelineRun]:
         return self._call_list(
             self.list_runs_fn,
-            bq_store.list_runs,
+            sqlite_store.list_runs,
             self.bq,
             project=self.project,
             dataset=self.dataset,
@@ -196,7 +196,7 @@ class ControlPlaneStore:
     def get_events(self, run_id: str) -> list[RunEvent]:
         return self._call_list(
             self.get_events_fn,
-            bq_store.get_events,
+            sqlite_store.get_events,
             run_id,
             self.bq,
             project=self.project,
@@ -206,7 +206,7 @@ class ControlPlaneStore:
     def update_run_status(self, run_id: str, status: Any, **kwargs: Any) -> dict[str, str]:
         return self._call_dict(
             self.update_run_status_fn,
-            bq_store.update_run_status,
+            sqlite_store.update_run_status,
             run_id,
             status,
             self.bq,
@@ -218,7 +218,7 @@ class ControlPlaneStore:
     def update_run_checkpoint(self, run_id: str, **kwargs: Any) -> dict[str, str]:
         return self._call_dict(
             self.update_run_checkpoint_fn,
-            bq_store.update_run_checkpoint,
+            sqlite_store.update_run_checkpoint,
             run_id,
             self.bq,
             project=self.project,
@@ -235,7 +235,7 @@ class ControlPlaneStore:
         return bool(
             self._call(
                 self.request_run_cancel_fn,
-                bq_store.request_run_cancel,
+                sqlite_store.request_run_cancel,
                 run_id,
                 requested_by,
                 target_status,
@@ -248,7 +248,7 @@ class ControlPlaneStore:
     def archive_run(self, run_id: str, archived_by: str) -> None:
         self._call(
             self.archive_run_fn,
-            bq_store.archive_run,
+            sqlite_store.archive_run,
             run_id,
             archived_by,
             self.bq,
@@ -259,7 +259,7 @@ class ControlPlaneStore:
     def unarchive_run(self, run_id: str) -> None:
         self._call(
             self.unarchive_run_fn,
-            bq_store.unarchive_run,
+            sqlite_store.unarchive_run,
             run_id,
             self.bq,
             project=self.project,
@@ -270,7 +270,7 @@ class ControlPlaneStore:
     def delete_archived_runs(self, older_than_days: int | str, run_ids: list[str] | None = None) -> dict[str, Any]:
         return self._call_dict(
             self.delete_archived_runs_fn,
-            bq_store.delete_archived_runs,
+            sqlite_store.delete_archived_runs,
             older_than_days,
             self.bq,
             project=self.project,
@@ -280,7 +280,7 @@ class ControlPlaneStore:
     def list_cvs_for_run(self, run_id: str) -> list[dict[str, Any]]:
         return self._call_list(
             self.list_cvs_for_run_fn,
-            bq_store.list_cvs_for_run,
+            sqlite_store.list_cvs_for_run,
             run_id,
             self.bq,
             project=self.project,
@@ -290,7 +290,7 @@ class ControlPlaneStore:
     def get_cv_markdown(self, version_id: str) -> str | None:
         return self._call(
             self.get_cv_markdown_fn,
-            bq_store.get_cv_markdown,
+            sqlite_store.get_cv_markdown,
             version_id,
             self.bq,
             project=self.project,
@@ -300,7 +300,7 @@ class ControlPlaneStore:
     def list_run_structured_jobs(self, run_id: str) -> list[dict[str, Any]]:
         return self._call_list(
             self.list_run_structured_jobs_fn,
-            bq_store.list_run_structured_jobs,
+            sqlite_store.list_run_structured_jobs,
             run_id,
             self.bq,
             project=self.project,
@@ -310,7 +310,7 @@ class ControlPlaneStore:
     def list_filter_results_for_run(self, run_id: str) -> list[dict[str, Any]]:
         return self._call_list(
             self.list_filter_results_for_run_fn,
-            bq_store.list_filter_results_for_run,
+            sqlite_store.list_filter_results_for_run,
             run_id,
             self.bq,
             project=self.project,
@@ -320,7 +320,7 @@ class ControlPlaneStore:
     def get_pipeline_runs_schema_status(self) -> dict[str, Any]:
         return self._call_dict(
             self.get_pipeline_runs_schema_status_fn,
-            bq_store.get_pipeline_runs_schema_status,
+            sqlite_store.get_pipeline_runs_schema_status,
             self.bq,
             project=self.project,
             dataset=self.dataset,
@@ -339,7 +339,7 @@ class ControlPlaneStore:
         return dict(
             self._call(
                 self.append_event_fn,
-                bq_store.append_event,
+                sqlite_store.append_event,
                 event,
                 self.bq,
                 project=self.project,
@@ -350,7 +350,7 @@ class ControlPlaneStore:
     def update_run_effective_settings(self, run_id: str, effective_settings_json: str) -> dict[str, str]:
         return self._call_dict(
             self.update_run_effective_settings_fn,
-            bq_store.update_run_effective_settings,
+            sqlite_store.update_run_effective_settings,
             run_id,
             effective_settings_json,
             self.bq,
@@ -364,7 +364,7 @@ class ControlPlaneStore:
         return dict(
             self._call(
                 self.update_run_synonym_proposals_fn,
-                bq_store.update_run_synonym_proposals,
+                sqlite_store.update_run_synonym_proposals,
                 run_id,
                 synonym_proposals_json,
                 self.bq,
@@ -376,7 +376,7 @@ class ControlPlaneStore:
     def update_run_cv_generation_debug(self, run_id: str, cv_generation_debug_json: str) -> dict[str, str]:
         return self._call_dict(
             self.update_run_cv_generation_debug_fn,
-            bq_store.update_run_cv_generation_debug,
+            sqlite_store.update_run_cv_generation_debug,
             run_id,
             cv_generation_debug_json,
             self.bq,
@@ -391,7 +391,7 @@ class ControlPlaneStore:
     ) -> dict[str, str]:
         return self._call_dict(
             self.update_run_stage_transition_artifacts_fn,
-            bq_store.update_run_stage_transition_artifacts,
+            sqlite_store.update_run_stage_transition_artifacts,
             run_id,
             stage_transition_artifacts_json,
             self.bq,
@@ -402,12 +402,14 @@ class ControlPlaneStore:
     def insert_cv_version_row(self, row: dict[str, Any]) -> list[Any]:
         return self._call_list(
             self.insert_cv_version_row_fn,
-            bq_store.insert_cv_version_row,
+            sqlite_store.insert_cv_version_row,
             row,
             self.bq,
             project=self.project,
             dataset=self.dataset,
         )
+
+
 
 
 

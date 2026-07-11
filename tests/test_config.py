@@ -14,6 +14,7 @@ tags:
 import shutil
 import uuid
 import os
+import warnings
 from pathlib import Path
 
 import pytest
@@ -23,11 +24,10 @@ from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
     get_cv_acceptance_policy,
     get_cv_generation_structured_prompt_id,
-    get_gemini_model,
+    get_ranking_ai_score_model,
     get_ranking_prompt_id,
     get_stage_runtime_concurrency,
     get_stage_runtime_sleep_secs,
-    get_vertex_location,
     load_config,
     load_control_plane_config,
     parse_runtime_synonym_overlay_yaml,
@@ -52,7 +52,7 @@ def test_load_config_returns_dict() -> None:
 
 def test_load_config_has_required_keys() -> None:
     cfg = load_config(Path(__file__).parent.parent / "config" / "env.yaml")
-    assert "gcp_project" not in cfg
+    assert cfg["gcp_project"] == "fitcv-491123"
     assert "bigquery_dataset" not in cfg
     assert "service_account_key" not in cfg
 
@@ -63,32 +63,34 @@ def test_load_config_raises_for_missing_file() -> None:
         load_config("/nonexistent/path/.env.yaml")
 
 
-def test_load_config_raises_for_missing_keys(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import pytest
+def test_load_config_allows_missing_legacy_cloud_keys(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     isolated_root = tmp_path / "isolated" / "a" / "b" / "c" / "d"
     isolated_root.mkdir(parents=True)
-    bad_yaml = isolated_root / ".env.yaml"
-    bad_yaml.write_text("some_key: value\n")
+    env_yaml = isolated_root / ".env.yaml"
+    env_yaml.write_text("""some_key: value
+""")
     cfg_dir = isolated_root / "config"
     cfg_dir.mkdir()
     (cfg_dir / "cv.yaml").write_text(
-        "cv:\n"
-        "  preset: europass\n"
-        "  generation:\n"
-        "    model: gemini-2.5-flash\n"
-        "    prompt_version: v1\n"
-        "  composition:\n"
-        "    summary:\n"
-        "      enabled: true\n"
-        "  validation:\n"
-        "    max_pages: 2\n"
+        """cv:
+  preset: europass
+  generation:
+    model: cx/gpt-5.4-mini
+    prompt_version: v1
+  composition:
+    summary:
+      enabled: true
+  validation:
+    max_pages: 2
+"""
     )
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
     monkeypatch.delenv("GCP_PROJECT", raising=False)
-    monkeypatch.delenv("BIGQUERY_DATASET", raising=False)
-    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
-    with pytest.raises(ValueError, match="Missing config keys for bigquery backend"):
-        load_config(bad_yaml)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    cfg = load_config(env_yaml)
+
+    assert cfg["cv"]["preset"] == "europass"
+    assert resolve_data_backend(cfg) == "sqlite"
 
 
 def test_load_config_sqlite_backend_allows_missing_cloud_keys(
@@ -103,7 +105,7 @@ def test_load_config_sqlite_backend_allows_missing_cloud_keys(
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -111,10 +113,8 @@ def test_load_config_sqlite_backend_allows_missing_cloud_keys(
         "  validation:\n"
         "    max_pages: 2\n"
     )
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
     monkeypatch.delenv("GCP_PROJECT", raising=False)
-    monkeypatch.delenv("BIGQUERY_DATASET", raising=False)
-    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     cfg = load_config(env_yaml)
 
@@ -124,79 +124,38 @@ def test_load_config_sqlite_backend_allows_missing_cloud_keys(
     assert "service_account_key" not in cfg
 
 
-def test_load_config_bigquery_backend_requires_cloud_keys(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    env_yaml = tmp_path / ".env.yaml"
-    env_yaml.write_text("some_key: value\n")
-    cfg_dir = tmp_path / "config"
-    cfg_dir.mkdir()
-    (cfg_dir / "cv.yaml").write_text(
-        "cv:\n"
-        "  preset: europass\n"
-        "  generation:\n"
-        "    model: gemini-2.5-flash\n"
-        "    prompt_version: v1\n"
-        "  composition:\n"
-        "    summary:\n"
-        "      enabled: true\n"
-        "  validation:\n"
-        "    max_pages: 2\n"
-    )
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-    monkeypatch.delenv("GCP_PROJECT", raising=False)
-    monkeypatch.delenv("BIGQUERY_DATASET", raising=False)
-    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
-
-    with pytest.raises(ValueError, match="Missing config keys for bigquery backend"):
-        load_config(env_yaml)
-
-
 def test_load_config_prefers_standard_env_vars_for_infra_keys(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     env_yaml = tmp_path / ".env.yaml"
-    env_yaml.write_text(
-        "gcp_project: file-project\n"
-        "bigquery_dataset: file-dataset\n"
-        "service_account_key: file-key.json\n"
-    )
+    env_yaml.write_text("gcp_project: file-project\n")
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
     (cfg_dir / "cv.yaml").write_text(
-        "cv:\n"
-        "  preset: europass\n"
-        "  generation:\n"
-        "    model: gemini-2.5-flash\n"
-        "    prompt_version: v1\n"
-        "  composition:\n"
-        "    summary:\n"
-        "      enabled: true\n"
-        "  content_rules:\n"
-        "    evidence_grounded_only: true\n"
-        "  validation:\n"
-        "    max_pages: 2\n"
+        """cv:
+  preset: europass
+  generation:
+    model: cx/gpt-5.4-mini
+    prompt_version: v1
+  composition:
+    summary:
+      enabled: true
+  content_rules:
+    evidence_grounded_only: true
+  validation:
+    max_pages: 2
+"""
     )
     monkeypatch.setenv("GCP_PROJECT", "env-project")
-    monkeypatch.setenv("BIGQUERY_DATASET", "env-dataset")
-    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/tmp/env-key.json")
+    monkeypatch.setenv("OPENAI_API_KEY", "/tmp/env-key.json")
 
     cfg = load_config(env_yaml)
 
-    assert "gcp_project" not in cfg
+    assert cfg["gcp_project"] == "env-project"
     assert "bigquery_dataset" not in cfg
     assert "service_account_key" not in cfg
 
 
-def test_get_vertex_location_prefers_vertex_location() -> None:
-    cfg = {"location": "US", "vertex_location": "us-central1"}
-    assert get_vertex_location(cfg) == "us-central1"
-
-
-def test_get_vertex_location_defaults_to_us_central1() -> None:
-    cfg = {"location": "US"}
-    assert get_vertex_location(cfg) == "us-central1"
 
 
 def test_get_stage_runtime_sleep_secs_prefers_canonical_stage_runtime() -> None:
@@ -251,30 +210,30 @@ def test_get_stage_runtime_concurrency_falls_back_to_compatibility_key() -> None
 
 def test_load_config_defaults_to_repo_config_shape() -> None:
     cfg = load_config()
-    assert cfg["gemini_model"] == "gemini-2.5-flash"
-    assert cfg["vertex_location"] == "us-central1"
-    assert cfg["paths"]["candidate_profile"] == "data/candidate_profile.yaml"
+    assert "gemini_model" not in cfg
+    assert "vertex_location" not in cfg
+    assert cfg["paths"]["candidate_profile"] == "data/candidate_profile.private.yaml"
     assert cfg["pipeline"]["vector_search_top_n"] == 50
     assert cfg["pipeline"]["ai_score_top_n"] == 50
-    assert cfg["pipeline"]["final_top_n"] == 10
+    assert cfg["pipeline"]["final_top_n"] == 15
     assert cfg["pipeline"]["evidence_top_k"] == 5
     assert cfg["vector_top_n"] == cfg["pipeline"]["vector_search_top_n"]
     assert cfg["rerank_top_n"] == cfg["pipeline"]["ai_score_top_n"]
 
 
-def test_load_config_accepts_legacy_config_env_path_with_warning() -> None:
+def test_load_config_accepts_config_env_path_without_warning() -> None:
     legacy_path = Path(__file__).parent.parent / "config" / "env.yaml"
-    with pytest.warns(UserWarning, match="legacy config path"):
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
         cfg = load_config(legacy_path)
-    assert cfg["gemini_model"] == "gemini-2.5-flash"
-    assert cfg["vertex_location"] == "us-central1"
+    assert not record
+    assert "gemini_model" not in cfg
+    assert "vertex_location" not in cfg
 
 def test_load_config_warns_when_legacy_compatibility_keys_present(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
         "seniority_ladder:\n"
         "  - intern\n"
         "  - senior\n"
@@ -285,7 +244,7 @@ def test_load_config_warns_when_legacy_compatibility_keys_present(tmp_path: Path
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -306,15 +265,11 @@ def test_load_config_legacy_and_canonical_inputs_are_equivalent_for_pipeline_pro
     root_env = tmp_path / ".env.yaml"
     root_env.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
         "vector_top_n: 50\n"
         "rerank_top_n: 40\n"
     )
     (cfg_dir / "env.yaml").write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
     )
     (cfg_dir / "runtime" / "pipeline.yaml").write_text(
         "pipeline:\n"
@@ -322,13 +277,13 @@ def test_load_config_legacy_and_canonical_inputs_are_equivalent_for_pipeline_pro
         "  ai_score_top_n: 40\n"
         "  final_top_n: 10\n"
         "  evidence_top_k: 5\n"
-        "gemini_model: gemini-2.5-flash\n"
+        "ai_score_model: cx/gpt-5.4-mini\n"
     )
     (cfg_dir / "policy" / "cv.yaml").write_text(
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -347,9 +302,8 @@ def test_load_config_legacy_and_canonical_inputs_are_equivalent_for_pipeline_pro
     assert cfg_from_root["rerank_top_n"] == cfg_from_legacy["rerank_top_n"]
 
 def test_resolve_data_backend_env_override_is_invariant(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
-    cfg_a = {"gcp_project": "p1", "bigquery_dataset": "d1"}
-    cfg_b = {"control_plane": {"data_backend": {"type": "bigquery"}}}
+    cfg_a = {"gcp_project": "p1"}
+    cfg_b = {"control_plane": {"data_backend": {"type": "sqlite"}}}
     assert resolve_data_backend(cfg_a) == "sqlite"
     assert resolve_data_backend(cfg_b) == "sqlite"
 
@@ -364,12 +318,9 @@ def test_resolve_data_backend_prefers_control_plane_over_legacy_bridge_keys(
         "    type: sqlite\n"
     )
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("FITCV_CP_DATA_BACKEND", raising=False)
-
+    
     cfg = {
         "gcp_project": "legacy-project",
-        "bigquery_dataset": "legacy-dataset",
-        "service_account_key": "sa_key.json",
     }
 
     assert resolve_data_backend(cfg) == "sqlite"
@@ -380,8 +331,6 @@ def test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_file
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
     )
     cfg_dir = tmp_path / "config"
     (cfg_dir / "runtime").mkdir(parents=True)
@@ -389,7 +338,7 @@ def test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_file
     (cfg_dir / "taxonomy").mkdir()
 
     (cfg_dir / "runtime" / "pipeline.yaml").write_text(
-        "gemini_model: new-model\n"
+        "ai_score_model: new-model\n"
         "embedding_model: new-embedding\n"
         "pipeline:\n"
         "  vector_search_top_n: 12\n"
@@ -401,7 +350,7 @@ def test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_file
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -420,7 +369,7 @@ def test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_file
         "  gcp: google cloud legacy\n"
     )
     (cfg_dir / "pipeline.yaml").write_text(
-        "gemini_model: legacy-model\n"
+        "ai_score_model: legacy-model\n"
         "embedding_model: legacy-embedding\n"
         "pipeline:\n"
         "  vector_search_top_n: 99\n"
@@ -431,7 +380,7 @@ def test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_file
 
     cfg = load_config(env_yaml)
 
-    assert cfg["gemini_model"] == "new-model"
+    assert cfg["ai_score_model"] == "new-model"
     assert cfg["embedding_model"] == "new-embedding"
     assert cfg["pipeline"]["vector_search_top_n"] == 12
     assert cfg["skill_synonyms"]["gcp"] == "google cloud new"
@@ -446,8 +395,8 @@ def test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_file
 def test_load_config_includes_cv_defaults() -> None:
     """@proves settings_system.cv-generation-settings"""
     cfg = load_config()
-    assert cfg["cv_generation_model"] == "gemini-2.5-flash"
-    assert cfg["cv"]["generation"]["model"] == "gemini-2.5-flash"
+    assert cfg["cv_generation_model"] == "cx/gpt-5.4-mini"
+    assert cfg["cv"]["generation"]["model"] == "cx/gpt-5.4-mini"
     assert cfg["cv"]["preset"] == "europass"
     assert cfg["cv"]["composition"]["summary"]["enabled"] is True
     assert cfg["cv"]["validation"]["max_pages"] == 2
@@ -459,9 +408,7 @@ def test_load_config_cv_keys_missing_raises(tmp_path: Path) -> None:
     isolated_root = tmp_path / "isolated" / "a" / "b" / "c" / "d"
     isolated_root.mkdir(parents=True)
     env_yaml = isolated_root / ".env.yaml"
-    env_yaml.write_text(
-        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
-    )
+    env_yaml.write_text("gcp_project: test\n")
     # No cv.yaml → missing top-level 'cv' key → ValueError
     with pytest.raises(ValueError, match="Missing top-level 'cv' key"):
         load_config(env_yaml)
@@ -470,9 +417,7 @@ def test_load_config_cv_keys_missing_raises(tmp_path: Path) -> None:
 def test_load_config_cv_required_sections_must_be_nonempty_list(tmp_path: Path) -> None:
     """required_cv_sections must be derivable from enabled composition sections."""
     env_yaml = tmp_path / ".env.yaml"
-    env_yaml.write_text(
-        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
-    )
+    env_yaml.write_text("gcp_project: test\n")
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
     # composition with an enabled section → required_cv_sections will be non-empty
@@ -480,7 +425,7 @@ def test_load_config_cv_required_sections_must_be_nonempty_list(tmp_path: Path) 
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -499,16 +444,14 @@ def test_load_config_cv_required_sections_must_be_nonempty_list(tmp_path: Path) 
 def test_load_config_cv_max_pages_must_be_positive(tmp_path: Path) -> None:
     """cv.validation.max_pages must be a positive integer."""
     env_yaml = tmp_path / ".env.yaml"
-    env_yaml.write_text(
-        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
-    )
+    env_yaml.write_text("gcp_project: test\n")
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
     (cfg_dir / "cv.yaml").write_text(
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -526,7 +469,6 @@ def test_load_config_env_yaml_overrides_nested_cv(tmp_path: Path) -> None:
     """.env.yaml keys take precedence over nested cv values in cv.yaml."""
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
-        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
@@ -547,7 +489,7 @@ def test_load_config_env_yaml_overrides_nested_cv(tmp_path: Path) -> None:
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -567,8 +509,6 @@ def test_load_config_merges_skill_synonym_overlay_paths(tmp_path: Path) -> None:
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
         "skill_synonyms_overlay_paths:\n"
         "  - skill_synonyms.overlay.yaml\n"
     )
@@ -588,7 +528,7 @@ def test_load_config_merges_skill_synonym_overlay_paths(tmp_path: Path) -> None:
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -612,8 +552,6 @@ def test_load_config_normalizes_role_taxonomy_structure(tmp_path: Path) -> None:
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
     )
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
@@ -636,7 +574,7 @@ def test_load_config_normalizes_role_taxonomy_structure(tmp_path: Path) -> None:
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -658,8 +596,6 @@ def test_load_config_normalizes_domain_and_role_family_alias_maps(tmp_path: Path
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
     )
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
@@ -667,7 +603,7 @@ def test_load_config_normalizes_domain_and_role_family_alias_maps(tmp_path: Path
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -693,8 +629,6 @@ def test_load_config_normalizes_domain_and_role_family_neighbors(tmp_path: Path)
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
     )
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
@@ -702,7 +636,7 @@ def test_load_config_normalizes_domain_and_role_family_neighbors(tmp_path: Path)
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -730,8 +664,6 @@ def test_load_config_prefers_dedicated_non_skill_synonym_files_over_taxonomy(tmp
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
     )
     cfg_dir = tmp_path / "config"
     (cfg_dir / "taxonomy").mkdir(parents=True)
@@ -739,7 +671,7 @@ def test_load_config_prefers_dedicated_non_skill_synonym_files_over_taxonomy(tmp
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -771,8 +703,6 @@ def test_load_config_falls_back_to_taxonomy_for_non_skill_synonym_maps(tmp_path:
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
     )
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
@@ -780,7 +710,7 @@ def test_load_config_falls_back_to_taxonomy_for_non_skill_synonym_maps(tmp_path:
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -1023,16 +953,14 @@ def test_load_config_exposes_cv_acceptance_policy_runtime() -> None:
 
 def test_load_config_cv_acceptance_policy_defaults_when_env_missing(tmp_path: Path) -> None:
     env_yaml = tmp_path / ".env.yaml"
-    env_yaml.write_text(
-        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
-    )
+    env_yaml.write_text("gcp_project: test\n")
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
     (cfg_dir / "cv.yaml").write_text(
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -1065,8 +993,6 @@ def test_load_config_preserves_legacy_compatibility_projection_for_seniority_lad
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
         "seniority_ladder:\n"
         "  - junior\n"
         "  - senior\n",
@@ -1078,7 +1004,7 @@ def test_load_config_preserves_legacy_compatibility_projection_for_seniority_lad
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -1097,26 +1023,24 @@ def test_load_config_preserves_legacy_compatibility_projection_for_seniority_lad
 def test_load_config_ignores_retired_live_smoke_surface(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
-        "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n",
+        "gcp_project: test\n",
         encoding="utf-8",
     )
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
     (cfg_dir / "live_smoke.yaml").write_text(
-        "gemini_model: SHOULD_NOT_BE_OWNER\n",
+        "ai_score_model: SHOULD_NOT_BE_OWNER\n",
         encoding="utf-8",
     )
     (cfg_dir / "pipeline.yaml").write_text(
-        "gemini_model: canonical-fallback\n",
+        "ai_score_model: canonical-fallback\n",
         encoding="utf-8",
     )
     (cfg_dir / "cv.yaml").write_text(
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -1130,13 +1054,13 @@ def test_load_config_ignores_retired_live_smoke_surface(tmp_path: Path, caplog: 
 
     cfg = load_config(env_yaml)
 
-    assert cfg.get("gemini_model") == "canonical-fallback"
+    assert "gemini_model" not in cfg
     assert "Retired config surface detected and ignored" in caplog.text
 
 def test_model_routing_part_owner_is_control_plane_not_pipeline_fallback() -> None:
     routing = resolve_model_routing_part("ranking_ai_score", model_fallback="fallback-only")
     assert routing["provider"] == "openai_compatible"
-    assert routing["model"] == "ocg/deepseek-v4-pro"
+    assert routing["model"] == "cx/gpt-5.4-mini"
 
 def test_model_routing_part_includes_provider_timeout_seconds() -> None:
     routing = resolve_model_routing_part("ranking_ai_score", model_fallback="fallback-only")
@@ -1150,16 +1074,14 @@ def test_load_config_nested_cv_validation_max_pages_positive(tmp_path: Path) -> 
     max_pages in the nested validation block must be a positive integer.
     """
     env_yaml = tmp_path / ".env.yaml"
-    env_yaml.write_text(
-        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
-    )
+    env_yaml.write_text("gcp_project: test\n")
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
     (cfg_dir / "cv.yaml").write_text(
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -1307,16 +1229,14 @@ def test_required_cv_sections_includes_summary_when_enabled() -> None:
 def test_required_cv_sections_excludes_education_when_disabled(tmp_path: Path) -> None:
     """Education must NOT appear in required_cv_sections when enabled:false."""
     env_yaml = tmp_path / ".env.yaml"
-    env_yaml.write_text(
-        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
-    )
+    env_yaml.write_text("gcp_project: test\n")
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
     (cfg_dir / "cv.yaml").write_text(
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    education:\n"
@@ -1335,16 +1255,14 @@ def test_required_cv_sections_excludes_education_when_disabled(tmp_path: Path) -
 
 def test_required_cv_sections_excludes_summary_when_disabled(tmp_path: Path) -> None:
     env_yaml = tmp_path / ".env.yaml"
-    env_yaml.write_text(
-        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
-    )
+    env_yaml.write_text("gcp_project: test\n")
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
     (cfg_dir / "cv.yaml").write_text(
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -1388,7 +1306,7 @@ def test_config_accessors_resolve_centralized_prompt_ids_and_model_defaults() ->
     """@proves pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids"""
     cfg = load_config()
 
-    assert get_gemini_model(cfg) == "gemini-2.5-flash"
+    assert get_ranking_ai_score_model(cfg) == "cx/gpt-5.4-mini"
     assert get_ranking_prompt_id(cfg) == "ranking.ai_score.v1"
     assert get_cv_generation_structured_prompt_id(cfg) == "cv_generation.structured_write.v1"
 
@@ -1406,16 +1324,14 @@ def test_load_config_rejects_unknown_enrich_prompt_id() -> None:
     tmp_path.mkdir(parents=True, exist_ok=False)
     try:
         env_yaml = tmp_path / ".env.yaml"
-        env_yaml.write_text(
-            "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
-        )
+        env_yaml.write_text("gcp_project: test\n")
         cfg_dir = tmp_path / "config"
         cfg_dir.mkdir()
         (cfg_dir / "cv.yaml").write_text(
             "cv:\n"
             "  preset: europass\n"
             "  generation:\n"
-            "    model: gemini-2.5-flash\n"
+            "    model: cx/gpt-5.4-mini\n"
             "    prompt_version: v1\n"
             "  composition:\n"
             "    summary:\n"
@@ -1445,18 +1361,16 @@ def test_load_config_ssot_overlap_warn_mode_allows_load(tmp_path: Path, monkeypa
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
-        "gemini_model: gemini-2.5-flash\n"
+        "ai_score_model: cx/gpt-5.4-mini\n"
     )
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
-    (cfg_dir / "pipeline.yaml").write_text("gemini_model: gemini-2.5-flash\n")
+    (cfg_dir / "pipeline.yaml").write_text("ai_score_model: cx/gpt-5.4-mini\n")
     (cfg_dir / "cv.yaml").write_text(
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -1467,25 +1381,23 @@ def test_load_config_ssot_overlap_warn_mode_allows_load(tmp_path: Path, monkeypa
         "    max_pages: 2\n"
     )
     cfg = load_config(env_yaml)
-    assert cfg["gemini_model"] == "gemini-2.5-flash"
+    assert "gemini_model" not in cfg
 
 def test_load_config_ssot_overlap_strict_mode_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FITCV_CONFIG_SSOT_MODE", "strict")
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
-        "gemini_model: gemini-2.5-flash\n"
+        "ai_score_model: cx/gpt-5.4-mini\n"
     )
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
-    (cfg_dir / "pipeline.yaml").write_text("gemini_model: gemini-2.5-flash\n")
+    (cfg_dir / "pipeline.yaml").write_text("ai_score_model: cx/gpt-5.4-mini\n")
     (cfg_dir / "cv.yaml").write_text(
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -1503,8 +1415,6 @@ def test_load_config_rejects_invalid_ssot_mode(tmp_path: Path, monkeypatch: pyte
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
-        "bigquery_dataset: ds\n"
-        "service_account_key: /dev/null\n"
     )
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
@@ -1512,7 +1422,7 @@ def test_load_config_rejects_invalid_ssot_mode(tmp_path: Path, monkeypatch: pyte
         "cv:\n"
         "  preset: europass\n"
         "  generation:\n"
-        "    model: gemini-2.5-flash\n"
+        "    model: cx/gpt-5.4-mini\n"
         "    prompt_version: v1\n"
         "  composition:\n"
         "    summary:\n"
@@ -1528,7 +1438,6 @@ def test_load_config_rejects_invalid_ssot_mode(tmp_path: Path, monkeypatch: pyte
 def test_resolve_data_backend_supports_legacy_sqlite_mode_flag(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("FITCV_CP_DATA_BACKEND", raising=False)
     assert resolve_data_backend({"sqlite_mode": True}) == "sqlite"
-    assert resolve_data_backend({"sqlite_mode": False}) == "bigquery"
+    assert resolve_data_backend({"sqlite_mode": False}) == "sqlite"
 

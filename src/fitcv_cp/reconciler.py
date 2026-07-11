@@ -7,7 +7,7 @@ responsibility:
   - Reconcile abandoned run attempts (crash / lost worker) into deterministic next action.
   - Enforce bounded retry policy using SSOT-first attempt events.
 inputs:
-  - Run store (sqlite or BigQuery-backed) + current time.
+  - Run store (SQLite-backed) + current time.
 outputs:
   - SSOT updates: attempt terminal events, run terminalization, and/or re-enqueue.
 lifecycle:

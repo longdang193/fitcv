@@ -6,7 +6,7 @@ domain: settings_store
 covers:
   - sqlite-safe local fallback when bq client is absent
 excludes:
-  - live bigquery operations
+  - live remote database operations
 tags:
   - fast
   - ci-safe
@@ -211,3 +211,4 @@ def test_bookmark_persists_across_module_reload(tmp_path, monkeypatch):
     assert len(items) == 1
     assert items[0]["title"] == "Product Manager"
     assert items[0]["snapshot"]["source_run_id"] == "run-3"
+

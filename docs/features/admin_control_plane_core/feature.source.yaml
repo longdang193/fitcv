@@ -21,14 +21,15 @@ capabilities:
   - capability_id: admin_control_plane_core.pipelinereporter-integration
     statement: PipelineReporter integration
     state: active
-  - capability_id: admin_control_plane_core.pipeline-runs-bigquery-table
-    statement: pipeline_runs BigQuery table
+  - capability_id: admin_control_plane_core.pipeline-runs-sqlite-store
+    statement: pipeline_runs SQLite store
     state: active
-  - capability_id: admin_control_plane_core.pipeline-run-events-bigquery-table
-    statement: pipeline_run_events BigQuery table
+  - capability_id: admin_control_plane_core.pipeline-run-events-sqlite-store
+    statement: pipeline_run_events SQLite store
     state: active
   - capability_id: admin_control_plane_core.insert-before-enqueue-invariant
     statement: insert-before-enqueue invariant
     state: active
 stage_participation: []
 stage_participation_rationale: This feature owns admin/control-plane infrastructure and shared persistence/orchestration primitives, not a specific pipeline execution stage.
+

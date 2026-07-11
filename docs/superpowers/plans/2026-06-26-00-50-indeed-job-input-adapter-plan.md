@@ -4,16 +4,15 @@ artifact_type: plan
 status: completed
 template_id: implementation-plan
 name: indeed-job-input-adapter
+parent_thread: workstream-fitcv-semantic-spine.semantic-spine-input-mode-parity
 parent_spec: docs/superpowers/specs/2026-06-26-00-49-indeed-job-input-adapter-spec.md
 targets:
   - src/fitcv/ingest.py
   - src/fitcv/contracts.py
   - tests/test_ingest.py
   - tests/test_normalize.py
-related_features:
-  - none
-related_stages:
-  - none
+related_features: []
+related_stages: []
 ---
 
 # Indeed Job Input Adapter Plan

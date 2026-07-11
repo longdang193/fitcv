@@ -177,30 +177,6 @@ capabilities:
       - python_proves
       symbols:
       - test_admin_upload_trigger_path_mode_stores_jobs_snapshot
-    - path: tests/test_fitcv_cp/test_bq_store.py
-      confidence: high
-      source:
-      - python_proves
-      symbols:
-      - test_insert_run_includes_input_metadata_params
-    - path: tests/test_fitcv_cp/test_bq_store.py
-      confidence: high
-      source:
-      - python_proves
-      symbols:
-      - test_insert_run_input_metadata_none_values_are_included
-    - path: tests/test_fitcv_cp/test_bq_store.py
-      confidence: high
-      source:
-      - python_proves
-      symbols:
-      - test_row_to_run_handles_missing_input_metadata_fields
-    - path: tests/test_fitcv_cp/test_bq_store.py
-      confidence: high
-      source:
-      - python_proves
-      symbols:
-      - test_row_to_run_maps_input_metadata_fields
     - path: tests/test_fitcv_cp/test_models.py
       confidence: high
       source:

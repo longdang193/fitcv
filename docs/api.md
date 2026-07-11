@@ -50,7 +50,7 @@ The supported control-plane runtime is SQLite-backed.
 Behavior:
 
 - startup always resolves to the local SQLite control-plane store
-- supported local startup does not require GCP ADC or BigQuery credentials
+- supported local startup does not require GCP ADC or cloud database credentials
 
 ## Run Trigger And Inspection API
 

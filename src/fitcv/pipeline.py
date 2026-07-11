@@ -61,7 +61,7 @@ from fitcv.agentic_cv_generation import generate_from_analysis as run_agentic_cv
 from fitcv.candidate import (
     flatten_skills,
     infer_effective_preferences,
-    load_candidate_to_bigquery,
+    load_candidate_profile,
     load_profile_json_text,
     load_profile_yaml,
 )
@@ -70,7 +70,7 @@ from fitcv.config import (
     get_cv_acceptance_policy,
     get_cv_generation_model,
     get_cv_generation_prompt_version,
-    get_gemini_model,
+    get_ranking_ai_score_model,
     get_stage_runtime_concurrency,
     load_config,
     resolve_model_routing_part,
@@ -118,7 +118,7 @@ from fitcv.evidence import (
     retrieve_evidence_bundle,
 )
 from fitcv.gap_analysis import classify_fit, compute_gap
-from fitcv.ingest import load_to_bigquery, parse_jobs_file, prepare_raw_rows
+from fitcv.ingest import load_raw_jobs, parse_jobs_file, prepare_raw_rows
 from fitcv.normalize import normalize_batch, normalize_batch_with_exclusions
 from fitcv.ranking import (
     compute_feature_contributions,
@@ -284,7 +284,7 @@ def _materialize_scoring_shortlist(
 
     We also backfill any passed jobs missing from the raw shortlist while
     capacity remains. This protects against transient read-after-write gaps in
-    BigQuery job embeddings visibility without losing the fact that retrieval
+    local job embeddings visibility without losing the fact that retrieval
     itself missed the job URL.
     """
     passed_by_url = {
@@ -391,8 +391,8 @@ def _enrich_jobs_with_reuse(
         return [], []
     if pipeline_store is None:
         pipeline_store = PipelineStore(
-            load_raw_jobs_fn=load_to_bigquery,
-            load_candidate_profile_fn=load_candidate_to_bigquery,
+            load_raw_jobs_fn=load_raw_jobs,
+            load_candidate_profile_fn=load_candidate_profile,
             lookup_reusable_structured_jobs_fn=lookup_reusable_structured_jobs,
             load_structured_jobs_fn=load_structured_jobs,
             load_run_structured_jobs_fn=load_run_structured_jobs,
@@ -3549,7 +3549,7 @@ def _build_stage_transition_artifacts(
                 sample_rows_builder=_sample_rows,
                 ranking_row_sample_builder=_ranking_row_sample,
                 extract_job_url=extract_job_url,
-                gemini_model_resolver=get_gemini_model,
+                ai_score_model_resolver=get_ranking_ai_score_model,
                 effective_preferences_resolver=infer_effective_preferences,
             ),
             "cv_analysis": _build_cv_analysis_stage_block_artifacts(
@@ -3738,7 +3738,7 @@ def run_pipeline(
     ----------
     reporter:
         Optional PipelineReporter instance injected by the control-plane worker.
-        When provided, stage events are emitted to pipeline_run_events in BigQuery.
+        When provided, stage events are emitted to pipeline_run_events in sqlite-backed run storage.
         When None, no events are emitted (normal CLI / test usage).
     config:
         Optional pre-built config dict. When provided, `config_path` is ignored.
@@ -3760,8 +3760,8 @@ def run_pipeline(
     if config is None:
         config = load_config(config_path)
     pipeline_store = PipelineStore(
-        load_raw_jobs_fn=load_to_bigquery,
-        load_candidate_profile_fn=load_candidate_to_bigquery,
+        load_raw_jobs_fn=load_raw_jobs,
+        load_candidate_profile_fn=load_candidate_profile,
         lookup_reusable_structured_jobs_fn=lookup_reusable_structured_jobs,
         load_structured_jobs_fn=load_structured_jobs,
         load_run_structured_jobs_fn=load_run_structured_jobs,

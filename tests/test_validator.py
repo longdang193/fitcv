@@ -152,7 +152,7 @@ def test_check_employer_grounding_skips_project_name_with_em_dash() -> None:
     cv_text = (
         "## Projects\n"
         "### FitCV — AI-Powered CV Generation Pipeline\n"
-        "Built an end-to-end CV generation system using Python and Vertex AI.\n"
+        "Built an end-to-end CV generation system using Python and OpenAI-compatible runtime.\n"
         "## Experience\n"
         "### Data Engineer — ACME (2019–2022)\n"
         "- Built data pipelines"

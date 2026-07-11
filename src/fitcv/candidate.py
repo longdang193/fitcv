@@ -23,7 +23,6 @@ from typing import Any
 
 import yaml
 
-from fitcv.config import sqlite_mode_enabled
 
 
 # ── required profile sections ─────────────────────────────────────────────────
@@ -570,10 +569,10 @@ def flatten_skills(profile: dict[str, Any]) -> list[str]:
 # ── BQ row preparation ────────────────────────────────────────────────────────
 
 def prepare_profile_rows(profile: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
-    """Map a candidate profile dict to BQ table row lists.
+    """Map a candidate profile dict to normalized row payloads.
 
     Returns a dict with keys: profile, experiences, projects, skills, achievements.
-    Each value is a list of row dicts ready for BigQuery insertion.
+    Each value is a list of row dicts for downstream local processing.
     """
     profile = _ensure_normalized_profile(profile)
     now = datetime.now(tz=timezone.utc).isoformat()
@@ -673,47 +672,14 @@ def prepare_profile_rows(profile: dict[str, Any]) -> dict[str, list[dict[str, An
     }
 
 
-# ── integration: BigQuery load ────────────────────────────────────────────────
+# ── candidate profile load hook ──────────────────────────────────────────────
 
-def load_candidate_to_bigquery(
+def load_candidate_profile(
     profile: dict[str, Any],
     config: dict[str, Any],
 ) -> None:
-    """Insert all candidate profile tables into BigQuery.
+    """Normalize candidate profile load hook.
 
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
-    Decorated with @pytest.mark.integration in tests.
+    Current SQLite product direction does not persist profile tables separately.
     """
-    if sqlite_mode_enabled(config):
-        return
-
-    from google.cloud import bigquery  # type: ignore[import-untyped]
-    from google.oauth2 import service_account  # type: ignore[import-untyped]
-
-    project = str(config["gcp_project"])
-    dataset = str(config["bigquery_dataset"])
-    key_path = str(config["service_account_key"])
-
-    if key_path:
-        credentials = service_account.Credentials.from_service_account_file(key_path)
-        client = bigquery.Client(project=project, credentials=credentials)
-    else:
-        client = bigquery.Client(project=project)
-
-    rows_by_table = prepare_profile_rows(profile)
-    table_map = {
-        "profile":      "candidate_profile",
-        "experiences":  "candidate_experiences",
-        "projects":     "candidate_projects",
-        "skills":       "candidate_skills",
-        "achievements": "candidate_achievements",
-    }
-
-    for key, table_suffix in table_map.items():
-        rows = rows_by_table[key]
-        if not rows:
-            continue
-        table_ref = f"{project}.{dataset}.{table_suffix}"
-        errors = client.insert_rows_json(table_ref, rows)
-        if errors:
-            raise RuntimeError(f"BigQuery insert errors for {table_suffix}: {errors}")
+    return

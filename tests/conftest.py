@@ -34,8 +34,8 @@ def pytest_configure(config: pytest.Config) -> None:
 def skip_integration_without_creds(request: pytest.FixtureRequest) -> None:
     """Auto-skip any @pytest.mark.integration test when credentials are absent."""
     if request.node.get_closest_marker("integration"):
-        if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-            pytest.skip("Set GOOGLE_APPLICATION_CREDENTIALS to run integration tests")
+        if not os.environ.get("OPENAI_API_KEY"):
+            pytest.skip("Set OPENAI_API_KEY to run integration tests")
 
 
 

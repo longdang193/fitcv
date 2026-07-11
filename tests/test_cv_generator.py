@@ -641,6 +641,7 @@ def test_normalize_structured_cv_coerces_null_section_lists() -> None:
             }
         },
         jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        evidence=[],
         profile={"name": "Jane Doe"},
         config={"cv": {"preset": "europass"}},
         fit_classification="strong",
@@ -680,6 +681,7 @@ def test_normalize_structured_cv_filters_synthetic_education_rows() -> None:
             }
         },
         jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        evidence=[],
         profile={"name": "Jane Doe"},
         config={"cv": {"preset": "europass", "composition": {"education": {"enabled": True}}}},
         fit_classification="strong",
@@ -713,6 +715,7 @@ def test_normalize_structured_cv_filters_synthetic_rows_in_other_sections() -> N
             }
         },
         jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        evidence=[],
         profile={"name": "Jane Doe"},
         config={"cv": {"preset": "europass"}},
         fit_classification="strong",
@@ -726,6 +729,30 @@ def test_normalize_structured_cv_filters_synthetic_rows_in_other_sections() -> N
     assert normalized["sections"]["publications"][0]["title"] == "Paper A"
     assert len(normalized["sections"]["languages"]) == 1
     assert normalized["sections"]["languages"][0]["name"] == "English"
+
+def test_normalize_structured_cv_drops_skills_outside_selected_evidence() -> None:
+    normalized = _normalize_structured_cv(
+        {
+            "sections": {
+                "header": {"name": "Jane Doe", "title": "Data Analyst"},
+                "summary": {"text": "Grounded summary."},
+                "skills": {
+                    "groups": [
+                        {"label": "Core", "items": ["SQL", "research"]},
+                    ]
+                },
+            }
+        },
+        jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        evidence=[{"skills": ["SQL", "Python"]}],
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+
+    assert normalized["sections"]["skills"]["groups"] == [
+        {"label": "Core", "items": ["SQL"]}
+    ]
 
 def test_normalize_cv_markdown_is_deterministic() -> None:
     raw = "# Jane Doe\r\n\r\n## Experience\r\n* built pipelines\r\n\r\n\r\n## Projects\r\n• shipped feature\r\n"
@@ -870,10 +897,10 @@ def test_generate_cv_uses_openai_compatible_routed_client(
         profile={"name": "Jane Doe"},
         config={
             "gcp_project": "fitcv-491123",
-            "vertex_location": "us-central1",
+            "location": "us-central1",
             "cv": {
                 "generation": {
-                    "model": "gemini-2.5-flash",
+                    "model": "cx/gpt-5.4-mini",
                     "prompt_version": "v1",
                 },
                 "preset": "europass",
@@ -943,9 +970,9 @@ def test_generate_cv_parses_chat_completions_json_with_trailing_sse_done(
         profile={"name": "Jane Doe"},
         config={
             "gcp_project": "fitcv-491123",
-            "vertex_location": "us-central1",
+            "location": "us-central1",
             "cv": {
-                "generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"},
+                "generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"},
                 "preset": "europass",
                 "composition": {"summary": {"enabled": True}},
                 "content_rules": {"evidence_grounded_only": True},
@@ -1014,10 +1041,10 @@ def test_generate_cv_reads_model_from_nested_cv_config(
 
     nested_config = {
         "gcp_project": "fitcv-491123",
-        "vertex_location": "us-central1",
+        "location": "us-central1",
         "cv": {
             "generation": {
-                "model": "gemini-3-pro",
+                "model": "cx/gpt-5.5",
                 "prompt_version": "v2",
             },
             "preset": "europass",

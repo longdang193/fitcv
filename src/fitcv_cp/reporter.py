@@ -27,7 +27,7 @@ from fitcv.telemetry import (
     langfuse_link_status,
     telemetry_export_status,
 )
-from fitcv_cp.bq_store import append_event
+from fitcv_cp.sqlite_store import append_event
 from fitcv_cp.models import RunEvent
 from fitcv_cp.runtime_contracts import is_truthy_env
 
@@ -317,6 +317,7 @@ class PipelineReporter:
                 )
         except Exception as exc:
             logger.warning("Reporter failed to write event: %s", exc)
+
 
 
 

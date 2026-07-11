@@ -2,7 +2,7 @@ feature_id: settings_system
 name: Settings System
 status: active
 type: add
-summary: Admins can view and edit pipeline tuning defaults through a task-first settings UI with clearer current-vs-draft feedback, basic-versus-advanced disclosure, denser CV output controls, and metadata-only treatment for fixed single-option runtime fields, while baseline defaults still resolve from centralized YAML/config ownership, persisted overrides still live in BigQuery, and operator-facing settings-used exports continue to present canonical settings instead of compatibility-era duplicate keys.
+summary: Admins can view and edit pipeline tuning defaults through a task-first settings UI with clearer current-vs-draft feedback, basic-versus-advanced disclosure, denser CV output controls, and metadata-only treatment for fixed single-option runtime fields, while baseline defaults still resolve from centralized YAML/config ownership, persisted overrides now live in SQLite, and operator-facing settings-used exports continue to present canonical settings instead of compatibility-era duplicate keys.
 invariants: []
 domains:
   - admin_ui
@@ -10,8 +10,8 @@ domains:
 depends_on:
   - admin_control_plane_core
 capabilities:
-  - capability_id: settings_system.bigquery-backed-pipeline-settings-store
-    statement: BigQuery-backed pipeline settings store
+  - capability_id: settings_system.sqlite-backed-pipeline-settings-store
+    statement: SQLite-backed pipeline settings store
     state: active
   - capability_id: settings_system.settings-schema-registry
     statement: Settings schema registry
@@ -109,3 +109,4 @@ stage_participation:
       - settings_system.cv-generation-settings
       - settings_system.settings-used-exports
       - settings_system.warning-only-cv-max-pages-validation-setting
+

@@ -337,11 +337,11 @@ def test_prepare_profile_rows_achievements_has_text(sample_profile_path: Path) -
 # ── integration ────────────────────────────────────────────────────────────────
 
 @pytest.mark.integration
-def test_load_candidate_to_bigquery(sample_profile_path: Path, config: dict) -> None:
-    """Integration test — requires GOOGLE_APPLICATION_CREDENTIALS."""
-    from fitcv.candidate import load_candidate_to_bigquery
+def test_load_candidate_profile(sample_profile_path: Path, config: dict) -> None:
+    """Integration test — requires OPENAI_API_KEY."""
+    from fitcv.candidate import load_candidate_profile
     profile = load_profile_yaml(sample_profile_path)
-    load_candidate_to_bigquery(profile, config)  # should not raise
+    load_candidate_profile(profile, config)  # should not raise
 
 
 # ── Task 3: load_profile_json_text ───────────────────────────────────────────

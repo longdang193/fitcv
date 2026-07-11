@@ -10,8 +10,8 @@ features:
     - admin_control_plane_core.fastapi-web-server
     - admin_control_plane_core.insert-before-enqueue-invariant
     - admin_control_plane_core.jinja2-admin-pages
-    - admin_control_plane_core.pipeline-run-events-bigquery-table
-    - admin_control_plane_core.pipeline-runs-bigquery-table
+    - admin_control_plane_core.pipeline-run-events-sqlite-store
+    - admin_control_plane_core.pipeline-runs-sqlite-store
     - admin_control_plane_core.pipelinereporter-integration
     - admin_control_plane_core.rq-background-worker-integration
   bounded_parallel_enrichment:
@@ -96,7 +96,7 @@ features:
     - pipeline_performance.fallback-path-for-unparseable-responses
     - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
     - pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
-    - pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
+    - pipeline_performance.structured-output-with-json-schema-and-pydantic
     - pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
     - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
     - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
@@ -122,7 +122,7 @@ features:
     - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
     - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
   settings_system:
-    summary: Admins can view and edit pipeline tuning defaults through a task-first settings UI with clearer current-vs-draft feedback, basic-versus-advanced disclosure, denser CV output controls, and metadata-only treatment for fixed single-option runtime fields, while baseline defaults still resolve from centralized YAML/config ownership, persisted overrides still live in BigQuery, and operator-facing settings-used exports continue to present canonical settings instead of compatibility-era duplicate keys.
+    summary: Admins can view and edit pipeline tuning defaults through a task-first settings UI with clearer current-vs-draft feedback, basic-versus-advanced disclosure, denser CV output controls, and metadata-only treatment for fixed single-option runtime fields, while baseline defaults still resolve from centralized YAML/config ownership, persisted overrides now live in SQLite, and operator-facing settings-used exports continue to present canonical settings instead of compatibility-era duplicate keys.
     status: active
     type: add
     lineage_file: docs/features/settings_system/lineage.generated.yaml
@@ -130,7 +130,6 @@ features:
     capabilities:
     - settings_system.advanced-settings-disclosure
     - settings_system.baseline-default-hydration
-    - settings_system.bigquery-backed-pipeline-settings-store
     - settings_system.compact-cv-visibility-controls
     - settings_system.cv-analysis-alignment-settings
     - settings_system.cv-composition-visibility-settings
@@ -146,6 +145,7 @@ features:
     - settings_system.run-safety-settings
     - settings_system.settings-schema-registry
     - settings_system.settings-used-exports
+    - settings_system.sqlite-backed-pipeline-settings-store
     - settings_system.task-first-settings-ui
     - settings_system.trigger-time-effective-settings-snapshot
     - settings_system.warning-only-cv-max-pages-validation-setting
