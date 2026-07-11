@@ -13182,6 +13182,46 @@ def test_run_detail_enriched_filters_by_pipeline_outcome_multi_select_with_fallb
     assert "Rejected Role" not in resp.text
 
 
+def test_run_detail_enriched_defaults_to_selected_pipeline_outcomes() -> None:
+    import json as _json
+
+    enriched = [
+        {"job_url": "https://j.test/cv", "title": "CV Created Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/blocked", "title": "Blocked Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/failed", "title": "CV Failed Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/scored", "title": "Scored Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/skipped", "title": "Skipped Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/rejected", "title": "Rejected Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+    ]
+    export_payload = _json.dumps(
+        {
+            "results": [
+                {"job_url": "https://j.test/cv", "pipeline_status": "ranked_with_cv"},
+                {"job_url": "https://j.test/blocked", "pipeline_status": "ranked_blocked_by_reranker_fit"},
+                {"job_url": "https://j.test/failed", "pipeline_status": "ranked_no_cv"},
+                {"job_url": "https://j.test/scored", "pipeline_status": "scored_not_ranked"},
+                {"job_url": "https://j.test/skipped", "pipeline_status": "ranked_skipped_fit_gate"},
+                {"job_url": "https://j.test/rejected", "pipeline_status": "rejected_after_enrichment"},
+            ]
+        }
+    )
+    patches = _run_detail_patches(enriched_jobs=enriched, filter_results=[], results_export_json=export_payload)
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
+    assert resp.status_code == 200
+    assert "CV Created Role" in resp.text
+    assert "Blocked Role" in resp.text
+    assert "CV Failed Role" in resp.text
+    assert "Scored Role" in resp.text
+    assert "Skipped Role" in resp.text
+    assert "Rejected Role" not in resp.text
+    assert '<option value="ranked_with_cv" selected>' in resp.text
+    assert '<option value="ranked_blocked_by_reranker_fit" selected>' in resp.text
+    assert '<option value="ranked_no_cv" selected>' in resp.text
+    assert '<option value="scored_not_ranked" selected>' in resp.text
+    assert '<option value="ranked_skipped_fit_gate" selected>' in resp.text
+    assert '<option value="rejected_after_enrichment" >' in resp.text
+
 def test_run_detail_enriched_pipeline_outcome_query_state_preserved_in_urls():
     import json as _json
 
@@ -13275,6 +13315,71 @@ def test_download_run_enriched_filtered_zip_contains_jsonl_and_manifest():
     assert manifest["row_count"] == 1
     assert manifest["filters"]["pipeline_outcome"] == ["not_shortlisted"]
 
+
+def test_download_run_enriched_filtered_zip_defaults_to_selected_pipeline_outcomes() -> None:
+    import io as _io
+    import json as _json
+    import zipfile as _zipfile
+
+    enriched = [
+        {"job_url": "https://j.test/cv", "title": "CV Created Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/blocked", "title": "Blocked Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/failed", "title": "CV Failed Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/scored", "title": "Scored Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/skipped", "title": "Skipped Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/rejected", "title": "Rejected Role", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+    ]
+    export_payload = _json.dumps(
+        {
+            "results": [
+                {"job_url": "https://j.test/cv", "pipeline_status": "ranked_with_cv"},
+                {"job_url": "https://j.test/blocked", "pipeline_status": "ranked_blocked_by_reranker_fit"},
+                {"job_url": "https://j.test/failed", "pipeline_status": "ranked_no_cv"},
+                {"job_url": "https://j.test/scored", "pipeline_status": "scored_not_ranked"},
+                {"job_url": "https://j.test/skipped", "pipeline_status": "ranked_skipped_fit_gate"},
+                {"job_url": "https://j.test/rejected", "pipeline_status": "rejected_after_enrichment"},
+            ]
+        }
+    )
+    jobs_input = _json.dumps(
+        [
+            {"jobUrl": "https://j.test/cv", "title": "CV Created Role"},
+            {"jobUrl": "https://j.test/blocked", "title": "Blocked Role"},
+            {"jobUrl": "https://j.test/failed", "title": "CV Failed Role"},
+            {"jobUrl": "https://j.test/scored", "title": "Scored Role"},
+            {"jobUrl": "https://j.test/skipped", "title": "Skipped Role"},
+            {"jobUrl": "https://j.test/rejected", "title": "Rejected Role"},
+        ]
+    )
+    patches = _run_detail_patches(
+        enriched_jobs=enriched,
+        filter_results=[],
+        results_export_json=export_payload,
+        jobs_input_json=jobs_input,
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/enriched/export-filtered.zip")
+
+    assert resp.status_code == 200
+    with _zipfile.ZipFile(_io.BytesIO(resp.content)) as archive:
+        lines = [line for line in archive.read("jobs.filtered.jsonl").decode("utf-8").splitlines() if line.strip()]
+        manifest = _json.loads(archive.read("jobs.filtered.manifest.json"))
+
+    exported_urls = {_json.loads(line)["job_url"] for line in lines}
+    assert exported_urls == {
+        "https://j.test/cv",
+        "https://j.test/blocked",
+        "https://j.test/failed",
+        "https://j.test/scored",
+        "https://j.test/skipped",
+    }
+    assert manifest["filters"]["pipeline_outcome"] == [
+        "ranked_with_cv",
+        "ranked_blocked_by_reranker_fit",
+        "ranked_no_cv",
+        "scored_not_ranked",
+        "ranked_skipped_fit_gate",
+    ]
 
 def test_admin_upload_trigger_accepts_jsonl_rerun_input():
     import io as _io

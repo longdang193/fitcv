@@ -6,6 +6,7 @@ from typing import Any
 from fitcv_cp.bq_store import (
     append_event,
     get_events,
+    list_filter_results_for_run,
     get_run,
     insert_run,
     update_run_results_export,
@@ -27,6 +28,7 @@ class _FakeBigQuery:
     def __init__(self) -> None:
         self.pipeline_runs: dict[str, dict[str, Any]] = {}
         self.pipeline_events: dict[str, list[dict[str, Any]]] = {}
+        self.rule_filter_results: dict[str, list[dict[str, Any]]] = {}
 
     def insert_rows_json(self, table: str, rows: list[dict[str, Any]]) -> list[Any]:
         if table.endswith(".pipeline_run_events"):
@@ -46,6 +48,10 @@ class _FakeBigQuery:
         if "FROM `p.d.pipeline_runs`" in normalized_sql:
             row = self.pipeline_runs.get(run_id)
             return _FakeQueryJob([row] if row is not None else [])
+        if "FROM `p.d.rule_filter_results`" in normalized_sql:
+            rows = list(self.rule_filter_results.get(run_id, []))
+            rows.sort(key=lambda row: str(row.get("job_url") or ""))
+            return _FakeQueryJob(rows)
         raise AssertionError(f"Unexpected query SQL in parity fake: {sql}")
 
 
@@ -198,6 +204,7 @@ def test_enriched_tab_visibility_contract_parity_fallback_vs_structured(monkeypa
         bq=None,
         filter_name="all",
         query="",
+        pipeline_outcomes=[],
         page=1,
         page_size=25,
     )
@@ -213,6 +220,7 @@ def test_enriched_tab_visibility_contract_parity_fallback_vs_structured(monkeypa
         bq=object(),
         filter_name="all",
         query="",
+        pipeline_outcomes=[],
         page=1,
         page_size=25,
     )
@@ -258,6 +266,59 @@ def test_artifact_bundle_contract_parity_sqlite_vs_bigquery(tmp_path, monkeypatc
     bq_files = app_module._build_available_run_artifact_files(bq_run)
     sqlite_manifest = app_module._build_run_artifact_bundle_manifest(sqlite_run, sqlite_files)
     bq_manifest = app_module._build_run_artifact_bundle_manifest(bq_run, bq_files)
-
     assert sorted(file.filename for file in sqlite_files) == sorted(file.filename for file in bq_files)
     assert sqlite_manifest["artifact_states"] == bq_manifest["artifact_states"]
+
+def test_filter_results_contract_parity_sqlite_vs_bigquery(tmp_path, monkeypatch) -> None:
+    run_id = "run-parity-filter-1"
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+
+    import sqlite3
+
+    with sqlite3.connect(sqlite_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE rule_filter_results (
+                run_id TEXT NOT NULL,
+                job_url TEXT NOT NULL,
+                passed INTEGER NOT NULL,
+                reasons TEXT NOT NULL,
+                marks_json TEXT,
+                filtered_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO rule_filter_results (run_id, job_url, passed, reasons, marks_json, filtered_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                run_id,
+                "https://de.indeed.com/viewjob?jk=abc123",
+                0,
+                json.dumps(["seniority_mismatch"], ensure_ascii=False),
+                json.dumps([{"code": "seniority_mismatch"}], ensure_ascii=False),
+                "2026-06-26T12:00:00+00:00",
+            ),
+        )
+
+    fake_bq = _FakeBigQuery()
+    fake_bq.rule_filter_results[run_id] = [
+        {
+            "run_id": run_id,
+            "job_url": "https://de.indeed.com/viewjob?jk=abc123",
+            "passed": False,
+            "reasons": ["seniority_mismatch"],
+            "marks_json": json.dumps([{"code": "seniority_mismatch"}], ensure_ascii=False),
+            "filtered_at": "2026-06-26T12:00:00+00:00",
+            "raw_job_fingerprint": None,
+            "source_job_url": None,
+        }
+    ]
+
+    sqlite_rows = list_filter_results_for_run(run_id, None, project="p", dataset="d")
+    bq_rows = list_filter_results_for_run(run_id, fake_bq, project="p", dataset="d")
+
+    assert sqlite_rows == bq_rows

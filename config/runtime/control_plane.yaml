@@ -20,9 +20,12 @@ control_plane:
 
   providers:
     openai_compatible:
-      base_url: http://host.docker.internal:20128/v1
+      # 9router
+      base_url: http://host.docker.internal:20128/v1 
+      # opencode
+      # base_url: https://opencode.ai/zen/go/v1/chat/completions
       wire_api: chat_completions
-      timeout_seconds: 60
+      timeout_seconds: 300
     openai:
       base_url: https://api.openai.com/v1
       wire_api: chat_completions
@@ -31,13 +34,16 @@ control_plane:
     parts:
       enrich_extraction:
         provider: openai_compatible
-        model: ds/deepseek-v4-flash
+        # model: ds/deepseek-v4-flash
+        model: cx/gpt-5.4-mini
       ranking_ai_score:
         provider: openai_compatible
-        model: ds/deepseek-v4-flash
+        # model: ds/deepseek-v4-flash
+        model: cx/gpt-5.4-mini
       cv_generation_structured_write:
         provider: openai_compatible
-        model: ds/deepseek-v4-flash
+        # model: ds/deepseek-v4-flash
+        model: cx/gpt-5.4-mini
     task_overrides: {}
 
   observability:

@@ -27,6 +27,7 @@ import pytest
 
 from fitcv.agentic_cv_analysis import build_cv_analysis_record as build_agentic_cv_analysis_record
 from fitcv.pipeline import (
+    _build_export_results,
     _build_stage_transition_artifacts,
     _build_cv_analysis_record,
     _build_cv_generation_debug_record,
@@ -157,6 +158,51 @@ def test_stage_block_orders_outcome_samples_before_inputs() -> None:
         "dropped_or_changed_sample",
         "inputs_sample",
     ]
+
+def test_build_export_results_uses_raw_job_fingerprint_when_urls_drift() -> None:
+    raw_jobs = [
+        {
+            "job_url": "https://de.indeed.com/viewjob?jk=abc123",
+            "title": "Fingerprint Role",
+            "raw_job_fingerprint": "raw-fp-1",
+        }
+    ]
+    enriched = [
+        {
+            "job_url": "https://jobs.example.com/fingerprint-role",
+            "title": "Fingerprint Role",
+            "raw_job_fingerprint": "raw-fp-1",
+        }
+    ]
+    ranking_row = {
+        "job_url": "https://jobs.example.com/fingerprint-role",
+        "title": "Fingerprint Role",
+        "raw_job_fingerprint": "raw-fp-1",
+        "final_score": 0.82,
+        "ai_score": 0.71,
+        "vector_similarity": 0.65,
+        "fit_label": "strong",
+    }
+
+    rows = _build_export_results(
+        raw_jobs=raw_jobs,
+        enriched=enriched,
+        deduplicated_jobs=[],
+        pre_filter_rejected=[],
+        candidate_filter_rejected=[],
+        passed_jobs=[dict(ranking_row)],
+        raw_shortlist=[],
+        shortlist_for_scoring=[],
+        ranking_inputs=[dict(ranking_row)],
+        ranked=[dict(ranking_row)],
+        cv_analysis_results=[],
+        cv_results=[],
+        cv_generation_debug_records=[],
+        vector_search_top_n=10,
+    )
+
+    assert rows[0]["pipeline_status"] == "ranked_no_cv"
+    assert rows[0]["scores"]["final_score"] == pytest.approx(0.82)
 
 
 def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:

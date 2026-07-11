@@ -48,3 +48,21 @@ Use this file for repeated or important failures, not every small mistake.
   - `docs/usage.md`
   - `docs/setup.md`
   - Live run evidence: run `d054af9b-efd2-4fd0-997b-503300b8b464` transitioned to running/succeeded with non-empty events after mount fix.
+
+## Pipeline truth keyed only by mutable job_url hides filter/outcome state
+
+- Title: Per-job pipeline truth must not rely on mutable destination URLs alone
+- Date: 2026-06-26
+- Trigger / Context: Enriched Jobs rows showed empty `Filter` and `Pipeline Outcome` even when run succeeded and downstream pipeline evidence existed.
+- What went wrong: Pipeline export, rule-filter truth, and control-plane joins used `job_url` string equality as primary identity. Jobs could start as Indeed URLs and later become destination-site URLs, so per-row truth split across artifacts. SQLite mode also skipped `rule_filter_results` persistence and UI guessed pass state from export rows.
+- Correct behavior: Preserve stable per-job identity across stages using `raw_job_fingerprint` first, keep URL normalization only as secondary fallback, persist full rule-filter rows in sqlite as well as BigQuery, and keep unknown truth unknown rather than synthesizing `passed=True`.
+- Prevention added or required: Regression tests for URL drift and sqlite parity; pipeline/control-plane helpers that index by fingerprint plus normalized URL fallback; local `rule_filter_results` persistence path.
+- Related artifacts:
+  - `src/fitcv/pipeline.py`
+  - `src/fitcv/pipeline_stages/common.py`
+  - `src/fitcv/rule_filter.py`
+  - `src/fitcv_cp/app.py`
+  - `src/fitcv_cp/bq_store.py`
+  - `tests/test_pipeline.py`
+  - `tests/test_fitcv_cp/test_app.py`
+  - `tests/test_fitcv_cp/test_storage_backend_parity.py`

@@ -693,6 +693,13 @@ PIPELINE_OUTCOME_META: dict[str, dict[str, str]] = {
         "badge_class": "badge-warning",
     },
 }
+DEFAULT_ENRICHED_PIPELINE_OUTCOMES: tuple[str, ...] = (
+    "ranked_with_cv",
+    "ranked_blocked_by_reranker_fit",
+    "ranked_no_cv",
+    "scored_not_ranked",
+    "ranked_skipped_fit_gate",
+)
 DECISION_CHAIN_LABELS: dict[str, str] = {
     "returned_by_vector_search": "returned by vector search",
     "backfilled_for_scoring": "backfilled for scoring",
@@ -5260,6 +5267,12 @@ def _normalize_pipeline_outcomes(values: list[str] | tuple[str, ...] | None) -> 
             continue
         normalized.append(value)
     return normalized
+
+def _selected_enriched_pipeline_outcomes(values: list[str] | tuple[str, ...] | None) -> list[str]:
+    normalized = _normalize_pipeline_outcomes(values)
+    if normalized:
+        return normalized
+    return list(DEFAULT_ENRICHED_PIPELINE_OUTCOMES)
 
 def _build_enriched_tab_url(
     *,
@@ -11404,6 +11417,9 @@ def create_app(
         run = require_run_or_404(run_id, detail="")
         page = _coerce_positive_int(page, default=1, minimum=1, maximum=10000)
         page_size = _coerce_positive_int(page_size, default=25, minimum=10, maximum=100)
+        selected_pipeline_outcomes = _selected_enriched_pipeline_outcomes(
+            request.query_params.getlist("pipeline_outcome")
+        )
         context = _build_enriched_tab_context(
             run,
             run_id=run_id,
@@ -11412,7 +11428,7 @@ def create_app(
             bq=bq,
             filter_name=filter_name,
             query=q,
-            pipeline_outcomes=request.query_params.getlist("pipeline_outcome"),
+            pipeline_outcomes=selected_pipeline_outcomes,
             page=page,
             page_size=page_size,
         )
@@ -11430,6 +11446,9 @@ def create_app(
         q: str = "",
     ) -> Response:
         run = require_run_or_404(run_id, detail="")
+        selected_pipeline_outcomes = _selected_enriched_pipeline_outcomes(
+            request.query_params.getlist("pipeline_outcome")
+        )
         context = _build_enriched_tab_context(
             run,
             run_id=run_id,
@@ -11438,7 +11457,7 @@ def create_app(
             bq=bq,
             filter_name=filter_name,
             query=q,
-            pipeline_outcomes=request.query_params.getlist("pipeline_outcome"),
+            pipeline_outcomes=selected_pipeline_outcomes,
             page=1,
             page_size=1_000_000,
         )

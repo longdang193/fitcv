@@ -1525,3 +1525,10 @@ def test_load_config_rejects_invalid_ssot_mode(tmp_path: Path, monkeypatch: pyte
     with pytest.raises(ValueError, match="SSOT enforcement mode must be one of"):
         load_config(env_yaml)
 
+def test_resolve_data_backend_supports_legacy_sqlite_mode_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("FITCV_CP_DATA_BACKEND", raising=False)
+    assert resolve_data_backend({"sqlite_mode": True}) == "sqlite"
+    assert resolve_data_backend({"sqlite_mode": False}) == "bigquery"
+

@@ -218,6 +218,57 @@ def test_normalize_job_converts_scraper_keys_to_snake_case() -> None:
     assert result["applications_count"] == "42 applicants"
 
 
+def test_normalize_job_handles_indeed_records() -> None:
+    job = {
+        "url": "https://de.indeed.com/viewjob?jk=abc",
+        "title": "Werkstudent",
+        "datePublished": "2026-06-25T05:00:00.000Z",
+        "dateOnIndeed": "2026-06-25T19:55:44.426Z",
+        "description": {"text": "  Build   pipelines  \n\n"},
+        "employer": {
+            "name": "WITRON Group",
+            "companyPageUrl": "https://de.indeed.com/cmp/Witron-Group",
+        },
+        "location": {"city": "Parkstein", "countryName": "Deutschland"},
+        "jobTypes": {"VDTG7": "Praktikum"},
+        "attributes": {"X62BT": "Python"},
+        "jobUrl": "https://careers.witron.com/jobs/job/abc",
+    }
+    result = normalize_job(job)
+    assert result["job_url"] == "https://de.indeed.com/viewjob?jk=abc"
+    assert result["company_name"] == "WITRON Group"
+    assert result["company_url"] == "https://de.indeed.com/cmp/Witron-Group"
+    assert result["company_id"] == "https://de.indeed.com/cmp/Witron-Group"
+    assert result["description"] == "Build pipelines"
+    assert result["location"] == "Parkstein, Deutschland"
+    assert result["published_at"] == "2026-06-25"
+    assert result["contract_type"] == "Praktikum"
+    assert result["apply_url"] == "https://careers.witron.com/jobs/job/abc"
+
+
+def test_normalize_job_handles_indeed_string_description_and_clean_location() -> None:
+    job = {
+        "url": "https://de.indeed.com/viewjob?jk=abc",
+        "jobUrl": "https://apply.example.com/job/abc",
+        "title": "Werkstudent",
+        "datePublished": "2026-06-25T05:00:00.000Z",
+        "dateOnIndeed": "2026-06-25T19:55:44.426Z",
+        "description": "  Build   pipelines  \n\n",
+        "employer": {
+            "name": "WITRON Group",
+            "companyPageUrl": "https://de.indeed.com/cmp/Witron-Group",
+        },
+        "location": {"city": "Parkstein", "admin1Code": "BY", "countryName": "Deutschland"},
+        "jobTypes": {"VDTG7": "Praktikum"},
+    }
+    result = normalize_job(job)
+    assert result["job_url"] == "https://de.indeed.com/viewjob?jk=abc"
+    assert result["company_name"] == "WITRON Group"
+    assert result["description"] == "Build pipelines"
+    assert result["location"] == "Parkstein, Deutschland"
+    assert result["apply_url"] == "https://apply.example.com/job/abc"
+
+
 def test_normalize_batch_runs_dedup_and_normalization() -> None:
     jobs = [
         {"job_url": "url1", "company_id": "101", "title": "DE", "description": "Same JD", "applications_count": "5 applicants", "salary": ""},

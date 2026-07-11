@@ -100,6 +100,57 @@ def test_snake_case_keys_converts_camel() -> None:
     assert result["experience_level"] == "Entry level"
 
 
+def test_snake_case_keys_normalizes_indeed_shape() -> None:
+    job = {
+        "url": "https://de.indeed.com/viewjob?jk=abc",
+        "title": "Werkstudent",
+        "datePublished": "2026-06-25T05:00:00.000Z",
+        "dateOnIndeed": "2026-06-25T19:55:44.426Z",
+        "description": {"text": "Build pipelines"},
+        "employer": {
+            "name": "WITRON Group",
+            "companyPageUrl": "https://de.indeed.com/cmp/Witron-Group",
+        },
+        "location": {"city": "Parkstein", "countryName": "Deutschland"},
+        "jobTypes": {"VDTG7": "Praktikum"},
+        "attributes": {"X62BT": "Python"},
+    }
+    result = snake_case_keys(job)
+    assert result["job_url"] == "https://de.indeed.com/viewjob?jk=abc"
+    assert result["company_name"] == "WITRON Group"
+    assert result["company_url"] == "https://de.indeed.com/cmp/Witron-Group"
+    assert result["company_id"] == "https://de.indeed.com/cmp/Witron-Group"
+    assert result["description"] == "Build pipelines"
+    assert result["location"] == "Parkstein, Deutschland"
+    assert result["published_at"] == "2026-06-25"
+    assert result["contract_type"] == "Praktikum"
+    assert result["apply_url"] == "https://de.indeed.com/viewjob?jk=abc"
+    assert result["apply_type"] == "EXTERNAL"
+
+
+def test_snake_case_keys_handles_indeed_string_description_and_drops_state_code_noise() -> None:
+    job = {
+        "url": "https://de.indeed.com/viewjob?jk=abc",
+        "jobUrl": "https://apply.example.com/job/abc",
+        "title": "Werkstudent",
+        "datePublished": "2026-06-25T05:00:00.000Z",
+        "dateOnIndeed": "2026-06-25T19:55:44.426Z",
+        "description": "Build pipelines",
+        "employer": {
+            "name": "WITRON Group",
+            "companyPageUrl": "https://de.indeed.com/cmp/Witron-Group",
+        },
+        "location": {"city": "Parkstein", "admin1Code": "BY", "countryName": "Deutschland"},
+        "jobTypes": {"VDTG7": "Praktikum"},
+    }
+    result = snake_case_keys(job)
+    assert result["job_url"] == "https://de.indeed.com/viewjob?jk=abc"
+    assert result["apply_url"] == "https://apply.example.com/job/abc"
+    assert result["company_name"] == "WITRON Group"
+    assert result["description"] == "Build pipelines"
+    assert result["location"] == "Parkstein, Deutschland"
+
+
 def test_prepare_raw_rows_maps_schema(sample_jobs_path: Path) -> None:
     jobs = parse_jobs_file(sample_jobs_path)
     rows = prepare_raw_rows(jobs)
@@ -119,6 +170,58 @@ def test_prepare_raw_rows_preserves_raw_json(sample_jobs_path: Path) -> None:
     for original, row in zip(jobs, rows):
         raw = json.loads(row["raw_json"]) if isinstance(row["raw_json"], str) else row["raw_json"]
         assert raw["jobUrl"] == original["jobUrl"]
+
+
+def test_prepare_raw_rows_handles_indeed_records() -> None:
+    job = {
+        "url": "https://de.indeed.com/viewjob?jk=abc",
+        "title": "Werkstudent",
+        "datePublished": "2026-06-25T05:00:00.000Z",
+        "dateOnIndeed": "2026-06-25T19:55:44.426Z",
+        "description": {"text": "Build pipelines"},
+        "employer": {
+            "name": "WITRON Group",
+            "companyPageUrl": "https://de.indeed.com/cmp/Witron-Group",
+        },
+        "location": {"city": "Parkstein", "countryName": "Deutschland"},
+        "jobTypes": {"VDTG7": "Praktikum"},
+        "attributes": {"X62BT": "Python"},
+        "jobUrl": "https://careers.witron.com/jobs/job/abc",
+    }
+    rows = prepare_raw_rows([job])
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["job_url"] == "https://de.indeed.com/viewjob?jk=abc"
+    assert row["company_name"] == "WITRON Group"
+    assert row["company_url"] == "https://de.indeed.com/cmp/Witron-Group"
+    assert row["company_id"] == "https://de.indeed.com/cmp/Witron-Group"
+    assert row["description"] == "Build pipelines"
+    assert row["apply_url"] == "https://careers.witron.com/jobs/job/abc"
+    assert row["apply_type"] == "EXTERNAL"
+    raw = json.loads(row["raw_json"])
+    assert raw["description"]["text"] == "Build pipelines"
+    assert raw["attributes"]["X62BT"] == "Python"
+
+
+def test_prepare_raw_rows_handles_indeed_string_description() -> None:
+    job = {
+        "url": "https://de.indeed.com/viewjob?jk=abc",
+        "jobUrl": "https://apply.example.com/job/abc",
+        "title": "Werkstudent",
+        "datePublished": "2026-06-25T05:00:00.000Z",
+        "dateOnIndeed": "2026-06-25T19:55:44.426Z",
+        "description": "Build pipelines",
+        "employer": {
+            "name": "WITRON Group",
+            "companyPageUrl": "https://de.indeed.com/cmp/Witron-Group",
+        },
+        "location": {"city": "Parkstein", "admin1Code": "BY", "countryName": "Deutschland"},
+        "jobTypes": {"VDTG7": "Praktikum"},
+    }
+    rows = prepare_raw_rows([job])
+    assert rows[0]["job_url"] == "https://de.indeed.com/viewjob?jk=abc"
+    assert rows[0]["company_name"] == "WITRON Group"
+    assert rows[0]["location"] == "Parkstein, Deutschland"
 
 
 def test_load_to_bigquery_writes_sqlite_rows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

@@ -356,6 +356,53 @@ def test_make_genai_client_openai_compatible_uses_routed_model_override(
     _ = client.models.generate_content(model="gemini-2.5-flash", contents="hello")
     assert captured_models == ["cx/gpt-5.2"]
 
+def test_make_genai_client_openai_compatible_uses_routed_timeout_seconds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv.ai_score import _make_genai_client
+
+    captured_timeouts: list[float | None] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {"output_text": '{"ai_score":0.8,"fit_label":"strong"}'}
+
+    class FakeHTTPClient:
+        def __enter__(self) -> "FakeHTTPClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
+            return FakeResponse()
+
+    def _client_factory(timeout: float | None = None) -> FakeHTTPClient:
+        captured_timeouts.append(timeout)
+        return FakeHTTPClient()
+
+    fake_httpx = types.SimpleNamespace(Client=_client_factory, HTTPStatusError=Exception)
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
+    monkeypatch.setattr(
+        "fitcv.ai_score.resolve_model_routing_part",
+        lambda part, model_fallback=None: {
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "base_url": "http://localhost:20128/v1",
+            "wire_api": "chat_completions",
+            "timeout_seconds": "300",
+        },
+    )
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    client = _make_genai_client({"gemini_model": "gemini-2.5-flash"})
+    _ = client.models.generate_content(model="any", contents="hello")
+
+    assert captured_timeouts == [300.0]
+
 
 def test_make_genai_client_openai_compatible_parses_json_with_trailing_sse_done(
     monkeypatch: pytest.MonkeyPatch,
