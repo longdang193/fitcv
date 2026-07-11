@@ -16,10 +16,11 @@ lifecycle:
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from fitcv.config import load_control_plane_config
+
 
 @dataclass(frozen=True)
 class DataPlaneContract:
@@ -28,16 +29,14 @@ class DataPlaneContract:
     artifact_backend: str
     telemetry_backend: str
 
+
 def resolve_data_plane_contract(config: dict[str, Any] | None = None) -> DataPlaneContract:
     cfg = dict(config or {})
     block = dict(cfg.get("data_plane") or {})
     try:
-        cp_cfg = load_control_plane_config()
+        load_control_plane_config()
     except Exception:
-        cp_cfg = {}
-    cp_backend = str(((cp_cfg.get("data_backend") or {}).get("type")) or "").strip().lower()
-    default_state_backend = "sqlite" if cp_backend == "sqlite" else "bigquery"
-    default_artifact_backend = "sqlite_json" if cp_backend == "sqlite" else "bigquery_json"
+        pass
     runtime_mode = str(
         os.environ.get("FITCV_RUNTIME_MODE")
         or block.get("runtime_mode")
@@ -48,13 +47,13 @@ def resolve_data_plane_contract(config: dict[str, Any] | None = None) -> DataPla
     state_backend = str(
         os.environ.get("FITCV_STATE_BACKEND")
         or block.get("state_backend")
-        or default_state_backend
-    ).strip().lower() or default_state_backend
+        or "sqlite"
+    ).strip().lower() or "sqlite"
     artifact_backend = str(
         os.environ.get("FITCV_ARTIFACT_BACKEND")
         or block.get("artifact_backend")
-        or default_artifact_backend
-    ).strip().lower() or default_artifact_backend
+        or "sqlite_json"
+    ).strip().lower() or "sqlite_json"
     telemetry_backend = str(
         os.environ.get("FITCV_TELEMETRY_BACKEND")
         or block.get("telemetry_backend")
@@ -67,6 +66,6 @@ def resolve_data_plane_contract(config: dict[str, Any] | None = None) -> DataPla
         telemetry_backend=telemetry_backend,
     )
 
+
 def data_plane_contract_payload(config: dict[str, Any] | None = None) -> dict[str, Any]:
     return asdict(resolve_data_plane_contract(config))
-

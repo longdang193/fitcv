@@ -1456,173 +1456,6 @@ def _build_run_health_rows(
     return rows
 
 
-def _run_event_delivery_health(run_id: str) -> dict[str, Any]:
-    dead_letter_path = str(
-        os.environ.get("FITCV_EVENT_DEAD_LETTER_PATH")
-        or "tmp/fitcv_pipeline_run_events_dead_letter.jsonl"
-    ).strip()
-    dead_letter_file = Path(dead_letter_path)
-    if not dead_letter_file.exists():
-        return {
-            "status": "healthy",
-            "count": 0,
-            "last_failed_at": None,
-            "last_failed_at_display": None,
-            "dead_letter_path": str(dead_letter_file),
-        }
-    count = 0
-    last_failed_at: str | None = None
-    last_degradation_reason: str | None = None
-    max_retry_attempts = 0
-    try:
-        with dead_letter_file.open("r", encoding="utf-8") as handle:
-            for line in handle:
-                raw = line.strip()
-                if not raw:
-                    continue
-                record = decode_json_object_or_none(raw)
-                if record is None:
-                    continue
-                row = dict(record.get("row") or {})
-                if str(row.get("run_id") or "").strip() != str(run_id):
-                    continue
-                count += 1
-                failed_at_candidate = str(record.get("failed_at") or "").strip() or None
-                if failed_at_candidate:
-                    last_failed_at = failed_at_candidate
-                degradation_reason_candidate = str(record.get("degradation_reason") or "").strip() or None
-                if degradation_reason_candidate:
-                    last_degradation_reason = degradation_reason_candidate
-                retry_attempts_value = int(record.get("retry_attempts") or 0)
-                if retry_attempts_value > max_retry_attempts:
-                    max_retry_attempts = retry_attempts_value
-    except Exception:
-        return {
-            "status": "unknown",
-            "count": 0,
-            "last_failed_at": None,
-            "last_failed_at_display": None,
-            "last_degradation_reason": None,
-            "max_retry_attempts": 0,
-            "dead_letter_path": str(dead_letter_file),
-        }
-    return {
-        "status": "degraded" if count > 0 else "healthy",
-        "count": count,
-        "last_failed_at": last_failed_at,
-        "last_failed_at_display": _format_compact_utc_timestamp(last_failed_at),
-        "last_degradation_reason": last_degradation_reason,
-        "max_retry_attempts": max_retry_attempts,
-        "dead_letter_path": str(dead_letter_file),
-    }
-
-def _run_telemetry_export_health(events: list[RunEvent]) -> dict[str, Any]:
-    degraded_count = 0
-    last_degraded_stage: str | None = None
-    for event in events:
-        payload_json = str(getattr(event, "payload_json", "") or "").strip()
-        if not payload_json:
-            continue
-        payload = decode_json_object_or_none(payload_json)
-        if payload is None:
-            continue
-        telemetry = dict(payload.get("telemetry_export") or {})
-        if str(telemetry.get("status") or "") != "degraded":
-            continue
-        if str(telemetry.get("degradation_reason") or "").strip() == "otel_disabled":
-            continue
-        degraded_count += 1
-        stage = str(getattr(event, "stage", "") or "").strip()
-        if stage:
-            last_degraded_stage = stage
-    return {
-        "status": "degraded" if degraded_count > 0 else "healthy",
-        "degraded_count": degraded_count,
-        "last_degraded_stage": last_degraded_stage,
-    }
-
-
-def _run_langfuse_link_health(events: list[RunEvent]) -> dict[str, Any]:
-    unverified_count = 0
-    degraded_count = 0
-    disabled_count = 0
-    last_degraded_stage: str | None = None
-    last_trace_url: str | None = None
-    for ev in events:
-        payload_json = str(getattr(ev, "payload_json", "") or "").strip()
-        if not payload_json:
-            continue
-        payload = decode_json_object_or_none(payload_json)
-        if payload is None:
-            continue
-        stage = str(ev.stage or "")
-        langfuse = dict(payload.get("langfuse_link") or {})
-        status = str(langfuse.get("status") or "")
-        if status == "unverified":
-            unverified_count += 1
-            trace_url = str(langfuse.get("trace_url") or "").strip()
-            if trace_url:
-                last_trace_url = trace_url
-            continue
-        if status == "degraded":
-            degraded_count += 1
-            if stage:
-                last_degraded_stage = stage
-            continue
-        if status == "disabled":
-            disabled_count += 1
-    if degraded_count > 0:
-        overall = "degraded"
-    elif unverified_count > 0:
-        overall = "unverified"
-    else:
-        overall = "disabled"
-    return {
-        "status": overall,
-        "unverified_count": unverified_count,
-        "degraded_count": degraded_count,
-        "disabled_count": disabled_count,
-        "last_degraded_stage": last_degraded_stage,
-        "last_trace_url": last_trace_url,
-    }
-
-def _latest_dead_letter_replay_summary(events: list[RunEvent]) -> dict[str, Any]:
-    latest: dict[str, Any] | None = None
-    for event in events:
-        if str(getattr(event, "stage", "") or "").strip() != "event_dead_letter_replay":
-            continue
-        payload_json = str(getattr(event, "payload_json", "") or "").strip()
-        if not payload_json:
-            continue
-        payload = decode_json_object_or_none(payload_json)
-        if payload is None:
-            continue
-        latest = {
-            "replay_candidates": int(payload.get("replay_candidates") or 0),
-            "replayed": int(payload.get("replayed") or 0),
-            "failed": int(payload.get("failed") or 0),
-            "replay_success_ratio": float(payload.get("replay_success_ratio") or 0.0),
-            "remaining_dead_letter_total": int(payload.get("remaining_dead_letter_total") or 0),
-            "occurred_at": (
-                event.created_at.isoformat()
-                if getattr(event, "created_at", None) is not None
-                else None
-            ),
-            "occurred_at_display": _format_compact_utc_timestamp(
-                event.created_at.isoformat() if getattr(event, "created_at", None) is not None else None
-            ),
-        }
-    if latest is not None:
-        return latest
-    return {
-        "replay_candidates": 0,
-        "replayed": 0,
-        "failed": 0,
-        "replay_success_ratio": 0.0,
-        "remaining_dead_letter_total": 0,
-        "occurred_at": None,
-        "occurred_at_display": None,
-    }
 
 def _latest_reuse_anomaly_summary(events: list[RunEvent]) -> dict[str, Any]:
     latest: dict[str, Any] | None = None
@@ -1666,102 +1499,6 @@ def _latest_reuse_anomaly_summary(events: list[RunEvent]) -> dict[str, Any]:
         "occurred_at": None,
         "occurred_at_display": None,
     }
-
-def _aggregate_dead_letter_replay_health(
-    runs: list[PipelineRun],
-    *,
-    bq: Any,
-    project: str,
-    dataset: str,
-) -> dict[str, Any]:
-    run_ids = {str(run.run_id or "").strip() for run in runs if str(run.run_id or "").strip()}
-    dead_letter_records = _load_event_dead_letter_records(_event_dead_letter_path())
-    dead_letter_total = 0
-    impacted_run_ids: set[str] = set()
-    for record in dead_letter_records:
-        row = dict(record.get("row") or {})
-        run_id = str(row.get("run_id") or "").strip()
-        if not run_id:
-            continue
-        if run_ids and run_id not in run_ids:
-            continue
-        dead_letter_total += 1
-        impacted_run_ids.add(run_id)
-
-    replay_candidates = 0
-    replayed = 0
-    failed = 0
-    replay_event_count = 0
-    for run_id in sorted(run_ids):
-        try:
-            events = get_events(run_id, bq, project=project, dataset=dataset)
-        except Exception as exc:
-            logger.warning("dead-letter health aggregation skipped events for run_id=%s due to read error: %s", run_id, exc)
-            continue
-        summary = _latest_dead_letter_replay_summary(events)
-        if summary["replay_candidates"] <= 0:
-            continue
-        replay_event_count += 1
-        replay_candidates += int(summary["replay_candidates"] or 0)
-        replayed += int(summary["replayed"] or 0)
-        failed += int(summary["failed"] or 0)
-
-    replay_success_ratio = float(replayed / replay_candidates) if replay_candidates else 0.0
-    return {
-        "dead_letter_total": dead_letter_total,
-        "impacted_runs": len(impacted_run_ids),
-        "replay_event_count": replay_event_count,
-        "replay_candidates": replay_candidates,
-        "replayed": replayed,
-        "failed": failed,
-        "replay_success_ratio": replay_success_ratio,
-        "status": "degraded" if dead_letter_total > 0 else "healthy",
-    }
-
-def _default_outbox_replay_min_success_ratio() -> float:
-    try:
-        cfg = load_config()
-    except Exception:
-        return 0.95
-    replay_cfg = dict(cfg.get("outbox_replay_health") or {})
-    raw = replay_cfg.get("min_replay_success_ratio")
-    try:
-        return float(raw)
-    except (TypeError, ValueError):
-        return 0.95
-
-def _event_dead_letter_path() -> Path:
-    return Path(
-        str(
-            os.environ.get("FITCV_EVENT_DEAD_LETTER_PATH")
-            or "tmp/fitcv_pipeline_run_events_dead_letter.jsonl"
-        ).strip()
-    )
-
-def _load_event_dead_letter_records(dead_letter_file: Path) -> list[dict[str, Any]]:
-    records: list[dict[str, Any]] = []
-    if not dead_letter_file.exists():
-        return records
-    with dead_letter_file.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            raw = line.strip()
-            if not raw:
-                continue
-            parsed = decode_json_object_or_none(raw)
-            if parsed is not None:
-                records.append(parsed)
-    return records
-
-def _persist_event_dead_letter_records(dead_letter_file: Path, records: list[dict[str, Any]]) -> None:
-    dead_letter_file.parent.mkdir(parents=True, exist_ok=True)
-    if not records:
-        if dead_letter_file.exists():
-            dead_letter_file.unlink()
-        return
-    with dead_letter_file.open("w", encoding="utf-8") as handle:
-        for record in records:
-            handle.write(_json.dumps(record, ensure_ascii=False) + "\n")
-
 def _build_stage_slice_payload(run: PipelineRun, stage_id: str) -> dict[str, Any] | None:
     if stage_id not in BUNDLE_STAGE_IDS:
         return None
@@ -2878,75 +2615,6 @@ def _persist_post_hitl_closure_artifact_reconciliation(
         project=project,
         dataset=dataset,
     )
-
-def _run_agentic_runtime_drift_summary(run: PipelineRun) -> dict[str, Any]:
-    late_stage_mode = _load_run_late_stage_mode_payload(run)
-    if str(late_stage_mode.get("late_stage_mode") or "").strip() != "agentic":
-        return {
-            "status": "not_applicable",
-            "expected_provider": None,
-            "expected_model": None,
-            "actual_provider": None,
-            "actual_model": None,
-            "message": "Agentic late-stage mode was not active for this run.",
-        }
-    expected_provider: str | None = None
-    expected_model: str | None = None
-    effective_settings = _load_json_object(run.effective_settings_json)
-    if isinstance(effective_settings, dict):
-        runtime_inputs = dict(effective_settings.get("runtime_inputs") or {})
-        runtime_expectation = dict(runtime_inputs.get("agentic_runtime_expectation") or {})
-        expected_provider = str(runtime_expectation.get("provider") or "").strip() or None
-        expected_model = str(runtime_expectation.get("model") or "").strip() or None
-        if expected_model is None:
-            expected_model = str(effective_settings.get("cv_generation_model") or "").strip() or None
-
-    trace_payload = _load_run_agentic_live_trace_payload(run) or {}
-    records = list(trace_payload.get("records") or [])
-    actual_provider: str | None = None
-    actual_model: str | None = None
-    for record in records:
-        if not isinstance(record, dict):
-            continue
-        runtime_provenance = dict(record.get("runtime_provenance") or {})
-        provider = str(runtime_provenance.get("provider") or "").strip() or None
-        model = str(runtime_provenance.get("model") or "").strip() or None
-        if provider and actual_provider is None:
-            actual_provider = provider
-        if model and actual_model is None:
-            actual_model = model
-        if actual_provider and actual_model:
-            break
-    if expected_provider is None:
-        expected_provider = actual_provider
-    if expected_model is None:
-        expected_model = actual_model
-    aligned = (
-        bool(actual_provider and expected_provider and actual_provider == expected_provider)
-        and bool(actual_model and expected_model and actual_model == expected_model)
-    )
-    if actual_provider is None and actual_model is None:
-        return {
-            "status": "not_applicable",
-            "expected_provider": expected_provider,
-            "expected_model": expected_model,
-            "actual_provider": None,
-            "actual_model": None,
-            "message": "No attempted live-generation provenance was captured for this run.",
-        }
-    return {
-        "status": "aligned" if aligned else "drifted",
-        "expected_provider": expected_provider,
-        "expected_model": expected_model,
-        "actual_provider": actual_provider,
-        "actual_model": actual_model,
-        "message": (
-            "Runtime provider/model match current run settings expectations."
-            if aligned else
-            "Runtime provider/model differ from current run settings expectations."
-        ),
-    }
-
 
 def _load_run_cv_analysis_trace_payload(run: PipelineRun) -> dict[str, Any] | None:
     payload = _load_json_object(run.cv_generation_debug_json)
@@ -8560,12 +8228,6 @@ def create_app(
             run.run_id: _build_orchestration_diagnostics(run)
             for run in runs
         }
-        dead_letter_replay_health = _aggregate_dead_letter_replay_health(
-            runs,
-            bq=bq,
-            project=project,
-            dataset=dataset,
-        )
         run_status_projection = {run.run_id: _run_status_projection(run) for run in runs}
         return templates.TemplateResponse(
             request=request, name="runs_list.html",
@@ -8574,95 +8236,9 @@ def create_app(
                 "view": view,
                 "pipeline_runs_schema_status": pipeline_runs_schema_status,
                 "run_orchestration_diagnostics": run_orchestration_diagnostics,
-                "dead_letter_replay_health": dead_letter_replay_health,
                 "run_status_projection": run_status_projection,
             }
         )
-
-    @app.get("/admin/outbox-replay-health.json")
-    def admin_outbox_replay_health(view: str = "active") -> dict[str, Any]:
-        if view == "archived":
-            runs = list_runs(bq, project=project, dataset=dataset, archived_only=True)
-        elif view == "all":
-            runs = list_runs(bq, project=project, dataset=dataset, include_archived=True)
-        else:
-            runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
-        aggregate = _aggregate_dead_letter_replay_health(
-            runs,
-            bq=bq,
-            project=project,
-            dataset=dataset,
-        )
-        return {
-            "view": view,
-            "run_count": len(runs),
-            "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "outbox_replay_health": aggregate,
-        }
-
-    @app.post("/admin/outbox-replay-health/check")
-    def admin_outbox_replay_health_check(
-        view: str = "active",
-        min_replay_success_ratio: float | None = None,
-        emit_event: bool = True,
-        event_run_id: str = "system-outbox-replay-health",
-    ) -> dict[str, Any]:
-        if view == "archived":
-            runs = list_runs(bq, project=project, dataset=dataset, archived_only=True)
-        elif view == "all":
-            runs = list_runs(bq, project=project, dataset=dataset, include_archived=True)
-        else:
-            runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
-        aggregate = _aggregate_dead_letter_replay_health(
-            runs,
-            bq=bq,
-            project=project,
-            dataset=dataset,
-        )
-        effective_min_ratio = (
-            float(min_replay_success_ratio)
-            if min_replay_success_ratio is not None
-            else _default_outbox_replay_min_success_ratio()
-        )
-        ratio = float(aggregate.get("replay_success_ratio") or 0.0)
-        degraded = str(aggregate.get("status") or "") == "degraded"
-        ratio_below_threshold = ratio < effective_min_ratio
-        alert_triggered = degraded or ratio_below_threshold
-        decision = "alert" if alert_triggered else "ok"
-        reason = []
-        if degraded:
-            reason.append("dead_letter_status_degraded")
-        if ratio_below_threshold:
-            reason.append("replay_ratio_below_threshold")
-        reason_code = ",".join(reason) if reason else "healthy"
-        payload = {
-            "view": view,
-            "run_count": len(runs),
-            "min_replay_success_ratio": effective_min_ratio,
-            "decision": decision,
-            "reason_code": reason_code,
-            "outbox_replay_health": aggregate,
-        }
-        if emit_event:
-            append_event(
-                RunEvent(
-                    run_id=str(event_run_id or "system-outbox-replay-health"),
-                    event_id=str(uuid.uuid4()),
-                    stage="outbox_replay_health_alert",
-                    level="warning" if alert_triggered else "info",
-                    message=(
-                        f"Outbox replay health check decision={decision} "
-                        f"reason={reason_code} ratio={ratio:.4f}"
-                    ),
-                    payload_json=_json.dumps(payload, ensure_ascii=False),
-                    created_at=datetime.datetime.now(datetime.timezone.utc),
-                ),
-                bq,
-                project=project,
-                dataset=dataset,
-            )
-        return payload
-
     @app.post("/admin/runs/{run_id}/stop")
     def admin_stop_run(run_id: str) -> dict:
         """Stop a cancellable run. Returns JSON for fetch() callers."""
@@ -9321,101 +8897,6 @@ def create_app(
             bq, project=project, dataset=dataset,
         )
         return {"status": "unarchived", "run_id": run_id}
-
-    @app.post("/admin/runs/{run_id}/replay-dead-letter-events")
-    def admin_replay_dead_letter_events(run_id: str) -> dict:
-        run = get_run(run_id, bq, project=project, dataset=dataset)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        dead_letter_file = _event_dead_letter_path()
-        try:
-            records = _load_event_dead_letter_records(dead_letter_file)
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Failed to read dead-letter file: {exc}") from exc
-        replay_candidates: list[dict[str, Any]] = []
-        kept_records: list[dict[str, Any]] = []
-        for record in records:
-            row = dict(record.get("row") or {})
-            if str(row.get("run_id") or "").strip() == run_id:
-                replay_candidates.append(record)
-            else:
-                kept_records.append(record)
-
-        replayed = 0
-        failed = 0
-        for record in replay_candidates:
-            row = dict(record.get("row") or {})
-            created_at_raw = str(row.get("created_at") or "").strip()
-            created_at = datetime.datetime.now(datetime.timezone.utc)
-            if created_at_raw:
-                try:
-                    created_at = datetime.datetime.fromisoformat(created_at_raw.replace("Z", "+00:00"))
-                except Exception:
-                    pass
-            status = append_event(
-                RunEvent(
-                    run_id=str(row.get("run_id") or run_id),
-                    event_id=str(row.get("event_id") or str(uuid.uuid4())),
-                    stage=str(row.get("stage") or "unknown"),
-                    level=str(row.get("level") or "warning"),
-                    message=str(row.get("message") or "Replayed dead-letter event"),
-                    payload_json=(
-                        str(row.get("payload_json"))
-                        if row.get("payload_json") is not None
-                        else None
-                    ),
-                    created_at=created_at,
-                ),
-                bq,
-                project=project,
-                dataset=dataset,
-            )
-            if status.get("persistence_status") == "persisted":
-                replayed += 1
-                continue
-            failed += 1
-            kept_records.append(record)
-        try:
-            _persist_event_dead_letter_records(dead_letter_file, kept_records)
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Failed to update dead-letter file: {exc}") from exc
-        replay_success_ratio = float(replayed / len(replay_candidates)) if replay_candidates else 0.0
-        append_event(
-            RunEvent(
-                run_id=run_id,
-                event_id=str(uuid.uuid4()),
-                stage="event_dead_letter_replay",
-                level="warning" if failed else "info",
-                message=(
-                    f"Dead-letter replay completed: replayed={replayed} failed={failed} "
-                    f"out_of={len(replay_candidates)}"
-                ),
-                payload_json=_json.dumps(
-                    {
-                        "replay_candidates": len(replay_candidates),
-                        "replayed": replayed,
-                        "failed": failed,
-                        "replay_success_ratio": replay_success_ratio,
-                        "remaining_dead_letter_total": len(kept_records),
-                    },
-                    ensure_ascii=False,
-                ),
-                created_at=datetime.datetime.now(datetime.timezone.utc),
-            ),
-            bq,
-            project=project,
-            dataset=dataset,
-        )
-        return {
-            "status": "ok",
-            "run_id": run_id,
-            "replay_candidates": len(replay_candidates),
-            "replayed": replayed,
-            "failed": failed,
-            "replay_success_ratio": replay_success_ratio,
-            "remaining_dead_letter_total": len(kept_records),
-        }
-
     @app.get("/admin/runs/{run_id}", response_class=HTMLResponse)
     def admin_run_detail(request: Request, run_id: str) -> HTMLResponse:
         run = get_run(run_id, bq, project=project, dataset=dataset)
@@ -9518,7 +8999,6 @@ def create_app(
             if str(row.get("pipeline_status") or "").strip() == "ranked_blocked_by_reranker_fit"
         )
         run_export_links = _build_run_export_links(run)
-        agentic_runtime_drift = _run_agentic_runtime_drift_summary(run)
         hitl_review_queue = _build_hitl_review_queue(run)
         synonym_proposal_review_queue = _build_synonym_proposal_review_queue(run)
         synonym_proposal_decision_ledger = _build_synonym_proposal_decision_ledger(run)
@@ -9530,10 +9010,6 @@ def create_app(
             can_regenerate=_can_regenerate_synonym_proposals(run),
         )
         markdown_quality_summary = _build_markdown_quality_summary(run)
-        event_delivery_health = _run_event_delivery_health(run_id)
-        telemetry_export_health = _run_telemetry_export_health(events)
-        langfuse_link_health = _run_langfuse_link_health(events)
-        dead_letter_replay_summary = _latest_dead_letter_replay_summary(events)
         reuse_anomaly_summary = _latest_reuse_anomaly_summary(events)
         orchestration_diagnostics = _build_orchestration_diagnostics(run)
         from fitcv_cp.run_artifact_contracts import decode_run_attempt_payload_or_none
@@ -9599,7 +9075,6 @@ def create_app(
                 "can_regenerate_synonym_proposals": _can_regenerate_synonym_proposals(run),
                 "synonym_management_mode": synonym_management_mode,
                 "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
-                "agentic_runtime_drift": agentic_runtime_drift,
                 "hitl_review_queue": hitl_review_queue,
                 "hitl_closure_summary": hitl_closure_summary,
                 "review_queue_inline_threshold": HITL_REVIEW_QUEUE_INLINE_THRESHOLD,
@@ -9611,10 +9086,6 @@ def create_app(
                 "synonym_fingerprints": synonym_fingerprints,
                 "synonym_review_section_state": synonym_review_section_state,
                 "markdown_quality_summary": markdown_quality_summary,
-                "event_delivery_health": event_delivery_health,
-                "telemetry_export_health": telemetry_export_health,
-                "langfuse_link_health": langfuse_link_health,
-                "dead_letter_replay_summary": dead_letter_replay_summary,
                 "reuse_anomaly_summary": reuse_anomaly_summary,
                 "orchestration_diagnostics": orchestration_diagnostics,
                 "run_attempt_events": run_attempt_events,
@@ -12227,6 +11698,7 @@ def _run_to_dict(run: PipelineRun) -> dict:
         "cv_generation_debug_json": run.cv_generation_debug_json,
         "stage_transition_artifacts_json": run.stage_transition_artifacts_json,
     }
+
 
 
 

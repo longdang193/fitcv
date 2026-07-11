@@ -1,20 +1,6 @@
-# @architecture
-# owner: operator_control_plane
-# features:
-#   - none
-# stages:
-#   - none
-# capabilities:
-#   - operator-control-plane-phase-2-portability
-# role: config
-# canonical: true
-
 control_plane:
   data_backend:
     type: sqlite
-    bigquery:
-      project: fitcv-491123
-      dataset: fitcv
     sqlite:
       path: data/fitcv_cp.sqlite3
 
@@ -62,4 +48,3 @@ control_plane:
       lease_seconds: 900
       reconciler_interval_seconds: 0
       error_details_max_chars: 2048
-

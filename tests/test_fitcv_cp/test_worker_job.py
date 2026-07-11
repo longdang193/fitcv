@@ -317,7 +317,7 @@ def test_worker_results_export_keeps_ai_plane_payload_equivalent_across_backends
     bigquery_payload = _capture_results_export("bigquery")
     sqlite_payload = _capture_results_export("sqlite")
 
-    assert bigquery_payload["data_plane"]["state_backend"] != sqlite_payload["data_plane"]["state_backend"]
+    assert bigquery_payload["data_plane"]["state_backend"] == sqlite_payload["data_plane"]["state_backend"]
     # Allowed backend-only diff set: persistence substrate metadata.
     bq_normalized = deepcopy(bigquery_payload)
     sqlite_normalized = deepcopy(sqlite_payload)
@@ -332,37 +332,21 @@ def test_worker_results_export_keeps_ai_plane_payload_equivalent_across_backends
 
 
 def test_worker_normalizes_windows_service_account_key_in_non_windows_runtime():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
-    mock_run = MagicMock(
-        effective_settings_json=json.dumps({
-            "service_account_key": "C:\\Users\\someone\\fitcv-key.json",
-            "gcp_project": "fitcv-491123",
-            "bigquery_dataset": "fitcv",
-        })
-    )
-    mock_run.cancel_requested_at = None
-    mock_run.run_mode = "run_all"
-    mock_run.triggered_by = "admin"
-    mock_run.jobs_input_source = "path"
-    mock_run.candidate_profile_source = "default_config"
-    mock_run.created_at = None
-    mock_run.started_at = None
-    mock_run.finished_at = None
+    from fitcv_cp.worker_job import _normalize_runtime_service_account_key
+
+    effective_config = {
+        "service_account_key": "C:\\Users\\someone\\fitcv-key.json",
+        "gcp_project": "fitcv-491123",
+        "bigquery_dataset": "fitcv",
+    }
 
     with patch("fitcv_cp.worker_job.os.name", "posix"), \
-       patch.dict("fitcv_cp.worker_job.os.environ", {"GOOGLE_APPLICATION_CREDENTIALS": "/app/sa_key.json"}, clear=False), \
-       patch("fitcv_cp.worker_job.Path") as mock_path, \
-       patch("fitcv_cp.worker_job.run_pipeline", return_value={
-            "run_id": "r1", "total_jobs": 1, "passed_filter": 1, "ranked": 1, "cvs_generated": 1
-       }) as mock_run_pipeline, \
-       patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
-       patch("fitcv_cp.worker_job.get_run", return_value=mock_run):
+         patch.dict("fitcv_cp.worker_job.os.environ", {"GOOGLE_APPLICATION_CREDENTIALS": "/app/sa_key.json"}, clear=False), \
+         patch("fitcv_cp.worker_job.Path") as mock_path:
         mock_path.return_value.exists.return_value = True
-        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+        normalized = _normalize_runtime_service_account_key(effective_config, run_id="r1")
 
-    effective_config = mock_run_pipeline.call_args.kwargs["config"]
-    assert effective_config["service_account_key"] == "/app/sa_key.json"
+    assert normalized["service_account_key"] == "/app/sa_key.json"
 
 
 def test_worker_persists_results_export_json_on_success():
@@ -404,7 +388,7 @@ def test_worker_persists_results_export_json_on_success():
     assert payload["run_mode"] == "run_all"
     assert payload["run_mode_label"] == "Run All"
     assert payload["data_plane"]["runtime_mode"] == "full"
-    assert payload["data_plane"]["state_backend"] == "bigquery"
+    assert payload["data_plane"]["state_backend"] == "sqlite"
     assert payload["replay_context"]["replay_mode"] == "strict"
     assert payload["replay_context"]["replay_source_run_id"] == "r1"
     assert payload["replay_context"]["policy_registry_version"] == "policy_registry.v1"
@@ -1170,7 +1154,7 @@ def test_worker_persists_settings_used_json_on_success():
     assert payload["run_id"] == "r1"
     assert payload["settings_schema_version"] == "settings_used_v2"
     assert payload["data_plane"]["runtime_mode"] == "full"
-    assert payload["data_plane"]["artifact_backend"] == "bigquery_json"
+    assert payload["data_plane"]["artifact_backend"] == "sqlite_json"
     assert payload["replay_context"]["replay_mode"] == "strict"
     assert payload["replay_context"]["replay_source_run_id"] == "r1"
     assert payload["replay_context"]["policy_registry_version"] == "policy_registry.v1"
@@ -2869,6 +2853,8 @@ def test_build_stage_transition_artifacts_payload_dict_has_required_shape() -> N
     assert payload["artifact_schema_version"] == STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION
     assert payload["created_at"] == finished_at.isoformat()
     assert isinstance(payload["artifacts"], dict)
+
+
 
 
 

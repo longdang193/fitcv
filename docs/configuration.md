@@ -38,7 +38,7 @@ This matrix defines current SSOT ownership for migration execution.
 ### Legacy-Duplicate Classification (Current Baseline)
 
 - compatibility-only (to be drained from `config/env.yaml`): `seniority_ladder`, `application_statuses`, `cv_analysis_min_score`, overlap with runtime knobs that already live in `config/runtime/pipeline.yaml`
-- canonical-infra bridge (kept until loader migration complete): `gcp_project`, `bigquery_dataset`, `service_account_key`, `location`
+- legacy infra bridge still tolerated in config loading: `gcp_project`, `bigquery_dataset`, `service_account_key`, `location`
 - removable private surface: `config/env.private.yaml` (no active tracked consumer in this worktree baseline)
 - removable smoke surface: `config/live_smoke.yaml` (duplicates infra/model ownership outside canonical runtime files)
 
@@ -145,7 +145,7 @@ Examples:
 
 ## Backend and Provider Routing
 
-- backend routing: process env `FITCV_CP_DATA_BACKEND` selects backend mode (`sqlite` / `bigquery`) at runtime
+- control-plane runtime is SQLite-only for supported startup paths
 - local sqlite persistence authority:
   - pipeline run snapshots persist in sqlite (`local_pipeline_runs`)
   - pipeline run events persist in sqlite (`local_pipeline_run_events`)
@@ -171,7 +171,7 @@ Examples:
 This migration lane defines a strict split between storage backend selection and AI runtime behavior.
 
 - `data_plane` ownership:
-  - runtime backend selection (`sqlite` / `bigquery`)
+  - runtime control-plane SQLite path selection
   - persistence/query adapter behavior only
 - `ai_plane` ownership:
   - provider + model routing via `control_plane.model_routing.parts.*`
@@ -187,7 +187,7 @@ Canonical AI auth contract:
 
 - primary key: `FITCV_LLM_API_KEY`
 - temporary compatibility aliases (deprecation window only): `OPENAI_API_KEY`, `OPENAI_COMPATIBLE_API_KEY`
-- `service_account_key` is not an AI credential and is reserved for BigQuery data-plane auth only
+- `service_account_key` is not an AI credential; any remaining BigQuery-oriented handling is legacy migration-only and unsupported for normal control-plane startup
 
 Fail-fast runtime contract:
 
@@ -200,4 +200,5 @@ Fail-fast runtime contract:
 - [setup.md](setup.md)
 - [usage.md](usage.md)
 - [architecture.md](architecture.md)
+
 

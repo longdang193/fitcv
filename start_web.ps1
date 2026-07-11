@@ -1,8 +1,5 @@
 param(
-    [string]$CredentialPath = "",
     [string]$RedisUrl = "",
-    [string]$Project = "",
-    [string]$Dataset = "",
     [int]$Port = 8000,
     [switch]$AllowDockerWorker
 )
@@ -17,7 +14,7 @@ function Set-EnvFromDotEnv {
         if (-not $line -or $line.StartsWith("#") -or -not $line.Contains("=")) { continue }
         $parts = $line.Split("=", 2)
         $key = $parts[0].Trim()
-        $value = $parts[1].Trim().Trim("'`"")
+        $value = $parts[1].Trim()
         if (-not $key) { continue }
         $existing = [Environment]::GetEnvironmentVariable($key, "Process")
         if (-not [string]::IsNullOrWhiteSpace($existing)) { continue }
@@ -27,23 +24,8 @@ function Set-EnvFromDotEnv {
 
 Set-EnvFromDotEnv -Path (Join-Path $PSScriptRoot ".env")
 
-if (-not $env:FITCV_CP_DATA_BACKEND) { $env:FITCV_CP_DATA_BACKEND = "sqlite" }
 if (-not $RedisUrl) { $RedisUrl = $env:REDIS_URL }
-if (-not $Project) { $Project = $env:GCP_PROJECT }
-if (-not $Dataset) { $Dataset = $env:BIGQUERY_DATASET }
-if (-not $CredentialPath) { $CredentialPath = $env:GOOGLE_APPLICATION_CREDENTIALS }
 if (-not $RedisUrl) { $RedisUrl = "redis://:myredissecret@localhost:6379/0" }
-if (-not $Dataset) { $Dataset = "fitcv" }
-if (-not $Project) { $Project = "local" }
-
-if ($env:FITCV_CP_DATA_BACKEND -ne "sqlite") {
-    if (-not $CredentialPath) {
-        throw "GOOGLE_APPLICATION_CREDENTIALS is required when FITCV_CP_DATA_BACKEND is not sqlite."
-    }
-    if (-not (Test-Path -LiteralPath $CredentialPath)) {
-        throw "Credential file not found: $CredentialPath"
-    }
-}
 
 $dockerWorkerRunning = $false
 try {
@@ -63,9 +45,7 @@ if (-not (Test-Path -LiteralPath $pythonExe)) { $pythonExe = "python" }
 
 $env:PYTHONPATH = "src"
 $env:REDIS_URL = $RedisUrl
-$env:GCP_PROJECT = $Project
-$env:BIGQUERY_DATASET = $Dataset
-if ($CredentialPath) { $env:GOOGLE_APPLICATION_CREDENTIALS = $CredentialPath }
+$env:FITCV_CP_DATA_BACKEND = "sqlite"
 if (-not $env:FITCV_OTEL_ENABLED) { $env:FITCV_OTEL_ENABLED = "true" }
 if (-not $env:FITCV_LANGFUSE_PROJECT_PUBLIC_KEY) { $env:FITCV_LANGFUSE_PROJECT_PUBLIC_KEY = "pk-lf-localdev" }
 if (-not $env:FITCV_LANGFUSE_PROJECT_SECRET_KEY) { $env:FITCV_LANGFUSE_PROJECT_SECRET_KEY = "sk-lf-localdev-secret" }
@@ -79,7 +59,7 @@ if (-not $env:FITCV_LANGFUSE_ENABLED) { $env:FITCV_LANGFUSE_ENABLED = "true" }
 if (-not $env:FITCV_LANGFUSE_BASE_URL) { $env:FITCV_LANGFUSE_BASE_URL = "http://localhost:3000" }
 
 Write-Host "Starting FitCV web server on port $Port"
-Write-Host "Backend: $($env:FITCV_CP_DATA_BACKEND)"
-if ($CredentialPath) { Write-Host "Credentials: $CredentialPath" }
+Write-Host "Backend: sqlite"
 
 & $pythonExe -m uvicorn fitcv_cp.main:app --host 0.0.0.0 --port $Port
+

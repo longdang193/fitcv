@@ -50,31 +50,19 @@ def resolve_backend_runtime_or_active() -> BackendRuntime:
 
 
 def resolve_backend_runtime() -> BackendRuntime:
-    """Resolve backend mode and runtime connection settings.
-
-    Uses control-plane config plus explicit env overrides for deterministic local runs.
-    """
+    """Resolve SQLite-only runtime connection settings."""
     cfg = load_control_plane_config()
     data_backend = dict(cfg.get("data_backend") or {})
-    backend_type = str(
-        os.environ.get("FITCV_CP_DATA_BACKEND")
-        or data_backend.get("type")
-        or "bigquery"
-    ).strip().lower() or "bigquery"
-    if backend_type not in {"bigquery", "sqlite"}:
-        raise ValueError(f"Unsupported backend type: {backend_type}")
-
-    bq_cfg = dict(data_backend.get("bigquery") or {})
     sqlite_cfg = dict(data_backend.get("sqlite") or {})
-    project = str(os.environ.get("GCP_PROJECT") or bq_cfg.get("project") or "").strip()
-    dataset = str(os.environ.get("BIGQUERY_DATASET") or bq_cfg.get("dataset") or "fitcv").strip() or "fitcv"
     sqlite_path = str(
         os.environ.get("FITCV_CP_SQLITE_PATH")
         or sqlite_cfg.get("path")
         or "data/fitcv_cp.sqlite3"
     ).strip() or "data/fitcv_cp.sqlite3"
+    project = str(os.environ.get("GCP_PROJECT") or "local").strip() or "local"
+    dataset = str(os.environ.get("BIGQUERY_DATASET") or "fitcv").strip() or "fitcv"
     return BackendRuntime(
-        backend_type=backend_type,
+        backend_type="sqlite",
         project=project,
         dataset=dataset,
         sqlite_path=sqlite_path,

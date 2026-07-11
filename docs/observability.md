@@ -52,10 +52,6 @@ $env:FITCV_LANGFUSE_ENABLED="false"
 $env:FITCV_OTEL_ENABLED="false"
 ```
 
-You can also run mixed mode (one enabled, one disabled). In that case,
-**Telemetry Export Health** may show `disabled` or `degraded` status for the
-disabled/misconfigured side while pipeline execution still continues.
-
 ### 3) Start stack
 
 Use normal project startup flow (web + worker). After boot, open:
@@ -63,16 +59,7 @@ Use normal project startup flow (web + worker). After boot, open:
 - `/admin/runs`
 - `/admin/runs/{run_id}`
 
-### 4) Validate telemetry health
-
-From run detail page, confirm **Telemetry Export Health** card status.
-
-Expected:
-
-- healthy path: no degradation reason
-- fallback path: degraded status with explicit reason, while pipeline still runs
-
-### 5) Validate outbox replay monitoring
+### 4) Validate run and event flow
 
 Run checker script:
 
@@ -108,12 +95,6 @@ Write-Host "FITCV_OTEL_SERVICE_NAME=$env:FITCV_OTEL_SERVICE_NAME"
 Use this page to find the run, its current status, trigger mode, and whether it
 is worth drilling into immediately.
 
-The runs list includes an **Outbox Replay Health (Visible Runs)** card with:
-
-- dead-letter totals and impacted runs
-- replay success ratio
-- direct `Download JSON` link to `/admin/outbox-replay-health.json?view=...`
-
 ### Run detail
 
 `/admin/runs/{run_id}`
@@ -127,7 +108,6 @@ This is the main observability surface. It combines:
 - run exports
 - stage-artifact downloads
 - synonym overlay and review-adjacent surfaces
-- telemetry export health (degraded vs healthy)
 
 For most debugging, start here before opening raw JSON exports.
 
@@ -186,23 +166,8 @@ Fallback behavior:
 - telemetry degradation does not block stage execution or artifact persistence
 - stage artifacts remain the evidence source of truth
 
-Operator signal:
-
-- run detail now shows a **Telemetry Export Health** card
-- degraded telemetry events are counted from persisted run events payloads
-- Langfuse trace-link health uses truth-preserving statuses:
-  - `disabled`: Langfuse integration is disabled
-  - `degraded`: required link inputs are missing
-  - `unverified`: trace URL is constructible, but ingestion is not confirmed by this signal alone
-
-Quick troubleshooting:
-
-- `status=degraded`, `degradation_reason=otel_disabled`
-  - set `FITCV_OTEL_ENABLED=true`
-- `status=degraded`, `degradation_reason=otel_exporter_endpoint_missing`
-  - set `FITCV_OTEL_EXPORTER_OTLP_ENDPOINT`
-- `status=degraded`, `degradation_reason=otel_dependency_missing`
-  - install OpenTelemetry SDK/exporter dependencies in runtime image/venv
+Operator signal stays event- and artifact-driven. Use persisted events,
+artifacts, and runtime logs for telemetry troubleshooting.
 - `status=degraded`, `degradation_reason=otel_exporter_init_failed`
   - verify endpoint reachability, protocol path, and collector health
 
@@ -261,46 +226,7 @@ Use this when you want the machine-facing event stream rather than the rendered
 HTML timeline. This is especially helpful for tooling, incident review, or
 cross-run comparisons.
 
-## Outbox Replay Alert Check
-
-For active control (not just passive observation), FitCV provides:
-
-- `GET /admin/outbox-replay-health.json`
-- `POST /admin/outbox-replay-health/check`
-
-The check route evaluates:
-
-- whether outbox/dead-letter status is degraded
-- whether replay success ratio is below threshold
-
-When enabled (`emit_event=true`), the check emits an auditable event:
-
-- `stage=outbox_replay_health_alert`
-- `level=warning` on alert, `info` on healthy
-
-### Scheduler-Friendly Checker Script
-
-Use:
-
-```powershell
-python scripts/check_outbox_replay_health.py --base-url http://localhost:8000 --view active --min-replay-success-ratio 0.95
-```
-
-Exit code contract:
-
-- `0`: health check decision is `ok`
-- `2`: health check decision is `alert`
-- `3`: request/runtime failure while executing the check
-
-This makes the script safe to plug into cron, Windows Task Scheduler, CI, or
-external monitors.
-
-Webhook routing option:
-
-- `scripts/route_outbox_replay_health_alert.py` wraps the checker and sends
-  alert/error outcomes to a webhook endpoint while preserving non-zero exits.
-
-## Agentic Observation By Area
+## Agentic Observation By Area## Agentic Observation By Area
 
 ### CV analysis and generation
 
@@ -601,3 +527,4 @@ Backfill command behavior:
 - [usage.md](usage.md)
 - [pipeline.md](pipeline.md)
 - [architecture.md](architecture.md)
+

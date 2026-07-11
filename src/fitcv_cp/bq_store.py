@@ -4,13 +4,13 @@ type: module
 domain: runtime
 ownership: infrastructure
 responsibility:
-  - Module metadata placeholder for src.fitcv_cp.bq_store.
+  - Legacy migration-only control-plane store helpers; supported runtime now uses SQLite-only startup.
 inputs:
   - Internal runtime calls and module imports
 outputs:
   - Module-level symbols and runtime behavior
 lifecycle:
-  - status: active
+  - status: deprecated
 """
 
 import datetime
@@ -2095,3 +2095,4 @@ def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset
 
     table = f"{project}.{dataset}.cv_versions"
     return list(bq.insert_rows_json(table, [row]))
+

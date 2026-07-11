@@ -500,109 +500,6 @@
 </div>
 {% endif %}
 
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Event Delivery Health</h3>
-    {% if event_delivery_health.status == 'degraded' %}
-      <span class="badge badge-warning">degraded</span>
-    {% elif event_delivery_health.status == 'unknown' %}
-      <span class="badge badge-info">unknown</span>
-    {% else %}
-      <span class="badge badge-success">healthy</span>
-    {% endif %}
-  </div>
-  <div class="kv">
-    <span class="k">Dead-lettered Events</span><span class="v">{{ event_delivery_health.count }}</span>
-    <span class="k">Last Dead-letter Timestamp</span><span class="v">{% if event_delivery_health.last_failed_at %}{{ event_delivery_health.last_failed_at }}{% else %}{{ event_delivery_health.last_failed_at_display or '—' }}{% endif %}</span>
-    <span class="k">Degradation Reason</span><span class="v"><code>{{ event_delivery_health.last_degradation_reason or '—' }}</code></span>
-    <span class="k">Max Retry Attempts</span><span class="v">{{ event_delivery_health.max_retry_attempts or 0 }}</span>
-    <span class="k">Dead-letter Path</span><span class="v"><code>{{ event_delivery_health.dead_letter_path }}</code></span>
-  </div>
-  {% if event_delivery_health.status == 'degraded' %}
-  <div class="meta" style="margin-top:0.85rem">
-    Some pipeline events for this run were dead-lettered after retry exhaustion. Inspect the dead-letter file and replay those rows to restore full event lineage.
-  </div>
-  {% endif %}
-</div>
-
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Telemetry Export Health</h3>
-    {% if telemetry_export_health.status == 'degraded' %}
-      <span class="badge badge-warning">degraded</span>
-    {% else %}
-      <span class="badge badge-success">healthy</span>
-    {% endif %}
-  </div>
-  <div class="kv">
-    <span class="k">Degraded Telemetry Events</span><span class="v">{{ telemetry_export_health.degraded_count }}</span>
-    <span class="k">Last Degraded Stage</span><span class="v">{{ telemetry_export_health.last_degraded_stage or '—' }}</span>
-  </div>
-  <div class="meta" style="margin-top:0.85rem">
-    Stage artifacts remain the evidence source of truth even when telemetry export is degraded.
-  </div>
-</div>
-
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Langfuse Trace-Link Health</h3>
-    {% if langfuse_link_health.status == 'degraded' %}
-      <span class="badge badge-warning">degraded</span>
-    {% elif langfuse_link_health.status == 'unverified' %}
-      <span class="badge badge-info">unverified</span>
-    {% else %}
-      <span class="badge badge-neutral">disabled</span>
-    {% endif %}
-  </div>
-  <div class="kv">
-    <span class="k">Unverified Link Events</span><span class="v">{{ langfuse_link_health.unverified_count }}</span>
-    <span class="k">Degraded Link Events</span><span class="v">{{ langfuse_link_health.degraded_count }}</span>
-    <span class="k">Last Degraded Stage</span><span class="v">{{ langfuse_link_health.last_degraded_stage or '—' }}</span>
-    <span class="k">Latest Trace URL</span><span class="v">{% if langfuse_link_health.last_trace_url %}<code>{{ langfuse_link_health.last_trace_url }}</code>{% else %}—{% endif %}</span>
-  </div>
-  <div class="meta" style="margin-top:0.85rem">
-    Trace URLs are navigation links only and do not confirm ingestion. Stage artifacts remain authoritative for runtime decisions.
-  </div>
-</div>
-
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Dead-letter Replay Summary</h3>
-    {% if dead_letter_replay_summary.replay_candidates > 0 %}
-      <span class="badge badge-info">available</span>
-    {% else %}
-      <span class="badge badge-neutral">none</span>
-    {% endif %}
-  </div>
-  <div class="kv">
-    <span class="k">Last Replay Timestamp</span><span class="v">{{ dead_letter_replay_summary.occurred_at_display or '—' }}</span>
-    <span class="k">Replay Success Ratio</span><span class="v">{{ '%.2f'|format(dead_letter_replay_summary.replay_success_ratio) }}</span>
-    <span class="k">Replayed / Candidates</span><span class="v">{{ dead_letter_replay_summary.replayed }} / {{ dead_letter_replay_summary.replay_candidates }}</span>
-    <span class="k">Failed Replays</span><span class="v">{{ dead_letter_replay_summary.failed }}</span>
-    <span class="k">Remaining Dead-letter Total</span><span class="v">{{ dead_letter_replay_summary.remaining_dead_letter_total }}</span>
-  </div>
-</div>
-
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Agentic Runtime Alignment</h3>
-    {% if agentic_runtime_drift.status == 'aligned' %}
-      <span class="badge badge-success">aligned</span>
-    {% elif agentic_runtime_drift.status == 'drifted' %}
-      <span class="badge badge-warning">drifted</span>
-    {% else %}
-      <span class="badge badge-info">not_applicable</span>
-    {% endif %}
-  </div>
-  <div class="meta" style="margin-bottom:0.75rem">{{ agentic_runtime_drift.message }}</div>
-  <div class="kv">
-    <span class="k">Expected Provider</span><span class="v"><code>{{ agentic_runtime_drift.expected_provider or '—' }}</code></span>
-    <span class="k">Actual Provider</span><span class="v"><code>{{ agentic_runtime_drift.actual_provider or '—' }}</code></span>
-    <span class="k">Expected Model</span><span class="v"><code>{{ agentic_runtime_drift.expected_model or '—' }}</code></span>
-    <span class="k">Actual Model</span><span class="v"><code>{{ agentic_runtime_drift.actual_model or '—' }}</code></span>
-  </div>
-</div>
-
 {% if markdown_quality_summary.attempted_total and markdown_quality_summary.attempted_total > 0 %}
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
@@ -977,12 +874,6 @@ async function lifecycleAction(runId, action, btn) {
   margin-bottom:0.2rem;
 }
 
-.fit-context-stack {
-  display:flex;
-  flex-direction:column;
-  gap:0.2rem;
-  min-width:11rem;
-}
 
 .tab-loading-state {
   min-height:8rem;

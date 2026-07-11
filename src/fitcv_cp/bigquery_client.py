@@ -4,14 +4,14 @@ type: module
 domain: runtime
 ownership: infrastructure
 responsibility:
-  - Provide shared BigQuery client construction for control-plane runtime.
+  - Legacy migration-only BigQuery client construction kept for unsupported internal paths.
 inputs:
   - GOOGLE_APPLICATION_CREDENTIALS
   - ambient Google ADC state
 outputs:
   - google.cloud.bigquery.Client
 lifecycle:
-  - status: active
+  - status: deprecated
 """
 
 from __future__ import annotations
@@ -60,3 +60,4 @@ def build_bigquery_client() -> Any:
     from google.cloud import bigquery
 
     return bigquery.Client()
+

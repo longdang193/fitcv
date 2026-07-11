@@ -249,47 +249,6 @@ docker compose up -d --build redis web worker
 
 ## Orchestration Schema Migration
 
-If `/admin/runs` shows `schema: fallback mode`, the `pipeline_runs` table is missing orchestration binding columns.
-
-Dry run:
-
-```powershell
-python scripts/migrate_pipeline_runs_orchestration_columns.py --project <gcp-project> --dataset <dataset>
-```
-
-Apply migration:
-
-```powershell
-python scripts/migrate_pipeline_runs_orchestration_columns.py --project <gcp-project> --dataset <dataset> --apply
-```
-
-## Operator Verification (Queue + Prefect)
-
-Use this after triggering runs to confirm orchestration diagnostics are visible end-to-end in API and admin UI.
-
-Basic verification (schema + run evidence + run detail labels):
-
-```powershell
-.\scripts\verify_fitcv_orchestration_modes.ps1 -BaseUrl "http://localhost:8000"
-```
-
-Require both queue and prefect runs to exist in the inspected run set:
-
-```powershell
-.\scripts\verify_fitcv_orchestration_modes.ps1 `
-  -BaseUrl "http://localhost:8000" `
-  -RequireQueue `
-  -RequirePrefect
-```
-
-Verify a specific run id:
-
-```powershell
-.\scripts\verify_fitcv_orchestration_modes.ps1 `
-  -BaseUrl "http://localhost:8000" `
-  -RunId "<run-id>"
-```
-
 ## OpenTelemetry Collector Setup
 
 Use this when you want telemetry events exported to an OTLP collector in addition to persisted run artifacts.
@@ -305,91 +264,11 @@ $env:FITCV_OTEL_SERVICE_NAME="fitcv-control-plane"
 Notes:
 
 - exporter failure is non-destructive; pipeline execution and stage artifacts continue
-- run detail shows **Telemetry Export Health** so operators can detect degraded export
 - stage artifacts remain authoritative evidence even when telemetry export is degraded
 
 Recommended local collector smoke check:
 
 1. Start a collector listening on `4318` for OTLP HTTP traces.
 2. Trigger a run from `/admin/runs`.
-3. Open run detail and verify the Telemetry Export Health card.
-4. If degraded, inspect reason via event payloads or runtime logs.
+3. If export troubleshooting is needed, inspect event payloads or runtime logs.
 
-## Scheduled Outbox Replay Health Check
-
-Use this when you want recurring operational checks and alert-friendly exit codes.
-
-Prerequisite:
-
-- `web` must be running and reachable at your chosen base URL (for example `http://localhost:8000`).
-
-Manual command:
-
-```powershell
-python scripts/check_outbox_replay_health.py `
-  --base-url http://localhost:8000 `
-  --view active `
-  --min-replay-success-ratio 0.95
-```
-
-Exit codes:
-
-- `0`: check decision is `ok`
-- `2`: check decision is `alert`
-- `3`: request/runtime failure during check execution
-
-### Windows Task Scheduler (recommended on Windows)
-
-Example `schtasks` registration (every 10 minutes):
-
-```powershell
-$repoRoot = "<repo-root>"
-$pythonExe = "$repoRoot\.venv\Scripts\python.exe"
-$scriptPath = "$repoRoot\scripts\check_outbox_replay_health.py"
-schtasks /Create /TN "FitCV-Outbox-Replay-Health" /SC MINUTE /MO 10 /F /TR "`"$pythonExe`" `"$scriptPath`" --base-url http://localhost:8000 --view active --min-replay-success-ratio 0.95"
-```
-
-Run now:
-
-```powershell
-schtasks /Run /TN "FitCV-Outbox-Replay-Health"
-```
-
-Delete job:
-
-```powershell
-schtasks /Delete /TN "FitCV-Outbox-Replay-Health" /F
-```
-
-### Cron example (Linux/macOS environments)
-
-```bash
-*/10 * * * * /path/to/python /path/to/repo/scripts/check_outbox_replay_health.py --base-url http://localhost:8000 --view active --min-replay-success-ratio 0.95 >> /var/log/fitcv-outbox-health.log 2>&1
-```
-
-The checker prints JSON payloads; use your scheduler or wrapper to route non-zero
-exit codes into alert channels.
-
-## Alert Routing Wrapper (Webhook)
-
-Use the wrapper when you want direct webhook delivery for alert/error outcomes:
-
-```powershell
-python scripts/route_outbox_replay_health_alert.py `
-  --base-url http://localhost:8000 `
-  --view active `
-  --min-replay-success-ratio 0.95 `
-  --webhook-url https://example-alert-endpoint.local/hooks/fitcv
-```
-
-Wrapper behavior:
-
-- runs `scripts/check_outbox_replay_health.py`
-- forwards checker payload and exit code to webhook on:
-  - `2` (alert decision)
-  - `3` (checker request/runtime error)
-- keeps scheduler-compatible non-zero exits for alert/error handling
-
-Optional:
-
-- add `--notify-on-ok` if you also want healthy heartbeat notifications

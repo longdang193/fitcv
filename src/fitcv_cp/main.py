@@ -23,8 +23,6 @@ from typing import Any
 from fitcv.config import resolve_model_routing_part
 from fitcv_cp.app import create_app
 from fitcv_cp.backend_runtime import resolve_backend_runtime, set_backend_runtime
-from fitcv_cp.bigquery_client import build_bigquery_client
-from fitcv_cp.bq_store import get_pipeline_runs_schema_status
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +44,6 @@ def _load_dotenv_defaults() -> None:
             os.environ[env_key] = value.strip().strip("'\"")
     except OSError as exc:
         logger.warning("Failed to read .env defaults from %s: %s", dotenv_path, exc)
-
-
-def _build_bigquery_client() -> Any:
-    return build_bigquery_client()
 
 
 def _warn_or_fail_langgraph_override_drift() -> None:
@@ -109,48 +103,10 @@ def build_app() -> Any:
     runtime = resolve_backend_runtime()
     set_backend_runtime(runtime)
     redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/0")
-
-    if runtime.backend_type == "sqlite":
-        logger.info("control-plane backend mode: sqlite")
-        return create_app(
-            bq=None,
-            project=runtime.project or "local",
-            dataset=runtime.dataset,
-            redis_url=redis_url,
-            backend_runtime=runtime,
-        )
-
-    if not runtime.project:
-        raise ValueError("GCP_PROJECT must be set for bigquery backend mode")
-
-    bq = _build_bigquery_client()
-    schema_status = get_pipeline_runs_schema_status(
-        bq,
-        project=runtime.project,
-        dataset=runtime.dataset,
-    )
-    if schema_status.get("status") == "complete":
-        logger.info(
-            "orchestration schema mode: complete (%s.%s.pipeline_runs)",
-            runtime.project,
-            runtime.dataset,
-        )
-    elif schema_status.get("status") == "fallback":
-        missing = ", ".join(schema_status.get("missing_columns") or [])
-        logger.warning(
-            "orchestration schema mode: fallback (missing columns: %s). "
-            "Run migration to add orchestration_backend and orchestration_run_id.",
-            missing or "unknown",
-        )
-    else:
-        logger.warning(
-            "orchestration schema mode: unknown (%s).",
-            schema_status.get("warning") or "schema check failed",
-        )
-
+    logger.info("control-plane backend mode: sqlite")
     return create_app(
-        bq=bq,
-        project=runtime.project,
+        bq=None,
+        project=runtime.project or "local",
         dataset=runtime.dataset,
         redis_url=redis_url,
         backend_runtime=runtime,

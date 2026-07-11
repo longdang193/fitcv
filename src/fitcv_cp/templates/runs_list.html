@@ -29,30 +29,6 @@
 <div class="meta" style="margin-bottom:0.8rem">Orchestration schema: <strong>complete</strong></div>
 {% endif %}
 
-{% if false %}
-<div class="card" style="margin-bottom:0.9rem">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;flex-wrap:wrap;margin-bottom:0.55rem">
-    <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
-      <div style="font-weight:700">Outbox Replay Health (Visible Runs)</div>
-      <a class="btn-secondary" href="/admin/outbox-replay-health.json?view={{ view }}">Download JSON</a>
-    </div>
-    {% if dead_letter_replay_health.status == 'degraded' %}
-      <span class="badge badge-warning">degraded</span>
-    {% else %}
-      <span class="badge badge-success">healthy</span>
-    {% endif %}
-  </div>
-  <div class="kv">
-    <span class="k">Dead-letter Total</span><span class="v">{{ dead_letter_replay_health.dead_letter_total }}</span>
-    <span class="k">Impacted Runs</span><span class="v">{{ dead_letter_replay_health.impacted_runs }}</span>
-    <span class="k">Replay Events</span><span class="v">{{ dead_letter_replay_health.replay_event_count }}</span>
-    <span class="k">Replay Success Ratio</span><span class="v">{{ '%.2f'|format(dead_letter_replay_health.replay_success_ratio) }}</span>
-    <span class="k">Replayed / Candidates</span><span class="v">{{ dead_letter_replay_health.replayed }} / {{ dead_letter_replay_health.replay_candidates }}</span>
-    <span class="k">Failed Replays</span><span class="v">{{ dead_letter_replay_health.failed }}</span>
-  </div>
-</div>
-{% endif %}
-
 <style>
   .runs-table {
     width: 100%;

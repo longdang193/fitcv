@@ -22,14 +22,14 @@ import pytest
 from fitcv_cp.backend_runtime import BackendRuntime
 
 
-def _reload_main_module(monkeypatch: pytest.MonkeyPatch, *, backend: str) -> Any:
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", backend)
+def _reload_main_module(monkeypatch: pytest.MonkeyPatch) -> Any:
+    monkeypatch.delenv("FITCV_CP_DATA_BACKEND", raising=False)
     sys.modules.pop("fitcv_cp.main", None)
     return importlib.import_module("fitcv_cp.main")
 
 
 def test_build_app_sqlite_mode_skips_bigquery_client(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = _reload_main_module(monkeypatch, backend="sqlite")
+    module = _reload_main_module(monkeypatch)
 
     captured: dict[str, Any] = {}
 
@@ -42,7 +42,6 @@ def test_build_app_sqlite_mode_skips_bigquery_client(monkeypatch: pytest.MonkeyP
         return "ok"
 
     monkeypatch.setattr(module, "create_app", _fake_create_app)
-    monkeypatch.setattr(module, "_build_bigquery_client", lambda: (_ for _ in ()).throw(RuntimeError("should not be called")))
 
     result = module.build_app()
 
@@ -51,19 +50,29 @@ def test_build_app_sqlite_mode_skips_bigquery_client(monkeypatch: pytest.MonkeyP
     assert captured["backend_runtime"].backend_type == "sqlite"
 
 
-def test_build_app_bigquery_mode_requires_project(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = _reload_main_module(monkeypatch, backend="sqlite")
+def test_build_app_always_uses_sqlite_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _reload_main_module(monkeypatch)
 
     monkeypatch.setattr(
         module,
         "resolve_backend_runtime",
         lambda: BackendRuntime(
-            backend_type="bigquery",
-            project="",
+            backend_type="sqlite",
+            project="local",
             dataset="fitcv",
             sqlite_path="data/fitcv_cp.sqlite3",
         ),
     )
 
-    with pytest.raises(ValueError, match="GCP_PROJECT must be set"):
-        module.build_app()
+    captured: dict[str, Any] = {}
+
+    def _fake_create_app(*, bq: Any, project: str, dataset: str, redis_url: str, backend_runtime: Any = None) -> str:
+        captured["bq"] = bq
+        captured["backend_runtime"] = backend_runtime
+        return "ok"
+
+    monkeypatch.setattr(module, "create_app", _fake_create_app)
+
+    assert module.build_app() == "ok"
+    assert captured["bq"] is None
+    assert captured["backend_runtime"].backend_type == "sqlite"

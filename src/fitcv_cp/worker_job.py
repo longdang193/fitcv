@@ -26,7 +26,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from google.cloud import bigquery
 
 from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
@@ -196,8 +195,8 @@ def _resolve_run_replay_context(
     }
 
 
-def _get_bq() -> bigquery.Client:
-    return bigquery.Client()
+def _get_bq() -> None:
+    return None
 
 def _bounded_markdown_preview(markdown_text: str) -> str:
     preview = str(markdown_text or "")
@@ -216,7 +215,7 @@ def execute_cv_regenerate_once(
     set_backend_runtime(runtime)
     project = runtime.project
     dataset = runtime.dataset
-    bq = _get_bq() if runtime.backend_type == "bigquery" else None
+    bq = None
     now = datetime.datetime.now(datetime.timezone.utc)
 
     append_event(
@@ -1928,7 +1927,7 @@ def execute_pipeline_run(
     set_backend_runtime(runtime)
     project = runtime.project
     dataset = runtime.dataset
-    bq = _get_bq() if runtime.backend_type == "bigquery" else None
+    bq = None
 
     # Import here to avoid circular deps at module load time
     from fitcv_cp.reporter import PipelineReporter
@@ -3027,6 +3026,9 @@ def execute_pipeline_run(
                 )
             except Exception as mirror_exc:
                 logger.warning("[run_id=%s] Failed to persist terminal artifact mirror: %s", run_id, mirror_exc)
+
+
+
 
 
 

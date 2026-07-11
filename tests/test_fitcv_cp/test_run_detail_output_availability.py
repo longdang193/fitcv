@@ -80,11 +80,11 @@ def test_advanced_diagnostics_collapsed_container_preserves_evidence_sections() 
     assert '<details class="card" id="advanced-diagnostics">' in content
     assert "Advanced &amp; Diagnostics" in content
     assert "<h3 style=\"margin:0\">Stage Result Policy + Trace Summary</h3>" in content
-    assert "<h3 style=\"margin:0\">Event Delivery Health</h3>" in content
-    assert "<h3 style=\"margin:0\">Telemetry Export Health</h3>" in content
-    assert "<h3 style=\"margin:0\">Langfuse Trace-Link Health</h3>" in content
-    assert "<h3 style=\"margin:0\">Dead-letter Replay Summary</h3>" in content
-    assert "<h3 style=\"margin:0\">Agentic Runtime Alignment</h3>" in content
+    assert "<h3 style=\"margin:0\">Event Delivery Health</h3>" not in content
+    assert "<h3 style=\"margin:0\">Telemetry Export Health</h3>" not in content
+    assert "<h3 style=\"margin:0\">Langfuse Trace-Link Health</h3>" not in content
+    assert "<h3 style=\"margin:0\">Dead-letter Replay Summary</h3>" not in content
+    assert "<h3 style=\"margin:0\">Agentic Runtime Alignment</h3>" not in content
     assert content.index('id="artifacts"') < content.index('id="advanced-diagnostics"')
     assert "Replay Dead-letter Events" not in content
     assert "Synonym Fingerprints" not in content

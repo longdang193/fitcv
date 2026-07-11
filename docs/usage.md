@@ -93,7 +93,7 @@ Important:
 
 ## Engineering Workflow
 
-1. run app/worker in sqlite or bigquery mode
+1. run app/worker in sqlite mode
 2. reproduce/verify via live run
 3. run focused tests
 4. run contract/validator checks before merge
@@ -113,3 +113,4 @@ Important:
 - [setup.md](setup.md)
 - [pipeline.md](pipeline.md)
 - [architecture.md](architecture.md)
+
