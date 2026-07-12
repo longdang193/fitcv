@@ -64,7 +64,7 @@ Use normal project startup flow (web + worker). After boot, open:
 Run checker script:
 
 ```powershell
-python scripts/check_outbox_replay_health.py --base-url http://localhost:8000 --view active --min-replay-success-ratio 0.95
+python -m pytest tests/test_fitcv_cp/test_reporter.py tests/test_fitcv_cp/test_run_detail_output_availability.py -q
 ```
 
 Exit code meaning:

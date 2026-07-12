@@ -97,7 +97,6 @@ _CANONICAL_PIPELINE_TOP_LEVEL_KEYS = {
     "enrichment_max_retries",
     "embedding_batch_size",
     "run_lifecycle",
-    "outbox_replay_health",
     "vector_top_n",
     "vector_max_candidate_skills",
     "retrieval_strategy",

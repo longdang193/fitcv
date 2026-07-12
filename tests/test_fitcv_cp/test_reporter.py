@@ -21,16 +21,15 @@ def test_reporter_emits_event():
     """@proves admin_control_plane_core.pipelinereporter-integration
     @proves run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
     """
-    bq = MagicMock()
-    bq.insert_rows_json.return_value = []
-    reporter = PipelineReporter(run_id="r1", bq=bq, project="p", dataset="d")
-    reporter.emit("pipeline_start", "info", "Run started")
-    bq.insert_rows_json.assert_called_once()
+    reporter = PipelineReporter(run_id="r1", client=None, project="p", dataset="d")
+    with patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
+        reporter.emit("pipeline_start", "info", "Run started")
+    append_mock.assert_called_once()
 
 
 def test_reporter_persists_local_event_without_bq():
     """@proves admin_control_plane_core.pipelinereporter-integration"""
-    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    reporter = PipelineReporter(run_id="r1", client=None, project="p", dataset="d")
     with patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
         reporter.emit("pipeline_start", "info", "ok")
     append_mock.assert_called_once()
@@ -38,14 +37,13 @@ def test_reporter_persists_local_event_without_bq():
 
 def test_reporter_payload_serialized():
     """@proves admin_control_plane_core.pipelinereporter-integration"""
-    bq = MagicMock()
-    bq.insert_rows_json.return_value = []
-    reporter = PipelineReporter(run_id="r1", bq=bq, project="p", dataset="d")
-    reporter.emit("layer3_filter", "error", "timeout", payload={"retries": 3})
-    call_args = bq.insert_rows_json.call_args[0][1][0]
-    assert call_args["level"] == "error"
-    assert "retries" in call_args["payload_json"]
-    payload = json.loads(call_args["payload_json"])
+    reporter = PipelineReporter(run_id="r1", client=None, project="p", dataset="d")
+    with patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
+        reporter.emit("layer3_filter", "error", "timeout", payload={"retries": 3})
+    event = append_mock.call_args.args[0]
+    assert event.level == "error"
+    assert "retries" in str(event.payload_json or "")
+    payload = json.loads(str(event.payload_json or "{}"))
     telemetry_export = dict(payload.get("telemetry_export") or {})
     trace_context = dict(payload.get("trace_context") or {})
     assert telemetry_export.get("status") in {"disabled", "degraded", "export_enabled"}
@@ -55,7 +53,7 @@ def test_reporter_payload_serialized():
 
 
 def test_reporter_langfuse_rich_io_disabled_by_default():
-    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    reporter = PipelineReporter(run_id="r1", client=None, project="p", dataset="d")
     with patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
         reporter.emit("pipeline_start", "info", "ok")
     event = append_mock.call_args[0][0]
@@ -69,7 +67,7 @@ def test_reporter_langfuse_rich_io_disabled_by_default():
 
 def test_reporter_langfuse_rich_io_redacts_and_truncates(monkeypatch):
     monkeypatch.setenv("FITCV_LANGFUSE_RICH_IO_ENABLED", "true")
-    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    reporter = PipelineReporter(run_id="r1", client=None, project="p", dataset="d")
     long_text = "x" * 700
     payload = {
         "api_key": "abc-123",
@@ -94,7 +92,7 @@ def test_reporter_langfuse_rich_io_redacts_and_truncates(monkeypatch):
 
 def test_reporter_langfuse_rich_io_stage_specific_snapshots(monkeypatch):
     monkeypatch.setenv("FITCV_LANGFUSE_RICH_IO_ENABLED", "true")
-    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    reporter = PipelineReporter(run_id="r1", client=None, project="p", dataset="d")
     payload = {
         "input_snapshot": {"total_jobs": 7, "token": "abc"},
         "output_snapshot": {"passed_filter": 2},
@@ -121,7 +119,7 @@ def test_reporter_langfuse_rich_io_native_sent(monkeypatch):
     monkeypatch.setenv("FITCV_LANGFUSE_PROJECT_SECRET_KEY", "sk-local")
     monkeypatch.setenv("FITCV_LANGFUSE_BASE_URL", "http://localhost:3000")
     monkeypatch.setenv("FITCV_LANGFUSE_ENABLED", "true")
-    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    reporter = PipelineReporter(run_id="r1", client=None, project="p", dataset="d")
     payload = {"latency_ms": 250}
     post_response = MagicMock()
     post_response.status_code = 200
@@ -131,11 +129,8 @@ def test_reporter_langfuse_rich_io_native_sent(monkeypatch):
     event = append_mock.call_args[0][0]
     emitted = json.loads(str(event.payload_json or "{}"))
     native = dict(emitted.get("langfuse_rich_io_native") or {})
-    link = dict(emitted.get("langfuse_link") or {})
     assert native.get("status").startswith("sent:")
     assert native.get("degradation_reason") is None
-    assert link.get("status") == "verified"
-    assert link.get("degradation_reason") is None
     post_mock.assert_called_once()
 
 
@@ -144,7 +139,7 @@ def test_reporter_langfuse_rich_io_native_emits_observation_for_latency(monkeypa
     monkeypatch.setenv("FITCV_LANGFUSE_PROJECT_PUBLIC_KEY", "pk-local")
     monkeypatch.setenv("FITCV_LANGFUSE_PROJECT_SECRET_KEY", "sk-local")
     monkeypatch.setenv("FITCV_LANGFUSE_BASE_URL", "http://localhost:3000")
-    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    reporter = PipelineReporter(run_id="r1", client=None, project="p", dataset="d")
     payload = {
         "latency_ms": 1234,
         "input_snapshot": {"ranked_jobs": 2},
@@ -158,7 +153,7 @@ def test_reporter_langfuse_rich_io_native_emits_observation_for_latency(monkeypa
 
 def test_reporter_langfuse_rich_io_coerces_scalar_cost(monkeypatch):
     monkeypatch.setenv("FITCV_LANGFUSE_RICH_IO_ENABLED", "true")
-    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    reporter = PipelineReporter(run_id="r1", client=None, project="p", dataset="d")
     with patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
         reporter.emit("layer4_cv_generation_result", "info", "generated", payload={"cost_usd": 0.123})
     event = append_mock.call_args[0][0]
@@ -169,7 +164,7 @@ def test_reporter_langfuse_rich_io_coerces_scalar_cost(monkeypatch):
 
 
 def test_reporter_reuses_active_trace_context_when_available():
-    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    reporter = PipelineReporter(run_id="r1", client=None, project="p", dataset="d")
     active_context = {
         "trace_id": "a" * 32,
         "span_id": "b" * 16,
@@ -186,7 +181,7 @@ def test_reporter_reuses_active_trace_context_when_available():
 
 
 def test_reporter_uses_bounded_fallback_without_emitting_span_when_no_active_context():
-    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    reporter = PipelineReporter(run_id="r1", client=None, project="p", dataset="d")
     fallback_context = {
         "trace_id": "d" * 32,
         "span_id": "e" * 16,

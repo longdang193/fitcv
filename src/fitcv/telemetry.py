@@ -34,16 +34,6 @@ _LANGFUSE_COLLECTION_MAX_ITEMS = 25
 _LANGFUSE_MAPPING_MAX_ITEMS = 50
 _LANGFUSE_TRUNCATION_SUFFIX = "... [truncated]"
 
-LANGFUSE_LINK_STATUS_DISABLED = "disabled"
-LANGFUSE_LINK_STATUS_DEGRADED = "degraded"
-LANGFUSE_LINK_STATUS_UNVERIFIED = "unverified"
-LANGFUSE_LINK_STATUS_VERIFIED = "verified"
-
-LANGFUSE_DEGRADATION_DISABLED = "langfuse_disabled"
-LANGFUSE_DEGRADATION_BASE_URL_MISSING = "langfuse_base_url_missing"
-LANGFUSE_DEGRADATION_TRACE_ID_MISSING = "langfuse_trace_id_missing"
-LANGFUSE_DEGRADATION_INGESTION_UNVERIFIED = "langfuse_ingestion_unverified"
-
 TELEMETRY_EXPORT_STATUS_ENABLED = "export_enabled"
 TELEMETRY_EXPORT_STATUS_DISABLED = "disabled"
 TELEMETRY_EXPORT_STATUS_DEGRADED = "degraded"
@@ -592,41 +582,6 @@ def build_trace_context(
             return trace_context or fallback_context
     except Exception:
         return fallback_context
-
-
-def langfuse_link_status(trace_id: str | None, *, verified: bool = False) -> dict[str, Any]:
-    enabled = _is_truthy(os.environ.get("FITCV_LANGFUSE_ENABLED"))
-    if not enabled:
-        return {
-            "status": LANGFUSE_LINK_STATUS_DISABLED,
-            "degradation_reason": LANGFUSE_DEGRADATION_DISABLED,
-            "trace_url": None,
-        }
-    base_url = _normalized_env(os.environ.get("FITCV_LANGFUSE_BASE_URL"))
-    if not base_url:
-        return {
-            "status": LANGFUSE_LINK_STATUS_DEGRADED,
-            "degradation_reason": LANGFUSE_DEGRADATION_BASE_URL_MISSING,
-            "trace_url": None,
-        }
-    normalized_trace_id = _normalized_env(trace_id)
-    if not normalized_trace_id:
-        return {
-            "status": LANGFUSE_LINK_STATUS_DEGRADED,
-            "degradation_reason": LANGFUSE_DEGRADATION_TRACE_ID_MISSING,
-            "trace_url": None,
-        }
-    if verified:
-        return {
-            "status": LANGFUSE_LINK_STATUS_VERIFIED,
-            "degradation_reason": None,
-            "trace_url": f"{base_url.rstrip('/')}/trace/{normalized_trace_id}",
-        }
-    return {
-        "status": LANGFUSE_LINK_STATUS_UNVERIFIED,
-        "degradation_reason": LANGFUSE_DEGRADATION_INGESTION_UNVERIFIED,
-        "trace_url": f"{base_url.rstrip('/')}/trace/{normalized_trace_id}",
-    }
 
 
 def telemetry_export_status() -> dict[str, Any]:

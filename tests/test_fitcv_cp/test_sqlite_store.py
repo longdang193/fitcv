@@ -178,7 +178,7 @@ def test_delete_archived_runs_prunes_old_rows_only() -> None:
     for run in (old_run, recent_run, active_run):
         sqlite_store.insert_run(run, None, project="local", dataset="fitcv")
 
-    summary = sqlite_store.delete_archived_runs(older_than_days=5, bq=None, project="local", dataset="fitcv")
+    summary = sqlite_store.delete_archived_runs(older_than_days=5, client=None, project="local", dataset="fitcv")
 
     assert summary["deleted_count"] == 1
     assert sqlite_store.get_run("run-old", None, project="local", dataset="fitcv") is None

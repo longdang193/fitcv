@@ -150,13 +150,13 @@ def test_worker_synonym_policy_defaults_when_effective_settings_json_invalid() -
 
 
 def test_worker_marks_succeeded_on_success():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     with patch("fitcv_cp.worker_job.run_pipeline", return_value={
         "run_id": "r1", "total_jobs": 5, "passed_filter": 3, "ranked": 2, "cvs_generated": 1
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update_status:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
@@ -166,8 +166,8 @@ def test_worker_marks_succeeded_on_success():
 
 def test_worker_persists_terminal_artifact_mirror_for_succeeded_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     now = datetime.datetime(2026, 5, 17, 16, 31, 28, tzinfo=datetime.timezone.utc)
     run_record = PipelineRun(
         run_id="r-mirror-1",
@@ -202,7 +202,7 @@ def test_worker_persists_terminal_artifact_mirror_for_succeeded_run(tmp_path: Pa
     def _run_once() -> None:
         with patch("fitcv_cp.worker_job.run_pipeline", return_value={"run_id": "r-mirror-1", "total_jobs": 1, "passed_filter": 1, "ranked": 1, "cvs_generated": 1}), \
             patch("fitcv_cp.worker_job.resolve_backend_runtime", return_value=BackendRuntime(backend_type="sqlite", project="local", dataset="fitcv", sqlite_path="data/fitcv_cp.sqlite3")), \
-            patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+            patch("fitcv_cp.worker_job._get_bq", return_value=client), \
             patch("fitcv_cp.worker_job.get_run", return_value=run_record), \
             patch("fitcv_cp.run_artifact_mirror.get_run", return_value=run_record), \
             patch("fitcv_cp.run_artifact_mirror.get_events", return_value=events), \
@@ -295,8 +295,8 @@ def test_worker_results_export_keeps_ai_plane_payload_equivalent_across_backends
     }
 
     def _capture_results_export(backend_type: str) -> dict:
-        bq = MagicMock()
-        bq.query.return_value.result.return_value = iter([])
+        client = MagicMock()
+        client.query.return_value.result.return_value = iter([])
         with patch(
             "fitcv_cp.worker_job.resolve_backend_runtime",
             return_value=BackendRuntime(
@@ -305,7 +305,7 @@ def test_worker_results_export_keeps_ai_plane_payload_equivalent_across_backends
                 dataset="fitcv",
                 sqlite_path="data/fitcv_cp.sqlite3" if backend_type == "sqlite" else None,
             ),
-        ), patch("fitcv_cp.worker_job._get_bq", return_value=bq), patch(
+        ), patch("fitcv_cp.worker_job._get_bq", return_value=client), patch(
             "fitcv_cp.worker_job.get_run",
             return_value=mock_run,
         ), patch("fitcv_cp.worker_job.run_pipeline", return_value=ai_plane_result), patch(
@@ -338,8 +338,8 @@ def test_worker_persists_results_export_json_on_success():
     @proves trigger_run_management.run-results-export
     @proves inspection_debugging.results-ledger-inspection
     """
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -357,7 +357,7 @@ def test_worker_persists_results_export_json_on_success():
         "ranked": 2,
         "cvs_generated": 1,
         "export_results": [{"job_url": "https://example.com/1", "pipeline_status": "ranked_with_cv"}],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
@@ -436,8 +436,8 @@ def test_results_export_payload_encoding_is_deterministic():
 
 def test_worker_persists_compact_cv_fields_in_results_export_json():
     """@proves trigger_run_management.run-owned-artifact-exports"""
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -474,7 +474,7 @@ def test_worker_persists_compact_cv_fields_in_results_export_json():
                     "created_at": "2026-03-29T12:00:00+00:00",
                 },
             }],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -492,8 +492,8 @@ def test_worker_persists_compact_cv_fields_in_results_export_json():
 
 
 def test_worker_excludes_stage_quality_metrics_from_results_export_json():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -523,7 +523,7 @@ def test_worker_excludes_stage_quality_metrics_from_results_export_json():
             },
         },
         "export_results": [{"job_url": "https://example.com/1", "pipeline_status": "ranked_with_cv"}],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -534,8 +534,8 @@ def test_worker_excludes_stage_quality_metrics_from_results_export_json():
 
 def test_worker_moves_late_stage_reuse_snapshots_under_diagnostic_support():
     """@proves inspection_debugging.reuse-diagnostics"""
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -572,7 +572,7 @@ def test_worker_moves_late_stage_reuse_snapshots_under_diagnostic_support():
             "cv_analysis_records": [{"job_url": "https://example.com/1"}],
         },
         "export_results": [{"job_url": "https://example.com/1", "pipeline_status": "ranked_with_cv"}],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.list_runs", return_value=[]), \
         patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export:
@@ -584,8 +584,8 @@ def test_worker_moves_late_stage_reuse_snapshots_under_diagnostic_support():
 
 
 def test_worker_passes_collected_late_stage_reuse_snapshots_to_run_pipeline():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -612,7 +612,7 @@ def test_worker_passes_collected_late_stage_reuse_snapshots_to_run_pipeline():
         }
     })
 
-    with patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    with patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.list_runs", return_value=[prior_run]), \
        patch("fitcv_cp.worker_job.run_pipeline", return_value={
@@ -629,9 +629,9 @@ def test_worker_passes_collected_late_stage_reuse_snapshots_to_run_pipeline():
     assert passed_snapshots["cv_analysis_records"][0]["analysis_input_fingerprint"] == "afp-1"
 
 def test_worker_reporter_event_includes_telemetry_degraded_payload() -> None:
-    bq = MagicMock()
-    bq.insert_rows_json.return_value = []
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.insert_rows_json.return_value = []
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -655,7 +655,7 @@ def test_worker_reporter_event_includes_telemetry_degraded_payload() -> None:
             "cvs_generated": 0,
         }
 
-    with patch("fitcv_cp.worker_job._get_bq", return_value=bq),        patch("fitcv_cp.worker_job.get_run", return_value=mock_run),        patch("fitcv_cp.worker_job.list_runs", return_value=[]),        patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock,        patch("fitcv_cp.worker_job.run_pipeline", side_effect=_run_pipeline_stub):
+    with patch("fitcv_cp.worker_job._get_bq", return_value=client),        patch("fitcv_cp.worker_job.get_run", return_value=mock_run),        patch("fitcv_cp.worker_job.list_runs", return_value=[]),        patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock,        patch("fitcv_cp.worker_job.run_pipeline", side_effect=_run_pipeline_stub):
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     events = [call.args[0] for call in append_mock.call_args_list if call.args]
@@ -666,9 +666,9 @@ def test_worker_reporter_event_includes_telemetry_degraded_payload() -> None:
     assert telemetry_export.get("status") in {"degraded", "disabled"}
 
 def test_worker_reporter_event_includes_langfuse_rich_contract_disabled_by_default() -> None:
-    bq = MagicMock()
-    bq.insert_rows_json.return_value = []
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.insert_rows_json.return_value = []
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -692,7 +692,7 @@ def test_worker_reporter_event_includes_langfuse_rich_contract_disabled_by_defau
             "cvs_generated": 0,
         }
 
-    with patch("fitcv_cp.worker_job._get_bq", return_value=bq),        patch("fitcv_cp.worker_job.get_run", return_value=mock_run),        patch("fitcv_cp.worker_job.list_runs", return_value=[]),        patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock,        patch("fitcv_cp.worker_job.run_pipeline", side_effect=_run_pipeline_stub):
+    with patch("fitcv_cp.worker_job._get_bq", return_value=client),        patch("fitcv_cp.worker_job.get_run", return_value=mock_run),        patch("fitcv_cp.worker_job.list_runs", return_value=[]),        patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock,        patch("fitcv_cp.worker_job.run_pipeline", side_effect=_run_pipeline_stub):
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     events = [call.args[0] for call in append_mock.call_args_list if call.args]
@@ -705,8 +705,8 @@ def test_worker_reporter_event_includes_langfuse_rich_contract_disabled_by_defau
     assert native.get("status") == "disabled"
 
 def test_worker_persists_cv_generation_debug_json_on_success():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -801,7 +801,7 @@ def test_worker_persists_cv_generation_debug_json_on_success():
                 "error": None,
             }
         ],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_cv_generation_debug") as mock_store_debug:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -830,8 +830,8 @@ def test_worker_persists_cv_generation_debug_json_on_success():
 
 
 def test_worker_persists_cv_generation_debug_coverage_accounting():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -879,7 +879,7 @@ def test_worker_persists_cv_generation_debug_coverage_accounting():
                 "error": None,
             },
         ],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_cv_generation_debug") as mock_store_debug:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -891,8 +891,8 @@ def test_worker_persists_cv_generation_debug_coverage_accounting():
     assert payload["snapshot_complete"] is True
 
 def test_worker_persists_review_item_id_for_review_required_debug_rows():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -928,7 +928,7 @@ def test_worker_persists_review_item_id_for_review_required_debug_rows():
                 "error": {"message": "Manual review required."},
             },
         ],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_cv_generation_debug") as mock_store_debug:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -942,8 +942,8 @@ def test_worker_persists_cv_generation_debug_coverage_for_reranker_blocked_rows(
     """@proves trigger_run_management.reranker-fit-authority
     @proves inspection_debugging.quality-metrics-diagnostics
     """
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -994,7 +994,7 @@ def test_worker_persists_cv_generation_debug_coverage_for_reranker_blocked_rows(
                 "analysis_reuse_status": "not_run_reranker_skip",
             },
         ],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_cv_generation_debug") as mock_store_debug:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -1011,8 +1011,8 @@ def test_worker_persists_stage_transition_artifacts_json_on_success():
     @proves inspection_debugging.stage-transition-diagnostics
     @proves pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
     """
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -1053,7 +1053,7 @@ def test_worker_persists_stage_transition_artifacts_json_on_success():
                 },
             },
         },
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts") as mock_store_stage_artifacts:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -1099,8 +1099,8 @@ def test_worker_persists_settings_used_json_on_success():
     @proves inspection_debugging.settings-used-export
     @proves inspection_debugging.prompt-provenance-diagnostics
     """
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
     mock_run.effective_settings_json = json.dumps({
         "pipeline": {"final_top_n": 10},
@@ -1129,7 +1129,7 @@ def test_worker_persists_settings_used_json_on_success():
         "passed_filter": 3,
         "ranked": 2,
         "cvs_generated": 1,
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_settings_used") as mock_store_settings:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -1153,8 +1153,8 @@ def test_worker_persists_settings_used_json_on_success():
 
 def test_worker_settings_used_export_canonicalizes_legacy_compatibility_keys():
     """@proves settings_system.settings-used-exports"""
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
     mock_run.effective_settings_json = json.dumps({
         "vector_top_n": 40,
@@ -1181,7 +1181,7 @@ def test_worker_settings_used_export_canonicalizes_legacy_compatibility_keys():
         "passed_filter": 1,
         "ranked": 1,
         "cvs_generated": 1,
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_settings_used") as mock_store_settings:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -1203,8 +1203,8 @@ def test_worker_settings_used_export_canonicalizes_legacy_compatibility_keys():
     assert payload["effective_settings"]["stage_runtime"]["cv_generation"]["concurrency"] == 1
 
 def test_worker_settings_used_snapshot_materializes_ranking_concurrency_from_canonical_stage_runtime() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
     mock_run.effective_settings_json = json.dumps({
         "pipeline": {"vector_search_top_n": 50, "ai_score_top_n": 10, "final_top_n": 5},
@@ -1224,7 +1224,7 @@ def test_worker_settings_used_snapshot_materializes_ranking_concurrency_from_can
         "passed_filter": 1,
         "ranked": 1,
         "cvs_generated": 1,
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_settings_used") as mock_store_settings:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -1234,8 +1234,8 @@ def test_worker_settings_used_snapshot_materializes_ranking_concurrency_from_can
 
 
 def test_worker_settings_used_persistence_failure_does_not_fail_run():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
     mock_run.effective_settings_json = json.dumps({"pipeline": {"final_top_n": 10}})
     mock_run.cancel_requested_at = None
@@ -1252,7 +1252,7 @@ def test_worker_settings_used_persistence_failure_does_not_fail_run():
         "passed_filter": 1,
         "ranked": 1,
         "cvs_generated": 1,
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_settings_used", side_effect=RuntimeError("settings snapshot boom")), \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update:
@@ -1263,8 +1263,8 @@ def test_worker_settings_used_persistence_failure_does_not_fail_run():
 
 
 def test_worker_stage_transition_artifacts_persistence_failure_does_not_fail_run():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -1281,7 +1281,7 @@ def test_worker_stage_transition_artifacts_persistence_failure_does_not_fail_run
         "ranked": 1,
         "cvs_generated": 1,
         "stage_transition_artifacts": {"schema_version": "stage_transition_artifacts_v2", "stages": {}},
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts", side_effect=RuntimeError("stage artifacts boom")), \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update:
@@ -1292,8 +1292,8 @@ def test_worker_stage_transition_artifacts_persistence_failure_does_not_fail_run
 
 
 def test_worker_mapping_suggestions_persistence_failure_appends_warning_event() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.checkpoint_payload_json = None
@@ -1316,7 +1316,7 @@ def test_worker_mapping_suggestions_persistence_failure_appends_warning_event() 
         "stage_transition_artifacts": {
             "artifacts": {"stages": {"enrich": {"status": "completed"}}}
         },
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_mapping_suggestions", side_effect=RuntimeError("missing column")), \
        patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock, \
@@ -1335,8 +1335,8 @@ def test_worker_mapping_suggestions_persistence_failure_appends_warning_event() 
 
 
 def test_worker_synonym_proposals_degradation_appends_warning_event() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.checkpoint_payload_json = None
@@ -1359,7 +1359,7 @@ def test_worker_synonym_proposals_degradation_appends_warning_event() -> None:
         "stage_transition_artifacts": {
             "artifacts": {"stages": {"enrich": {"status": "completed"}}}
         },
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_synonym_proposals", return_value={
            "persistence_status": "bundle_only_degraded",
@@ -1380,8 +1380,8 @@ def test_worker_synonym_proposals_degradation_appends_warning_event() -> None:
 
 
 def test_worker_review_hold_uses_non_null_snapshot_timestamp_for_synonym_and_mapping() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.checkpoint_payload_json = None
@@ -1403,7 +1403,7 @@ def test_worker_review_hold_uses_non_null_snapshot_timestamp_for_synonym_and_map
         "completed_stages": ["normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis", "cv_generation"],
         "cv_generation_debug_records": [{"status": "review_required", "job_url": "https://example.com/1"}],
         "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_mapping_suggestions") as mock_mapping_update, \
        patch("fitcv_cp.worker_job.update_run_synonym_proposals", return_value={"persistence_status": "persisted"}) as mock_syn_update, \
@@ -1419,8 +1419,8 @@ def test_worker_review_hold_uses_non_null_snapshot_timestamp_for_synonym_and_map
 
 
 def test_worker_run_all_auto_accepts_low_risk_review_required_when_enabled() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(
         effective_settings_json=json.dumps(
             {"synonym_management": {"auto_accept_ai_action_enabled": True}}
@@ -1448,7 +1448,7 @@ def test_worker_run_all_auto_accepts_low_risk_review_required_when_enabled() -> 
             {"status": "review_required", "job_url": "https://example.com/1", "error": {"stage": "provider", "message": "response unusable"}}
         ],
         "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update:
         execute_pipeline_run(run_id="r-auto-accept", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -1458,8 +1458,8 @@ def test_worker_run_all_auto_accepts_low_risk_review_required_when_enabled() -> 
 
 
 def test_worker_run_all_keeps_awaiting_review_for_high_risk_review_required() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(
         effective_settings_json=json.dumps(
             {"synonym_management": {"auto_accept_ai_action_enabled": True}}
@@ -1487,7 +1487,7 @@ def test_worker_run_all_keeps_awaiting_review_for_high_risk_review_required() ->
             {"status": "review_required", "job_url": "https://example.com/1", "error": {"stage": "validation", "message": "validation failed"}}
         ],
         "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update:
         execute_pipeline_run(run_id="r-high-risk-review", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -1497,8 +1497,8 @@ def test_worker_run_all_keeps_awaiting_review_for_high_risk_review_required() ->
 
 
 def test_worker_run_all_awaiting_review_persists_terminal_snapshots_as_succeeded() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(
         effective_settings_json=json.dumps(
             {"synonym_management": {"auto_accept_ai_action_enabled": True}}
@@ -1527,7 +1527,7 @@ def test_worker_run_all_awaiting_review_persists_terminal_snapshots_as_succeeded
         ],
         "mapping_suggestions": [{"field": "skill", "alias": "py", "canonical": "python", "confidence": 0.8}],
         "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update_status, \
        patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export, \
@@ -1547,8 +1547,8 @@ def test_worker_run_all_awaiting_review_persists_terminal_snapshots_as_succeeded
     assert isinstance(stage_payload.get("created_at"), str) and stage_payload["created_at"]
 
 def test_worker_run_all_executes_synonym_automation_when_enabled() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(
         effective_settings_json=json.dumps(
             {
@@ -1590,7 +1590,7 @@ def test_worker_run_all_executes_synonym_automation_when_enabled() -> None:
         "last_completed_stage": "cv_generation",
         "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
         "cv_generation_debug_records": [],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job._persist_global_skill_synonyms_map"), \
        patch("fitcv_cp.worker_job._load_global_skill_synonyms_map", return_value={}), \
@@ -1612,8 +1612,8 @@ def test_worker_run_all_executes_synonym_automation_when_enabled() -> None:
     assert trace_summary.get("auto_promote_global_skip_reason") == "applied"
 
 def test_worker_run_all_does_not_execute_synonym_automation_when_disabled() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(
         effective_settings_json=json.dumps(
             {
@@ -1655,7 +1655,7 @@ def test_worker_run_all_does_not_execute_synonym_automation_when_disabled() -> N
         "last_completed_stage": "cv_generation",
         "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
         "cv_generation_debug_records": [],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job._persist_global_skill_synonyms_map"), \
        patch("fitcv_cp.worker_job._load_global_skill_synonyms_map", return_value={}), \
@@ -1686,8 +1686,8 @@ def test_worker_run_all_does_not_execute_synonym_automation_when_disabled() -> N
 
 
 def test_worker_debug_snapshot_persistence_failure_does_not_fail_run():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -1704,7 +1704,7 @@ def test_worker_debug_snapshot_persistence_failure_does_not_fail_run():
         "ranked": 1,
         "cvs_generated": 1,
         "cv_generation_debug_records": [],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_cv_generation_debug", side_effect=RuntimeError("debug snapshot boom")), \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update:
@@ -1715,8 +1715,8 @@ def test_worker_debug_snapshot_persistence_failure_does_not_fail_run():
 
 
 def test_worker_cv_generation_debug_json_truncates_large_markdown_but_keeps_core_fields():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -1749,7 +1749,7 @@ def test_worker_cv_generation_debug_json_truncates_large_markdown_but_keeps_core
                 "error": None,
             }
         ],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_cv_generation_debug") as mock_store_debug:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -1768,8 +1768,8 @@ def test_worker_cv_generation_debug_json_truncates_large_markdown_but_keeps_core
 
 
 def test_worker_cv_generation_debug_json_preserves_evidence_selection_summary():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -1810,7 +1810,7 @@ def test_worker_cv_generation_debug_json_preserves_evidence_selection_summary():
                 "error": None,
             }
         ],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_cv_generation_debug") as mock_store_debug:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -1821,12 +1821,12 @@ def test_worker_cv_generation_debug_json_preserves_evidence_selection_summary():
     assert record["evidence_selection_summary"]["selected_evidence_count"] == 1
     assert record["evidence_selection_summary"]["hybrid_alignment"]["responsibility_alignment"]["semantic_weight"] == 0.75
 def test_worker_marks_failed_on_exception():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     with patch("fitcv_cp.worker_job.run_pipeline", side_effect=RuntimeError("boom")), \
-         patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=client), \
          patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
          patch("fitcv_cp.worker_job.update_run_status") as mock_update_status, \
          patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
@@ -1838,12 +1838,12 @@ def test_worker_marks_failed_on_exception():
 
 
 def test_worker_error_event_has_correct_level():
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     with patch("fitcv_cp.worker_job.run_pipeline", side_effect=RuntimeError("boom")), \
-         patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=client), \
          patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
          patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
@@ -1854,8 +1854,8 @@ def test_worker_error_event_has_correct_level():
 
 def test_worker_uses_effective_settings_snapshot():
     """Worker must use stored effective_settings_json without rebuilding runtime config."""
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     effective = {"pipeline": {"final_top_n": 5}, "gcp_project": "p"}
     mock_run = MagicMock()
     mock_run.effective_settings_json = json.dumps(effective)
@@ -1865,7 +1865,7 @@ def test_worker_uses_effective_settings_snapshot():
          patch("fitcv_cp.worker_job.run_pipeline", return_value={
              "total_jobs": 5, "passed_filter": 3, "ranked": 2, "cvs_generated": 1
          }) as mock_pipeline, \
-         patch("fitcv_cp.worker_job._get_bq", return_value=bq):
+         patch("fitcv_cp.worker_job._get_bq", return_value=client):
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
                              config_path=".env.yaml")
 
@@ -1876,8 +1876,8 @@ def test_worker_uses_effective_settings_snapshot():
 
 def test_worker_falls_back_to_config_path_if_no_snapshot():
     """If effective_settings_json is None, worker falls back to config_path."""
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
     mock_run.effective_settings_json = None
     mock_run.cancel_requested_at = None
@@ -1886,7 +1886,7 @@ def test_worker_falls_back_to_config_path_if_no_snapshot():
          patch("fitcv_cp.worker_job.run_pipeline", return_value={
              "total_jobs": 0, "passed_filter": 0, "ranked": 0, "cvs_generated": 0
          }) as mock_pipeline, \
-         patch("fitcv_cp.worker_job._get_bq", return_value=bq):
+         patch("fitcv_cp.worker_job._get_bq", return_value=client):
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
                              config_path=".env.yaml")
 
@@ -1896,8 +1896,8 @@ def test_worker_falls_back_to_config_path_if_no_snapshot():
 
 def test_worker_passes_control_plane_run_id_to_pipeline():
     """Worker must pass the admin run_id into the pipeline for downstream joins."""
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
     mock_run.effective_settings_json = None
     mock_run.cancel_requested_at = None
@@ -1906,7 +1906,7 @@ def test_worker_passes_control_plane_run_id_to_pipeline():
          patch("fitcv_cp.worker_job.run_pipeline", return_value={
              "run_id": "r1", "total_jobs": 0, "passed_filter": 0, "ranked": 0, "cvs_generated": 0
          }) as mock_pipeline, \
-         patch("fitcv_cp.worker_job._get_bq", return_value=bq):
+         patch("fitcv_cp.worker_job._get_bq", return_value=client):
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
                              config_path=".env.yaml")
 
@@ -1915,8 +1915,8 @@ def test_worker_passes_control_plane_run_id_to_pipeline():
 
 
 def test_worker_manual_staged_run_pauses_and_persists_checkpoint() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
     mock_run.effective_settings_json = None
     mock_run.cancel_requested_at = None
@@ -1938,7 +1938,7 @@ def test_worker_manual_staged_run_pauses_and_persists_checkpoint() -> None:
              "ranked": 0,
              "cvs_generated": 0,
          }) as mock_pipeline, \
-         patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=client), \
          patch("fitcv_cp.worker_job.update_run_checkpoint") as mock_checkpoint, \
          patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts") as mock_stage_artifacts, \
          patch("fitcv_cp.worker_job.update_run_status") as mock_status:
@@ -1953,8 +1953,8 @@ def test_worker_manual_staged_run_pauses_and_persists_checkpoint() -> None:
 
 
 def test_worker_manual_staged_normalize_checkpoint_does_not_persist_mapping_suggestions() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
     mock_run.effective_settings_json = None
     mock_run.cancel_requested_at = None
@@ -1979,7 +1979,7 @@ def test_worker_manual_staged_normalize_checkpoint_does_not_persist_mapping_sugg
              "ranked": 0,
              "cvs_generated": 0,
          }), \
-         patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=client), \
          patch("fitcv_cp.worker_job.update_run_checkpoint"), \
          patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts"), \
          patch("fitcv_cp.worker_job.update_run_mapping_suggestions") as mock_mapping, \
@@ -1991,8 +1991,8 @@ def test_worker_manual_staged_normalize_checkpoint_does_not_persist_mapping_sugg
 
 def test_worker_run_all_persists_stage_progress_without_checkpoint_state() -> None:
     """@proves trigger_run_management.shared-stage-progress"""
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
     mock_run.effective_settings_json = None
     mock_run.cancel_requested_at = None
@@ -2054,7 +2054,7 @@ def test_worker_run_all_persists_stage_progress_without_checkpoint_state() -> No
 
     with patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
          patch("fitcv_cp.worker_job.run_pipeline", side_effect=_run_pipeline_side_effect) as mock_pipeline, \
-         patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=client), \
          patch("fitcv_cp.worker_job.update_run_checkpoint") as mock_checkpoint, \
          patch("fitcv_cp.worker_job.update_run_progress") as mock_progress, \
          patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts") as mock_stage_artifacts, \
@@ -2084,8 +2084,8 @@ def test_worker_run_all_persists_stage_progress_without_checkpoint_state() -> No
 
 
 def test_worker_manual_resume_passes_checkpoint_payload_to_pipeline() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
     mock_run.effective_settings_json = None
     mock_run.cancel_requested_at = None
@@ -2100,7 +2100,7 @@ def test_worker_manual_resume_passes_checkpoint_payload_to_pipeline() -> None:
          patch("fitcv_cp.worker_job.run_pipeline", return_value={
              "run_id": "r1", "total_jobs": 0, "passed_filter": 0, "ranked": 0, "cvs_generated": 0
          }) as mock_pipeline, \
-         patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=client), \
          patch("fitcv_cp.worker_job.update_run_checkpoint"):
         execute_pipeline_run(run_id="r1", jobs_path="data/jobs.json", config_path=".env.yaml")
 
@@ -2113,8 +2113,8 @@ def test_worker_manual_resume_passes_checkpoint_payload_to_pipeline() -> None:
 
 
 def test_worker_manual_resume_uses_uploaded_run_scoped_synonym_overlay() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
     mock_run.effective_settings_json = json.dumps({
         "gcp_project": "p",
@@ -2144,7 +2144,7 @@ def test_worker_manual_resume_uses_uploaded_run_scoped_synonym_overlay() -> None
          patch("fitcv_cp.worker_job.run_pipeline", return_value={
              "run_id": "r1", "total_jobs": 0, "passed_filter": 0, "ranked": 0, "cvs_generated": 0
          }) as mock_pipeline, \
-         patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=client), \
          patch("fitcv_cp.worker_job.update_run_checkpoint"):
         execute_pipeline_run(run_id="r1", jobs_path="data/jobs.json", config_path=".env.yaml")
 
@@ -2378,7 +2378,7 @@ def test_append_synonym_suppression_summary_event_deduplicates_same_fingerprint(
     appended: list[object] = []
     existing_events: list[object] = []
 
-    def _fake_append_event(event: object, bq: object, *, project: str, dataset: str) -> None:
+    def _fake_append_event(event: object, client: object, *, project: str, dataset: str) -> None:
         appended.append(event)
         existing_events.append(event)
 
@@ -2387,14 +2387,14 @@ def test_append_synonym_suppression_summary_event_deduplicates_same_fingerprint(
         _append_synonym_suppression_summary_event(
             run_id="run-1",
             synonym_payload_json=payload_json,
-            bq=object(),
+            client=object(),
             project="proj",
             dataset="ds",
         )
         _append_synonym_suppression_summary_event(
             run_id="run-1",
             synonym_payload_json=payload_json,
-            bq=object(),
+            client=object(),
             project="proj",
             dataset="ds",
         )
@@ -2435,7 +2435,7 @@ def test_append_synonym_suppression_summary_event_respects_legacy_sha1_fingerpri
     ]
     appended: list[object] = []
 
-    def _fake_append_event(event: object, bq: object, *, project: str, dataset: str) -> None:
+    def _fake_append_event(event: object, client: object, *, project: str, dataset: str) -> None:
         appended.append(event)
 
     with patch("fitcv_cp.worker_job.get_events", side_effect=lambda *args, **kwargs: list(existing_events)), \
@@ -2443,7 +2443,7 @@ def test_append_synonym_suppression_summary_event_respects_legacy_sha1_fingerpri
         _append_synonym_suppression_summary_event(
             run_id="run-1",
             synonym_payload_json=payload_json,
-            bq=object(),
+            client=object(),
             project="proj",
             dataset="ds",
         )
@@ -2533,8 +2533,8 @@ def test_worker_marks_cancelled_when_cancel_already_requested():
     Worker should exit before RUNNING when cancel_requested_at is already set.
     """
     import datetime
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
 
     mock_run = MagicMock()
     mock_run.effective_settings_json = None
@@ -2547,9 +2547,9 @@ def test_worker_marks_cancelled_when_cancel_already_requested():
         m.result.return_value = iter([])
         return m
 
-    bq.query.side_effect = capture_query
+    client.query.side_effect = capture_query
 
-    with patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    with patch("fitcv_cp.worker_job._get_bq", return_value=client), \
          patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
          patch("fitcv_cp.worker_job.run_pipeline") as mock_pipeline, \
          patch("fitcv_cp.worker_job.update_run_status") as mock_update:
@@ -2570,16 +2570,16 @@ def test_worker_cancellation_event_appended_on_early_exit():
     Worker must append a run_cancelled event when exiting early due to cancel.
     """
     import datetime
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
-    bq.insert_rows_json.return_value = []
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
+    client.insert_rows_json.return_value = []
 
     mock_run = MagicMock()
     mock_run.effective_settings_json = None
     mock_run.cancel_requested_at = None
     mock_run.cancel_requested_at = datetime.datetime.now(datetime.timezone.utc)
 
-    with patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    with patch("fitcv_cp.worker_job._get_bq", return_value=client), \
          patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
          patch("fitcv_cp.worker_job.run_pipeline"), \
          patch("fitcv_cp.worker_job.update_run_status"), \
@@ -2596,15 +2596,15 @@ def test_worker_pipeline_cancelled_exception_marks_cancelled():
     PipelineCancelled raised during execution should produce cancelled status.
     """
     from fitcv.pipeline import PipelineCancelled
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
 
     mock_run = MagicMock()
     mock_run.effective_settings_json = None
     mock_run.cancel_requested_at = None
     mock_run.cancel_requested_at = None
 
-    with patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    with patch("fitcv_cp.worker_job._get_bq", return_value=client), \
          patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
          patch("fitcv_cp.worker_job.run_pipeline", side_effect=PipelineCancelled("stopped")), \
          patch("fitcv_cp.worker_job.update_run_status") as mock_update, \
@@ -2616,8 +2616,8 @@ def test_worker_pipeline_cancelled_exception_marks_cancelled():
     assert final_status == RunStatus.CANCELLED
 
 def test_worker_results_export_includes_deterministic_stage_summary_fields() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -2669,7 +2669,7 @@ def test_worker_results_export_includes_deterministic_stage_summary_fields() -> 
             }
         },
         "export_results": [{"job_url": "https://example.com/1", "pipeline_status": "ranked_no_cv"}],
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -2690,8 +2690,8 @@ def test_worker_results_export_includes_deterministic_stage_summary_fields() -> 
     assert cv_generation_summary["outcome_counts"]["validation_failed"] == 1
 
 def test_worker_review_required_with_terminal_resolution_status_is_not_counted_pending() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=json.dumps({"synonym_management": {"auto_accept_ai_action_enabled": True}}))
     mock_run.cancel_requested_at = None
     mock_run.checkpoint_payload_json = None
@@ -2720,7 +2720,7 @@ def test_worker_review_required_with_terminal_resolution_status_is_not_counted_p
             }
         ],
         "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update, \
        patch("fitcv_cp.worker_job.append_event") as mock_append:
@@ -2730,8 +2730,8 @@ def test_worker_review_required_with_terminal_resolution_status_is_not_counted_p
     assert final_status.value == "succeeded"
 
 def test_worker_review_required_reason_totals_preserved_while_remaining_counts_only_pending() -> None:
-    bq = MagicMock()
-    bq.query.return_value.result.return_value = iter([])
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(
         effective_settings_json=json.dumps({"synonym_management": {"auto_accept_ai_action_enabled": True}})
     )
@@ -2767,7 +2767,7 @@ def test_worker_review_required_reason_totals_preserved_while_remaining_counts_o
             },
         ],
         "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update, \
        patch("fitcv_cp.worker_job.append_event") as mock_append:

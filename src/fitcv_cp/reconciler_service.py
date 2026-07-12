@@ -30,12 +30,7 @@ logger = logging.getLogger(__name__)
 
 def _build_store() -> ControlPlaneStore:
     runtime = resolve_backend_runtime()
-    return ControlPlaneStore(
-        bq=None,
-        project=str(runtime.project or "local"),
-        dataset=str(runtime.dataset or "local"),
-        backend_runtime=runtime,
-    )
+    return ControlPlaneStore(backend_runtime=runtime)
 
 
 def run_reconciler_forever() -> None:

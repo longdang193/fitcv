@@ -932,10 +932,6 @@
     }
   }
 
-  function runPreflightGuardrails(form) {
-    return [];
-  }
-
   function coerceBoolField(form, name) {
     const field = form.querySelector('[name="' + name + '"]');
     if (!field) return false;
@@ -1050,12 +1046,6 @@
       form.addEventListener('submit', function(event) {
         if (!resolveAutomationPrerequisites(form)) {
           event.preventDefault();
-          return;
-        }
-        const issues = runPreflightGuardrails(form);
-        if (issues.length > 0) {
-          event.preventDefault();
-          window.alert('Please fix before saving:\n- ' + issues.join('\n- '));
           return;
         }
         if (form.dataset.guardedSave === 'true') {

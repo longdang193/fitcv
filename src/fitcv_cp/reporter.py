@@ -24,7 +24,6 @@ import httpx
 from fitcv.telemetry import (
     build_trace_context,
     current_trace_context,
-    langfuse_link_status,
     telemetry_export_status,
 )
 from fitcv_cp.sqlite_store import append_event
@@ -251,9 +250,9 @@ def _emit_langfuse_native_io(
 
 
 class PipelineReporter:
-    def __init__(self, run_id: str, bq: Any, *, project: str, dataset: str) -> None:
+    def __init__(self, run_id: str, client: Any, *, project: str, dataset: str) -> None:
         self._run_id = run_id
-        self._bq = bq
+        self._bq = client
         self._project = project
         self._dataset = dataset
 
@@ -287,10 +286,6 @@ class PipelineReporter:
             stage=stage,
             trace_id=trace_id,
             rich_contract=dict(payload_value["langfuse_rich_io"] or {}),
-        )
-        payload_value["langfuse_link"] = langfuse_link_status(
-            trace_id,
-            verified=native_status.startswith("sent:"),
         )
         payload_value["langfuse_rich_io_native"] = {
             "status": native_status,

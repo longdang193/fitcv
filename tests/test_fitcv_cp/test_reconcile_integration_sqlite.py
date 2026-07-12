@@ -41,7 +41,7 @@ def test_reconciler_sqlite_requeues_and_marks_queued() -> None:
                 config_path=".env.yaml",
                 created_at=now,
             )
-            insert_run(run, bq=None, project="local", dataset="local")
+            insert_run(run, client=None, project="local", dataset="local")
 
             payload = run_attempt_payload_v1(
                 attempt_id="a1",
@@ -58,12 +58,12 @@ def test_reconciler_sqlite_requeues_and_marks_queued() -> None:
                     created_at=now - datetime.timedelta(seconds=10),
                     payload_json=json.dumps(payload, ensure_ascii=False),
                 ),
-                bq=None,
+                client=None,
                 project="local",
                 dataset="local",
             )
 
-            store = ControlPlaneStore(bq=None, project="local", dataset="local")
+            store = ControlPlaneStore(client=None, project="local", dataset="local")
             with patch(
                 "fitcv_cp.reconciler.load_retry_settings",
                 return_value=RetrySettings(
@@ -80,7 +80,7 @@ def test_reconciler_sqlite_requeues_and_marks_queued() -> None:
 
             assert summary.requeued_attempts == 1
 
-            refreshed = get_run("r1", bq=None, project="local", dataset="local")
+            refreshed = get_run("r1", client=None, project="local", dataset="local")
             assert refreshed is not None
             assert refreshed.status == RunStatus.QUEUED
 

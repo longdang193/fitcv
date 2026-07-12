@@ -77,7 +77,13 @@ def load_retry_settings(control_plane_cfg: dict[str, Any] | None = None) -> Retr
     SSOT rule: runtime config is canonical; env toggles not used for retry policy.
     """
 
-    cfg = control_plane_cfg or load_control_plane_config()
+    if control_plane_cfg is None:
+        try:
+            cfg = load_control_plane_config()
+        except FileNotFoundError:
+            cfg = {}
+    else:
+        cfg = control_plane_cfg
     fitcv_cp = dict(cfg.get("fitcv_cp") or {})
     retry = dict(fitcv_cp.get("retry") or {})
 

@@ -28,8 +28,8 @@ from fitcv_cp.orchestrator import RunSubmission
 
 def _app():
     os.environ.setdefault("FITCV_CP_INLINE_EXECUTION", "1")
-    bq = MagicMock()
-    return create_app(bq=bq, project="p", dataset="d", redis_url="redis://localhost:6379/0")
+    client = MagicMock()
+    return create_app(redis_url="redis://localhost:6379/0")
 
 def test_collapse_timeline_noise_collapses_equivalent_synonym_triage_events() -> None:
     ts = datetime.datetime.now(datetime.timezone.utc)
@@ -861,7 +861,6 @@ def test_get_run_events_preserves_langfuse_rich_payload_json() -> None:
     payload_json = json.dumps(
         {
             "telemetry_export": {"status": "export_enabled"},
-            "langfuse_link": {"status": "unverified"},
             "langfuse_rich_io": {
                 "status": "ready",
                 "degradation_reason": None,
@@ -5573,7 +5572,7 @@ def test_approve_synonym_proposal_does_not_persist_approved_state_if_overlay_wri
 
     with patch("fitcv_cp.app.list_runs", return_value=[run]), \
          patch("fitcv_cp.app.update_run_synonym_proposals") as mock_update_proposals, \
-         patch("fitcv_cp.app.update_run_effective_settings", side_effect=RuntimeError("bq write failed")), \
+         patch("fitcv_cp.app.update_run_effective_settings", side_effect=RuntimeError("client write failed")), \
          patch("fitcv_cp.app.append_event") as mock_event:
         resp = TestClient(_app(), raise_server_exceptions=False).post(
             "/admin/synonym-proposals/proposal-gcp/approve-for-run-overlay",
@@ -6077,7 +6076,7 @@ def test_admin_run_synonym_proposals_triage_refresh_redirects_with_summary() -> 
     )
     persisted_payloads: list[dict[str, object]] = []
 
-    def _capture_update(run_id: str, synonym_proposals_json: str, bq, *, project: str, dataset: str):
+    def _capture_update(run_id: str, synonym_proposals_json: str, client, *, project: str, dataset: str):
         import json
         persisted_payloads.append(json.loads(synonym_proposals_json))
         return {"persistence_status": "persisted", "degradation_reason": ""}
@@ -6189,7 +6188,7 @@ def test_admin_run_synonym_proposals_triage_refresh_does_not_mutate_status() -> 
     )
     captured_statuses: list[str] = []
 
-    def _capture_update(run_id: str, synonym_proposals_json: str, bq, *, project: str, dataset: str):
+    def _capture_update(run_id: str, synonym_proposals_json: str, client, *, project: str, dataset: str):
         import json
         payload = json.loads(synonym_proposals_json)
         proposal = payload["proposals"][0]
@@ -6455,7 +6454,7 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_when_core_matches_and
     )
     event_payloads: list[dict[str, object]] = []
 
-    def _capture_event(ev, bq, *, project: str, dataset: str):
+    def _capture_event(ev, client, *, project: str, dataset: str):
         event_payloads.append(json.loads(str(ev.payload_json or "{}")))
         return {"persistence_status": "persisted"}
 
@@ -6526,7 +6525,7 @@ def test_admin_run_synonym_proposals_triage_refresh_core_match_gate_mismatch_for
     )
     event_payloads: list[dict[str, object]] = []
 
-    def _capture_event(ev, bq, *, project: str, dataset: str):
+    def _capture_event(ev, client, *, project: str, dataset: str):
         event_payloads.append(json.loads(str(ev.payload_json or "{}")))
         return {"persistence_status": "persisted"}
 
@@ -6795,7 +6794,7 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_success_persists_re
     )
     persisted_payloads: list[dict[str, object]] = []
 
-    def _capture_update(run_id: str, synonym_proposals_json: str, bq, *, project: str, dataset: str):
+    def _capture_update(run_id: str, synonym_proposals_json: str, client, *, project: str, dataset: str):
         persisted_payloads.append(json.loads(synonym_proposals_json))
         return {"persistence_status": "persisted", "degradation_reason": ""}
 
@@ -6869,7 +6868,7 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_unchanged_recommendat
         f'"recommendation_runtime":{{"provider":"fitcv_builtin","model":"synonym_triage_v1","wire_api":"builtin","triage_version":"synonym_triage_v1","triage_fingerprint":"{fp}"}}',
     )
 
-    def _capture_update(run_id: str, synonym_proposals_json: str, bq, *, project: str, dataset: str):
+    def _capture_update(run_id: str, synonym_proposals_json: str, client, *, project: str, dataset: str):
         payload_holder["payload"] = json.loads(synonym_proposals_json)
         return {"persistence_status": "persisted", "degradation_reason": ""}
 
@@ -6992,7 +6991,7 @@ def test_admin_run_synonym_proposals_triage_refresh_auto_apply_and_promote_when_
     persisted_global: dict[str, str] = {}
     payloads: list[dict[str, Any]] = []
 
-    def _capture_update(run_id: str, synonym_proposals_json: str, bq, *, project: str, dataset: str):
+    def _capture_update(run_id: str, synonym_proposals_json: str, client, *, project: str, dataset: str):
         payloads.append(json.loads(synonym_proposals_json))
         return {"persistence_status": "persisted", "degradation_reason": ""}
 
@@ -9681,7 +9680,7 @@ def test_grouped_save_audit_identity_encoded_in_updated_by():
     """Each group save uses updated_by='admin:grp:{uuid}'."""
     captured = {}
 
-    def fake_save(keys_values, *, updated_by, bq, project, dataset):
+    def fake_save(keys_values, *, updated_by, client, project, dataset):
         captured["updated_by"] = updated_by
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=fake_save), \
@@ -9918,7 +9917,7 @@ def test_post_settings_section_advanced_retrieval_without_metadata_only_input_re
 def test_post_settings_section_agentic_enablement_valid_redirects() -> None:
     captured = {}
 
-    def _capture_save(values, *, updated_by, bq, project, dataset):
+    def _capture_save(values, *, updated_by, client, project, dataset):
         captured["values"] = values
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
@@ -9936,7 +9935,7 @@ def test_post_settings_section_agentic_enablement_valid_redirects() -> None:
 def test_post_settings_section_agentic_reuse_valid_redirects() -> None:
     captured = {}
 
-    def _capture_save(values, *, updated_by, bq, project, dataset):
+    def _capture_save(values, *, updated_by, client, project, dataset):
         captured["values"] = values
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
@@ -9954,7 +9953,7 @@ def test_post_settings_section_agentic_reuse_valid_redirects() -> None:
 def test_post_settings_section_agentic_advanced_omits_metadata_only_input() -> None:
     captured = {}
 
-    def _capture_save(values, *, updated_by, bq, project, dataset):
+    def _capture_save(values, *, updated_by, client, project, dataset):
         captured["values"] = values
 
     form_data = _agentic_advanced_section_form()
@@ -10018,7 +10017,7 @@ def test_post_settings_section_agentic_advanced_typed_equivalent_values_are_not_
 def test_post_settings_section_agentic_automation_does_not_mutate_enablement_keys() -> None:
     captured: dict[str, Any] = {}
 
-    def _capture_save(values, *, updated_by, bq, project, dataset):
+    def _capture_save(values, *, updated_by, client, project, dataset):
         captured["values"] = values
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
@@ -10043,7 +10042,7 @@ def test_post_settings_section_agentic_automation_does_not_mutate_enablement_key
 def test_post_settings_section_agentic_automation_prereq_can_be_enabled_explicitly() -> None:
     captured: dict[str, Any] = {}
 
-    def _capture_save(values, *, updated_by, bq, project, dataset):
+    def _capture_save(values, *, updated_by, client, project, dataset):
         captured["values"] = values
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
@@ -10136,7 +10135,7 @@ def test_post_settings_section_agentic_advanced_opens_details_on_validation_erro
 def test_post_settings_section_rule_filter_uses_list_values() -> None:
     captured = {}
 
-    def _capture_save(values, *, updated_by, bq, project, dataset):
+    def _capture_save(values, *, updated_by, client, project, dataset):
         captured["values"] = values
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
@@ -12207,7 +12206,7 @@ def test_build_enriched_tab_context_does_not_guess_passed_for_unknown_rows() -> 
             run_id=run.run_id,
             project="p",
             dataset="d",
-            bq=None,
+            client=None,
             filter_name="all",
             query="",
             pipeline_outcomes=[],
@@ -12273,7 +12272,7 @@ def test_build_enriched_tab_context_matches_truth_by_raw_job_fingerprint_when_ur
             run_id=run.run_id,
             project="p",
             dataset="d",
-            bq=None,
+            client=None,
             filter_name="all",
             query="",
             pipeline_outcomes=[],
@@ -12497,7 +12496,7 @@ def test_build_enriched_tab_context_overrides_stale_review_required_with_termina
             run_id=run.run_id,
             project="p",
             dataset="d",
-            bq=object(),
+            client=object(),
             filter_name="all",
             query="",
             pipeline_outcomes=[],
@@ -12578,7 +12577,7 @@ def test_build_enriched_tab_context_overrides_stale_review_required_with_termina
             run_id=run.run_id,
             project="p",
             dataset="d",
-            bq=object(),
+            client=object(),
             filter_name="all",
             query="",
             pipeline_outcomes=[],
@@ -14615,7 +14614,6 @@ def test_admin_settings_has_guarded_save_preflight_script() -> None:
     resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "runPreflightGuardrails(form)" in html
     assert "high-impact settings" in html
 
 

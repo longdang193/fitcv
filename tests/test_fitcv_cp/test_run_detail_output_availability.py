@@ -123,11 +123,9 @@ def test_overview_consistency_summary_matches_diagnostics_sources() -> None:
     summary = _run_overview_consistency_summary(
         run,
         stage_result_summary_rows=[{"stage_id": "a"}, {"stage_id": "b"}],
-        event_delivery_health={"count": 3},
     )
     assert summary["status"] == RunStatus.SUCCEEDED.value
     assert summary["stage_count"] == 2
-    assert summary["dead_letter_events"] == 3
 
 
 

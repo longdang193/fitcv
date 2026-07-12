@@ -43,7 +43,7 @@ def test_worker_auto_promote_global_skips_non_skill_proposals() -> None:
             run_record=None,
             payload=payload,
             run_status=RunStatus.SUCCEEDED,
-            bq=None,
+            client=None,
             project="proj",
             dataset="ds",
         )

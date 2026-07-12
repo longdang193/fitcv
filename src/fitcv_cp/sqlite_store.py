@@ -34,7 +34,7 @@ _LOCAL_RUNS: dict[str, PipelineRun] = {}
 
 PersistenceResult = dict[str, str]
 
-# Back-compat call surface still accepts `bq`, `project`, and `dataset`.
+# Back-compat call surface still accepts `client`, `project`, and `dataset`.
 # SQLite store ignores them.
 _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS = 3
 _PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS = 0.25
@@ -327,9 +327,9 @@ def _update_single_pipeline_run_json_field(
     run_id: str,
     field_name: str,
     field_value: str,
-    bq: Any,
-    project: str,
-    dataset: str,
+    client: Any | None = None,
+    project: str = "local",
+    dataset: str = "fitcv",
     local_mutator: Callable[[PipelineRun], PipelineRun],
 ) -> None:
     _validate_pipeline_runs_json_field_name(field_name)
@@ -341,9 +341,9 @@ def _update_pipeline_run_json_field_with_result(
     run_id: str,
     field_name: str,
     field_value: str,
-    bq: Any,
-    project: str,
-    dataset: str,
+    client: Any | None = None,
+    project: str = "local",
+    dataset: str = "fitcv",
     local_mutator: Callable[[PipelineRun], PipelineRun],
     missing_column_result: PersistenceResult | None = None,
 ) -> PersistenceResult:
@@ -568,7 +568,7 @@ def _list_local_pipeline_run_events(run_id: str) -> list[RunEvent]:
 
 
 
-def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None:
+def insert_run(run: PipelineRun, *_compat_args: Any, **_compat_kwargs: Any) -> None:
     _local_save_run(dataclasses.replace(run))
     return
 
@@ -577,7 +577,7 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
 def update_run_status(
     run_id: str,
     status: RunStatus,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -620,7 +620,7 @@ def update_run_status(
 
 def update_run_checkpoint(
     run_id: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -646,7 +646,7 @@ def update_run_checkpoint(
 
 def update_run_progress(
     run_id: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -668,18 +668,8 @@ def update_run_progress(
     return _persistence_result("persisted")
 
 
-def _append_event_dead_letter(row: dict[str, Any]) -> str:
-    dead_letter_path = str(
-        os.environ.get("FITCV_EVENT_DEAD_LETTER_PATH")
-        or "tmp/fitcv_pipeline_run_events_dead_letter.jsonl"
-    )
-    dead_letter_file = os.path.abspath(dead_letter_path)
-    os.makedirs(os.path.dirname(dead_letter_file), exist_ok=True)
-    with open(dead_letter_file, "a", encoding="utf-8") as handle:
-        handle.write(json.dumps(row, ensure_ascii=False) + "\n")
-    return dead_letter_file
 
-def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dict[str, str]:
+def append_event(event: RunEvent, *_compat_args: Any, **_compat_kwargs: Any) -> dict[str, str]:
     # Use persistence-time timestamp as canonical ordering key so mixed producers
     # cannot backdate events and scramble timeline order.
     persisted_event = dataclasses.replace(
@@ -721,12 +711,12 @@ def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dic
             )
 
 
-def get_run(run_id: str, bq: Any, *, project: str, dataset: str) -> Optional[PipelineRun]:
+def get_run(run_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> Optional[PipelineRun]:
     return _local_get_run(run_id)
 
 
 def list_runs(
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -751,7 +741,7 @@ def list_runs(
     return [dataclasses.replace(r) for r in runs[: int(limit)]]
 
 def get_pipeline_runs_schema_status(
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -767,7 +757,7 @@ def get_pipeline_runs_schema_status(
 def update_run_queue_job_id(
     run_id: str,
     queue_job_id: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -785,7 +775,7 @@ def update_run_orchestration_binding(
     queue_job_id: str | None,
     orchestration_backend: str | None,
     orchestration_run_id: str | None,
-    bq: Any,
+    client: Any,
     project: str,
     dataset: str,
 ) -> PersistenceResult:
@@ -804,7 +794,7 @@ def update_run_orchestration_binding(
 def update_run_results_export(
     run_id: str,
     results_export_json: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -814,9 +804,6 @@ def update_run_results_export(
         run_id=run_id,
         field_name="results_export_json",
         field_value=results_export_json,
-        bq=bq,
-        project=project,
-        dataset=dataset,
         local_mutator=lambda existing: dataclasses.replace(
             existing, results_export_json=results_export_json
         ),
@@ -826,7 +813,7 @@ def update_run_results_export(
 def update_run_cv_generation_debug(
     run_id: str,
     cv_generation_debug_json: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -836,9 +823,6 @@ def update_run_cv_generation_debug(
         run_id=run_id,
         field_name="cv_generation_debug_json",
         field_value=cv_generation_debug_json,
-        bq=bq,
-        project=project,
-        dataset=dataset,
         local_mutator=lambda existing: dataclasses.replace(
             existing, cv_generation_debug_json=cv_generation_debug_json
         ),
@@ -848,7 +832,7 @@ def update_run_cv_generation_debug(
 def update_run_stage_transition_artifacts(
     run_id: str,
     stage_transition_artifacts_json: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -858,9 +842,6 @@ def update_run_stage_transition_artifacts(
         run_id=run_id,
         field_name="stage_transition_artifacts_json",
         field_value=stage_transition_artifacts_json,
-        bq=bq,
-        project=project,
-        dataset=dataset,
         local_mutator=lambda existing: dataclasses.replace(
             existing, stage_transition_artifacts_json=stage_transition_artifacts_json
         ),
@@ -870,7 +851,7 @@ def update_run_stage_transition_artifacts(
 def update_run_settings_used(
     run_id: str,
     settings_used_json: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -880,9 +861,6 @@ def update_run_settings_used(
         run_id=run_id,
         field_name="settings_used_json",
         field_value=settings_used_json,
-        bq=bq,
-        project=project,
-        dataset=dataset,
         local_mutator=lambda existing: dataclasses.replace(
             existing, settings_used_json=settings_used_json
         ),
@@ -892,7 +870,7 @@ def update_run_settings_used(
 def update_run_mapping_suggestions(
     run_id: str,
     mapping_suggestions_json: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -902,9 +880,6 @@ def update_run_mapping_suggestions(
         run_id=run_id,
         field_name="mapping_suggestions_json",
         field_value=mapping_suggestions_json,
-        bq=bq,
-        project=project,
-        dataset=dataset,
         local_mutator=lambda existing: dataclasses.replace(
             existing, mapping_suggestions_json=mapping_suggestions_json
         ),
@@ -914,7 +889,7 @@ def update_run_mapping_suggestions(
 def update_run_synonym_proposals(
     run_id: str,
     synonym_proposals_json: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -924,9 +899,6 @@ def update_run_synonym_proposals(
         run_id=run_id,
         field_name="synonym_proposals_json",
         field_value=synonym_proposals_json,
-        bq=bq,
-        project=project,
-        dataset=dataset,
         local_mutator=lambda existing: dataclasses.replace(
             existing, synonym_proposals_json=synonym_proposals_json
         ),
@@ -936,7 +908,7 @@ def update_run_synonym_proposals(
 def update_run_effective_settings(
     run_id: str,
     effective_settings_json: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -946,9 +918,6 @@ def update_run_effective_settings(
         run_id=run_id,
         field_name="effective_settings_json",
         field_value=effective_settings_json,
-        bq=bq,
-        project=project,
-        dataset=dataset,
         local_mutator=lambda existing: dataclasses.replace(
             existing, effective_settings_json=effective_settings_json
         ),
@@ -959,7 +928,7 @@ def request_run_cancel(
     run_id: str,
     requested_by: str,
     new_status: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -982,7 +951,7 @@ def request_run_cancel(
 def archive_run(
     run_id: str,
     archived_by: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -1003,7 +972,7 @@ def archive_run(
 
 def unarchive_run(
     run_id: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -1045,7 +1014,7 @@ def _delete_run_artifact_mirror(run_id: str) -> None:
 
 def delete_archived_runs(
     older_than_days: int | str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -1067,7 +1036,7 @@ def delete_archived_runs(
         _delete_local_pipeline_run(run.run_id)
         _delete_run_artifact_mirror(run.run_id)
     return {"deleted_count": len(deleted_run_ids), "deleted_run_ids": deleted_run_ids}
-def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunEvent]:
+def get_events(run_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> list[RunEvent]:
     events = _list_local_pipeline_run_events(run_id)
     if events:
         return events
@@ -1194,7 +1163,7 @@ def _row_to_event(row: Any) -> RunEvent:
     )
 
 
-def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> list[dict[str, Any]]:
+def list_cvs_for_run(run_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> list[dict[str, Any]]:
     db_path = Path(_local_sqlite_path())
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with _sqlite_connection(db_path) as conn:
@@ -1229,7 +1198,7 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
 
 def lookup_reusable_cv_versions(
     fingerprints: list[str],
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -1276,7 +1245,7 @@ def lookup_reusable_cv_versions(
     return indexed
 
 
-def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> Optional[str]:
+def get_cv_markdown(version_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> Optional[str]:
     db_path = Path(_local_sqlite_path())
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with _sqlite_connection(db_path) as conn:
@@ -1292,7 +1261,7 @@ def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> 
 
 def list_run_structured_jobs(
     run_id: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -1329,7 +1298,7 @@ def list_run_structured_jobs(
 
 def list_filter_results_for_run(
     run_id: str,
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,
@@ -1366,7 +1335,7 @@ def list_filter_results_for_run(
     return results
 
 
-def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset: str) -> list[Any]:
+def insert_cv_version_row(row: dict[str, Any], *_compat_args: Any, **_compat_kwargs: Any) -> list[Any]:
     db_path = Path(_local_sqlite_path())
     db_path.parent.mkdir(parents=True, exist_ok=True)
     last_error: Exception | None = None
@@ -1424,7 +1393,7 @@ def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset
 
 def insert_application_tracker_row(
     row: dict[str, Any],
-    bq: Any,
+    client: Any,
     *,
     project: str,
     dataset: str,

@@ -474,11 +474,14 @@ workstreams:
     - docs/superpowers/specs/2026-05-24-14-27-fitcv-cp-worker-job-ssot-symmetry-refactor-spec.md
     - docs/superpowers/specs/2026-05-27-15-24-fitcv-run-retry-orchestration-spec.md
     - docs/superpowers/specs/2026-06-26-11-20-fitcv-cp-ssot-immediate-patch-spec.md
+    - docs/superpowers/specs/2026-07-12-01-17-fitcv-ssot-symmetry-master-remediation-spec.md
+    - docs/superpowers/specs/2026-07-12-09-34-fitcv-ssot-symmetry-phase-1-legacy-surface-and-backend-trim-spec.md
     plans:
     - docs/superpowers/plans/2026-05-24-10-05-fitcv-cp-app-ssot-symmetry-refactor-plan.md
     - docs/superpowers/plans/2026-05-24-14-25-fitcv-cp-worker-job-ssot-symmetry-refactor-plan.md
     - docs/superpowers/plans/2026-05-27-16-02-fitcv-run-retry-orchestration-plan.md
     - docs/superpowers/plans/2026-06-26-11-35-fitcv-cp-ssot-immediate-patch-plan.md
+    - docs/superpowers/plans/2026-07-12-09-41-fitcv-ssot-symmetry-phase-1-legacy-surface-and-backend-trim-plan.md
     derived_completion: completed
   - thread_id: workstream-operator-control-plane.operator-control-plane-phase-2-degraded-mode-and-portability-surface
     status: completed

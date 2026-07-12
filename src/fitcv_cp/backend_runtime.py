@@ -23,12 +23,14 @@ from fitcv.config import load_control_plane_config
 _ACTIVE_BACKEND_RUNTIME: BackendRuntime | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class BackendRuntime:
     backend_type: str
-    project: str
-    dataset: str
     sqlite_path: str
+
+    def __init__(self, backend_type: str, sqlite_path: str, **_compat_kwargs: object) -> None:
+        object.__setattr__(self, "backend_type", backend_type)
+        object.__setattr__(self, "sqlite_path", sqlite_path)
 
 
 def set_backend_runtime(runtime: BackendRuntime | None) -> None:
@@ -59,11 +61,7 @@ def resolve_backend_runtime() -> BackendRuntime:
         or sqlite_cfg.get("path")
         or "data/fitcv_cp.sqlite3"
     ).strip() or "data/fitcv_cp.sqlite3"
-    project = str(os.environ.get("GCP_PROJECT") or "local").strip() or "local"
-    dataset = str(os.environ.get("FITCV_CP_DATASET") or "fitcv").strip() or "fitcv"
     return BackendRuntime(
         backend_type="sqlite",
-        project=project,
-        dataset=dataset,
         sqlite_path=sqlite_path,
     )

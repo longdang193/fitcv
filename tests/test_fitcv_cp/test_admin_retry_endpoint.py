@@ -25,7 +25,7 @@ from fitcv_cp.run_artifact_contracts import run_attempt_payload_v1
 
 
 def _app() -> object:
-    return create_app(bq=None, project="p", dataset="d", redis_url="redis://localhost:6379/0")
+    return create_app(redis_url="redis://localhost:6379/0")
 
 
 def test_admin_retry_run_rejects_when_max_attempts_exhausted() -> None:

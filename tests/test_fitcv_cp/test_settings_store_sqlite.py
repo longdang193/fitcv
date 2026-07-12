@@ -4,7 +4,7 @@ type: test
 scope: unit
 domain: settings_store
 covers:
-  - sqlite-safe local fallback when bq client is absent
+  - sqlite-safe local fallback when client client is absent
 excludes:
   - live remote database operations
 tags:
@@ -25,12 +25,12 @@ def test_local_settings_fallback_round_trip_without_bq(tmp_path, monkeypatch):
         "pipeline.final_top_n",
         20,
         updated_by="local",
-        bq=None,
+        client=None,
         project="local",
         dataset="local",
     )
 
-    active = ss.load_active_settings(bq=None, project="local", dataset="local")
+    active = ss.load_active_settings(client=None, project="local", dataset="local")
 
     assert active["pipeline.final_top_n"] == 20
 
@@ -41,12 +41,12 @@ def test_local_settings_group_save_without_bq(tmp_path, monkeypatch):
     ss.save_settings_group(
         {"pipeline.vector_search_top_n": 25, "pipeline.final_top_n": 10},
         updated_by="local",
-        bq=None,
+        client=None,
         project="local",
         dataset="local",
     )
 
-    active = ss.load_active_settings(bq=None, project="local", dataset="local")
+    active = ss.load_active_settings(client=None, project="local", dataset="local")
 
     assert active["pipeline.vector_search_top_n"] == 25
     assert active["pipeline.final_top_n"] == 10
@@ -60,12 +60,12 @@ def test_local_settings_persist_across_module_reload(tmp_path, monkeypatch):
         "cv.agentic_late_stage.enabled",
         True,
         updated_by="local",
-        bq=None,
+        client=None,
         project="local",
         dataset="local",
     )
 
-    active = ss.load_active_settings(bq=None, project="local", dataset="local")
+    active = ss.load_active_settings(client=None, project="local", dataset="local")
 
     assert active["cv.agentic_late_stage.enabled"] is True
 
@@ -77,7 +77,7 @@ def test_local_settings_load_recovers_from_disk_io_error(tmp_path, monkeypatch):
     (tmp_path / "settings.sqlite3-wal").write_bytes(b"wal")
     (tmp_path / "settings.sqlite3-shm").write_bytes(b"shm")
 
-    active = ss.load_active_settings(bq=None, project="local", dataset="local")
+    active = ss.load_active_settings(client=None, project="local", dataset="local")
 
     assert active == {}
     backup_dirs = list(tmp_path.glob("settings.corrupt.*"))
@@ -125,12 +125,12 @@ def test_local_settings_save_recovers_after_first_disk_io_error(tmp_path, monkey
         "pipeline.final_top_n",
         15,
         updated_by="local",
-        bq=None,
+        client=None,
         project="local",
         dataset="local",
     )
 
-    active = ss.load_active_settings(bq=None, project="local", dataset="local")
+    active = ss.load_active_settings(client=None, project="local", dataset="local")
     assert active["pipeline.final_top_n"] == 15
 
 

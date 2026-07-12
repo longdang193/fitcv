@@ -104,13 +104,7 @@ def build_app() -> Any:
     set_backend_runtime(runtime)
     redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/0")
     logger.info("control-plane backend mode: sqlite")
-    return create_app(
-        bq=None,
-        project=runtime.project or "local",
-        dataset=runtime.dataset,
-        redis_url=redis_url,
-        backend_runtime=runtime,
-    )
+    return create_app(redis_url=redis_url, backend_runtime=runtime)
 
 
 app = build_app()
