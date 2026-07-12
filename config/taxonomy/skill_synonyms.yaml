@@ -306,6 +306,7 @@ skill_synonyms:
   data warehouse: data warehousing
   data warehousing: data warehousing
   datenanalyse: data analysis
+  datenbankmodellierung: database modeling
   datenbereinigung: data cleaning
   datenbereinigungsmaßnahmen: data cleaning
   datenintegration: data integration
@@ -421,6 +422,7 @@ skill_synonyms:
   exploratory data analysis: exploratory data analysis
   facebook ads: meta ads
   failure analysis: failure analysis
+  familiarity with data modeling: data modeling
   familiarity with ranking models: ranking models
   familiarity with semantic search: semantic search
   fastapi: fastapi
@@ -442,7 +444,7 @@ skill_synonyms:
   fire protection: fire protection
   fit-gap analysis: fit-gap analysis
   flat file: flat file
-  flatfiles: flat file
+  flatfiles: flat files
   flexray: flexray
   flowcharting: flowcharting
   flowcharts: flowcharting
@@ -498,6 +500,7 @@ skill_synonyms:
   hgb: hgb accounting
   hgb accounting: hgb accounting
   high-voltage battery analysis: high-voltage battery analysis
+  hocheffiziente pipelines: data pipelines
   hochverfügbaren daten-pipelines: data pipelines
   hr analytics: hr analytics
   hr it systems: hr it systems
@@ -718,7 +721,7 @@ skill_synonyms:
   paid social advertising: paid social advertising
   pair programming: pair programming
   pair-programming-sessions: pair programming
-  partitioning strategies: data partitioning
+  partitioning strategies: partitioning
   performance analysis: performance analysis
   performance dashboards: dashboard development
   performance-dashboards: dashboard development
@@ -936,6 +939,7 @@ skill_synonyms:
   strukturierte branching-strategien: git branching strategies
   supervised learning: supervised learning
   supply chain control tower: supply chain control tower
+  support change management processes: change management
   surgical assistance: surgical assistance
   system administration: system administration
   t-sql: t-sql

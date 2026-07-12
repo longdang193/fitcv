@@ -32,6 +32,97 @@ def _app():
     client = MagicMock()
     return create_app(redis_url="redis://localhost:6379/0")
 
+
+def test_admin_route_manifest_matches_native_fastapi_contract() -> None:
+    app = _app()
+
+    def _response_class_name(route: Any) -> str | None:
+        response_class = getattr(route, "response_class", None)
+        if response_class is None:
+            return None
+        return getattr(response_class, "__name__", type(response_class).__name__)
+
+    manifest = sorted(
+        (
+            route.path,
+            tuple(sorted(method for method in (route.methods or set()) if method not in {"HEAD", "OPTIONS"})),
+            route.name,
+            _response_class_name(route),
+        )
+        for route in app.routes
+        if getattr(route, "path", "").startswith("/admin/")
+    )
+
+    assert manifest == [
+        ("/admin/bookmarks", ("GET",), "admin_bookmarks", "HTMLResponse"),
+        ("/admin/bookmarks/delete", ("POST",), "admin_bookmarks_delete", "DefaultPlaceholder"),
+        ("/admin/bookmarks/status", ("POST",), "admin_bookmarks_status", "DefaultPlaceholder"),
+        ("/admin/cvs/{version_id}/download", ("GET",), "download_cv", "DefaultPlaceholder"),
+        ("/admin/diagnostics/orchestration-schema", ("GET",), "admin_orchestration_schema_diagnostics", "DefaultPlaceholder"),
+        ("/admin/mapping-suggestions.json", ("GET",), "download_aggregate_mapping_suggestions_json", "DefaultPlaceholder"),
+        ("/admin/reconciler/run-attempts", ("POST",), "admin_reconcile_run_attempts", "DefaultPlaceholder"),
+        ("/admin/runs", ("GET",), "admin_runs", "HTMLResponse"),
+        ("/admin/runs/bulk/archive", ("POST",), "admin_bulk_archive_runs", "DefaultPlaceholder"),
+        ("/admin/runs/bulk/cancel", ("POST",), "admin_bulk_cancel_runs", "DefaultPlaceholder"),
+        ("/admin/runs/bulk/delete-archived", ("POST",), "admin_bulk_delete_archived_runs", "DefaultPlaceholder"),
+        ("/admin/runs/bulk/unarchive", ("POST",), "admin_bulk_unarchive_runs", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}", ("GET",), "admin_run_detail", "HTMLResponse"),
+        ("/admin/runs/{run_id}/agentic-live-trace.json", ("GET",), "download_run_agentic_live_trace_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/approved-synonym-proposals.yaml", ("GET",), "download_run_approved_synonym_overlay_yaml", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/archive", ("POST",), "admin_archive_run", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/artifacts.zip", ("GET",), "download_run_artifact_bundle_zip", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/bookmarks/delete", ("POST",), "admin_run_bookmark_delete", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/bookmarks/save", ("POST",), "admin_run_bookmark_save", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/continue", ("POST",), "admin_continue_run", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/cv-analysis-trace.json", ("GET",), "download_run_cv_analysis_trace_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/cv-debug.json", ("GET",), "download_run_cv_debug_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/cv-generation-review-required.json", ("GET",), "download_run_cv_generation_review_required_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/cv-review-action", ("POST",), "admin_run_cv_review_action", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/cv-review-batch-action", ("POST",), "admin_run_cv_review_batch_action", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/enriched/export-filtered.zip", ("GET",), "download_run_enriched_filtered_zip", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/export.json", ("GET",), "download_run_results_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/hitl-review-audit.json", ("GET",), "download_run_hitl_review_audit_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/mapping-suggestions.json", ("GET",), "download_run_mapping_suggestions_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/repair-cancellation", ("POST",), "admin_repair_cancellation", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/retry", ("POST",), "admin_retry_run", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/review-queue", ("GET",), "admin_run_review_queue", "HTMLResponse"),
+        ("/admin/runs/{run_id}/settings-used.json", ("GET",), "download_run_settings_used_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/stage-artifacts.json", ("GET",), "download_run_stage_transition_artifacts_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/stage-artifacts/{stage_id}.json", ("GET",), "download_run_stage_transition_artifact_stage_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/stop", ("POST",), "admin_stop_run", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/synonym-overlay", ("POST",), "admin_upload_run_synonym_overlay", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/synonym-proposals-trace.json", ("GET",), "download_run_synonym_proposals_trace_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/synonym-proposals.json", ("GET",), "download_run_synonym_proposals_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/synonym-proposals/ai-fast-path-execute", ("POST",), "admin_run_synonym_proposals_ai_fast_path_execute", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/synonym-proposals/apply-approved-to-run", ("POST",), "admin_run_synonym_proposals_apply_approved_to_run", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/synonym-proposals/batch-action", ("POST",), "admin_run_synonym_proposals_batch_action", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/synonym-proposals/promote-commit", ("POST",), "admin_run_synonym_proposals_promote_commit", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/synonym-proposals/promote-preview", ("POST",), "admin_run_synonym_proposals_promote_preview", "HTMLResponse"),
+        ("/admin/runs/{run_id}/synonym-proposals/promote-review", ("GET",), "admin_run_synonym_proposals_promote_review", "HTMLResponse"),
+        ("/admin/runs/{run_id}/synonym-proposals/regenerate", ("POST",), "admin_run_synonym_proposals_regenerate", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/synonym-proposals/triage-refresh", ("POST",), "admin_run_synonym_proposals_triage_refresh", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/synonym-proposals/{proposal_id}/action", ("POST",), "admin_run_synonym_proposal_action", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/synonym-review", ("GET",), "admin_run_synonym_review_workspace", "HTMLResponse"),
+        ("/admin/runs/{run_id}/synonym-suppression-diff.json", ("GET",), "download_run_synonym_suppression_diff_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/tabs/enriched", ("GET",), "admin_run_detail_tab_enriched", "HTMLResponse"),
+        ("/admin/runs/{run_id}/tabs/jobs-input", ("GET",), "admin_run_detail_tab_jobs_input", "HTMLResponse"),
+        ("/admin/runs/{run_id}/tabs/profile", ("GET",), "admin_run_detail_tab_profile", "HTMLResponse"),
+        ("/admin/runs/{run_id}/unarchive", ("POST",), "admin_unarchive_run", "DefaultPlaceholder"),
+        ("/admin/settings", ("GET",), "admin_settings_view", "HTMLResponse"),
+        ("/admin/settings/group/{group_name}", ("POST",), "admin_settings_update_group", "HTMLResponse"),
+        ("/admin/settings/section/{section_name}", ("POST",), "admin_settings_section_save", "HTMLResponse"),
+        ("/admin/settings/{key}", ("POST",), "admin_settings_update_key", "HTMLResponse"),
+        ("/admin/synonym-proposals.json", ("GET",), "download_aggregate_synonym_proposals_json", "DefaultPlaceholder"),
+        ("/admin/synonym-proposals/{proposal_id}/approve-for-run-overlay", ("POST",), "approve_synonym_proposal_for_run_overlay", "DefaultPlaceholder"),
+        ("/admin/synonym-proposals/{proposal_id}/defer", ("POST",), "defer_synonym_proposal", "DefaultPlaceholder"),
+        ("/admin/synonym-proposals/{proposal_id}/reject", ("POST",), "reject_synonym_proposal", "DefaultPlaceholder"),
+        ("/admin/synonym-proposals/{proposal_id}/start-review", ("POST",), "start_synonym_proposal_review", "DefaultPlaceholder"),
+        ("/admin/synonyms/global-domain.yaml", ("GET",), "download_global_domain_synonyms_yaml", "DefaultPlaceholder"),
+        ("/admin/synonyms/global-role-family.yaml", ("GET",), "download_global_role_family_synonyms_yaml", "DefaultPlaceholder"),
+        ("/admin/synonyms/global.yaml", ("GET",), "download_global_synonyms_yaml", "DefaultPlaceholder"),
+        ("/admin/upload-trigger", ("POST",), "upload_trigger", "DefaultPlaceholder"),
+    ]
+
 def test_collapse_timeline_noise_collapses_equivalent_synonym_triage_events() -> None:
     ts = datetime.datetime.now(datetime.timezone.utc)
     payload = {

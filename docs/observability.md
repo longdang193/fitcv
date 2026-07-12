@@ -437,6 +437,10 @@ The main runtime-context surface is:
 
 - `/admin/runs/{run_id}/settings-used.json`
 
+Route handlers stay in `src/fitcv_cp/app.py`. Shared review/export shaping now
+lives in `src/fitcv_cp/app_run_support.py`, while shared worker snapshot payload
+builders live in `src/fitcv_cp/worker_run_support.py`.
+
 Use it to answer:
 
 - which effective settings this run actually used

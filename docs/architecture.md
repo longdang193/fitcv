@@ -30,7 +30,7 @@ Owns trigger/lifecycle APIs, admin UI, run-detail inspection, settings surfaces,
 Settings-specific boundary:
 
 - `src/fitcv_cp/settings_schema.py` owns settings field metadata, IA metadata, registry membership, and settings-page contract assembly.
-- `src/fitcv_cp/app.py` consumes that contract to render native form surfaces and submit canonical keys; page grouping/filter behavior should stay schema-driven rather than app-local.
+- `src/fitcv_cp/app.py` keeps `create_app(...)`, route decorators, and boundary wiring; `src/fitcv_cp/app_run_support.py` now holds extracted review/export helper shaping so page grouping/filter behavior stays schema-driven rather than app-local.
 
 ### Pipeline Runtime
 

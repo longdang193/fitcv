@@ -421,7 +421,7 @@ spec owns one bounded slice and repo stays shippable after every phase.
   - Phase 3: settings-schema completion and native-form boundary convergence
   - Phase 4: routing/runtime-envelope convergence, persistence-truth cleanup,
     and retirement of any temporary Phase 1 backend-compat boundary shims
-  - Phase 5: bounded monolith reduction and optional storage normalization
+  - Phase 5: bounded control-plane monolith reduction and optional storage normalization
 - alternatives considered:
   - one monolithic implementation plan
   - file-structure rewrite before canonical owner convergence

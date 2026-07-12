@@ -165,5 +165,8 @@ These routes expose persisted run-scoped evidence files, such as:
 - `GET /admin/runs/{run_id}/cv-debug.json`
 - `GET /admin/runs/{run_id}/cv-analysis-trace.json`
 
+Route registration stays in `src/fitcv_cp/app.py`. Export payload shaping for
+review/debug surfaces lives in `src/fitcv_cp/app_run_support.py`.
+
 These are useful for cross-run review workflows and higher-level operator
 inspection.

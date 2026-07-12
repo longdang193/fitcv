@@ -18,14 +18,17 @@ import hashlib
 import json
 from copy import deepcopy
 from pathlib import Path
-from fitcv_cp.backend_runtime import BackendRuntime
+from fitcv_cp.backend_runtime import BackendRuntime, set_backend_runtime
 from fitcv_cp.worker_job import execute_pipeline_run
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import pytest
 
 @pytest.fixture(autouse=True)
 def _force_sqlite_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    set_backend_runtime(None)
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", "data/fitcv_cp.sqlite3")
+    yield
+    set_backend_runtime(None)
 
 def test_execute_cv_regenerate_once_updates_target_record_and_emits_success() -> None:
     from fitcv_cp.worker_job import execute_cv_regenerate_once
@@ -1260,6 +1263,39 @@ def test_worker_settings_used_persistence_failure_does_not_fail_run():
 
     final_status = mock_update.call_args_list[-1].args[1]
     assert final_status.value == "succeeded"
+
+
+def test_worker_retries_missing_settings_used_artifact_once() -> None:
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock()
+    mock_run.effective_settings_json = json.dumps({"pipeline": {"final_top_n": 10}})
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+    persisted_missing = MagicMock(
+        effective_settings_json=json.dumps({"pipeline": {"final_top_n": 10}}, ensure_ascii=False),
+        cv_generation_debug_json=json.dumps({"debug_records": []}, ensure_ascii=False),
+        stage_transition_artifacts_json=json.dumps({"artifacts": {}}, ensure_ascii=False),
+        settings_used_json="",
+    )
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r1",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 1,
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
+       patch("fitcv_cp.worker_job.get_run", side_effect=[mock_run, mock_run, persisted_missing]), \
+       patch("fitcv_cp.worker_job.update_run_settings_used") as mock_store_settings:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    assert mock_store_settings.call_count == 2
 
 
 def test_worker_stage_transition_artifacts_persistence_failure_does_not_fail_run():
@@ -2816,6 +2852,75 @@ def test_build_settings_used_payload_dict_has_required_shape() -> None:
     assert isinstance(payload["sources"], dict)
     assert isinstance(payload["data_plane"], dict)
     assert isinstance(payload["replay_context"], dict)
+
+
+def test_build_settings_used_payload_json_safe_values() -> None:
+    from types import SimpleNamespace
+
+    from fitcv_cp.worker_job import _build_settings_used_payload
+
+    run_record = SimpleNamespace(
+        config_path=".env.yaml",
+        jobs_input_source="path",
+        candidate_profile_source="path",
+    )
+    payload = json.loads(
+        _build_settings_used_payload(
+            run_id="run-safe-1",
+            run_record=run_record,
+            effective_config={
+                "pipeline": {"final_top_n": 10},
+                "captured_on": datetime.date(2026, 7, 12),
+                "debug_sections": {"experience", "skills"},
+                "nested": {
+                    "seen_at": datetime.datetime(2026, 7, 12, 9, 30, tzinfo=datetime.timezone.utc),
+                },
+            },
+            config_path=".env.yaml",
+            finished_at=datetime.datetime(2026, 7, 12, 10, 0, tzinfo=datetime.timezone.utc),
+            replay_context={},
+        )
+    )
+
+    effective_settings = payload["effective_settings"]
+    assert effective_settings["captured_on"] == "2026-07-12"
+    assert effective_settings["debug_sections"] == ["experience", "skills"]
+    assert effective_settings["nested"]["seen_at"] == "2026-07-12T09:30:00+00:00"
+
+
+def test_build_cv_generation_debug_payload_json_safe_values() -> None:
+    from types import SimpleNamespace
+
+    from fitcv_cp.worker_job import _build_cv_generation_debug_payload
+
+    payload = json.loads(
+        _build_cv_generation_debug_payload(
+            run_id="run-debug-safe-1",
+            run_record=SimpleNamespace(),
+            summary={
+                "ranked": 1,
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "captured_on": datetime.date(2026, 7, 12),
+                        "debug_sections": {"experience", "skills"},
+                        "nested": {
+                            "seen_at": datetime.datetime(2026, 7, 12, 9, 30, tzinfo=datetime.timezone.utc),
+                        },
+                        "markdown_final": "# Draft",
+                    }
+                ],
+            },
+            finished_at=datetime.datetime(2026, 7, 12, 10, 0, tzinfo=datetime.timezone.utc),
+        )
+    )
+
+    record = payload["debug_records"][0]
+    assert record["captured_on"] == "2026-07-12"
+    assert record["debug_sections"] == ["experience", "skills"]
+    assert record["nested"]["seen_at"] == "2026-07-12T09:30:00+00:00"
+    assert str(record.get("review_item_id") or "").strip()
 
 def test_build_stage_transition_artifacts_payload_dict_has_required_shape() -> None:
     from fitcv.contracts import STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION
