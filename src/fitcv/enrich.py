@@ -37,6 +37,7 @@ from fitcv.openai_compat import (
 )
 from fitcv.pipeline_stages.common import extract_job_url
 from fitcv.prompts import get_prompt_definition, render_prompt
+from fitcv.runtime_routing import resolve_openai_compatible_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -1522,17 +1523,7 @@ def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
     base_url = str(routing.get("base_url") or "").strip()
     if not base_url:
         return None
-    api_key_candidates = (
-        "FITCV_LLM_API_KEY",
-        "OPENAI_API_KEY",
-        "OPENAI_COMPATIBLE_API_KEY",
-    )
-    api_key = ""
-    for env_name in api_key_candidates:
-        candidate = str(os.environ.get(env_name, "")).strip()
-        if candidate:
-            api_key = candidate
-            break
+    api_key = resolve_openai_compatible_api_key()
     if not api_key:
         raise RuntimeError(
             "Config-routed HTTP provider for enrich_extraction requires API key in env "

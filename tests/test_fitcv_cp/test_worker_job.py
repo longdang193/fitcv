@@ -1110,6 +1110,63 @@ def test_execute_pipeline_run_loads_dotenv_defaults_before_pipeline(monkeypatch:
 
     mock_load_dotenv_defaults.assert_called_once_with()
 
+
+def test_execute_cv_regenerate_once_loads_dotenv_defaults_before_work(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from fitcv_cp.worker_job import execute_cv_regenerate_once
+    from fitcv_cp.env_defaults import load_dotenv_defaults as _real_load_dotenv_defaults
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("OPENAI_API_KEY=test-dotenv-key\n", encoding="utf-8")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="run-regen-dotenv",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "markdown_full": "# Draft 1",
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+    )
+
+    def _capture_update(*args, **kwargs):
+        assert os.environ.get("OPENAI_API_KEY") == "test-dotenv-key"
+        return None
+
+    with patch("fitcv_cp.worker_job.get_run", return_value=run), \
+         patch(
+             "fitcv_cp.worker_job.resolve_backend_runtime",
+             return_value=BackendRuntime(
+                 backend_type="sqlite",
+                 sqlite_path="data/fitcv_cp.sqlite3",
+             ),
+         ), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=MagicMock()), \
+         patch("fitcv_cp.worker_job.update_run_cv_generation_debug", side_effect=_capture_update), \
+         patch("fitcv_cp.worker_job.append_event"), \
+         patch("fitcv_cp.worker_job.load_dotenv_defaults", wraps=_real_load_dotenv_defaults) as mock_load_dotenv_defaults:
+        execute_cv_regenerate_once(
+            run_id="run-regen-dotenv",
+            job_url="https://example.com/job-1",
+            actor="operator",
+            note="retry",
+        )
+
+    mock_load_dotenv_defaults.assert_called_once_with()
+
 def test_stage_transition_payload_marks_failed_partial_snapshot_with_reason() -> None:
     summary = {
         "run_id": "r1",

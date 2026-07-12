@@ -17,7 +17,33 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from fitcv.runtime_routing import build_langgraph_env_overrides, langgraph_override_drift_fields, resolve_cv_generation_runtime_provenance
-from fitcv.runtime_routing import validate_cv_generation_routing_ready
+from fitcv.runtime_routing import resolve_langgraph_openai_compatible_api_key, resolve_openai_compatible_api_key, validate_cv_generation_routing_ready
+
+
+def test_resolve_openai_compatible_api_key_prefers_fitcv_llm_key() -> None:
+    with patch.dict(
+        "os.environ",
+        {
+            "FITCV_LLM_API_KEY": "llm-key",
+            "OPENAI_API_KEY": "openai-key",
+            "OPENAI_COMPATIBLE_API_KEY": "compat-key",
+        },
+        clear=False,
+    ):
+        assert resolve_openai_compatible_api_key() == "llm-key"
+
+
+def test_resolve_langgraph_openai_compatible_api_key_prefers_langgraph_key() -> None:
+    with patch.dict(
+        "os.environ",
+        {
+            "FITCV_LANGGRAPH_OPENAI_API_KEY": "langgraph-key",
+            "OPENAI_API_KEY": "openai-key",
+            "OPENAI_COMPATIBLE_API_KEY": "compat-key",
+        },
+        clear=False,
+    ):
+        assert resolve_langgraph_openai_compatible_api_key() == "langgraph-key"
 
 
 def test_build_langgraph_env_overrides_uses_cv_generation_route_consistently() -> None:

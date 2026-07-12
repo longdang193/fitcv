@@ -105,6 +105,7 @@ from fitcv_cp.run_artifact_contracts import (
     pretty_json_string_or_fallback,
     run_mode_label,
 )
+from fitcv.runtime_routing import resolve_langgraph_openai_compatible_api_key
 from fitcv_cp.run_artifact_mirror import build_terminal_run_artifact_payloads
 from fitcv_cp.settings_schema import (
     ALL_GROUP_REGISTRIES,
@@ -3138,10 +3139,7 @@ def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
     model = str(expected.get("model") or "synonym_triage_v1").strip() or "synonym_triage_v1"
     base_url = str(expected.get("base_url") or "").strip() or None
     wire_api = str(expected.get("wire_api") or "builtin").strip() or "builtin"
-    api_key = (
-        str(os.environ.get("FITCV_LANGGRAPH_OPENAI_API_KEY", "") or "").strip()
-        or str(os.environ.get("OPENAI_API_KEY", "") or "").strip()
-    )
+    api_key = resolve_langgraph_openai_compatible_api_key()
     sleep_secs = 0.0
     concurrency = 1
     effective_settings = _load_json_object(run.effective_settings_json)

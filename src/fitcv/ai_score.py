@@ -48,6 +48,7 @@ from fitcv.ranking_contract import (
     VALID_FIT_LABELS,
     fit_label_from_score,
 )
+from fitcv.runtime_routing import resolve_openai_compatible_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -236,11 +237,7 @@ def _make_genai_client(config: dict[str, Any]) -> Any:
         base_url = str(routing.get("base_url") or "").strip()
         if not base_url:
             raise RuntimeError("OpenAI-compatible reranker routing requires provider base_url in control-plane config.")
-        api_key = (
-            str(os.environ.get("FITCV_LLM_API_KEY") or "").strip()
-            or str(os.environ.get("OPENAI_API_KEY") or "").strip()
-            or str(os.environ.get("OPENAI_COMPATIBLE_API_KEY") or "").strip()
-        )
+        api_key = resolve_openai_compatible_api_key()
         if not api_key:
             raise RuntimeError(
                 "Config-routed OpenAI-compatible provider for ranking_ai_score requires API key in env "

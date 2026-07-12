@@ -5,24 +5,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Set-EnvFromDotEnv {
-    param([string]$Path)
-    if (-not (Test-Path -LiteralPath $Path)) { return }
-    foreach ($rawLine in Get-Content -LiteralPath $Path) {
-        $line = $rawLine.Trim()
-        if (-not $line -or $line.StartsWith("#") -or -not $line.Contains("=")) { continue }
-        $parts = $line.Split("=", 2)
-        $key = $parts[0].Trim()
-        $value = $parts[1].Trim()
-        if (-not $key) { continue }
-        $existing = [Environment]::GetEnvironmentVariable($key, "Process")
-        if (-not [string]::IsNullOrWhiteSpace($existing)) { continue }
-        [Environment]::SetEnvironmentVariable($key, $value, "Process")
-    }
-}
-
-Set-EnvFromDotEnv -Path (Join-Path $PSScriptRoot ".env")
-
 if (-not $RedisUrl) { $RedisUrl = $env:REDIS_URL }
 if (-not $RedisUrl) { $RedisUrl = "redis://:myredissecret@localhost:6379/0" }
 

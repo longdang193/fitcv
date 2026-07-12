@@ -21,6 +21,16 @@ from typing import Any
 from fitcv.config import get_cv_generation_model, resolve_model_routing_part
 
 _OPENAI_COMPATIBLE_PROVIDERS = {"openai", "openai_compatible", "9router"}
+_OPENAI_COMPATIBLE_API_KEY_ENV_NAMES = (
+    "FITCV_LLM_API_KEY",
+    "OPENAI_API_KEY",
+    "OPENAI_COMPATIBLE_API_KEY",
+)
+_LANGGRAPH_OPENAI_COMPATIBLE_API_KEY_ENV_NAMES = (
+    "FITCV_LANGGRAPH_OPENAI_API_KEY",
+    "OPENAI_API_KEY",
+    "OPENAI_COMPATIBLE_API_KEY",
+)
 
 
 @dataclass(frozen=True)
@@ -97,11 +107,21 @@ def langgraph_override_drift_fields(*, part_name: str = "cv_generation_structure
         drift_fields.append("wire_api")
     return drift_fields
 
+
+def _resolve_first_present_env(env_names: tuple[str, ...]) -> str:
+    for env_name in env_names:
+        candidate = str(os.environ.get(env_name) or "").strip()
+        if candidate:
+            return candidate
+    return ""
+
+
 def resolve_openai_compatible_api_key() -> str:
-    return (
-        str(os.environ.get("OPENAI_API_KEY") or "").strip()
-        or str(os.environ.get("OPENAI_COMPATIBLE_API_KEY") or "").strip()
-    )
+    return _resolve_first_present_env(_OPENAI_COMPATIBLE_API_KEY_ENV_NAMES)
+
+
+def resolve_langgraph_openai_compatible_api_key() -> str:
+    return _resolve_first_present_env(_LANGGRAPH_OPENAI_COMPATIBLE_API_KEY_ENV_NAMES)
 
 
 def resolve_cv_generation_runtime_provenance(
