@@ -32,6 +32,7 @@ targets:
   - docs/architecture.md
   - docs/api.md
   - docs/configuration.md
+  - docs/features/settings_system/feature.source.yaml
   - docs/pipeline.md
   - docs/setup.md
   - docs/usage.md
@@ -41,6 +42,9 @@ targets:
   - tests/test_pipeline_stage_resume_parity.py
   - tests/test_fitcv/
   - tests/test_fitcv_cp/
+  - tests/test_fitcv_cp/test_settings_schema.py
+  - tests/test_fitcv_cp/test_settings_store.py
+  - tests/test_fitcv_cp/test_settings_store_sqlite.py
 related_features: []
 related_stages: []
 ---
@@ -105,10 +109,11 @@ Affected stages:
   - cv_analysis
   - cv_generation
 Affected features:
-  - none
+  - settings_system
 Primary lens: cross-cutting
 Affected docs:
-  feature_source: none
+  feature_source:
+    - docs/features/settings_system/feature.source.yaml
   feature_yaml: none
   feature_lineage: none
   feature_history: none
