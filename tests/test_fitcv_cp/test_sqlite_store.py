@@ -13,6 +13,7 @@ from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 @pytest.fixture(autouse=True)
 def _sqlite_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv_cp.sqlite3"))
+    monkeypatch.setattr(sqlite_store, "get_backend_runtime", lambda: None)
 
 
 def _make_run(run_id: str = "run-1") -> PipelineRun:
@@ -199,6 +200,7 @@ def test_delete_archived_runs_prunes_old_rows_only() -> None:
     assert sqlite_store.get_run("run-old") is None
     assert sqlite_store.get_run("run-recent") is not None
     assert sqlite_store.get_run("run-active") is not None
+
 
 
 

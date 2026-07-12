@@ -17,33 +17,14 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
 from typing import Any
 
 from fitcv.runtime_routing import langgraph_override_drift_fields
 from fitcv_cp.app import create_app
 from fitcv_cp.backend_runtime import resolve_backend_runtime, set_backend_runtime
+from fitcv_cp.env_defaults import load_dotenv_defaults
 
 logger = logging.getLogger(__name__)
-
-
-def _load_dotenv_defaults() -> None:
-    """Load local `.env` defaults without overriding existing process env."""
-    dotenv_path = Path.cwd() / ".env"
-    if not dotenv_path.exists() or not dotenv_path.is_file():
-        return
-    try:
-        for raw_line in dotenv_path.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            env_key = key.strip()
-            if not env_key or os.environ.get(env_key) is not None:
-                continue
-            os.environ[env_key] = value.strip().strip("'\"")
-    except OSError as exc:
-        logger.warning("Failed to read .env defaults from %s: %s", dotenv_path, exc)
 
 
 def _warn_or_fail_langgraph_override_drift() -> None:
@@ -77,7 +58,7 @@ def _ensure_safe_local_execution_mode() -> None:
 
 
 def build_app() -> Any:
-    _load_dotenv_defaults()
+    load_dotenv_defaults()
     _ensure_safe_local_execution_mode()
     _warn_or_fail_langgraph_override_drift()
     runtime = resolve_backend_runtime()

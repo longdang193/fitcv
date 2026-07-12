@@ -237,6 +237,18 @@ def test_settings_native_input_attrs_follow_existing_schema_conventions() -> Non
     assert settings_native_input_attrs("cv_generation_model") == {}
 
 
+def test_settings_native_input_attrs_derive_nonnegative_float_from_schema_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    schema_by_key = dict(settings_schema_module._ALL_SCHEMA_BY_KEY)
+    schema_by_key["custom.runtime.delay"] = {
+        "key": "custom.runtime.delay",
+        "type": "float",
+        "config_path": ["stage_runtime", "custom", "sleep_secs"],
+    }
+    monkeypatch.setattr(settings_schema_module, "_ALL_SCHEMA_BY_KEY", schema_by_key)
+
+    assert settings_native_input_attrs("custom.runtime.delay") == {"min": "0", "step": "any"}
 def test_hidden_deprecated_editable_overlap_is_allowlist_only() -> None:
     editable = settings_schema_module.editable_settings_keys()
     hidden = settings_schema_module.hidden_deprecated_settings_keys()
@@ -1613,6 +1625,7 @@ def test_legacy_cv_required_toggles_are_removed_from_schema() -> None:
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert "cv_education_required" not in schema_by_key
     assert "cv_projects_required" not in schema_by_key
+
 
 
 

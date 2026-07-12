@@ -57,6 +57,19 @@ _ROLE_ALIGNMENT_WEIGHT_KEYS: frozenset[str] = frozenset(
     "cv_analysis.semantic_alignment.role_semantic_weight",
     }
 )
+
+_AGENTIC_ADVANCED_QUALITY_TARGET_KEYS: frozenset[str] = (
+    _RESPONSIBILITY_ALIGNMENT_WEIGHT_KEYS
+    | _DOMAIN_ALIGNMENT_WEIGHT_KEYS
+    | _REQUIRED_SKILL_ALIGNMENT_WEIGHT_KEYS
+    | _ROLE_ALIGNMENT_WEIGHT_KEYS
+)
+_AGENTIC_ADVANCED_THROUGHPUT_KEYS: frozenset[str] = frozenset({
+    "cv_analysis.semantic_alignment.channel_pool_size",
+})
+_AGENTIC_ADVANCED_DIAGNOSTIC_KEYS: frozenset[str] = frozenset({
+    "cv_analysis.semantic_alignment.model",
+})
 _UI_SURFACE_EDITABLE = "editable"
 _UI_SURFACE_METADATA_ONLY = "metadata_only"
 _UI_DEPRECATION_ACTIVE = "active"
@@ -1476,6 +1489,35 @@ def timing_compatibility_runtime_alias_keys() -> list[str]:
     ]
 
 
+def agentic_advanced_quality_target_keys() -> list[str]:
+    return [
+        key
+        for key in AGENTIC_SETTINGS_SECTIONS["agentic-advanced"]
+        if key in _AGENTIC_ADVANCED_QUALITY_TARGET_KEYS
+    ]
+
+
+def agentic_advanced_throughput_keys() -> list[str]:
+    return [
+        key
+        for key in AGENTIC_SETTINGS_SECTIONS["agentic-advanced"]
+        if key in _AGENTIC_ADVANCED_THROUGHPUT_KEYS
+    ]
+
+
+def agentic_advanced_diagnostic_keys() -> list[str]:
+    return [
+        key
+        for key in AGENTIC_SETTINGS_SECTIONS["agentic-advanced"]
+        if key in _AGENTIC_ADVANCED_DIAGNOSTIC_KEYS
+    ]
+
+
+def _is_nonnegative_float_entry(entry: dict[str, Any]) -> bool:
+    config_path = list(entry.get("config_path") or [])
+    return bool(config_path) and str(config_path[-1] or "").strip() == "sleep_secs"
+
+
 def build_settings_page_spec() -> dict[str, Any]:
     workflow_stage_titles = {
         "normalize": "Normalize",
@@ -1579,11 +1621,7 @@ def build_settings_page_spec() -> dict[str, Any]:
                     "submit_kind": "section",
                     "submit_slug": "agentic-advanced",
                     "save_label": "Save Quality Target Settings",
-                    "keys": [
-                        key
-                        for key in AGENTIC_SETTINGS_SECTIONS["agentic-advanced"]
-                        if key.endswith("_weight")
-                    ],
+                    "keys": agentic_advanced_quality_target_keys(),
                 },
                 {
                     "id": "agentic-throughput",
@@ -1592,11 +1630,7 @@ def build_settings_page_spec() -> dict[str, Any]:
                     "submit_kind": "section",
                     "submit_slug": "agentic-advanced",
                     "save_label": "Save Throughput Settings",
-                    "keys": [
-                        key
-                        for key in AGENTIC_SETTINGS_SECTIONS["agentic-advanced"]
-                        if key.endswith("channel_pool_size")
-                    ],
+                    "keys": agentic_advanced_throughput_keys(),
                 },
                 {
                     "id": "agentic-diagnostics",
@@ -1605,11 +1639,7 @@ def build_settings_page_spec() -> dict[str, Any]:
                     "submit_kind": "section",
                     "submit_slug": "agentic-advanced",
                     "save_label": "Save Diagnostics Settings",
-                    "keys": [
-                        key
-                        for key in AGENTIC_SETTINGS_SECTIONS["agentic-advanced"]
-                        if key.endswith(".model")
-                    ],
+                    "keys": agentic_advanced_diagnostic_keys(),
                     "is_advanced": True,
                 },
                 {
@@ -1858,7 +1888,7 @@ def settings_native_input_attrs(key: str) -> dict[str, str]:
         return {"min": "1", "step": "1"}
     if entry_type != "float":
         return {}
-    if key.endswith("_secs"):
+    if _is_nonnegative_float_entry(entry):
         return {"min": "0", "step": "any"}
     return {"min": "0", "max": "1", "step": "any"}
 
@@ -1909,7 +1939,7 @@ def validate_settings(settings: dict[str, Any]) -> None:
                 raise ValidationError(f"{key} must be an integer >= 1, got {value!r}")
         elif entry["type"] == "float":
             fval = float(value)
-            if key.endswith("_secs"):
+            if _is_nonnegative_float_entry(entry):
                 if fval < 0.0:
                     raise ValidationError(f"{key} must be >= 0.0, got {fval}")
             else:
@@ -2003,5 +2033,6 @@ def _normalize_settings_aliases(settings: dict[str, Any]) -> dict[str, Any]:
         if legacy_key in normalized:
             normalized[canonical_key] = normalized[legacy_key]
     return normalized
+
 
 

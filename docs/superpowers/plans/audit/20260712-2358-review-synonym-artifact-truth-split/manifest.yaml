@@ -1,0 +1,83 @@
+audit_id: 20260712-2358-review-synonym-artifact-truth-split
+status: resolved
+created_at: 2026-07-12T23:58:00+00:00
+updated_at: 2026-07-12T19:19:04.919388+00:00
+report: report.md
+artifacts:
+  - path: report.md
+    type: report
+  - path: manifest.yaml
+    type: manifest
+  - path: evidence/results/live-export.json
+    type: evidence
+  - path: evidence/results/mirror-export.json
+    type: evidence
+  - path: evidence/results/hitl-review-audit.json
+    type: evidence
+  - path: evidence/results/synonym-proposals-trace.json
+    type: evidence
+  - path: evidence/results/synonym-suppression-diff.json
+    type: evidence
+  - path: evidence/results/mirror-listing.txt
+    type: evidence
+  - path: evidence/results/summary.txt
+    type: evidence
+  - path: evidence/results/verification.txt
+    type: evidence
+  - path: evidence/results/inline-settled-comparison.json
+    type: evidence
+  - path: repro/repro_steps.md
+    type: repro
+evidence:
+  - path: evidence/results/live-export.json
+    kind: result
+    captured_at: 2026-07-12T19:19:04.919388+00:00
+    producer: codex-local-terminal
+    sha256: a803f1186b9a37f432cd05a8199b46426fdd9e14d2490b24bb95d678391ae28c
+  - path: evidence/results/mirror-export.json
+    kind: result
+    captured_at: 2026-07-12T19:19:04.919388+00:00
+    producer: codex-local-terminal
+    sha256: 245e9b2ce30604ac3ed382939ed3f51584ae1c7685dc62f9e9635b19cc058d64
+  - path: evidence/results/hitl-review-audit.json
+    kind: result
+    captured_at: 2026-07-12T19:19:04.919388+00:00
+    producer: codex-local-terminal
+    sha256: da48f8e9f6e47a61a7c0104545c9c2c1005d543707464999c42518f66cd67374
+  - path: evidence/results/synonym-proposals-trace.json
+    kind: result
+    captured_at: 2026-07-12T19:19:04.919388+00:00
+    producer: codex-local-terminal
+    sha256: 420250bb5cac1203f4a2bb51f5adccac92c4d34800f70dadd8c42f4234b2371a
+  - path: evidence/results/synonym-suppression-diff.json
+    kind: result
+    captured_at: 2026-07-12T19:19:04.919388+00:00
+    producer: codex-local-terminal
+    sha256: 24d688d8b8df54c19bd87356e38382dfa664b7f696efef4656d6dd56d77c96cb
+  - path: evidence/results/mirror-listing.txt
+    kind: result
+    captured_at: 2026-07-12T19:19:04.919388+00:00
+    producer: codex-local-terminal
+    sha256: 160114149ecd417bed2738064cca8ef5b8d086d12933862539c293a84e6e7f4b
+  - path: evidence/results/summary.txt
+    kind: result
+    captured_at: 2026-07-12T19:19:04.919388+00:00
+    producer: codex-local-terminal
+    sha256: 877ef9c8f2b6e904106b14c55e6ec3394f678c8ca1dd86a34cbe160c883799cc
+  - path: evidence/results/verification.txt
+    kind: result
+    captured_at: 2026-07-12T19:19:04.919388+00:00
+    producer: codex-local-terminal
+    sha256: aea9e9290e0cd9cc68b50ea2c1b20691d3bae00f83381b0e63d16b4e027aea55
+  - path: evidence/results/inline-settled-comparison.json
+    kind: result
+    captured_at: 2026-07-12T19:19:04.919388+00:00
+    producer: codex-local-terminal
+    sha256: 00301897e2c463a7eddba7852dd2b11e5dc072e00045598cf7a8e9727d584e0f
+repro:
+  - path: repro/repro_steps.md
+    kind: markdown
+verification:
+  gate_command: py -3 scripts/audit_check.py docs/superpowers/plans/audit/20260712-2358-review-synonym-artifact-truth-split
+  last_run: 2026-07-12T19:19:04.919388+00:00
+  result: passed

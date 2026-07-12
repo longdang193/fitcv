@@ -44,8 +44,6 @@ def test_worker_auto_promote_global_skips_non_skill_proposals() -> None:
             payload=payload,
             run_status=RunStatus.SUCCEEDED,
             client = None,
-            project="proj",
-            dataset="ds",
         )
 
     persist_skill.assert_not_called()

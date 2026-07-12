@@ -24,16 +24,9 @@ SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from fitcv_cp.backend_runtime import resolve_backend_runtime
-from fitcv_cp.bq_store import get_run, list_runs
 from fitcv_cp.models import RunStatus
 from fitcv_cp.run_artifact_mirror import persist_terminal_run_artifact_mirror
-
-
-def _get_bq():
-    from google.cloud import bigquery
-
-    return bigquery.Client()
+from fitcv_cp.sqlite_store import get_run, list_runs
 
 
 def _has_artifact_payload(run: object) -> bool:
@@ -59,23 +52,15 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=5000, help="Max runs to inspect when --run-id is not provided.")
     args = parser.parse_args()
 
-    runtime = resolve_backend_runtime()
-    bq = _get_bq() if runtime.backend_type == "bigquery" else None
-    project = runtime.project
-    dataset = runtime.dataset
-
     target_runs = []
     if args.run_id:
-        run = get_run(args.run_id, bq, project=project, dataset=dataset)
+        run = get_run(args.run_id)
         if run is None:
             print(f"run_not_found run_id={args.run_id}")
             return 2
         target_runs = [run]
     else:
         target_runs = list_runs(
-            bq,
-            project=project,
-            dataset=dataset,
             limit=max(1, int(args.limit)),
             include_archived=True,
         )
@@ -106,12 +91,7 @@ def main() -> int:
             print(f"dry_run_create run_id={run_id}")
             continue
         try:
-            persist_terminal_run_artifact_mirror(
-                run_id=run_id,
-                bq=bq,
-                project=project,
-                dataset=dataset,
-            )
+            persist_terminal_run_artifact_mirror(run_id=run_id)
             if mirror_dir.exists():
                 created += 1
                 print(f"created run_id={run_id}")

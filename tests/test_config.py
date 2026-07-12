@@ -155,6 +155,38 @@ def test_load_config_ignores_gcp_project_env_var(
     assert "service_account_key" not in cfg
 
 
+def test_load_config_strips_bigquery_dataset_at_ingress(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "some_key: value\n"
+        "bigquery_dataset: legacy_dataset\n",
+        encoding="utf-8",
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        """cv:
+  preset: europass
+  generation:
+    model: cx/gpt-5.4-mini
+    prompt_version: v1
+  composition:
+    summary:
+      enabled: true
+  content_rules:
+    evidence_grounded_only: true
+  validation:
+    max_pages: 2
+"""
+    )
+    monkeypatch.delenv("GCP_PROJECT", raising=False)
+
+    cfg = load_config(env_yaml)
+
+    assert "bigquery_dataset" not in cfg
 def test_get_local_sqlite_path_uses_control_plane_sqlite_path_when_env_missing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1448,4 +1480,7 @@ def test_resolve_data_backend_supports_legacy_sqlite_mode_flag(
 ) -> None:
     assert resolve_data_backend({"sqlite_mode": True}) == "sqlite"
     assert resolve_data_backend({"sqlite_mode": False}) == "sqlite"
+
+
+
 

@@ -1,0 +1,6 @@
+run_id=92b4c45d-cd2a-4e74-a18a-bbb87b5cd413
+missing_mirror_files=hitl-review-audit.json,synonym-proposals-trace.json,synonym-suppression-diff.json
+mirror_export_keys=company,cv,cv_analysis,decision_chain,deterministic_outcome,domain,job_family,job_title,job_url,location_type,pipeline_status,rank,raw_job_fingerprint,reject_reasons,rule_filter_marks,scores,seniority,source_job_url,source_stage,stage_owned_subreason
+live_export_keys=company,cv,cv_analysis,decision_chain,deterministic_outcome,domain,final_status,fit_label,job_family,job_title,job_url,location_type,pipeline_status,rank,raw_job_fingerprint,reason,reject_reasons,rule_filter_marks,scores,seniority,source_job_url,source_stage,stage_owned_subreason
+mirror_results_count=13
+live_results_count=13

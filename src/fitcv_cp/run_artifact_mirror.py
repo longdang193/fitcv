@@ -28,6 +28,47 @@ from fitcv_cp.models import RunEvent, RunStatus
 logger = logging.getLogger(__name__)
 
 
+def _stable_run_artifact_created_at(run_record: Any) -> str | None:
+    for value in (getattr(run_record, "finished_at", None), getattr(run_record, "created_at", None)):
+        if isinstance(value, datetime.datetime):
+            dt = value if value.tzinfo is not None else value.replace(tzinfo=datetime.timezone.utc)
+            return dt.astimezone(datetime.timezone.utc).isoformat()
+    return None
+
+
+def _build_deterministic_run_artifact_payloads(run_record: Any) -> dict[str, Any]:
+    from fitcv_cp.app import (
+        _build_hitl_review_audit_payload,
+        _build_synonym_suppression_diff_payload,
+        _load_run_synonym_proposals_trace_payload,
+        _results_export_rows_with_hitl_audit,
+        _run_has_reached_stage,
+    )
+
+    payloads: dict[str, Any] = {}
+    if getattr(run_record, "status", None) == RunStatus.SUCCEEDED and getattr(run_record, "results_export_json", None):
+        payloads["export.json"] = {
+            "run_id": str(getattr(run_record, "run_id", "")),
+            "results": _results_export_rows_with_hitl_audit(run_record),
+        }
+    if getattr(run_record, "status", None) == RunStatus.SUCCEEDED and getattr(run_record, "cv_generation_debug_json", None):
+        payloads["hitl-review-audit.json"] = _build_hitl_review_audit_payload(run_record)
+    trace_payload = _load_run_synonym_proposals_trace_payload(run_record)
+    if (
+        getattr(run_record, "status", None) == RunStatus.SUCCEEDED
+        and _run_has_reached_stage(run_record, "enrich")
+        and isinstance(trace_payload, dict)
+        and str(trace_payload.get("trace_status") or "").strip() != "not_applicable"
+    ):
+        payloads["synonym-proposals-trace.json"] = trace_payload
+        suppression_payload = dict(_build_synonym_suppression_diff_payload(run_record))
+        stable_created_at = _stable_run_artifact_created_at(run_record)
+        if stable_created_at:
+            suppression_payload["created_at"] = stable_created_at
+        payloads["synonym-suppression-diff.json"] = suppression_payload
+    return payloads
+
+
 def _json_safe(value: Any) -> Any:
     if isinstance(value, datetime.datetime):
         return value.isoformat()
@@ -62,20 +103,7 @@ def build_terminal_run_artifact_payloads(
         "run.json": _json_safe(run_record),
         "events.json": [_json_safe(event) for event in events],
     }
-    results_export_raw = getattr(run_record, "results_export_json", None)
-    if isinstance(results_export_raw, str) and results_export_raw.strip():
-        try:
-            parsed = json.loads(results_export_raw)
-            if isinstance(parsed, dict):
-                payloads["export.json"] = {
-                    "run_id": str(getattr(run_record, "run_id", "")),
-                    "results": list(parsed.get("results") or []),
-                }
-        except (TypeError, json.JSONDecodeError):
-            logger.warning(
-                "[run_id=%s] Skipping export.json mirror write due to invalid results_export_json",
-                getattr(run_record, "run_id", ""),
-            )
+    payloads.update(_build_deterministic_run_artifact_payloads(run_record))
     for filename, attr_name in (
         ("cv-debug.json", "cv_generation_debug_json"),
         ("stage-artifacts.json", "stage_transition_artifacts_json"),

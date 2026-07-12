@@ -1,0 +1,11 @@
+verification_commands:
+- py -3 -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_run_artifact_mirror.py -k "artifact or mirror or export or hitl or synonym" -q
+- inline settled parity proof via TestClient + FITCV_CP_INLINE_EXECUTION=1
+
+results:
+- pytest: 157 passed, 429 deselected
+- settled inline run: e92720d8-e703-4879-bd67-689e0f643cd3
+- endpoint/bundle/mirror parity: export.json, hitl-review-audit.json, synonym-proposals-trace.json, synonym-suppression-diff.json all matched after settle wait
+
+notes:
+- localhost:8000 process stayed on stale code until restart; live HTTP probe on run e1e6ed42-6352-4013-9663-296e34915240 reflected old process, not current source.

@@ -16,6 +16,7 @@ from unittest.mock import MagicMock, patch
 import datetime
 import hashlib
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
 from fitcv_cp.backend_runtime import BackendRuntime, set_backend_runtime
@@ -1058,7 +1059,8 @@ def test_worker_persists_stage_transition_artifacts_json_on_success():
         },
     }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
-       patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts") as mock_store_stage_artifacts:
+       patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts") as mock_store_stage_artifacts, \
+       patch("fitcv_cp.worker_job.persist_terminal_run_artifact_mirror") as mock_persist_mirror:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     payload = json.loads(mock_store_stage_artifacts.call_args.args[1])
@@ -1069,6 +1071,44 @@ def test_worker_persists_stage_transition_artifacts_json_on_success():
     assert payload["artifacts"]["schema_version"] == "stage_transition_artifacts_v2"
     assert payload["artifacts"]["stages"]["normalize"]["input_counts"]["raw_jobs"] == 5
     assert payload["artifacts"]["stages"]["ranking"]["output_counts"]["ranked_jobs"] == 2
+    mock_persist_mirror.assert_called_once_with(run_id="r1")
+
+def test_execute_pipeline_run_loads_dotenv_defaults_before_pipeline(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("OPENAI_API_KEY=test-dotenv-key\n", encoding="utf-8")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+
+    def _assert_env(*args, **kwargs):
+        assert os.environ.get("OPENAI_API_KEY") == "test-dotenv-key"
+        return {"run_id": "r1", "total_jobs": 0, "passed_filter": 0, "ranked": 0, "cvs_generated": 0}
+
+    from fitcv_cp.env_defaults import load_dotenv_defaults as _real_load_dotenv_defaults
+
+    with patch(
+        "fitcv_cp.worker_job.resolve_backend_runtime",
+        return_value=BackendRuntime(
+            backend_type="sqlite",
+            sqlite_path="data/fitcv_cp.sqlite3",
+        ),
+    ), patch(
+        "fitcv_cp.worker_job._get_bq",
+        side_effect=RuntimeError("should not build remote client in sqlite mode"),
+    ), patch(
+        "fitcv_cp.worker_job.get_run",
+        return_value=mock_run,
+    ), patch(
+        "fitcv_cp.worker_job.run_pipeline",
+        side_effect=_assert_env,
+    ), patch(
+        "fitcv_cp.worker_job.load_dotenv_defaults",
+        wraps=_real_load_dotenv_defaults,
+    ) as mock_load_dotenv_defaults:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    mock_load_dotenv_defaults.assert_called_once_with()
 
 def test_stage_transition_payload_marks_failed_partial_snapshot_with_reason() -> None:
     summary = {
@@ -2414,7 +2454,7 @@ def test_append_synonym_suppression_summary_event_deduplicates_same_fingerprint(
     appended: list[object] = []
     existing_events: list[object] = []
 
-    def _fake_append_event(event: object, client: object, *, project: str, dataset: str) -> None:
+    def _fake_append_event(event: object, client: object) -> None:
         appended.append(event)
         existing_events.append(event)
 
@@ -2424,15 +2464,11 @@ def test_append_synonym_suppression_summary_event_deduplicates_same_fingerprint(
             run_id="run-1",
             synonym_payload_json=payload_json,
             client=object(),
-            project="proj",
-            dataset="ds",
         )
         _append_synonym_suppression_summary_event(
             run_id="run-1",
             synonym_payload_json=payload_json,
             client=object(),
-            project="proj",
-            dataset="ds",
         )
 
     assert len(appended) == 1
@@ -2471,7 +2507,7 @@ def test_append_synonym_suppression_summary_event_respects_legacy_sha1_fingerpri
     ]
     appended: list[object] = []
 
-    def _fake_append_event(event: object, client: object, *, project: str, dataset: str) -> None:
+    def _fake_append_event(event: object, client: object) -> None:
         appended.append(event)
 
     with patch("fitcv_cp.worker_job.get_events", side_effect=lambda *args, **kwargs: list(existing_events)), \
@@ -2480,8 +2516,6 @@ def test_append_synonym_suppression_summary_event_respects_legacy_sha1_fingerpri
             run_id="run-1",
             synonym_payload_json=payload_json,
             client=object(),
-            project="proj",
-            dataset="ds",
         )
 
     assert appended == []

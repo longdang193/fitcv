@@ -1,0 +1,91 @@
+{
+  "run_id": "92b4c45d-cd2a-4e74-a18a-bbb87b5cd413",
+  "schema_version": "synonym_suppression_diff_v1",
+  "created_at": "2026-07-12T18:24:28.951945+00:00",
+  "suggested_pairs_total": 52,
+  "suppressed_pairs_total": 38,
+  "generated_pairs_total": 6,
+  "suppressed_pairs": [
+    {
+      "field": "skill",
+      "alias": "strong command of sql",
+      "canonical": "sql"
+    },
+    {
+      "field": "skill",
+      "alias": "familiarity with data modeling",
+      "canonical": "data modeling"
+    },
+    {
+      "field": "skill",
+      "alias": "partitioning strategies",
+      "canonical": "partitioning"
+    },
+    {
+      "field": "skill",
+      "alias": "ci/cd pipelines",
+      "canonical": "ci/cd"
+    },
+    {
+      "field": "role_family",
+      "alias": "data engineering",
+      "canonical": "data_engineering"
+    },
+    {
+      "field": "skill",
+      "alias": "datenbankmodellierung",
+      "canonical": "database modeling"
+    },
+    {
+      "field": "skill",
+      "alias": "sql auf expertenniveau",
+      "canonical": "sql"
+    },
+    {
+      "field": "skill",
+      "alias": "rest-apis",
+      "canonical": "rest api"
+    },
+    {
+      "field": "skill",
+      "alias": "flatfiles",
+      "canonical": "flat files"
+    },
+    {
+      "field": "skill",
+      "alias": "nosql-datenbanksystemen",
+      "canonical": "nosql databases"
+    }
+  ],
+  "generated_pairs": [
+    {
+      "alias": "it services and it consulting",
+      "canonical": "automotive"
+    },
+    {
+      "alias": "software development",
+      "canonical": "consulting"
+    },
+    {
+      "alias": "c++/c#/html5",
+      "canonical": "c#"
+    },
+    {
+      "alias": "blended and online approaches",
+      "canonical": "blended learning"
+    },
+    {
+      "alias": "modernen data warehouse/lake-strukturen",
+      "canonical": "data_lake"
+    },
+    {
+      "alias": "python or r",
+      "canonical": "python"
+    }
+  ],
+  "suppression_source": "run_effective_skill_synonyms",
+  "pre_run_global_map_fingerprint": null,
+  "run_overlay_fingerprint": null,
+  "mapping_suggestions_fingerprint": "141c378e2f0537725094c648c2e730e6dfc0c4bb6adc84b0353b946b9ed63a64",
+  "proposal_input_bundle_fingerprint": "ba8f68d202f63d83aefe224ef50d9287ebb532b3da4e5d3d174cf4061ccff46a"
+}

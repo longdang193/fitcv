@@ -22,8 +22,8 @@ import os
 import re
 import pytest
 from fastapi.testclient import TestClient
-from fitcv.pipeline_contracts import timeline_stage_download_for_event, timeline_stage_label
-from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _timeline_semantic_outcome, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, _normalize_hitl_resolution_status, create_app
+from fitcv.pipeline_contracts import PIPELINE_BUNDLE_ARTIFACT_FILENAMES, PIPELINE_STAGE_SEQUENCE, timeline_stage_download_for_event, timeline_stage_label
+from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _control_plane_bundle_artifact_specs, _control_plane_stage_specs, _timeline_semantic_outcome, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, _normalize_hitl_resolution_status, create_app
 from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission
 
@@ -12415,8 +12415,6 @@ def test_build_enriched_tab_context_does_not_guess_passed_for_unknown_rows() -> 
         context = _build_enriched_tab_context(
             run,
             run_id=run.run_id,
-            project="p",
-            dataset="d",
             client = None,
             filter_name="all",
             query="",
@@ -12481,8 +12479,6 @@ def test_build_enriched_tab_context_matches_truth_by_raw_job_fingerprint_when_ur
         context = _build_enriched_tab_context(
             run,
             run_id=run.run_id,
-            project="p",
-            dataset="d",
             client = None,
             filter_name="all",
             query="",
@@ -12705,8 +12701,6 @@ def test_build_enriched_tab_context_overrides_stale_review_required_with_termina
         context = _build_enriched_tab_context(
             run,
             run_id=run.run_id,
-            project="p",
-            dataset="d",
             client=object(),
             filter_name="all",
             query="",
@@ -12786,8 +12780,6 @@ def test_build_enriched_tab_context_overrides_stale_review_required_with_termina
         context = _build_enriched_tab_context(
             run,
             run_id=run.run_id,
-            project="p",
-            dataset="d",
             client=object(),
             filter_name="all",
             query="",
@@ -14249,8 +14241,18 @@ def test_settings_page_mode_summary_marks_drift_when_env_set_but_agentic_disable
     assert "Authority State:" not in html
     assert "drifted" not in html
     assert "Agentic runtime env is configured but agentic mode toggle is OFF." not in html
+    assert "Agentic live runtime is" not in html
 
 
+def test_control_plane_artifact_registry_stays_aligned_with_pipeline_contract() -> None:
+    stage_specs = list(_control_plane_stage_specs())
+    bundle_specs = list(_control_plane_bundle_artifact_specs())
+
+    assert [spec.stage_id for spec in stage_specs] == list(PIPELINE_STAGE_SEQUENCE)
+    assert len({spec.stage_id for spec in stage_specs}) == len(stage_specs)
+    assert [spec.filename for spec in bundle_specs] == list(PIPELINE_BUNDLE_ARTIFACT_FILENAMES)
+    assert len({spec.filename for spec in bundle_specs}) == len(bundle_specs)
+    assert {spec.artifact_filename for spec in stage_specs} <= {spec.filename for spec in bundle_specs}
 def test_settings_page_marks_dirty_rows_when_draft_differs_from_effective() -> None:
     with patch("fitcv_cp.app.load_active_settings", return_value={"enrichment_sleep_secs": 1.0}):
         resp = TestClient(_app()).post(
@@ -14978,6 +14980,8 @@ def test_normalize_hitl_resolution_status_uses_shared_review_identity_truth() ->
 
     assert _normalize_hitl_resolution_status("approve", None) == normalize_review_resolution_status("approve", None)
     assert _normalize_hitl_resolution_status(None, "rejected") == normalize_review_resolution_status(None, "rejected")
+
+
 
 
 

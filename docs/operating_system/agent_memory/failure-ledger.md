@@ -66,3 +66,30 @@ Use this file for repeated or important failures, not every small mistake.
   - `tests/test_pipeline.py`
   - `tests/test_fitcv_cp/test_app.py`
   - `tests/test_fitcv_cp/test_storage_backend_parity.py`
+
+## Inline terminal status can precede artifact mirror settle
+
+- Title: Inline run verification must wait for mirror settle, not status alone
+- Date: 2026-07-12
+- Trigger / Context: Artifact parity verification for FitCV inline/TestClient runs after terminal `succeeded` state.
+- What went wrong: Verification checked endpoint and bundle immediately after run status became terminal. Inline background thread had not finished mirror write yet, causing false drift: missing mirror files and transient payload fingerprint mismatch.
+- Correct behavior: For inline runs, wait for deterministic mirror file set or equivalent post-terminal settle signal before concluding artifact parity.
+- Prevention added or required: Live-run verification scripts should use a short settle loop after terminal status when `FITCV_CP_INLINE_EXECUTION=true`.
+- Related artifacts:
+  - `docs/superpowers/plans/audit/20260712-2358-review-synonym-artifact-truth-split/report.md`
+  - `runtime/inline-artifact-parity-settled-e92720d8-e703-4879-bd67-689e0f643cd3/comparison.json`
+
+## Launcher-only dotenv loading breaks worker/web symmetry
+
+- Title: Runtime entry modules must self-load `.env` defaults, not rely on launcher scripts alone
+- Date: 2026-07-12
+- Trigger / Context: Local queue-mode CV generation failed with `OpenAI-compatible CV generation routing requires API key in env.` even though repo `.env` contained `OPENAI_API_KEY`.
+- What went wrong: `fitcv_cp.main` loaded `.env` defaults in-process, but `fitcv_cp.worker_job` did not. Web path could see env-backed routing inputs while worker path depended on external launcher injection. Starting worker outside canonical PowerShell script, or before `.env` changed, split runtime truth.
+- Correct behavior: Web and worker entrypoints should share one Python-side dotenv default loader so runtime env behavior is symmetric regardless of launcher.
+- Prevention added or required: Keep shared loader in `src/fitcv_cp/env_defaults.py`; call it from control-plane web startup and worker execution entrypoints before routing/key validation.
+- Related artifacts:
+  - `src/fitcv_cp/env_defaults.py`
+  - `src/fitcv_cp/main.py`
+  - `src/fitcv_cp/worker_job.py`
+  - `tests/test_fitcv_cp/test_env_defaults.py`
+  - `tests/test_fitcv_cp/test_worker_job.py`

@@ -480,6 +480,7 @@ workstreams:
     - docs/superpowers/specs/2026-07-12-15-41-fitcv-ssot-symmetry-phase-5-control-plane-monolith-reduction-and-storage-normalization-spec.md
     - docs/superpowers/specs/2026-07-12-18-35-fitcv-ssot-symmetry-phase-3-settings-schema-native-form-boundary-spec.md
     - docs/superpowers/specs/2026-07-12-20-20-fitcv-ssot-symmetry-phase-4-routing-runtime-envelope-persistence-truth-spec.md
+    - docs/superpowers/specs/2026-07-12-23-35-fitcv-ssot-symmetry-phase-6-registry-closeout-and-legacy-arg-deletion-spec.md
     plans:
     - docs/superpowers/plans/2026-05-24-10-05-fitcv-cp-app-ssot-symmetry-refactor-plan.md
     - docs/superpowers/plans/2026-05-24-14-25-fitcv-cp-worker-job-ssot-symmetry-refactor-plan.md
@@ -490,6 +491,8 @@ workstreams:
     - docs/superpowers/plans/2026-07-12-14-20-fitcv-ssot-symmetry-phase-2-stage-lifecycle-late-stage-consolidation-plan.md
     - docs/superpowers/plans/2026-07-12-15-59-fitcv-ssot-symmetry-phase-5-control-plane-monolith-reduction-and-storage-normalization-plan.md
     - docs/superpowers/plans/2026-07-12-19-05-fitcv-ssot-symmetry-phase-3-settings-schema-native-form-boundary-plan.md
+    - docs/superpowers/plans/2026-07-12-20-40-fitcv-review-synonym-artifact-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-07-12-23-55-fitcv-ssot-symmetry-phase-6-registry-closeout-and-legacy-arg-deletion-plan.md
     derived_completion: completed
   - thread_id: workstream-operator-control-plane.operator-control-plane-phase-2-degraded-mode-and-portability-surface
     status: completed

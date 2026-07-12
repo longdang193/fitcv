@@ -1,0 +1,72 @@
+{
+  "export.json": {
+    "mirror_exists": true,
+    "bundle_matches_endpoint": true,
+    "mirror_matches_endpoint": true,
+    "endpoint_row_keys": [
+      "company",
+      "cv",
+      "cv_analysis",
+      "decision_chain",
+      "deterministic_outcome",
+      "domain",
+      "final_status",
+      "fit_label",
+      "job_family",
+      "job_title",
+      "job_url",
+      "location_type",
+      "pipeline_status",
+      "rank",
+      "raw_job_fingerprint",
+      "reason",
+      "reject_reasons",
+      "rule_filter_marks",
+      "scores",
+      "seniority",
+      "source_job_url",
+      "source_stage",
+      "stage_owned_subreason"
+    ],
+    "mirror_row_keys": [
+      "company",
+      "cv",
+      "cv_analysis",
+      "decision_chain",
+      "deterministic_outcome",
+      "domain",
+      "final_status",
+      "fit_label",
+      "job_family",
+      "job_title",
+      "job_url",
+      "location_type",
+      "pipeline_status",
+      "rank",
+      "raw_job_fingerprint",
+      "reason",
+      "reject_reasons",
+      "rule_filter_marks",
+      "scores",
+      "seniority",
+      "source_job_url",
+      "source_stage",
+      "stage_owned_subreason"
+    ]
+  },
+  "hitl-review-audit.json": {
+    "mirror_exists": true,
+    "bundle_matches_endpoint": true,
+    "mirror_matches_endpoint": true
+  },
+  "synonym-proposals-trace.json": {
+    "mirror_exists": true,
+    "bundle_matches_endpoint": true,
+    "mirror_matches_endpoint": true
+  },
+  "synonym-suppression-diff.json": {
+    "mirror_exists": true,
+    "bundle_matches_endpoint": true,
+    "mirror_matches_endpoint": true
+  }
+}

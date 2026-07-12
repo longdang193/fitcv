@@ -77,8 +77,6 @@ def test_commit_synonym_global_promotion_routes_by_field_and_skips_conflict_fiel
             acted_by="tester",
             note="test",
             client = None,
-            project="proj",
-            dataset="ds",
         )
 
     assert "domain" not in persisted
