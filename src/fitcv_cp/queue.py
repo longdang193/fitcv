@@ -125,9 +125,6 @@ def _run_inline_job(
         update_run_status(
             run_id,
             RunStatus.FAILED,
-            client=None,
-            project="local",
-            dataset="local",
             finished_at=datetime.now(timezone.utc),
             error_message=f"Inline execution failed: {exc}",
             error_stage="inline_execution",
@@ -140,10 +137,7 @@ def _run_inline_job(
                 level="error",
                 message=f"Inline execution failed: {exc}",
                 created_at=datetime.now(timezone.utc),
-            ),
-            client=None,
-            project="local",
-            dataset="local",
+            )
         )
 
 

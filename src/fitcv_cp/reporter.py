@@ -250,11 +250,8 @@ def _emit_langfuse_native_io(
 
 
 class PipelineReporter:
-    def __init__(self, run_id: str, client: Any, *, project: str, dataset: str) -> None:
+    def __init__(self, run_id: str) -> None:
         self._run_id = run_id
-        self._bq = client
-        self._project = project
-        self._dataset = dataset
 
     def emit(
         self,
@@ -301,7 +298,7 @@ class PipelineReporter:
             payload_json=json.dumps(payload_value),
         )
         try:
-            status = append_event(event, self._bq, project=self._project, dataset=self._dataset)
+            status = append_event(event)
             if status.get("persistence_status") != "persisted":
                 logger.warning(
                     "Reporter event degraded [run_id=%s stage=%s status=%s reason=%s]",

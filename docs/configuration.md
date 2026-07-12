@@ -143,10 +143,10 @@ Examples:
 
 - mode-strip fields (`Agentic Mode`, `Live Provider`, `Live Model`, `Authority State`) are resolved by one control-plane authority resolver
 - `Agentic Mode` source: persisted setting `cv.agentic_late_stage.enabled`
-- `Live Provider` and `Live Model` source: runtime env `FITCV_LANGGRAPH_PROVIDER` / `FITCV_LANGGRAPH_MODEL`
+- `Live Provider` and `Live Model` source: shared live LangGraph runtime expectation resolver (`resolve_langgraph_runtime_expectation()`), with env overrides applied only at that boundary
 - `Authority State`:
-  - `aligned`: toggle and runtime env expectations are consistent
-  - `drifted`: toggle/env expectations conflict; UI shows explicit drift reason
+  - `aligned`: toggle and resolved live runtime expectations are consistent
+  - `drifted`: toggle and resolved live runtime expectations conflict; UI shows explicit drift reason
 
 ## Backend and Provider Routing
 
@@ -154,7 +154,13 @@ Examples:
 - local sqlite persistence authority:
   - pipeline run snapshots persist in sqlite (`local_pipeline_runs`)
   - pipeline run events persist in sqlite (`local_pipeline_run_events`)
-  - local in-process caches are non-authoritative and restart survival must come from sqlite tables
+  - no in-process run shadow cache is authoritative; restart survival comes from sqlite tables
+- sqlite path precedence:
+  1. `FITCV_CP_SQLITE_PATH`
+  2. `control_plane.data_backend.sqlite.path`
+  3. `data/fitcv_cp.sqlite3`
+- retired split-path env:
+  - `FITCV_CP_SETTINGS_SQLITE_PATH` is not supported
 - model/provider routing defaults: canonical owner is `config/runtime/control_plane.yaml`
   - `control_plane.providers.*.base_url`
   - `control_plane.providers.*.wire_api`

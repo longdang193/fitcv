@@ -28,7 +28,7 @@ from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission
 
 def _app():
-    os.environ.setdefault("FITCV_CP_INLINE_EXECUTION", "1")
+    os.environ["FITCV_CP_INLINE_EXECUTION"] = "1"
     client = MagicMock()
     return create_app(redis_url="redis://localhost:6379/0")
 
@@ -6067,7 +6067,9 @@ def test_admin_run_synonym_proposals_triage_refresh_redirects_with_summary() -> 
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
         run_mode="run_all",
-        effective_settings_json='{"stage_runtime":{"cv_analysis":{"sleep_secs":0.2,"concurrency":3}}}',
+        effective_settings_json=_effective_settings_with_builtin_synonym_runtime(
+            {"stage_runtime": {"cv_analysis": {"sleep_secs": 0.2, "concurrency": 3}}}
+        ),
         synonym_proposals_json=(
             '{"run_id":"run-triage-refresh","proposals":['
             '{"proposal_id":"proposal-pending","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9},'
@@ -6077,7 +6079,7 @@ def test_admin_run_synonym_proposals_triage_refresh_redirects_with_summary() -> 
     )
     persisted_payloads: list[dict[str, object]] = []
 
-    def _capture_update(run_id: str, synonym_proposals_json: str, client, *, project: str, dataset: str):
+    def _capture_update(run_id: str, synonym_proposals_json: str, *_: object, **__: object):
         import json
         persisted_payloads.append(json.loads(synonym_proposals_json))
         return {"persistence_status": "persisted", "degradation_reason": ""}
@@ -6132,6 +6134,92 @@ def test_resolve_synonym_triage_runtime_includes_canonical_cv_analysis_runtime()
 
     assert runtime["sleep_secs"] == 0.4
     assert runtime["concurrency"] == 5
+
+
+def test_resolve_synonym_triage_runtime_falls_back_to_shared_langgraph_expectation(
+    tmp_path, monkeypatch
+) -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.app import _resolve_synonym_triage_runtime
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "config" / "runtime").mkdir(parents=True)
+    (tmp_path / "config" / "runtime" / "control_plane.yaml").write_text(
+        "control_plane:\n"
+        "  providers:\n"
+        "    openai_compatible:\n"
+        "      base_url: http://router.local/v1\n"
+        "      wire_api: chat_completions\n"
+        "  model_routing:\n"
+        "    parts:\n"
+        "      cv_generation_structured_write:\n"
+        "        provider: openai_compatible\n"
+        "        model: cx/gpt-5.2\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("FITCV_LANGGRAPH_PROVIDER", raising=False)
+    monkeypatch.delenv("FITCV_LANGGRAPH_MODEL", raising=False)
+    monkeypatch.delenv("FITCV_LANGGRAPH_OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("FITCV_LANGGRAPH_WIRE_API", raising=False)
+
+    run = PipelineRun(
+        run_id="run-triage-runtime-fallback",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json="{}",
+    )
+
+    runtime = _resolve_synonym_triage_runtime(run)
+
+    assert runtime["provider"] == "openai_compatible"
+    assert runtime["model"] == "cx/gpt-5.2"
+    assert runtime["base_url"] == "http://router.local/v1"
+    assert runtime["wire_api"] == "chat_completions"
+
+
+def test_resolve_synonym_triage_runtime_prefers_persisted_agentic_runtime_expectation(
+    monkeypatch,
+) -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.app import _resolve_synonym_triage_runtime
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    monkeypatch.setenv("FITCV_LANGGRAPH_PROVIDER", "openai")
+    monkeypatch.setenv("FITCV_LANGGRAPH_MODEL", "gpt-live")
+    monkeypatch.setenv("FITCV_LANGGRAPH_OPENAI_BASE_URL", "http://live.local/v1")
+    monkeypatch.setenv("FITCV_LANGGRAPH_WIRE_API", "responses")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    run = PipelineRun(
+        run_id="run-triage-runtime-persisted",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=(
+            '{"runtime_inputs":{"agentic_runtime_expectation":'
+            '{"provider":"9router","model":"cx/gpt-5.2","base_url":"http://persisted.local/v1","wire_api":"chat_completions","source":"env_override"}}}'
+        ),
+    )
+
+    runtime = _resolve_synonym_triage_runtime(run)
+
+    assert runtime["provider"] == "9router"
+    assert runtime["model"] == "cx/gpt-5.2"
+    assert runtime["base_url"] == "http://persisted.local/v1"
+    assert runtime["wire_api"] == "chat_completions"
+    assert runtime["api_key"] == "test-key"
 
 
 def test_admin_run_synonym_ai_fast_path_redirects_to_synonym_review() -> None:
@@ -6189,7 +6277,7 @@ def test_admin_run_synonym_proposals_triage_refresh_does_not_mutate_status() -> 
     )
     captured_statuses: list[str] = []
 
-    def _capture_update(run_id: str, synonym_proposals_json: str, client, *, project: str, dataset: str):
+    def _capture_update(run_id: str, synonym_proposals_json: str, *_: object, **__: object):
         import json
         payload = json.loads(synonym_proposals_json)
         proposal = payload["proposals"][0]
@@ -6294,6 +6382,23 @@ def test_build_synonym_proposals_payload_reuses_existing_state_by_identity_acros
     row = proposals[0]
     assert row.get("proposal_status") == "approved_for_run_overlay"
 
+
+def _effective_settings_with_builtin_synonym_runtime(extra: dict[str, object] | None = None) -> str:
+    payload: dict[str, object] = {
+        "runtime_inputs": {
+            "agentic_runtime_expectation": {
+                "provider": "fitcv_builtin",
+                "model": "synonym_triage_v1",
+                "base_url": "builtin",
+                "wire_api": "builtin",
+                "source": "persisted",
+            }
+        }
+    }
+    if extra:
+        payload.update(extra)
+    return json.dumps(payload, separators=(",", ":"))
+
 def test_admin_run_synonym_proposals_triage_refresh_reuses_when_fingerprint_matches_across_run_ids() -> None:
     from datetime import datetime, timezone
 
@@ -6331,7 +6436,9 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_when_fingerprint_matc
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
         run_mode="run_all",
-        effective_settings_json='{"synonym_management":{"auto_apply_recommendation_enabled":false}}',
+        effective_settings_json=_effective_settings_with_builtin_synonym_runtime(
+            {"synonym_management": {"auto_apply_recommendation_enabled": False}}
+        ),
         synonym_proposals_json=json.dumps({"run_id": "run-triage-reuse", "proposals": [row_with_existing_runtime]}),
     )
 
@@ -6450,12 +6557,14 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_when_core_matches_and
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
         run_mode="run_all",
-        effective_settings_json='{"synonym_management":{"auto_apply_recommendation_enabled":false}}',
+        effective_settings_json=_effective_settings_with_builtin_synonym_runtime(
+            {"synonym_management": {"auto_apply_recommendation_enabled": False}}
+        ),
         synonym_proposals_json=json.dumps({"run_id": "run-triage-core-reuse", "proposals": [row]}),
     )
     event_payloads: list[dict[str, object]] = []
 
-    def _capture_event(ev, client, *, project: str, dataset: str):
+    def _capture_event(ev, *_: object, **__: object):
         event_payloads.append(json.loads(str(ev.payload_json or "{}")))
         return {"persistence_status": "persisted"}
 
@@ -6521,12 +6630,14 @@ def test_admin_run_synonym_proposals_triage_refresh_core_match_gate_mismatch_for
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
         run_mode="run_all",
-        effective_settings_json='{"synonym_management":{"auto_apply_recommendation_enabled":false}}',
+        effective_settings_json=_effective_settings_with_builtin_synonym_runtime(
+            {"synonym_management": {"auto_apply_recommendation_enabled": False}}
+        ),
         synonym_proposals_json=json.dumps({"run_id": "run-triage-core-gate-mismatch", "proposals": [row]}),
     )
     event_payloads: list[dict[str, object]] = []
 
-    def _capture_event(ev, client, *, project: str, dataset: str):
+    def _capture_event(ev, *_: object, **__: object):
         event_payloads.append(json.loads(str(ev.payload_json or "{}")))
         return {"persistence_status": "persisted"}
 
@@ -6594,7 +6705,9 @@ def test_admin_run_synonym_proposals_triage_refresh_core_reuse_allows_open_statu
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
         run_mode="run_all",
-        effective_settings_json='{"synonym_management":{"auto_apply_recommendation_enabled":false}}',
+        effective_settings_json=_effective_settings_with_builtin_synonym_runtime(
+            {"synonym_management": {"auto_apply_recommendation_enabled": False}}
+        ),
         synonym_proposals_json=json.dumps({"run_id": "run-triage-core-status-churn", "proposals": [row]}),
     )
 
@@ -6732,9 +6845,15 @@ def test_synonym_proposal_review_queue_triage_stale_when_pending_without_recomme
     assert queue["triage_status"] == "stale"
 
 
-def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful() -> None:
+def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful(monkeypatch) -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
+
+    monkeypatch.setenv("FITCV_LANGGRAPH_PROVIDER", "openai")
+    monkeypatch.delenv("FITCV_LANGGRAPH_MODEL", raising=False)
+    monkeypatch.delenv("FITCV_LANGGRAPH_OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("FITCV_LANGGRAPH_WIRE_API", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     run = PipelineRun(
         run_id="run-triage-provider-fail",
@@ -6755,8 +6874,7 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
          patch("fitcv_cp.app.update_run_effective_settings"), \
-         patch("fitcv_cp.app.append_event"), \
-         patch.dict("os.environ", {"FITCV_LANGGRAPH_PROVIDER": "openai"}, clear=False):
+         patch("fitcv_cp.app.append_event"):
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/runs/run-triage-provider-fail/synonym-proposals/triage-refresh",
             data={"acted_by": "operator@example.com"},
@@ -6795,7 +6913,7 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_success_persists_re
     )
     persisted_payloads: list[dict[str, object]] = []
 
-    def _capture_update(run_id: str, synonym_proposals_json: str, client, *, project: str, dataset: str):
+    def _capture_update(run_id: str, synonym_proposals_json: str, *_: object, **__: object):
         persisted_payloads.append(json.loads(synonym_proposals_json))
         return {"persistence_status": "persisted", "degradation_reason": ""}
 
@@ -6849,6 +6967,7 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_unchanged_recommendat
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
         run_mode="run_all",
+        effective_settings_json=_effective_settings_with_builtin_synonym_runtime(),
         synonym_proposals_json=(
             '{"run_id":"run-triage-reuse","proposals":['
             '{"proposal_id":"proposal-a","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9,'
@@ -6869,7 +6988,7 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_unchanged_recommendat
         f'"recommendation_runtime":{{"provider":"fitcv_builtin","model":"synonym_triage_v1","wire_api":"builtin","triage_version":"synonym_triage_v1","triage_fingerprint":"{fp}"}}',
     )
 
-    def _capture_update(run_id: str, synonym_proposals_json: str, client, *, project: str, dataset: str):
+    def _capture_update(run_id: str, synonym_proposals_json: str, *_: object, **__: object):
         payload_holder["payload"] = json.loads(synonym_proposals_json)
         return {"persistence_status": "persisted", "degradation_reason": ""}
 
@@ -6992,7 +7111,7 @@ def test_admin_run_synonym_proposals_triage_refresh_auto_apply_and_promote_when_
     persisted_global: dict[str, str] = {}
     payloads: list[dict[str, Any]] = []
 
-    def _capture_update(run_id: str, synonym_proposals_json: str, client, *, project: str, dataset: str):
+    def _capture_update(run_id: str, synonym_proposals_json: str, *_: object, **__: object):
         payloads.append(json.loads(synonym_proposals_json))
         return {"persistence_status": "persisted", "degradation_reason": ""}
 
@@ -9681,7 +9800,7 @@ def test_grouped_save_audit_identity_encoded_in_updated_by():
     """Each group save uses updated_by='admin:grp:{uuid}'."""
     captured = {}
 
-    def fake_save(keys_values, *, updated_by, client, project, dataset):
+    def fake_save(keys_values, *, updated_by, **_: object):
         captured["updated_by"] = updated_by
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=fake_save), \
@@ -9918,7 +10037,7 @@ def test_post_settings_section_advanced_retrieval_without_metadata_only_input_re
 def test_post_settings_section_agentic_enablement_valid_redirects() -> None:
     captured = {}
 
-    def _capture_save(values, *, updated_by, client, project, dataset):
+    def _capture_save(values, *, updated_by, **_: object):
         captured["values"] = values
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
@@ -9936,7 +10055,7 @@ def test_post_settings_section_agentic_enablement_valid_redirects() -> None:
 def test_post_settings_section_agentic_reuse_valid_redirects() -> None:
     captured = {}
 
-    def _capture_save(values, *, updated_by, client, project, dataset):
+    def _capture_save(values, *, updated_by, **_: object):
         captured["values"] = values
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
@@ -9954,7 +10073,7 @@ def test_post_settings_section_agentic_reuse_valid_redirects() -> None:
 def test_post_settings_section_agentic_advanced_omits_metadata_only_input() -> None:
     captured = {}
 
-    def _capture_save(values, *, updated_by, client, project, dataset):
+    def _capture_save(values, *, updated_by, **_: object):
         captured["values"] = values
 
     form_data = _agentic_advanced_section_form()
@@ -10018,7 +10137,7 @@ def test_post_settings_section_agentic_advanced_typed_equivalent_values_are_not_
 def test_post_settings_section_agentic_automation_does_not_mutate_enablement_keys() -> None:
     captured: dict[str, Any] = {}
 
-    def _capture_save(values, *, updated_by, client, project, dataset):
+    def _capture_save(values, *, updated_by, **_: object):
         captured["values"] = values
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
@@ -10043,7 +10162,7 @@ def test_post_settings_section_agentic_automation_does_not_mutate_enablement_key
 def test_post_settings_section_agentic_automation_prereq_can_be_enabled_explicitly() -> None:
     captured: dict[str, Any] = {}
 
-    def _capture_save(values, *, updated_by, client, project, dataset):
+    def _capture_save(values, *, updated_by, **_: object):
         captured["values"] = values
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
@@ -10136,7 +10255,7 @@ def test_post_settings_section_agentic_advanced_opens_details_on_validation_erro
 def test_post_settings_section_rule_filter_uses_list_values() -> None:
     captured = {}
 
-    def _capture_save(values, *, updated_by, client, project, dataset):
+    def _capture_save(values, *, updated_by, **_: object):
         captured["values"] = values
 
     with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
@@ -12207,7 +12326,7 @@ def test_build_enriched_tab_context_does_not_guess_passed_for_unknown_rows() -> 
             run_id=run.run_id,
             project="p",
             dataset="d",
-            client=None,
+            client = None,
             filter_name="all",
             query="",
             pipeline_outcomes=[],
@@ -12273,7 +12392,7 @@ def test_build_enriched_tab_context_matches_truth_by_raw_job_fingerprint_when_ur
             run_id=run.run_id,
             project="p",
             dataset="d",
-            client=None,
+            client = None,
             filter_name="all",
             query="",
             pipeline_outcomes=[],
@@ -14768,3 +14887,7 @@ def test_normalize_hitl_resolution_status_uses_shared_review_identity_truth() ->
 
     assert _normalize_hitl_resolution_status("approve", None) == normalize_review_resolution_status("approve", None)
     assert _normalize_hitl_resolution_status(None, "rejected") == normalize_review_resolution_status(None, "rejected")
+
+
+
+

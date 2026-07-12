@@ -108,18 +108,14 @@ def build_terminal_run_artifact_payloads(
 def persist_terminal_run_artifact_mirror(
     *,
     run_id: str,
-    client: Any,
-    store_project: str = "local",
-    store_dataset: str = "fitcv",
-    **_compat_kwargs: Any,
 ) -> None:
-    run_record = get_run(run_id, client, project=store_project, dataset=store_dataset)
+    run_record = get_run(run_id)
     if run_record is None:
         logger.warning("[run_id=%s] Skipping artifact mirror write: run not found", run_id)
         return
     if run_record.status not in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}:
         return
-    events = list(get_events(run_id, client, project=store_project, dataset=store_dataset))
+    events = list(get_events(run_id))
     payloads = build_terminal_run_artifact_payloads(run_record=run_record, events=events)
     mirror_dir = Path("artifacts") / f"live_run_{run_id}"
     mirror_dir.mkdir(parents=True, exist_ok=True)

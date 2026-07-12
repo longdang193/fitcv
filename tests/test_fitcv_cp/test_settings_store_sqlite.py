@@ -18,6 +18,14 @@ from fitcv_cp.backend_runtime import BackendRuntime, set_backend_runtime
 from fitcv_cp import settings_store as ss
 
 
+def setup_function(_function) -> None:
+    set_backend_runtime(None)
+
+
+def teardown_function(_function) -> None:
+    set_backend_runtime(None)
+
+
 def test_local_settings_fallback_round_trip_without_bq(tmp_path, monkeypatch):
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
 
@@ -25,12 +33,9 @@ def test_local_settings_fallback_round_trip_without_bq(tmp_path, monkeypatch):
         "pipeline.final_top_n",
         20,
         updated_by="local",
-        client=None,
-        project="local",
-        dataset="local",
     )
 
-    active = ss.load_active_settings(client=None, project="local", dataset="local")
+    active = ss.load_active_settings()
 
     assert active["pipeline.final_top_n"] == 20
 
@@ -41,12 +46,9 @@ def test_local_settings_group_save_without_bq(tmp_path, monkeypatch):
     ss.save_settings_group(
         {"pipeline.vector_search_top_n": 25, "pipeline.final_top_n": 10},
         updated_by="local",
-        client=None,
-        project="local",
-        dataset="local",
     )
 
-    active = ss.load_active_settings(client=None, project="local", dataset="local")
+    active = ss.load_active_settings()
 
     assert active["pipeline.vector_search_top_n"] == 25
     assert active["pipeline.final_top_n"] == 10
@@ -60,12 +62,9 @@ def test_local_settings_persist_across_module_reload(tmp_path, monkeypatch):
         "cv.agentic_late_stage.enabled",
         True,
         updated_by="local",
-        client=None,
-        project="local",
-        dataset="local",
     )
 
-    active = ss.load_active_settings(client=None, project="local", dataset="local")
+    active = ss.load_active_settings()
 
     assert active["cv.agentic_late_stage.enabled"] is True
 
@@ -77,7 +76,7 @@ def test_local_settings_load_recovers_from_disk_io_error(tmp_path, monkeypatch):
     (tmp_path / "settings.sqlite3-wal").write_bytes(b"wal")
     (tmp_path / "settings.sqlite3-shm").write_bytes(b"shm")
 
-    active = ss.load_active_settings(client=None, project="local", dataset="local")
+    active = ss.load_active_settings()
 
     assert active == {}
     backup_dirs = list(tmp_path.glob("settings.corrupt.*"))
@@ -89,12 +88,10 @@ def test_local_settings_load_recovers_from_disk_io_error(tmp_path, monkeypatch):
 
 
 def test_local_settings_path_prefers_active_backend_runtime_over_env(tmp_path, monkeypatch):
-    monkeypatch.setenv("FITCV_CP_SETTINGS_SQLITE_PATH", str(tmp_path / "env-settings.sqlite3"))
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "env-settings.sqlite3"))
     set_backend_runtime(
         BackendRuntime(
             backend_type="sqlite",
-            project="local",
-            dataset="fitcv",
             sqlite_path=str(tmp_path / "runtime-settings.sqlite3"),
         )
     )
@@ -103,6 +100,24 @@ def test_local_settings_path_prefers_active_backend_runtime_over_env(tmp_path, m
         assert ss._local_sqlite_path() == tmp_path / "runtime-settings.sqlite3"
     finally:
         set_backend_runtime(None)
+
+
+def test_local_settings_path_ignores_retired_settings_env_and_uses_config_fallback(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "config" / "runtime").mkdir(parents=True)
+    (tmp_path / "config" / "runtime" / "control_plane.yaml").write_text(
+        "control_plane:\n"
+        "  data_backend:\n"
+        "    type: sqlite\n"
+        "    sqlite:\n"
+        f"      path: {tmp_path / 'from-config.sqlite3'}\n",
+        encoding="utf-8",
+    )
+    retired_env_key = "FITCV_CP_" + "SETTINGS_SQLITE_PATH"
+    monkeypatch.setenv(retired_env_key, str(tmp_path / "retired.sqlite3"))
+    monkeypatch.delenv("FITCV_CP_SQLITE_PATH", raising=False)
+
+    assert ss._local_sqlite_path() == tmp_path / "from-config.sqlite3"
 
 
 def test_local_settings_save_recovers_after_first_disk_io_error(tmp_path, monkeypatch):
@@ -125,12 +140,9 @@ def test_local_settings_save_recovers_after_first_disk_io_error(tmp_path, monkey
         "pipeline.final_top_n",
         15,
         updated_by="local",
-        client=None,
-        project="local",
-        dataset="local",
     )
 
-    active = ss.load_active_settings(client=None, project="local", dataset="local")
+    active = ss.load_active_settings()
     assert active["pipeline.final_top_n"] == 15
 
 

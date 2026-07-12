@@ -18,12 +18,21 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+from fitcv_cp.backend_runtime import set_backend_runtime
 from fitcv_cp.sqlite_store import append_event, get_run, insert_run
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.reconciler import reconcile_abandoned_attempts
 from fitcv_cp.retry_settings import RetrySettings
 from fitcv_cp.run_artifact_contracts import run_attempt_payload_v1
 from fitcv_cp.store import ControlPlaneStore
+
+
+def setup_function(_function) -> None:
+    set_backend_runtime(None)
+
+
+def teardown_function(_function) -> None:
+    set_backend_runtime(None)
 
 
 def test_reconciler_sqlite_requeues_and_marks_queued() -> None:
@@ -41,7 +50,7 @@ def test_reconciler_sqlite_requeues_and_marks_queued() -> None:
                 config_path=".env.yaml",
                 created_at=now,
             )
-            insert_run(run, client=None, project="local", dataset="local")
+            insert_run(run, )
 
             payload = run_attempt_payload_v1(
                 attempt_id="a1",
@@ -58,12 +67,12 @@ def test_reconciler_sqlite_requeues_and_marks_queued() -> None:
                     created_at=now - datetime.timedelta(seconds=10),
                     payload_json=json.dumps(payload, ensure_ascii=False),
                 ),
-                client=None,
-                project="local",
-                dataset="local",
+                client = None,
+                project = "local",
+                dataset = "local",
             )
 
-            store = ControlPlaneStore(client=None, project="local", dataset="local")
+            store = ControlPlaneStore()
             with patch(
                 "fitcv_cp.reconciler.load_retry_settings",
                 return_value=RetrySettings(
@@ -80,8 +89,10 @@ def test_reconciler_sqlite_requeues_and_marks_queued() -> None:
 
             assert summary.requeued_attempts == 1
 
-            refreshed = get_run("r1", client=None, project="local", dataset="local")
+            refreshed = get_run("r1", )
             assert refreshed is not None
             assert refreshed.status == RunStatus.QUEUED
+
+
 
 

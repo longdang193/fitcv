@@ -107,17 +107,7 @@ class ControlPlaneStore:
 
     def _call(self, override_fn: Any | None, default_fn: Any, *args: Any, **kwargs: Any) -> Any:
         fn = self._resolve_fn(override_fn, default_fn)
-        try:
-            return fn(*args, **kwargs)
-        except TypeError as exc:
-            message = str(exc)
-            if not any(token in message for token in ("client", "project", "dataset")):
-                raise
-            compat_kwargs = dict(kwargs)
-            compat_kwargs.setdefault("client", None)
-            compat_kwargs.setdefault("project", "local")
-            compat_kwargs.setdefault("dataset", "fitcv")
-            return fn(*args, **compat_kwargs)
+        return fn(*args, **kwargs)
 
     def _call_list(self, override_fn: Any | None, default_fn: Any, *args: Any, **kwargs: Any) -> list[Any]:
         value = self._call(override_fn, default_fn, *args, **kwargs)

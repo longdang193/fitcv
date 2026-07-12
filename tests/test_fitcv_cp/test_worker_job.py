@@ -201,7 +201,7 @@ def test_worker_persists_terminal_artifact_mirror_for_succeeded_run(tmp_path: Pa
     ]
     def _run_once() -> None:
         with patch("fitcv_cp.worker_job.run_pipeline", return_value={"run_id": "r-mirror-1", "total_jobs": 1, "passed_filter": 1, "ranked": 1, "cvs_generated": 1}), \
-            patch("fitcv_cp.worker_job.resolve_backend_runtime", return_value=BackendRuntime(backend_type="sqlite", project="local", dataset="fitcv", sqlite_path="data/fitcv_cp.sqlite3")), \
+            patch("fitcv_cp.worker_job.resolve_backend_runtime", return_value=BackendRuntime(backend_type="sqlite",  sqlite_path="data/fitcv_cp.sqlite3")), \
             patch("fitcv_cp.worker_job._get_bq", return_value=client), \
             patch("fitcv_cp.worker_job.get_run", return_value=run_record), \
             patch("fitcv_cp.run_artifact_mirror.get_run", return_value=run_record), \
@@ -237,8 +237,8 @@ def test_worker_uses_local_runtime_without_remote_client_bootstrap():
         "fitcv_cp.worker_job.resolve_backend_runtime",
         return_value=BackendRuntime(
             backend_type="sqlite",
-            project="local",
-            dataset="fitcv",
+            project = "local",
+            dataset = "fitcv",
             sqlite_path="data/fitcv_cp.sqlite3",
         ),
     ), patch(
@@ -301,8 +301,8 @@ def test_worker_results_export_keeps_ai_plane_payload_equivalent_across_backends
             "fitcv_cp.worker_job.resolve_backend_runtime",
             return_value=BackendRuntime(
                 backend_type=backend_type,
-                project="local",
-                dataset="fitcv",
+                project = "local",
+                dataset = "fitcv",
                 sqlite_path="data/fitcv_cp.sqlite3" if backend_type == "sqlite" else None,
             ),
         ), patch("fitcv_cp.worker_job._get_bq", return_value=client), patch(
@@ -2834,6 +2834,8 @@ def test_build_stage_transition_artifacts_payload_dict_has_required_shape() -> N
     assert payload["artifact_schema_version"] == STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION
     assert payload["created_at"] == finished_at.isoformat()
     assert isinstance(payload["artifacts"], dict)
+
+
 
 
 

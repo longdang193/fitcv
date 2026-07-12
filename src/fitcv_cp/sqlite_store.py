@@ -26,11 +26,11 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from fitcv.persistence import get_local_sqlite_path
 from fitcv_cp.backend_runtime import get_backend_runtime
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 
 logger = logging.getLogger(__name__)
-_LOCAL_RUNS: dict[str, PipelineRun] = {}
 
 PersistenceResult = dict[str, str]
 
@@ -54,7 +54,7 @@ def _local_sqlite_path() -> str:
     runtime = get_backend_runtime()
     if runtime is not None and str(runtime.sqlite_path or "").strip():
         return str(runtime.sqlite_path).strip()
-    return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+    return get_local_sqlite_path()
 
 def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:
     def _safe_pragma(sql: str, label: str) -> None:
@@ -457,10 +457,7 @@ def _load_local_pipeline_run(run_id: str) -> Optional[PipelineRun]:
         ).fetchone()
     if not row:
         return None
-    run = _pipeline_run_from_json(str(row[0] or ""))
-    if run is not None and run.run_id:
-        _LOCAL_RUNS[run.run_id] = dataclasses.replace(run)
-    return run
+    return _pipeline_run_from_json(str(row[0] or ""))
 
 def _list_local_pipeline_runs() -> list[PipelineRun]:
     db_path = Path(_local_sqlite_path())
@@ -475,7 +472,6 @@ def _list_local_pipeline_runs() -> list[PipelineRun]:
     for row in rows:
         run = _pipeline_run_from_json(str(row[0] or ""))
         if run is not None and run.run_id:
-            _LOCAL_RUNS[run.run_id] = dataclasses.replace(run)
             runs.append(run)
     return runs
 
@@ -489,7 +485,6 @@ def _local_get_run(run_id: str) -> Optional[PipelineRun]:
     return dataclasses.replace(run) if run is not None else None
 
 def _local_save_run(run: PipelineRun) -> None:
-    _LOCAL_RUNS[run.run_id] = dataclasses.replace(run)
     _upsert_local_pipeline_run(run)
 
 
@@ -577,15 +572,13 @@ def insert_run(run: PipelineRun, *_compat_args: Any, **_compat_kwargs: Any) -> N
 def update_run_status(
     run_id: str,
     status: RunStatus,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
     started_at: Optional[datetime.datetime] = None,
     finished_at: Optional[datetime.datetime] = None,
     summary: Optional[dict[str, Any]] = None,
     error_message: Optional[str] = None,
     error_stage: Optional[str] = None,
+    **_compat_kwargs: Any,
 ) -> PersistenceResult:
     def _mutate(existing: PipelineRun) -> PipelineRun:
         updated = dataclasses.replace(existing, status=status)
@@ -620,15 +613,13 @@ def update_run_status(
 
 def update_run_checkpoint(
     run_id: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
     checkpoint_status: Optional[str] = None,
     next_stage: Optional[str] = None,
     last_completed_stage: Optional[str] = None,
     completed_stages: Optional[list[str]] = None,
     checkpoint_payload_json: Optional[str] = None,
+    **_compat_kwargs: Any,
 ) -> PersistenceResult:
     existing = _local_get_run(run_id)
     if existing is None:
@@ -646,12 +637,10 @@ def update_run_checkpoint(
 
 def update_run_progress(
     run_id: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
     last_completed_stage: Optional[str] = None,
     completed_stages: Optional[list[str]] = None,
+    **_compat_kwargs: Any,
 ) -> PersistenceResult:
     """Persist shared stage progress without implying resumability."""
     existing = _local_get_run(run_id)
@@ -716,13 +705,11 @@ def get_run(run_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> Optional[
 
 
 def list_runs(
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
     limit: int = 50,
     include_archived: bool = False,
     archived_only: bool = False,
+    **_compat_kwargs: Any,
 ) -> list[PipelineRun]:
     """List pipeline runs with archive visibility control.
 
@@ -741,10 +728,8 @@ def list_runs(
     return [dataclasses.replace(r) for r in runs[: int(limit)]]
 
 def get_pipeline_runs_schema_status(
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> dict[str, Any]:
     """Report whether orchestration-binding columns exist on pipeline_runs."""
     return {
@@ -757,10 +742,8 @@ def get_pipeline_runs_schema_status(
 def update_run_queue_job_id(
     run_id: str,
     queue_job_id: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> PersistenceResult:
     """Persist the RQ job id onto the run row immediately after enqueue."""
     existing = _local_get_run(run_id)
@@ -775,9 +758,7 @@ def update_run_orchestration_binding(
     queue_job_id: str | None,
     orchestration_backend: str | None,
     orchestration_run_id: str | None,
-    client: Any,
-    project: str,
-    dataset: str,
+    **_compat_kwargs: Any,
 ) -> PersistenceResult:
     existing = _local_get_run(run_id)
     if existing is None:
@@ -794,10 +775,8 @@ def update_run_orchestration_binding(
 def update_run_results_export(
     run_id: str,
     results_export_json: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> PersistenceResult:
     """Persist the immutable run-results export snapshot for a completed run."""
     return _update_pipeline_run_json_field_with_result(
@@ -813,10 +792,8 @@ def update_run_results_export(
 def update_run_cv_generation_debug(
     run_id: str,
     cv_generation_debug_json: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> PersistenceResult:
     """Persist the immutable run-scoped CV-generation debug snapshot."""
     return _update_pipeline_run_json_field_with_result(
@@ -832,10 +809,8 @@ def update_run_cv_generation_debug(
 def update_run_stage_transition_artifacts(
     run_id: str,
     stage_transition_artifacts_json: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> PersistenceResult:
     """Persist the immutable run-scoped stage transition artifacts snapshot."""
     return _update_pipeline_run_json_field_with_result(
@@ -851,10 +826,8 @@ def update_run_stage_transition_artifacts(
 def update_run_settings_used(
     run_id: str,
     settings_used_json: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> PersistenceResult:
     """Persist the immutable run-scoped settings-used snapshot."""
     return _update_pipeline_run_json_field_with_result(
@@ -870,10 +843,8 @@ def update_run_settings_used(
 def update_run_mapping_suggestions(
     run_id: str,
     mapping_suggestions_json: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> PersistenceResult:
     """Persist the immutable run-scoped mapping suggestions snapshot."""
     return _update_pipeline_run_json_field_with_result(
@@ -889,10 +860,8 @@ def update_run_mapping_suggestions(
 def update_run_synonym_proposals(
     run_id: str,
     synonym_proposals_json: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> dict[str, str]:
     """Persist the mutable run-scoped synonym proposal review snapshot."""
     return _update_pipeline_run_json_field_with_result(
@@ -908,10 +877,8 @@ def update_run_synonym_proposals(
 def update_run_effective_settings(
     run_id: str,
     effective_settings_json: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> PersistenceResult:
     """Persist the mutable run-scoped effective settings snapshot."""
     return _update_pipeline_run_json_field_with_result(
@@ -928,10 +895,8 @@ def request_run_cancel(
     run_id: str,
     requested_by: str,
     new_status: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> bool:
     """Set cancel_requested_at/by and update status (running→cancelling, queued→cancelled)."""
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -951,10 +916,8 @@ def request_run_cancel(
 def archive_run(
     run_id: str,
     archived_by: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> None:
     """Persist archive state on the run record (non-destructive)."""
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -972,10 +935,8 @@ def archive_run(
 
 def unarchive_run(
     run_id: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> None:
     """Clear archive state, returning run to the active list."""
     existing = _local_get_run(run_id)
@@ -992,7 +953,6 @@ def unarchive_run(
 
 
 def _delete_local_pipeline_run(run_id: str) -> None:
-    _LOCAL_RUNS.pop(run_id, None)
     db_path = Path(_local_sqlite_path())
     if db_path.exists():
         with _sqlite_connection(db_path) as conn:
@@ -1014,11 +974,9 @@ def _delete_run_artifact_mirror(run_id: str) -> None:
 
 def delete_archived_runs(
     older_than_days: int | str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
     run_ids: list[str] | None = None,
+    **_compat_kwargs: Any,
 ) -> dict[str, Any]:
     now = datetime.datetime.now(datetime.timezone.utc)
     delete_all = isinstance(older_than_days, str) and older_than_days == "all"
@@ -1198,11 +1156,9 @@ def list_cvs_for_run(run_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> 
 
 def lookup_reusable_cv_versions(
     fingerprints: list[str],
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
     limit: int = 500,
+    **_compat_kwargs: Any,
 ) -> dict[str, dict[str, Any]]:
     normalized = [str(item or "").strip() for item in fingerprints if str(item or "").strip()]
     if not normalized:
@@ -1261,10 +1217,8 @@ def get_cv_markdown(version_id: str, *_compat_args: Any, **_compat_kwargs: Any) 
 
 def list_run_structured_jobs(
     run_id: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> list[dict[str, Any]]:
     """Return run-scoped enriched job rows for the given run_id.
 
@@ -1298,10 +1252,8 @@ def list_run_structured_jobs(
 
 def list_filter_results_for_run(
     run_id: str,
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> list[dict[str, Any]]:
     """Return run-scoped filter results for a given run_id.
 
@@ -1393,10 +1345,8 @@ def insert_cv_version_row(row: dict[str, Any], *_compat_args: Any, **_compat_kwa
 
 def insert_application_tracker_row(
     row: dict[str, Any],
-    client: Any,
-    *,
-    project: str,
-    dataset: str,
+    *_compat_args: Any,
+    **_compat_kwargs: Any,
 ) -> list[Any]:
     db_path = Path(_local_sqlite_path())
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1435,3 +1385,4 @@ def insert_application_tracker_row(
         )
         conn.commit()
     return []
+

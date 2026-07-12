@@ -13,7 +13,6 @@ from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 @pytest.fixture(autouse=True)
 def _sqlite_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv_cp.sqlite3"))
-    sqlite_store._LOCAL_RUNS.clear()
 
 
 def _make_run(run_id: str = "run-1") -> PipelineRun:
@@ -31,8 +30,8 @@ def _make_run(run_id: str = "run-1") -> PipelineRun:
 def test_insert_run_round_trips_from_sqlite() -> None:
     run = _make_run()
 
-    sqlite_store.insert_run(run, None, project="local", dataset="fitcv")
-    stored = sqlite_store.get_run(run.run_id, None, project="local", dataset="fitcv")
+    sqlite_store.insert_run(run)
+    stored = sqlite_store.get_run(run.run_id)
 
     assert stored is not None
     assert stored.run_id == run.run_id
@@ -41,14 +40,14 @@ def test_insert_run_round_trips_from_sqlite() -> None:
 
 def test_update_status_and_events_persist() -> None:
     run = _make_run("run-events")
-    sqlite_store.insert_run(run, None, project="local", dataset="fitcv")
+    sqlite_store.insert_run(run)
 
     result = sqlite_store.update_run_status(
         run.run_id,
         RunStatus.RUNNING,
         None,
-        project="local",
-        dataset="fitcv",
+        project = "local",
+        dataset = "fitcv",
         started_at=datetime.datetime.now(datetime.timezone.utc),
     )
     event = RunEvent(
@@ -60,10 +59,10 @@ def test_update_status_and_events_persist() -> None:
         created_at=datetime.datetime.now(datetime.timezone.utc),
         payload_json=json.dumps({"attempt": 1}),
     )
-    sqlite_store.append_event(event, None, project="local", dataset="fitcv")
+    sqlite_store.append_event(event)
 
-    stored = sqlite_store.get_run(run.run_id, None, project="local", dataset="fitcv")
-    events = sqlite_store.get_events(run.run_id, None, project="local", dataset="fitcv")
+    stored = sqlite_store.get_run(run.run_id)
+    events = sqlite_store.get_events(run.run_id)
 
     assert result["persistence_status"] == "persisted"
     assert stored is not None
@@ -74,25 +73,25 @@ def test_update_status_and_events_persist() -> None:
 
 def test_run_json_updates_and_schema_status_use_sqlite_only_terms() -> None:
     run = _make_run("run-json")
-    sqlite_store.insert_run(run, None, project="local", dataset="fitcv")
+    sqlite_store.insert_run(run)
 
     sqlite_store.update_run_results_export(
         run.run_id,
         json.dumps({"jobs": [{"job_url": "https://example.com/1"}]}),
         None,
-        project="local",
-        dataset="fitcv",
+        project = "local",
+        dataset = "fitcv",
     )
     sqlite_store.update_run_stage_transition_artifacts(
         run.run_id,
         json.dumps({"artifacts": {"stages": {"enrich": {"status": "completed"}}}}),
         None,
-        project="local",
-        dataset="fitcv",
+        project = "local",
+        dataset = "fitcv",
     )
 
-    stored = sqlite_store.get_run(run.run_id, None, project="local", dataset="fitcv")
-    schema_status = sqlite_store.get_pipeline_runs_schema_status(None, project="local", dataset="fitcv")
+    stored = sqlite_store.get_run(run.run_id)
+    schema_status = sqlite_store.get_pipeline_runs_schema_status(None, project = "local", dataset = "fitcv")
 
     assert stored is not None
     assert json.loads(str(stored.results_export_json))["jobs"][0]["job_url"] == "https://example.com/1"
@@ -129,12 +128,28 @@ def test_list_filter_results_for_run_decodes_marks_and_reasons() -> None:
         )
         conn.commit()
 
-    rows = sqlite_store.list_filter_results_for_run("run-filter", None, project="local", dataset="fitcv")
+    rows = sqlite_store.list_filter_results_for_run("run-filter")
 
     assert len(rows) == 1
     assert rows[0]["passed"] is True
     assert rows[0]["reasons"] == ["matched_required_skills"]
     assert rows[0]["marks"] == [{"code": "required_skill"}]
+
+
+def test_local_sqlite_path_uses_control_plane_config_when_env_missing(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("FITCV_CP_SQLITE_PATH", raising=False)
+    (tmp_path / "config" / "runtime").mkdir(parents=True)
+    (tmp_path / "config" / "runtime" / "control_plane.yaml").write_text(
+        "control_plane:\n"
+        "  data_backend:\n"
+        "    type: sqlite\n"
+        "    sqlite:\n"
+        f"      path: {tmp_path / 'from-config.sqlite3'}\n",
+        encoding="utf-8",
+    )
+
+    assert sqlite_store._local_sqlite_path() == str(tmp_path / "from-config.sqlite3")
 
 
 def test_cv_version_lookup_and_markdown_round_trip() -> None:
@@ -153,11 +168,11 @@ def test_cv_version_lookup_and_markdown_round_trip() -> None:
         "cv_generation_reuse_status": "new",
     }
 
-    sqlite_store.insert_cv_version_row(row, None, project="local", dataset="fitcv")
+    sqlite_store.insert_cv_version_row(row)
 
-    rows = sqlite_store.list_cvs_for_run("run-cv", None, project="local", dataset="fitcv")
-    indexed = sqlite_store.lookup_reusable_cv_versions(["fp-1"], None, project="local", dataset="fitcv", limit=10)
-    markdown = sqlite_store.get_cv_markdown("ver-1", None, project="local", dataset="fitcv")
+    rows = sqlite_store.list_cvs_for_run("run-cv")
+    indexed = sqlite_store.lookup_reusable_cv_versions(["fp-1"], limit=10)
+    markdown = sqlite_store.get_cv_markdown("ver-1")
 
     assert len(rows) == 1
     assert rows[0]["version_id"] == "ver-1"
@@ -176,11 +191,14 @@ def test_delete_archived_runs_prunes_old_rows_only() -> None:
     recent_run.archived_by = "admin"
 
     for run in (old_run, recent_run, active_run):
-        sqlite_store.insert_run(run, None, project="local", dataset="fitcv")
+        sqlite_store.insert_run(run)
 
-    summary = sqlite_store.delete_archived_runs(older_than_days=5, client=None, project="local", dataset="fitcv")
+    summary = sqlite_store.delete_archived_runs(older_than_days=5)
 
     assert summary["deleted_count"] == 1
-    assert sqlite_store.get_run("run-old", None, project="local", dataset="fitcv") is None
-    assert sqlite_store.get_run("run-recent", None, project="local", dataset="fitcv") is not None
-    assert sqlite_store.get_run("run-active", None, project="local", dataset="fitcv") is not None
+    assert sqlite_store.get_run("run-old") is None
+    assert sqlite_store.get_run("run-recent") is not None
+    assert sqlite_store.get_run("run-active") is not None
+
+
+

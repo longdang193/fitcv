@@ -18,9 +18,13 @@ targets:
   - src/fitcv/agentic_cv_generation.py
   - src/fitcv_cp/models.py
   - src/fitcv_cp/backend_runtime.py
+  - src/fitcv_cp/data_plane.py
   - src/fitcv_cp/main.py
+  - src/fitcv_cp/run_artifact_mirror.py
+  - src/fitcv_cp/runtime_contracts.py
   - src/fitcv_cp/store.py
   - src/fitcv_cp/sqlite_store.py
+  - src/fitcv_cp/worker_job.py
   - src/fitcv_cp/settings_schema.py
   - src/fitcv_cp/settings_store.py
   - src/fitcv_cp/app.py
@@ -40,11 +44,15 @@ targets:
   - tests/test_config.py
   - tests/test_pipeline.py
   - tests/test_pipeline_stage_resume_parity.py
+  - tests/test_runtime_routing.py
   - tests/test_fitcv/
   - tests/test_fitcv_cp/
+  - tests/test_fitcv_cp/test_control_plane_config.py
+  - tests/test_fitcv_cp/test_sqlite_store.py
   - tests/test_fitcv_cp/test_settings_schema.py
   - tests/test_fitcv_cp/test_settings_store.py
   - tests/test_fitcv_cp/test_settings_store_sqlite.py
+  - tests/test_fitcv_cp/test_worker_job.py
 related_features: []
 related_stages: []
 ---

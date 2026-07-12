@@ -76,7 +76,7 @@ def test_commit_synonym_global_promotion_routes_by_field_and_skips_conflict_fiel
             selected_ids=["p-skill", "p-domain", "p-role"],
             acted_by="tester",
             note="test",
-            client=None,
+            client = None,
             project="proj",
             dataset="ds",
         )
@@ -87,4 +87,5 @@ def test_commit_synonym_global_promotion_routes_by_field_and_skips_conflict_fiel
     assert result["applied"] == 2
     assert result["failed"] >= 1
     assert "domain" in result["conflict_fields"]
+
 

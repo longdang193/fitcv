@@ -142,9 +142,6 @@ def lookup_reusable_cv_versions(
 
     return cp_sqlite_store.lookup_reusable_cv_versions(
         normalized,
-        client=None,
-        project="",
-        dataset="",
         limit=limit,
     )
 

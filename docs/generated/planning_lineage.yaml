@@ -478,12 +478,14 @@ workstreams:
     - docs/superpowers/specs/2026-07-12-09-34-fitcv-ssot-symmetry-phase-1-legacy-surface-and-backend-trim-spec.md
     - docs/superpowers/specs/2026-07-12-13-10-fitcv-ssot-symmetry-phase-2-stage-lifecycle-late-stage-consolidation-spec.md
     - docs/superpowers/specs/2026-07-12-18-35-fitcv-ssot-symmetry-phase-3-settings-schema-native-form-boundary-spec.md
+    - docs/superpowers/specs/2026-07-12-20-20-fitcv-ssot-symmetry-phase-4-routing-runtime-envelope-persistence-truth-spec.md
     plans:
     - docs/superpowers/plans/2026-05-24-10-05-fitcv-cp-app-ssot-symmetry-refactor-plan.md
     - docs/superpowers/plans/2026-05-24-14-25-fitcv-cp-worker-job-ssot-symmetry-refactor-plan.md
     - docs/superpowers/plans/2026-05-27-16-02-fitcv-run-retry-orchestration-plan.md
     - docs/superpowers/plans/2026-06-26-11-35-fitcv-cp-ssot-immediate-patch-plan.md
     - docs/superpowers/plans/2026-07-12-09-41-fitcv-ssot-symmetry-phase-1-legacy-surface-and-backend-trim-plan.md
+    - docs/superpowers/plans/2026-07-12-13-42-fitcv-ssot-symmetry-phase-4-routing-runtime-envelope-persistence-truth-plan.md
     - docs/superpowers/plans/2026-07-12-14-20-fitcv-ssot-symmetry-phase-2-stage-lifecycle-late-stage-consolidation-plan.md
     - docs/superpowers/plans/2026-07-12-19-05-fitcv-ssot-symmetry-phase-3-settings-schema-native-form-boundary-plan.md
     derived_completion: completed

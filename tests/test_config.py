@@ -34,6 +34,7 @@ from fitcv.config import (
     resolve_model_routing_part,
     resolve_data_backend,
 )
+from fitcv.persistence import get_local_sqlite_path
 
 
 def test_get_cv_acceptance_policy_defaults_when_missing() -> None:
@@ -152,6 +153,25 @@ def test_load_config_ignores_gcp_project_env_var(
     assert "gcp_project" not in cfg
     assert "bigquery_dataset" not in cfg
     assert "service_account_key" not in cfg
+
+
+def test_get_local_sqlite_path_uses_control_plane_sqlite_path_when_env_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "config" / "runtime").mkdir(parents=True)
+    (tmp_path / "config" / "runtime" / "control_plane.yaml").write_text(
+        "control_plane:\n"
+        "  data_backend:\n"
+        "    type: sqlite\n"
+        "    sqlite:\n"
+        f"      path: {tmp_path / 'from-config.sqlite3'}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("FITCV_CP_SQLITE_PATH", raising=False)
+
+    assert get_local_sqlite_path() == str(tmp_path / "from-config.sqlite3")
 
 
 

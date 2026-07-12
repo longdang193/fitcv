@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from fitcv.runtime_routing import build_langgraph_env_overrides, resolve_cv_generation_runtime_provenance
+from fitcv.runtime_routing import build_langgraph_env_overrides, langgraph_override_drift_fields, resolve_cv_generation_runtime_provenance
 from fitcv.runtime_routing import validate_cv_generation_routing_ready
 
 
@@ -122,3 +122,45 @@ def test_validate_cv_generation_routing_ready_builtin_provider_no_api_key_needed
         },
     ):
         validate_cv_generation_routing_ready({})
+
+def test_langgraph_override_drift_fields_reports_only_conflicting_override_fields() -> None:
+    with patch(
+        "fitcv.runtime_routing.resolve_model_routing_part",
+        return_value={
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "base_url": "http://router.local/v1",
+            "wire_api": "responses",
+        },
+    ), patch.dict(
+        "os.environ",
+        {
+            "FITCV_LANGGRAPH_PROVIDER": "9router",
+            "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.2",
+            "FITCV_LANGGRAPH_OPENAI_BASE_URL": "http://override.local/v1",
+            "FITCV_LANGGRAPH_WIRE_API": "responses",
+        },
+        clear=False,
+    ):
+        assert langgraph_override_drift_fields() == ["provider", "base_url"]
+
+def test_langgraph_override_drift_fields_ignores_empty_override_env() -> None:
+    with patch(
+        "fitcv.runtime_routing.resolve_model_routing_part",
+        return_value={
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "base_url": "http://router.local/v1",
+            "wire_api": "responses",
+        },
+    ), patch.dict(
+        "os.environ",
+        {
+            "FITCV_LANGGRAPH_PROVIDER": "",
+            "FITCV_LANGGRAPH_MODEL": "",
+            "FITCV_LANGGRAPH_OPENAI_BASE_URL": "",
+            "FITCV_LANGGRAPH_WIRE_API": "",
+        },
+        clear=False,
+    ):
+        assert langgraph_override_drift_fields() == []

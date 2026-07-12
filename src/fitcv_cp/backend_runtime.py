@@ -15,10 +15,10 @@ lifecycle:
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 
 from fitcv.config import load_control_plane_config
+from fitcv.persistence import get_local_sqlite_path
 
 _ACTIVE_BACKEND_RUNTIME: BackendRuntime | None = None
 
@@ -55,13 +55,9 @@ def resolve_backend_runtime() -> BackendRuntime:
     """Resolve SQLite-only runtime connection settings."""
     cfg = load_control_plane_config()
     data_backend = dict(cfg.get("data_backend") or {})
-    sqlite_cfg = dict(data_backend.get("sqlite") or {})
-    sqlite_path = str(
-        os.environ.get("FITCV_CP_SQLITE_PATH")
-        or sqlite_cfg.get("path")
-        or "data/fitcv_cp.sqlite3"
-    ).strip() or "data/fitcv_cp.sqlite3"
+    if str(data_backend.get("type") or "sqlite").strip().lower() != "sqlite":
+        raise ValueError("control_plane.data_backend.type must resolve to sqlite")
     return BackendRuntime(
         backend_type="sqlite",
-        sqlite_path=sqlite_path,
+        sqlite_path=get_local_sqlite_path(),
     )

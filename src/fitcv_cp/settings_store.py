@@ -22,6 +22,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from fitcv.persistence import get_local_sqlite_path
 from fitcv_cp.backend_runtime import get_backend_runtime
 from fitcv_cp.settings_schema import canonical_settings_key, coerce_value, editable_settings_keys
 
@@ -33,11 +34,7 @@ def _local_sqlite_path() -> Path:
     if runtime is not None and str(runtime.sqlite_path or "").strip():
         raw = str(runtime.sqlite_path).strip()
     else:
-        raw = str(
-            os.environ.get("FITCV_CP_SETTINGS_SQLITE_PATH")
-            or os.environ.get("FITCV_CP_SQLITE_PATH")
-            or "data/fitcv_cp.sqlite3"
-        ).strip() or "data/fitcv_cp.sqlite3"
+        raw = get_local_sqlite_path()
     return Path(raw)
 
 
@@ -482,10 +479,6 @@ def save_setting(
     value: Any,
     *,
     updated_by: str,
-    client: Any,
-    store_project: str = "local",
-    store_dataset: str = "fitcv",
-    **_compat_kwargs: Any,
 ) -> None:
     """Append a new row for this key. Current value = latest row per key."""
     canonical_key = canonical_settings_key(key)
@@ -503,10 +496,6 @@ def save_settings_group(
     keys_values: dict[str, Any],
     *,
     updated_by: str,
-    client: Any,
-    store_project: str = "local",
-    store_dataset: str = "fitcv",
-    **_compat_kwargs: Any,
 ) -> None:
     """Write all keys in the group with a shared updated_at timestamp.
 
@@ -534,7 +523,7 @@ def save_settings_group(
     _save_local_settings_rows(rows)
 
 
-def load_active_settings(*, client: Any, store_project: str = "local", store_dataset: str = "fitcv", **_compat_kwargs: Any) -> dict[str, Any]:
+def load_active_settings() -> dict[str, Any]:
     """Return the current active settings dict (latest row per key, coerced to Python types).
 
     Returns an empty dict if no settings have been saved yet.
@@ -570,9 +559,9 @@ def load_active_settings(*, client: Any, store_project: str = "local", store_dat
     return result
 
 
-def load_active_editable_settings(*, client: Any, store_project: str = "local", store_dataset: str = "fitcv", **_compat_kwargs: Any) -> dict[str, Any]:
+def load_active_editable_settings() -> dict[str, Any]:
     """Return only schema-backed editable settings from the active settings snapshot."""
-    active_settings = load_active_settings(client=client, project=store_project, dataset=store_dataset)
+    active_settings = load_active_settings()
     editable_keys = editable_settings_keys()
     return {
         key: value

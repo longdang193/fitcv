@@ -73,6 +73,30 @@ def build_langgraph_env_overrides() -> dict[str, str]:
     return overrides
 
 
+def langgraph_override_drift_fields(*, part_name: str = "cv_generation_structured_write") -> list[str]:
+    routed = resolve_model_routing_part(part_name)
+    env_provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER") or "").strip().lower()
+    env_model = str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
+    env_base_url = str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL") or "").strip()
+    env_wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API") or "").strip()
+    if not any((env_provider, env_model, env_base_url, env_wire_api)):
+        return []
+
+    routed_provider = str(routed.get("provider") or "").strip().lower()
+    routed_model = str(routed.get("model") or "").strip()
+    routed_base_url = str(routed.get("base_url") or "").strip()
+    routed_wire_api = str(routed.get("wire_api") or "").strip()
+    drift_fields: list[str] = []
+    if env_provider and env_provider != routed_provider:
+        drift_fields.append("provider")
+    if env_model and env_model != routed_model:
+        drift_fields.append("model")
+    if env_base_url and env_base_url != routed_base_url:
+        drift_fields.append("base_url")
+    if env_wire_api and env_wire_api != routed_wire_api:
+        drift_fields.append("wire_api")
+    return drift_fields
+
 def resolve_openai_compatible_api_key() -> str:
     return (
         str(os.environ.get("OPENAI_API_KEY") or "").strip()
