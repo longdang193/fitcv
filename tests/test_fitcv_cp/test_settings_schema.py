@@ -18,6 +18,7 @@ import pytest
 import yaml
 from fitcv_cp.settings_schema import (
     AGENTIC_SETTINGS_SECTIONS,
+    build_settings_page_spec,
     DECISION_STATUS_ADVANCED,
     DECISION_STATUS_CONFIGURED,
     DECISION_STATUS_NEEDS_REVIEW,
@@ -116,6 +117,7 @@ def test_settings_ia_contract_for_key_contains_required_fields() -> None:
         "decision_status",
         "reason_codes",
         "domain",
+        "decision_domain",
         "stage",
         "workflow_stages",
         "control_surface",
@@ -724,6 +726,62 @@ def test_runtime_overlay_defaults_returns_independent_list_defaults_copy() -> No
         "location_type_excluded",
         "contract_type_excluded",
         "experience_level_excluded",
+    ]
+
+
+def test_runtime_overlay_exposes_declared_and_baseline_defaults_separately() -> None:
+    overlaid = settings_schema_module.settings_schema_with_runtime_defaults(
+        {
+            "pipeline": {
+                "vector_search_top_n": 77,
+            }
+        }
+    )
+    overlay_by_key = {entry["key"]: entry for entry in overlaid}
+    entry = overlay_by_key["pipeline.vector_search_top_n"]
+
+    assert entry["declared_default"] == 50
+    assert entry["baseline_default"] == 77
+    assert entry["default"] == 77
+
+
+def test_build_settings_page_spec_exposes_canonical_sections_and_filters() -> None:
+    page_spec = build_settings_page_spec()
+
+    assert [section["id"] for section in page_spec["sections"]] == [
+        "selection",
+        "agentic",
+        "ranking",
+        "cv-output",
+        "run-safety",
+    ]
+    assert [tab["id"] for tab in page_spec["decision_tabs"]] == [
+        DECISION_STATUS_NEEDS_REVIEW,
+        DECISION_STATUS_RECOMMENDED,
+        DECISION_STATUS_CONFIGURED,
+        DECISION_STATUS_ADVANCED,
+        "all",
+    ]
+    assert [item["id"] for item in page_spec["decision_domain_filters"]] == [
+        "domain_taxonomy",
+        "extraction_rules",
+        "synonym_review",
+        "output_artifacts",
+    ]
+    assert [item["id"] for item in page_spec["stage_scopes"]] == [
+        "normalize",
+        "enrich",
+        "rule_filter",
+        "shortlist",
+        "ranking",
+        "cv_analysis",
+        "cv_generation",
+        "cross_stage",
+    ]
+    assert [item["id"] for item in page_spec["control_surface_filters"]] == [
+        "standard_pipeline",
+        "agentic_runtime",
+        "shared",
     ]
 
 

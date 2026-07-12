@@ -118,6 +118,12 @@ Interpretation rules:
 
 The settings page intentionally mixes editable controls with metadata-only rows.
 
+Schema ownership rules:
+
+- `src/fitcv_cp/settings_schema.py` is the SSOT for settings fields, IA metadata, section/filter membership, and page-contract data returned by `build_settings_page_spec()`.
+- `src/fitcv_cp/app.py` adapts that schema-owned contract at render/save boundaries; it must not recreate section lists, decision tabs, or decision-domain filters with app-local literals.
+- runtime schema overlays expose both `declared_default` (schema-authored default) and `baseline_default` (loaded runtime baseline); `default` currently mirrors `baseline_default` for compatibility with existing consumers.
+
 - editable: schema-backed controls with persistence keys and save handlers
 - metadata-only: fixed/runtime-owned values shown for operator context and provenance
 - hidden-deprecated: compatibility keys intentionally removed from operator UI and rejected by settings-save routes (`422`) to prevent false runtime authority signals

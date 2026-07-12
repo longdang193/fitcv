@@ -14635,6 +14635,15 @@ def test_admin_settings_source_normalizes_composition_matrix_shell() -> None:
     assert '"is_collapsible": False if use_standard_shell else bool(card_spec.get("is_collapsible", False))' in source
 
 
+def test_admin_settings_source_uses_schema_owned_page_contract() -> None:
+    source = open("src/fitcv_cp/app.py", encoding="utf-8").read()
+    assert "build_settings_page_spec" in source
+    assert "settings_page_spec = build_settings_page_spec()" in source
+    assert "def _decision_domain_for_entry" not in source
+    assert "decision_tabs = [" not in source
+    assert "decision_domain_filters = [" not in source
+
+
 def test_admin_settings_renders_number_attrs_from_schema_conventions() -> None:
     resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200

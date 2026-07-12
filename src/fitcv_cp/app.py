@@ -106,8 +106,8 @@ from fitcv_cp.run_artifact_contracts import (
     run_mode_label,
 )
 from fitcv_cp.settings_schema import (
-    AGENTIC_SETTINGS_SECTIONS,
     ALL_GROUP_REGISTRIES,
+    build_settings_page_spec,
     CV_GROUPS,
     DECISION_STATUS_ADVANCED,
     DECISION_STATUS_CONFIGURED,
@@ -115,7 +115,6 @@ from fitcv_cp.settings_schema import (
     DECISION_STATUS_RECOMMENDED,
     RANKING_GROUPS,
     SETTINGS_SCHEMA,
-    SETTINGS_SECTIONS,
     ValidationError,
     apply_settings_to_config,
     coerce_value,
@@ -128,12 +127,10 @@ from fitcv_cp.settings_schema import (
     canonical_settings_key,
     settings_ia_contract_for_key,
     settings_ia_metadata_by_key,
-    settings_keys_for_control_surface,
     settings_keys_for_domain,
-    settings_keys_for_stage,
     settings_native_input_attrs,
-    settings_keys_for_workflow_stage,
     settings_schema_with_runtime_defaults,
+    timing_compatibility_runtime_alias_keys,
     validate_settings,
 )
 
@@ -5931,33 +5928,29 @@ def create_app(
     schema_by_key = {entry["key"]: entry for entry in runtime_settings_schema}
     metadata_only_keys = metadata_only_settings_keys()
     editable_keys = editable_settings_keys()
-    timing_schema_entries: dict[str, dict[str, Any]] = {
-        str(entry.get("key") or ""): entry
-        for entry in runtime_settings_schema
-        if str(entry.get("group") or "") == "timing"
-    }
-    canonical_runtime_throughput_keys: list[str] = [
-        key
-        for key in SETTINGS_SECTIONS["timing"]
-        if key.startswith("stage_runtime.")
-    ]
-    compatibility_runtime_alias_keys: list[str] = [
-        key
-        for key in SETTINGS_SECTIONS["timing"]
-        if str(timing_schema_entries.get(key, {}).get("compatibility_alias_for") or "").strip()
-    ]
+    compatibility_runtime_alias_keys = timing_compatibility_runtime_alias_keys()
     canonical_compatibility_aliases: dict[str, list[str]] = {}
     for schema_entry in runtime_settings_schema:
         legacy_key = str(schema_entry.get("key") or "").strip()
         canonical_key = str(schema_entry.get("compatibility_alias_for") or "").strip()
         if canonical_key and legacy_key:
             canonical_compatibility_aliases.setdefault(canonical_key, []).append(legacy_key)
-    runtime_throughput_stage_titles = {
-        "enrich": "Enrichment",
-        "ranking": "Ranking",
-        "cv_analysis": "CV Analysis",
-        "cv_generation": "CV Generation",
-    }
+    settings_page_spec = build_settings_page_spec()
+
+    def _section_submit_keys_from_page_spec() -> dict[str, list[str]]:
+        merged: dict[str, list[str]] = {}
+        for section in settings_page_spec["sections"]:
+            for card in section["cards"]:
+                if str(card.get("submit_kind") or "") != "section":
+                    continue
+                slug = str(card["submit_slug"])
+                keys = merged.setdefault(slug, [])
+                for key in list(card.get("keys") or []):
+                    if key not in keys:
+                        keys.append(str(key))
+        return merged
+
+    all_settings_sections = _section_submit_keys_from_page_spec()
     hidden_deprecated_keys = hidden_deprecated_settings_keys()
 
     def _filter_canonical_settings_payload(settings: dict[str, Any]) -> dict[str, Any]:
@@ -6156,10 +6149,6 @@ def create_app(
     def _reconcile_orphaned_run(run: PipelineRun) -> PipelineRun:
         run = _reconcile_orphaned_queued_run(run)
         return _reconcile_orphaned_running_run(run)
-    all_settings_sections = {
-        **SETTINGS_SECTIONS,
-        **AGENTIC_SETTINGS_SECTIONS,
-    }
     composition_sections = [
         {
             "id": "summary",
@@ -6242,252 +6231,7 @@ def create_app(
         }
         for section in composition_sections
     ]
-    settings_page_sections = [
-        {
-            "id": "selection",
-            "title": "Selection",
-            "helper": "Shape how many jobs enter each expensive stage and which deterministic filters block them early.",
-            "cards": [
-                {
-                    "id": "selection-funnel",
-                    "title": "Retrieval Settings",
-                    "helper": (
-                        "Set the future-run candidate funnel before jobs move into ranking and later CV stages."
-                    ),
-                    "submit_kind": "section",
-                    "submit_slug": "retrieval-core",
-                    "keys": SETTINGS_SECTIONS["retrieval-core"],
-                },
-                {
-                    "id": "selection-global-filters",
-                    "title": "Global Job Filters",
-                    "helper": "Reject jobs before enrichment so low-value candidates never reach later stages.",
-                    "submit_kind": "section",
-                    "submit_slug": "global-job-filters",
-                    "keys": [
-                        "global_job_filters.applications_count_max",
-                        "global_job_filters.max_age_days",
-                    ],
-                },
-                {
-                    "id": "selection-rule-filter",
-                    "title": "Rule Filter Settings",
-                    "helper": "Choose which post-enrichment checks reject jobs versus only record downstream marks.",
-                    "submit_kind": "section",
-                    "submit_slug": "rule-filter",
-                    "keys": ["rule_filter.selected_filters"],
-                },
-            ],
-        },
-        {
-            "id": "agentic",
-            "title": "Agentic Processing",
-            "helper": "Configure bounded agentic behavior for future runs using small, explicit decision areas.",
-            "cards": [
-                {
-                    "id": "agentic-enablement",
-                    "title": "Enablement",
-                    "helper": "Turn on agentic pathways and core capabilities used by future runs.",
-                    "submit_kind": "section",
-                    "submit_slug": "agentic-enablement",
-                    "save_label": "Save Enablement Settings",
-                    "keys": [
-                        "cv.agentic_late_stage.enabled",
-                        "cv_analysis.semantic_alignment.enabled",
-                        "synonym_management.propose_enabled",
-                        "synonym_management.apply_to_run_enabled",
-                        "synonym_management.promote_global_enabled",
-                    ],
-                },
-                {
-                    "id": "agentic-reuse",
-                    "title": "Reuse",
-                    "helper": "Control exact-match reuse per stage. Keep ON for speed, turn OFF to force fresh compute.",
-                    "submit_kind": "section",
-                    "submit_slug": "agentic-reuse",
-                    "save_label": "Save Reuse Settings",
-                    "keys": [
-                        "reuse.enrich.enabled",
-                        "reuse.ranking.enabled",
-                        "reuse.cv_analysis.enabled",
-                        "reuse.cv_generation.enabled",
-                        "reuse.synonym_triage.enabled",
-                    ],
-                },
-                {
-                    "id": "agentic-automation",
-                    "title": "Automation",
-                    "helper": "Control recommendation, auto-apply, and auto-promote behavior.",
-                    "submit_kind": "section",
-                    "submit_slug": "agentic-automation",
-                    "save_label": "Save Automation Settings",
-                    "keys": [
-                        "synonym_management.auto_triage_recommendation_enabled",
-                        "synonym_management.auto_apply_recommendation_enabled",
-                        "synonym_management.auto_promote_global_enabled",
-                        "synonym_management.auto_accept_ai_action_enabled",
-                    ],
-                },
-                {
-                    "id": "agentic-quality-targets",
-                    "title": "Quality Targets",
-                    "helper": "Tune lexical and semantic weighting balance for alignment channels.",
-                    "submit_kind": "section",
-                    "submit_slug": "agentic-advanced",
-                    "save_label": "Save Quality Target Settings",
-                    "keys": [
-                        "cv_analysis.semantic_alignment.required_skill_lexical_weight",
-                        "cv_analysis.semantic_alignment.required_skill_semantic_weight",
-                        "cv_analysis.semantic_alignment.role_lexical_weight",
-                        "cv_analysis.semantic_alignment.role_semantic_weight",
-                        "cv_analysis.semantic_alignment.responsibility_lexical_weight",
-                        "cv_analysis.semantic_alignment.responsibility_semantic_weight",
-                        "cv_analysis.semantic_alignment.domain_lexical_weight",
-                        "cv_analysis.semantic_alignment.domain_semantic_weight",
-                    ],
-                },
-                {
-                    "id": "agentic-throughput",
-                    "title": "Throughput",
-                    "helper": "Bound semantic channel candidate pool size for alignment processing.",
-                    "submit_kind": "section",
-                    "submit_slug": "agentic-advanced",
-                    "save_label": "Save Throughput Settings",
-                    "keys": [
-                        "cv_analysis.semantic_alignment.channel_pool_size",
-                    ],
-                },
-                {
-                    "id": "agentic-diagnostics",
-                    "title": "Diagnostics",
-                    "helper": "Metadata-only semantic runtime contract details.",
-                    "submit_kind": "section",
-                    "submit_slug": "agentic-advanced",
-                    "save_label": "Save Diagnostics Settings",
-                    "keys": [
-                        "cv_analysis.semantic_alignment.model",
-                    ],
-                    "is_advanced": True,
-                },
-                {
-                    "id": "agentic-runtime-throughput",
-                    "title": "Runtime Throughput",
-                    "helper": "Canonical runtime pacing and concurrency controls grouped by stage.",
-                    "submit_kind": "section",
-                    "submit_slug": "timing",
-                    "save_label": "Save Timing Settings",
-                    "keys": canonical_runtime_throughput_keys,
-                    "group_by_stage": True,
-                },
-                {
-                    "id": "agentic-runtime-compatibility",
-                    "title": "Legacy Compatibility",
-                    "helper": "Collapsed read-only mapping of legacy aliases to canonical runtime throughput keys.",
-                    "submit_kind": "section",
-                    "submit_slug": "timing",
-                    "keys": compatibility_runtime_alias_keys,
-                    "is_collapsible": True,
-                    "collapsed_by_default": True,
-                    "read_only": True,
-                },
-            ],
-        },
-        {
-            "id": "ranking",
-            "title": "Ranking",
-            "helper": "Tune how shortlisted jobs are scored, labeled, and gap-penalized.",
-            "cards": [
-                {
-                    "id": "ranking-weights",
-                    "title": "Ranking Weights",
-                    "helper": "All six weights must sum to 1.0 (±0.01).",
-                    "submit_kind": "group",
-                    "submit_slug": "ranking-weights",
-                    "keys": RANKING_GROUPS["ranking-weights"],
-                },
-                {
-                    "id": "ranking-preference-fit",
-                    "title": "Preference Fit Mix",
-                    "helper": "Split preference alignment across domain, role family, and location type.",
-                    "submit_kind": "group",
-                    "submit_slug": "preference-fit-weights",
-                    "form_id": "form-preference-fit-weights",
-                    "keys": RANKING_GROUPS["preference-fit-weights"],
-                },
-                {
-                    "id": "ranking-fit-thresholds",
-                    "title": "Fit Label Thresholds",
-                    "helper": "Set the score boundaries for Strong and Stretch fit labels.",
-                    "submit_kind": "group",
-                    "submit_slug": "fit-label-thresholds",
-                    "form_id": "form-fit-label-thresholds",
-                    "keys": RANKING_GROUPS["fit-label-thresholds"],
-                },
-                {
-                    "id": "ranking-gap-thresholds",
-                    "title": "Gap Thresholds",
-                    "helper": "Control when missing-skill ratios start degrading Strong and Stretch classifications.",
-                    "submit_kind": "group",
-                    "submit_slug": "gap-thresholds",
-                    "form_id": "form-gap-thresholds",
-                    "keys": RANKING_GROUPS["gap-thresholds"],
-                },
-            ],
-        },
-        {
-            "id": "cv-output",
-            "title": "CV Output",
-            "helper": "Choose the generation model, control section visibility, and bound output length.",
-            "cards": [
-                {
-                    "id": "cv-template-model",
-                    "title": "Template & Model",
-                    "helper": "Fixed preset metadata plus the active generation model for future runs.",
-                    "submit_kind": "group",
-                    "submit_slug": "cv-preset",
-                    "form_id": "form-cv-preset",
-                    "save_label": "Save Preset Settings",
-                    "keys": CV_GROUPS["cv-preset"],
-                },
-                {
-                    "id": "cv-visibility",
-                    "title": "Section Visibility",
-                    "helper": "Decide which sections appear in generated CVs. Formatting-only legacy knobs remain hidden.",
-                    "submit_kind": "group",
-                    "submit_slug": "cv-composition",
-                    "form_id": "form-cv-composition",
-                    "save_label": "Save Composition Settings",
-                    "keys": CV_GROUPS["cv-composition"],
-                    "layout": "composition_matrix",
-                },
-                {
-                    "id": "cv-validation",
-                    "title": "Validation",
-                    "helper": "Keep the warning-only page budget visible and easy to tune.",
-                    "submit_kind": "group",
-                    "submit_slug": "cv-validation",
-                    "form_id": "form-cv-validation",
-                    "save_label": "Save Validation Settings",
-                    "keys": CV_GROUPS["cv-validation"],
-                },
-            ],
-        },
-        {
-            "id": "run-safety",
-            "title": "Run Safety",
-            "helper": "Control server-owned protections that keep stuck runs from drifting indefinitely.",
-            "cards": [
-                {
-                    "id": "run-safety-timeout",
-                    "title": "Run Lifecycle Settings",
-                    "helper": "Safety guard for queued, running, and Stage by Stage manual-wait runs. Higher values reduce false timeouts but allow longer zombie-run windows.",
-                    "submit_kind": "section",
-                    "submit_slug": "run-lifecycle",
-                    "keys": SETTINGS_SECTIONS["run-lifecycle"],
-                },
-            ],
-        },
-    ]
+    settings_page_sections = settings_page_spec["sections"]
 
     @app.get("/healthz")
     def healthz() -> dict:
@@ -6509,7 +6253,7 @@ def create_app(
     def _build_settings_context(active: dict[str, Any], **extra: Any) -> dict[str, Any]:
         effective = {
             entry["key"]: active.get(entry["key"], entry["default"])
-            for entry in SETTINGS_SCHEMA
+            for entry in runtime_settings_schema
         }
         active_group_name = extra.get("active_group_name")
         active_section_name = extra.get("active_section_name")
@@ -6567,16 +6311,6 @@ def create_app(
                     return section_errors[key]
             return None
 
-        def _decision_domain_for_entry(entry: dict[str, Any]) -> str:
-            group = str(entry.get("group") or "")
-            if group in {"cv_composition", "cv_validation", "cv_preset"}:
-                return "output_artifacts"
-            if group == "agentic":
-                return "synonym_review"
-            if group in {"retrieval", "rule_filter", "ranking", "global_job_filters"}:
-                return "extraction_rules"
-            return "domain_taxonomy"
-
         def _build_card(card_spec: dict[str, Any]) -> dict[str, Any]:
             submit_kind = str(card_spec["submit_kind"])
             submit_slug = str(card_spec["submit_slug"])
@@ -6591,6 +6325,7 @@ def create_app(
             agentic_enabled = bool(effective.get("cv.agentic_late_stage.enabled"))
             for key in visible_keys:
                 entry = schema_by_key[key]
+                ia_contract = settings_ia_contract_for_key(key)
                 effective_value = effective[key]
                 draft_value = _draft_value_for_card(
                     submit_kind=submit_kind,
@@ -6632,13 +6367,13 @@ def create_app(
                     and str(comparison_value or "").strip() == ""
                 )
                 decision_state = derive_settings_decision_state(
-                    is_advanced=bool(settings_ia_contract_for_key(key).get("advanced")),
+                    is_advanced=bool(ia_contract.get("advanced")),
                     is_unused=bool(key in metadata_only_keys and key not in active),
                     is_changed_from_default=bool(key in active),
                     has_recommended_delta=is_recommended_delta,
                     has_conflict=has_error,
                     has_missing_required=is_missing_required,
-                    has_quality_risk=bool(settings_ia_contract_for_key(key).get("is_dangerous") and key in active),
+                    has_quality_risk=bool(ia_contract.get("is_dangerous") and key in active),
                 )
                 semantic_alignment_enabled = bool(effective.get("cv_analysis.semantic_alignment.enabled"))
                 apply_to_run_enabled = bool(effective.get("synonym_management.apply_to_run_enabled"))
@@ -6688,15 +6423,15 @@ def create_app(
                             "Read-only compatibility mapping. Edit canonical Runtime Throughput settings instead."
                             if card_read_only else None
                         ),
-                        "ia_contract": settings_ia_contract_for_key(key),
+                        "ia_contract": ia_contract,
                         "decision_state": decision_state,
                         "decision_status": str(decision_state.get("decision_status") or DECISION_STATUS_CONFIGURED),
                         "decision_reason_codes": list(decision_state.get("reason_codes") or []),
-                        "decision_domain": _decision_domain_for_entry(entry),
-                        "decision_stage": str(settings_ia_contract_for_key(key).get("stage") or ""),
-                        "decision_control_surface": str(settings_ia_contract_for_key(key).get("control_surface") or ""),
-                        "decision_area": str(settings_ia_contract_for_key(key).get("decision_area") or ""),
-                        "decision_complexity": str(settings_ia_contract_for_key(key).get("complexity_view") or ""),
+                        "decision_domain": str(ia_contract.get("decision_domain") or "domain_taxonomy"),
+                        "decision_stage": str(ia_contract.get("stage") or ""),
+                        "decision_control_surface": str(ia_contract.get("control_surface") or ""),
+                        "decision_area": str(ia_contract.get("decision_area") or ""),
+                        "decision_complexity": str(ia_contract.get("complexity_view") or ""),
                         "owner_label": owner_label,
                         "active_label": active_label,
                         "compatibility_alias_for": compatibility_alias_for,
@@ -6727,7 +6462,12 @@ def create_app(
                     card_risk = item_risk
             stage_groups: list[dict[str, Any]] = []
             if bool(card_spec.get("group_by_stage", False)):
-                for stage_id, stage_title in runtime_throughput_stage_titles.items():
+                for stage_id, stage_title in {
+                    "enrich": "Enrichment",
+                    "ranking": "Ranking",
+                    "cv_analysis": "CV Analysis",
+                    "cv_generation": "CV Generation",
+                }.items():
                     stage_entries = [item for item in entries if item.get("decision_stage") == stage_id]
                     if stage_entries:
                         stage_groups.append(
@@ -6797,30 +6537,6 @@ def create_app(
             "integrations": "Integrations",
             "advanced": "Advanced",
         }
-        workflow_stage_titles = {
-            "normalize": "Normalize",
-            "enrich": "Enrich",
-            "rule_filter": "Rule Filter",
-            "shortlist": "Shortlist",
-            "ranking": "Ranking",
-            "cv_analysis": "CV Analysis",
-            "cv_generation": "CV Generation",
-        }
-        stage_titles = {
-            "normalize": "Normalize",
-            "enrich": "Enrich",
-            "rule_filter": "Rule Filter",
-            "shortlist": "Shortlist",
-            "ranking": "Ranking",
-            "cv_analysis": "CV Analysis",
-            "cv_generation": "CV Generation",
-            "cross_stage": "Cross-Stage",
-        }
-        control_surface_titles = {
-            "standard_pipeline": "Standard Pipeline",
-            "agentic_runtime": "Agentic Runtime",
-            "shared": "Shared",
-        }
         settings_domains = [
             {
                 "id": domain_id,
@@ -6829,14 +6545,7 @@ def create_app(
             }
             for domain_id, title in domain_titles.items()
         ]
-        settings_stage_filters = [
-            {
-                "id": stage_id,
-                "title": title,
-                "keys": settings_keys_for_workflow_stage(stage_id),
-            }
-            for stage_id, title in workflow_stage_titles.items()
-        ]
+        settings_stage_filters = list(settings_page_spec["workflow_stage_filters"])
         settings_domain_summaries = [
             {
                 "id": domain["id"],
@@ -6845,22 +6554,8 @@ def create_app(
             }
             for domain in settings_domains
         ]
-        settings_stage_scopes = [
-            {
-                "id": stage_id,
-                "title": title,
-                "keys": settings_keys_for_stage(stage_id),
-            }
-            for stage_id, title in stage_titles.items()
-        ]
-        settings_control_surface_filters = [
-            {
-                "id": surface_id,
-                "title": title,
-                "keys": settings_keys_for_control_surface(surface_id),
-            }
-            for surface_id, title in control_surface_titles.items()
-        ]
+        settings_stage_scopes = list(settings_page_spec["stage_scopes"])
+        settings_control_surface_filters = list(settings_page_spec["control_surface_filters"])
         decision_entries: list[dict[str, Any]] = []
         for section in settings_page_task_sections:
             for card in section["cards"]:
@@ -6882,19 +6577,8 @@ def create_app(
                             "section": section,
                         }
                     )
-        decision_tabs = [
-            {"id": DECISION_STATUS_NEEDS_REVIEW, "title": "Needs Review"},
-            {"id": DECISION_STATUS_RECOMMENDED, "title": "Recommended"},
-            {"id": DECISION_STATUS_CONFIGURED, "title": "Configured"},
-            {"id": DECISION_STATUS_ADVANCED, "title": "Advanced"},
-            {"id": "all", "title": "All"},
-        ]
-        decision_domain_filters = [
-            {"id": "domain_taxonomy", "title": "Domain & Taxonomy"},
-            {"id": "extraction_rules", "title": "Extraction Rules"},
-            {"id": "synonym_review", "title": "Synonym Review"},
-            {"id": "output_artifacts", "title": "Output & Artifacts"},
-        ]
+        decision_tabs = list(settings_page_spec["decision_tabs"])
+        decision_domain_filters = list(settings_page_spec["decision_domain_filters"])
         settings_decision_groups: list[dict[str, Any]] = []
         for tab in decision_tabs:
             tab_id = str(tab["id"])

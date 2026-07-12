@@ -27,6 +27,11 @@ FitCV architecture has four cross-cutting layers:
 
 Owns trigger/lifecycle APIs, admin UI, run-detail inspection, settings surfaces, orchestration binding, and run/event persistence adapters.
 
+Settings-specific boundary:
+
+- `src/fitcv_cp/settings_schema.py` owns settings field metadata, IA metadata, registry membership, and settings-page contract assembly.
+- `src/fitcv_cp/app.py` consumes that contract to render native form surfaces and submit canonical keys; page grouping/filter behavior should stay schema-driven rather than app-local.
+
 ### Pipeline Runtime
 
 Owns stage execution, ranking and CV lanes, validation, artifact emission, and stage-level truth.

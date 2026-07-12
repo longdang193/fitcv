@@ -765,31 +765,17 @@ def _resolve_config_path_default(
     return current
 
 
-def _hydrate_schema_defaults_from_config() -> None:
-    try:
-        baseline_config = load_config()
-    except Exception:
-        return
-
-    for entry in SETTINGS_SCHEMA:
-        config_path = entry.get("config_path")
-        if not isinstance(config_path, list) or not config_path:
-            continue
-        resolved_default = _resolve_config_path_default(baseline_config, config_path)
-        if resolved_default is None:
-            continue
-        if isinstance(entry.get("default"), list) and isinstance(resolved_default, list):
-            entry["default"] = [str(value) for value in resolved_default]
-            continue
-        entry["default"] = resolved_default
+def _copy_default_value(value: Any) -> Any:
+    if isinstance(value, list):
+        return list(value)
+    return value
 
 
 def _copy_schema_entries(schema: list[dict[str, Any]]) -> list[dict[str, Any]]:
     copied: list[dict[str, Any]] = []
     for entry in schema:
         cloned = dict(entry)
-        if isinstance(cloned.get("default"), list):
-            cloned["default"] = list(cloned["default"])
+        cloned["default"] = _copy_default_value(cloned.get("default"))
         copied.append(cloned)
     return copied
 
@@ -804,167 +790,170 @@ def settings_schema_with_runtime_defaults(
             baseline_config = {}
 
     for entry in schema:
+        declared_default = _copy_default_value(entry.get("default"))
+        entry["declared_default"] = declared_default
+        baseline_default = _copy_default_value(declared_default)
         config_path = entry.get("config_path")
         if not isinstance(config_path, list) or not config_path:
+            entry["baseline_default"] = _copy_default_value(baseline_default)
+            entry["default"] = _copy_default_value(baseline_default)
             continue
         resolved_default = _resolve_config_path_default(baseline_config, config_path)
-        if resolved_default is None:
-            continue
-        if isinstance(entry.get("default"), list) and isinstance(resolved_default, list):
-            entry["default"] = [str(value) for value in resolved_default]
-            continue
-        entry["default"] = resolved_default
+        if resolved_default is not None:
+            if isinstance(declared_default, list) and isinstance(resolved_default, list):
+                baseline_default = [str(value) for value in resolved_default]
+            else:
+                baseline_default = resolved_default
+        entry["baseline_default"] = _copy_default_value(baseline_default)
+        entry["default"] = _copy_default_value(baseline_default)
     return schema
 
-# ── Ranking group registry ────────────────────────────────────────────────────
-# Maps URL group slug → ordered list of schema keys in that group.
-# Used by the grouped-edit endpoint and the settings template.
-
-RANKING_GROUPS: dict[str, list[str]] = {
-    "ranking-weights": [
-        "ranking_weights.ai_score",
-        "ranking_weights.must_have_match",
-        "ranking_weights.vector_similarity",
-        "ranking_weights.title_relevance",
-        "ranking_weights.seniority_fit",
-        "ranking_weights.preference_fit",
-    ],
-    "preference-fit-weights": [
-        "preference_fit_weights.domain",
-        "preference_fit_weights.role_family",
-        "preference_fit_weights.location_type",
-    ],
-    "fit-label-thresholds": [
-        "fit_label_thresholds.strong",
-        "fit_label_thresholds.stretch",
-    ],
-    "gap-thresholds": [
-        "gap_thresholds.strong_min_matched_ratio",
-        "gap_thresholds.stretch_min_matched_ratio",
-    ],
-}
-
-# ── Independent settings section registry ─────────────────────────────────────
-# Maps URL section slug → ordered list of schema keys in that section.
-# Used by the section-save endpoint (/admin/settings/section/{name}).
-# Each section uses one form with one save action; keys are validated
-# individually (no cross-key constraints within a section).
-
-SETTINGS_SECTIONS: dict[str, list[str]] = {
-    "retrieval-core": [
-        "pipeline.vector_search_top_n",
-        "pipeline.ai_score_top_n",
-        "pipeline.final_top_n",
-        "pipeline.evidence_top_k",
-    ],
-    "timing": [
-        "stage_runtime.enrich.sleep_secs",
-        "stage_runtime.enrich.batch_size",
-        "stage_runtime.enrich.concurrency",
-        "stage_runtime.ranking.sleep_secs",
-        "stage_runtime.ranking.concurrency",
-        "stage_runtime.cv_analysis.sleep_secs",
-        "stage_runtime.cv_analysis.concurrency",
-        "stage_runtime.cv_generation.sleep_secs",
-        "stage_runtime.cv_generation.concurrency",
-        "enrichment_sleep_secs",
-        "rerank_sleep_secs",
-        "enrichment_batch_size",
-        "enrichment_concurrency",
-    ],
-    "run-lifecycle": [
-        "run_lifecycle.max_runtime_minutes",
-    ],
-    "global-job-filters": [
-        "global_job_filters.applications_count_max",
-        "global_job_filters.max_age_days",
-    ],
-    "rule-filter": [
-        "rule_filter.selected_filters",
-    ],
-}
+def _ordered_schema_keys(predicate: Any) -> list[str]:
+    return [
+        str(entry["key"])
+        for entry in SETTINGS_SCHEMA
+        if bool(predicate(entry))
+    ]
 
 
-AGENTIC_ENABLEMENT_SECTION_KEYS: list[str] = [
-    "cv.agentic_late_stage.enabled",
-    "cv_analysis.semantic_alignment.enabled",
-    "synonym_management.propose_enabled",
-    "synonym_management.apply_to_run_enabled",
-    "synonym_management.promote_global_enabled",
-    "reuse.enrich.enabled",
-    "reuse.ranking.enabled",
-    "reuse.cv_analysis.enabled",
-    "reuse.cv_generation.enabled",
-    "reuse.synonym_triage.enabled",
-]
+def _ordered_key_projection(keys: list[str]) -> list[str]:
+    known_keys = {str(entry["key"]) for entry in SETTINGS_SCHEMA}
+    return [key for key in keys if key in known_keys]
 
-AGENTIC_REUSE_SECTION_KEYS: list[str] = [
-    "reuse.enrich.enabled",
-    "reuse.ranking.enabled",
-    "reuse.cv_analysis.enabled",
-    "reuse.cv_generation.enabled",
-    "reuse.synonym_triage.enabled",
-]
 
-AGENTIC_AUTOMATION_SECTION_KEYS: list[str] = [
-    "synonym_management.auto_triage_recommendation_enabled",
-    "synonym_management.triage_recommendation_reuse_enabled",
-    "synonym_management.auto_apply_recommendation_enabled",
-    "synonym_management.auto_promote_global_enabled",
-    "synonym_management.auto_accept_ai_action_enabled",
-]
+def _derive_ranking_groups() -> dict[str, list[str]]:
+    return {
+        "ranking-weights": _ordered_key_projection([
+            "ranking_weights.ai_score",
+            "ranking_weights.must_have_match",
+            "ranking_weights.vector_similarity",
+            "ranking_weights.title_relevance",
+            "ranking_weights.seniority_fit",
+            "ranking_weights.preference_fit",
+        ]),
+        "preference-fit-weights": _ordered_key_projection([
+            "preference_fit_weights.domain",
+            "preference_fit_weights.role_family",
+            "preference_fit_weights.location_type",
+        ]),
+        "fit-label-thresholds": _ordered_key_projection([
+            "fit_label_thresholds.strong",
+            "fit_label_thresholds.stretch",
+        ]),
+        "gap-thresholds": _ordered_key_projection([
+            "gap_thresholds.strong_min_matched_ratio",
+            "gap_thresholds.stretch_min_matched_ratio",
+        ]),
+    }
 
-AGENTIC_ADVANCED_SECTION_KEYS: list[str] = [
-    "cv_analysis.semantic_alignment.model",
-    "cv_analysis.semantic_alignment.required_skill_lexical_weight",
-    "cv_analysis.semantic_alignment.required_skill_semantic_weight",
-    "cv_analysis.semantic_alignment.role_lexical_weight",
-    "cv_analysis.semantic_alignment.role_semantic_weight",
-    "cv_analysis.semantic_alignment.responsibility_lexical_weight",
-    "cv_analysis.semantic_alignment.responsibility_semantic_weight",
-    "cv_analysis.semantic_alignment.domain_lexical_weight",
-    "cv_analysis.semantic_alignment.domain_semantic_weight",
-    "cv_analysis.semantic_alignment.channel_pool_size",
-]
 
-AGENTIC_SETTINGS_SECTIONS: dict[str, list[str]] = {
-    "agentic-enablement": list(AGENTIC_ENABLEMENT_SECTION_KEYS),
-    "agentic-reuse": list(AGENTIC_REUSE_SECTION_KEYS),
-    "agentic-automation": list(AGENTIC_AUTOMATION_SECTION_KEYS),
-    "agentic-advanced": list(AGENTIC_ADVANCED_SECTION_KEYS),
-}
+def _derive_settings_sections() -> dict[str, list[str]]:
+    return {
+        "retrieval-core": _ordered_key_projection([
+            "pipeline.vector_search_top_n",
+            "pipeline.ai_score_top_n",
+            "pipeline.final_top_n",
+            "pipeline.evidence_top_k",
+        ]),
+        "timing": _ordered_key_projection([
+            "stage_runtime.enrich.sleep_secs",
+            "stage_runtime.enrich.batch_size",
+            "stage_runtime.enrich.concurrency",
+            "stage_runtime.ranking.sleep_secs",
+            "stage_runtime.ranking.concurrency",
+            "stage_runtime.cv_analysis.sleep_secs",
+            "stage_runtime.cv_analysis.concurrency",
+            "stage_runtime.cv_generation.sleep_secs",
+            "stage_runtime.cv_generation.concurrency",
+            "enrichment_sleep_secs",
+            "rerank_sleep_secs",
+            "enrichment_batch_size",
+            "enrichment_concurrency",
+        ]),
+        "run-lifecycle": _ordered_key_projection([
+            "run_lifecycle.max_runtime_minutes",
+        ]),
+        "global-job-filters": _ordered_key_projection([
+            "global_job_filters.applications_count_max",
+            "global_job_filters.max_age_days",
+        ]),
+        "rule-filter": _ordered_key_projection([
+            "rule_filter.selected_filters",
+        ]),
+    }
 
-# ── CV Generation settings schema ──────────────────────────────────────────
-# Kept for reference and documentation only.  The actual schema entries live
-# inside SETTINGS_SCHEMA so they appear alongside all other settings.
-# _CV_GENERATION_SCHEMA was removed to avoid duplication.
 
-# ── CV group registry ───────────────────────────────────────────────────────
-# Maps URL group slug (used in /admin/settings/group/{slug}) → ordered list
-# of schema keys.  CV groups are validated and saved together, just like
-# ranking groups, but are kept in a separate namespace.
-CV_GROUPS: dict[str, list[str]] = {
-    "cv-preset": [
-        "cv_preset",
-        "cv_generation_model",
-    ],
-    "cv-composition": [
-        "cv_summary_enabled",
-        "cv_education_enabled",
-        "cv_experience_enabled",
-        "cv_skills_enabled",
-        "cv_certifications_enabled",
-        "cv_projects_enabled",
-        "cv_publications_enabled",
-        "cv_languages_enabled",
-    ],
-    "cv-validation": [
-        "cv_max_pages",
-    ],
-}
+def _derive_agentic_settings_sections() -> dict[str, list[str]]:
+    return {
+        "agentic-enablement": _ordered_key_projection([
+            "cv.agentic_late_stage.enabled",
+            "cv_analysis.semantic_alignment.enabled",
+            "synonym_management.propose_enabled",
+            "synonym_management.apply_to_run_enabled",
+            "synonym_management.promote_global_enabled",
+            "reuse.enrich.enabled",
+            "reuse.ranking.enabled",
+            "reuse.cv_analysis.enabled",
+            "reuse.cv_generation.enabled",
+            "reuse.synonym_triage.enabled",
+        ]),
+        "agentic-reuse": _ordered_key_projection([
+            "reuse.enrich.enabled",
+            "reuse.ranking.enabled",
+            "reuse.cv_analysis.enabled",
+            "reuse.cv_generation.enabled",
+            "reuse.synonym_triage.enabled",
+        ]),
+        "agentic-automation": _ordered_key_projection([
+            "synonym_management.auto_triage_recommendation_enabled",
+            "synonym_management.triage_recommendation_reuse_enabled",
+            "synonym_management.auto_apply_recommendation_enabled",
+            "synonym_management.auto_promote_global_enabled",
+            "synonym_management.auto_accept_ai_action_enabled",
+        ]),
+        "agentic-advanced": _ordered_key_projection([
+            "cv_analysis.semantic_alignment.model",
+            "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+            "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+            "cv_analysis.semantic_alignment.role_lexical_weight",
+            "cv_analysis.semantic_alignment.role_semantic_weight",
+            "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+            "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+            "cv_analysis.semantic_alignment.domain_lexical_weight",
+            "cv_analysis.semantic_alignment.domain_semantic_weight",
+            "cv_analysis.semantic_alignment.channel_pool_size",
+        ]),
+    }
 
-# ── Combined grouped-registry lookup ───────────────────────────────────────
-# Used by the grouped-save endpoint to validate any group request.
+
+def _derive_cv_groups() -> dict[str, list[str]]:
+    return {
+        "cv-preset": _ordered_key_projection([
+            "cv_preset",
+            "cv_generation_model",
+        ]),
+        "cv-composition": _ordered_key_projection([
+            "cv_summary_enabled",
+            "cv_education_enabled",
+            "cv_experience_enabled",
+            "cv_skills_enabled",
+            "cv_certifications_enabled",
+            "cv_projects_enabled",
+            "cv_publications_enabled",
+            "cv_languages_enabled",
+        ]),
+        "cv-validation": _ordered_key_projection([
+            "cv_max_pages",
+        ]),
+    }
+
+
+RANKING_GROUPS: dict[str, list[str]] = _derive_ranking_groups()
+SETTINGS_SECTIONS: dict[str, list[str]] = _derive_settings_sections()
+AGENTIC_SETTINGS_SECTIONS: dict[str, list[str]] = _derive_agentic_settings_sections()
+CV_GROUPS: dict[str, list[str]] = _derive_cv_groups()
+
+
 ALL_GROUP_REGISTRIES: dict[str, dict[str, list[str]]] = {
     "ranking": RANKING_GROUPS,
     "cv": CV_GROUPS,
@@ -1322,6 +1311,17 @@ def _default_control_surface(entry: dict[str, Any]) -> str:
     group = str(entry.get("group") or "")
     return _GROUP_TO_CONTROL_SURFACE.get(group, _CONTROL_SURFACE_SHARED)
 
+
+def _decision_domain_for_entry(entry: dict[str, Any]) -> str:
+    group = str(entry.get("group") or "")
+    if group in {"cv_composition", "cv_validation", "cv_preset"}:
+        return "output_artifacts"
+    if group == "agentic":
+        return "synonym_review"
+    if group in {"retrieval", "rule_filter", "ranking", "global_job_filters"}:
+        return "extraction_rules"
+    return "domain_taxonomy"
+
 def _default_decision_area(entry: dict[str, Any]) -> str:
     key = str(entry.get("key") or "")
     group = str(entry.get("group") or "")
@@ -1365,6 +1365,7 @@ def _build_settings_ia_metadata() -> dict[str, dict[str, Any]]:
         stage_id = _default_stage_id(entry)
         metadata[key] = {
             "domain": _default_ia_domain(entry),
+            "decision_domain": _decision_domain_for_entry(entry),
             "stage": stage_id,
             "control_surface": _default_control_surface(entry),
             "decision_area": _default_decision_area(entry),
@@ -1424,6 +1425,14 @@ def settings_keys_for_domain(domain: str) -> list[str]:
         if str(meta.get("domain")) == domain
     )
 
+
+def settings_keys_for_decision_domain(domain: str) -> list[str]:
+    return sorted(
+        key
+        for key, meta in SETTINGS_IA_METADATA_BY_KEY.items()
+        if str(meta.get("decision_domain")) == domain
+    )
+
 def settings_keys_for_workflow_stage(stage: str) -> list[str]:
     return sorted(
         key
@@ -1449,6 +1458,314 @@ def settings_ia_contract_for_key(key: str) -> dict[str, Any]:
     if key not in SETTINGS_IA_METADATA_BY_KEY:
         raise KeyError(key)
     return dict(SETTINGS_IA_METADATA_BY_KEY[key])
+
+
+def timing_canonical_runtime_throughput_keys() -> list[str]:
+    return [
+        key
+        for key in SETTINGS_SECTIONS["timing"]
+        if key.startswith("stage_runtime.")
+    ]
+
+
+def timing_compatibility_runtime_alias_keys() -> list[str]:
+    return [
+        key
+        for key in SETTINGS_SECTIONS["timing"]
+        if str(_ALL_SCHEMA_BY_KEY.get(key, {}).get("compatibility_alias_for") or "").strip()
+    ]
+
+
+def build_settings_page_spec() -> dict[str, Any]:
+    workflow_stage_titles = {
+        "normalize": "Normalize",
+        "enrich": "Enrich",
+        "rule_filter": "Rule Filter",
+        "shortlist": "Shortlist",
+        "ranking": "Ranking",
+        "cv_analysis": "CV Analysis",
+        "cv_generation": "CV Generation",
+    }
+    stage_titles = {
+        **workflow_stage_titles,
+        "cross_stage": "Cross-Stage",
+    }
+    control_surface_titles = {
+        "standard_pipeline": "Standard Pipeline",
+        "agentic_runtime": "Agentic Runtime",
+        "shared": "Shared",
+    }
+    decision_tabs = [
+        {"id": DECISION_STATUS_NEEDS_REVIEW, "title": "Needs Review"},
+        {"id": DECISION_STATUS_RECOMMENDED, "title": "Recommended"},
+        {"id": DECISION_STATUS_CONFIGURED, "title": "Configured"},
+        {"id": DECISION_STATUS_ADVANCED, "title": "Advanced"},
+        {"id": "all", "title": "All"},
+    ]
+    decision_domain_filters = [
+        {"id": "domain_taxonomy", "title": "Domain & Taxonomy"},
+        {"id": "extraction_rules", "title": "Extraction Rules"},
+        {"id": "synonym_review", "title": "Synonym Review"},
+        {"id": "output_artifacts", "title": "Output & Artifacts"},
+    ]
+    sections = [
+        {
+            "id": "selection",
+            "title": "Selection",
+            "helper": "Shape how many jobs enter each expensive stage and which deterministic filters block them early.",
+            "cards": [
+                {
+                    "id": "selection-funnel",
+                    "title": "Retrieval Settings",
+                    "helper": "Set the future-run candidate funnel before jobs move into ranking and later CV stages.",
+                    "submit_kind": "section",
+                    "submit_slug": "retrieval-core",
+                    "keys": SETTINGS_SECTIONS["retrieval-core"],
+                },
+                {
+                    "id": "selection-global-filters",
+                    "title": "Global Job Filters",
+                    "helper": "Reject jobs before enrichment so low-value candidates never reach later stages.",
+                    "submit_kind": "section",
+                    "submit_slug": "global-job-filters",
+                    "keys": SETTINGS_SECTIONS["global-job-filters"],
+                },
+                {
+                    "id": "selection-rule-filter",
+                    "title": "Rule Filter Settings",
+                    "helper": "Choose which post-enrichment checks reject jobs versus only record downstream marks.",
+                    "submit_kind": "section",
+                    "submit_slug": "rule-filter",
+                    "keys": SETTINGS_SECTIONS["rule-filter"],
+                },
+            ],
+        },
+        {
+            "id": "agentic",
+            "title": "Agentic Processing",
+            "helper": "Configure bounded agentic behavior for future runs using small, explicit decision areas.",
+            "cards": [
+                {
+                    "id": "agentic-enablement",
+                    "title": "Enablement",
+                    "helper": "Turn on agentic pathways and core capabilities used by future runs.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-enablement",
+                    "save_label": "Save Enablement Settings",
+                    "keys": AGENTIC_SETTINGS_SECTIONS["agentic-enablement"],
+                },
+                {
+                    "id": "agentic-reuse",
+                    "title": "Reuse",
+                    "helper": "Control exact-match reuse per stage. Keep ON for speed, turn OFF to force fresh compute.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-reuse",
+                    "save_label": "Save Reuse Settings",
+                    "keys": AGENTIC_SETTINGS_SECTIONS["agentic-reuse"],
+                },
+                {
+                    "id": "agentic-automation",
+                    "title": "Automation",
+                    "helper": "Control recommendation, auto-apply, and auto-promote behavior.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-automation",
+                    "save_label": "Save Automation Settings",
+                    "keys": AGENTIC_SETTINGS_SECTIONS["agentic-automation"],
+                },
+                {
+                    "id": "agentic-quality-targets",
+                    "title": "Quality Targets",
+                    "helper": "Tune lexical and semantic weighting balance for alignment channels.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-advanced",
+                    "save_label": "Save Quality Target Settings",
+                    "keys": [
+                        key
+                        for key in AGENTIC_SETTINGS_SECTIONS["agentic-advanced"]
+                        if key.endswith("_weight")
+                    ],
+                },
+                {
+                    "id": "agentic-throughput",
+                    "title": "Throughput",
+                    "helper": "Bound semantic channel candidate pool size for alignment processing.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-advanced",
+                    "save_label": "Save Throughput Settings",
+                    "keys": [
+                        key
+                        for key in AGENTIC_SETTINGS_SECTIONS["agentic-advanced"]
+                        if key.endswith("channel_pool_size")
+                    ],
+                },
+                {
+                    "id": "agentic-diagnostics",
+                    "title": "Diagnostics",
+                    "helper": "Metadata-only semantic runtime contract details.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-advanced",
+                    "save_label": "Save Diagnostics Settings",
+                    "keys": [
+                        key
+                        for key in AGENTIC_SETTINGS_SECTIONS["agentic-advanced"]
+                        if key.endswith(".model")
+                    ],
+                    "is_advanced": True,
+                },
+                {
+                    "id": "agentic-runtime-throughput",
+                    "title": "Runtime Throughput",
+                    "helper": "Canonical runtime pacing and concurrency controls grouped by stage.",
+                    "submit_kind": "section",
+                    "submit_slug": "timing",
+                    "save_label": "Save Timing Settings",
+                    "keys": timing_canonical_runtime_throughput_keys(),
+                    "group_by_stage": True,
+                },
+                {
+                    "id": "agentic-runtime-compatibility",
+                    "title": "Legacy Compatibility",
+                    "helper": "Collapsed read-only mapping of legacy aliases to canonical runtime throughput keys.",
+                    "submit_kind": "section",
+                    "submit_slug": "timing",
+                    "keys": timing_compatibility_runtime_alias_keys(),
+                    "is_collapsible": True,
+                    "collapsed_by_default": True,
+                    "read_only": True,
+                },
+            ],
+        },
+        {
+            "id": "ranking",
+            "title": "Ranking",
+            "helper": "Tune how shortlisted jobs are scored, labeled, and gap-penalized.",
+            "cards": [
+                {
+                    "id": "ranking-weights",
+                    "title": "Ranking Weights",
+                    "helper": "All six weights must sum to 1.0 (±0.01).",
+                    "submit_kind": "group",
+                    "submit_slug": "ranking-weights",
+                    "keys": RANKING_GROUPS["ranking-weights"],
+                },
+                {
+                    "id": "ranking-preference-fit",
+                    "title": "Preference Fit Mix",
+                    "helper": "Split preference alignment across domain, role family, and location type.",
+                    "submit_kind": "group",
+                    "submit_slug": "preference-fit-weights",
+                    "form_id": "form-preference-fit-weights",
+                    "keys": RANKING_GROUPS["preference-fit-weights"],
+                },
+                {
+                    "id": "ranking-fit-thresholds",
+                    "title": "Fit Label Thresholds",
+                    "helper": "Set the score boundaries for Strong and Stretch fit labels.",
+                    "submit_kind": "group",
+                    "submit_slug": "fit-label-thresholds",
+                    "form_id": "form-fit-label-thresholds",
+                    "keys": RANKING_GROUPS["fit-label-thresholds"],
+                },
+                {
+                    "id": "ranking-gap-thresholds",
+                    "title": "Gap Thresholds",
+                    "helper": "Control when missing-skill ratios start degrading Strong and Stretch classifications.",
+                    "submit_kind": "group",
+                    "submit_slug": "gap-thresholds",
+                    "form_id": "form-gap-thresholds",
+                    "keys": RANKING_GROUPS["gap-thresholds"],
+                },
+            ],
+        },
+        {
+            "id": "cv-output",
+            "title": "CV Output",
+            "helper": "Choose the generation model, control section visibility, and bound output length.",
+            "cards": [
+                {
+                    "id": "cv-template-model",
+                    "title": "Template & Model",
+                    "helper": "Fixed preset metadata plus the active generation model for future runs.",
+                    "submit_kind": "group",
+                    "submit_slug": "cv-preset",
+                    "form_id": "form-cv-preset",
+                    "save_label": "Save Preset Settings",
+                    "keys": CV_GROUPS["cv-preset"],
+                },
+                {
+                    "id": "cv-visibility",
+                    "title": "Section Visibility",
+                    "helper": "Decide which sections appear in generated CVs. Formatting-only legacy knobs remain hidden.",
+                    "submit_kind": "group",
+                    "submit_slug": "cv-composition",
+                    "form_id": "form-cv-composition",
+                    "save_label": "Save Composition Settings",
+                    "keys": CV_GROUPS["cv-composition"],
+                    "layout": "composition_matrix",
+                },
+                {
+                    "id": "cv-validation",
+                    "title": "Validation",
+                    "helper": "Keep the warning-only page budget visible and easy to tune.",
+                    "submit_kind": "group",
+                    "submit_slug": "cv-validation",
+                    "form_id": "form-cv-validation",
+                    "save_label": "Save Validation Settings",
+                    "keys": CV_GROUPS["cv-validation"],
+                },
+            ],
+        },
+        {
+            "id": "run-safety",
+            "title": "Run Safety",
+            "helper": "Control server-owned protections that keep stuck runs from drifting indefinitely.",
+            "cards": [
+                {
+                    "id": "run-safety-timeout",
+                    "title": "Run Lifecycle Settings",
+                    "helper": "Safety guard for queued, running, and Stage by Stage manual-wait runs. Higher values reduce false timeouts but allow longer zombie-run windows.",
+                    "submit_kind": "section",
+                    "submit_slug": "run-lifecycle",
+                    "keys": SETTINGS_SECTIONS["run-lifecycle"],
+                },
+            ],
+        },
+    ]
+    return {
+        "sections": sections,
+        "decision_tabs": decision_tabs,
+        "decision_domain_filters": [
+            {
+                **item,
+                "keys": settings_keys_for_decision_domain(str(item["id"])),
+            }
+            for item in decision_domain_filters
+        ],
+        "workflow_stage_filters": [
+            {
+                "id": stage_id,
+                "title": title,
+                "keys": settings_keys_for_workflow_stage(stage_id),
+            }
+            for stage_id, title in workflow_stage_titles.items()
+        ],
+        "stage_scopes": [
+            {
+                "id": stage_id,
+                "title": title,
+                "keys": settings_keys_for_stage(stage_id),
+            }
+            for stage_id, title in stage_titles.items()
+        ],
+        "control_surface_filters": [
+            {
+                "id": surface_id,
+                "title": title,
+                "keys": settings_keys_for_control_surface(surface_id),
+            }
+            for surface_id, title in control_surface_titles.items()
+        ],
+    }
 
 def decision_status_sort_key(status: str) -> int:
     return _DECISION_STATUS_PRIORITY.get(str(status), _DECISION_STATUS_PRIORITY[DECISION_STATUS_ALL])
