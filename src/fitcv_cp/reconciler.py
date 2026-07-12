@@ -26,6 +26,7 @@ from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.queue import enqueue_run_with_job_id
 from fitcv_cp.retry_settings import load_retry_settings
 from fitcv_cp.run_artifact_contracts import decode_run_attempt_payload_or_none, run_attempt_payload_v1
+from fitcv_cp.run_lifecycle import can_reconcile_abandoned_attempts
 from fitcv_cp.store import RunStore
 
 
@@ -71,7 +72,7 @@ def reconcile_abandoned_attempts(
 
     for run in store.list_runs(limit=200, include_archived=False, archived_only=False):
         scanned_runs += 1
-        if getattr(run, "status", None) not in {RunStatus.QUEUED, RunStatus.RUNNING}:
+        if not can_reconcile_abandoned_attempts(run):
             continue
 
         cancel_requested = getattr(run, "cancel_requested_at", None) is not None

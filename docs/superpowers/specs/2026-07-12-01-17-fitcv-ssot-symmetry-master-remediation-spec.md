@@ -412,21 +412,25 @@ spec owns one bounded slice and repo stays shippable after every phase.
   - no zombie operator surface debt
   - clearer repo-search proofs
 
-### Decision: Child specs are phase-bounded; no big-bang rewrite phase exists
+### Decision: Phase-bounded specs stay canonical; closeout owns remaining agreed residue
 
 - context: problem set is broad, but repo must stay shippable and reviewable
-- choice: author child specs in this order:
+- choice: keep ordered phase execution for Phases 1-5, then route any still-agreed
+  cross-phase residue into one bounded closeout child spec instead of reopening
+  new phase fan-out:
   - Phase 1: legacy-surface deletion and backend-interface trim
   - Phase 2: stage, lifecycle, and late-stage contract consolidation
   - Phase 3: settings-schema completion and native-form boundary convergence
   - Phase 4: routing/runtime-envelope convergence, persistence-truth cleanup,
     and retirement of any temporary Phase 1 backend-compat boundary shims
   - Phase 5: bounded control-plane monolith reduction and optional storage normalization
+  - Closeout lane: docs/superpowers/specs/2026-07-12-23-58-fitcv-ssot-symmetry-closeout-remaining-agreed-points-spec.md
 - alternatives considered:
   - one monolithic implementation plan
   - file-structure rewrite before canonical owner convergence
 - impact:
   - each phase can prove one bounded contract improvement
+  - remaining agreed cleanup has one owner instead of stale competing follow-on specs
   - later decomposition happens only after core owners are stable
 
 ## Invariants
@@ -471,7 +475,8 @@ spec owns one bounded slice and repo stays shippable after every phase.
 7. `_LOCAL_RUNS`, dead-letter fallback/event replay residue, removed diagnostics,
    and other audited zombie surfaces are deleted fully or explicitly retained as
    supported contracts with named owner and tests.
-8. Child phase specs exist for all five ordered lanes in this master spec.
+8. Child phase specs exist for Phases 1-5, and any remaining agreed residue is
+   owned by one bounded closeout spec rather than new phase fan-out.
 
 ## Non-Goals
 
@@ -555,7 +560,8 @@ spec owns one bounded slice and repo stays shippable after every phase.
 ## Completion Criteria
 
 1. all Key Deliverables are satisfied
-2. child phase specs exist for all ordered lanes defined in this document
+2. child phase specs exist for Phases 1-5 and remaining agreed residue is
+   anchored to bounded closeout spec when needed
 3. downstream implementation plans inherit this master spec rather than
    redefining ownership or phase order
 4. every child item is `completed`, `superseded`, or `dropped`

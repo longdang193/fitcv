@@ -26,6 +26,7 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 
 from fitcv.agentic_cv_analysis import build_cv_analysis_record as build_agentic_cv_analysis_record
+from fitcv.late_stage_contract import canonical_pipeline_outcome_status, pipeline_outcome_surface
 from fitcv.pipeline import (
     _build_export_results,
     _build_stage_transition_artifacts,
@@ -132,6 +133,45 @@ def test_build_ranking_features_includes_vector_similarity() -> None:
     features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, {})
     job1 = next(f for f in features if f["job_url"] == "https://example.com/1")
     assert job1["vector_similarity"] == pytest.approx(0.9)
+
+
+@pytest.mark.parametrize(
+    ("row", "expected_status", "expected_surface"),
+    [
+        (
+            {
+                "source_stage": "cv_generation",
+                "deterministic_outcome": "accepted",
+                "stage_owned_subreason": "accepted",
+            },
+            "ranked_with_cv",
+            {"label": "CV created", "badge_class": "badge-success"},
+        ),
+        (
+            {
+                "source_stage": "cv_generation",
+                "stage_owned_subreason": "review_required",
+            },
+            "ranked_no_cv",
+            {"label": "CV review required", "badge_class": "badge-warning"},
+        ),
+        (
+            {
+                "source_stage": "cv_analysis",
+                "stage_owned_subreason": "blocked_by_reranker_fit",
+            },
+            "ranked_blocked_by_reranker_fit",
+            {"label": "Ranked, blocked by reranker fit", "badge_class": "badge-warning"},
+        ),
+    ],
+)
+def test_late_stage_contract_projects_pipeline_outcome_surface(
+    row: dict[str, Any],
+    expected_status: str,
+    expected_surface: dict[str, str],
+) -> None:
+    assert canonical_pipeline_outcome_status(row) == expected_status
+    assert pipeline_outcome_surface(row) == expected_surface
 
 
 def test_stage_block_orders_outcome_samples_before_inputs() -> None:

@@ -109,9 +109,6 @@ from fitcv_cp.worker_run_support import (
 
 logger = logging.getLogger(__name__)
 
-def _persistence_scope_kwargs(project_id: str, dataset_id: str) -> dict[str, str]:
-    return {"project": project_id, "dataset": dataset_id}
-
 _MAX_DEBUG_MARKDOWN_CHARS = 4000
 _LATE_STAGE_REUSE_RUN_SCAN_LIMIT = 50
 _SETTINGS_COMPATIBILITY_KEYS = {
@@ -236,8 +233,6 @@ def execute_cv_regenerate_once(
     load_dotenv_defaults()
     runtime = resolve_backend_runtime()
     set_backend_runtime(runtime)
-    persistence_project_id = "local"
-    persistence_dataset_id = "fitcv"
     client = None
     now = datetime.datetime.now(datetime.timezone.utc)
 
@@ -261,7 +256,7 @@ def execute_cv_regenerate_once(
         client,
     )
     try:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise ValueError("run_not_found")
         raw_payload = str(getattr(run, "cv_generation_debug_json", "") or "").strip()
@@ -306,7 +301,6 @@ def execute_cv_regenerate_once(
             run_id,
             json.dumps(payload, ensure_ascii=False),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         append_event(
             RunEvent(
@@ -328,7 +322,6 @@ def execute_cv_regenerate_once(
                 ),
             ),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
     except Exception as exc:
         append_event(
@@ -350,7 +343,6 @@ def execute_cv_regenerate_once(
                 ),
             ),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         raise
 
@@ -385,11 +377,7 @@ def _append_degraded_snapshot_persistence_warning(
     snapshot_name: str,
     persistence_status: dict[str, str] | None,
     client: Any,
-    project: str,
-    dataset: str,
 ) -> None:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     status = dict(persistence_status or {})
     if status.get("persistence_status") in {"persisted", "not_applicable", ""}:
         return
@@ -497,11 +485,7 @@ def _collect_late_stage_reuse_snapshots(
     current_run_id: str,
     allow_checkpointed_sources: bool,
     client: Any,
-    project: str,
-    dataset: str,
 ) -> dict[str, Any]:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     snapshots: dict[str, Any] = {
         "schema_version": "late_stage_reuse_v1",
         "ranking_ai_scores": [],
@@ -510,7 +494,6 @@ def _collect_late_stage_reuse_snapshots(
     try:
         prior_runs = list_runs(
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             limit=_LATE_STAGE_REUSE_RUN_SCAN_LIMIT,
             include_archived=True,
         )
@@ -906,11 +889,7 @@ def _append_synonym_suppression_summary_event(
     run_id: str,
     synonym_payload_json: str,
     client: Any,
-    project: str | None = None,
-    dataset: str | None = None,
 ) -> None:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     payload = decode_json_object_or_none(synonym_payload_json)
     if not payload:
         return
@@ -978,11 +957,7 @@ def _run_synonym_automation_for_payload(
     payload: dict[str, Any],
     run_status: RunStatus,
     client: Any,
-    project: str | None = None,
-    dataset: str | None = None,
 ) -> None:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     mode = _synonym_management_mode_from_run_record(run_record)
     proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
     if not proposals:
@@ -1138,7 +1113,6 @@ def _run_synonym_automation_for_payload(
                     payload_json=json.dumps(event_payload, ensure_ascii=False),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
         trace_summary["triage_recommendation_event_fingerprint"] = event_fingerprint
 
@@ -1205,7 +1179,6 @@ def _run_synonym_automation_for_payload(
                     ),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
 
     promote_counts = {
@@ -1310,7 +1283,6 @@ def _run_synonym_automation_for_payload(
                                 ),
                             ),
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         )
                     promote_skip_reason = "applied"
                     if int(auto_apply_counts.get("applied") or 0) > 0:
@@ -1338,7 +1310,6 @@ def _run_synonym_automation_for_payload(
                                 run_id,
                                 json.dumps(updated_cfg, ensure_ascii=False),
                                 client=client,
-                                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                             )
     trace_summary["triage_recommendation_generated_total"] = int(triaged_count)
     trace_summary["triage_recommendation_reused_total"] = int(reused_count)
@@ -1371,23 +1342,17 @@ def _persist_shared_progress_snapshot(
     summary: dict[str, Any],
     snapshot_at: datetime.datetime,
     client: Any,
-    project: str,
-    dataset: str,
     run_status: RunStatus,
 ) -> None:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     update_run_status(
         run_id,
         run_status,
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         summary=summary,
     )
     update_run_progress(
         run_id,
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         last_completed_stage=str(summary.get("last_completed_stage") or "").strip() or None,
         completed_stages=list(summary.get("completed_stages") or []),
     )
@@ -1401,7 +1366,6 @@ def _persist_shared_progress_snapshot(
             degradation_reason="partial_snapshot",
         ),
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
     )
     if _summary_has_reached_stage(summary, "enrich"):
         _persist_mapping_suggestions_snapshot(
@@ -1409,7 +1373,6 @@ def _persist_shared_progress_snapshot(
             summary=summary,
             created_at=snapshot_at,
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         if _synonym_propose_enabled_from_run_record(run_record):
             _persist_synonym_proposals_snapshot(
@@ -1419,7 +1382,6 @@ def _persist_shared_progress_snapshot(
                 created_at=snapshot_at,
                 run_status=run_status,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
 
 
@@ -1429,11 +1391,7 @@ def _persist_mapping_suggestions_snapshot(
     summary: dict[str, Any],
     created_at: datetime.datetime,
     client: Any,
-    project: str,
-    dataset: str,
 ) -> None:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     update_run_mapping_suggestions(
         run_id,
         _build_mapping_suggestions_payload(
@@ -1442,7 +1400,6 @@ def _persist_mapping_suggestions_snapshot(
             created_at=created_at,
         ),
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
     )
 
 
@@ -1454,17 +1411,12 @@ def _persist_synonym_proposals_snapshot(
     created_at: datetime.datetime,
     run_status: RunStatus,
     client: Any,
-    project: str,
-    dataset: str,
 ) -> str:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     """Persist run-scoped synonym proposals snapshot with shared behavior."""
     existing_payload_json = _resolve_synonym_proposals_seed_payload_json(
         run_id=run_id,
         run_record=run_record,
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
     )
     synonym_payload_json = build_synonym_proposals_payload(
         run_id=run_id,
@@ -1480,7 +1432,6 @@ def _persist_synonym_proposals_snapshot(
         payload=synonym_payload,
         run_status=run_status,
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
     )
     synonym_payload_json = encode_json_object(synonym_payload)
 
@@ -1488,20 +1439,17 @@ def _persist_synonym_proposals_snapshot(
         run_id,
         synonym_payload_json,
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
     )
     _append_synonym_suppression_summary_event(
         run_id=run_id,
         synonym_payload_json=synonym_payload_json,
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
     )
     _append_degraded_snapshot_persistence_warning(
         run_id=run_id,
         snapshot_name="synonym_proposals",
         persistence_status=synonym_status,
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
     )
     return str(synonym_status or "")
 
@@ -1510,11 +1458,7 @@ def _resolve_synonym_proposals_seed_payload_json(
     run_id: str,
     run_record: Any,
     client: Any,
-    project: str,
-    dataset: str,
 ) -> str | None:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     current_payload = str(getattr(run_record, "synonym_proposals_json", "") or "").strip()
     if current_payload:
         return current_payload
@@ -1522,7 +1466,7 @@ def _resolve_synonym_proposals_seed_payload_json(
     current_jobs_path = str(getattr(run_record, "jobs_path", "") or "").strip()
     current_run_mode = str(getattr(run_record, "run_mode", "") or "").strip()
     try:
-        runs = list_runs(client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id), include_archived=False)
+        runs = list_runs(client=client, include_archived=False)
     except Exception:
         return None
 
@@ -1565,8 +1509,6 @@ def execute_pipeline_run(
     load_dotenv_defaults()
     runtime = resolve_backend_runtime()
     set_backend_runtime(runtime)
-    persistence_project_id = "local"
-    persistence_dataset_id = "fitcv"
     client = None
 
     # Import here to avoid circular deps at module load time
@@ -1604,29 +1546,27 @@ def execute_pipeline_run(
                 metadata={
                     "scope": "control_plane_worker",
                     "backend_type": str(runtime.backend_type),
-                    "project": str(persistence_project_id or ""),
-                    "dataset": str(persistence_dataset_id or ""),
                 },
             ),
         },
     ):
         try:
-            current_run_record = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+            current_run_record = get_run(run_id, client=client)
             if current_run_record and current_run_record.cancel_requested_at is not None:
                 logger.info("[run_id=%s] Cancellation already requested — exiting early", run_id)
                 update_run_status(
-                    run_id, RunStatus.CANCELLED, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+                    run_id, RunStatus.CANCELLED, client=client,
                     finished_at=datetime.datetime.now(datetime.timezone.utc),
                 )
                 append_event(
                     _run_cancelled_event(run_id, "Run cancelled before pipeline execution started"),
-                    client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+                    client=client,
                 )
                 set_span_attributes({"run_terminal_status": str(RunStatus.CANCELLED)})
                 return
             # ── Step 1: Mark running ──────────────────────────────────────────────
             update_run_status(
-                run_id, RunStatus.RUNNING, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+                run_id, RunStatus.RUNNING, client=client,
                 started_at=(
                     datetime.datetime.now(datetime.timezone.utc)
                     if current_run_record is None or getattr(current_run_record, "started_at", None) is None
@@ -1661,7 +1601,6 @@ def execute_pipeline_run(
                     ),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
 
             _last_lease_renew_at = 0.0
@@ -1699,7 +1638,6 @@ def execute_pipeline_run(
                             ),
                         ),
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     )
                 except Exception as inner:
                     logger.warning("[run_id=%s] Failed to renew run attempt lease: %s", run_id, inner)
@@ -1712,7 +1650,7 @@ def execute_pipeline_run(
                     "backend_type": str(runtime.backend_type),
                 },
             ):
-                run_record = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+                run_record = get_run(run_id, client=client)
                 effective_config: dict[str, Any] | None = None
                 if run_record and run_record.effective_settings_json:
                     try:
@@ -1778,12 +1716,12 @@ def execute_pipeline_run(
             if run_record and run_record.cancel_requested_at is not None:
                 logger.info("[run_id=%s] Cancellation already requested — exiting early", run_id)
                 update_run_status(
-                    run_id, RunStatus.CANCELLED, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+                    run_id, RunStatus.CANCELLED, client=client,
                     finished_at=datetime.datetime.now(datetime.timezone.utc),
                 )
                 append_event(
                     _run_cancelled_event(run_id, "Run cancelled before pipeline execution started"),
-                    client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+                    client=client,
                 )
                 set_span_attributes({"run_terminal_status": str(RunStatus.CANCELLED)})
                 return
@@ -1799,7 +1737,7 @@ def execute_pipeline_run(
                     return _last_cancel_check_result
                 _last_cancel_check_at = now
                 try:
-                    current = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+                    current = get_run(run_id, client=client)
                     _last_cancel_check_result = current is not None and current.cancel_requested_at is not None
                     _maybe_renew_attempt_lease()
                 except Exception:  # noqa: BLE001
@@ -1820,7 +1758,6 @@ def execute_pipeline_run(
                 current_run_id=run_id,
                 allow_checkpointed_sources=allow_checkpointed_sources,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
 
             def _stage_progress_callback(progress_summary: dict[str, Any]) -> None:
@@ -1834,7 +1771,6 @@ def execute_pipeline_run(
                         summary=progress_summary,
                         snapshot_at=snapshot_time,
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         run_status=RunStatus.RUNNING,
                     )
                 except Exception as exc:
@@ -1848,7 +1784,6 @@ def execute_pipeline_run(
                         append_event(
                             _snapshot_persist_failed_event(run_id, "stage_progress", str(exc)),
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         )
                     except Exception as inner:
                         logger.warning(
@@ -1887,13 +1822,11 @@ def execute_pipeline_run(
                     run_id,
                     RunStatus.AWAITING_CONTINUE,
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     summary=summary,
                 )
                 update_run_checkpoint(
                     run_id,
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     checkpoint_status="awaiting_continue",
                     next_stage=summary.get("next_stage"),
                     last_completed_stage=paused_after_stage,
@@ -1916,7 +1849,6 @@ def execute_pipeline_run(
                             degradation_reason="checkpoint_partial_snapshot",
                         ),
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     )
                 except Exception as exc:
                     logger.warning(
@@ -1931,7 +1863,6 @@ def execute_pipeline_run(
                             summary=summary,
                             created_at=checkpoint_time,
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         )
                     except Exception as exc:
                         logger.warning(
@@ -1943,7 +1874,6 @@ def execute_pipeline_run(
                             append_event(
                                 _snapshot_persist_failed_event(run_id, "mapping_suggestions", str(exc)),
                                 client=client,
-                                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                             )
                         except Exception as inner:
                             logger.warning(
@@ -1960,7 +1890,6 @@ def execute_pipeline_run(
                                 created_at=checkpoint_time,
                                 run_status=RunStatus.AWAITING_CONTINUE,
                                 client=client,
-                                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                             )
                         except Exception as exc:
                             logger.warning(
@@ -1972,7 +1901,6 @@ def execute_pipeline_run(
                                 append_event(
                                     _snapshot_persist_failed_event(run_id, "synonym_proposals", str(exc)),
                                     client=client,
-                                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                                 )
                             except Exception as inner:
                                 logger.warning(
@@ -1990,7 +1918,6 @@ def execute_pipeline_run(
                         created_at=checkpoint_time,
                     ),
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
                 set_span_attributes({
                     "run_terminal_status": str(RunStatus.AWAITING_CONTINUE),
@@ -2049,7 +1976,6 @@ def execute_pipeline_run(
                     try:
                         prior_runs = list_runs(
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                             include_archived=True,
                         )
                     except Exception:
@@ -2116,7 +2042,6 @@ def execute_pipeline_run(
                                 ),
                             ),
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         )
                 review_pending = pending_review_required > 0
                 terminal_status = (
@@ -2159,7 +2084,6 @@ def execute_pipeline_run(
                             ),
                         ),
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     )
                     attempt_terminal_persisted = True
                 except Exception as inner:
@@ -2170,7 +2094,6 @@ def execute_pipeline_run(
                         run_id,
                         RunStatus.FAILED,
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         finished_at=datetime.datetime.now(datetime.timezone.utc),
                         summary=summary,
                         error_message="attempt_terminal_event_persist_failed",
@@ -2182,7 +2105,6 @@ def execute_pipeline_run(
                     run_id,
                     terminal_status,
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     finished_at=finished_at,
                     summary=summary,
                 )
@@ -2199,7 +2121,6 @@ def execute_pipeline_run(
                     update_run_checkpoint(
                         run_id,
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         checkpoint_status="awaiting_review",
                         next_stage=None,
                         last_completed_stage="cv_generation",
@@ -2229,13 +2150,11 @@ def execute_pipeline_run(
                             ),
                         ),
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     )
                 elif run_mode == "manual_staged":
                     update_run_checkpoint(
                         run_id,
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         checkpoint_status="completed",
                         next_stage=None,
                         last_completed_stage="cv_generation",
@@ -2246,7 +2165,6 @@ def execute_pipeline_run(
                     update_run_progress(
                         run_id,
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         last_completed_stage="cv_generation",
                         completed_stages=completed_stages,
                     )
@@ -2265,7 +2183,6 @@ def execute_pipeline_run(
                                 replay_context=replay_context,
                             ),
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     )
                 except Exception as exc:
                     logger.warning("[run_id=%s] Failed to persist results export snapshot: %s", run_id, exc)
@@ -2279,7 +2196,6 @@ def execute_pipeline_run(
                             finished_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
                         ),
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     )
                 except Exception as exc:
                     logger.warning("[run_id=%s] Failed to persist CV generation debug snapshot: %s", run_id, exc)
@@ -2293,7 +2209,6 @@ def execute_pipeline_run(
                             run_status=terminal_status,
                         ),
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     )
                 except Exception as exc:
                     logger.warning("[run_id=%s] Failed to persist stage transition artifacts snapshot: %s", run_id, exc)
@@ -2309,7 +2224,6 @@ def execute_pipeline_run(
                             replay_context=replay_context,
                         ),
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     )
                 except Exception as exc:
                     logger.warning("[run_id=%s] Failed to persist settings-used snapshot: %s", run_id, exc)
@@ -2337,7 +2251,6 @@ def execute_pipeline_run(
                             created_at=datetime.datetime.now(datetime.timezone.utc),
                         ),
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     )
                 if int(summary.get("cvs_generated") or 0) < accepted_debug_count:
                     append_event(
@@ -2353,10 +2266,9 @@ def execute_pipeline_run(
                             created_at=datetime.datetime.now(datetime.timezone.utc),
                         ),
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     )
 
-                persisted_run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+                persisted_run = get_run(run_id, client=client)
                 missing_effective = not str(getattr(persisted_run, "effective_settings_json", "") or "").strip()
                 missing_debug = not str(getattr(persisted_run, "cv_generation_debug_json", "") or "").strip()
                 missing_settings_used = not str(getattr(persisted_run, "settings_used_json", "") or "").strip()
@@ -2375,14 +2287,12 @@ def execute_pipeline_run(
                             created_at=datetime.datetime.now(datetime.timezone.utc),
                         ),
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     )
                     if missing_effective:
                         update_run_effective_settings(
                             run_id,
                             json.dumps(effective_config, ensure_ascii=False),
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         )
                     if missing_debug:
                         update_run_cv_generation_debug(
@@ -2394,7 +2304,6 @@ def execute_pipeline_run(
                                 finished_at=artifact_snapshot_at,
                             ),
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         )
                     if missing_settings_used:
                         update_run_settings_used(
@@ -2408,7 +2317,6 @@ def execute_pipeline_run(
                                 replay_context=replay_context,
                             ),
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         )
                     if missing_stage_artifacts:
                         update_run_stage_transition_artifacts(
@@ -2420,7 +2328,6 @@ def execute_pipeline_run(
                                 run_status=terminal_status,
                             ),
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         )
                 if _summary_has_reached_stage(summary, "enrich"):
                     snapshot_created_at = finished_at or datetime.datetime.now(datetime.timezone.utc)
@@ -2430,7 +2337,6 @@ def execute_pipeline_run(
                             summary=summary,
                             created_at=snapshot_created_at,
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         )
                     except Exception as exc:
                         logger.warning("[run_id=%s] Failed to persist mapping suggestions snapshot: %s", run_id, exc)
@@ -2438,7 +2344,6 @@ def execute_pipeline_run(
                             append_event(
                                 _snapshot_persist_failed_event(run_id, "mapping_suggestions", str(exc)),
                                 client=client,
-                                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                             )
                         except Exception as inner:
                             logger.warning(
@@ -2455,7 +2360,6 @@ def execute_pipeline_run(
                                 created_at=snapshot_created_at,
                                 run_status=terminal_status,
                                 client=client,
-                                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                             )
                         except Exception as exc:
                             logger.warning("[run_id=%s] Failed to persist synonym proposals snapshot: %s", run_id, exc)
@@ -2463,7 +2367,6 @@ def execute_pipeline_run(
                                 append_event(
                                     _snapshot_persist_failed_event(run_id, "synonym_proposals", str(exc)),
                                     client=client,
-                                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                                 )
                             except Exception as inner:
                                 logger.warning(
@@ -2482,7 +2385,7 @@ def execute_pipeline_run(
             cancelled_at = datetime.datetime.now(datetime.timezone.utc)
             set_span_attributes({"run_terminal_status": str(RunStatus.CANCELLED)})
             update_run_status(
-                run_id, RunStatus.CANCELLED, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+                run_id, RunStatus.CANCELLED, client=client,
                 finished_at=cancelled_at,
                 summary=summary if isinstance(summary, dict) else None,
             )
@@ -2510,7 +2413,6 @@ def execute_pipeline_run(
                         ),
                     ),
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
             except Exception as inner:
                 logger.warning("[run_id=%s] Failed to append run attempt cancelled event: %s", run_id, inner)
@@ -2522,7 +2424,6 @@ def execute_pipeline_run(
                         summary=summary,
                         snapshot_at=cancelled_at,
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         run_status=RunStatus.CANCELLED,
                     )
                 except Exception as persist_exc:
@@ -2534,7 +2435,7 @@ def execute_pipeline_run(
             try:
                 append_event(
                     _run_cancelled_event(run_id, f"Run cancelled at pipeline checkpoint: {exc}"),
-                    client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+                    client=client,
                 )
             except Exception as inner:
                 logger.warning("[run_id=%s] Failed to write cancellation event: %s", run_id, inner)
@@ -2552,7 +2453,7 @@ def execute_pipeline_run(
                 "error.message": str(exc),
             })
             update_run_status(
-                run_id, RunStatus.FAILED, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+                run_id, RunStatus.FAILED, client=client,
                 finished_at=failed_at,
                 summary=summary if isinstance(summary, dict) else None,
                 error_message=str(exc),
@@ -2584,7 +2485,6 @@ def execute_pipeline_run(
                         ),
                     ),
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
             except Exception as inner:
                 logger.warning("[run_id=%s] Failed to append run attempt failed event: %s", run_id, inner)
@@ -2596,7 +2496,6 @@ def execute_pipeline_run(
                         summary=summary,
                         snapshot_at=failed_at,
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         run_status=RunStatus.FAILED,
                     )
                 except Exception as persist_exc:
@@ -2616,7 +2515,6 @@ def execute_pipeline_run(
                         created_at=failed_at,
                     ),
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
             except Exception as inner:
                 logger.warning("[run_id=%s] Failed to write failure event: %s", run_id, inner)
@@ -2624,6 +2522,9 @@ def execute_pipeline_run(
                 persist_terminal_run_artifact_mirror(run_id=run_id)
             except Exception as mirror_exc:
                 logger.warning("[run_id=%s] Failed to persist terminal artifact mirror: %s", run_id, mirror_exc)
+
+
+
 
 
 

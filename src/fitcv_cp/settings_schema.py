@@ -381,6 +381,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.enrich.sleep_secs",
         "type": "float",
+        "float_range": "nonnegative",
         "default": 0.0,
         "label": "API Delay: Enrichment Stage",
         "description": "Canonical delay between enrich-stage API calls for shared throttling.",
@@ -408,6 +409,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.ranking.sleep_secs",
         "type": "float",
+        "float_range": "nonnegative",
         "default": 0.0,
         "label": "API Delay: Ranking Stage",
         "description": "Canonical delay between ranking-stage AI scoring calls.",
@@ -426,6 +428,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.cv_analysis.sleep_secs",
         "type": "float",
+        "float_range": "nonnegative",
         "default": 0.0,
         "label": "API Delay: CV Analysis Stage",
         "description": "Canonical delay between cv_analysis stage AI calls when enabled.",
@@ -444,6 +447,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "stage_runtime.cv_generation.sleep_secs",
         "type": "float",
+        "float_range": "nonnegative",
         "default": 0.0,
         "label": "API Delay: CV Generation Stage",
         "description": "Canonical delay between cv_generation stage AI calls when enabled.",
@@ -462,6 +466,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "enrichment_sleep_secs",
         "type": "float",
+        "float_range": "nonnegative",
         "default": 0.0,
         "label": "API Delay: Data Enrichment",
         "description": "Seconds to wait between calls to the web scraping/enrichment API to avoid rate limiting.",
@@ -472,6 +477,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "rerank_sleep_secs",
         "type": "float",
+        "float_range": "nonnegative",
         "default": 0.0,
         "label": "API Delay: AI Reranking",
         "description": "Seconds to wait between concurrent/sequential LLM calls during candidate scoring.",
@@ -1514,8 +1520,7 @@ def agentic_advanced_diagnostic_keys() -> list[str]:
 
 
 def _is_nonnegative_float_entry(entry: dict[str, Any]) -> bool:
-    config_path = list(entry.get("config_path") or [])
-    return bool(config_path) and str(config_path[-1] or "").strip() == "sleep_secs"
+    return str(entry.get("float_range") or "").strip() == "nonnegative"
 
 
 def build_settings_page_spec() -> dict[str, Any]:

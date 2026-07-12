@@ -55,6 +55,10 @@ def can_cancel_run(run: PipelineRun) -> bool:
     return run.status in {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.AWAITING_CONTINUE}
 
 
+def can_reconcile_abandoned_attempts(run: PipelineRun) -> bool:
+    return run.status in {RunStatus.QUEUED, RunStatus.RUNNING}
+
+
 def can_retry_run(run: PipelineRun) -> bool:
     if run.status == RunStatus.CANCELLED:
         return False

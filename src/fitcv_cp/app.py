@@ -80,6 +80,10 @@ from fitcv.pipeline import (
     _restore_pipeline_state,
     next_pipeline_stage,
 )
+from fitcv.late_stage_contract import (
+    canonical_pipeline_outcome_status as late_stage_canonical_pipeline_outcome_status,
+    pipeline_outcome_surface as late_stage_pipeline_outcome_surface,
+)
 from fitcv.tracker import create_cv_version_record
 import fitcv_cp.sqlite_store as sqlite_store_module
 from fitcv_cp.backend_runtime import BackendRuntime
@@ -225,9 +229,6 @@ def _pop_cached_run_submission(run_id: str) -> RunSubmission | None:
     return submission
 _CP_STORE: ControlPlaneStore | None = None
 logger = logging.getLogger(__name__)
-
-def _persistence_scope_kwargs(project_id: str, dataset_id: str) -> dict[str, str]:
-    return {"project": project_id, "dataset": dataset_id}
 
 GERMANY_TZ = ZoneInfo("Europe/Berlin")
 
@@ -437,11 +438,11 @@ def _observability_toggles() -> tuple[bool, bool]:
     )
 
 
-def _persist_run_initial(run: PipelineRun, *, client: Any, project: str, dataset: str) -> None:
+def _persist_run_initial(run: PipelineRun, *, client: Any) -> None:
     if _CP_STORE is not None:
         _CP_STORE.insert_run(run)
         return
-    insert_run(run, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+    insert_run(run, client=client)
 
 
 def _persist_run_orchestration_binding(
@@ -451,11 +452,7 @@ def _persist_run_orchestration_binding(
     orchestration_backend: str,
     orchestration_run_id: str | None,
     client: Any,
-    project: str,
-    dataset: str,
 ) -> None:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     if _CP_STORE is not None:
         _CP_STORE.update_run_orchestration_binding(
             run_id,
@@ -470,7 +467,6 @@ def _persist_run_orchestration_binding(
         orchestration_backend=orchestration_backend,
         orchestration_run_id=orchestration_run_id,
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
     )
 
 
@@ -479,15 +475,11 @@ def _persist_run_queue_job_id(
     queue_job_id: str,
     *,
     client: Any,
-    project: str,
-    dataset: str,
 ) -> None:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     if _CP_STORE is not None:
         _CP_STORE.update_run_queue_job_id(run_id, queue_job_id)
         return
-    update_run_queue_job_id(run_id, queue_job_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+    update_run_queue_job_id(run_id, queue_job_id, client=client)
 
 
 def enqueue_run_with_job_id(
@@ -1075,16 +1067,12 @@ def _persist_stage_artifacts_terminal_snapshot(
     *,
     run_id: str,
     client: Any,
-    project: str,
-    dataset: str,
     terminal_status: RunStatus,
     snapshot_at: datetime.datetime,
     snapshot_complete: bool,
     degradation_reason: str,
 ) -> None:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
-    run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+    run = get_run(run_id, client=client)
     if run is None or not run.stage_transition_artifacts_json:
         return
     payload = _load_stage_transition_artifacts_payload(run)
@@ -1098,7 +1086,6 @@ def _persist_stage_artifacts_terminal_snapshot(
         run_id,
         _json.dumps(payload, ensure_ascii=False),
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
     )
 
 
@@ -1804,11 +1791,7 @@ def _finalize_review_draft_as_cv_artifact(
     job_url: str,
     record: dict[str, Any] | None,
     client: Any,
-    project: str,
-    dataset: str,
 ) -> tuple[bool, str, str | None]:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     if not isinstance(record, dict):
         return (False, "not_review_required", None)
     markdown_full = str(record.get("markdown_full") or "").strip()
@@ -1851,7 +1834,7 @@ def _finalize_review_draft_as_cv_artifact(
         cv_generation_input_fingerprint=str(record.get("cv_generation_input_fingerprint") or "") or None,
         cv_generation_reuse_status=str(record.get("cv_generation_reuse_status") or "") or None,
     )
-    errors = insert_cv_version_row(version_record, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+    errors = insert_cv_version_row(version_record, client=client)
     if errors:
         return (False, "persist_failed", None)
     return (True, "finalized", str(version_record.get("version_id") or ""))
@@ -2148,15 +2131,11 @@ def _persist_post_hitl_closure_artifact_reconciliation(
     run: PipelineRun,
     closure_payload: dict[str, Any],
     client: Any,
-    project: str,
-    dataset: str,
 ) -> None:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     summary = dict(closure_payload.get("summary") or {})
     accepted_total = int(summary.get("accepted_cv_total") or 0)
     pending_total = int(summary.get("pending_total") or 0)
-    fresh_run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id)) or run
+    fresh_run = get_run(run_id, client=client) or run
 
     export_payload = _load_json_object(fresh_run.results_export_json)
     rows = list((export_payload or {}).get("results") or [])
@@ -2211,7 +2190,6 @@ def _persist_post_hitl_closure_artifact_reconciliation(
             run_id,
             _json.dumps(payload, ensure_ascii=False),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
 
     stage_payload = _load_stage_transition_artifacts_payload(fresh_run)
@@ -2242,7 +2220,6 @@ def _persist_post_hitl_closure_artifact_reconciliation(
         run_id,
         _json.dumps(stage_payload, ensure_ascii=False),
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
     )
 
 def _load_run_cv_analysis_trace_payload(run: PipelineRun) -> dict[str, Any] | None:
@@ -3559,11 +3536,7 @@ def _commit_synonym_global_promotion(
     acted_by: str,
     note: str,
     client: Any,
-    project: str | None = None,
-    dataset: str | None = None,
 ) -> dict[str, Any]:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     field_specs = {
         "skill": {
             "load": _load_global_skill_synonyms_map,
@@ -3669,7 +3642,6 @@ def _commit_synonym_global_promotion(
             run_id=run.run_id,
             synonym_proposals_json=_json.dumps(payload, ensure_ascii=False),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
     append_event(
         RunEvent(
@@ -3698,7 +3670,6 @@ def _commit_synonym_global_promotion(
             ),
         ),
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
     )
     return {
         "applied": applied,
@@ -3717,11 +3688,7 @@ def _run_post_validation_auto_promote_global(
     acted_by: str,
     note: str,
     client: Any,
-    project: str,
-    dataset: str,
 ) -> dict[str, Any]:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     payload = _load_run_synonym_proposals_payload(run)
     promote_counts: dict[str, int] = {
         "applied": 0,
@@ -3769,7 +3736,6 @@ def _run_post_validation_auto_promote_global(
                             acted_by=acted_by,
                             note=note,
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         )
                         promote_skip_reason = "applied"
 
@@ -3785,7 +3751,6 @@ def _run_post_validation_auto_promote_global(
             run.run_id,
             _json.dumps(payload, ensure_ascii=False),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
     return {
         "counts": promote_counts,
@@ -3798,11 +3763,7 @@ def _sync_run_overlay_from_approved_synonym_proposals(
     run: PipelineRun,
     payload: dict[str, Any],
     client: Any,
-    project: str,
-    dataset: str,
 ) -> None:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
     overlay_synonyms, proposal_ids = _approved_synonym_overlay_payload(proposals)
     if not overlay_synonyms:
@@ -3824,7 +3785,6 @@ def _sync_run_overlay_from_approved_synonym_proposals(
         run.run_id,
         _json.dumps(updated_config, ensure_ascii=False),
         client=client,
-        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
     )
 
 
@@ -4067,75 +4027,14 @@ def _event_payload(event: RunEvent) -> dict[str, Any]:
 
 
 def _canonical_pipeline_outcome_status(row: dict[str, Any]) -> str:
-    pipeline_status = str(row.get("pipeline_status") or "").strip()
-    if pipeline_status in PIPELINE_OUTCOME_META:
-        return pipeline_status
-
-    status = str(row.get("status") or "").strip()
-    if status in PIPELINE_OUTCOME_META:
-        return status
-
-    source_stage = str(row.get("source_stage") or "").strip()
-    stage_owned_subreason = str(row.get("stage_owned_subreason") or "").strip()
-    deterministic_outcome = str(row.get("deterministic_outcome") or "").strip()
-
-    if source_stage == "cv_generation" or status in {"accepted", "review_required", "validation_failed", "generation_failed", "persistence_failed"}:
-        if deterministic_outcome == "accepted" or status == "accepted" or stage_owned_subreason == "accepted":
-            return "ranked_with_cv"
-        if status in {"review_required", "validation_failed", "generation_failed", "persistence_failed"}:
-            return "ranked_no_cv"
-        if stage_owned_subreason in {"review_required", "validation_failed", "generation_failed", "persistence_failed"}:
-            return "ranked_no_cv"
-        if deterministic_outcome in {"rejected", "review_required"}:
-            return "ranked_no_cv"
-
-    if source_stage == "cv_analysis" or status in {"ready_for_generation", "blocked_by_reranker_fit", "skipped_fit_gate", "analysis_failed"}:
-        if status == "blocked_by_reranker_fit" or stage_owned_subreason == "blocked_by_reranker_fit":
-            return "ranked_blocked_by_reranker_fit"
-        if status == "skipped_fit_gate" or stage_owned_subreason == "skipped_fit_gate":
-            return "ranked_skipped_fit_gate"
-        if status in {"ready_for_generation", "analysis_failed"}:
-            return "ranked_no_cv"
-        if stage_owned_subreason in {"ready_for_generation", "analysis_failed"}:
-            return "ranked_no_cv"
-
-    return pipeline_status
+    return late_stage_canonical_pipeline_outcome_status(row)
 
 def _pipeline_outcome_surface(row: dict[str, Any]) -> dict[str, str]:
+    surface = late_stage_pipeline_outcome_surface(row)
     pipeline_status = str(row.get("pipeline_status") or "")
-    deterministic_outcome = str(row.get("deterministic_outcome") or "").strip()
-    stage_owned_subreason = str(row.get("stage_owned_subreason") or "").strip()
-    source_stage = str(row.get("source_stage") or "").strip()
-
-    if source_stage == "cv_generation":
-        if deterministic_outcome == "accepted":
-            return {"label": "CV created", "badge_class": "badge-success"}
-        if stage_owned_subreason == "review_required":
-            return {"label": "CV review required", "badge_class": "badge-warning"}
-        if stage_owned_subreason == "validation_failed":
-            return {"label": "CV validation failed", "badge_class": "badge-error"}
-        if stage_owned_subreason == "generation_failed":
-            return {"label": "CV generation failed", "badge_class": "badge-error"}
-        if stage_owned_subreason == "persistence_failed":
-            return {"label": "CV persistence failed", "badge_class": "badge-error"}
-
-    if source_stage == "cv_analysis":
-        if stage_owned_subreason == "ready_for_generation":
-            return {"label": "Ready for CV generation", "badge_class": "badge-info"}
-        if stage_owned_subreason == "blocked_by_reranker_fit":
-            return {"label": "Ranked, blocked by reranker fit", "badge_class": "badge-warning"}
-        if stage_owned_subreason == "skipped_fit_gate":
-            return {"label": "Skipped after CV analysis", "badge_class": "badge-warning"}
-        if stage_owned_subreason == "analysis_failed":
-            return {"label": "CV analysis failed", "badge_class": "badge-error"}
-
-    return PIPELINE_OUTCOME_META.get(
-        pipeline_status,
-        {
-            "label": pipeline_status or "Unknown pipeline outcome",
-            "badge_class": "badge-info",
-        },
-    )
+    if surface["label"] == (pipeline_status or "Unknown pipeline outcome"):
+        return PIPELINE_OUTCOME_META.get(pipeline_status, surface)
+    return surface
 
 
 def _job_lookup_keys(row: dict[str, Any]) -> list[str]:
@@ -4640,8 +4539,6 @@ def _build_enriched_tab_context(
     run: PipelineRun,
     *,
     run_id: str,
-    project: str | None = None,
-    dataset: str | None = None,
     client: Any,
     filter_name: str,
     query: str,
@@ -4649,16 +4546,14 @@ def _build_enriched_tab_context(
     page: int,
     page_size: int,
 ) -> dict[str, Any]:
-    persistence_project_id = project
-    persistence_dataset_id = dataset
     results_rows = _results_export_rows(run)
-    enriched_jobs = list_run_structured_jobs(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+    enriched_jobs = list_run_structured_jobs(run_id, client=client)
     if not enriched_jobs:
         enriched_jobs = _fallback_enriched_rows_from_stage_artifacts(run)
     if not enriched_jobs:
         enriched_jobs = _fallback_enriched_rows_from_results_export(results_rows)
     enriched_jobs = [_with_required_skills_display(job) for job in enriched_jobs]
-    filter_results = list_filter_results_for_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+    filter_results = list_filter_results_for_run(run_id, client=client)
     if not filter_results:
         filter_results = _filter_results_fallback_from_stage_artifacts(run)
     filter_results_by_job_url = _index_rows_by_lookup_key(filter_results)
@@ -5641,8 +5536,6 @@ def create_app(
 ) -> FastAPI:
     global _CP_STORE
     client = None
-    persistence_project_id = "local"
-    persistence_dataset_id = "fitcv"
     _CP_STORE = ControlPlaneStore(
         backend_runtime=backend_runtime,
         insert_run_fn=insert_run,
@@ -5708,7 +5601,7 @@ def create_app(
         }
 
     def require_run_or_404(run_id: str, *, detail: str = "Run not found") -> PipelineRun:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail=detail)
         return run
@@ -5725,13 +5618,12 @@ def create_app(
             run_age_seconds = max(0.0, (now_utc - started_at_utc).total_seconds())
         completed_stages = list(getattr(run, "completed_stages", None) or [])
         if run_age_seconds >= 300 and not completed_stages:
-            events = get_events(run.run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+            events = get_events(run.run_id, client=client)
             if not events:
                 update_run_status(
                     run.run_id,
                     RunStatus.FAILED,
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     finished_at=now_utc,
                     error_message="Run remained RUNNING without progress/events for >5 minutes (orphaned startup).",
                 )
@@ -5745,9 +5637,8 @@ def create_app(
                         created_at=now_utc,
                     ),
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
-                return get_run(run.run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id)) or run
+                return get_run(run.run_id, client=client) or run
         queue_job_id = str(getattr(run, "queue_job_id", "") or "").strip()
         if not queue_job_id:
             return run
@@ -5760,7 +5651,6 @@ def create_app(
                     run.run_id,
                     RunStatus.FAILED if rq_status != "finished" else RunStatus.SUCCEEDED,
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     finished_at=datetime.datetime.now(datetime.timezone.utc),
                     error_message=(
                         None if rq_status == "finished"
@@ -5777,9 +5667,8 @@ def create_app(
                         created_at=datetime.datetime.now(datetime.timezone.utc),
                     ),
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
-                return get_run(run.run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id)) or run
+                return get_run(run.run_id, client=client) or run
             if rq_status == "missing" and queue_job_id.startswith("inline-"):
                 # Inline queue state is process-local memory; another process may
                 # legitimately report "missing" while the run continues elsewhere.
@@ -5792,7 +5681,6 @@ def create_app(
                 run.run_id,
                 RunStatus.FAILED,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 finished_at=datetime.datetime.now(datetime.timezone.utc),
                 error_message=f"Queue job {queue_job_id} missing while run remained RUNNING",
             )
@@ -5806,9 +5694,8 @@ def create_app(
                     created_at=datetime.datetime.now(datetime.timezone.utc),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
-            return get_run(run.run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id)) or run
+            return get_run(run.run_id, client=client) or run
         except Exception:
             return run
 
@@ -5837,7 +5724,6 @@ def create_app(
                 run.run_id,
                 RunStatus.RUNNING,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 started_at=now_utc,
             )
             append_event(
@@ -5850,15 +5736,13 @@ def create_app(
                     created_at=now_utc,
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
-            return get_run(run.run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id)) or run
+            return get_run(run.run_id, client=client) or run
         if rq_status in {"finished", "failed", "stopped", "canceled", "cancelled"}:
             update_run_status(
                 run.run_id,
                 RunStatus.FAILED,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 finished_at=now_utc,
                 error_message=(
                     f"Queue job {queue_job_id} ended with status={rq_status} while run remained QUEUED "
@@ -5875,9 +5759,8 @@ def create_app(
                     created_at=now_utc,
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
-            return get_run(run.run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id)) or run
+            return get_run(run.run_id, client=client) or run
         if rq_status == "missing" and queue_job_id.startswith("inline-"):
             return run
         return run
@@ -5977,10 +5860,10 @@ def create_app(
     def admin_orchestration_schema_diagnostics() -> dict[str, Any]:
         schema_status = get_pipeline_runs_schema_status(
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         return {
-            "table": f"{persistence_project_id}.{persistence_dataset_id}.pipeline_runs",
+            "storage_backend": "sqlite",
+            "table": "pipeline_runs",
             "required_columns": ["orchestration_backend", "orchestration_run_id"],
             **schema_status,
         }
@@ -6419,8 +6302,6 @@ def create_app(
         if run.status == RunStatus.QUEUED and run.queue_job_id:
             cancel_queued_run(run.queue_job_id, redis_url=redis_url)
         update_kwargs: dict[str, Any] = {
-            "project": persistence_project_id,
-            "dataset": persistence_dataset_id,
             "finished_at": now,
         }
         if target_status == RunStatus.FAILED:
@@ -6437,7 +6318,6 @@ def create_app(
                 created_at=now,
             ),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         update_fields: dict[str, Any] = {
             "status": target_status,
@@ -6542,7 +6422,6 @@ def create_app(
             current_count = len(dict(effective_config.get("skill_synonyms") or {}))
             recent_runs = list_runs(
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 include_archived=True,
                 limit=50,
             )
@@ -6602,7 +6481,7 @@ def create_app(
             next_stage="normalize" if run_mode == "manual_staged" else None,
             completed_stages=[],
         )
-        _persist_run_initial(run, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        _persist_run_initial(run, client=client)
         submission = submit_run(
             jobs_path=actual_jobs_path,
             config_path=config_path,
@@ -6616,13 +6495,11 @@ def create_app(
             orchestration_backend=submission.backend,
             orchestration_run_id=submission.backend_run_id,
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         _persist_run_queue_job_id(
             run_id,
             submission.queue_job_id,
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         return {"run_id": run_id, "warnings": [reuse_precheck_warning] if reuse_precheck_warning else []}
 
@@ -6720,7 +6597,6 @@ def create_app(
             current_count = len(dict(effective_config.get("skill_synonyms") or {}))
             recent_runs = list_runs(
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 include_archived=True,
                 limit=50,
             )
@@ -6788,7 +6664,7 @@ def create_app(
             next_stage="normalize" if run_mode == "manual_staged" else None,
             completed_stages=[],
         )
-        _persist_run_initial(run, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        _persist_run_initial(run, client=client)
         submission = submit_run(
             jobs_path=jobs_path,
             config_path=config_path,
@@ -6802,13 +6678,11 @@ def create_app(
             orchestration_backend=submission.backend,
             orchestration_run_id=submission.backend_run_id,
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         _persist_run_queue_job_id(
             run_id,
             submission.queue_job_id,
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         return {"run_id": run_id, "warnings": [reuse_precheck_warning] if reuse_precheck_warning else []}
 
@@ -7040,7 +6914,7 @@ def create_app(
 
     @app.get("/runs")
     def get_runs_list() -> list:
-        runs = list_runs(client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        runs = list_runs(client=client)
         runs = [_reconcile_orphaned_run(run) for run in runs]
         return [_run_to_dict(r) for r in runs]
 
@@ -7053,7 +6927,7 @@ def create_app(
     @app.get("/runs/{run_id}/events")
     def get_run_events_list(run_id: str) -> list:
         _ = require_run_or_404(run_id)
-        events = get_events(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        events = get_events(run_id, client=client)
         return [
             {
                 "event_id": e.event_id,
@@ -7391,18 +7265,17 @@ def create_app(
     def admin_runs(request: Request) -> HTMLResponse:
         view = request.query_params.get("view", "active")
         if view == "archived":
-            runs = list_runs(client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id), archived_only=True)
+            runs = list_runs(client=client, archived_only=True)
         elif view == "all":
-            runs = list_runs(client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id), include_archived=True)
+            runs = list_runs(client=client, include_archived=True)
         else:  # default: active
-            runs = list_runs(client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id), include_archived=False)
+            runs = list_runs(client=client, include_archived=False)
         runs = [_reconcile_orphaned_run(run) for run in runs]
         runs = [_attach_jobs_path_display(run) for run in runs]
         max_runtime_minutes = _run_max_runtime_minutes()
         runs = [_enforce_run_timeout_guard(run, max_runtime_minutes=max_runtime_minutes) for run in runs]
         pipeline_runs_schema_status = get_pipeline_runs_schema_status(
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         run_orchestration_diagnostics = {
             run.run_id: _build_orchestration_diagnostics(run)
@@ -7422,7 +7295,7 @@ def create_app(
     @app.post("/admin/runs/{run_id}/stop")
     def admin_stop_run(run_id: str) -> dict:
         """Stop a cancellable run. Returns JSON for fetch() callers."""
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not can_cancel_run(run):
@@ -7437,7 +7310,6 @@ def create_app(
                 run_id,
                 RunStatus.CANCELLED,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 finished_at=now,
             )
             append_event(
@@ -7450,21 +7322,20 @@ def create_app(
                     created_at=now,
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
             return {"status": "cancelled", "run_id": run_id}
         if run.status == RunStatus.QUEUED and run.queue_job_id:
             cancelled_in_queue = cancel_queued_run(run.queue_job_id, redis_url=redis_url)
             if cancelled_in_queue:
                 # Job still in queue — mark directly cancelled
-                request_run_cancel(run_id, "admin", RunStatus.CANCELLED.value, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+                request_run_cancel(run_id, "admin", RunStatus.CANCELLED.value, client=client)
                 append_event(
                     RunEvent(
                         run_id=run_id, event_id=event_id, stage="cancel_requested",
                         level="warning", message="Stop requested — cancelled from queue",
                         created_at=now,
                     ),
-                    client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+                    client=client,
                 )
                 append_event(
                     RunEvent(
@@ -7472,18 +7343,18 @@ def create_app(
                         level="warning", message="Run cancelled before pipeline execution",
                         created_at=now,
                     ),
-                    client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+                    client=client,
                 )
                 return {"status": "cancelled", "run_id": run_id}
         if run.status == RunStatus.QUEUED and run.started_at is None:
-            request_run_cancel(run_id, "admin", RunStatus.CANCELLING.value, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+            request_run_cancel(run_id, "admin", RunStatus.CANCELLING.value, client=client)
             append_event(
                 RunEvent(
                     run_id=run_id, event_id=event_id, stage="cancel_requested",
                     level="warning", message="Stop requested — run will be cancelled at next checkpoint",
                     created_at=now,
                 ),
-                client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+                client=client,
             )
             append_event(
                 RunEvent(
@@ -7491,18 +7362,18 @@ def create_app(
                     level="warning", message="Run cancelled before pipeline execution",
                     created_at=now,
                 ),
-                client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+                client=client,
             )
             return {"status": "cancelling", "run_id": run_id}
         # Running (or queued but already claimed) — set cancelling
-        request_run_cancel(run_id, "admin", RunStatus.CANCELLING.value, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        request_run_cancel(run_id, "admin", RunStatus.CANCELLING.value, client=client)
         append_event(
             RunEvent(
                 run_id=run_id, event_id=event_id, stage="cancel_requested",
                 level="warning", message="Stop requested — run will be cancelled at next checkpoint",
                 created_at=now,
             ),
-            client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+            client=client,
         )
         return {"status": "cancelling", "run_id": run_id}
 
@@ -7511,7 +7382,7 @@ def create_app(
         processed_run_ids: list[str] = []
         skipped_items: list[dict[str, str]] = []
         for run_id in payload.run_ids:
-            run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+            run = get_run(run_id, client=client)
             if run is None:
                 skipped_items.append({"run_id": run_id, "reason": "not_found"})
                 continue
@@ -7524,7 +7395,6 @@ def create_app(
                     run_id,
                     RunStatus.CANCELLED,
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     finished_at=datetime.datetime.now(datetime.timezone.utc),
                 )
                 append_event(
@@ -7537,21 +7407,18 @@ def create_app(
                         created_at=datetime.datetime.now(datetime.timezone.utc),
                     ),
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
                 processed_run_ids.append(run_id)
                 continue
 
             target_status = RunStatus.CANCELLING.value
             if run.status == RunStatus.QUEUED:
-                target_status = RunStatus.CANCELLED.value
+                cancelled_in_queue = False
                 if run.queue_job_id:
                     cancelled_in_queue = cancel_queued_run(run.queue_job_id, redis_url=redis_url)
-                    target_status = RunStatus.CANCELLED.value if cancelled_in_queue else RunStatus.CANCELLING.value
-                elif run.started_at is not None:
-                    target_status = RunStatus.CANCELLING.value
+                target_status = cancel_request_target_status(run, cancelled_in_queue=cancelled_in_queue).value
 
-            request_run_cancel(run_id, "admin", target_status, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+            request_run_cancel(run_id, "admin", target_status, client=client)
             append_event(
                 RunEvent(
                     run_id=run_id,
@@ -7566,7 +7433,6 @@ def create_app(
                     created_at=datetime.datetime.now(datetime.timezone.utc),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
             processed_run_ids.append(run_id)
 
@@ -7584,7 +7450,7 @@ def create_app(
         processed_run_ids: list[str] = []
         skipped_items: list[dict[str, str]] = []
         for run_id in payload.run_ids:
-            run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+            run = get_run(run_id, client=client)
             if run is None:
                 skipped_items.append({"run_id": run_id, "reason": "not_found"})
                 continue
@@ -7592,7 +7458,7 @@ def create_app(
                 skipped_items.append({"run_id": run_id, "reason": "not_archivable"})
                 continue
 
-            archive_run(run_id, "admin", client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+            archive_run(run_id, "admin", client=client)
             append_event(
                 RunEvent(
                     run_id=run_id,
@@ -7603,7 +7469,6 @@ def create_app(
                     created_at=datetime.datetime.now(datetime.timezone.utc),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
             processed_run_ids.append(run_id)
 
@@ -7621,7 +7486,7 @@ def create_app(
         processed_run_ids: list[str] = []
         skipped_items: list[dict[str, str]] = []
         for run_id in payload.run_ids:
-            run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+            run = get_run(run_id, client=client)
             if run is None:
                 skipped_items.append({"run_id": run_id, "reason": "not_found"})
                 continue
@@ -7629,7 +7494,7 @@ def create_app(
                 skipped_items.append({"run_id": run_id, "reason": "not_unarchivable"})
                 continue
 
-            unarchive_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+            unarchive_run(run_id, client=client)
             append_event(
                 RunEvent(
                     run_id=run_id,
@@ -7640,7 +7505,6 @@ def create_app(
                     created_at=datetime.datetime.now(datetime.timezone.utc),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
             processed_run_ids.append(run_id)
 
@@ -7655,7 +7519,7 @@ def create_app(
 
     @app.post("/admin/runs/bulk/delete-archived")
     def admin_bulk_delete_archived_runs(payload: BulkDeleteArchivedRunsRequest) -> dict[str, Any]:
-        result = delete_archived_runs(payload.older_than_days, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        result = delete_archived_runs(payload.older_than_days, client=client)
         deleted_count = int(result.get("deleted_count") or 0)
         deleted_run_ids = [str(item) for item in list(result.get("deleted_run_ids") or []) if str(item).strip()]
         status = "deleted" if deleted_count > 0 else "no_matches"
@@ -7681,7 +7545,7 @@ def create_app(
         overlay_upload_scope: str = Form("combined"),
         synonym_overlay_file: UploadFile = File(...),
     ) -> RedirectResponse:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not _can_upload_synonym_overlay(run):
@@ -7710,7 +7574,6 @@ def create_app(
             run_id,
             _json.dumps(updated_config, ensure_ascii=False),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         synonym_mode = dict(updated_config.get("synonym_management") or {})
         if bool(synonym_mode.get("propose_enabled", True)) and run.mapping_suggestions_json:
@@ -7727,7 +7590,6 @@ def create_app(
                 run_id,
                 synonym_payload_json,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
         append_event(
             RunEvent(
@@ -7756,7 +7618,6 @@ def create_app(
                 ),
             ),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         redirect_target = f"/admin/runs/{run_id}/review-queue"
         referer = str(request.headers.get("referer") or "").strip()
@@ -7774,7 +7635,7 @@ def create_app(
 
     @app.post("/admin/runs/{run_id}/continue")
     def admin_continue_run(request: Request, run_id: str) -> dict:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if run.run_mode != "manual_staged":
@@ -7819,13 +7680,11 @@ def create_app(
             run_id,
             _json.dumps(effective_config, ensure_ascii=False),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
-        update_run_status(run.run_id, RunStatus.QUEUED, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        update_run_status(run.run_id, RunStatus.QUEUED, client=client)
         update_run_checkpoint(
             run.run_id,
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             checkpoint_status="queued_for_continue",
             next_stage=canonical_next_stage,
             last_completed_stage=run.last_completed_stage,
@@ -7842,11 +7701,10 @@ def create_app(
             )
         except Exception as exc:
             # Keep manual-staged runs recoverable when queue submission fails.
-            update_run_status(run.run_id, RunStatus.AWAITING_CONTINUE, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+            update_run_status(run.run_id, RunStatus.AWAITING_CONTINUE, client=client)
             update_run_checkpoint(
                 run.run_id,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 checkpoint_status=run.checkpoint_status,
                 next_stage=canonical_next_stage,
                 last_completed_stage=run.last_completed_stage,
@@ -7871,7 +7729,6 @@ def create_app(
                     ),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
             raise HTTPException(
                 status_code=503,
@@ -7883,9 +7740,8 @@ def create_app(
             orchestration_backend=submission.backend,
             orchestration_run_id=submission.backend_run_id,
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
-        _persist_run_queue_job_id(run.run_id, submission.queue_job_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        _persist_run_queue_job_id(run.run_id, submission.queue_job_id, client=client)
 
         append_event(
             RunEvent(
@@ -7906,13 +7762,12 @@ def create_app(
                 ),
             ),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         return {"status": "queued", "run_id": run.run_id, "replay_mode": replay_mode}
 
     @app.post("/admin/runs/{run_id}/retry")
     def admin_retry_run(run_id: str) -> dict[str, Any]:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if run.status == RunStatus.CANCELLED:
@@ -7922,7 +7777,7 @@ def create_app(
         if run.status not in {RunStatus.FAILED, RunStatus.QUEUED, RunStatus.RUNNING}:
             raise HTTPException(status_code=409, detail=f"Cannot retry run with status '{run.status.value}'")
 
-        store = _resolve_run_store(client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        store = _resolve_run_store(client=client)
         attempt_payloads = store.list_run_attempt_payloads(run_id)
         attempt_ids = {
             str((payload.get("attempt") or {}).get("attempt_id") or "").strip()
@@ -7937,7 +7792,7 @@ def create_app(
         if attempt_count >= max_attempts:
             raise HTTPException(status_code=409, detail="Retry rejected: max_attempts exhausted")
 
-        update_run_status(run.run_id, RunStatus.QUEUED, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        update_run_status(run.run_id, RunStatus.QUEUED, client=client)
         submission = submit_run(
             jobs_path=run.jobs_path,
             config_path=run.config_path,
@@ -7951,9 +7806,8 @@ def create_app(
             orchestration_backend=submission.backend,
             orchestration_run_id=submission.backend_run_id,
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
-        _persist_run_queue_job_id(run.run_id, submission.queue_job_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        _persist_run_queue_job_id(run.run_id, submission.queue_job_id, client=client)
 
         append_event(
             RunEvent(
@@ -7973,7 +7827,6 @@ def create_app(
                 ),
             ),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
 
         return {
@@ -7987,7 +7840,7 @@ def create_app(
     @app.post("/admin/runs/{run_id}/archive")
     def admin_archive_run(run_id: str) -> dict:
         """Archive a terminal run. Returns JSON for fetch() callers."""
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not can_archive_run(run):
@@ -7995,21 +7848,21 @@ def create_app(
                 status_code=409,
                 detail=f"Cannot archive run with status '{run.status.value}'",
             )
-        archive_run(run_id, "admin", client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        archive_run(run_id, "admin", client=client)
         append_event(
             RunEvent(
                 run_id=run_id, event_id=str(uuid.uuid4()), stage="run_archived",
                 level="info", message="Run archived by admin",
                 created_at=datetime.datetime.now(datetime.timezone.utc),
             ),
-            client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+            client=client,
         )
         return {"status": "archived", "run_id": run_id}
 
     @app.post("/admin/runs/{run_id}/repair-cancellation")
     def admin_repair_cancellation(run_id: str) -> dict:
         """Repair a stale cancelling run that never actually started."""
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not is_stale_cancelling(run):
@@ -8022,7 +7875,6 @@ def create_app(
             run_id,
             RunStatus.CANCELLED,
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             finished_at=now,
         )
         append_event(
@@ -8035,31 +7887,30 @@ def create_app(
                 created_at=now,
             ),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         return {"status": "cancelled", "run_id": run_id}
 
     @app.post("/admin/runs/{run_id}/unarchive")
     def admin_unarchive_run(run_id: str) -> dict:
         """Unarchive a run, returning it to the active list. Returns JSON for fetch() callers."""
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not can_unarchive_run(run):
             raise HTTPException(status_code=409, detail="Run is not archived")
-        unarchive_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        unarchive_run(run_id, client=client)
         append_event(
             RunEvent(
                 run_id=run_id, event_id=str(uuid.uuid4()), stage="run_unarchived",
                 level="info", message="Run unarchived by admin",
                 created_at=datetime.datetime.now(datetime.timezone.utc),
             ),
-            client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
+            client=client,
         )
         return {"status": "unarchived", "run_id": run_id}
     @app.get("/admin/runs/{run_id}", response_class=HTMLResponse)
     def admin_run_detail(request: Request, run_id: str) -> HTMLResponse:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404)
         run = _reconcile_orphaned_run(run)
@@ -8071,7 +7922,7 @@ def create_app(
             minimum=10,
             maximum=200,
         )
-        events = get_events(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        events = get_events(run_id, client=client)
         stage_artifacts_by_id = _stage_artifacts_by_id(run)
         stage_quality_metrics = _stage_quality_metrics_from_stage_artifacts(stage_artifacts_by_id)
         stage_quality_metric_rows = _build_stage_quality_metric_rows(stage_quality_metrics)
@@ -8115,7 +7966,7 @@ def create_app(
                     "stage_download_label": stage_download_label_text,
                 }
             )
-        cv_versions = list_cvs_for_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        cv_versions = list_cvs_for_run(run_id, client=client)
         results_rows = _results_export_rows(run)
         job_metadata_by_url = _job_metadata_by_url_from_results_rows(results_rows)
         for metadata_key, metadata_value in _job_metadata_by_url_from_cv_generation_debug(run).items():
@@ -8257,7 +8108,7 @@ def create_app(
 
     @app.post("/admin/runs/{run_id}/bookmarks/save")
     async def admin_run_bookmark_save(request: Request, run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         form = await request.form()
@@ -8286,7 +8137,7 @@ def create_app(
 
     @app.post("/admin/runs/{run_id}/bookmarks/delete")
     async def admin_run_bookmark_delete(request: Request, run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         form = await request.form()
@@ -8307,7 +8158,7 @@ def create_app(
     def admin_reconcile_run_attempts() -> dict[str, Any]:
         from fitcv_cp.reconciler import reconcile_abandoned_attempts
 
-        store = _resolve_run_store(client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        store = _resolve_run_store(client=client)
         summary = reconcile_abandoned_attempts(store)
         return {
             "scanned_runs": summary.scanned_runs,
@@ -8400,7 +8251,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/review-queue", response_class=HTMLResponse)
     def admin_run_review_queue(request: Request, run_id: str) -> HTMLResponse:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404)
         run = _reconcile_orphaned_run(run)
@@ -8425,7 +8276,7 @@ def create_app(
         request: Request,
         run_id: str,
     ) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         form = await request.form()
@@ -8474,7 +8325,6 @@ def create_app(
                 job_url=target_job_url,
                 record=target_record,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
             if not finalized_ok:
                 raise HTTPException(status_code=409, detail=f"Cannot approve as final CV: {finalized_reason}")
@@ -8511,7 +8361,6 @@ def create_app(
             run_id,
             _json.dumps(debug_payload, ensure_ascii=False),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         append_event(
             RunEvent(
@@ -8537,7 +8386,6 @@ def create_app(
                 ),
             ),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         if payload.action == "regenerate_once":
             append_event(
@@ -8561,7 +8409,6 @@ def create_app(
                     ),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
         updated_run = dataclasses.replace(
             run,
@@ -8573,7 +8420,6 @@ def create_app(
                 run_id,
                 run.status,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 summary={"cvs_generated": int(updated_run.cvs_generated or 0)},
             )
         queue_state = _build_hitl_review_queue(updated_run)
@@ -8596,7 +8442,6 @@ def create_app(
                         payload_json=_json.dumps(closure_summary, ensure_ascii=False),
                     ),
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
                 redirect_target = f"/admin/runs/{run_id}/review-queue"
                 referer = str(request.headers.get("referer") or "").strip()
@@ -8615,13 +8460,11 @@ def create_app(
                 run_id,
                 RunStatus.SUCCEEDED,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 finished_at=now,
             )
             _persist_stage_artifacts_terminal_snapshot(
                 run_id=run_id,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 terminal_status=RunStatus.SUCCEEDED,
                 snapshot_at=now,
                 snapshot_complete=True,
@@ -8631,7 +8474,6 @@ def create_app(
             update_run_checkpoint(
                 run_id,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 checkpoint_status="completed",
                 next_stage=None,
                 last_completed_stage=last_completed_stage,
@@ -8647,7 +8489,6 @@ def create_app(
                 acted_by=payload.actor or "admin",
                 note="auto:cv-review-closure",
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
             closure_payload = _build_hitl_review_audit_payload(
                 dataclasses.replace(
@@ -8665,7 +8506,6 @@ def create_app(
                 ),
                 closure_payload=closure_payload,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
             append_event(
                 RunEvent(
@@ -8686,7 +8526,6 @@ def create_app(
                     ),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
         redirect_target = f"/admin/runs/{run_id}/review-queue"
         referer = str(request.headers.get("referer") or "").strip()
@@ -8707,7 +8546,7 @@ def create_app(
         request: Request,
         run_id: str,
     ) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         form = await request.form()
@@ -8794,7 +8633,6 @@ def create_app(
                     job_url=target_job_url,
                     record=target_record,
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
                 if not finalized_ok:
                     failed += 1
@@ -8845,7 +8683,6 @@ def create_app(
             run_id,
             _json.dumps(debug_payload, ensure_ascii=False),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         if applied > 0 or failed > 0:
             append_event(
@@ -8876,7 +8713,6 @@ def create_app(
                     ),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
         if action == "regenerate_once":
             append_event(
@@ -8901,7 +8737,6 @@ def create_app(
                     ),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
 
         updated_run = dataclasses.replace(
@@ -8914,7 +8749,6 @@ def create_app(
                 run_id,
                 run.status,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 summary={"cvs_generated": int(updated_run.cvs_generated or 0)},
             )
         queue_state = _build_hitl_review_queue(updated_run)
@@ -8937,7 +8771,6 @@ def create_app(
                         payload_json=_json.dumps(closure_summary, ensure_ascii=False),
                     ),
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
                 query = urlencode(
                     {
@@ -8964,13 +8797,11 @@ def create_app(
                 run_id,
                 RunStatus.SUCCEEDED,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 finished_at=finished_at,
             )
             _persist_stage_artifacts_terminal_snapshot(
                 run_id=run_id,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 terminal_status=RunStatus.SUCCEEDED,
                 snapshot_at=finished_at,
                 snapshot_complete=True,
@@ -8980,7 +8811,6 @@ def create_app(
             update_run_checkpoint(
                 run_id,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 checkpoint_status="completed",
                 next_stage=None,
                 last_completed_stage=last_completed_stage,
@@ -8996,7 +8826,6 @@ def create_app(
                 acted_by=actor,
                 note="auto:cv-review-closure",
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
             closure_payload = _build_hitl_review_audit_payload(
                 dataclasses.replace(
@@ -9014,7 +8843,6 @@ def create_app(
                 ),
                 closure_payload=closure_payload,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
             append_event(
                 RunEvent(
@@ -9035,7 +8863,6 @@ def create_app(
                     ),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
 
         query = urlencode(
@@ -9054,7 +8881,7 @@ def create_app(
         run_id: str,
         proposal_id: str,
     ) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         mode = _synonym_management_mode(run)
@@ -9093,7 +8920,7 @@ def create_app(
         request: Request,
         run_id: str,
     ) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         mode = _synonym_management_mode(run)
@@ -9173,7 +9000,7 @@ def create_app(
         if applied == 0 and failed == 0 and len(deduped_decisions) > 0 and skipped == len(deduped_decisions):
             recent_noop_guard_exists = any(
                 event.stage == "synonym_noop_guard_triggered"
-                for event in get_events(run.run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))[-10:]
+                for event in get_events(run.run_id, client=client)[-10:]
             )
             if not recent_noop_guard_exists:
                 append_event(
@@ -9198,7 +9025,6 @@ def create_app(
                         ),
                     ),
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
             query = urlencode(
                 {
@@ -9238,7 +9064,6 @@ def create_app(
                 ),
             ),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         query = urlencode(
             {
@@ -9254,7 +9079,7 @@ def create_app(
         request: Request,
         run_id: str,
     ) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         mode = _synonym_management_mode(run)
@@ -9298,7 +9123,7 @@ def create_app(
     async def admin_run_synonym_proposals_regenerate(
         run_id: str,
     ) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         mode = _synonym_management_mode(run)
@@ -9327,7 +9152,6 @@ def create_app(
             run.run_id,
             synonym_payload_json,
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         synonym_payload = decode_json_object_or_none(synonym_payload_json) or {}
         trace_summary = dict(
@@ -9361,7 +9185,6 @@ def create_app(
                 ),
             ),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         query = urlencode(
             {
@@ -9377,7 +9200,7 @@ def create_app(
         request: Request,
         run_id: str,
     ) -> HTMLResponse:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         mode = _synonym_management_mode(run)
@@ -9455,7 +9278,7 @@ def create_app(
         request: Request,
         run_id: str,
     ) -> HTMLResponse:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         mode = _synonym_management_mode(run)
@@ -9499,7 +9322,7 @@ def create_app(
         request: Request,
         run_id: str,
     ) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         mode = _synonym_management_mode(run)
@@ -9528,7 +9351,6 @@ def create_app(
             acted_by=acted_by,
             note=note,
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         query = urlencode(
             {
@@ -9547,7 +9369,7 @@ def create_app(
         request: Request,
         run_id: str,
     ) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         payload = _load_run_synonym_proposals_payload(run)
@@ -9742,7 +9564,6 @@ def create_app(
                     run=run,
                     payload=payload,
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
                 append_event(
                     RunEvent(
@@ -9770,7 +9591,6 @@ def create_app(
                         ),
                     ),
                     client=client,
-                    **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                 )
         promote_counts = {
             "applied": 0,
@@ -9814,7 +9634,6 @@ def create_app(
                             acted_by=acted_by,
                             note=note or "auto:triage-refresh",
                             client=client,
-                            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                         )
                         promote_skip_reason = "applied"
         trace_summary["auto_apply_recommendation_applied"] = int(auto_apply_counts.get("applied") or 0)
@@ -9829,7 +9648,6 @@ def create_app(
             run_id=run.run_id,
             synonym_proposals_json=_json.dumps(payload, ensure_ascii=False),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         query = urlencode(
             {
@@ -9852,7 +9670,7 @@ def create_app(
         request: Request,
         run_id: str,
     ) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         payload = _load_run_synonym_proposals_payload(run)
@@ -9897,7 +9715,6 @@ def create_app(
                 run=run,
                 payload=payload,
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
 
         promote_counts = {
@@ -9934,7 +9751,6 @@ def create_app(
                         acted_by=acted_by,
                         note=note,
                         client=client,
-                        **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
                     )
 
         query = urlencode(
@@ -9954,7 +9770,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/approved-synonym-proposals.yaml")
     def download_run_approved_synonym_overlay_yaml(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         payload = _load_run_synonym_proposals_payload(run)
@@ -10019,7 +9835,6 @@ def create_app(
         context = _build_enriched_tab_context(
             run,
             run_id=run_id,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             client=client,
             filter_name=filter_name,
             query=q,
@@ -10047,7 +9862,6 @@ def create_app(
         context = _build_enriched_tab_context(
             run,
             run_id=run_id,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             client=client,
             filter_name=filter_name,
             query=q,
@@ -10161,7 +9975,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/synonym-review", response_class=HTMLResponse)
     def admin_run_synonym_review_workspace(request: Request, run_id: str) -> HTMLResponse:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         return templates.TemplateResponse(
@@ -10184,7 +9998,7 @@ def create_app(
 
     @app.get("/admin/cvs/{version_id}/download")
     def download_cv(version_id: str):
-        content = get_cv_markdown(version_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        content = get_cv_markdown(version_id, client=client)
         if content is None:
             raise HTTPException(status_code=404, detail="CV not found")
         return Response(
@@ -10195,7 +10009,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/export.json")
     def download_run_results_json(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not _run_status_allows_export(run):
@@ -10218,7 +10032,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/hitl-review-audit.json")
     def download_run_hitl_review_audit_json(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not _run_status_allows_export(run):
@@ -10236,7 +10050,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/cv-debug.json")
     def download_run_cv_debug_json(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not _run_status_allows_export(run):
@@ -10255,7 +10069,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/cv-generation-review-required.json")
     def download_run_cv_generation_review_required_json(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not _run_status_allows_export(run):
@@ -10271,7 +10085,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/agentic-live-trace.json")
     def download_run_agentic_live_trace_json(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if run.status != RunStatus.SUCCEEDED:
@@ -10295,7 +10109,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/cv-analysis-trace.json")
     def download_run_cv_analysis_trace_json(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if run.status != RunStatus.SUCCEEDED:
@@ -10319,7 +10133,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/stage-artifacts.json")
     def download_run_stage_transition_artifacts_json(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not run.stage_transition_artifacts_json:
@@ -10336,7 +10150,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/stage-artifacts/{stage_id}.json")
     def download_run_stage_transition_artifact_stage_json(run_id: str, stage_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         payload = _build_stage_slice_payload(run, stage_id)
@@ -10350,17 +10164,17 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/artifacts.zip")
     def download_run_artifact_bundle_zip(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         artifact_files = _build_available_run_artifact_files(run)
         if run.status == RunStatus.SUCCEEDED:
-            cv_versions = list_cvs_for_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+            cv_versions = list_cvs_for_run(run_id, client=client)
             for cv in cv_versions:
                 version_id = str(cv.get("version_id") or "").strip()
                 if not version_id:
                     continue
-                cv_markdown = get_cv_markdown(version_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+                cv_markdown = get_cv_markdown(version_id, client=client)
                 if not cv_markdown:
                     continue
                 artifact_files.append(
@@ -10429,7 +10243,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/settings-used.json")
     def download_run_settings_used_json(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if run.status != RunStatus.SUCCEEDED:
@@ -10448,7 +10262,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/mapping-suggestions.json")
     def download_run_mapping_suggestions_json(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not (_run_has_reached_stage(run, "enrich") and _run_has_stage_artifact(run, "enrich")):
@@ -10470,7 +10284,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/synonym-proposals.json")
     def download_run_synonym_proposals_json(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not _run_has_reached_stage(run, "enrich"):
@@ -10492,7 +10306,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/synonym-proposals-trace.json")
     def download_run_synonym_proposals_trace_json(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not _run_has_reached_stage(run, "enrich"):
@@ -10513,7 +10327,7 @@ def create_app(
 
     @app.get("/admin/runs/{run_id}/synonym-suppression-diff.json")
     def download_run_synonym_suppression_diff_json(run_id: str) -> Response:
-        run = get_run(run_id, client=client, **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id))
+        run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if not _run_has_reached_stage(run, "enrich"):
@@ -10534,7 +10348,6 @@ def create_app(
     def download_aggregate_mapping_suggestions_json() -> Response:
         runs = list_runs(
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             limit=500,
             include_archived=True,
         )
@@ -10549,7 +10362,6 @@ def create_app(
     def download_aggregate_synonym_proposals_json() -> Response:
         runs = list_runs(
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             limit=500,
             include_archived=True,
         )
@@ -10715,13 +10527,11 @@ def create_app(
                 run.run_id,
                 _json.dumps(updated_config, ensure_ascii=False),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
         persistence_status = update_run_synonym_proposals(
             run.run_id,
             _json.dumps(payload, ensure_ascii=False),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         payload_row = dict(event_payload or {})
         payload_row["acted_by"] = str(acted_by or "admin")
@@ -10737,7 +10547,6 @@ def create_app(
                 payload_json=_json.dumps(payload_row, ensure_ascii=False),
             ),
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
         )
         if persistence_status.get("persistence_status") not in {"persisted", "not_applicable"}:
             append_event(
@@ -10753,7 +10562,6 @@ def create_app(
                     created_at=datetime.datetime.now(datetime.timezone.utc),
                 ),
                 client=client,
-                **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             )
         return persistence_status
 
@@ -10766,7 +10574,6 @@ def create_app(
     ) -> dict[str, Any]:
         runs = list_runs(
             client=client,
-            **_persistence_scope_kwargs(persistence_project_id, persistence_dataset_id),
             limit=500,
             include_archived=True,
         )
@@ -10814,6 +10621,9 @@ def _run_to_dict(run: PipelineRun) -> dict:
         "cv_generation_debug_json": run.cv_generation_debug_json,
         "stage_transition_artifacts_json": run.stage_transition_artifacts_json,
     }
+
+
+
 
 
 

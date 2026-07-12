@@ -237,18 +237,35 @@ def test_settings_native_input_attrs_follow_existing_schema_conventions() -> Non
     assert settings_native_input_attrs("cv_generation_model") == {}
 
 
-def test_settings_native_input_attrs_derive_nonnegative_float_from_schema_path(
+def test_settings_native_input_attrs_derive_nonnegative_float_from_schema_metadata(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     schema_by_key = dict(settings_schema_module._ALL_SCHEMA_BY_KEY)
     schema_by_key["custom.runtime.delay"] = {
         "key": "custom.runtime.delay",
         "type": "float",
-        "config_path": ["stage_runtime", "custom", "sleep_secs"],
+        "config_path": ["stage_runtime", "custom", "delay_secs"],
+        "float_range": "nonnegative",
     }
     monkeypatch.setattr(settings_schema_module, "_ALL_SCHEMA_BY_KEY", schema_by_key)
 
     assert settings_native_input_attrs("custom.runtime.delay") == {"min": "0", "step": "any"}
+
+
+def test_validate_settings_uses_nonnegative_float_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    schema_by_key = dict(settings_schema_module._ALL_SCHEMA_BY_KEY)
+    schema_by_key["custom.runtime.delay"] = {
+        "key": "custom.runtime.delay",
+        "type": "float",
+        "config_path": ["stage_runtime", "custom", "delay_secs"],
+        "float_range": "nonnegative",
+    }
+    monkeypatch.setattr(settings_schema_module, "_ALL_SCHEMA_BY_KEY", schema_by_key)
+
+    with pytest.raises(ValidationError, match="custom.runtime.delay must be >= 0.0"):
+        validate_settings({"custom.runtime.delay": -0.1})
 def test_hidden_deprecated_editable_overlap_is_allowlist_only() -> None:
     editable = settings_schema_module.editable_settings_keys()
     hidden = settings_schema_module.hidden_deprecated_settings_keys()
