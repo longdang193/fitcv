@@ -22,7 +22,8 @@ import os
 import re
 import pytest
 from fastapi.testclient import TestClient
-from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _timeline_semantic_outcome, _timeline_stage_download_for_event, _timeline_stage_label, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, _normalize_hitl_resolution_status, create_app
+from fitcv.pipeline_contracts import timeline_stage_download_for_event, timeline_stage_label
+from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _timeline_semantic_outcome, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, _normalize_hitl_resolution_status, create_app
 from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission
 
@@ -164,7 +165,7 @@ def test_collapse_timeline_noise_collapses_display_equivalent_enrich_heartbeat_r
     assert repeat_count == 3
 
 def test_timeline_stage_label_maps_enrich_heartbeat_to_in_progress() -> None:
-    assert _timeline_stage_label("enrich_heartbeat") == "Enrich In Progress"
+    assert timeline_stage_label("enrich_heartbeat") == "Enrich In Progress"
 
 def test_timeline_stage_summary_message_includes_concurrency_for_applicable_stages() -> None:
     ts = datetime.datetime.now(datetime.timezone.utc)
@@ -907,8 +908,8 @@ def test_admin_orchestration_schema_diagnostics_endpoint() -> None:
 
 
 def test_timeline_stage_download_maps_cv_analysis_skip_to_cv_analysis():
-    assert _timeline_stage_download_for_event("layer4_cv_analysis_skip") == "cv_analysis"
-    assert _timeline_stage_download_for_event("layer4_cv_skip") == "cv_analysis"
+    assert timeline_stage_download_for_event("layer4_cv_analysis_skip") == "cv_analysis"
+    assert timeline_stage_download_for_event("layer4_cv_skip") == "cv_analysis"
 
 
 def test_ranked_cv_outcome_summary_preserves_stage_owned_no_cv_vs_failed_distinction() -> None:

@@ -18,9 +18,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fitcv.pipeline import (
+from fitcv.pipeline_contracts import (
     PIPELINE_STAGE_SEQUENCE,
-    _build_stage_dispatch_map,
+    build_stage_dispatch_map,
     completed_pipeline_stages_through,
     next_pipeline_stage,
 )
@@ -71,7 +71,7 @@ def test_stage_sequence_resume_contract() -> None:
 
 
 def test_stage_dispatch_map_scaffold_matches_sequence() -> None:
-    dispatch_map = _build_stage_dispatch_map()
+    dispatch_map = build_stage_dispatch_map()
     assert list(dispatch_map.keys()) == list(PIPELINE_STAGE_SEQUENCE)
     assert list(dispatch_map.values()) == list(PIPELINE_STAGE_SEQUENCE)
 

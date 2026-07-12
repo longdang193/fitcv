@@ -59,6 +59,20 @@ from fitcv.openai_compat import (
     extract_openai_chat_completions_text,
     extract_openai_responses_text,
 )
+from fitcv.pipeline_contracts import (
+    PIPELINE_BUNDLE_ARTIFACT_FILENAMES as BUNDLE_ARTIFACT_FILENAMES,
+    PIPELINE_BUNDLE_STAGE_IDS as BUNDLE_STAGE_IDS,
+    PIPELINE_STAGE_SEQUENCE as STAGE_SEQUENCE,
+    STAGE_DOWNLOAD_LABELS,
+    stage_artifact_filename,
+    stage_download_label,
+    TIMELINE_STAGE_DOWNLOADABLE_EVENTS,
+    TIMELINE_STAGE_DOWNLOADS,
+    TIMELINE_STAGE_LABELS,
+    timeline_event_allows_stage_download,
+    timeline_stage_download_for_event,
+    timeline_stage_label,
+)
 from fitcv.pipeline_stages.common import job_identity_keys, normalize_job_url_key
 from fitcv.prompts import render_prompt
 from fitcv.pipeline import (
@@ -73,6 +87,17 @@ from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission, get_orchestration_adapter
 from fitcv_cp.queue import (
     enqueue_cv_regenerate_once_with_job_id,
+)
+from fitcv_cp.run_lifecycle import (
+    can_archive_run,
+    can_cancel_run,
+    can_retry_run,
+    can_unarchive_run,
+    cancel_request_target_status,
+    is_stale_cancelling,
+    run_status_projection,
+    timeout_reference_timestamp,
+    timeout_transition_for_run,
 )
 from fitcv_cp.run_artifact_contracts import (
     decode_json_object_or_none,
@@ -676,47 +701,7 @@ DECISION_CHAIN_LABELS: dict[str, str] = {
     "not_run": "not run",
     "failed": "failed",
 }
-TIMELINE_STAGE_DOWNLOADS: dict[str, str] = {
-    "layer1_normalize": "normalize",
-    "layer1_jobs": "enrich",
-    "layer3_filter": "rule_filter",
-    "layer3_shortlist": "shortlist",
-    "layer3_ranking": "ranking",
-    "layer4_cv_analysis": "cv_analysis",
-    "layer4_cv_analysis_skip": "cv_analysis",
-    "pipeline_complete": "cv_generation",
-    "pipeline_compute_complete": "cv_generation",
-    "layer4_cv_skip": "cv_analysis",
-    "layer4_cv_validation_failed": "cv_generation",
-}
-STAGE_DOWNLOAD_LABELS: dict[str, str] = {
-    "normalize": "Download Normalize JSON",
-    "enrich": "Download Enrich JSON",
-    "rule_filter": "Download Rule Filter JSON",
-    "shortlist": "Download Shortlist JSON",
-    "ranking": "Download Ranking JSON",
-    "cv_analysis": "Download CV Analysis JSON",
-    "cv_generation": "Download CV Generation JSON",
-}
-RUN_STATUS_GROUPS = {
-    "active": {RunStatus.QUEUED.value, RunStatus.RUNNING.value, RunStatus.CANCELLING.value},
-    "terminal": {RunStatus.SUCCEEDED.value, RunStatus.FAILED.value, RunStatus.CANCELLED.value},
-    "awaiting_continue": {RunStatus.AWAITING_CONTINUE.value},
-}
 REPLAY_MODES = {"strict", "policy_replay"}
-
-def _run_status_projection(run: PipelineRun) -> dict[str, Any]:
-    status_value = run.status.value
-    raw_status = str(getattr(run, "raw_status", "") or "").strip() or None
-    return {
-        "status": status_value,
-        "raw_status": raw_status,
-        "display_status": raw_status or status_value,
-        "is_active": status_value in RUN_STATUS_GROUPS["active"],
-        "is_terminal": status_value in RUN_STATUS_GROUPS["terminal"],
-        "is_awaiting_continue": status_value in RUN_STATUS_GROUPS["awaiting_continue"],
-        "is_archived": bool(run.archived_at),
-    }
 
 def _policy_registry_version_from_config(config_payload: dict[str, Any] | None) -> str:
     cfg = dict(config_payload or {})
@@ -955,52 +940,6 @@ def _canonical_continue_next_stage(run: PipelineRun) -> str | None:
             return canonical_next_stage
 
     return None
-STAGE_SEQUENCE: tuple[str, ...] = (
-    "normalize",
-    "enrich",
-    "rule_filter",
-    "shortlist",
-    "ranking",
-    "cv_analysis",
-    "cv_generation",
-)
-TIMELINE_STAGE_LABELS: dict[str, str] = {
-    "pipeline_start": "Pipeline",
-    "layer1_normalize": "Normalize",
-    "layer1b_pre_filter": "Pre-Enrichment Filter",
-    "enrich_heartbeat": "Enrich In Progress",
-    "layer1_jobs": "Enrich",
-    "layer2_candidate": "Candidate Profile",
-    "layer3_filter": "Rule Filter",
-    "layer3_shortlist": "Shortlist",
-    "layer3_ai_score": "Ranking",
-    "layer3_ranking": "Ranking",
-    "layer4_cv_analysis": "CV Analysis",
-    "layer4_cv_analysis_invoked": "CV Analysis",
-    "layer4_cv_analysis_skip": "CV Analysis",
-    "layer4_cv_skip": "CV Analysis",
-    "layer4_cv_generation_invoked": "CV Generation",
-    "layer4_cv_generation_reused": "CV Generation",
-    "layer4_cv_validation_failed": "CV Generation",
-    "pipeline_complete": "CV Generation",
-    "pipeline_compute_complete": "CV Generation",
-    "layer4_cv_analysis_blocked_details": "CV Analysis Blocked Details",
-    "stage_checkpoint": "Checkpoint",
-    "manual_continue_requested": "Manual Continue",
-    "pipeline_failed": "Pipeline",
-    "synonym_overlay_uploaded": "Synonym Overlay",
-}
-TIMELINE_STAGE_DOWNLOADABLE_EVENTS: set[str] = {
-    "layer1_normalize",
-    "layer1_jobs",
-    "layer3_filter",
-    "layer3_shortlist",
-    "layer3_ranking",
-    "layer4_cv_analysis",
-    "layer4_cv_validation_failed",
-    "pipeline_complete",
-    "pipeline_compute_complete",
-}
 NEGATIVE_METRIC_LABEL_MARKERS = (
     "Backfill Rate",
     "Skip Rate",
@@ -1013,39 +952,6 @@ POSITIVE_METRIC_LABEL_MARKERS = (
     "Accepted Rate",
     "Strong Rate",
 )
-BUNDLE_STAGE_IDS: tuple[str, ...] = (
-    "normalize",
-    "enrich",
-    "rule_filter",
-    "shortlist",
-    "ranking",
-    "cv_analysis",
-    "cv_generation",
-)
-BUNDLE_ARTIFACT_FILENAMES: tuple[str, ...] = (
-    "results.json",
-    "hitl-review-audit.json",
-    "stage-artifacts.json",
-    "normalize.json",
-    "enrich.json",
-    "rule_filter.json",
-    "shortlist.json",
-    "ranking.json",
-    "cv_analysis.json",
-    "cv_generation.json",
-    "settings-used.json",
-    "cv-debug.json",
-    "cv-generation-review-required.json",
-    "cv-analysis-trace.json",
-    "agentic-live-trace.json",
-    "mapping-suggestions.json",
-    "synonym-proposals.json",
-    "synonym-proposals-trace.json",
-    "synonym-suppression-diff.json",
-    "approved-synonym-proposals.yaml",
-    "synonym-overlay-used.yaml",
-)
-
 
 @dataclasses.dataclass(frozen=True)
 class RunArtifactFile:
@@ -1644,8 +1550,8 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 continue
             files.append(
                 RunArtifactFile(
-                    filename=f"{stage_id}.json",
-                    label=_stage_download_label(stage_id),
+                    filename=stage_artifact_filename(stage_id),
+                    label=stage_download_label(stage_id),
                     href=f"/admin/runs/{run.run_id}/stage-artifacts/{stage_id}.json",
                     content=_json.dumps(payload, ensure_ascii=False, indent=2),
                     show_in_exports=False,
@@ -5213,23 +5119,6 @@ def _build_enriched_tab_context(
         "enriched_download_url": download_url,
     }
 
-def _timeline_stage_download_for_event(event_stage: str) -> str | None:
-    normalized = str(event_stage or "").strip()
-    if not normalized:
-        return None
-    return TIMELINE_STAGE_DOWNLOADS.get(normalized)
-
-
-def _timeline_event_allows_stage_download(event_stage: str) -> bool:
-    return str(event_stage or "").strip() in TIMELINE_STAGE_DOWNLOADABLE_EVENTS
-
-
-def _timeline_stage_label(event_stage: str) -> str:
-    normalized = str(event_stage or "").strip()
-    if not normalized:
-        return "—"
-    return TIMELINE_STAGE_LABELS.get(normalized, normalized.replace("_", " ").title())
-
 def _timeline_human_job_label(job_url: str) -> str:
     normalized_url = str(job_url or "").strip()
     if not normalized_url:
@@ -5515,7 +5404,7 @@ def _timeline_stage_summary_message(
                 ("run marked succeeded", payload.get("run_marked_succeeded")),
             ],
         )
-    stage_id = _timeline_stage_download_for_event(event.stage)
+    stage_id = timeline_stage_download_for_event(event.stage)
     if not stage_id:
         return event.message
     artifact = stage_artifacts_by_id.get(stage_id) or {}
@@ -5922,10 +5811,6 @@ def _dedupe_timeline_semantic_overlaps(
         deduped.append((event, repeat_count))
     return deduped
 
-def _stage_download_label(stage_id: str | None) -> str:
-    if not stage_id:
-        return "Download stage JSON"
-    return STAGE_DOWNLOAD_LABELS.get(stage_id, f"Download {stage_id.replace('_', ' ').title()} JSON")
 
 
 
@@ -6004,18 +5889,6 @@ class SynonymBatchActionRequest(BaseModel):
     decisions: list[SynonymBatchDecision]
     acted_by: str = "admin"
     note: str | None = None
-
-
-def _can_cancel_run(run: PipelineRun) -> bool:
-    return run.status in {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.AWAITING_CONTINUE}
-
-
-def _can_archive_run(run: PipelineRun) -> bool:
-    return run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED} and run.archived_at is None
-
-
-def _can_unarchive_run(run: PipelineRun) -> bool:
-    return run.archived_at is not None
 
 
 def create_app(
@@ -7134,16 +7007,6 @@ def create_app(
             return form.getlist(key)
         return form.get(key, "")
 
-    def _is_stale_cancelling(run: PipelineRun) -> bool:
-        if run.status != RunStatus.CANCELLING or run.finished_at is not None:
-            return False
-        if run.started_at is None:
-            return True
-        if run.cancel_requested_at is None:
-            return False
-        now = datetime.datetime.now(datetime.timezone.utc)
-        return (now - run.cancel_requested_at) >= datetime.timedelta(minutes=2)
-
     def _run_max_runtime_minutes() -> int:
         default_minutes = int(schema_by_key["run_lifecycle.max_runtime_minutes"]["default"])
         active_settings = load_active_settings(client=client, project=store_project, dataset=store_dataset)
@@ -7152,46 +7015,19 @@ def create_app(
             return max(1, int(value))
         except (TypeError, ValueError):
             return default_minutes
-
-    def _timeout_reference_timestamp(run: PipelineRun) -> datetime.datetime | None:
-        if run.status in {RunStatus.RUNNING, RunStatus.CANCELLING}:
-            return run.started_at or run.created_at
-        if run.status in {RunStatus.QUEUED, RunStatus.AWAITING_CONTINUE}:
-            return run.created_at
-        return None
-
-    def _timeout_transition_for_run(run: PipelineRun, max_runtime_minutes: int) -> tuple[RunStatus, str, str | None]:
-        if run.status == RunStatus.QUEUED:
-            return (
-                RunStatus.CANCELLED,
-                f"Run timed out after waiting more than {max_runtime_minutes} minute(s) in the queue.",
-                None,
-            )
-        if run.status == RunStatus.AWAITING_CONTINUE:
-            return (
-                RunStatus.CANCELLED,
-                f"Run timed out after waiting more than {max_runtime_minutes} minute(s) for manual continuation.",
-                None,
-            )
-        return (
-            RunStatus.FAILED,
-            f"Run exceeded the maximum runtime of {max_runtime_minutes} minute(s).",
-            "run_lifecycle_timeout",
-        )
-
     def _enforce_run_timeout_guard(run: PipelineRun, *, max_runtime_minutes: int | None = None) -> PipelineRun:
         if run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}:
             return run
         if max_runtime_minutes is None:
             max_runtime_minutes = _run_max_runtime_minutes()
-        reference_at = _timeout_reference_timestamp(run)
+        reference_at = timeout_reference_timestamp(run)
         if reference_at is None:
             return run
         now = datetime.datetime.now(datetime.timezone.utc)
         if (now - reference_at) < datetime.timedelta(minutes=max_runtime_minutes):
             return run
 
-        target_status, message, error_stage = _timeout_transition_for_run(run, max_runtime_minutes)
+        target_status, message, error_stage = timeout_transition_for_run(run, max_runtime_minutes)
         if run.status == RunStatus.QUEUED and run.queue_job_id:
             cancel_queued_run(run.queue_job_id, redis_url=redis_url)
         update_kwargs: dict[str, Any] = {
@@ -8198,7 +8034,7 @@ def create_app(
             run.run_id: _build_orchestration_diagnostics(run)
             for run in runs
         }
-        run_status_projection = {run.run_id: _run_status_projection(run) for run in runs}
+        run_status_projection_by_id = {run.run_id: run_status_projection(run) for run in runs}
         return templates.TemplateResponse(
             request=request, name="runs_list.html",
             context={
@@ -8206,7 +8042,7 @@ def create_app(
                 "view": view,
                 "pipeline_runs_schema_status": pipeline_runs_schema_status,
                 "run_orchestration_diagnostics": run_orchestration_diagnostics,
-                "run_status_projection": run_status_projection,
+                "run_status_projection": run_status_projection_by_id,
             }
         )
     @app.post("/admin/runs/{run_id}/stop")
@@ -8215,7 +8051,7 @@ def create_app(
         run = get_run(run_id, client, project=store_project, dataset=store_dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if not _can_cancel_run(run):
+        if not can_cancel_run(run):
             raise HTTPException(
                 status_code=409,
                 detail=f"Cannot stop run with status '{run.status.value}'",
@@ -8307,7 +8143,7 @@ def create_app(
             if run is None:
                 skipped_items.append({"run_id": run_id, "reason": "not_found"})
                 continue
-            if not _can_cancel_run(run):
+            if not can_cancel_run(run):
                 skipped_items.append({"run_id": run_id, "reason": "not_cancellable"})
                 continue
 
@@ -8383,7 +8219,7 @@ def create_app(
             if run is None:
                 skipped_items.append({"run_id": run_id, "reason": "not_found"})
                 continue
-            if not _can_archive_run(run):
+            if not can_archive_run(run):
                 skipped_items.append({"run_id": run_id, "reason": "not_archivable"})
                 continue
 
@@ -8421,7 +8257,7 @@ def create_app(
             if run is None:
                 skipped_items.append({"run_id": run_id, "reason": "not_found"})
                 continue
-            if not _can_unarchive_run(run):
+            if not can_unarchive_run(run):
                 skipped_items.append({"run_id": run_id, "reason": "not_unarchivable"})
                 continue
 
@@ -8798,7 +8634,7 @@ def create_app(
         run = get_run(run_id, client, project=store_project, dataset=store_dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if not _can_archive_run(run):
+        if not can_archive_run(run):
             raise HTTPException(
                 status_code=409,
                 detail=f"Cannot archive run with status '{run.status.value}'",
@@ -8820,7 +8656,7 @@ def create_app(
         run = get_run(run_id, client, project=store_project, dataset=store_dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if not _is_stale_cancelling(run):
+        if not is_stale_cancelling(run):
             raise HTTPException(
                 status_code=409,
                 detail=f"Cannot repair run with status '{run.status.value}'",
@@ -8855,7 +8691,7 @@ def create_app(
         run = get_run(run_id, client, project=store_project, dataset=store_dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if not _can_unarchive_run(run):
+        if not can_unarchive_run(run):
             raise HTTPException(status_code=409, detail="Run is not archived")
         unarchive_run(run_id, client, project=store_project, dataset=store_dataset)
         append_event(
@@ -8896,22 +8732,22 @@ def create_app(
         visible_events = _collapse_timeline_noise(events[-timeline_limit:])
         visible_events = _dedupe_timeline_semantic_overlaps(visible_events)
         for ev, repeat_count in visible_events:
-            stage_id = _timeline_stage_download_for_event(ev.stage)
+            stage_id = timeline_stage_download_for_event(ev.stage)
             stage_download_url = None
-            stage_download_label = None
+            stage_download_label_text = None
             if (
                 stage_id
-                and _timeline_event_allows_stage_download(ev.stage)
+                and timeline_event_allows_stage_download(ev.stage)
                 and _build_stage_slice_payload(run, stage_id) is not None
             ):
                 stage_download_url = f"/admin/runs/{run_id}/stage-artifacts/{stage_id}.json"
-                stage_download_label = _stage_download_label(stage_id)
+                stage_download_label_text = stage_download_label(stage_id)
             message_text = _timeline_stage_summary_message(ev, stage_artifacts_by_id)
             timeline_events.append(
                 {
                     "created_at": ev.created_at,
                     "stage": ev.stage,
-                    "stage_label": _timeline_stage_label(ev.stage),
+                    "stage_label": timeline_stage_label(ev.stage),
                     "level": ev.level,
                     "message": message_text,
                     "message_html": _timeline_stage_summary_message_html(
@@ -8922,7 +8758,7 @@ def create_app(
                     "show_repeat_suffix": _timeline_show_repeat_suffix(ev),
                     "stage_id": stage_id,
                     "stage_download_url": stage_download_url,
-                    "stage_download_label": stage_download_label,
+                    "stage_download_label": stage_download_label_text,
                 }
             )
         cv_versions = list_cvs_for_run(run_id, client, project=store_project, dataset=store_dataset)
@@ -9018,7 +8854,7 @@ def create_app(
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
                 "run": run,
-                "run_status_projection": _run_status_projection(run),
+                "run_status_projection": run_status_projection(run),
                 "run_mode_label": run_mode_label(run.run_mode),
                 "events": timeline_events,
                 "timeline_has_more": len(events) > timeline_limit,
@@ -9035,7 +8871,7 @@ def create_app(
                 "reranker_blocked_ranked_count": reranker_blocked_ranked_count,
                 "ranked_cv_outcome_summary": ranked_cv_outcome_summary,
                 "cv_generation_failure_reason_summary": cv_generation_failure_reason_summary,
-                "is_stale_cancelling": _is_stale_cancelling,
+                "is_stale_cancelling": is_stale_cancelling,
                 "can_continue_manual_run": (
                     run.run_mode == "manual_staged"
                     and run.status == RunStatus.AWAITING_CONTINUE
@@ -9222,7 +9058,7 @@ def create_app(
             name="review_queue.html",
             context={
                 "run": run,
-                "run_status_projection": _run_status_projection(run),
+                "run_status_projection": run_status_projection(run),
                 "run_mode_label": run_mode_label(run.run_mode),
                 "hitl_review_queue": hitl_review_queue,
                 "hitl_closure_summary": hitl_closure_summary,
@@ -11668,6 +11504,7 @@ def _run_to_dict(run: PipelineRun) -> dict:
         "cv_generation_debug_json": run.cv_generation_debug_json,
         "stage_transition_artifacts_json": run.stage_transition_artifacts_json,
     }
+
 
 
 

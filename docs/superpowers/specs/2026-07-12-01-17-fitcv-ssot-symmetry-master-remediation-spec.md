@@ -215,6 +215,10 @@ spec owns one bounded slice and repo stays shippable after every phase.
 - role: expose sqlite-native backend truth only
 - rule: active control-plane interfaces must not carry ignored `bq`, `project`,
   or `dataset` parameters after remediation
+- rollout note: if bounded Phase 1 compatibility shims remain at store or
+  runtime boundaries, they must stay boundary-local and retire no later than
+  Phase 4; no later phase may spread them back into app, worker, or template
+  code
 
 ### Removed-surface absence contract
 
@@ -402,7 +406,8 @@ spec owns one bounded slice and repo stays shippable after every phase.
   - Phase 1: legacy-surface deletion and backend-interface trim
   - Phase 2: stage, lifecycle, and late-stage contract consolidation
   - Phase 3: settings-schema completion and native-form boundary convergence
-  - Phase 4: routing/runtime-envelope convergence and persistence-truth cleanup
+  - Phase 4: routing/runtime-envelope convergence, persistence-truth cleanup,
+    and retirement of any temporary Phase 1 backend-compat boundary shims
   - Phase 5: bounded monolith reduction and optional storage normalization
 - alternatives considered:
   - one monolithic implementation plan

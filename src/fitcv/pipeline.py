@@ -79,7 +79,14 @@ from fitcv.contracts import (
     STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION,
     normalize_analysis_channel_mapping,
 )
-from fitcv.pipeline_contracts import ReviewRequiredReasonCode
+from fitcv.pipeline_contracts import (
+    PIPELINE_STAGE_SEQUENCE,
+    PIPELINE_STAGE_SET as _PIPELINE_STAGE_SET,
+    ReviewRequiredReasonCode,
+    build_stage_dispatch_map as _build_stage_dispatch_map,
+    completed_pipeline_stages_through,
+    next_pipeline_stage,
+)
 from fitcv.pipeline_stages.common import (
     pipeline_int,
     extract_job_title,
@@ -136,10 +143,16 @@ from fitcv.ranking import (
     store_final_ranking,
 )
 from fitcv.late_stage_contract import (
-    cv_generation_status_for_analysis_status as _shared_cv_generation_status_for_analysis_status,
-    deterministic_truth_fields as _shared_deterministic_truth_fields,
-    shortlist_status_for_ranked_job as _shared_shortlist_status_for_ranked_job,
-    validation_status_for_cv_status as _shared_validation_status_for_cv_status,
+    CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
+    CV_ANALYSIS_FAILED_STATUS,
+    CV_ANALYSIS_READY_FOR_GENERATION_STATUS,
+    CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
+    CV_GENERATION_FINAL_STATUSES,
+    CV_GENERATION_REVIEW_REQUIRED_STATUS,
+    cv_generation_status_for_analysis_status as _cv_generation_status_for_analysis_status,
+    deterministic_truth_fields as _deterministic_truth_fields,
+    shortlist_status_for_ranked_job as _shortlist_status_for_ranked_job,
+    validation_status_for_cv_status as _validation_status_for_cv_status,
 )
 from fitcv.ranking_contract import fit_label_from_score
 from fitcv.rule_filter import (
@@ -235,26 +248,7 @@ _CANDIDATE_NAME_PLACEHOLDER_VALUES = {
 _FIT_LABEL_ORDER = {"skip": 0, "stretch": 1, "strong": 2}
 _STAGE_ARTIFACT_SAMPLE_LIMIT = 20
 _STAGE_ARTIFACT_TEXT_LIMIT = 240
-CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS = "blocked_by_reranker_fit"
-CV_ANALYSIS_READY_FOR_GENERATION_STATUS = "ready_for_generation"
-CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS = "skipped_fit_gate"
-CV_ANALYSIS_FAILED_STATUS = "analysis_failed"
-CV_GENERATION_REVIEW_REQUIRED_STATUS = "review_required"
 PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER = "ranked_blocked_by_reranker_fit"
-PIPELINE_STAGE_SEQUENCE = (
-    "normalize",
-    "enrich",
-    "rule_filter",
-    "shortlist",
-    "ranking",
-    "cv_analysis",
-    "cv_generation",
-)
-_PIPELINE_STAGE_SET = set(PIPELINE_STAGE_SEQUENCE)
-
-def _build_stage_dispatch_map() -> dict[str, str]:
-    """Build canonical stage-dispatch scaffold keyed by pipeline stage order."""
-    return {stage_name: stage_name for stage_name in PIPELINE_STAGE_SEQUENCE}
 
 def _prompt_runtime_metadata(
     config: dict[str, Any],
@@ -1927,17 +1921,6 @@ def _shortlist_status_for_export_row(
     return "not_returned_in_raw_hits"
 
 
-def _shortlist_status_for_ranked_job(job: dict[str, Any]) -> str:
-    return _shared_shortlist_status_for_ranked_job(job)
-
-
-def _validation_status_for_cv_status(status: str) -> str:
-    return _shared_validation_status_for_cv_status(status)
-
-
-def _deterministic_truth_fields(status: str | None) -> dict[str, str | None]:
-    return _shared_deterministic_truth_fields(status)
-
 _bounded_event_payload = _build_bounded_event_payload_observability
 
 
@@ -2195,9 +2178,6 @@ def _authoritative_ranking_fit_label(
     fallback_fit_raw = str(fit_classification or "").strip().lower()
     return fallback_fit_raw or None
 
-
-def _cv_generation_status_for_analysis_status(status: str) -> str:
-    return _shared_cv_generation_status_for_analysis_status(status)
 
 
 def _build_decision_chain(
@@ -6948,6 +6928,8 @@ def run_pipeline(
                     ),
                 )  # type: ignore[union-attr]
     return summary
+
+
 
 
 

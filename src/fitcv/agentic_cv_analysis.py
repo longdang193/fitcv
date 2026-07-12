@@ -16,7 +16,7 @@ lifecycle:
 """
 
 import time
-from typing import Any, Final, Literal, TypedDict, cast
+from typing import Any, Literal, TypedDict, cast
 
 from fitcv.candidate import flatten_skills
 from fitcv.contracts import normalize_analysis_channel_mapping
@@ -27,25 +27,18 @@ from fitcv.evidence import (
 )
 from fitcv.gap_analysis import compute_gap
 from fitcv.late_stage_contract import (
-    cv_generation_status_for_analysis_status as _shared_cv_generation_status_for_analysis_status,
-    shortlist_status_for_ranked_job as _shared_shortlist_status_for_ranked_job,
-    validation_status_for_cv_status as _shared_validation_status_for_cv_status,
+    AnalysisStatus,
+    CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS as BLOCKED_BY_RERANKER_STATUS,
+    CV_ANALYSIS_FAILED_STATUS as ANALYSIS_FAILED_STATUS,
+    CV_ANALYSIS_READY_FOR_GENERATION_STATUS as READY_FOR_GENERATION_STATUS,
+    CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS as SKIPPED_FIT_GATE_STATUS,
+    cv_generation_status_for_analysis_status,
+    shortlist_status_for_ranked_job,
+    validation_status_for_cv_status,
 )
 from fitcv.ranking_contract import fit_label_from_score
 
-BLOCKED_BY_RERANKER_STATUS: Final[Literal["blocked_by_reranker_fit"]] = "blocked_by_reranker_fit"
-READY_FOR_GENERATION_STATUS: Final[Literal["ready_for_generation"]] = "ready_for_generation"
-SKIPPED_FIT_GATE_STATUS: Final[Literal["skipped_fit_gate"]] = "skipped_fit_gate"
-ANALYSIS_FAILED_STATUS: Final[Literal["analysis_failed"]] = "analysis_failed"
-
 _FIT_LABEL_ORDER = {"strong", "stretch", "skip"}
-
-AnalysisStatus = Literal[
-    "blocked_by_reranker_fit",
-    "ready_for_generation",
-    "skipped_fit_gate",
-    "analysis_failed",
-]
 FitClassification = Literal["strong", "stretch", "skip"]
 
 
@@ -151,12 +144,6 @@ def resolve_ranked_job_fit(job: dict[str, Any], config: dict[str, Any]) -> FitCl
     return _fit_label_from_ai_score(float(raw_ai_score), config)
 
 
-def _shortlist_status_for_ranked_job(job: dict[str, Any]) -> str:
-    return _shared_shortlist_status_for_ranked_job(job)
-
-
-def _validation_status_for_cv_status(status: str) -> str:
-    return _shared_validation_status_for_cv_status(status)
 
 
 def _authoritative_ranking_fit_label(
@@ -170,9 +157,6 @@ def _authoritative_ranking_fit_label(
         return None
     return fit_classification
 
-
-def _cv_generation_status_for_analysis_status(status: AnalysisStatus) -> str:
-    return _shared_cv_generation_status_for_analysis_status(status)
 
 
 def _build_cv_analysis_trace_record(
@@ -250,7 +234,7 @@ def build_decision_chain(
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
     return {
         "shortlist": {
-            "status": _shortlist_status_for_ranked_job(job),
+            "status": shortlist_status_for_ranked_job(job),
             "advanced_to_scoring": True,
         },
         "primary_fit": {
@@ -266,7 +250,7 @@ def build_decision_chain(
             "attempted": cv_status not in {"not_applicable", "not_attempted", SKIPPED_FIT_GATE_STATUS},
         },
         "validation": {
-            "status": _validation_status_for_cv_status(cv_status),
+            "status": validation_status_for_cv_status(cv_status),
         },
     }
 
@@ -286,7 +270,7 @@ def build_cv_analysis_record(
     fit_classification: FitClassification | None,
     error: ErrorPayload | None,
 ) -> CvAnalysisRecord:
-    cv_status = _cv_generation_status_for_analysis_status(status)
+    cv_status = cv_generation_status_for_analysis_status(status)
 
     evidence_used = build_evidence_used(evidence_payload)
     trace_record = _build_cv_analysis_trace_record(
@@ -577,6 +561,7 @@ def analyze_ranked_job(
                 "message": str(exc),
             },
         )
+
 
 
 

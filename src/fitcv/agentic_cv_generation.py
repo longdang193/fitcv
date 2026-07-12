@@ -24,7 +24,7 @@ import importlib
 import os
 import sys
 import time
-from typing import Any, Callable, Final, Iterator, Literal, TypedDict, cast
+from typing import Any, Callable, Iterator, Literal, TypedDict, cast
 
 from fitcv.agentic_cv_analysis import (
     BLOCKED_BY_RERANKER_STATUS,
@@ -51,23 +51,17 @@ from fitcv.cv_generator import (
     generate_cv,
     render_cv_markdown,
 )
+from fitcv.late_stage_contract import (
+    CV_GENERATION_ACCEPTED_STATUS as ACCEPTED_STATUS,
+    CV_GENERATION_FAILED_STATUS as GENERATION_FAILED_STATUS,
+    CV_GENERATION_VALIDATION_FAILED_STATUS as VALIDATION_FAILED_STATUS,
+    GenerationStatus,
+)
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
-
-ACCEPTED_STATUS: Final[Literal["accepted"]] = "accepted"
-VALIDATION_FAILED_STATUS: Final[Literal["validation_failed"]] = "validation_failed"
-GENERATION_FAILED_STATUS: Final[Literal["generation_failed"]] = "generation_failed"
 DEFAULT_MAX_SUMMARY_LINES = 3
 DEFAULT_FITCV_LANGGRAPH_REPO_NAME = "fitcv-langgraph"
 
 _REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
-GenerationStatus = Literal[
-    "accepted",
-    "validation_failed",
-    "generation_failed",
-    "blocked_by_reranker_fit",
-    "skipped_fit_gate",
-    "analysis_failed",
-]
 
 
 class RepairAttempt(TypedDict, total=False):

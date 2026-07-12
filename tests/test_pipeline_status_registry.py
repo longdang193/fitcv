@@ -17,20 +17,15 @@ from __future__ import annotations
 import pytest
 
 from fitcv.late_stage_contract import (
-    cv_generation_status_for_analysis_status,
-    deterministic_truth_fields,
-    shortlist_status_for_ranked_job,
-    validation_status_for_cv_status,
-)
-from fitcv.pipeline import (
     CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
     CV_ANALYSIS_FAILED_STATUS,
     CV_ANALYSIS_READY_FOR_GENERATION_STATUS,
     CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
     CV_GENERATION_REVIEW_REQUIRED_STATUS,
-    _cv_generation_status_for_analysis_status,
-    _deterministic_truth_fields,
-    _validation_status_for_cv_status,
+    cv_generation_status_for_analysis_status,
+    deterministic_truth_fields,
+    shortlist_status_for_ranked_job,
+    validation_status_for_cv_status,
 )
 
 
@@ -50,7 +45,7 @@ from fitcv.pipeline import (
     ],
 )
 def test_deterministic_truth_fields_registry_parity(status: str, expected: dict[str, str | None]) -> None:
-    assert _deterministic_truth_fields(status) == expected
+    assert deterministic_truth_fields(status) == expected
 
 
 @pytest.mark.parametrize(
@@ -64,7 +59,7 @@ def test_deterministic_truth_fields_registry_parity(status: str, expected: dict[
     ],
 )
 def test_validation_status_for_cv_status_parity(status: str, expected: str) -> None:
-    assert _validation_status_for_cv_status(status) == expected
+    assert validation_status_for_cv_status(status) == expected
 
 
 @pytest.mark.parametrize(
@@ -78,17 +73,21 @@ def test_validation_status_for_cv_status_parity(status: str, expected: str) -> N
     ],
 )
 def test_cv_generation_status_for_analysis_status_parity(analysis_status: str, expected: str) -> None:
-    assert _cv_generation_status_for_analysis_status(analysis_status) == expected
+    assert cv_generation_status_for_analysis_status(analysis_status) == expected
 
 
 def test_pipeline_helpers_match_shared_late_stage_contract() -> None:
     job = {"shortlist_origin": "backfill"}
 
-    assert _validation_status_for_cv_status("validation_failed") == validation_status_for_cv_status("validation_failed")
-    assert _validation_status_for_cv_status("persistence_failed") == validation_status_for_cv_status("persistence_failed")
-    assert _deterministic_truth_fields("accepted") == deterministic_truth_fields("accepted")
-    assert _deterministic_truth_fields(CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS) == deterministic_truth_fields(CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS)
-    assert _cv_generation_status_for_analysis_status(CV_ANALYSIS_READY_FOR_GENERATION_STATUS) == cv_generation_status_for_analysis_status(CV_ANALYSIS_READY_FOR_GENERATION_STATUS)
-    assert _cv_generation_status_for_analysis_status("unexpected_status") == cv_generation_status_for_analysis_status("unexpected_status")
+    assert validation_status_for_cv_status("validation_failed") == "failed"
+    assert validation_status_for_cv_status("persistence_failed") == "accepted"
+    assert deterministic_truth_fields("accepted") == {
+        "deterministic_outcome": "accepted",
+        "stage_owned_subreason": "accepted",
+        "source_stage": "cv_generation",
+    }
+    assert deterministic_truth_fields(CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS)["deterministic_outcome"] == "blocked"
+    assert cv_generation_status_for_analysis_status(CV_ANALYSIS_READY_FOR_GENERATION_STATUS) == "not_attempted"
+    assert cv_generation_status_for_analysis_status("unexpected_status") == "failed"
     assert shortlist_status_for_ranked_job(job) == "backfilled_for_scoring"
 
