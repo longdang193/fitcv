@@ -104,6 +104,13 @@ def test_settings_ia_stage_filter_returns_expected_keys() -> None:
     assert "cv_generation_model" in cv_generation_keys
     assert "cv_summary_enabled" in cv_generation_keys
 
+def test_settings_schema_rows_own_stage_and_surface_metadata_for_stage_exceptions() -> None:
+    schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+    assert schema_by_key["pipeline.vector_search_top_n"]["stage"] == "shortlist"
+    assert schema_by_key["pipeline.ai_score_top_n"]["stage"] == "ranking"
+    assert schema_by_key["pipeline.evidence_top_k"]["stage"] == "cv_analysis"
+    assert schema_by_key["cv_analysis.semantic_alignment.enabled"]["control_surface"] == "agentic_runtime"
+
 
 def test_settings_ia_workflow_stages_include_canonical_stage_for_all_keys() -> None:
     meta = settings_ia_metadata_by_key()

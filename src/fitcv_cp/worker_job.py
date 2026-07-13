@@ -33,6 +33,11 @@ from fitcv.config import (
     get_stage_runtime_sleep_secs,
     parse_skill_synonym_overlay_yaml,
 )
+from fitcv.late_stage_contract import (
+    CV_DEBUG_ANALYSIS_OMISSION_STATUSES,
+    CV_GENERATION_ATTEMPTED_STATUSES,
+)
+from fitcv.runtime_routing import build_runtime_routing_snapshot
 from fitcv.reuse import build_reuse_decision, resolve_reuse_stage_policy
 from fitcv.contracts import (
     MAPPING_SUGGESTIONS_SCHEMA_VERSION,
@@ -119,23 +124,26 @@ _SETTINGS_COMPATIBILITY_KEYS = {
     "cv_max_pages",
     "required_cv_sections",
 }
-_CV_GENERATION_ATTEMPTED_STATUSES = {
-    "accepted",
-    "review_required",
-    "validation_failed",
-    "generation_failed",
-    "persistence_failed",
-}
-_CV_DEBUG_ANALYSIS_OMISSION_STATUSES = {
-    "blocked_by_reranker_fit",
-    "skipped_fit_gate",
-    "analysis_failed",
-}
 _NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL = 2
 _WINDOWS_ABSOLUTE_PATH_PATTERN = re.compile(r"^[A-Za-z]:[\\/]")
 LOW_RISK_AUTO_ACCEPT_REASON_CODES = {
     "provider_response_unusable",
 }
+
+def _builtin_synonym_triage_runtime() -> dict[str, Any]:
+    snapshot = build_runtime_routing_snapshot(
+        provider="fitcv_builtin",
+        model="synonym_triage_v1",
+        base_url=None,
+        wire_api="builtin",
+        api_key="",
+        default_provider="fitcv_builtin",
+        default_model="synonym_triage_v1",
+        default_wire_api="builtin",
+    )
+    snapshot["sleep_secs"] = 0.0
+    snapshot["concurrency"] = 1
+    return snapshot
 
 
 def _stage_deterministic_summary(
@@ -641,7 +649,7 @@ def _build_cv_generation_debug_payload(
     attempted_generation_jobs_total = sum(
         1
         for record in debug_records
-        if str(record.get("status") or "") in _CV_GENERATION_ATTEMPTED_STATUSES
+        if str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
     )
     debug_record_job_urls = {
         str(record.get("job_url") or "")
@@ -651,14 +659,14 @@ def _build_cv_generation_debug_payload(
     omission_reason_counts: dict[str, int] = {}
     for record in debug_records:
         status = str(record.get("status") or "")
-        if status in _CV_GENERATION_ATTEMPTED_STATUSES:
+        if status in CV_GENERATION_ATTEMPTED_STATUSES:
             continue
         omission_reason_counts[status] = omission_reason_counts.get(status, 0) + 1
     for record in list(summary.get("cv_analysis_results") or []):
         if not isinstance(record, dict):
             continue
         status = str(record.get("status") or "")
-        if status not in _CV_DEBUG_ANALYSIS_OMISSION_STATUSES:
+        if status not in CV_DEBUG_ANALYSIS_OMISSION_STATUSES:
             continue
         job_url = str(record.get("job_url") or "")
         if job_url and job_url in debug_record_job_urls:
@@ -989,13 +997,7 @@ def _run_synonym_automation_for_payload(
             runtime_meta = dict(proposal.get("recommendation_runtime") or {})
             reuse_eval = evaluate_synonym_triage_reuse(
                 proposal=proposal,
-                runtime={
-                    "provider": "fitcv_builtin",
-                    "model": "synonym_triage_v1",
-                    "wire_api": "builtin",
-                    "sleep_secs": 0.0,
-                    "concurrency": 1,
-                },
+                runtime=_builtin_synonym_triage_runtime(),
                 runtime_meta=runtime_meta,
             )
             reuse_enabled = bool(mode.get("triage_recommendation_reuse_enabled"))
@@ -1068,9 +1070,7 @@ def _run_synonym_automation_for_payload(
             "reuse_reason": reuse_reason,
             "auto_triage_recommendation_enabled": bool(mode.get("auto_triage_recommendation_enabled")),
             "triage_recommendation_reuse_enabled": bool(mode.get("triage_recommendation_reuse_enabled")),
-            "provider": "fitcv_builtin",
-            "model": "synonym_triage_v1",
-            "wire_api": "builtin",
+            **_builtin_synonym_triage_runtime(),
         }
         event_fingerprint = hashlib.sha256(
             json.dumps(event_payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
@@ -1319,7 +1319,7 @@ def _run_synonym_automation_for_payload(
     trace_summary["triage_recommendation_suppressed_total"] = 0
     trace_summary["triage_recommendation_reuse_reason"] = reuse_reason
     trace_summary["triage_recommendation_fingerprint"] = stable_sha256_fingerprint(
-        {"provider": "fitcv_builtin", "model": "synonym_triage_v1", "wire_api": "builtin"}
+        _builtin_synonym_triage_runtime()
     )
     trace_summary["auto_apply_recommendation_applied"] = int(auto_apply_counts.get("applied") or 0)
     trace_summary["auto_apply_recommendation_skipped"] = int(auto_apply_counts.get("skipped") or 0)

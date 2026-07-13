@@ -147,6 +147,7 @@ from fitcv.late_stage_contract import (
     CV_ANALYSIS_FAILED_STATUS,
     CV_ANALYSIS_READY_FOR_GENERATION_STATUS,
     CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
+    CV_GENERATION_ATTEMPTED_STATUSES,
     CV_GENERATION_FINAL_STATUSES,
     CV_GENERATION_REVIEW_REQUIRED_STATUS,
     cv_generation_status_for_analysis_status as _cv_generation_status_for_analysis_status,
@@ -1240,7 +1241,7 @@ def _build_late_stage_reuse_metrics(
     )
     generation_attempted_rows = [
         row for row in cv_generation_debug_records
-        if str(row.get("status") or "") in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
+        if str(row.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
     ]
     reused_cv_generations = sum(
         1 for row in generation_attempted_rows
@@ -1588,7 +1589,7 @@ def _build_checkpoint_summary(
     ranked = list(state.get("ranked") or [])
     cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
     cv_generation_reached = any(
-        str(record.get("status") or "") in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
+        str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
         for record in cv_generation_debug_records
     )
     late_stage_mode_payload = _build_late_stage_mode_payload(
@@ -2254,7 +2255,7 @@ def _build_cv_generation_debug_record(
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
     cv_analysis_status = status
     cv_generation_status = status
-    if status in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}:
+    if status in CV_GENERATION_ATTEMPTED_STATUSES:
         cv_analysis_status = CV_ANALYSIS_READY_FOR_GENERATION_STATUS
     elif status in {
         CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
@@ -2263,7 +2264,7 @@ def _build_cv_generation_debug_record(
     }:
         cv_generation_status = "not_attempted"
     default_cv_generation_reuse_status: str | None = None
-    if status in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}:
+    if status in CV_GENERATION_ATTEMPTED_STATUSES:
         # Any attempted non-reused path should count as fresh unless a later branch
         # explicitly marks this record as reused_exact_match.
         default_cv_generation_reuse_status = "fresh_compute"
@@ -2574,11 +2575,10 @@ def _summarize_cv_generation_model(
     cv_generation_debug_records: list[dict[str, Any]],
     default_model: str | None,
 ) -> str | None:
-    attempted_statuses = {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
     models = [
         str(record.get("cv_generation_model") or "").strip()
         for record in cv_generation_debug_records
-        if str(record.get("status") or "") in attempted_statuses
+        if str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
         and str(record.get("cv_generation_model") or "").strip()
     ]
     unique_models = sorted(set(models))
@@ -2592,11 +2592,10 @@ def _summarize_cv_generation_model(
 def _summarize_cv_generation_provider(
     cv_generation_debug_records: list[dict[str, Any]],
 ) -> str | None:
-    attempted_statuses = {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
     providers = [
         str((record.get("runtime_provenance") or {}).get("provider") or "").strip()
         for record in cv_generation_debug_records
-        if str(record.get("status") or "") in attempted_statuses
+        if str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
         and isinstance(record.get("runtime_provenance"), dict)
         and str((record.get("runtime_provenance") or {}).get("provider") or "").strip()
     ]
@@ -2633,10 +2632,9 @@ def _build_agentic_live_trace_summary(
             "artifact_refs": {},
         }
 
-    attempted_statuses = {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
     attempted_records = [
         record for record in cv_generation_debug_records
-        if str(record.get("status") or "") in attempted_statuses
+        if str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
     ]
     trace_records: list[dict[str, Any]] = []
     for record in attempted_records:
@@ -3225,7 +3223,7 @@ def _build_stage_transition_artifacts(
     cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
     generation_execution_records = [
         record for record in cv_generation_debug_records
-        if str(record.get("status") or "") in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
+        if str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
     ]
     cv_generation_reached = len(generation_execution_records) > 0
     raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
@@ -3431,7 +3429,7 @@ def _build_stage_transition_artifacts(
         ),
         "total_rows": sum(
             1 for record in cv_generation_debug_records
-            if str(record.get("status") or "") in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
+            if str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
         ),
     }
     cv_generation_reuse_metrics["reuse_rate"] = _safe_rate(
@@ -6785,7 +6783,7 @@ def run_pipeline(
         )
         cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
         cv_generation_reached = any(
-            str(record.get("status") or "") in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
+            str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
             for record in cv_generation_debug_records
         )
         late_stage_mode_payload = _build_late_stage_mode_payload(

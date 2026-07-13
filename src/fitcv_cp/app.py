@@ -109,7 +109,7 @@ from fitcv_cp.run_artifact_contracts import (
     pretty_json_string_or_fallback,
     run_mode_label,
 )
-from fitcv.runtime_routing import resolve_langgraph_openai_compatible_api_key
+from fitcv.runtime_routing import build_runtime_routing_snapshot, resolve_langgraph_openai_compatible_api_key
 from fitcv_cp.run_artifact_mirror import build_terminal_run_artifact_payloads
 from fitcv_cp.settings_schema import (
     ALL_GROUP_REGISTRIES,
@@ -801,7 +801,7 @@ def _apply_trigger_runtime_envelope(
     if candidate_profile_json:
         runtime_inputs["candidate_profile_json"] = candidate_profile_json
     # Capture trigger-time agentic runtime expectation to avoid later interpretation drift.
-    runtime_inputs["agentic_runtime_expectation"] = resolve_langgraph_runtime_expectation()
+    runtime_inputs["agentic_runtime_expectation"] = _resolve_live_langgraph_runtime_expectation()
     effective_config["trigger_runtime_envelope"] = {
         "jobs_input_source": jobs_input_source,
         "candidate_profile_source": candidate_profile_source,
@@ -3105,28 +3105,68 @@ def _synonym_triage_fingerprint(
 
 def _resolve_live_langgraph_runtime_expectation() -> dict[str, Any]:
     try:
-        return dict(resolve_langgraph_runtime_expectation())
+        expected = dict(resolve_langgraph_runtime_expectation())
     except Exception:
         return {}
-
+    snapshot = build_runtime_routing_snapshot(
+        provider=str(expected.get("provider") or "").strip(),
+        model=str(expected.get("model") or "").strip(),
+        base_url=str(expected.get("base_url") or "").strip(),
+        wire_api=str(expected.get("wire_api") or "").strip(),
+        api_key=resolve_langgraph_openai_compatible_api_key(),
+        default_provider="fitcv_builtin",
+        default_model="synonym_triage_v1",
+        default_wire_api="builtin",
+    )
+    return {**expected, **snapshot}
 
 def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
-    expected = _resolve_live_langgraph_runtime_expectation()
-    provider = str(expected.get("provider") or "fitcv_builtin").strip().lower() or "fitcv_builtin"
-    model = str(expected.get("model") or "synonym_triage_v1").strip() or "synonym_triage_v1"
-    base_url = str(expected.get("base_url") or "").strip() or None
-    wire_api = str(expected.get("wire_api") or "builtin").strip() or "builtin"
     api_key = resolve_langgraph_openai_compatible_api_key()
+    snapshot = build_runtime_routing_snapshot(
+        provider=None,
+        model=None,
+        base_url=None,
+        wire_api=None,
+        api_key=api_key,
+        default_provider="fitcv_builtin",
+        default_model="synonym_triage_v1",
+        default_wire_api="builtin",
+    )
+    live_expected = _resolve_live_langgraph_runtime_expectation()
+    if isinstance(live_expected, dict) and live_expected:
+        snapshot = {
+            **snapshot,
+            **build_runtime_routing_snapshot(
+                provider=live_expected.get("provider"),
+                model=live_expected.get("model"),
+                base_url=live_expected.get("base_url"),
+                wire_api=live_expected.get("wire_api"),
+                api_key=api_key,
+                default_provider=str(snapshot.get("provider") or "fitcv_builtin"),
+                default_model=str(snapshot.get("model") or "synonym_triage_v1"),
+                default_wire_api=str(snapshot.get("wire_api") or "builtin"),
+            ),
+        }
     sleep_secs = 0.0
     concurrency = 1
     effective_settings = _load_json_object(run.effective_settings_json)
     if isinstance(effective_settings, dict):
         runtime_inputs = dict(effective_settings.get("runtime_inputs") or {})
         expected = dict(runtime_inputs.get("agentic_runtime_expectation") or {})
-        provider = str(expected.get("provider") or provider).strip().lower() or provider
-        model = str(expected.get("model") or model).strip() or model
-        base_url = str(expected.get("base_url") or base_url or "").strip() or None
-        wire_api = str(expected.get("wire_api") or wire_api).strip() or wire_api
+        if expected:
+            snapshot = {
+                **snapshot,
+                **build_runtime_routing_snapshot(
+                    provider=expected.get("provider"),
+                    model=expected.get("model"),
+                    base_url=expected.get("base_url"),
+                    wire_api=expected.get("wire_api"),
+                    api_key=api_key,
+                    default_provider=str(snapshot.get("provider") or "fitcv_builtin"),
+                    default_model=str(snapshot.get("model") or "synonym_triage_v1"),
+                    default_wire_api=str(snapshot.get("wire_api") or "builtin"),
+                ),
+            }
         stage_runtime = dict(effective_settings.get("stage_runtime") or {})
         cv_analysis_runtime = dict(stage_runtime.get("cv_analysis") or {})
         try:
@@ -3138,14 +3178,23 @@ def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
         except (TypeError, ValueError):
             concurrency = 1
     return {
-        "provider": provider,
-        "model": model,
-        "base_url": base_url,
-        "wire_api": wire_api,
+        **snapshot,
         "api_key": api_key,
         "sleep_secs": sleep_secs,
         "concurrency": concurrency,
     }
+
+def _synonym_triage_fingerprint(
+    proposal: dict[str, Any],
+    *,
+    runtime: dict[str, Any],
+    overlay_fingerprint: str | None = None,
+) -> str:
+    return build_synonym_triage_fingerprint(
+        proposal=proposal,
+        runtime=runtime,
+        overlay_fingerprint=overlay_fingerprint,
+    )
 
 
 def _global_skill_synonyms_path() -> Path:
@@ -7305,7 +7354,11 @@ def create_app(
             )
         now = datetime.datetime.now(datetime.timezone.utc)
         event_id = str(uuid.uuid4())
-        if run.status == RunStatus.AWAITING_CONTINUE:
+        cancelled_in_queue = False
+        if run.status == RunStatus.QUEUED and run.queue_job_id:
+            cancelled_in_queue = cancel_queued_run(run.queue_job_id, redis_url=redis_url)
+        target_status = cancel_request_target_status(run, cancelled_in_queue=cancelled_in_queue)
+        if target_status == RunStatus.CANCELLED and run.status == RunStatus.AWAITING_CONTINUE:
             update_run_status(
                 run_id,
                 RunStatus.CANCELLED,
@@ -7324,34 +7377,12 @@ def create_app(
                 client=client,
             )
             return {"status": "cancelled", "run_id": run_id}
-        if run.status == RunStatus.QUEUED and run.queue_job_id:
-            cancelled_in_queue = cancel_queued_run(run.queue_job_id, redis_url=redis_url)
-            if cancelled_in_queue:
-                # Job still in queue — mark directly cancelled
-                request_run_cancel(run_id, "admin", RunStatus.CANCELLED.value, client=client)
-                append_event(
-                    RunEvent(
-                        run_id=run_id, event_id=event_id, stage="cancel_requested",
-                        level="warning", message="Stop requested — cancelled from queue",
-                        created_at=now,
-                    ),
-                    client=client,
-                )
-                append_event(
-                    RunEvent(
-                        run_id=run_id, event_id=str(uuid.uuid4()), stage="run_cancelled",
-                        level="warning", message="Run cancelled before pipeline execution",
-                        created_at=now,
-                    ),
-                    client=client,
-                )
-                return {"status": "cancelled", "run_id": run_id}
-        if run.status == RunStatus.QUEUED and run.started_at is None:
-            request_run_cancel(run_id, "admin", RunStatus.CANCELLING.value, client=client)
+        if target_status == RunStatus.CANCELLED:
+            request_run_cancel(run_id, "admin", target_status.value, client=client)
             append_event(
                 RunEvent(
                     run_id=run_id, event_id=event_id, stage="cancel_requested",
-                    level="warning", message="Stop requested — run will be cancelled at next checkpoint",
+                    level="warning", message="Stop requested — cancelled from queue",
                     created_at=now,
                 ),
                 client=client,
@@ -7364,9 +7395,8 @@ def create_app(
                 ),
                 client=client,
             )
-            return {"status": "cancelling", "run_id": run_id}
-        # Running (or queued but already claimed) — set cancelling
-        request_run_cancel(run_id, "admin", RunStatus.CANCELLING.value, client=client)
+            return {"status": "cancelled", "run_id": run_id}
+        request_run_cancel(run_id, "admin", target_status.value, client=client)
         append_event(
             RunEvent(
                 run_id=run_id, event_id=event_id, stage="cancel_requested",
@@ -9525,6 +9555,7 @@ def create_app(
                 "model": str(triage_runtime.get("model") or "synonym_triage_v1"),
                 "wire_api": str(triage_runtime.get("wire_api") or "builtin"),
                 "base_url": str(triage_runtime.get("base_url") or "") or None,
+                "api_key_available": bool(triage_runtime.get("api_key_available")),
             },
         )
         trace_payload = dict(payload.get("synonym_proposals_trace") or {})

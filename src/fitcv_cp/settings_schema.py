@@ -1177,102 +1177,30 @@ _GROUP_TO_APPLIES_WHEN: dict[str, str] = {
 
 _STAGE_CROSS_STAGE = "cross_stage"
 
-_KEY_TO_STAGE_ID: dict[str, str] = {
-    # shortlist
-    "pipeline.vector_search_top_n": _WORKFLOW_STAGE_SHORTLIST,
-    # ranking
-    "pipeline.ai_score_top_n": _WORKFLOW_STAGE_RANKING,
-    "pipeline.final_top_n": _WORKFLOW_STAGE_RANKING,
-    "reuse.ranking.enabled": _WORKFLOW_STAGE_RANKING,
-    "stage_runtime.ranking.sleep_secs": _WORKFLOW_STAGE_RANKING,
-    "stage_runtime.ranking.concurrency": _WORKFLOW_STAGE_RANKING,
-    "rerank_sleep_secs": _WORKFLOW_STAGE_RANKING,
-    "ranking_weights.ai_score": _WORKFLOW_STAGE_RANKING,
-    "ranking_weights.must_have_match": _WORKFLOW_STAGE_RANKING,
-    "ranking_weights.vector_similarity": _WORKFLOW_STAGE_RANKING,
-    "ranking_weights.title_relevance": _WORKFLOW_STAGE_RANKING,
-    "ranking_weights.seniority_fit": _WORKFLOW_STAGE_RANKING,
-    "ranking_weights.preference_fit": _WORKFLOW_STAGE_RANKING,
-    "preference_fit_weights.domain": _WORKFLOW_STAGE_RANKING,
-    "preference_fit_weights.role_family": _WORKFLOW_STAGE_RANKING,
-    "preference_fit_weights.location_type": _WORKFLOW_STAGE_RANKING,
-    "fit_label_thresholds.strong": _WORKFLOW_STAGE_RANKING,
-    "fit_label_thresholds.stretch": _WORKFLOW_STAGE_RANKING,
-    "gap_thresholds.strong_min_matched_ratio": _WORKFLOW_STAGE_RANKING,
-    "gap_thresholds.stretch_min_matched_ratio": _WORKFLOW_STAGE_RANKING,
-    # cv_analysis
-    "pipeline.evidence_top_k": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "reuse.cv_analysis.enabled": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "stage_runtime.cv_analysis.sleep_secs": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "stage_runtime.cv_analysis.concurrency": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "cv.agentic_late_stage.enabled": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "cv_analysis.semantic_alignment.enabled": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "cv_analysis.semantic_alignment.model": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "cv_analysis.semantic_alignment.required_skill_lexical_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "cv_analysis.semantic_alignment.required_skill_semantic_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "cv_analysis.semantic_alignment.role_lexical_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "cv_analysis.semantic_alignment.role_semantic_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "cv_analysis.semantic_alignment.responsibility_lexical_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "cv_analysis.semantic_alignment.responsibility_semantic_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "cv_analysis.semantic_alignment.domain_lexical_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "cv_analysis.semantic_alignment.domain_semantic_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
-    "cv_analysis.semantic_alignment.channel_pool_size": _WORKFLOW_STAGE_CV_ANALYSIS,
-    # enrich
-    "global_job_filters.applications_count_max": _WORKFLOW_STAGE_ENRICH,
-    "global_job_filters.max_age_days": _WORKFLOW_STAGE_ENRICH,
-    "stage_runtime.enrich.sleep_secs": _WORKFLOW_STAGE_ENRICH,
-    "stage_runtime.enrich.batch_size": _WORKFLOW_STAGE_ENRICH,
-    "stage_runtime.enrich.concurrency": _WORKFLOW_STAGE_ENRICH,
-    "enrichment_sleep_secs": _WORKFLOW_STAGE_ENRICH,
-    "enrichment_batch_size": _WORKFLOW_STAGE_ENRICH,
-    "enrichment_concurrency": _WORKFLOW_STAGE_ENRICH,
-    "synonym_management.propose_enabled": _WORKFLOW_STAGE_ENRICH,
-    "synonym_management.apply_to_run_enabled": _WORKFLOW_STAGE_ENRICH,
-    "synonym_management.promote_global_enabled": _WORKFLOW_STAGE_ENRICH,
-    "synonym_management.auto_triage_recommendation_enabled": _WORKFLOW_STAGE_ENRICH,
-    "synonym_management.triage_recommendation_reuse_enabled": _WORKFLOW_STAGE_ENRICH,
-    "reuse.enrich.enabled": _WORKFLOW_STAGE_ENRICH,
-    "reuse.synonym_triage.enabled": _WORKFLOW_STAGE_ENRICH,
-    "synonym_management.auto_apply_recommendation_enabled": _WORKFLOW_STAGE_ENRICH,
-    "synonym_management.auto_promote_global_enabled": _WORKFLOW_STAGE_ENRICH,
-    # rule_filter
-    "rule_filter.selected_filters": _WORKFLOW_STAGE_RULE_FILTER,
-    # cv_generation
-    "cv_generation_model": _WORKFLOW_STAGE_CV_GENERATION,
-    "stage_runtime.cv_generation.sleep_secs": _WORKFLOW_STAGE_CV_GENERATION,
-    "stage_runtime.cv_generation.concurrency": _WORKFLOW_STAGE_CV_GENERATION,
-    "cv_preset": _WORKFLOW_STAGE_CV_GENERATION,
-    "cv_summary_enabled": _WORKFLOW_STAGE_CV_GENERATION,
-    "cv_education_enabled": _WORKFLOW_STAGE_CV_GENERATION,
-    "cv_experience_enabled": _WORKFLOW_STAGE_CV_GENERATION,
-    "cv_skills_enabled": _WORKFLOW_STAGE_CV_GENERATION,
-    "cv_certifications_enabled": _WORKFLOW_STAGE_CV_GENERATION,
-    "cv_projects_enabled": _WORKFLOW_STAGE_CV_GENERATION,
-    "cv_publications_enabled": _WORKFLOW_STAGE_CV_GENERATION,
-    "cv_languages_enabled": _WORKFLOW_STAGE_CV_GENERATION,
-    "cv_max_pages": _WORKFLOW_STAGE_CV_GENERATION,
-    "reuse.cv_generation.enabled": _WORKFLOW_STAGE_CV_GENERATION,
-    "synonym_management.auto_accept_ai_action_enabled": _WORKFLOW_STAGE_CV_GENERATION,
-    # cross-stage runtime guardrail
-    "run_lifecycle.max_runtime_minutes": _STAGE_CROSS_STAGE,
-}
-
 _CONTROL_SURFACE_STANDARD_PIPELINE = "standard_pipeline"
 _CONTROL_SURFACE_AGENTIC_RUNTIME = "agentic_runtime"
 _CONTROL_SURFACE_SHARED = "shared"
 
-_GROUP_TO_CONTROL_SURFACE: dict[str, str] = {
-    "retrieval": _CONTROL_SURFACE_STANDARD_PIPELINE,
-    "global_job_filters": _CONTROL_SURFACE_STANDARD_PIPELINE,
-    "rule_filter": _CONTROL_SURFACE_STANDARD_PIPELINE,
-    "ranking": _CONTROL_SURFACE_STANDARD_PIPELINE,
-    "cv_composition": _CONTROL_SURFACE_STANDARD_PIPELINE,
-    "cv_validation": _CONTROL_SURFACE_STANDARD_PIPELINE,
-    "cv_preset": _CONTROL_SURFACE_STANDARD_PIPELINE,
-    "run_lifecycle": _CONTROL_SURFACE_SHARED,
-    "timing": _CONTROL_SURFACE_SHARED,
-    "agentic": _CONTROL_SURFACE_AGENTIC_RUNTIME,
-}
+def _seed_schema_entry_metadata(entry: dict[str, Any]) -> None:
+    key = str(entry.get("key") or "")
+    if key == "pipeline.vector_search_top_n":
+        entry.setdefault("stage", _WORKFLOW_STAGE_SHORTLIST)
+        entry.setdefault("control_surface", _CONTROL_SURFACE_STANDARD_PIPELINE)
+        return
+    if key in {"pipeline.ai_score_top_n", "pipeline.final_top_n"}:
+        entry.setdefault("stage", _WORKFLOW_STAGE_RANKING)
+        entry.setdefault("control_surface", _CONTROL_SURFACE_STANDARD_PIPELINE)
+        return
+    if key == "pipeline.evidence_top_k":
+        entry.setdefault("stage", _WORKFLOW_STAGE_CV_ANALYSIS)
+        entry.setdefault("control_surface", _CONTROL_SURFACE_STANDARD_PIPELINE)
+        return
+    if key == "cv.agentic_late_stage.enabled" or key.startswith("cv_analysis.semantic_alignment."):
+        entry.setdefault("stage", _WORKFLOW_STAGE_CV_ANALYSIS)
+        entry.setdefault("control_surface", _CONTROL_SURFACE_AGENTIC_RUNTIME)
+
+for _schema_entry in SETTINGS_SCHEMA:
+    _seed_schema_entry_metadata(_schema_entry)
 
 _DECISION_AREA_ENABLEMENT = "enablement"
 _DECISION_AREA_BEHAVIOR = "behavior"
@@ -1310,11 +1238,50 @@ def _default_ia_domain(entry: dict[str, Any]) -> str:
     return _GROUP_TO_IA_DOMAIN.get(group, _IA_DOMAIN_ADVANCED)
 
 def _default_stage_id(entry: dict[str, Any]) -> str:
+    explicit_stage = str(entry.get("stage") or "").strip()
+    if explicit_stage:
+        return explicit_stage
     key = str(entry.get("key") or "")
-    return _KEY_TO_STAGE_ID.get(key, _STAGE_CROSS_STAGE)
-
+    config_path = list(entry.get("config_path") or [])
+    group = str(entry.get("group") or "")
+    if key == "run_lifecycle.max_runtime_minutes":
+        return _STAGE_CROSS_STAGE
+    if key.startswith("synonym_management."):
+        return (
+            _WORKFLOW_STAGE_CV_GENERATION
+            if key == "synonym_management.auto_accept_ai_action_enabled"
+            else _WORKFLOW_STAGE_ENRICH
+        )
+    if key.startswith("stage_runtime.") and len(config_path) >= 3:
+        return str(config_path[1] or "").strip() or _STAGE_CROSS_STAGE
+    if key.startswith("reuse.") and len(config_path) >= 3:
+        reuse_stage = str(config_path[1] or "").strip()
+        if reuse_stage == "synonym_triage":
+            return _WORKFLOW_STAGE_ENRICH
+        if reuse_stage:
+            return reuse_stage
+    if key.startswith("enrichment_"):
+        return _WORKFLOW_STAGE_ENRICH
+    if key == "rerank_sleep_secs":
+        return _WORKFLOW_STAGE_RANKING
+    if group == "global_job_filters":
+        return _WORKFLOW_STAGE_ENRICH
+    if group == "rule_filter":
+        return _WORKFLOW_STAGE_RULE_FILTER
+    if group == "ranking":
+        return _WORKFLOW_STAGE_RANKING
+    if group in {"cv_composition", "cv_validation", "cv_preset"}:
+        return _WORKFLOW_STAGE_CV_GENERATION
+    if key.startswith("cv_generation") or key.startswith("cv_"):
+        return _WORKFLOW_STAGE_CV_GENERATION
+    return _STAGE_CROSS_STAGE
 
 def _default_workflow_stages(entry: dict[str, Any], stage_id: str) -> list[str]:
+    explicit_stages = [str(item).strip() for item in list(entry.get("workflow_stages") or []) if str(item).strip()]
+    if explicit_stages:
+        if stage_id not in explicit_stages:
+            explicit_stages.append(stage_id)
+        return explicit_stages
     group = str(entry.get("group") or "")
     group_stages = list(_GROUP_TO_WORKFLOW_STAGES.get(group, ()))
     if not group_stages:
@@ -1324,12 +1291,15 @@ def _default_workflow_stages(entry: dict[str, Any], stage_id: str) -> list[str]:
     return group_stages
 
 def _default_control_surface(entry: dict[str, Any]) -> str:
-    key = str(entry.get("key") or "")
-    if key.startswith("cv_analysis.semantic_alignment."):
-        return _CONTROL_SURFACE_AGENTIC_RUNTIME
+    explicit_surface = str(entry.get("control_surface") or "").strip()
+    if explicit_surface:
+        return explicit_surface
     group = str(entry.get("group") or "")
-    return _GROUP_TO_CONTROL_SURFACE.get(group, _CONTROL_SURFACE_SHARED)
-
+    if group == "agentic":
+        return _CONTROL_SURFACE_AGENTIC_RUNTIME
+    if group in {"retrieval", "global_job_filters", "rule_filter", "ranking", "cv_composition", "cv_validation", "cv_preset"}:
+        return _CONTROL_SURFACE_STANDARD_PIPELINE
+    return _CONTROL_SURFACE_SHARED
 
 def _decision_domain_for_entry(entry: dict[str, Any]) -> str:
     group = str(entry.get("group") or "")

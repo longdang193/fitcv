@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from fitcv.runtime_routing import build_langgraph_env_overrides, langgraph_override_drift_fields, resolve_cv_generation_runtime_provenance
+from fitcv.runtime_routing import build_langgraph_env_overrides, build_runtime_routing_snapshot, langgraph_override_drift_fields, resolve_cv_generation_routing_snapshot, resolve_cv_generation_runtime_provenance
 from fitcv.runtime_routing import resolve_langgraph_openai_compatible_api_key, resolve_openai_compatible_api_key, validate_cv_generation_routing_ready
 
 
@@ -74,6 +74,43 @@ def test_build_langgraph_env_overrides_uses_cv_generation_route_consistently() -
         "FITCV_LANGGRAPH_WIRE_API": "responses",
         "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.2",
     }
+
+def test_build_runtime_routing_snapshot_normalizes_and_marks_api_key_presence() -> None:
+    snapshot = build_runtime_routing_snapshot(
+        provider="OpenAI_Compatible",
+        model=" cx/gpt-5.2 ",
+        base_url=" http://localhost:1234/v1 ",
+        wire_api=" Responses ",
+        api_key="secret",
+        default_provider="fitcv_builtin",
+        default_model="fallback-model",
+        default_wire_api="responses",
+    )
+    assert snapshot == {
+        "provider": "openai_compatible",
+        "model": "cx/gpt-5.2",
+        "base_url": "http://localhost:1234/v1",
+        "wire_api": "responses",
+        "api_key_available": True,
+    }
+
+def test_resolve_cv_generation_routing_snapshot_openai_compatible() -> None:
+    with patch(
+        "fitcv.runtime_routing.resolve_model_routing_part",
+        return_value={
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "base_url": "http://localhost:1234/v1",
+            "wire_api": "responses",
+        },
+    ), patch("fitcv.runtime_routing.resolve_openai_compatible_api_key", return_value="test-key"):
+        snapshot = resolve_cv_generation_routing_snapshot({}, default_model="fallback-model")
+    assert snapshot["runtime_path"] == "fitcv_cv_generation_openai_compatible"
+    assert snapshot["provider"] == "openai_compatible"
+    assert snapshot["model"] == "cx/gpt-5.2"
+    assert snapshot["base_url"] == "http://localhost:1234/v1"
+    assert snapshot["wire_api"] == "responses"
+    assert snapshot["api_key_available"] is True
 
 def test_resolve_cv_generation_runtime_provenance_openai_compatible() -> None:
     with patch(

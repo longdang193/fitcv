@@ -34,8 +34,6 @@ logger = logging.getLogger(__name__)
 
 PersistenceResult = dict[str, str]
 
-# Back-compat call surface still accepts `client`, `project`, and `dataset`.
-# SQLite store ignores them.
 _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS = 3
 _PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS = 0.25
 _EVENT_APPEND_RETRY_ATTEMPTS = 3
@@ -328,8 +326,6 @@ def _update_single_pipeline_run_json_field(
     field_name: str,
     field_value: str,
     client: Any | None = None,
-    project: str = "local",
-    dataset: str = "fitcv",
     local_mutator: Callable[[PipelineRun], PipelineRun],
 ) -> None:
     _validate_pipeline_runs_json_field_name(field_name)
@@ -342,8 +338,6 @@ def _update_pipeline_run_json_field_with_result(
     field_name: str,
     field_value: str,
     client: Any | None = None,
-    project: str = "local",
-    dataset: str = "fitcv",
     local_mutator: Callable[[PipelineRun], PipelineRun],
     missing_column_result: PersistenceResult | None = None,
 ) -> PersistenceResult:

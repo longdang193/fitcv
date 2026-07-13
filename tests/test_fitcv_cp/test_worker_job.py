@@ -152,6 +152,16 @@ def test_worker_synonym_policy_defaults_when_effective_settings_json_invalid() -
     run_record = MagicMock(effective_settings_json="{invalid-json")
     assert _auto_accept_ai_action_enabled_from_run_record(run_record) is True
 
+def test_builtin_synonym_triage_runtime_uses_shared_snapshot() -> None:
+    from fitcv_cp.worker_job import _builtin_synonym_triage_runtime
+
+    runtime = _builtin_synonym_triage_runtime()
+
+    assert runtime["provider"] == "fitcv_builtin"
+    assert runtime["model"] == "synonym_triage_v1"
+    assert runtime["wire_api"] == "builtin"
+    assert runtime["api_key_available"] is False
+
 
 def test_worker_marks_succeeded_on_success():
     client = MagicMock()

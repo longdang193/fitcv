@@ -867,6 +867,7 @@ def test_post_runs_path_trigger_captures_agentic_runtime_expectation(tmp_path) -
     assert expectation["model"] == "cx/gpt-5.2"
     assert expectation["base_url"] == "http://localhost:20128/v1"
     assert expectation["wire_api"] == "responses"
+    assert expectation["api_key_available"] is False
 
 
 def test_post_runs_run_all_and_manual_staged_share_canonical_runtime_envelope(tmp_path) -> None:
@@ -6311,6 +6312,7 @@ def test_resolve_synonym_triage_runtime_prefers_persisted_agentic_runtime_expect
     assert runtime["base_url"] == "http://persisted.local/v1"
     assert runtime["wire_api"] == "chat_completions"
     assert runtime["api_key"] == "test-key"
+    assert runtime["api_key_available"] is True
 
 
 def test_admin_run_synonym_ai_fast_path_redirects_to_synonym_review() -> None:
@@ -10417,11 +10419,13 @@ def test_admin_stop_queued_run_returns_json():
     run = _make_run_mock(status="queued")
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.cancel_queued_run", return_value=True), \
-         patch("fitcv_cp.app.request_run_cancel"), \
-         patch("fitcv_cp.app.append_event"):
+         patch("fitcv_cp.app.request_run_cancel") as mock_request_cancel, \
+         patch("fitcv_cp.app.append_event") as mock_append_event:
         resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/stop")
     assert resp.status_code == 200
-    assert "cancelled" in resp.json().get("status", "")
+    assert resp.json()["status"] == "cancelled"
+    assert mock_request_cancel.call_args.args[2] == "cancelled"
+    assert mock_append_event.call_count == 2
 
 
 def test_admin_stop_queued_run_without_worker_claim_marks_cancelled() -> None:
@@ -10430,11 +10434,12 @@ def test_admin_stop_queued_run_without_worker_claim_marks_cancelled() -> None:
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.cancel_queued_run", return_value=False), \
          patch("fitcv_cp.app.request_run_cancel") as mock_request_cancel, \
-         patch("fitcv_cp.app.append_event"):
+         patch("fitcv_cp.app.append_event") as mock_append_event:
         resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/stop")
     assert resp.status_code == 200
     assert resp.json()["status"] == "cancelling"
     assert mock_request_cancel.call_args.args[2] == "cancelling"
+    assert mock_append_event.call_count == 1
 
 
 def test_admin_stop_claimed_run_falls_back_to_cancelling() -> None:
@@ -10446,11 +10451,12 @@ def test_admin_stop_claimed_run_falls_back_to_cancelling() -> None:
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.cancel_queued_run", return_value=False), \
          patch("fitcv_cp.app.request_run_cancel") as mock_request_cancel, \
-         patch("fitcv_cp.app.append_event"):
+         patch("fitcv_cp.app.append_event") as mock_append_event:
         resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/stop")
     assert resp.status_code == 200
     assert resp.json()["status"] == "cancelling"
     assert mock_request_cancel.call_args.args[2] == "cancelling"
+    assert mock_append_event.call_count == 1
 
 
 def test_admin_stop_succeeded_run_returns_409():

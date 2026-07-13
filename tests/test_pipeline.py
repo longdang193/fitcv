@@ -26,7 +26,12 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 
 from fitcv.agentic_cv_analysis import build_cv_analysis_record as build_agentic_cv_analysis_record
-from fitcv.late_stage_contract import canonical_pipeline_outcome_status, pipeline_outcome_surface
+from fitcv.late_stage_contract import (
+    CV_DEBUG_ANALYSIS_OMISSION_STATUSES,
+    CV_GENERATION_ATTEMPTED_STATUSES,
+    canonical_pipeline_outcome_status,
+    pipeline_outcome_surface,
+)
 from fitcv.pipeline import (
     _build_export_results,
     _build_stage_transition_artifacts,
@@ -172,6 +177,14 @@ def test_late_stage_contract_projects_pipeline_outcome_surface(
 ) -> None:
     assert canonical_pipeline_outcome_status(row) == expected_status
     assert pipeline_outcome_surface(row) == expected_surface
+
+def test_late_stage_contract_exposes_shared_status_families() -> None:
+    assert CV_GENERATION_ATTEMPTED_STATUSES == frozenset(
+        {"accepted", "review_required", "validation_failed", "generation_failed", "persistence_failed"}
+    )
+    assert CV_DEBUG_ANALYSIS_OMISSION_STATUSES == frozenset(
+        {"blocked_by_reranker_fit", "skipped_fit_gate", "analysis_failed"}
+    )
 
 
 def test_stage_block_orders_outcome_samples_before_inputs() -> None:

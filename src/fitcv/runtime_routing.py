@@ -32,7 +32,6 @@ _LANGGRAPH_OPENAI_COMPATIBLE_API_KEY_ENV_NAMES = (
     "OPENAI_COMPATIBLE_API_KEY",
 )
 
-
 @dataclass(frozen=True)
 class CvGenerationRouting:
     provider: str
@@ -40,6 +39,30 @@ class CvGenerationRouting:
     wire_api: str
     model: str
     timeout_seconds: float
+
+
+def build_runtime_routing_snapshot(
+    *,
+    provider: str | None,
+    model: str | None,
+    base_url: str | None,
+    wire_api: str | None,
+    api_key: str | None,
+    default_provider: str,
+    default_model: str,
+    default_wire_api: str,
+) -> dict[str, Any]:
+    normalized_provider = str(provider or "").strip().lower() or default_provider
+    normalized_model = str(model or "").strip() or default_model
+    normalized_base_url = str(base_url or "").strip() or None
+    normalized_wire_api = str(wire_api or "").strip().lower() or default_wire_api
+    return {
+        "provider": normalized_provider,
+        "model": normalized_model,
+        "base_url": normalized_base_url,
+        "wire_api": normalized_wire_api,
+        "api_key_available": bool(str(api_key or "").strip()),
+    }
 
 
 def resolve_cv_generation_routing(config: dict[str, Any]) -> CvGenerationRouting:
@@ -67,19 +90,25 @@ def build_langgraph_env_overrides() -> dict[str, str]:
     except Exception:
         return {}
 
-    provider = str(cv_route.get("provider") or "").strip()
-    base_url = str(cv_route.get("base_url") or "").strip()
-    wire_api = str(cv_route.get("wire_api") or "").strip()
-    model = str(cv_route.get("model") or "").strip()
+    snapshot = build_runtime_routing_snapshot(
+        provider=str(cv_route.get("provider") or "").strip(),
+        model=str(cv_route.get("model") or "").strip(),
+        base_url=str(cv_route.get("base_url") or "").strip(),
+        wire_api=str(cv_route.get("wire_api") or "").strip(),
+        api_key="",
+        default_provider="",
+        default_model="",
+        default_wire_api="",
+    )
     overrides: dict[str, str] = {}
-    if provider:
-        overrides["FITCV_LANGGRAPH_PROVIDER"] = provider
-    if base_url:
-        overrides["FITCV_LANGGRAPH_OPENAI_BASE_URL"] = base_url
-    if wire_api:
-        overrides["FITCV_LANGGRAPH_WIRE_API"] = wire_api
-    if model:
-        overrides["FITCV_LANGGRAPH_MODEL"] = model
+    if snapshot["provider"]:
+        overrides["FITCV_LANGGRAPH_PROVIDER"] = str(snapshot["provider"])
+    if snapshot["base_url"]:
+        overrides["FITCV_LANGGRAPH_OPENAI_BASE_URL"] = str(snapshot["base_url"])
+    if snapshot["wire_api"]:
+        overrides["FITCV_LANGGRAPH_WIRE_API"] = str(snapshot["wire_api"])
+    if snapshot["model"]:
+        overrides["FITCV_LANGGRAPH_MODEL"] = str(snapshot["model"])
     return overrides
 
 
@@ -124,32 +153,57 @@ def resolve_langgraph_openai_compatible_api_key() -> str:
     return _resolve_first_present_env(_LANGGRAPH_OPENAI_COMPATIBLE_API_KEY_ENV_NAMES)
 
 
+def resolve_cv_generation_routing_snapshot(
+    config: dict[str, Any],
+    *,
+    default_model: str | None = None,
+) -> dict[str, Any]:
+    fallback_model = str(default_model or "").strip()
+    try:
+        routing = resolve_cv_generation_routing(config)
+    except Exception:
+        snapshot = build_runtime_routing_snapshot(
+            provider="fitcv_builtin",
+            model=fallback_model,
+            base_url=None,
+            wire_api="responses",
+            api_key="",
+            default_provider="fitcv_builtin",
+            default_model=fallback_model,
+            default_wire_api="responses",
+        )
+        snapshot["runtime_path"] = "fitcv_cv_generation_builtin"
+        return snapshot
+    provider = str(routing.provider or "").strip().lower() or "fitcv_builtin"
+    snapshot = build_runtime_routing_snapshot(
+        provider=provider,
+        model=str(routing.model or "").strip() or fallback_model,
+        base_url=routing.base_url,
+        wire_api=routing.wire_api,
+        api_key=(resolve_openai_compatible_api_key() if provider in _OPENAI_COMPATIBLE_PROVIDERS else ""),
+        default_provider="fitcv_builtin",
+        default_model=fallback_model,
+        default_wire_api="responses",
+    )
+    snapshot["runtime_path"] = (
+        "fitcv_cv_generation_openai_compatible"
+        if provider in _OPENAI_COMPATIBLE_PROVIDERS
+        else "fitcv_cv_generation_builtin"
+    )
+    return snapshot
+
+
 def resolve_cv_generation_runtime_provenance(
     config: dict[str, Any],
     *,
     default_model: str | None = None,
 ) -> dict[str, Any]:
     """Return truthful runtime provenance aligned to resolved routing."""
-    fallback_model = str(default_model or "").strip()
-    try:
-        routing = resolve_cv_generation_routing(config)
-    except Exception:
-        return {
-            "runtime_path": "fitcv_cv_generation_builtin",
-            "provider": "fitcv_builtin",
-            "model": fallback_model or None,
-        }
-    provider = str(routing.provider or "").strip().lower() or "fitcv_builtin"
-    model = str(routing.model or "").strip() or fallback_model or None
-    runtime_path = (
-        "fitcv_cv_generation_openai_compatible"
-        if provider in _OPENAI_COMPATIBLE_PROVIDERS
-        else "fitcv_cv_generation_builtin"
-    )
+    snapshot = resolve_cv_generation_routing_snapshot(config, default_model=default_model)
     return {
-        "runtime_path": runtime_path,
-        "provider": provider,
-        "model": model,
+        "runtime_path": snapshot["runtime_path"],
+        "provider": snapshot["provider"],
+        "model": str(snapshot.get("model") or "").strip() or None,
     }
 
 
@@ -157,14 +211,24 @@ def validate_cv_generation_routing_ready(config: dict[str, Any]) -> None:
     """Raise when resolved CV-generation routing lacks required runtime inputs."""
     routing = resolve_cv_generation_routing(config)
     provider = str(routing.provider or "").strip().lower()
+    snapshot = build_runtime_routing_snapshot(
+        provider=provider,
+        model=routing.model,
+        base_url=routing.base_url,
+        wire_api=routing.wire_api,
+        api_key=(resolve_openai_compatible_api_key() if provider in _OPENAI_COMPATIBLE_PROVIDERS else ""),
+        default_provider="fitcv_builtin",
+        default_model="",
+        default_wire_api="responses",
+    )
     if provider in _OPENAI_COMPATIBLE_PROVIDERS:
-        if not str(routing.base_url or "").strip():
+        if not snapshot["base_url"]:
             raise RuntimeError(
                 "OpenAI-compatible CV generation routing requires provider base_url in control-plane config."
             )
-        if not str(routing.model or "").strip():
+        if not snapshot["model"]:
             raise RuntimeError(
                 "cv_generation_structured_write model must be configured in control-plane model_routing.parts."
             )
-        if not resolve_openai_compatible_api_key():
+        if not snapshot["api_key_available"]:
             raise RuntimeError("OpenAI-compatible CV generation routing requires API key in env.")
