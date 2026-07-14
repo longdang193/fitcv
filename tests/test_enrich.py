@@ -15,8 +15,6 @@ tags:
 from datetime import datetime, timezone
 import json
 from pathlib import Path
-import sys
-import types
 
 import pytest
 import fitcv.enrich as enrich_module
@@ -139,167 +137,6 @@ def test_build_enrich_contract_fingerprint_changes_when_prompt_contract_changes(
     changed = build_enrich_contract_fingerprint(config)
 
     assert baseline["fingerprint"] != changed["fingerprint"]
-
-
-
-def test_make_genai_client_openai_compatible_requires_env_api_key(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        enrich_module,
-        "resolve_model_routing_part",
-        lambda part, model_fallback=None: {
-            "provider": "openai_compatible",
-            "model": "kimi-k2-instruct",
-            "base_url": "http://localhost:20128/v1",
-        },
-    )
-    monkeypatch.delenv("FITCV_LANGGRAPH_OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENAI_COMPATIBLE_API_KEY", raising=False)
-
-    with pytest.raises(RuntimeError, match="Config-routed HTTP provider.*requires API key in env"):
-        enrich_module._make_genai_client({"ai_score_model": "cx/gpt-5.4-mini"})
-
-
-def test_make_genai_client_openai_compatible_parses_sse_chat_completions_payload(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    class FakeResponse:
-        headers = {"content-type": "text/event-stream"}
-        text = (
-            'data: {"choices":[{"message":{"content":"{\\"required_skills\\":[\\"SQL\\"],\\"location_type\\":\\"remote\\"}"}}]}\n\n'
-            "data: [DONE]\n"
-        )
-
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict[str, object]:
-            raise json.JSONDecodeError("Extra data", self.text, 10155)
-
-    class FakeHTTPClient:
-        def __enter__(self) -> "FakeHTTPClient":
-            return self
-
-        def __exit__(self, exc_type, exc, tb) -> bool:
-            return False
-
-        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
-            return FakeResponse()
-
-    fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient())
-    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
-    monkeypatch.setattr(
-        enrich_module,
-        "resolve_model_routing_part",
-        lambda part, model_fallback=None: {
-            "provider": "openai_compatible",
-            "model": "ds/deepseek-v4-flash",
-            "base_url": "http://localhost:20128/v1",
-            "wire_api": "chat_completions",
-        },
-    )
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-
-    client = enrich_module._make_genai_client({"ai_score_model": "cx/gpt-5.4-mini"})
-    result = client.models.generate_content(model="ignored", contents="hello")
-
-    assert result.text == '{"required_skills":["SQL"],"location_type":"remote"}'
-    assert result.parsed == {"required_skills": ["SQL"], "location_type": "remote"}
-
-
-def test_make_genai_client_openai_compatible_parses_json_with_trailing_sse_done(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    class FakeResponse:
-        headers = {"content-type": "text/event-stream"}
-        text = (
-            '{"choices":[{"message":{"content":"{\\"required_skills\\":[\\"SQL\\"],\\"location_type\\":\\"remote\\"}"}}]}'
-            "data: [DONE]\n\n"
-        )
-
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict[str, object]:
-            raise json.JSONDecodeError("Extra data", self.text, 9660)
-
-    class FakeHTTPClient:
-        def __enter__(self) -> "FakeHTTPClient":
-            return self
-
-        def __exit__(self, exc_type, exc, tb) -> bool:
-            return False
-
-        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
-            return FakeResponse()
-
-    fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient())
-    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
-    monkeypatch.setattr(
-        enrich_module,
-        "resolve_model_routing_part",
-        lambda part, model_fallback=None: {
-            "provider": "openai_compatible",
-            "model": "ds/deepseek-v4-flash",
-            "base_url": "http://localhost:20128/v1",
-            "wire_api": "chat_completions",
-        },
-    )
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-
-    client = enrich_module._make_genai_client({"ai_score_model": "cx/gpt-5.4-mini"})
-    result = client.models.generate_content(model="ignored", contents="hello")
-
-    assert result.text == '{"required_skills":["SQL"],"location_type":"remote"}'
-    assert result.parsed == {"required_skills": ["SQL"], "location_type": "remote"}
-
-def test_make_genai_client_openai_compatible_uses_routed_timeout_seconds(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured_timeouts: list[float | None] = []
-
-    class FakeResponse:
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict[str, object]:
-            return {"choices": [{"message": {"content": '{"required_skills":["SQL"],"location_type":"remote"}'}}]}
-
-    class FakeHTTPClient:
-        def __enter__(self) -> "FakeHTTPClient":
-            return self
-
-        def __exit__(self, exc_type, exc, tb) -> bool:
-            return False
-
-        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
-            return FakeResponse()
-
-    def _client_factory(timeout: float | None = None) -> FakeHTTPClient:
-        captured_timeouts.append(timeout)
-        return FakeHTTPClient()
-
-    fake_httpx = types.SimpleNamespace(Client=_client_factory)
-    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
-    monkeypatch.setattr(
-        enrich_module,
-        "resolve_model_routing_part",
-        lambda part, model_fallback=None: {
-            "provider": "openai_compatible",
-            "model": "ds/deepseek-v4-flash",
-            "base_url": "http://localhost:20128/v1",
-            "wire_api": "chat_completions",
-            "timeout_seconds": "300",
-        },
-    )
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-
-    client = enrich_module._make_genai_client({"ai_score_model": "cx/gpt-5.4-mini"})
-    _ = client.models.generate_content(model="ignored", contents="hello")
-
-    assert captured_timeouts == [300.0]
 
 
 
@@ -529,55 +366,48 @@ def test_merge_scraped_and_enriched_uses_config_model() -> None:
     assert merged["enrichment_version"] == "v1"
 
 
-def test_enrich_job_renders_prompt_via_prompt_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_enrich_runtime_renders_prompt_via_prompt_registry() -> None:
     """@proves pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids"""
+    from unittest.mock import patch
+
+    from fitcv.enrich import _execute_enrich_runtime
+    from fitcv.llm_runtime import LlmAdapterResponse
+    from fitcv.runtime_routing import LlmRouting
+
+    route = LlmRouting(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="cx/test-model",
+        timeout_seconds=12.0,
+    )
     captured: dict[str, object] = {}
 
-    class FakeResponse:
-        parsed = EnrichmentOutput(
-            required_skills=["SQL"],
-            preferred_skills=[],
-            responsibilities=[],
-            tech_stack=[],
-            keywords=[],
-            location_type="remote",
-            seniority="mid",
-            domain="fintech",
-            job_family="analytics",
-            years_experience_min=None,
-            years_experience_max=None,
-            required_skill_entities=[],
-            preferred_skill_entities=[],
+    def adapter(request, routing, api_key):
+        captured["prompt"] = request.prompt
+        return LlmAdapterResponse(
+            raw_text='{"required_skills":["SQL"],"location_type":"remote"}',
+            adapter="fake",
+            runtime_path="test",
         )
-        text = ""
 
-    class FakeModels:
-        def generate_content(self, *, model: str, contents: str, config: object) -> FakeResponse:
-            captured["model"] = model
-            captured["contents"] = contents
-            captured["config"] = config
-            return FakeResponse()
+    with (
+        patch("fitcv.llm_runtime.resolve_llm_routing", return_value=route),
+        patch("fitcv.llm_runtime.resolve_llm_api_key", return_value="secret"),
+    ):
+        result = _execute_enrich_runtime(
+            {
+                "job_url": "https://example.com/jobs/1",
+                "title": "Data Analyst",
+                "description": "Need SQL for analytics work.",
+            },
+            {"prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}}},
+            adapter=adapter,
+        )
 
-    class FakeClient:
-        models = FakeModels()
-
-    monkeypatch.setattr("fitcv.enrich._make_genai_client", lambda config: FakeClient())
-
-    result = enrich_job(
-        {
-            "job_url": "https://example.com/jobs/1",
-            "title": "Data Analyst",
-            "description": "Need SQL for analytics work.",
-        },
-        {
-            "ai_score_model": "cx/gpt-5.4-mini",
-            "prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}},
-        },
-    )
-
-    assert "Need SQL for analytics work." in str(captured["contents"])
-    assert result["required_skills"] == ["SQL"]
-
+    assert "Need SQL for analytics work." in str(captured["prompt"])
+    assert result.status == "succeeded"
+    assert result.parsed_value["parsed"]["required_skills"] == ["SQL"]
 
 def test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields() -> None:
     """@proves pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields"""
@@ -618,7 +448,22 @@ def test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields() 
 
 
 
-def test_enrich_batch_retries_resource_exhausted_once(
+def _rate_limit_error():
+    from fitcv.enrich import EnrichRuntimeError
+    from fitcv.llm_runtime import LlmRuntimeFailure
+
+    return EnrichRuntimeError(
+        LlmRuntimeFailure(
+            stage="adapter",
+            code="adapter_http_error",
+            message="rate limited",
+            retryable=True,
+            http_status=429,
+        )
+    )
+
+
+def test_enrich_batch_retries_normalized_rate_limit_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from fitcv.enrich import enrich_batch
@@ -626,21 +471,14 @@ def test_enrich_batch_retries_resource_exhausted_once(
     attempts = {"count": 0}
     sleeps: list[float] = []
 
-    class FakeHTTPStatusError(Exception):
-        def __init__(self, status_code: int) -> None:
-            self.response = types.SimpleNamespace(status_code=status_code)
-
     def fake_enrich_job(job: dict[str, object], config: dict[str, object]) -> dict[str, object]:
         attempts["count"] += 1
         if attempts["count"] == 1:
-            raise FakeHTTPStatusError(429)
+            raise _rate_limit_error()
         return {"job_url": "url1"}
-
-    fake_httpx = types.SimpleNamespace(HTTPStatusError=FakeHTTPStatusError)
 
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
     monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
-    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
     monkeypatch.setattr("time.sleep", lambda secs: sleeps.append(secs))
 
     result = enrich_batch(
@@ -661,21 +499,14 @@ def test_enrich_chunk_isolates_single_job_retry_from_following_jobs(
 
     attempts_by_url = {"url1": 0, "url2": 0}
 
-    class FakeHTTPStatusError(Exception):
-        def __init__(self, status_code: int) -> None:
-            self.response = types.SimpleNamespace(status_code=status_code)
-
     def fake_enrich_job(job: dict[str, object], config: dict[str, object]) -> dict[str, object]:
         job_url = str(job["job_url"])
         attempts_by_url[job_url] += 1
         if job_url == "url1" and attempts_by_url[job_url] == 1:
-            raise FakeHTTPStatusError(429)
+            raise _rate_limit_error()
         return {"job_url": job_url, "enriched": True}
 
-    fake_httpx = types.SimpleNamespace(HTTPStatusError=FakeHTTPStatusError)
-
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
-    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
     monkeypatch.setattr("time.sleep", lambda secs: None)
 
     result = enrich_batch(
@@ -692,41 +523,6 @@ def test_enrich_chunk_isolates_single_job_retry_from_following_jobs(
     assert attempts_by_url == {"url1": 2, "url2": 1}
 
 
-def test_enrich_batch_retries_genai_client_error_429_once(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from fitcv.enrich import enrich_batch
-
-    attempts = {"count": 0}
-    sleeps: list[float] = []
-
-    class FakeHTTPStatusError(Exception):
-        def __init__(self, status_code: int) -> None:
-            self.response = types.SimpleNamespace(status_code=status_code)
-
-    def fake_enrich_job(job: dict[str, object], config: dict[str, object]) -> dict[str, object]:
-        attempts["count"] += 1
-        if attempts["count"] == 1:
-            raise FakeHTTPStatusError(429)
-        return {"job_url": "url1"}
-
-    fake_httpx = types.SimpleNamespace(HTTPStatusError=FakeHTTPStatusError)
-
-    monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
-    monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
-    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
-    monkeypatch.setattr("time.sleep", lambda secs: sleeps.append(secs))
-
-    result = enrich_batch(
-        normalized_jobs=[{"job_url": "url1"}],
-        config={"enrichment_sleep_secs": 2.0, "enrichment_max_retries": 1},
-    )
-
-    assert result == [{"job_url": "url1"}]
-    assert attempts["count"] == 2
-    assert sleeps == [2.0]
-
-
 def test_enrich_batch_uses_exponential_backoff_for_repeated_429s(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -735,21 +531,14 @@ def test_enrich_batch_uses_exponential_backoff_for_repeated_429s(
     attempts = {"count": 0}
     sleeps: list[float] = []
 
-    class FakeHTTPStatusError(Exception):
-        def __init__(self, status_code: int) -> None:
-            self.response = types.SimpleNamespace(status_code=status_code)
-
     def fake_enrich_job(job: dict[str, object], config: dict[str, object]) -> dict[str, object]:
         attempts["count"] += 1
         if attempts["count"] < 3:
-            raise FakeHTTPStatusError(429)
+            raise _rate_limit_error()
         return {"job_url": "url1"}
-
-    fake_httpx = types.SimpleNamespace(HTTPStatusError=FakeHTTPStatusError)
 
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
     monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
-    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
     monkeypatch.setattr("time.sleep", lambda secs: sleeps.append(secs))
 
     result = enrich_batch(
@@ -760,7 +549,6 @@ def test_enrich_batch_uses_exponential_backoff_for_repeated_429s(
     assert result == [{"job_url": "url1"}]
     assert attempts["count"] == 3
     assert sleeps == [1.5, 3.0]
-
 
 # ── load_run_structured_jobs ──────────────────────────────────────────────────
 
@@ -1702,22 +1490,44 @@ def _config_fixture() -> dict:
     }
 
 
-def test_enrich_job_uses_response_parsed() -> None:
-    """Primary path: response.parsed is used and normalization applied."""
-    from unittest.mock import MagicMock, patch
+def _run_enrich_runtime(raw_text: str):
+    from unittest.mock import patch
 
-    mock_response = MagicMock()
-    mock_response.parsed = EnrichmentOutput(
-        required_skills=["Python", "Spark"],
-        location_type="remote",
-        seniority="mid",
-        domain="FinTech",    # should be lowercased by normalization
-        job_family="data_engineering",
+    from fitcv.enrich import _execute_enrich_runtime
+    from fitcv.llm_runtime import LlmAdapterResponse
+    from fitcv.runtime_routing import LlmRouting
+
+    route = LlmRouting(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="cx/test-model",
+        timeout_seconds=12.0,
     )
 
-    with patch("fitcv.enrich._make_genai_client") as mk:
-        mk.return_value.models.generate_content.return_value = mock_response
-        result = enrich_job(_job_fixture(), _config_fixture())
+    def adapter(request, routing, api_key):
+        return LlmAdapterResponse(raw_text=raw_text, adapter="fake", runtime_path="test")
+
+    with (
+        patch("fitcv.llm_runtime.resolve_llm_routing", return_value=route),
+        patch("fitcv.llm_runtime.resolve_llm_api_key", return_value="secret"),
+    ):
+        return _execute_enrich_runtime(_job_fixture(), _config_fixture(), adapter=adapter)
+
+
+def _enrich_job_from_text(raw_text: str) -> dict:
+    from unittest.mock import patch
+
+    runtime_result = _run_enrich_runtime(raw_text)
+    with patch("fitcv.enrich._execute_enrich_runtime", return_value=runtime_result):
+        return enrich_job(_job_fixture(), _config_fixture())
+
+
+def test_enrich_job_uses_structured_runtime_output() -> None:
+    result = _enrich_job_from_text(
+        '{"required_skills":["Python","Spark"],"location_type":"remote",'
+        '"seniority":"mid","domain":"FinTech","job_family":"data_engineering"}'
+    )
 
     assert result["required_skills"] == ["Python", "Spark"]
     assert result["location_type"] == "remote"
@@ -1726,71 +1536,36 @@ def test_enrich_job_uses_response_parsed() -> None:
     assert result["job_family"] == "data_engineering"
 
 
-def test_enrich_job_fallback_when_parsed_is_none(caplog: pytest.LogCaptureFixture) -> None:
+def test_enrich_job_repairs_malformed_json() -> None:
     """@proves pipeline_performance.fallback-path-for-unparseable-responses"""
-    import logging
-    from unittest.mock import MagicMock, patch
+    result = _enrich_job_from_text(
+        '{"required_skills": ["SQL" "Python"], "location_type": "remote"}'
+    )
 
-    mock_response = MagicMock()
-    mock_response.parsed = None
-    # malformed JSON — missing comma (what cx/gpt-5.4-mini sometimes produces)
-    mock_response.text = '{"required_skills": ["SQL" "Python"], "location_type": "remote"}'
-
-    with patch("fitcv.enrich._make_genai_client") as mk, \
-         caplog.at_level(logging.WARNING, logger="fitcv.enrich"):
-        mk.return_value.models.generate_content.return_value = mock_response
-        result = enrich_job(_job_fixture(), _config_fixture())
-
-    assert "falling back" in caplog.text.lower()
     assert isinstance(result["required_skills"], list)
     assert result["location_type"] == "remote"
 
 
 def test_enrich_job_fallback_empty_on_bad_text(caplog: pytest.LogCaptureFixture) -> None:
-    """Returns empty enrichment (no crash) when parsed=None and text is not JSON."""
     import logging
-    from unittest.mock import MagicMock, patch
 
-    mock_response = MagicMock()
-    mock_response.parsed = None
-    mock_response.text = "I cannot extract structured data from this input."
-
-    with patch("fitcv.enrich._make_genai_client") as mk, \
-         caplog.at_level(logging.WARNING, logger="fitcv.enrich"):
-        mk.return_value.models.generate_content.return_value = mock_response
-        result = enrich_job(_job_fixture(), _config_fixture())
+    with caplog.at_level(logging.WARNING, logger="fitcv.enrich"):
+        result = _enrich_job_from_text("I cannot extract structured data from this input.")
 
     assert result["required_skills"] == []
     assert result["location_type"] is None
+    assert "parse errors" in caplog.text.lower()
 
-def test_enrich_job_fallback_when_structured_payload_fails_validation(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    import logging
-    from unittest.mock import MagicMock, patch
 
-    mock_response = MagicMock()
-    mock_response.parsed = {
-        "required_skills": ["SQL"],
-        "required_skill_entities": ["bad-entry"],
-        "years_experience_min": 0.5,
-    }
-    mock_response.text = (
-        '{"required_skills":["SQL"],'
-        '"required_skill_entities":[{"raw_text":"SQL","canonical":"sql","confidence":1.0}],'
-        '"years_experience_min":0}'
+def test_enrich_job_falls_back_when_structured_payload_fails_validation() -> None:
+    result = _enrich_job_from_text(
+        '{"required_skills":["SQL"],"required_skill_entities":["bad-entry"],'
+        '"years_experience_min":0.5}'
     )
 
-    with patch("fitcv.enrich._make_genai_client") as mk, \
-         caplog.at_level(logging.WARNING, logger="fitcv.enrich"):
-        mk.return_value.models.generate_content.return_value = mock_response
-        result = enrich_job(_job_fixture(), _config_fixture())
-
-    assert "structured output validation failed" in caplog.text.lower()
     assert result["required_skills"] == ["SQL"]
     assert result["required_skills_canonical"] == ["sql"]
     assert result["years_experience_min"] == 0
-
 
 # ── bounded parallel enrichment (Tasks 3 + 4) ─────────────────────────────────
 
@@ -2048,3 +1823,83 @@ def test_enrich_batch_calls_on_chunk_complete_in_completion_order() -> None:
 
     assert callback_order == ["u1", "u2", "u0"]
     assert [row["job_url"] for row in result] == ["u0", "u1", "u2"]
+
+
+@pytest.mark.parametrize(
+    ("raw_text", "expected_error"),
+    [
+        ("", "JSON parse error"),
+        ("[]", "LLM response was valid JSON but not an object"),
+    ],
+)
+def test_execute_enrich_runtime_keeps_degenerate_output_stage_owned(
+    raw_text: str,
+    expected_error: str,
+) -> None:
+    from unittest.mock import patch
+
+    from fitcv.enrich import _execute_enrich_runtime
+    from fitcv.llm_runtime import LlmAdapterResponse
+    from fitcv.runtime_routing import LlmRouting
+
+    route = LlmRouting(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="cx/test-model",
+        timeout_seconds=12.0,
+    )
+    captured: dict[str, object] = {}
+
+    def adapter(request, routing, api_key):
+        captured["request"] = request
+        return LlmAdapterResponse(raw_text=raw_text, adapter="fake", runtime_path="test")
+
+    with (
+        patch("fitcv.llm_runtime.resolve_llm_routing", return_value=route),
+        patch("fitcv.llm_runtime.resolve_llm_api_key", return_value="secret"),
+    ):
+        result = _execute_enrich_runtime(_job_fixture(), {}, adapter=adapter)
+
+    request = captured["request"]
+    assert request.routing_part == "enrich_extraction"
+    assert request.response_mode == "json_object"
+    assert result.status == "succeeded"
+    assert result.parsed_value["parsed"] == {}
+    assert expected_error in result.parsed_value["errors"][0]
+
+
+def test_enrich_retry_callbacks_remain_attempt_scoped(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fitcv.enrich import EnrichRuntimeError, enrich_batch
+    from fitcv.llm_runtime import LlmRuntimeFailure
+
+    attempts = 0
+    events: list[str] = []
+
+    def fake_enrich_job(job, config):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise EnrichRuntimeError(
+                LlmRuntimeFailure(
+                    stage="adapter",
+                    code="adapter_http_error",
+                    message="rate limited",
+                    retryable=True,
+                    http_status=429,
+                )
+            )
+        return {"job_url": job["job_url"]}
+
+    monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
+    monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
+    monkeypatch.setattr("time.sleep", lambda seconds: None)
+
+    result = enrich_batch(
+        [{"job_url": "url1"}],
+        {"enrichment_sleep_secs": 0, "enrichment_max_retries": 1},
+        job_event_callback=lambda event: events.append(str(event["phase"])),
+    )
+
+    assert result == [{"job_url": "url1"}]
+    assert events == ["job_start", "job_start", "job_done"]

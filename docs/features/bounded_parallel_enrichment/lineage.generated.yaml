@@ -45,6 +45,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
     plans:
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -55,6 +56,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -104,6 +106,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
     plans:
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -114,6 +117,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -157,6 +161,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
     plans:
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -167,6 +172,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -196,6 +202,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
     plans:
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -206,6 +213,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -251,6 +259,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
     plans:
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -261,6 +270,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -302,6 +312,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
     plans:
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -312,6 +323,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-19-23-57-runtime-throughput-save-and-enrich-concurrency-fix-plan.md
+    - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null

@@ -309,3 +309,41 @@ def test_default_adapter_preserves_json_schema_on_responses_404_fallback() -> No
     assert result.adapter_response.attempt_count == 2
     assert result.adapter_response.response_id == "resp-chat"
     assert result.adapter_response.telemetry["usage"] == {"total_tokens": 9}
+
+def test_execute_llm_task_passes_empty_adapter_text_to_parser() -> None:
+    seen: list[str] = []
+
+    result = _run(
+        adapter=lambda request, route, api_key: _response(""),
+        parser=lambda response: seen.append(response.raw_text) or {"empty": True},
+    )
+
+    assert seen == [""]
+    assert result.status == "succeeded"
+    assert result.parsed_value == {"empty": True}
+
+
+def test_default_adapter_passes_empty_json_object_text_to_parser() -> None:
+    calls: list[dict[str, Any]] = []
+    responses = [_HttpResponse(200, {"id": "resp-empty", "output_text": ""})]
+    request = LlmTaskRequest(
+        routing_part="enrich_extraction",
+        prompt="Extract one job.",
+        response_mode="json_object",
+    )
+    seen: list[str] = []
+
+    with (
+        patch("fitcv.llm_runtime.resolve_llm_routing", return_value=_route()),
+        patch("fitcv.llm_runtime.resolve_llm_api_key", return_value="secret"),
+        patch("httpx.Client", return_value=_HttpClient(responses, calls)),
+    ):
+        result = execute_llm_task(
+            request,
+            parser=lambda response: seen.append(response.raw_text) or {"empty": True},
+            validator=lambda value: LlmValidationResult(valid=True, errors=[], details={}),
+        )
+
+    assert seen == [""]
+    assert result.status == "succeeded"
+    assert calls[0]["json"]["text"]["format"] == {"type": "json_object"}

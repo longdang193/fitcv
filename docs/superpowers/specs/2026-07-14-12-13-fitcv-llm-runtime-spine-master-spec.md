@@ -148,8 +148,9 @@ Required child detailed spec set:
 4. **Phase 4 — `enrich` and `ranking` migration onto shared spine**
    - required child spec name:
      `fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration`
-   - required output path shape:
-     `docs/superpowers/specs/YYYY-MM-DD-HH-MM-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md`
+   - child spec:
+     `docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md`
+   - status: `completed`
    - scope:
      migrate `enrich_extraction` and `ranking_ai_score` onto the shared runtime
      spine without changing stage semantics.

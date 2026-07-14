@@ -94,6 +94,7 @@ outputs:
 invariants:
 - shortlist candidates enter and ranked jobs leave
 - authoritative post-filter ranking fit ownership belongs to this stage
+- shared `llm_runtime` owns route resolution, credentials, provider transport, wire compatibility, normalized operational failures, and runtime provenance; ranking owns prompt meaning, score parsing, fit-label derivation, per-job isolation, ordering, and row shape
 - canonical enrich outputs should be the default semantic input contract for ranking features when available
 - explicit candidate preferences remain authoritative, but sparse YAML may be supplemented by deterministic fallback intent inferred from recent profile evidence
 - final ranking inputs and ranked-job selection should be explainable here

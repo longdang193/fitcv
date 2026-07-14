@@ -41,6 +41,11 @@ CV-analysis ownership boundary:
 - `src/fitcv/agentic_cv_analysis.py::analyze_ranked_job` owns per-job CV-analysis meaning and canonical `CvAnalysisRecord` output.
 - `src/fitcv/pipeline.py` owns batch ordering, reuse-candidate lookup, persistence, observations, and downstream projection only.
 - runtime adapters may change provider or orchestration mechanics, but not status semantics, evidence summary shape, gap meaning, or readiness output.
+LLM runtime spine ownership:
+
+- `src/fitcv/llm_runtime.py` owns routed adapter execution, wire compatibility, normalized operational failures, and runtime provenance for enrichment, ranking, and CV generation.
+- stage modules own prompt meaning, parsing, structural validation, semantic fallback, and output/failure policy.
+- `src/fitcv/runtime_routing.py` plus `config/runtime/control_plane.yaml` remain provider/model/credential routing SSOT; stage modules do not own HTTP clients or route tables.
 
 ## Portability and Routing
 

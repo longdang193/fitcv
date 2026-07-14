@@ -2,10 +2,8 @@
 
 import json
 import sqlite3
-import sys
 import threading
 import time
-import types
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -219,273 +217,54 @@ def test_parse_score_response_fit_label_derived_from_score_if_missing() -> None:
     assert result["fit_label"] == "strong"
 
 
-def test_make_genai_client_requires_supported_routing_provider(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from fitcv.ai_score import _make_genai_client
+def test_score_job_uses_shared_runtime_contract() -> None:
+    from unittest.mock import patch
 
-    monkeypatch.setattr(
-        "fitcv.ai_score.resolve_model_routing_part",
-        lambda part, model_fallback=None: {
-            "provider": "",
-            "model": "",
-            "base_url": "",
-        },
+    from fitcv.ai_score import _execute_ranking_runtime, score_job
+    from fitcv.llm_runtime import LlmAdapterResponse
+    from fitcv.runtime_routing import LlmRouting
+
+    route = LlmRouting(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="cx/test-model",
+        timeout_seconds=12.0,
     )
-    with pytest.raises(RuntimeError, match="ranking_ai_score provider must be configured"):
-        _make_genai_client({})
-
-
-def test_make_genai_client_openai_compatible_requires_env_api_key(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from fitcv.ai_score import _make_genai_client
-
-    monkeypatch.setattr(
-        "fitcv.ai_score.resolve_model_routing_part",
-        lambda part, model_fallback=None: {
-            "provider": "openai_compatible",
-            "model": "cx/gpt-5.2",
-            "base_url": "http://localhost:20128/v1",
-        },
-    )
-    monkeypatch.delenv("FITCV_LANGGRAPH_OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENAI_COMPATIBLE_API_KEY", raising=False)
-
-    with pytest.raises(RuntimeError, match="requires API key in env"):
-        _make_genai_client({})
-
-
-def test_make_genai_client_openai_compatible_falls_back_to_chat_completions_on_responses_404(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from fitcv.ai_score import _make_genai_client
-
-    class FakeHTTPError(Exception):
-        def __init__(self, status_code: int) -> None:
-            self.response = types.SimpleNamespace(status_code=status_code)
-
-    calls: list[str] = []
-
-    class FakeResponse:
-        def __init__(self, endpoint: str) -> None:
-            self._endpoint = endpoint
-
-        def raise_for_status(self) -> None:
-            if self._endpoint.endswith("/responses"):
-                raise FakeHTTPError(404)
-
-        def json(self) -> dict[str, object]:
-            if self._endpoint.endswith("/chat/completions"):
-                return {"choices": [{"message": {"content": '{"ai_score":0.9,"fit_label":"strong"}'}}]}
-            return {}
-
-    class FakeHTTPClient:
-        def __enter__(self) -> "FakeHTTPClient":
-            return self
-
-        def __exit__(self, exc_type, exc, tb) -> bool:
-            return False
-
-        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
-            calls.append(url)
-            return FakeResponse(url)
-
-    fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient(), HTTPStatusError=FakeHTTPError)
-    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
-    monkeypatch.setattr(
-        "fitcv.ai_score.resolve_model_routing_part",
-        lambda part, model_fallback=None: {
-            "provider": "openai_compatible",
-            "model": "cx/gpt-5.2",
-            "base_url": "http://localhost:20128/v1",
-        },
-    )
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    monkeypatch.setenv("FITCV_LANGGRAPH_WIRE_API", "responses")
-
-    client = _make_genai_client({})
-    result = client.models.generate_content(model="any", contents="hello")
-
-    assert '"fit_label":"strong"' in result.text
-    assert calls[0].endswith("/responses")
-    assert calls[1].endswith("/chat/completions")
-
-
-def test_make_genai_client_openai_compatible_uses_routed_model_override(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from fitcv.ai_score import _make_genai_client
-
-    captured_models: list[str] = []
-
-    class FakeResponse:
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict[str, object]:
-            return {"output_text": '{"ai_score":0.8,"fit_label":"strong"}'}
-
-    class FakeHTTPClient:
-        def __enter__(self) -> "FakeHTTPClient":
-            return self
-
-        def __exit__(self, exc_type, exc, tb) -> bool:
-            return False
-
-        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
-            captured_models.append(str(json.get("model")))
-            return FakeResponse()
-
-    fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient(), HTTPStatusError=Exception)
-    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
-    monkeypatch.setattr(
-        "fitcv.ai_score.resolve_model_routing_part",
-        lambda part, model_fallback=None: {
-            "provider": "openai_compatible",
-            "model": "cx/gpt-5.2",
-            "base_url": "http://localhost:20128/v1",
-        },
-    )
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    monkeypatch.setenv("FITCV_LANGGRAPH_WIRE_API", "responses")
-    monkeypatch.setenv("FITCV_LANGGRAPH_MODEL", "cx/gpt-5.2")
-
-    client = _make_genai_client({})
-    _ = client.models.generate_content(model="cx/gpt-5.4-mini", contents="hello")
-    assert captured_models == ["cx/gpt-5.2"]
-
-def test_make_genai_client_openai_compatible_uses_routed_timeout_seconds(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from fitcv.ai_score import _make_genai_client
-
-    captured_timeouts: list[float | None] = []
-
-    class FakeResponse:
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict[str, object]:
-            return {"output_text": '{"ai_score":0.8,"fit_label":"strong"}'}
-
-    class FakeHTTPClient:
-        def __enter__(self) -> "FakeHTTPClient":
-            return self
-
-        def __exit__(self, exc_type, exc, tb) -> bool:
-            return False
-
-        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
-            return FakeResponse()
-
-    def _client_factory(timeout: float | None = None) -> FakeHTTPClient:
-        captured_timeouts.append(timeout)
-        return FakeHTTPClient()
-
-    fake_httpx = types.SimpleNamespace(Client=_client_factory, HTTPStatusError=Exception)
-    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
-    monkeypatch.setattr(
-        "fitcv.ai_score.resolve_model_routing_part",
-        lambda part, model_fallback=None: {
-            "provider": "openai_compatible",
-            "model": "cx/gpt-5.2",
-            "base_url": "http://localhost:20128/v1",
-            "wire_api": "chat_completions",
-            "timeout_seconds": "300",
-        },
-    )
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-
-    client = _make_genai_client({})
-    _ = client.models.generate_content(model="any", contents="hello")
-
-    assert captured_timeouts == [300.0]
-
-
-def test_make_genai_client_openai_compatible_parses_json_with_trailing_sse_done(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from fitcv.ai_score import _make_genai_client
-
-    class FakeResponse:
-        headers = {"content-type": "text/event-stream"}
-        text = (
-            '{"choices":[{"message":{"content":"{\\"ai_score\\":0.8,\\"fit_label\\":\\"stretch\\"}"}}]}'
-            "data: [DONE]\n\n"
-        )
-
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict[str, object]:
-            raise json.JSONDecodeError("Extra data", self.text, 1234)
-
-    class FakeHTTPClient:
-        def __enter__(self) -> "FakeHTTPClient":
-            return self
-
-        def __exit__(self, exc_type, exc, tb) -> bool:
-            return False
-
-        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
-            return FakeResponse()
-
-    fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient(), HTTPStatusError=Exception)
-    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
-    monkeypatch.setattr(
-        "fitcv.ai_score.resolve_model_routing_part",
-        lambda part, model_fallback=None: {
-            "provider": "openai_compatible",
-            "model": "cx/gpt-5.2",
-            "base_url": "http://localhost:20128/v1",
-            "wire_api": "chat_completions",
-        },
-    )
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-
-    client = _make_genai_client({})
-    result = client.models.generate_content(model="any", contents="hello")
-
-    assert result.text == '{"ai_score":0.8,"fit_label":"stretch"}'
-
-
-def test_score_job_uses_versioned_default_model(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from fitcv.ai_score import score_job
-
-    class FakeResponse:
-        text = '{"ai_score": 0.8, "fit_label": "strong", "score_reasoning": "good", "matched_strengths": [], "key_risks": []}'
-
     captured: dict[str, object] = {}
 
-    class FakeModels:
-        def generate_content(self, *, model: str, contents: str) -> FakeResponse:
-            captured["model"] = model
-            captured["contents"] = contents
-            return FakeResponse()
+    def adapter(request, routing, api_key):
+        captured["request"] = request
+        return LlmAdapterResponse(
+            raw_text=(
+                '{"ai_score":0.8,"fit_label":"strong","score_reasoning":"good",'
+                '"matched_strengths":[],"key_risks":[]}'
+            ),
+            adapter="fake",
+            runtime_path="test",
+        )
 
-    class FakeClient:
-        models = FakeModels()
+    job = {"job_url": "http://test.url/1", "title": "Data Engineer"}
+    with (
+        patch("fitcv.llm_runtime.resolve_llm_routing", return_value=route),
+        patch("fitcv.llm_runtime.resolve_llm_api_key", return_value="secret"),
+    ):
+        runtime_result = _execute_ranking_runtime(
+            job,
+            "candidate summary",
+            [],
+            {},
+            adapter=adapter,
+        )
 
-    fake_embeddings = types.SimpleNamespace(
-        build_job_summary_text=lambda job: "summary"
-    )
+    with patch("fitcv.ai_score._execute_ranking_runtime", return_value=runtime_result):
+        result = score_job(job, "candidate summary", [], {})
 
-    monkeypatch.setitem(sys.modules, "fitcv.embeddings", fake_embeddings)
-    monkeypatch.setattr("fitcv.ai_score._make_genai_client", lambda config: FakeClient())
-
-    result = score_job(
-        job={"job_url": "http://test.url/1", "title": "Data Engineer"},
-        candidate_summary="candidate summary",
-        top_evidence=[],
-        config={},
-    )
-
-    assert captured["model"] == "cx/gpt-5.4-mini"
-
+    request = captured["request"]
+    assert request.routing_part == "ranking_ai_score"
+    assert request.response_mode == "json_object"
+    assert result["job_url"] == "http://test.url/1"
+    assert result["ai_score"] == 0.8
 
 def test_run_ai_scoring_prefers_nested_pipeline_top_n_over_legacy_flat_key() -> None:
     from fitcv.ai_score import run_ai_scoring
@@ -779,3 +558,42 @@ tags:
   - fast
   - ci-safe
 """
+
+
+def test_execute_ranking_runtime_keeps_empty_output_stage_owned() -> None:
+    from unittest.mock import patch
+
+    from fitcv.ai_score import _execute_ranking_runtime
+    from fitcv.llm_runtime import LlmAdapterResponse
+    from fitcv.runtime_routing import LlmRouting
+
+    route = LlmRouting(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="cx/test-model",
+        timeout_seconds=12.0,
+    )
+    captured: dict[str, object] = {}
+
+    def adapter(request, routing, api_key):
+        captured["request"] = request
+        return LlmAdapterResponse(raw_text="", adapter="fake", runtime_path="test")
+
+    with (
+        patch("fitcv.llm_runtime.resolve_llm_routing", return_value=route),
+        patch("fitcv.llm_runtime.resolve_llm_api_key", return_value="secret"),
+    ):
+        result = _execute_ranking_runtime(
+            {"job_url": "https://example.com/1", "title": "Data Engineer"},
+            "candidate",
+            [],
+            {},
+            adapter=adapter,
+        )
+
+    request = captured["request"]
+    assert request.routing_part == "ranking_ai_score"
+    assert request.response_mode == "json_object"
+    assert result.status == "succeeded"
+    assert result.parsed_value["parser_status"] == "malformed_json"

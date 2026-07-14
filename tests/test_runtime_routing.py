@@ -262,3 +262,23 @@ def test_generic_readiness_uses_env_only_openai_credential() -> None:
     with patch("fitcv.runtime_routing.resolve_openai_compatible_api_key", return_value="secret"):
         assert resolve_llm_api_key(route) == "secret"
         validate_llm_routing_ready(route)
+
+
+def test_validate_llm_routing_ready_requires_control_plane_model() -> None:
+    from fitcv.runtime_routing import LlmRouting
+
+    route = LlmRouting(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="",
+        timeout_seconds=12.0,
+    )
+
+    with patch("fitcv.runtime_routing.resolve_openai_compatible_api_key", return_value="secret"):
+        try:
+            validate_llm_routing_ready(route)
+        except RuntimeError as exc:
+            assert "requires model" in str(exc)
+        else:
+            raise AssertionError("missing routed model must fail")

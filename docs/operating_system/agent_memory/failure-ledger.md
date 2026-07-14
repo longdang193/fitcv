@@ -104,3 +104,17 @@ Use this file for repeated or important failures, not every small mistake.
 - Prevention added or required: Avoid `$args` as a declared parameter in PowerShell command wrappers; prefer direct commands for verification gates.
 - Related artifacts:
   - `docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md`
+## PowerShell double-quoted Markdown can corrupt backticks and line endings
+
+- Title: Use literal-safe writes for Markdown containing backticks
+- Date: 2026-07-14
+- Trigger / Context: Phase 4 lifecycle closeout inserted Markdown code spans through PowerShell double-quoted replacement strings.
+- What went wrong: PowerShell treated backticks as escape characters, mutating words such as `stage`, and a broad rewrite introduced line-ending drift that `git diff --check` reported as trailing whitespace.
+- Correct behavior: Use single-quoted literal strings for Markdown code spans, normalize edited text to LF before writing, and run `git diff --check` immediately after scripted doc edits.
+- Prevention added or required: Avoid PowerShell double-quoted replacement text when content contains Markdown backticks; restore and reapply only affected files if corruption appears.
+- Related artifacts:
+  - `docs/pipeline.md`
+  - `docs/architecture.md`
+  - `docs/configuration.md`
+  - `docs/stages/enrich.source.yaml`
+  - `docs/stages/ranking.source.yaml`

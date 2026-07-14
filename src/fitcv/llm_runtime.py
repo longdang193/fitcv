@@ -255,7 +255,7 @@ def execute_llm_task(
             adapter=adapter_name,
             runtime_path=runtime_path,
         )
-    if not isinstance(response, LlmAdapterResponse) or not response.raw_text.strip():
+    if not isinstance(response, LlmAdapterResponse):
         return _failed(
             request,
             route=route,
@@ -263,7 +263,7 @@ def execute_llm_task(
             failure=LlmRuntimeFailure(
                 stage="adapter",
                 code="adapter_contract_error",
-                message="Adapter must return LlmAdapterResponse with non-empty raw_text.",
+                message="Adapter must return LlmAdapterResponse.",
             ),
             started=started,
             adapter=adapter_name,
@@ -431,8 +431,6 @@ def _openai_compatible_adapter(
             adapter="openai_compatible",
             runtime_path="fitcv_llm_openai_compatible",
         ) from exc
-    if not raw_text.strip():
-        raise ValueError("OpenAI-compatible adapter returned empty response text.")
     telemetry = {
         key: body[key]
         for key in ("usage", "cost")

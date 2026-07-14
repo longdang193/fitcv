@@ -26,18 +26,21 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, TypedDict
-from types import SimpleNamespace
 
 from pydantic import BaseModel as _BaseModel, Field as _Field, ValidationError as _ValidationError
-from fitcv.config import get_enrich_extraction_model, resolve_model_routing_part, sqlite_mode_enabled
+from fitcv.config import get_enrich_extraction_model, sqlite_mode_enabled
 from fitcv.candidate import infer_role_family
-from fitcv.openai_compat import (
-    decode_openai_compat_response_body as _decode_openai_compat_response_body,
-    extract_openai_responses_text,
+from fitcv.llm_runtime import (
+    LlmAdapter,
+    LlmAdapterResponse,
+    LlmRuntimeFailure,
+    LlmRuntimeResult,
+    LlmTaskRequest,
+    LlmValidationResult,
+    execute_llm_task,
 )
 from fitcv.pipeline_stages.common import extract_job_url
 from fitcv.prompts import get_prompt_definition, render_prompt
-from fitcv.runtime_routing import resolve_openai_compatible_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -911,12 +914,7 @@ def _coerce_field(key: str, value: Any, config: dict | None = None) -> Any:
 # ── Pydantic model for structured output ─────────────────────────────────────
 
 class EnrichmentOutput(_BaseModel):
-    """Structured output schema for Gemini enrichment extraction.
-
-    Used as response_schema in generate_content to guarantee valid JSON
-    from the API. Post-processing via _apply_structured_normalization
-    preserves the same field semantics as the text-path coercion.
-    """
+    """Structured extraction output normalized into stage-owned field semantics."""
     required_skills: list[str] = _Field(default_factory=list)
     preferred_skills: list[str] = _Field(default_factory=list)
     required_skill_entities: list[SkillEntityOutput] = _Field(default_factory=list)
@@ -1509,115 +1507,20 @@ def lookup_reusable_structured_jobs(
 
 # ── integration: LLM call ─────────────────────────────────────────────────────
 
-def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
-    """Return an HTTP LLM shim client when configured via control-plane routing."""
-    try:
-        routing = resolve_model_routing_part("enrich_extraction", model_fallback=get_enrich_extraction_model(config or {}))
-    except Exception:
-        return None
+class EnrichRuntimeError(RuntimeError):
+    """Expose normalized runtime failure to stage retry policy."""
 
-    provider_name = str(routing.get("provider") or "").strip().lower()
-    if not provider_name:
-        return None
-
-    base_url = str(routing.get("base_url") or "").strip()
-    if not base_url:
-        return None
-    api_key = resolve_openai_compatible_api_key()
-    if not api_key:
-        raise RuntimeError(
-            "Config-routed HTTP provider for enrich_extraction requires API key in env "
-            "(FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY)."
-        )
-    wire_api = str(routing.get("wire_api") or "").strip().lower() or "responses"
-    timeout_seconds = float(str(routing.get("timeout_seconds") or "").strip() or "120")
-    model_override = (
-        str(routing.get("model") or "").strip()
-        or get_enrich_extraction_model(config)
-    )
-
-    import httpx
-
-    def _generate_content(*, model: str, contents: str, config: Any = None) -> Any:
-        resolved_model = str(model or "").strip() or model_override
-        with httpx.Client(timeout=timeout_seconds) as client:
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            }
-            body: dict[str, Any]
-            text = ""
-            if wire_api == "responses":
-                responses_payload = {
-                    "model": resolved_model,
-                    "input": contents,
-                    "text": {"format": {"type": "json_object"}},
-                }
-                resp = client.post(
-                    f"{base_url.rstrip('/')}/responses",
-                    headers=headers,
-                    json=responses_payload,
-                )
-                resp.raise_for_status()
-                body = _decode_openai_compat_response_body(resp)
-                text = extract_openai_responses_text(body)
-            else:
-                chat_payload = {
-                    "model": resolved_model,
-                    "messages": [{"role": "user", "content": contents}],
-                    "temperature": 0.0,
-                    "response_format": {"type": "json_object"},
-                }
-                resp = client.post(
-                    f"{base_url.rstrip('/')}/chat/completions",
-                    headers=headers,
-                    json=chat_payload,
-                )
-                resp.raise_for_status()
-                body = _decode_openai_compat_response_body(resp)
-                text = str((((body.get("choices") or [{}])[0]).get("message") or {}).get("content") or "").strip()
-        parsed: Any = None
-        if text:
-            try:
-                parsed = json.loads(text)
-            except Exception:
-                parsed = None
-        return SimpleNamespace(parsed=parsed, text=text)
-
-    shim = SimpleNamespace(models=SimpleNamespace(generate_content=_generate_content))
-    shim._fitcv_model_override = model_override
-    return shim
+    def __init__(self, failure: LlmRuntimeFailure) -> None:
+        super().__init__(failure.message)
+        self.failure = failure
 
 
-def _make_genai_client(config: dict[str, Any]) -> Any:
-    """Return configured enrich client."""
-    openai_client = _build_openai_compat_client(config)
-    if openai_client is not None:
-        return openai_client
-    raise RuntimeError(
-        "enrich_extraction requires routed OpenAI-compatible provider config with base_url and API key."
-    )
-
-def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
-    """Call routed provider to extract structured fields from one normalized job.
-
-    Primary path: uses structured JSON output when provider returns parsed data.
-    Fallback: response.text + json_repair when response.parsed is None.
-
-    Requires routed OpenAI-compatible provider config and API key.
-    Decorated with @pytest.mark.integration in tests.
-
-    Returns:
-        Merged dict ready for load_structured_jobs().
-    """
-    import logging as _logging
-    _log = _logging.getLogger(__name__)
-
-    model_name = get_enrich_extraction_model(config)
-    client = _make_genai_client(config)
-    model_name = str(getattr(client, "_fitcv_model_override", model_name) or model_name)
-    title_for_log = job.get("title") or job.get("job_url")
-
+def _execute_enrich_runtime(
+    job: dict[str, Any],
+    config: dict[str, Any],
+    *,
+    adapter: LlmAdapter | None = None,
+) -> LlmRuntimeResult:
     prompt = build_extraction_prompt(
         description=str(job.get("description", "")),
         scraped_metadata={
@@ -1629,35 +1532,65 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
         },
         config=config,
     )
-
-    response = client.models.generate_content(model=model_name, contents=prompt, config=None)
-
-    # ── Primary path: structured output ──────────────────────────────────────
-    if response.parsed is not None:
-        try:
-            parsed = _apply_structured_normalization(response.parsed, config)
-            return merge_scraped_and_enriched(job, parsed, config)
-        except _ValidationError as exc:
-            _log.warning(
-                "Structured output validation failed for %r — falling back to json_repair: %s",
-                title_for_log,
-                exc,
-            )
-
-    # ── Fallback: text + json_repair ─────────────────────────────────────────
-    _log.warning(
-        "Structured output unavailable for %r — falling back to json_repair",
-        title_for_log,
+    request = LlmTaskRequest(
+        routing_part="enrich_extraction",
+        prompt=prompt,
+        response_mode="json_object",
     )
-    extraction = parse_extraction_response(str(response.text or ""), config)
+
+    def _parser(response: LlmAdapterResponse) -> dict[str, Any]:
+        raw_text = response.raw_text
+        try:
+            decoded = json.loads(raw_text)
+        except (json.JSONDecodeError, ValueError):
+            return parse_extraction_response(raw_text, config)
+        if not isinstance(decoded, dict):
+            return parse_extraction_response(raw_text, config)
+        try:
+            parsed = _apply_structured_normalization(decoded, config)
+        except _ValidationError:
+            return parse_extraction_response(raw_text, config)
+        return {"parsed": parsed, "errors": [], "raw_response": raw_text}
+
+    def _validator(value: Any) -> LlmValidationResult:
+        is_valid = (
+            isinstance(value, dict)
+            and isinstance(value.get("parsed"), dict)
+            and isinstance(value.get("errors"), list)
+        )
+        return LlmValidationResult(
+            valid=is_valid,
+            errors=[] if is_valid else ["Enrichment parser returned invalid contract."],
+            details={},
+        )
+
+    return execute_llm_task(
+        request,
+        parser=_parser,
+        validator=_validator,
+        adapter=adapter,
+    )
+
+
+def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    """Extract structured fields through shared LLM runtime."""
+    result = _execute_enrich_runtime(job, config)
+    if result.status != "succeeded" or not isinstance(result.parsed_value, dict):
+        failure = result.failure or LlmRuntimeFailure(
+            stage="validate",
+            code="validation_error",
+            message="Enrichment runtime returned no parsed value.",
+        )
+        raise EnrichRuntimeError(failure)
+
+    extraction = result.parsed_value
     if extraction["errors"]:
-        _log.warning(
+        logger.warning(
             "Enrichment parse errors for job %r: %s",
-            title_for_log,
+            job.get("title") or job.get("job_url"),
             "; ".join(extraction["errors"]),
         )
     return merge_scraped_and_enriched(job, extraction["parsed"], config)
-
 
 def _enrich_chunk(
     chunk: list[dict[str, Any]],
@@ -1677,8 +1610,6 @@ def _enrich_chunk(
         Any exception that enrich_job raises after exhausting retries —
         non-recoverable failures propagate to the caller.
     """
-    import httpx
-
     sleep_secs = float(config.get("enrichment_sleep_secs", 1.0))
     max_retries = int(config.get("enrichment_max_retries", 2))
     results: list[dict[str, Any]] = []
@@ -1709,8 +1640,14 @@ def _enrich_chunk(
                     except Exception:  # noqa: BLE001
                         pass
                 break
-            except httpx.HTTPStatusError as exc:
-                if getattr(getattr(exc, "response", None), "status_code", None) != 429 or attempts >= max_retries:
+            except EnrichRuntimeError as exc:
+                failure = exc.failure
+                is_rate_limit = (
+                    failure.stage == "adapter"
+                    and failure.code == "adapter_http_error"
+                    and failure.http_status == 429
+                )
+                if not is_rate_limit or attempts >= max_retries:
                     raise
                 attempts += 1
                 time.sleep(sleep_secs * (2 ** (attempts - 1)))

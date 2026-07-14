@@ -32,6 +32,8 @@ Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
 - `cv_analysis`: one canonical per-job analyzer owns evidence selection, gap, fit-gate, reuse validity, and generation readiness; pipeline owns batch invocation, persistence, and observations
 - `cv_generation`: one canonical `generate_from_analysis` contract for fingerprints, reuse validity, structured generation, validation, repair, acceptance/review meaning, and result shape; direct and LangGraph writers are transport adapters, while pipeline persists canonical `accepted` results only
 
+Shared LLM runtime rule: `enrich`, `ranking`, and `cv_generation` build stage-owned prompts and parse stage-owned outputs through `src/fitcv/llm_runtime.py`. Shared runtime owns routing, credentials, provider transport, wire fallback, normalized operational failures, and provenance; LangGraph remains adapter/orchestrator only.
+
 ## Execution Modes
 
 - full run (`Run All`)

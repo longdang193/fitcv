@@ -25,20 +25,22 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from types import SimpleNamespace
 
 from fitcv.config import (
     get_ranking_ai_score_model,
     get_ranking_prompt_id,
     get_stage_runtime_concurrency,
     get_stage_runtime_sleep_secs,
-    resolve_model_routing_part,
 )
 from fitcv.contracts import RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION
-from fitcv.openai_compat import (
-    decode_openai_compat_response_body,
-    extract_openai_chat_completions_text,
-    extract_openai_responses_text as _extract_openai_responses_text,
+from fitcv.llm_runtime import (
+    LlmAdapter,
+    LlmAdapterResponse,
+    LlmRuntimeFailure,
+    LlmRuntimeResult,
+    LlmTaskRequest,
+    LlmValidationResult,
+    execute_llm_task,
 )
 from fitcv.persistence import get_local_sqlite_path
 from fitcv.prompts import render_prompt
@@ -48,7 +50,6 @@ from fitcv.ranking_contract import (
     VALID_FIT_LABELS,
     fit_label_from_score,
 )
-from fitcv.runtime_routing import resolve_openai_compatible_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -219,87 +220,55 @@ def parse_score_response(response_text: str, config: dict[str, Any] | None = Non
 
 # ── integration: score one job ────────────────────────────────────────────────
 
-def _make_genai_client(config: dict[str, Any]) -> Any:
-    """Return routed OpenAI-compatible client for ranking stage."""
-    import httpx
+def _execute_ranking_runtime(
+    job: dict[str, Any],
+    candidate_summary: str,
+    top_evidence: list[str],
+    config: dict[str, Any],
+    *,
+    adapter: LlmAdapter | None = None,
+) -> LlmRuntimeResult:
+    from fitcv.embeddings import build_job_summary_text
 
-    routing = resolve_model_routing_part("ranking_ai_score", model_fallback=get_ranking_ai_score_model(config))
+    thresholds = dict(config.get("fit_label_thresholds") or {})
+    prompt = build_scoring_prompt(
+        jd_summary=build_job_summary_text(job),
+        candidate_summary=candidate_summary,
+        top_evidence=top_evidence[:2],
+        strong_threshold=float(thresholds.get("strong", DEFAULT_FIT_LABEL_STRONG_THRESHOLD)),
+        stretch_threshold=float(thresholds.get("stretch", DEFAULT_FIT_LABEL_STRETCH_THRESHOLD)),
+        config=config,
+    )
+    request = LlmTaskRequest(
+        routing_part="ranking_ai_score",
+        prompt=prompt,
+        response_mode="json_object",
+    )
 
-    provider_name = str(routing.get("provider") or "").strip().lower()
-    allowed_http_providers = {"openai", "openai_compatible", "9router"}
-    if provider_name not in allowed_http_providers:
-        raise RuntimeError(
-            "ranking_ai_score provider must be configured in control-plane model_routing.parts as "
-            "one of: openai, openai_compatible, 9router."
+    def _parser(response: LlmAdapterResponse) -> dict[str, Any]:
+        return parse_score_response(response.raw_text, config=config)
+
+    def _validator(value: Any) -> LlmValidationResult:
+        is_valid = isinstance(value, dict) and {
+            "ai_score",
+            "fit_label",
+            "score_reasoning",
+            "matched_strengths",
+            "key_risks",
+            "parser_status",
+        }.issubset(value)
+        return LlmValidationResult(
+            valid=is_valid,
+            errors=[] if is_valid else ["Ranking parser returned invalid contract."],
+            details={},
         )
 
-    if provider_name in allowed_http_providers:
-        base_url = str(routing.get("base_url") or "").strip()
-        if not base_url:
-            raise RuntimeError("OpenAI-compatible reranker routing requires provider base_url in control-plane config.")
-        api_key = resolve_openai_compatible_api_key()
-        if not api_key:
-            raise RuntimeError(
-                "Config-routed OpenAI-compatible provider for ranking_ai_score requires API key in env "
-                "(FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY)."
-            )
-        wire_api = str(routing.get("wire_api") or "").strip().lower() or "responses"
-        timeout_seconds = float(str(routing.get("timeout_seconds") or "").strip() or "120")
-        model_override = str(routing.get("model") or "").strip()
-        if not model_override:
-            raise RuntimeError(
-                "ranking_ai_score model must be configured in control-plane model_routing.parts."
-            )
-
-        def _generate_content(*, model: str, contents: str) -> Any:
-            # For OpenAI-compatible routing, provider/model routing is authoritative.
-            del model
-            resolved_model = model_override
-            with httpx.Client(timeout=timeout_seconds) as client:
-                headers = {
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                }
-                if wire_api == "responses":
-                    payload = {
-                        "model": resolved_model,
-                        "input": contents,
-                        "text": {"format": {"type": "json_object"}},
-                    }
-                    try:
-                        resp = client.post(f"{base_url.rstrip('/')}/responses", headers=headers, json=payload)
-                        resp.raise_for_status()
-                        body = decode_openai_compat_response_body(resp)
-                        text = _extract_openai_responses_text(body)
-                    except httpx.HTTPStatusError as exc:
-                        # Compatibility fallback: some OpenAI-compatible providers
-                        # implement chat/completions but not responses.
-                        if exc.response is None or exc.response.status_code != 404:
-                            raise
-                        payload = {
-                            "model": resolved_model,
-                            "messages": [{"role": "user", "content": contents}],
-                            "temperature": 0.0,
-                            "response_format": {"type": "json_object"},
-                        }
-                        resp = client.post(f"{base_url.rstrip('/')}/chat/completions", headers=headers, json=payload)
-                        resp.raise_for_status()
-                        body = decode_openai_compat_response_body(resp)
-                        text = extract_openai_chat_completions_text(body)
-                else:
-                    payload = {
-                        "model": resolved_model,
-                        "messages": [{"role": "user", "content": contents}],
-                        "temperature": 0.0,
-                        "response_format": {"type": "json_object"},
-                    }
-                    resp = client.post(f"{base_url.rstrip('/')}/chat/completions", headers=headers, json=payload)
-                    resp.raise_for_status()
-                    body = decode_openai_compat_response_body(resp)
-                    text = extract_openai_chat_completions_text(body)
-            return SimpleNamespace(text=text)
-
-        return SimpleNamespace(models=SimpleNamespace(generate_content=_generate_content))
+    return execute_llm_task(
+        request,
+        parser=_parser,
+        validator=_validator,
+        adapter=adapter,
+    )
 
 
 def score_job(
@@ -308,29 +277,19 @@ def score_job(
     top_evidence: list[str],
     config: dict[str, Any],
 ) -> dict[str, Any]:
-    """Score one job via routed provider and return a parsed score dict."""
-    from fitcv.embeddings import build_job_summary_text
+    """Score one job through shared LLM runtime."""
+    result = _execute_ranking_runtime(job, candidate_summary, top_evidence, config)
+    if result.status != "succeeded" or not isinstance(result.parsed_value, dict):
+        failure = result.failure or LlmRuntimeFailure(
+            stage="validate",
+            code="validation_error",
+            message="Ranking runtime returned no parsed value.",
+        )
+        raise RuntimeError(failure.message)
 
-    jd_summary = build_job_summary_text(job)
-    thresholds = dict(config.get("fit_label_thresholds") or {})
-    prompt = build_scoring_prompt(
-        jd_summary=jd_summary,
-        candidate_summary=candidate_summary,
-        top_evidence=top_evidence[:2],
-        strong_threshold=float(thresholds.get("strong", DEFAULT_FIT_LABEL_STRONG_THRESHOLD)),
-        stretch_threshold=float(thresholds.get("stretch", DEFAULT_FIT_LABEL_STRETCH_THRESHOLD)),
-        config=config,
-    )
-
-    model_name = get_ranking_ai_score_model(config)
-    client = _make_genai_client(config)
-    response = client.models.generate_content(model=model_name, contents=prompt)
-    raw_text = str(response.text or "")
-
-    result = parse_score_response(raw_text, config=config)
-    result["job_url"] = str(job.get("job_url", ""))
-    return result
-
+    value = dict(result.parsed_value)
+    value["job_url"] = str(job.get("job_url", ""))
+    return value
 
 # ── integration: batch score shortlist ───────────────────────────────────────
 

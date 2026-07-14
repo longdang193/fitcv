@@ -187,6 +187,7 @@ This migration lane defines a strict split between storage backend selection and
 - `ai_plane` ownership:
   - provider + model routing via `control_plane.model_routing.parts.*`
   - AI credential contract via process env keys
+  - shared adapter execution via `src/fitcv/llm_runtime.py`; enrichment, ranking, and CV generation do not own provider clients, endpoint fallback, or credential lookup
 
 Prohibited coupling:
 
