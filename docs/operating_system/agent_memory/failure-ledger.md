@@ -93,3 +93,14 @@ Use this file for repeated or important failures, not every small mistake.
   - `src/fitcv_cp/worker_job.py`
   - `tests/test_fitcv_cp/test_env_defaults.py`
   - `tests/test_fitcv_cp/test_worker_job.py`
+
+## PowerShell `$args` parameter swallowed verification command arguments
+
+- Title: Do not name PowerShell wrapper parameters `$args`
+- Date: 2026-07-14
+- Trigger / Context: Phase 3 verification used a PowerShell helper intended to run several `python -m pytest` commands.
+- What went wrong: The helper declared a parameter named `$args`, colliding with PowerShell's automatic `$args` variable. `python` received no CLI arguments, launched interactive mode, and flooded terminal output until the process was stopped.
+- Correct behavior: Use a distinct parameter such as `$commandArgs`, or invoke verification commands directly with explicit `$LASTEXITCODE` checks.
+- Prevention added or required: Avoid `$args` as a declared parameter in PowerShell command wrappers; prefer direct commands for verification gates.
+- Related artifacts:
+  - `docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md`

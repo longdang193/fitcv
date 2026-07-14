@@ -137,8 +137,9 @@ Required child detailed spec set:
 3. **Phase 3 — shared LLM runtime spine extraction**
    - required child spec name:
      `fitcv-llm-runtime-spine-phase-3-shared-runtime-contract`
-   - required output path shape:
-     `docs/superpowers/specs/YYYY-MM-DD-HH-MM-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md`
+   - child spec:
+     `docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md`
+   - status: `completed`
    - scope:
      define smallest shared runtime contract for request construction, routed
      adapter call, parse, validation, normalized failure taxonomy, normalized

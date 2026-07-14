@@ -19,7 +19,8 @@ import json
 import re
 import textwrap
 from copy import deepcopy
-from types import SimpleNamespace
+from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 from jinja2 import BaseLoader, Environment, TemplateError
@@ -30,15 +31,9 @@ from fitcv.placeholder_policy import (
     is_placeholder_token as _shared_is_placeholder_token,
     normalize_placeholder_token as _shared_normalize_placeholder_token,
 )
-from fitcv.openai_compat import (
-    decode_openai_compat_response_body,
-    extract_openai_chat_completions_text,
-    extract_openai_responses_text,
-)
 from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
     CV_STRUCTURED_SECTION_KEYS,
-    get_cv_generation_model,
     get_cv_generation_structured_prompt_id,
     get_required_structured_section_keys,
 )
@@ -50,14 +45,20 @@ from fitcv.contracts import (
     ROLE_ALIGNMENT_CHANNEL,
     STRUCTURED_CV_SCHEMA_VERSION,
 )
-from fitcv.runtime_routing import resolve_cv_generation_routing, resolve_openai_compatible_api_key
 from fitcv.prompts import render_prompt
 from fitcv.section_policy import (
     certification_evidence_lines,
     certification_policy_decisions,
 )
+from fitcv.llm_runtime import (
+    LlmAdapter,
+    LlmAdapterResponse,
+    LlmRuntimeResult,
+    LlmTaskRequest,
+    LlmValidationResult,
+    execute_llm_task,
+)
 from fitcv.rule_filter import canonicalize_skill
-from fitcv.runtime_routing import resolve_cv_generation_routing, resolve_openai_compatible_api_key
 
 # ── template variant map ─────────────────────────────────────────────────────
 # Maps job_family values (populated by enrichment) to styling hints.
@@ -84,84 +85,6 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
     "not provided",
     "unknown",
 }
-
-def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
-    routing = resolve_cv_generation_routing(config)
-    provider_name = routing.provider
-    allowed_http_providers = {"openai", "openai_compatible", "9router"}
-    if provider_name not in allowed_http_providers:
-        raise RuntimeError(
-            "cv_generation_structured_write provider must be configured in control-plane model_routing.parts as "
-            "one of: openai, openai_compatible, 9router."
-        )
-    base_url = routing.base_url
-    if not base_url:
-        raise RuntimeError("OpenAI-compatible CV generation routing requires provider base_url in control-plane config.")
-    api_key = resolve_openai_compatible_api_key()
-    if not api_key:
-        raise RuntimeError("OpenAI-compatible CV generation routing requires API key in env.")
-    wire_api = routing.wire_api
-    timeout_seconds = routing.timeout_seconds
-    model_override = routing.model
-    if not model_override:
-        raise RuntimeError(
-            "cv_generation_structured_write model must be configured in control-plane model_routing.parts."
-        )
-
-    import httpx
-
-    def _generate_content(*, model: str, contents: str) -> Any:
-        del model
-        resolved_model = model_override
-        with httpx.Client(timeout=timeout_seconds) as client:
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            }
-            if wire_api == "responses":
-                payload = {
-                    "model": resolved_model,
-                    "input": contents,
-                    "text": {"format": {"type": "json_object"}},
-                }
-                try:
-                    resp = client.post(f"{base_url.rstrip('/')}/responses", headers=headers, json=payload)
-                    resp.raise_for_status()
-                    body = decode_openai_compat_response_body(resp)
-                    text = extract_openai_responses_text(body)
-                except httpx.HTTPStatusError as exc:
-                    if exc.response is None or exc.response.status_code != 404:
-                        raise
-                    payload = {
-                        "model": resolved_model,
-                        "messages": [{"role": "user", "content": contents}],
-                        "temperature": 0.0,
-                        "response_format": {"type": "json_object"},
-                    }
-                    resp = client.post(f"{base_url.rstrip('/')}/chat/completions", headers=headers, json=payload)
-                    resp.raise_for_status()
-                    body = decode_openai_compat_response_body(resp)
-                    text = extract_openai_chat_completions_text(body)
-            else:
-                payload = {
-                    "model": resolved_model,
-                    "messages": [{"role": "user", "content": contents}],
-                    "temperature": 0.0,
-                    "response_format": {"type": "json_object"},
-                }
-                resp = client.post(f"{base_url.rstrip('/')}/chat/completions", headers=headers, json=payload)
-                resp.raise_for_status()
-                body = decode_openai_compat_response_body(resp)
-                text = extract_openai_chat_completions_text(body)
-        return SimpleNamespace(text=text)
-
-    return SimpleNamespace(models=SimpleNamespace(generate_content=_generate_content))
-
-def _make_generation_client(config: dict[str, Any]) -> Any:
-    return _build_openai_compat_client(config)
-
-
-# ── template variant selector ─────────────────────────────────────────────────
 
 def select_template_variant(jd: dict[str, Any]) -> str:
     """Return a template variant name for the given enriched job description.
@@ -1676,6 +1599,82 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
     return _normalize_cv_markdown(rendered)
 
 
+def _execute_cv_generation_runtime(
+    jd: dict[str, Any],
+    evidence: list[dict[str, Any]],
+    gap: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+    *,
+    fit_classification: str,
+    evidence_selection_summary: dict[str, Any] | None = None,
+    repair_missing_sections: list[str] | None = None,
+    adapter: LlmAdapter | None = None,
+    validator: Any | None = None,
+) -> LlmRuntimeResult:
+    template_path = _resolve_template_path(config)
+    template_str = Path(template_path).read_text(encoding="utf-8")
+    prompt = build_structured_generation_prompt(
+        jd=jd,
+        evidence=evidence,
+        gap=gap,
+        template=template_str,
+        profile=profile,
+        config=config,
+        evidence_selection_summary=evidence_selection_summary,
+        repair_missing_sections=repair_missing_sections,
+    )
+    request = LlmTaskRequest(
+        routing_part="cv_generation_structured_write",
+        prompt=prompt,
+        response_mode="json_schema",
+        instructions=(
+            "Generate one FitCV structured CV document. Follow the prompt exactly, "
+            "obey the rendering reference template, and return only JSON matching the schema."
+        ),
+        schema_name="fitcv_structured_cv_document",
+        schema=build_live_structured_cv_response_schema(config=config),
+    )
+
+    def _parser(response: LlmAdapterResponse) -> dict[str, Any]:
+        response_payload = _extract_json_payload(response.raw_text)
+        structured_cv = _normalize_structured_cv(
+            response_payload,
+            jd=jd,
+            evidence=evidence,
+            profile=profile,
+            config=config,
+            fit_classification=fit_classification,
+        )
+        return {
+            "structured_cv": structured_cv,
+            "markdown": render_cv_markdown(structured_cv, config),
+        }
+
+    def _structural_validator(value: dict[str, Any]) -> LlmValidationResult:
+        structured_cv = value.get("structured_cv")
+        if not isinstance(structured_cv, dict):
+            return LlmValidationResult(valid=False, errors=["structured_cv missing"], details={})
+        validate_structured_cv(structured_cv, config=config)
+        return LlmValidationResult(valid=True, errors=[], details={})
+
+    return execute_llm_task(
+        request,
+        parser=_parser,
+        validator=validator or _structural_validator,
+        adapter=adapter,
+    )
+
+
+def _runtime_value_or_raise(result: LlmRuntimeResult) -> dict[str, Any]:
+    if result.status == "succeeded" and isinstance(result.parsed_value, dict):
+        value = dict(result.parsed_value)
+        value["runtime_provenance"] = asdict(result.provenance)
+        return value
+    message = result.failure.message if result.failure else "LLM runtime failed."
+    raise RuntimeError(message)
+
+
 def generate_structured_cv(
     jd: dict[str, Any],
     evidence: list[dict[str, Any]],
@@ -1688,34 +1687,19 @@ def generate_structured_cv(
     repair_missing_sections: list[str] | None = None,
 ) -> dict[str, Any]:
     """Call the LLM to generate a structured CV document."""
-    import pathlib
-
-    template_path = _resolve_template_path(config)
-    template_str = pathlib.Path(template_path).read_text(encoding="utf-8")
-    prompt = build_structured_generation_prompt(
-        jd=jd,
-        evidence=evidence,
-        gap=gap,
-        template=template_str,
-        profile=profile,
-        config=config,
-        evidence_selection_summary=evidence_selection_summary,
-        repair_missing_sections=repair_missing_sections,
+    value = _runtime_value_or_raise(
+        _execute_cv_generation_runtime(
+            jd,
+            evidence,
+            gap,
+            profile,
+            config,
+            fit_classification=fit_classification,
+            evidence_selection_summary=evidence_selection_summary,
+            repair_missing_sections=repair_missing_sections,
+        )
     )
-
-    client = _make_generation_client(config)
-
-    model_name = get_cv_generation_model(config)
-    response = client.models.generate_content(model=model_name, contents=prompt)
-    response_payload = _extract_json_payload(str(response.text))
-    return _normalize_structured_cv(
-        response_payload,
-        jd=jd,
-        evidence=evidence,
-        profile=profile,
-        config=config,
-        fit_classification=fit_classification,
-    )
+    return dict(value["structured_cv"])
 
 
 def generate_cv(
@@ -1729,25 +1713,19 @@ def generate_cv(
     evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Generate structured CV content and render markdown from it.
-
-    Temporary compatibility wrapper during rollout.
-    """
-    structured_cv = generate_structured_cv(
-        jd=jd,
-        evidence=evidence,
-        gap=gap,
-        profile=profile,
-        config=config,
-        fit_classification=fit_classification,
-        evidence_selection_summary=evidence_selection_summary,
-        repair_missing_sections=repair_missing_sections,
+    """Generate structured CV content and render markdown from it."""
+    return _runtime_value_or_raise(
+        _execute_cv_generation_runtime(
+            jd,
+            evidence,
+            gap,
+            profile,
+            config,
+            fit_classification=fit_classification,
+            evidence_selection_summary=evidence_selection_summary,
+            repair_missing_sections=repair_missing_sections,
+        )
     )
-    markdown = render_cv_markdown(structured_cv, config)
-    return {
-        "structured_cv": structured_cv,
-        "markdown": markdown,
-    }
 
 
 

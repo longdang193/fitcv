@@ -17,6 +17,7 @@ lifecycle:
 
 from collections.abc import Mapping
 from copy import deepcopy
+from dataclasses import asdict
 from contextlib import contextmanager
 import datetime
 import hashlib
@@ -24,9 +25,11 @@ import json
 from pathlib import Path
 import importlib
 import os
+import socket
 import sys
 import time
 from typing import Any, Callable, Iterator, Literal, TypedDict, cast
+from urllib.error import HTTPError, URLError
 
 from fitcv.agentic_cv_analysis import (
     FitClassification,
@@ -44,16 +47,17 @@ from fitcv.config import (
     get_cv_generation_structured_prompt_id,
 )
 from fitcv.runtime_routing import (
+    LlmRouting,
     build_langgraph_env_overrides,
     resolve_cv_generation_routing_snapshot,
     resolve_cv_generation_runtime_provenance,
 )
+from fitcv.llm_runtime import LlmAdapterError, LlmAdapterResponse, LlmTaskRequest
 from fitcv.cv_generator import (
+    _execute_cv_generation_runtime,
     _get_enabled_section_names,
-    _normalize_structured_cv,
     _resolve_template_path,
     build_live_structured_cv_response_schema as _canonical_live_structured_cv_response_schema,
-    build_structured_generation_prompt,
     generate_cv,
     render_cv_markdown,
 )
@@ -171,8 +175,7 @@ def _discover_fitcv_langgraph_repo_root() -> Path | None:
 def _build_fitcv_langgraph_env_values(repo_root: Path | None) -> dict[str, str]:
     del repo_root
     env_values = dict(os.environ)
-    for key, value in build_langgraph_env_overrides().items():
-        env_values.setdefault(key, value)
+    env_values.update(build_langgraph_env_overrides())
     return env_values
 
 @contextmanager
@@ -328,6 +331,95 @@ def _build_live_structured_cv_response_schema() -> dict[str, Any]:
     return dict(_canonical_live_structured_cv_response_schema(config={}))
 
 
+def _langgraph_runtime_adapter(
+    request: LlmTaskRequest,
+    route: LlmRouting,
+    api_key: str,
+) -> LlmAdapterResponse:
+    repo_root = _discover_fitcv_langgraph_repo_root()
+    if repo_root is not None:
+        src_root = repo_root / "src"
+        if src_root.is_dir() and str(src_root) not in sys.path:
+            sys.path.insert(0, str(src_root))
+    live_module = importlib.import_module("fitcv_langgraph.providers.live")
+    runtime_loader = getattr(live_module, "load_live_provider_config_from_env")
+    client_cls = getattr(live_module, "OpenAIResponsesClient")
+    env_values = dict(os.environ)
+    env_values.update(
+        {
+            "FITCV_LANGGRAPH_PROVIDER": route.provider,
+            "FITCV_LANGGRAPH_MODEL": route.model,
+            "FITCV_LANGGRAPH_OPENAI_BASE_URL": route.base_url,
+            "FITCV_LANGGRAPH_WIRE_API": route.wire_api,
+            "FITCV_LANGGRAPH_TIMEOUT_SECONDS": str(route.timeout_seconds),
+            "OPENAI_API_KEY": api_key,
+        }
+    )
+    try:
+        provider_config = runtime_loader(env_values)
+        response_payload = client_cls(provider_config).generate_json(
+            instructions=str(request.instructions or ""),
+            input_text=request.prompt,
+            schema_name=str(request.schema_name or ""),
+            schema=dict(request.schema or {}),
+        )
+    except Exception as exc:
+        cause: BaseException | None = exc
+        while cause is not None:
+            if isinstance(cause, (TimeoutError, socket.timeout)):
+                raise LlmAdapterError(
+                    "adapter_timeout",
+                    str(exc),
+                    True,
+                    adapter="langgraph",
+                    runtime_path="fitcv_llm_langgraph",
+                ) from exc
+            if isinstance(cause, HTTPError):
+                status = int(cause.code)
+                raise LlmAdapterError(
+                    "adapter_http_error",
+                    str(exc),
+                    status in {408, 409, 425, 429, 500, 502, 503, 504},
+                    status,
+                    adapter="langgraph",
+                    runtime_path="fitcv_llm_langgraph",
+                ) from exc
+            if isinstance(cause, URLError):
+                raise LlmAdapterError(
+                    "adapter_transport_error",
+                    str(exc),
+                    True,
+                    adapter="langgraph",
+                    runtime_path="fitcv_llm_langgraph",
+                ) from exc
+            cause = cause.__cause__
+        raise
+    if not isinstance(response_payload, dict):
+        raise TypeError("LangGraph adapter must return one JSON object.")
+    provider_payload = dict(response_payload)
+    business_payload = dict(response_payload)
+    response_id = str(
+        business_payload.pop("response_id", None)
+        or business_payload.pop("id", None)
+        or ""
+    ).strip() or None
+    telemetry = {
+        key: business_payload.pop(key)
+        for key in ("usage", "cost")
+        if isinstance(business_payload.get(key), dict)
+    }
+    return LlmAdapterResponse(
+        adapter="langgraph",
+        runtime_path="fitcv_llm_langgraph",
+        raw_text=json.dumps(business_payload),
+        provider_payload=provider_payload,
+        response_id=response_id,
+        trace_id=None,
+        attempt_count=1,
+        telemetry=telemetry,
+    )
+
+
 def _generate_cv_with_live_provider(
     *,
     job: dict[str, Any],
@@ -342,109 +434,70 @@ def _generate_cv_with_live_provider(
     trace_attempt: dict[str, Any] | None = None,
     attempt_index: int = 1,
 ) -> dict[str, Any]:
-    repo_root = _discover_fitcv_langgraph_repo_root()
-    if repo_root is not None:
-        src_root = repo_root / "src"
-        if src_root.is_dir():
-            src_root_text = str(src_root)
-            if src_root_text not in sys.path:
-                sys.path.insert(0, src_root_text)
-    live_module = importlib.import_module("fitcv_langgraph.providers.live")
-    runtime_loader = getattr(live_module, "load_live_provider_config_from_env")
-    client_cls = getattr(live_module, "OpenAIResponsesClient")
-    provider_config = runtime_loader(env_values)
-    client = client_cls(provider_config)
-
-    template_path = _resolve_template_path(config)
-    template = Path(template_path).read_text(encoding="utf-8")
-    prompt = build_structured_generation_prompt(
-        jd=job,
-        evidence=evidence,
-        gap=gap,
-        template=template,
-        profile=profile,
-        config=config,
-        evidence_selection_summary=evidence_selection_summary,
-        repair_missing_sections=repair_missing_sections,
-    )
+    credential_values = {
+        key: value
+        for key in ("FITCV_LLM_API_KEY", "OPENAI_API_KEY", "OPENAI_COMPATIBLE_API_KEY")
+        if (value := str(env_values.get(key) or "").strip())
+    }
     started_at = datetime.datetime.now(datetime.timezone.utc)
     started_monotonic = time.monotonic()
-    if trace_attempt is not None:
-        trace_attempt.update(
-            {
-                "attempt_index": attempt_index,
-                "attempt_type": "repair_retry" if repair_missing_sections else "initial_generation",
-                "started_at": started_at.isoformat(),
-                "input_character_count": len(prompt),
-                "input_item_count": len(evidence),
-                "retry_reason": "missing_sections" if repair_missing_sections else None,
-                "debug_flags_active": {
-                    key: bool(str(env_values.get(key) or "").strip())
-                    for key in _LIVE_TRACE_DEBUG_ENV_KEYS
-                },
-                "prompt_contract": _LIVE_TRACE_PROMPT_CONTRACT,
-                "template_path": str(template_path),
-                "response_schema_name": _LIVE_TRACE_SCHEMA_NAME,
-            }
-        )
-    response_payload: dict[str, Any]
-    response_id: str | None = None
-    provider_status = "accepted"
-    error_message = ""
-    try:
-        response_payload = client.generate_json(
-            instructions=(
-                "Generate one FitCV structured CV document. "
-                "Follow the prompt exactly, obey the rendering reference template, "
-                "and return only JSON matching the schema."
-            ),
-            input_text=prompt,
-            schema_name=_LIVE_TRACE_SCHEMA_NAME,
-            schema=_canonical_live_structured_cv_response_schema(config=config),
-        )
-        if isinstance(response_payload, dict):
-            response_id = str(response_payload.get("response_id") or response_payload.get("id") or "").strip() or None
-    except Exception as exc:
-        provider_status = "error"
-        error_message = str(exc)
-        finished_at = datetime.datetime.now(datetime.timezone.utc)
+
+    def _adapter(request: LlmTaskRequest, route: LlmRouting, api_key: str) -> LlmAdapterResponse:
         if trace_attempt is not None:
             trace_attempt.update(
                 {
-                    "finished_at": finished_at.isoformat(),
-                    "latency_ms": int((time.monotonic() - started_monotonic) * 1000),
-                    "provider_status": provider_status,
-                    "accepted_output_present": False,
-                    "error_stage": "agentic_live_provider",
-                    "error_message": error_message,
+                    "attempt_index": attempt_index,
+                    "attempt_type": "repair_retry" if repair_missing_sections else "initial_generation",
+                    "started_at": started_at.isoformat(),
+                    "input_character_count": len(request.prompt),
+                    "input_item_count": len(evidence),
+                    "retry_reason": "missing_sections" if repair_missing_sections else None,
+                    "debug_flags_active": {
+                        key: bool(str(os.environ.get(key) or "").strip())
+                        for key in _LIVE_TRACE_DEBUG_ENV_KEYS
+                    },
+                    "prompt_contract": _LIVE_TRACE_PROMPT_CONTRACT,
+                    "template_path": str(_resolve_template_path(config)),
+                    "response_schema_name": str(request.schema_name or ""),
                 }
             )
-        raise
-    finished_at = datetime.datetime.now(datetime.timezone.utc)
+        return _langgraph_runtime_adapter(request, route, api_key)
+
+    with _temporary_environ(credential_values):
+        result = _execute_cv_generation_runtime(
+            job,
+            evidence,
+            gap,
+            profile,
+            config,
+            fit_classification=fit_classification,
+            evidence_selection_summary=evidence_selection_summary,
+            repair_missing_sections=repair_missing_sections,
+            adapter=_adapter,
+        )
     if trace_attempt is not None:
         trace_attempt.update(
             {
-                "finished_at": finished_at.isoformat(),
+                "finished_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "latency_ms": int((time.monotonic() - started_monotonic) * 1000),
-                "provider_status": provider_status,
-                "accepted_output_present": True,
-                "response_id": response_id,
+                "provider_status": "accepted" if result.status == "succeeded" else "error",
+                "accepted_output_present": result.status == "succeeded",
+                "response_id": result.provenance.response_id,
             }
         )
-    structured_cv = _normalize_structured_cv(
-        response_payload,
-        jd=job,
-        evidence=evidence,
-        profile=profile,
-        config=config,
-        fit_classification=fit_classification,
-    )
-    markdown = render_cv_markdown(structured_cv, config)
-    return {
-        "structured_cv": structured_cv,
-        "markdown": markdown,
-    }
-
+        if result.failure is not None:
+            trace_attempt.update(
+                {
+                    "error_stage": "agentic_live_provider",
+                    "error_message": result.failure.message,
+                    "error_code": result.failure.code,
+                }
+            )
+    if result.status != "succeeded" or not isinstance(result.parsed_value, dict):
+        raise RuntimeError(result.failure.message if result.failure else "LangGraph runtime failed.")
+    generated = dict(result.parsed_value)
+    generated["runtime_provenance"] = asdict(result.provenance)
+    return generated
 
 def _build_live_trace_runtime_provenance(
     runtime_provenance: dict[str, Any],
@@ -836,8 +889,9 @@ def _run_repair_cycle(
     profile: dict[str, Any],
     config: dict[str, Any],
     analysis_grounding: AnalysisGroundingPayload,
-    retry_executor: Callable[[list[str]], tuple[dict[str, Any] | None, str, dict[str, Any]]],
-) -> tuple[dict[str, Any] | None, str, dict[str, Any], RepairAttempt]:
+    retry_executor: Callable[[list[str]], tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]],
+    runtime_provenance: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, str, dict[str, Any], RepairAttempt, dict[str, Any] | None]:
     repair_attempt = _empty_repair_attempt()
     if not validation["valid"] and _should_repair_candidate_name_placeholder(validation, structured_cv, profile):
         repair_attempt = _build_candidate_name_repair_attempt()
@@ -853,7 +907,9 @@ def _run_repair_cycle(
     repair_targets = _determine_repair_targets(validation, structured_cv)
     if repair_targets:
         repair_attempt = _build_repair_attempt(repair_targets)
-        structured_cv, markdown, validation = retry_executor(repair_targets)
+        structured_cv, markdown, validation, retry_provenance = retry_executor(repair_targets)
+        if retry_provenance is not None:
+            runtime_provenance = retry_provenance
 
     if not validation.get("valid"):
         structured_cv, repaired_keys = _backfill_required_sections_from_profile(
@@ -877,7 +933,7 @@ def _run_repair_cycle(
                     "reason": "deterministic_section_backfill",
                 }
 
-    return structured_cv, markdown, validation, repair_attempt
+    return structured_cv, markdown, validation, repair_attempt, runtime_provenance
 
 def _execute_generation_attempt(
     generator: Callable[[list[str] | None], Any],
@@ -886,9 +942,9 @@ def _execute_generation_attempt(
     config: dict[str, Any],
     analysis_grounding: AnalysisGroundingPayload,
     repair_missing_sections: list[str] | None = None,
-) -> tuple[dict[str, Any] | None, str, dict[str, Any]]:
+) -> tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]:
     generated_cv = generator(repair_missing_sections)
-    structured_cv, markdown = _unwrap_generated_cv(generated_cv)
+    structured_cv, markdown, runtime_provenance = _unwrap_generated_cv(generated_cv)
     validation = _run_generation_validations(
         markdown,
         profile=profile,
@@ -896,7 +952,7 @@ def _execute_generation_attempt(
         structured_cv=structured_cv,
         analysis_grounding=analysis_grounding,
     )
-    return structured_cv, markdown, validation
+    return structured_cv, markdown, validation, runtime_provenance
 
 def _cv_generation_sleep_secs(config: dict[str, Any]) -> float:
     stage_runtime = dict(config.get("stage_runtime") or {})
@@ -965,8 +1021,10 @@ def _build_fallback_retry_executor(
     profile: dict[str, Any],
     config: dict[str, Any],
     analysis_grounding: AnalysisGroundingPayload,
-) -> Callable[[list[str]], tuple[dict[str, Any] | None, str, dict[str, Any]]]:
-    def _retry(repair_targets: list[str]) -> tuple[dict[str, Any] | None, str, dict[str, Any]]:
+) -> Callable[[list[str]], tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]]:
+    def _retry(
+        repair_targets: list[str],
+    ) -> tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]:
         sleep_secs = _cv_generation_sleep_secs(config)
         if sleep_secs > 0.0:
             time.sleep(sleep_secs)
@@ -1009,14 +1067,19 @@ def _repair_candidate_name_placeholder(
     return repaired_structured_cv, repaired_markdown
 
 
-def _unwrap_generated_cv(generated_cv: Any) -> tuple[dict[str, Any] | None, str]:
+def _unwrap_generated_cv(
+    generated_cv: Any,
+) -> tuple[dict[str, Any] | None, str, dict[str, Any] | None]:
     if isinstance(generated_cv, dict):
         markdown = str(generated_cv.get("markdown") or "")
         structured_cv = generated_cv.get("structured_cv")
-        if isinstance(structured_cv, dict):
-            return structured_cv, markdown
-        return None, markdown
-    return None, str(generated_cv)
+        provenance = generated_cv.get("runtime_provenance")
+        return (
+            dict(structured_cv) if isinstance(structured_cv, dict) else None,
+            markdown,
+            dict(provenance) if isinstance(provenance, dict) else None,
+        )
+    return None, str(generated_cv), None
 
 
 
@@ -1565,7 +1628,9 @@ def _generate_fresh_from_analysis(
             env_values=_build_fitcv_langgraph_env_values(_discover_fitcv_langgraph_repo_root()),
         )
 
-        def _writer_attempt(repair_targets: list[str] | None) -> tuple[dict[str, Any] | None, str, dict[str, Any]]:
+        def _writer_attempt(
+            repair_targets: list[str] | None,
+        ) -> tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]:
             attempt_index = len(trace_payload["attempts"]) + 1
             attempt_trace = {
                 "attempt_index": attempt_index,
@@ -1604,7 +1669,9 @@ def _generate_fresh_from_analysis(
             evidence_selection_summary=evidence_selection_summary,
         )
 
-        def _writer_attempt(repair_targets: list[str] | None) -> tuple[dict[str, Any] | None, str, dict[str, Any]]:
+        def _writer_attempt(
+            repair_targets: list[str] | None,
+        ) -> tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]:
             if repair_targets:
                 sleep_secs = _cv_generation_sleep_secs(config)
                 if sleep_secs > 0.0:
@@ -1623,10 +1690,12 @@ def _generate_fresh_from_analysis(
     validation_initial: ValidationSnapshot | None = None
     repair_attempt = _empty_repair_attempt()
     try:
-        structured_cv, markdown, validation = _writer_attempt(None)
+        structured_cv, markdown, validation, attempt_provenance = _writer_attempt(None)
+        if attempt_provenance is not None:
+            runtime_provenance = attempt_provenance
         structured_cv_initial = structured_cv
         validation_initial = _build_validation_snapshot(validation)
-        structured_cv, markdown, validation, repair_attempt = _run_repair_cycle(
+        structured_cv, markdown, validation, repair_attempt, latest_provenance = _run_repair_cycle(
             structured_cv=structured_cv,
             markdown=markdown,
             validation=validation,
@@ -1634,7 +1703,10 @@ def _generate_fresh_from_analysis(
             config=config,
             analysis_grounding=analysis_grounding,
             retry_executor=lambda targets: _writer_attempt(targets),
+            runtime_provenance=runtime_provenance,
         )
+        if latest_provenance is not None:
+            runtime_provenance = latest_provenance
         result_status: GenerationStatus = ACCEPTED_STATUS if validation.get("valid") else VALIDATION_FAILED_STATUS
         error: ErrorPayload | None = None
         structured_cv_final = structured_cv if result_status == ACCEPTED_STATUS else None

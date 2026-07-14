@@ -13,6 +13,7 @@ tags:
   - ci-safe
 """
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -21,6 +22,7 @@ from fitcv.agentic_cv_generation import (
     _backfill_required_sections_from_profile,
     _build_fitcv_langgraph_env_values,
     _generate_cv_with_live_provider,
+    _langgraph_runtime_adapter,
     _shallow_section_repair_targets,
     build_cv_generation_input_fingerprint,
     generate_from_analysis,
@@ -1144,15 +1146,21 @@ def test_persistence_failure_transition_preserves_accepted_artifacts() -> None:
     }
 
 
-def test_build_fitcv_langgraph_env_values_uses_process_env_only() -> None:
+def test_build_fitcv_langgraph_env_values_overwrites_stale_route_env() -> None:
     with patch.dict(
         "fitcv.agentic_cv_generation.os.environ",
         {
             "OPENAI_API_KEY": "process-key",
+            "FITCV_LANGGRAPH_MODEL": "stale-model",
+            "FITCV_LANGGRAPH_OPENAI_BASE_URL": "http://stale.example/v1",
+        },
+        clear=True,
+    ), patch(
+        "fitcv.agentic_cv_generation.build_langgraph_env_overrides",
+        return_value={
             "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.2",
             "FITCV_LANGGRAPH_OPENAI_BASE_URL": "http://localhost:20128/v1",
         },
-        clear=True,
     ):
         env_values = _build_fitcv_langgraph_env_values(None)
 
@@ -1373,3 +1381,77 @@ def test_generate_cv_with_live_provider_renders_repo_template_markdown(tmp_path:
     assert "## Skills" not in markdown
     assert "Data Engineer at ACME" in markdown
     assert "Banking KPI Project" in markdown
+
+
+def test_langgraph_runtime_adapter_uses_route_and_separates_transport_metadata() -> None:
+    """@proves cv_system.config-owned-generation-contract"""
+    captured_env: dict[str, str] = {}
+
+    class _FakeClient:
+        def __init__(self, _config: object) -> None:
+            pass
+
+        def generate_json(self, **_: object) -> dict[str, object]:
+            return {
+                "sections": {"header": {"name": "Test Candidate"}},
+                "response_id": "resp-langgraph",
+                "usage": {"total_tokens": 11},
+                "cost": {"total": 0.1, "currency": "usd"},
+            }
+
+    class _FakeLiveModule:
+        @staticmethod
+        def load_live_provider_config_from_env(environ: dict[str, str]) -> object:
+            captured_env.update(environ)
+            return object()
+
+        OpenAIResponsesClient = _FakeClient
+
+    from fitcv.llm_runtime import LlmTaskRequest
+    from fitcv.runtime_routing import LlmRouting
+
+    request = LlmTaskRequest(
+        routing_part="cv_generation_structured_write",
+        prompt="prompt",
+        response_mode="json_schema",
+        instructions="instructions",
+        schema_name="fitcv_structured_cv_document",
+        schema={"type": "object"},
+    )
+    route = LlmRouting(
+        provider="openai_compatible",
+        base_url="https://canonical.example/v1",
+        wire_api="responses",
+        model="canonical-model",
+        timeout_seconds=17.0,
+    )
+    with patch.dict(
+        "os.environ",
+        {
+            "FITCV_LANGGRAPH_PROVIDER": "stale-provider",
+            "FITCV_LANGGRAPH_MODEL": "stale-model",
+            "FITCV_LANGGRAPH_OPENAI_BASE_URL": "https://stale.example/v1",
+            "FITCV_LANGGRAPH_WIRE_API": "chat_completions",
+        },
+        clear=False,
+    ), patch("fitcv.agentic_cv_generation.importlib.import_module", return_value=_FakeLiveModule()):
+        response = _langgraph_runtime_adapter(request, route, "canonical-key")
+
+    assert captured_env["FITCV_LANGGRAPH_PROVIDER"] == "openai_compatible"
+    assert captured_env["FITCV_LANGGRAPH_MODEL"] == "canonical-model"
+    assert captured_env["FITCV_LANGGRAPH_OPENAI_BASE_URL"] == "https://canonical.example/v1"
+    assert captured_env["FITCV_LANGGRAPH_WIRE_API"] == "responses"
+    assert captured_env["FITCV_LANGGRAPH_TIMEOUT_SECONDS"] == "17.0"
+    assert captured_env["OPENAI_API_KEY"] == "canonical-key"
+    assert response.adapter == "langgraph"
+    assert response.runtime_path == "fitcv_llm_langgraph"
+    assert response.response_id == "resp-langgraph"
+    assert response.telemetry == {
+        "usage": {"total_tokens": 11},
+        "cost": {"total": 0.1, "currency": "usd"},
+    }
+    assert json.loads(response.raw_text) == {
+        "sections": {"header": {"name": "Test Candidate"}}
+    }
+    assert response.provider_payload is not None
+    assert response.provider_payload["response_id"] == "resp-langgraph"

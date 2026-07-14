@@ -16,8 +16,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from fitcv.runtime_routing import build_langgraph_env_overrides, build_runtime_routing_snapshot, langgraph_override_drift_fields, resolve_cv_generation_routing_snapshot, resolve_cv_generation_runtime_provenance
-from fitcv.runtime_routing import resolve_langgraph_openai_compatible_api_key, resolve_openai_compatible_api_key, validate_cv_generation_routing_ready
+from fitcv.runtime_routing import build_langgraph_env_overrides, build_runtime_routing_snapshot, langgraph_override_drift_fields, resolve_cv_generation_routing, resolve_cv_generation_routing_snapshot, resolve_cv_generation_runtime_provenance
+from fitcv.runtime_routing import resolve_langgraph_openai_compatible_api_key, resolve_llm_api_key, resolve_llm_routing, resolve_openai_compatible_api_key, validate_cv_generation_routing_ready, validate_llm_routing_ready
 
 
 def test_resolve_openai_compatible_api_key_prefers_fitcv_llm_key() -> None:
@@ -227,3 +227,38 @@ def test_langgraph_override_drift_fields_ignores_empty_override_env() -> None:
         clear=False,
     ):
         assert langgraph_override_drift_fields() == []
+
+
+def test_resolve_llm_routing_matches_cv_wrapper() -> None:
+    route_payload = {
+        "provider": "OPENAI_COMPATIBLE",
+        "model": "cx/test-model",
+        "base_url": "https://provider.example/v1",
+        "wire_api": "CHAT_COMPLETIONS",
+        "timeout_seconds": "42",
+    }
+    with patch("fitcv.runtime_routing.resolve_model_routing_part", return_value=route_payload):
+        generic = resolve_llm_routing("cv_generation_structured_write", model_fallback="fallback")
+        cv_route = resolve_cv_generation_routing({})
+
+    assert generic.provider == cv_route.provider == "openai_compatible"
+    assert generic.base_url == cv_route.base_url == "https://provider.example/v1"
+    assert generic.wire_api == cv_route.wire_api == "chat_completions"
+    assert generic.model == cv_route.model == "cx/test-model"
+    assert generic.timeout_seconds == cv_route.timeout_seconds == 42.0
+
+
+def test_generic_readiness_uses_env_only_openai_credential() -> None:
+    with patch(
+        "fitcv.runtime_routing.resolve_model_routing_part",
+        return_value={
+            "provider": "openai_compatible",
+            "model": "cx/test-model",
+            "base_url": "https://provider.example/v1",
+            "wire_api": "responses",
+        },
+    ):
+        route = resolve_llm_routing("ranking_ai_score")
+    with patch("fitcv.runtime_routing.resolve_openai_compatible_api_key", return_value="secret"):
+        assert resolve_llm_api_key(route) == "secret"
+        validate_llm_routing_ready(route)

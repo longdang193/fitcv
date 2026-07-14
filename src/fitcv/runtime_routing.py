@@ -33,12 +33,17 @@ _LANGGRAPH_OPENAI_COMPATIBLE_API_KEY_ENV_NAMES = (
 )
 
 @dataclass(frozen=True)
-class CvGenerationRouting:
+class LlmRouting:
     provider: str
     base_url: str
     wire_api: str
     model: str
     timeout_seconds: float
+
+
+@dataclass(frozen=True)
+class CvGenerationRouting(LlmRouting):
+    pass
 
 
 def build_runtime_routing_snapshot(
@@ -65,22 +70,56 @@ def build_runtime_routing_snapshot(
     }
 
 
-def resolve_cv_generation_routing(config: dict[str, Any]) -> CvGenerationRouting:
+def resolve_llm_routing(part_name: str, *, model_fallback: str = "") -> LlmRouting:
+    normalized_part_name = str(part_name or "").strip()
+    if not normalized_part_name:
+        raise ValueError("part_name must be non-empty")
     route = resolve_model_routing_part(
+        normalized_part_name,
+        model_fallback=str(model_fallback or "").strip(),
+    )
+    timeout_seconds = float(str(route.get("timeout_seconds") or "").strip() or "120")
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be positive")
+    return LlmRouting(
+        provider=str(route.get("provider") or "").strip().lower(),
+        base_url=str(route.get("base_url") or "").strip(),
+        wire_api=str(route.get("wire_api") or "").strip().lower() or "responses",
+        model=str(route.get("model") or "").strip(),
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def resolve_llm_api_key(route: LlmRouting) -> str:
+    if route.provider in _OPENAI_COMPATIBLE_PROVIDERS:
+        return resolve_openai_compatible_api_key()
+    return ""
+
+
+def validate_llm_routing_ready(route: LlmRouting, *, api_key: str | None = None) -> None:
+    if not route.provider:
+        raise RuntimeError("LLM routing requires provider in control-plane model_routing.parts.")
+    if not route.model:
+        raise RuntimeError("LLM routing requires model in control-plane model_routing.parts.")
+    if route.provider not in _OPENAI_COMPATIBLE_PROVIDERS:
+        return
+    if not route.base_url:
+        raise RuntimeError("OpenAI-compatible LLM routing requires provider base_url in control-plane config.")
+    if not str(api_key if api_key is not None else resolve_llm_api_key(route)).strip():
+        raise RuntimeError("OpenAI-compatible LLM routing requires API key in env.")
+
+
+def resolve_cv_generation_routing(config: dict[str, Any]) -> CvGenerationRouting:
+    route = resolve_llm_routing(
         "cv_generation_structured_write",
         model_fallback=get_cv_generation_model(config),
     )
-    provider = str(route.get("provider") or "").strip().lower()
-    base_url = str(route.get("base_url") or "").strip()
-    wire_api = str(route.get("wire_api") or "").strip().lower() or "responses"
-    model = str(route.get("model") or "").strip()
-    timeout_seconds = float(str(route.get("timeout_seconds") or "").strip() or "120")
     return CvGenerationRouting(
-        provider=provider,
-        base_url=base_url,
-        wire_api=wire_api,
-        model=model,
-        timeout_seconds=timeout_seconds,
+        provider=route.provider,
+        base_url=route.base_url,
+        wire_api=route.wire_api,
+        model=route.model,
+        timeout_seconds=route.timeout_seconds,
     )
 
 
@@ -210,25 +249,18 @@ def resolve_cv_generation_runtime_provenance(
 def validate_cv_generation_routing_ready(config: dict[str, Any]) -> None:
     """Raise when resolved CV-generation routing lacks required runtime inputs."""
     routing = resolve_cv_generation_routing(config)
-    provider = str(routing.provider or "").strip().lower()
-    snapshot = build_runtime_routing_snapshot(
-        provider=provider,
-        model=routing.model,
-        base_url=routing.base_url,
-        wire_api=routing.wire_api,
-        api_key=(resolve_openai_compatible_api_key() if provider in _OPENAI_COMPATIBLE_PROVIDERS else ""),
-        default_provider="fitcv_builtin",
-        default_model="",
-        default_wire_api="responses",
-    )
-    if provider in _OPENAI_COMPATIBLE_PROVIDERS:
-        if not snapshot["base_url"]:
+    try:
+        validate_llm_routing_ready(routing)
+    except RuntimeError as exc:
+        message = str(exc)
+        if "base_url" in message:
             raise RuntimeError(
                 "OpenAI-compatible CV generation routing requires provider base_url in control-plane config."
-            )
-        if not snapshot["model"]:
+            ) from exc
+        if "model" in message:
             raise RuntimeError(
                 "cv_generation_structured_write model must be configured in control-plane model_routing.parts."
-            )
-        if not snapshot["api_key_available"]:
-            raise RuntimeError("OpenAI-compatible CV generation routing requires API key in env.")
+            ) from exc
+        if "API key" in message:
+            raise RuntimeError("OpenAI-compatible CV generation routing requires API key in env.") from exc
+        raise

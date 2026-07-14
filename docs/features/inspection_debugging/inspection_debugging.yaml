@@ -282,6 +282,7 @@ refs:
   - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
   - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
   - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
+  - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
   - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -379,6 +380,7 @@ refs:
   - docs/superpowers/plans/2026-07-13-00-53-fitcv-ssot-symmetry-closeout-remaining-residue-plan.md
   - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
   - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
+  - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
   docs:
   - docs/features/inspection_debugging/history.md
   configs:
