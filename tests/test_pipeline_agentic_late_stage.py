@@ -22,7 +22,9 @@ from fitcv.agentic_cv_generation import (
     _build_fitcv_langgraph_env_values,
     _generate_cv_with_live_provider,
     _shallow_section_repair_targets,
+    build_cv_generation_input_fingerprint,
     generate_from_analysis,
+    transition_cv_generation_persistence_failed,
 )
 
 
@@ -271,8 +273,8 @@ def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
     assert ranking_event[3]["output_snapshot"]["ranking_concurrency_effective"] == 3
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -390,8 +392,8 @@ def test_run_pipeline_uses_agentic_late_stage_path_under_hard_flip(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -610,8 +612,8 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -686,7 +688,7 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
         "error": None,
     }
     agentic_generation_result = {
-        "status": "accepted",
+        "status": "review_required",
         "fit_classification": "stretch",
         "analysis_input_summary": {"required_skills": ["SQL", "Python"]},
         "evidence_used": [{"evidence_id": "exp-1"}],
@@ -694,6 +696,14 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
         "gap_summary": {"matched": ["SQL"], "missing": ["Python"]},
         "structured_cv_initial": {"sections": {"summary": {"content": ["Grounded summary"]}}},
         "validation_initial": {"valid": True, "missing_sections": []},
+        "validation": {"valid": True, "missing_sections": []},
+        "review_required_reason_code": "low_confidence_sections",
+        "validation_evidence_fingerprint": "validation::low-confidence",
+        "outcome_reason": {
+            "stage": "review",
+            "code": "low_confidence_sections",
+            "message": "Low confidence sections: experience",
+        },
         "repair_attempt": {"performed": False, "missing_sections": []},
         "structured_cv_final": {"sections": {"header": {"name": "Test Candidate"}}},
         "markdown_final": "# Test Candidate\n## Summary\nGrounded summary",
@@ -711,14 +721,15 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
 
     assert result["cvs_generated"] == 0
     assert result["cv_generation_debug_records"][0]["status"] == "review_required"
-    assert result["cv_generation_debug_records"][0]["error"]["stage"] == "review_gate"
-    assert "Low confidence sections" in str(result["cv_generation_debug_records"][0]["error"]["message"])
+    assert result["cv_generation_debug_records"][0]["error"] is None
+    assert result["cv_generation_debug_records"][0]["outcome_reason"]["stage"] == "review"
+    assert "Low confidence sections" in str(result["cv_generation_debug_records"][0]["outcome_reason"]["message"])
     mock_store_cv_version.assert_not_called()
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -793,7 +804,7 @@ def test_run_pipeline_marks_review_required_from_markdown_quality_flags(
         "error": None,
     }
     agentic_generation_result = {
-        "status": "accepted",
+        "status": "review_required",
         "fit_classification": "stretch",
         "analysis_input_summary": {"required_skills": ["SQL", "Python"]},
         "evidence_used": [{"evidence_id": "exp-1"}],
@@ -805,6 +816,19 @@ def test_run_pipeline_marks_review_required_from_markdown_quality_flags(
             "missing_sections": [],
             "markdown_quality_review_flags": ["Experience section appears shallow (fewer than 2 bullets)."],
             "markdown_quality_blocking_issues": [],
+        },
+        "validation": {
+            "valid": True,
+            "missing_sections": [],
+            "markdown_quality_review_flags": ["Experience section appears shallow (fewer than 2 bullets)."],
+            "markdown_quality_blocking_issues": [],
+        },
+        "review_required_reason_code": "markdown_structure_violation",
+        "validation_evidence_fingerprint": "validation::markdown-review",
+        "outcome_reason": {
+            "stage": "review",
+            "code": "markdown_structure_violation",
+            "message": "Markdown quality requires review: Experience section appears shallow (fewer than 2 bullets).",
         },
         "repair_attempt": {"performed": False, "missing_sections": []},
         "structured_cv_final": {"sections": {"header": {"name": "Test Candidate"}}},
@@ -823,8 +847,9 @@ def test_run_pipeline_marks_review_required_from_markdown_quality_flags(
 
     assert result["cvs_generated"] == 0
     assert result["cv_generation_debug_records"][0]["status"] == "review_required"
-    assert result["cv_generation_debug_records"][0]["error"]["stage"] == "review_gate"
-    assert "Markdown quality requires review" in str(result["cv_generation_debug_records"][0]["error"]["message"])
+    assert result["cv_generation_debug_records"][0]["error"] is None
+    assert result["cv_generation_debug_records"][0]["outcome_reason"]["stage"] == "review"
+    assert "Markdown quality requires review" in str(result["cv_generation_debug_records"][0]["outcome_reason"]["message"])
     mock_store_cv_version.assert_not_called()
 
 
@@ -878,7 +903,8 @@ def test_generate_from_analysis_uses_fitcv_langgraph_live_provider_when_env_pres
     assert len(call_kwargs["gap"]["requirement_coverage"]) == 2
     assert call_kwargs["gap"]["section_confidence_hints"]["experience"] == "high"
     mock_generate_cv.assert_not_called()
-    assert result["status"] == "accepted"
+    assert result["status"] == "review_required"
+    assert result["review_required_reason_code"] == "unsupported_requirement_gap"
     assert result["runtime_provenance"]["runtime_path"] == "fitcv_langgraph_live"
     assert result["agentic_live_trace"]["trace_status"] == "completed"
     assert result["agentic_live_trace"]["trace_family"] == "agentic_step_trace"
@@ -943,6 +969,179 @@ def test_generate_from_analysis_fallback_path_has_no_live_trace(
     assert result["status"] in {"accepted", "validation_failed"}
     assert result["runtime_provenance"]["runtime_path"] == "fitcv_cv_generation_openai_compatible"
     assert "agentic_live_trace" not in result
+
+
+
+def test_cv_generation_fingerprint_ignores_mode_labels_and_mutable_job_url() -> None:
+    analysis_record = _minimal_analysis_record()
+    analysis_record["analysis_input_fingerprint"] = "analysis::stable"
+    config = _minimal_config()
+
+    baseline = build_cv_generation_input_fingerprint(analysis_record, config)
+
+    analysis_record["job_url"] = "https://example.com/moved"
+    analysis_record["job_snapshot"]["job_url"] = "https://example.com/moved"
+    config["cv"]["agentic_late_stage"]["enabled"] = True
+    config["late_stage_mode"] = "agentic"
+    toggled = build_cv_generation_input_fingerprint(analysis_record, config)
+
+    assert toggled == baseline
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_generate_from_analysis_returns_complete_canonical_result(
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    analysis_record["raw_job_fingerprint"] = "raw::job"
+    analysis_record["analysis_input_fingerprint"] = "analysis::input"
+    config = _minimal_config()
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": "# Test Candidate\n## Experience\nBuilt grounded reporting workflows.\n## Skills\nSQL",
+    }
+    mock_run_all_validations.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {},
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+
+    with patch("fitcv.agentic_cv_generation._live_runtime_provenance_or_none", return_value=None):
+        result = generate_from_analysis(analysis_record, _minimal_profile(), config)
+
+    assert result["status"] == "accepted"
+    assert result["raw_job_fingerprint"] == "raw::job"
+    assert result["analysis_input_fingerprint"] == "analysis::input"
+    assert result["cv_generation_input_fingerprint"]
+    assert result["cv_generation_input_components"]["schema_version"] == "cv_generation_input_fingerprint_v2"
+    assert result["cv_generation_reuse_status"] == "fresh_compute"
+    assert result["reuse_decision"]["decision"] == "fresh_compute"
+    assert result["review_required_reason_code"] is None
+    assert result["validation_evidence_fingerprint"]
+    assert result["runtime_provenance"]["route_part"] == "cv_generation"
+    assert result["runtime_provenance"]["adapter"] == "direct"
+    assert result["runtime_provenance"]["wire_api"]
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_generate_from_analysis_emits_review_required_as_outcome(
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    analysis_record["analysis_input_fingerprint"] = "analysis::review"
+    analysis_record["do_not_claim"] = ["Python"]
+    analysis_record["requirement_coverage"] = [
+        {"requirement": "Python", "support_strength": "unsupported"},
+    ]
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": "# Test Candidate\n## Experience\nBuilt grounded reporting workflows.\n## Skills\nSQL",
+    }
+    mock_run_all_validations.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {},
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+
+    with patch("fitcv.agentic_cv_generation._live_runtime_provenance_or_none", return_value=None):
+        result = generate_from_analysis(analysis_record, _minimal_profile(), _minimal_config())
+
+    assert result["status"] == "review_required"
+    assert result["review_required_reason_code"] == "unsupported_requirement_gap"
+    assert result["outcome_reason"]["stage"] == "review"
+    assert result["outcome_reason"]["code"] == "unsupported_requirement_gap"
+    assert result["error"] is None
+    assert result["structured_cv_final"] is not None
+    assert result["markdown_final"]
+    assert result["validation_evidence_fingerprint"]
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_generate_from_analysis_reuses_exact_canonical_result(
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    analysis_record["analysis_input_fingerprint"] = "analysis::reuse"
+    config = _minimal_config()
+    validation = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {},
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+    mock_run_all_validations.return_value = validation
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": "# Test Candidate\n## Experience\nBuilt grounded reporting workflows.\n## Skills\nSQL",
+    }
+
+    with patch("fitcv.agentic_cv_generation._live_runtime_provenance_or_none", return_value=None):
+        fresh = generate_from_analysis(analysis_record, _minimal_profile(), config)
+        mock_generate_cv.reset_mock()
+        reused = generate_from_analysis(
+            analysis_record,
+            _minimal_profile(),
+            config,
+            reusable_record={**fresh, "version_id": "cv-version-1"},
+        )
+
+    mock_generate_cv.assert_not_called()
+    assert reused["status"] == "accepted"
+    assert reused["cv_generation_reuse_status"] == "reused_exact_match"
+    assert reused["reused_cv_version_id"] == "cv-version-1"
+    assert reused["structured_cv_final"] == fresh["structured_cv_final"]
+    assert reused["markdown_final"] == fresh["markdown_final"]
+
+
+def test_persistence_failure_transition_preserves_accepted_artifacts() -> None:
+    accepted = {
+        "status": "accepted",
+        "structured_cv_final": _minimal_structured_cv(),
+        "markdown_final": "# Test Candidate",
+        "validation": {"valid": True},
+        "validation_evidence_fingerprint": "validation::accepted",
+    }
+
+    failed = transition_cv_generation_persistence_failed(
+        accepted,
+        message="BigQuery insert failed",
+    )
+
+    assert failed["status"] == "persistence_failed"
+    assert failed["structured_cv_final"] == accepted["structured_cv_final"]
+    assert failed["markdown_final"] == accepted["markdown_final"]
+    assert failed["validation"] == accepted["validation"]
+    assert failed["error"] == {
+        "stage": "persistence",
+        "code": "persistence_failed",
+        "message": "BigQuery insert failed",
+    }
 
 
 def test_build_fitcv_langgraph_env_values_uses_process_env_only() -> None:

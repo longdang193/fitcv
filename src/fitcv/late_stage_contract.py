@@ -38,8 +38,10 @@ AnalysisStatus = Literal[
 
 GenerationStatus = Literal[
     "accepted",
+    "review_required",
     "validation_failed",
     "generation_failed",
+    "persistence_failed",
     "blocked_by_reranker_fit",
     "skipped_fit_gate",
     "analysis_failed",

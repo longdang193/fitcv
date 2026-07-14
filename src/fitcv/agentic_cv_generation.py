@@ -15,9 +15,11 @@ lifecycle:
   - status: active
 """
 
+from collections.abc import Mapping
 from copy import deepcopy
 from contextlib import contextmanager
 import datetime
+import hashlib
 import json
 from pathlib import Path
 import importlib
@@ -27,9 +29,6 @@ import time
 from typing import Any, Callable, Iterator, Literal, TypedDict, cast
 
 from fitcv.agentic_cv_analysis import (
-    BLOCKED_BY_RERANKER_STATUS,
-    READY_FOR_GENERATION_STATUS,
-    SKIPPED_FIT_GATE_STATUS,
     FitClassification,
     build_analysis_input_summary,
     build_decision_chain,
@@ -38,12 +37,19 @@ from fitcv.agentic_cv_analysis import (
     extract_job_url,
 )
 from fitcv.candidate_name_policy import is_candidate_name_placeholder, resolved_candidate_profile_name
-from fitcv.config import get_cv_generation_model
+from fitcv.config import (
+    get_cv_acceptance_policy,
+    get_cv_generation_model,
+    get_cv_generation_prompt_version,
+    get_cv_generation_structured_prompt_id,
+)
 from fitcv.runtime_routing import (
     build_langgraph_env_overrides,
+    resolve_cv_generation_routing_snapshot,
     resolve_cv_generation_runtime_provenance,
 )
 from fitcv.cv_generator import (
+    _get_enabled_section_names,
     _normalize_structured_cv,
     _resolve_template_path,
     build_live_structured_cv_response_schema as _canonical_live_structured_cv_response_schema,
@@ -52,11 +58,16 @@ from fitcv.cv_generator import (
     render_cv_markdown,
 )
 from fitcv.late_stage_contract import (
+    CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS as BLOCKED_BY_RERANKER_STATUS,
+    CV_ANALYSIS_READY_FOR_GENERATION_STATUS as READY_FOR_GENERATION_STATUS,
+    CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS as SKIPPED_FIT_GATE_STATUS,
     CV_GENERATION_ACCEPTED_STATUS as ACCEPTED_STATUS,
     CV_GENERATION_FAILED_STATUS as GENERATION_FAILED_STATUS,
     CV_GENERATION_VALIDATION_FAILED_STATUS as VALIDATION_FAILED_STATUS,
     GenerationStatus,
 )
+from fitcv.pipeline_contracts import ReviewRequiredReasonCode
+from fitcv.reuse import build_reuse_decision
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
 DEFAULT_MAX_SUMMARY_LINES = 3
 DEFAULT_FITCV_LANGGRAPH_REPO_NAME = "fitcv-langgraph"
@@ -83,14 +94,23 @@ class ValidationSnapshot(TypedDict):
     markdown_quality_review_flags: list[str]
 
 
-class ErrorPayload(TypedDict):
+class ErrorPayload(TypedDict, total=False):
     stage: str
+    code: str
     message: str
 
 
 class CvGenerationResult(TypedDict, total=False):
+    result_contract_version: str
+    raw_job_fingerprint: str
     job_url: str
     job_title: str
+    analysis_input_fingerprint: str
+    cv_generation_input_fingerprint: str
+    cv_generation_input_components: dict[str, Any]
+    cv_generation_reuse_status: str
+    reuse_decision: dict[str, Any]
+    reused_cv_version_id: str | None
     status: GenerationStatus
     ranking_fit_label: str | None
     fit_classification: FitClassification | None
@@ -107,9 +127,10 @@ class CvGenerationResult(TypedDict, total=False):
     validation: dict[str, Any] | None
     outcome_reason: ErrorPayload | None
     error: ErrorPayload | None
+    review_required_reason_code: str | None
+    validation_evidence_fingerprint: str
     runtime_provenance: dict[str, Any]
     agentic_live_trace: dict[str, Any]
-
 
 _LIVE_TRACE_SCHEMA_VERSION = "agentic_step_trace_record_v1"
 _LIVE_TRACE_SCHEMA_NAME = "fitcv_structured_cv_document"
@@ -304,7 +325,7 @@ def _live_runtime_provenance_or_none() -> dict[str, Any] | None:
 
 
 def _build_live_structured_cv_response_schema() -> dict[str, Any]:
-    return _canonical_live_structured_cv_response_schema(config={})
+    return dict(_canonical_live_structured_cv_response_schema(config={}))
 
 
 def _generate_cv_with_live_provider(
@@ -578,7 +599,7 @@ def _should_repair_candidate_name_placeholder(
     header = sections.get("header")
     if not isinstance(header, dict):
         return False
-    return is_candidate_name_placeholder(header.get("name"))
+    return bool(is_candidate_name_placeholder(header.get("name")))
 
 
 def _should_retry_missing_sections(validation: dict[str, Any]) -> bool:
@@ -626,7 +647,7 @@ def _build_validation_grounding_payload(
     }
 
 
-def _build_validation_snapshot(validation: dict[str, Any] | None) -> ValidationSnapshot | None:
+def _build_validation_snapshot(validation: Mapping[str, Any] | None) -> ValidationSnapshot | None:
     if validation is None:
         return None
     return {
@@ -650,12 +671,14 @@ def _run_generation_validations(
     structured_cv: dict[str, Any] | None,
     analysis_grounding: AnalysisGroundingPayload,
 ) -> dict[str, Any]:
-    return run_all_validations(
-        markdown,
-        profile=profile,
-        config=config,
-        structured_cv=structured_cv,
-        analysis_grounding=analysis_grounding,
+    return dict(
+        run_all_validations(
+            markdown,
+            profile=profile,
+            config=config,
+            structured_cv=structured_cv,
+            analysis_grounding=analysis_grounding,
+        )
     )
 
 def _determine_repair_targets(validation: dict[str, Any], structured_cv: dict[str, Any] | None) -> list[str]:
@@ -996,6 +1019,428 @@ def _unwrap_generated_cv(generated_cv: Any) -> tuple[dict[str, Any] | None, str]
     return None, str(generated_cv)
 
 
+
+_CV_GENERATION_FINGERPRINT_SCHEMA_VERSION = "cv_generation_input_fingerprint_v2"
+_CV_GENERATION_RESULT_CONTRACT_VERSION = "cv_generation_result_v2"
+
+
+def build_cv_generation_input_fingerprint(
+    analysis_record: dict[str, Any],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    if not isinstance(analysis_record, dict) or not isinstance(config, dict):
+        raise TypeError("analysis_record and config must be mappings")
+    template_path = Path(_resolve_template_path(config))
+    try:
+        template_fingerprint = hashlib.sha256(template_path.read_bytes()).hexdigest()
+    except OSError:
+        template_fingerprint = ""
+    routing = resolve_cv_generation_routing_snapshot(
+        config,
+        default_model=get_cv_generation_model(config),
+    )
+    payload = {
+        "schema_version": _CV_GENERATION_FINGERPRINT_SCHEMA_VERSION,
+        "generation_contract_version": _CV_GENERATION_RESULT_CONTRACT_VERSION,
+        "analysis_input_fingerprint": str(analysis_record.get("analysis_input_fingerprint") or ""),
+        "fit_classification": str(analysis_record.get("fit_classification") or ""),
+        "prompt_id": get_cv_generation_structured_prompt_id(config),
+        "prompt_version": get_cv_generation_prompt_version(config),
+        "template_path": str(template_path),
+        "template_fingerprint": template_fingerprint,
+        "enabled_sections": sorted(_get_enabled_section_names(config)),
+        "acceptance_policy": get_cv_acceptance_policy(config),
+        "validation_policy": {
+            "required_sections": sorted(str(item) for item in list(config.get("required_cv_sections") or [])),
+            "cv_validation": dict(((config.get("cv") or {}).get("validation") or {})),
+            "content_rules": dict(((config.get("cv") or {}).get("content_rules") or {})),
+        },
+        "route_contract": {
+            "provider": str(routing.get("provider") or ""),
+            "model": str(routing.get("model") or ""),
+            "base_url": str(routing.get("base_url") or ""),
+            "wire_api": str(routing.get("wire_api") or ""),
+        },
+    }
+    seed = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return {
+        "fingerprint": hashlib.sha256(seed.encode("utf-8")).hexdigest(),
+        "payload": payload,
+    }
+
+
+def _extract_failed_rule_ids(validation: Mapping[str, Any] | None) -> list[str]:
+    if not isinstance(validation, dict):
+        return []
+    rule_ids: list[str] = []
+    for key in (
+        "grounding_violations",
+        "deterministic_grounding_violations",
+        "semantic_grounding_violations",
+        "skill_violations",
+        "markdown_quality_blocking_issues",
+    ):
+        for item in list(validation.get(key) or []):
+            if isinstance(item, dict):
+                rule_id = str(item.get("rule_id") or item.get("code") or "").strip()
+                if rule_id:
+                    rule_ids.append(rule_id)
+            elif isinstance(item, str) and item.strip():
+                rule_ids.append(item.strip())
+    return sorted(set(rule_ids))
+
+
+def _first_failing_section_key(validation: Mapping[str, Any] | None) -> str | None:
+    if not isinstance(validation, dict):
+        return None
+    missing_sections = [
+        str(item).strip()
+        for item in list(validation.get("missing_sections") or [])
+        if str(item).strip()
+    ]
+    return missing_sections[0] if missing_sections else None
+
+
+def normalize_review_required_reason_code(
+    *,
+    status: str,
+    error: ErrorPayload | None,
+    validation_initial: Mapping[str, Any] | None = None,
+) -> ReviewRequiredReasonCode | None:
+    if status == "persistence_failed":
+        return ReviewRequiredReasonCode.PERSISTENCE_FAILED
+    if status == VALIDATION_FAILED_STATUS:
+        return ReviewRequiredReasonCode.POST_VALIDATION_FAILED
+    if status != "review_required":
+        return None
+    stage = str((error or {}).get("stage") or "").strip().lower()
+    message = str((error or {}).get("message") or "").strip().lower()
+    if stage in {"provider", "provider_error", "generation"}:
+        return ReviewRequiredReasonCode.PROVIDER_ERROR
+    if "timeout" in message:
+        return ReviewRequiredReasonCode.TIMEOUT
+    if stage in {"markdown", "markdown_quality", "markdown_quality_review"}:
+        return ReviewRequiredReasonCode.MARKDOWN_STRUCTURE_VIOLATION
+    if stage in {"policy", "policy_acceptance"}:
+        if "ratio" in message:
+            return ReviewRequiredReasonCode.POLICY_REQUIRED_RATIO_FAIL
+        if "missing" in message:
+            return ReviewRequiredReasonCode.POLICY_MISSING_REQUIRED_FAIL
+        return ReviewRequiredReasonCode.POLICY_ACCEPTANCE_FAIL
+    if stage in {"validation", "post_validation"}:
+        return ReviewRequiredReasonCode.POST_VALIDATION_FAILED
+    if stage == "review_gate":
+        if "unsupported requirement" in message:
+            return ReviewRequiredReasonCode.UNSUPPORTED_REQUIREMENT_GAP
+        if "low confidence" in message:
+            return ReviewRequiredReasonCode.LOW_CONFIDENCE_SECTIONS
+        if "quality" in message:
+            return ReviewRequiredReasonCode.QUALITY_GATE_FAILED
+        if _extract_failed_rule_ids(validation_initial) or _first_failing_section_key(validation_initial):
+            return ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED
+        return ReviewRequiredReasonCode.REVIEW_GATE_MANUAL_REQUIRED
+    if stage in {"template", "schema"}:
+        return ReviewRequiredReasonCode.TEMPLATE_CONTRACT_VIOLATION
+    if stage == "empty_output":
+        return ReviewRequiredReasonCode.EMPTY_OUTPUT
+    return ReviewRequiredReasonCode.MANUAL_REVIEW_OTHER
+
+
+def build_validation_evidence_fingerprint(
+    *,
+    status: str,
+    validation: Mapping[str, Any] | None,
+    error: ErrorPayload | None,
+) -> str:
+    snapshot = dict(validation or {})
+    payload = {
+        "schema_version": "validation_evidence_fingerprint_v1",
+        "status": str(status or ""),
+        "missing_sections": list(snapshot.get("missing_sections") or []),
+        "failed_rule_ids": _extract_failed_rule_ids(snapshot),
+        "first_failing_section_key": _first_failing_section_key(snapshot),
+        "markdown_quality_blocking_issues": list(snapshot.get("markdown_quality_blocking_issues") or []),
+        "markdown_quality_review_flags": list(snapshot.get("markdown_quality_review_flags") or []),
+        "reason_stage": str((error or {}).get("stage") or ""),
+        "reason_code": str((error or {}).get("code") or ""),
+        "reason_message": str((error or {}).get("message") or ""),
+    }
+    seed = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()
+
+
+def hitl_review_reason_for_case(
+    analysis_record: dict[str, Any] | None,
+    generation_result: dict[str, Any] | None,
+    validation_snapshot: Mapping[str, Any] | None = None,
+) -> str | None:
+    if not isinstance(analysis_record, dict) or not isinstance(generation_result, dict):
+        return None
+    if str(generation_result.get("status") or "").strip().lower() != ACCEPTED_STATUS:
+        return None
+    section_hints = analysis_record.get("section_confidence_hints")
+    if isinstance(section_hints, dict):
+        low_sections = sorted(
+            str(section).strip()
+            for section, hint in section_hints.items()
+            if str(hint or "").strip().lower() in {"low", "very_low", "none", "unsupported"}
+        )
+        if low_sections:
+            return f"Low confidence sections: {', '.join(low_sections)}"
+    if list(analysis_record.get("do_not_claim") or []):
+        unsupported = sorted(
+            {
+                str(item.get("requirement") or "").strip()
+                for item in list(analysis_record.get("requirement_coverage") or [])
+                if isinstance(item, dict)
+                and str(item.get("support_strength") or "").strip().lower()
+                in {"unsupported", "weak", "insufficient"}
+                and str(item.get("requirement") or "").strip()
+            }
+        )
+        if unsupported:
+            return (
+                "Unsupported requirements require review: "
+                + ", ".join(unsupported[:6])
+                + ". Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject."
+            )
+    review_flags = list((validation_snapshot or {}).get("markdown_quality_review_flags") or [])
+    if review_flags:
+        return "Markdown quality requires review: " + str(review_flags[0])
+    blocking_issues = list((validation_snapshot or {}).get("markdown_quality_blocking_issues") or [])
+    if blocking_issues:
+        return "Markdown quality issue detected: " + str(blocking_issues[0])
+    return None
+
+
+def check_cv_acceptance_policy(
+    *,
+    fit_classification: str | None,
+    gap_summary: dict[str, Any] | None,
+    policy: dict[str, Any],
+) -> tuple[bool, str | None, str]:
+    fit = str(fit_classification or "").strip().lower()
+    if fit not in {"strong", "stretch"}:
+        return True, None, "policy_not_applicable_fit"
+    required_match = dict(policy.get("required_match") or {})
+    min_ratio_by_fit = dict(required_match.get("min_ratio_by_fit") or {})
+    max_missing_by_fit = dict(required_match.get("max_missing_by_fit") or {})
+    force_review_fits = {
+        str(item).strip().lower()
+        for item in list(policy.get("force_review_when_any_required_missing_for_fits") or [])
+        if str(item).strip()
+    }
+    gap = dict(gap_summary or {})
+    matched_required = len(list(gap.get("matched") or []))
+    missing_required = len(list(gap.get("missing") or []))
+    matchable_required = int(gap.get("matchable_required_count") or (matched_required + missing_required))
+    required_ratio = float(matched_required / matchable_required) if matchable_required > 0 else 0.0
+    if fit in force_review_fits and missing_required > 0:
+        return False, ReviewRequiredReasonCode.POLICY_MISSING_REQUIRED_FAIL.value, "Required gaps require review."
+    if required_ratio < float(min_ratio_by_fit.get(fit, 0.0)):
+        return False, ReviewRequiredReasonCode.POLICY_REQUIRED_RATIO_FAIL.value, "Required match ratio requires review."
+    if missing_required > int(max_missing_by_fit.get(fit, 10_000)):
+        return False, ReviewRequiredReasonCode.POLICY_MISSING_REQUIRED_FAIL.value, "Too many required gaps require review."
+    return True, None, "policy_pass"
+
+
+def _review_required_reason(
+    analysis_record: dict[str, Any],
+    result: CvGenerationResult,
+    config: dict[str, Any],
+) -> tuple[str, str] | None:
+    section_hints = analysis_record.get("section_confidence_hints")
+    if isinstance(section_hints, dict):
+        low_sections = sorted(
+            str(section).strip()
+            for section, hint in section_hints.items()
+            if str(hint or "").strip().lower() in {"low", "very_low", "none", "unsupported"}
+        )
+        if low_sections:
+            return ReviewRequiredReasonCode.LOW_CONFIDENCE_SECTIONS.value, f"Low confidence sections: {', '.join(low_sections)}"
+    do_not_claim = [str(item).strip() for item in list(analysis_record.get("do_not_claim") or []) if str(item).strip()]
+    if do_not_claim:
+        unsupported = sorted({
+            str(item.get("requirement") or "").strip()
+            for item in list(analysis_record.get("requirement_coverage") or [])
+            if isinstance(item, dict)
+            and str(item.get("support_strength") or "").strip().lower() in {"unsupported", "weak", "insufficient"}
+            and str(item.get("requirement") or "").strip()
+        })
+        if unsupported:
+            return (
+                ReviewRequiredReasonCode.UNSUPPORTED_REQUIREMENT_GAP.value,
+                "Unsupported requirements require review: " + ", ".join(unsupported[:6]),
+            )
+    validation = dict(result.get("validation") or result.get("validation_initial") or {})
+    review_flags = [str(item).strip() for item in list(validation.get("markdown_quality_review_flags") or []) if str(item).strip()]
+    if review_flags:
+        return ReviewRequiredReasonCode.MARKDOWN_STRUCTURE_VIOLATION.value, "Markdown quality requires review: " + review_flags[0]
+    policy_pass, reason_code, note = check_cv_acceptance_policy(
+        fit_classification=result.get("fit_classification"),
+        gap_summary=result.get("gap_summary"),
+        policy=get_cv_acceptance_policy(config),
+    )
+    if not policy_pass and reason_code:
+        return reason_code, note
+    return None
+
+
+def _normalize_runtime_provenance(
+    provenance: dict[str, Any] | None,
+    config: dict[str, Any],
+) -> dict[str, Any] | None:
+    if not isinstance(provenance, dict):
+        return None
+    routing = resolve_cv_generation_routing_snapshot(
+        config,
+        default_model=get_cv_generation_model(config),
+    )
+    runtime_path = str(provenance.get("runtime_path") or routing.get("runtime_path") or "")
+    normalized = dict(provenance)
+    normalized.update({
+        "route_part": "cv_generation",
+        "runtime_path": runtime_path,
+        "adapter": "langgraph" if "langgraph" in runtime_path else "direct",
+        "provider": str(provenance.get("provider") or routing.get("provider") or ""),
+        "model": str(provenance.get("model") or routing.get("model") or "") or None,
+        "wire_api": str(provenance.get("wire_api") or routing.get("wire_api") or "responses"),
+    })
+    for key in tuple(normalized):
+        if "key" in key.lower() or "secret" in key.lower() or "credential" in key.lower():
+            normalized.pop(key, None)
+    return normalized
+
+
+def _finalize_generation_result(
+    result: CvGenerationResult,
+    *,
+    analysis_record: dict[str, Any],
+    config: dict[str, Any],
+    fingerprint_result: dict[str, Any],
+    reuse_status: str,
+    reuse_reason_code: str,
+    reused_cv_version_id: str | None = None,
+) -> CvGenerationResult:
+    finalized = deepcopy(result)
+    finalized["result_contract_version"] = _CV_GENERATION_RESULT_CONTRACT_VERSION
+    finalized["raw_job_fingerprint"] = str(analysis_record.get("raw_job_fingerprint") or "")
+    finalized["analysis_input_fingerprint"] = str(analysis_record.get("analysis_input_fingerprint") or "")
+    finalized["cv_generation_input_fingerprint"] = str(fingerprint_result["fingerprint"])
+    finalized["cv_generation_input_components"] = dict(fingerprint_result["payload"])
+    finalized["cv_generation_reuse_status"] = reuse_status
+    finalized["reuse_decision"] = build_reuse_decision(
+        decision=reuse_status,
+        reason_code=reuse_reason_code,
+        fingerprint=str(fingerprint_result["fingerprint"]),
+        source_artifact_type="cv_generation",
+    )
+    finalized["reused_cv_version_id"] = reused_cv_version_id
+    normalized_provenance = _normalize_runtime_provenance(finalized.get("runtime_provenance"), config)
+    if normalized_provenance is not None:
+        finalized["runtime_provenance"] = normalized_provenance
+    status = str(finalized.get("status") or "")
+    if status == ACCEPTED_STATUS:
+        review_reason = _review_required_reason(analysis_record, finalized, config)
+        if review_reason is not None:
+            reason_code, message = review_reason
+            finalized["status"] = "review_required"
+            finalized["review_required_reason_code"] = reason_code
+            finalized["outcome_reason"] = {"stage": "review", "code": reason_code, "message": message}
+            finalized["error"] = None
+            status = "review_required"
+    reason = finalized.get("outcome_reason") or finalized.get("error")
+    validation_snapshot = finalized.get("validation") or finalized.get("validation_initial")
+    if not finalized.get("review_required_reason_code"):
+        normalized_reason_code = normalize_review_required_reason_code(
+            status=status,
+            error=reason,
+            validation_initial=validation_snapshot,
+        )
+        finalized["review_required_reason_code"] = (
+            normalized_reason_code.value if normalized_reason_code is not None else None
+        )
+    finalized["validation_evidence_fingerprint"] = build_validation_evidence_fingerprint(
+        status=status,
+        validation=validation_snapshot,
+        error=reason,
+    )
+    error = finalized.get("error")
+    if isinstance(error, dict) and not error.get("code"):
+        error["code"] = status or str(error.get("stage") or "failure")
+    return finalized
+
+
+def _reusable_result_or_none(
+    *,
+    analysis_record: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+    reusable_record: dict[str, Any] | None,
+    fingerprint_result: dict[str, Any],
+) -> CvGenerationResult | None:
+    if not isinstance(reusable_record, dict):
+        return None
+    if str(reusable_record.get("status") or "") not in {"", ACCEPTED_STATUS}:
+        return None
+    if str(reusable_record.get("cv_generation_input_fingerprint") or "") != str(fingerprint_result["fingerprint"]):
+        return None
+    components = reusable_record.get("cv_generation_input_components")
+    if isinstance(components, dict) and components.get("schema_version") != _CV_GENERATION_FINGERPRINT_SCHEMA_VERSION:
+        return None
+    structured_cv = reusable_record.get("structured_cv_final") or reusable_record.get("cv_structured")
+    markdown = str(reusable_record.get("markdown_final") or reusable_record.get("cv_markdown") or "")
+    if not isinstance(structured_cv, dict) or not markdown:
+        return None
+    job = dict(analysis_record.get("job_snapshot") or {})
+    evidence_payload = list(analysis_record.get("evidence_payload") or [])
+    evidence_used = list(analysis_record.get("evidence_used") or [])
+    grounding = _build_validation_grounding_payload(analysis_record, job, evidence_payload, evidence_used)
+    validation = run_all_validations(
+        markdown,
+        profile,
+        config,
+        structured_cv=structured_cv,
+        analysis_grounding=grounding,
+    )
+    if not validation.get("valid"):
+        return None
+    return _build_result(
+        analysis_record=analysis_record,
+        job=job,
+        status=ACCEPTED_STATUS,
+        fit_classification=_coerce_fit_classification(analysis_record.get("fit_classification")),
+        structured_cv_initial=structured_cv,
+        validation_initial=_build_validation_snapshot(validation),
+        repair_attempt=_empty_repair_attempt(),
+        structured_cv_final=structured_cv,
+        markdown_final=markdown,
+        validation=validation,
+        error=None,
+        runtime_provenance=cast(dict[str, Any] | None, reusable_record.get("runtime_provenance"))
+        or resolve_cv_generation_runtime_provenance(config, default_model=get_cv_generation_model(config)),
+    )
+
+
+def transition_cv_generation_persistence_failed(
+    accepted_result: dict[str, Any],
+    *,
+    message: str,
+) -> CvGenerationResult:
+    if str(accepted_result.get("status") or "") != ACCEPTED_STATUS:
+        raise ValueError("persistence failure transition requires accepted result")
+    failed = cast(CvGenerationResult, deepcopy(accepted_result))
+    failed["status"] = "persistence_failed"
+    failed["outcome_reason"] = None
+    failed["error"] = {
+        "stage": "persistence",
+        "code": "persistence_failed",
+        "message": str(message or "CV persistence failed"),
+    }
+    failed["review_required_reason_code"] = ReviewRequiredReasonCode.PERSISTENCE_FAILED.value
+    return failed
+
+
 def _build_result(
     *,
     analysis_record: dict[str, Any],
@@ -1055,40 +1500,8 @@ def _build_result(
         result["agentic_live_trace"] = dict(agentic_live_trace)
     return result
 
-def _build_generation_result_payload(
-    *,
-    analysis_record: dict[str, Any],
-    job: dict[str, Any],
-    fit_classification: FitClassification | None,
-    structured_cv_initial: dict[str, Any] | None,
-    validation_initial: ValidationSnapshot | None,
-    repair_attempt: RepairAttempt,
-    status: GenerationStatus,
-    structured_cv_final: dict[str, Any] | None,
-    markdown_final: str | None,
-    validation: dict[str, Any] | None,
-    error: ErrorPayload | None,
-    runtime_provenance: dict[str, Any] | None = None,
-    agentic_live_trace: dict[str, Any] | None = None,
-) -> CvGenerationResult:
-    return _build_result(
-        analysis_record=analysis_record,
-        job=job,
-        status=status,
-        fit_classification=fit_classification,
-        structured_cv_initial=structured_cv_initial,
-        validation_initial=validation_initial,
-        repair_attempt=repair_attempt,
-        structured_cv_final=structured_cv_final,
-        markdown_final=markdown_final,
-        validation=validation,
-        error=error,
-        runtime_provenance=runtime_provenance,
-        agentic_live_trace=agentic_live_trace,
-    )
 
-
-def generate_from_analysis(
+def _generate_fresh_from_analysis(
     analysis_record: dict[str, Any],
     profile: dict[str, Any],
     config: dict[str, Any],
@@ -1100,12 +1513,11 @@ def generate_from_analysis(
             "job_title": str(analysis_record.get("job_title") or ""),
             "title": str(analysis_record.get("job_title") or ""),
         }
-
     status = str(analysis_record.get("status") or "")
     fit_classification = _coerce_fit_classification(analysis_record.get("fit_classification"))
     if status != READY_FOR_GENERATION_STATUS:
         passthrough_error = analysis_record.get("outcome_reason") or analysis_record.get("error")
-        return _build_generation_result_payload(
+        return _build_result(
             analysis_record=analysis_record,
             job=job,
             status=_coerce_passthrough_status(status),
@@ -1120,275 +1532,6 @@ def generate_from_analysis(
             runtime_provenance=None,
         )
 
-    live_runtime_provenance = _live_runtime_provenance_or_none()
-    if live_runtime_provenance is not None:
-        evidence_payload = list(analysis_record.get("evidence_payload") or [])
-        evidence_used = list(analysis_record.get("evidence_used") or [])
-        if not evidence_used and evidence_payload:
-            evidence_used = build_evidence_used(evidence_payload)
-        analysis_grounding = _build_validation_grounding_payload(
-            analysis_record,
-            job,
-            evidence_payload,
-            evidence_used,
-        )
-        gap_summary = _augmented_gap_summary_from_analysis(analysis_record)
-        fit = str(fit_classification or "skip")
-        structured_cv_initial: dict[str, Any] | None = None
-        validation_initial: ValidationSnapshot | None = None
-        repair_attempt = _empty_repair_attempt()
-        env_values = _build_fitcv_langgraph_env_values(_discover_fitcv_langgraph_repo_root())
-        trace_payload = _empty_agentic_live_trace(
-            live_runtime_provenance,
-            template_path=str(_resolve_template_path(config)),
-        )
-        first_attempt_trace: dict[str, Any] = {}
-        try:
-            live_provider_generator = _build_live_provider_generator(
-                job=job,
-                evidence_payload=evidence_payload,
-                gap_summary=gap_summary,
-                profile=profile,
-                config=config,
-                fit=fit,
-                evidence_selection_summary=dict(analysis_record.get("evidence_selection_summary") or {}),
-                env_values=env_values,
-            )
-            first_attempt_trace.setdefault("attempt_index", 1)
-            first_attempt_trace.setdefault("attempt_type", "initial_generation")
-            first_attempt_trace.setdefault("retry_reason", None)
-            trace_payload["attempts"].append(first_attempt_trace)
-            structured_cv, markdown, validation = _execute_generation_attempt(
-                lambda repair_missing_sections: live_provider_generator(
-                    repair_missing_sections,
-                    first_attempt_trace,
-                    1,
-                ),
-                profile=profile,
-                config=config,
-                analysis_grounding=analysis_grounding,
-                repair_missing_sections=None,
-            )
-            first_attempt_trace.setdefault("provider_status", "accepted")
-            first_attempt_trace.setdefault("accepted_output_present", True)
-            structured_cv_initial = structured_cv
-            validation_initial = _build_validation_snapshot(validation)
-
-            def _live_retry_executor(
-                repair_targets: list[str],
-            ) -> tuple[dict[str, Any] | None, str, dict[str, Any]]:
-                sleep_secs = _cv_generation_sleep_secs(config)
-                if sleep_secs > 0.0:
-                    time.sleep(sleep_secs)
-                second_attempt_trace: dict[str, Any] = {}
-                second_attempt_trace.setdefault("attempt_index", 2)
-                second_attempt_trace.setdefault("provider_status", "accepted")
-                second_attempt_trace.setdefault("attempt_type", "repair_retry")
-                second_attempt_trace.setdefault("accepted_output_present", True)
-                second_attempt_trace.setdefault("retry_reason", "missing_or_shallow_sections")
-                trace_payload["attempts"].append(second_attempt_trace)
-                return _execute_generation_attempt(
-                    lambda repair_missing_sections: live_provider_generator(
-                        repair_missing_sections,
-                        second_attempt_trace,
-                        2,
-                    ),
-                    profile=profile,
-                    config=config,
-                    analysis_grounding=analysis_grounding,
-                    repair_missing_sections=repair_targets,
-                )
-            structured_cv, markdown, validation, repair_attempt = _run_repair_cycle(
-                structured_cv=structured_cv,
-                markdown=markdown,
-                validation=validation,
-                profile=profile,
-                config=config,
-                analysis_grounding=analysis_grounding,
-                retry_executor=_live_retry_executor,
-            )
-            _update_live_trace_validation_cycle(
-                trace_payload,
-                validation_initial=validation_initial,
-                validation_final=validation,
-            )
-            trace_payload["input_summary"] = {
-                "attempt_count": len(list(trace_payload.get("attempts") or [])),
-                "input_item_count": len(evidence_payload),
-            }
-            trace_payload["repair_summary"] = {
-                "repair_attempted": bool(repair_attempt.get("performed")),
-                "repair_attempt_count": len(list(trace_payload.get("attempts") or [])) - 1,
-                "repair_targets": list(repair_attempt.get("missing_sections") or []),
-                "repair_reason": str(repair_attempt.get("reason") or ""),
-            }
-
-            if not validation["valid"]:
-                try:
-                    fallback_provider_generator = _build_fallback_provider_generator(
-                        job=job,
-                        evidence_payload=evidence_payload,
-                        gap_summary=gap_summary,
-                        profile=profile,
-                        config=config,
-                        fit=fit,
-                        evidence_selection_summary=dict(analysis_record.get("evidence_selection_summary") or {}),
-                    )
-                    fallback_structured_cv, fallback_markdown, fallback_validation = _execute_generation_attempt(
-                        fallback_provider_generator,
-                        profile=profile,
-                        config=config,
-                        analysis_grounding=analysis_grounding,
-                        repair_missing_sections=None,
-                    )
-                    if not fallback_validation.get("valid"):
-                        fallback_structured_cv, fallback_markdown, fallback_validation, fallback_repair_attempt = _run_repair_cycle(
-                            structured_cv=fallback_structured_cv,
-                            markdown=fallback_markdown,
-                            validation=fallback_validation,
-                            profile=profile,
-                            config=config,
-                            analysis_grounding=analysis_grounding,
-                            retry_executor=_build_fallback_retry_executor(
-                                fallback_provider_generator=fallback_provider_generator,
-                                profile=profile,
-                                config=config,
-                                analysis_grounding=analysis_grounding,
-                            ),
-                        )
-                        if fallback_repair_attempt.get("performed"):
-                            repair_attempt = dict(fallback_repair_attempt)
-                    if fallback_validation.get("valid"):
-                        trace_payload["output_summary"] = {
-                            "accepted_output_present": True,
-                            "final_status": ACCEPTED_STATUS,
-                            "fallback_provider_used_after_live_validation_failure": True,
-                        }
-                        trace_payload["error_summary"] = None
-                        runtime_with_fallback = dict(live_runtime_provenance)
-                        runtime_with_fallback["fallback_provider_used_after_live_validation_failure"] = True
-                        return _build_generation_result_payload(
-                            analysis_record=analysis_record,
-                            job=job,
-                            status=ACCEPTED_STATUS,
-                            fit_classification=fit_classification,
-                            structured_cv_initial=structured_cv_initial,
-                            validation_initial=validation_initial,
-                            repair_attempt=repair_attempt,
-                            structured_cv_final=fallback_structured_cv,
-                            markdown_final=fallback_markdown,
-                            validation=fallback_validation,
-                            error=None,
-                            runtime_provenance=runtime_with_fallback,
-                            agentic_live_trace=trace_payload,
-                        )
-                except Exception:
-                    pass
-                trace_payload["output_summary"] = {
-                    "accepted_output_present": False,
-                    "final_status": VALIDATION_FAILED_STATUS,
-                }
-                trace_payload["error_summary"] = {
-                    "error_stage": "validation",
-                    "error_message": f"Live provider CV validation failed for {extract_job_url(job)}",
-                }
-                return _build_generation_result_payload(
-                    analysis_record=analysis_record,
-                    job=job,
-                    status=VALIDATION_FAILED_STATUS,
-                    fit_classification=fit_classification,
-                    structured_cv_initial=structured_cv_initial,
-                    validation_initial=validation_initial,
-                    repair_attempt=repair_attempt,
-                    structured_cv_final=None,
-                    markdown_final=None,
-                    validation=validation,
-                    error={
-                        "stage": "validation",
-                        "message": f"Live provider CV validation failed for {extract_job_url(job)}",
-                    },
-                    runtime_provenance=live_runtime_provenance,
-                    agentic_live_trace=trace_payload,
-                )
-
-            trace_payload["output_summary"] = {
-                "accepted_output_present": True,
-                "final_status": ACCEPTED_STATUS,
-            }
-            trace_payload["error_summary"] = None
-            return _build_generation_result_payload(
-                analysis_record=analysis_record,
-                job=job,
-                status=ACCEPTED_STATUS,
-                fit_classification=fit_classification,
-                structured_cv_initial=structured_cv_initial,
-                validation_initial=validation_initial,
-                repair_attempt=repair_attempt,
-                structured_cv_final=structured_cv,
-                markdown_final=markdown,
-                validation=validation,
-                error=None,
-                runtime_provenance=live_runtime_provenance,
-                agentic_live_trace=trace_payload,
-            )
-        except Exception as exc:
-            if not trace_payload["attempts"]:
-                trace_payload["attempts"].append(first_attempt_trace)
-            trace_payload["trace_status"] = "degraded"
-            trace_payload["input_summary"] = {
-                "attempt_count": len(list(trace_payload.get("attempts") or [])),
-                "input_item_count": len(evidence_payload),
-            }
-            trace_payload["repair_summary"] = {
-                "repair_attempted": bool(repair_attempt.get("performed")),
-                "repair_attempt_count": len(list(trace_payload.get("attempts") or [])) - 1,
-                "repair_targets": list(repair_attempt.get("missing_sections") or []),
-                "repair_reason": str(repair_attempt.get("reason") or ""),
-            }
-            _update_live_trace_validation_cycle(
-                trace_payload,
-                validation_initial=validation_initial,
-                validation_final=None,
-            )
-            latest_attempt = (
-                trace_payload["attempts"][-1]
-                if isinstance(trace_payload.get("attempts"), list) and trace_payload["attempts"]
-                else None
-            )
-            if isinstance(latest_attempt, dict):
-                latest_attempt.setdefault("provider_status", "error")
-                latest_attempt.setdefault("accepted_output_present", False)
-                latest_attempt.setdefault("error_stage", "agentic_live_provider")
-                latest_attempt.setdefault("error_message", str(exc))
-                latest_attempt.setdefault("error_code", _error_code_from_message(str(exc)))
-            trace_payload["output_summary"] = {
-                "accepted_output_present": False,
-                "final_status": GENERATION_FAILED_STATUS,
-            }
-            trace_payload["error_summary"] = {
-                "error_stage": "agentic_live_provider",
-                "error_code": _error_code_from_message(str(exc)),
-                "error_message": str(exc),
-            }
-            return _build_generation_result_payload(
-                analysis_record=analysis_record,
-                job=job,
-                status=GENERATION_FAILED_STATUS,
-                fit_classification=fit_classification,
-                structured_cv_initial=structured_cv_initial,
-                validation_initial=validation_initial,
-                repair_attempt=repair_attempt,
-                structured_cv_final=None,
-                markdown_final=None,
-                validation=None,
-                error={
-                    "stage": "agentic_live_provider",
-                    "message": str(exc),
-                },
-                runtime_provenance=live_runtime_provenance,
-                agentic_live_trace=trace_payload,
-            )
-
     evidence_payload = list(analysis_record.get("evidence_payload") or [])
     evidence_used = list(analysis_record.get("evidence_used") or [])
     if not evidence_used and evidence_payload:
@@ -1401,15 +1544,56 @@ def generate_from_analysis(
     )
     gap_summary = _augmented_gap_summary_from_analysis(analysis_record)
     fit = str(fit_classification or "skip")
-    fallback_runtime_provenance = resolve_cv_generation_runtime_provenance(
-        config,
-        default_model=get_cv_generation_model(config),
-    )
-    structured_cv_initial = None
-    validation_initial = None
-    repair_attempt = _empty_repair_attempt()
+    evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
+    live_runtime_provenance = _live_runtime_provenance_or_none()
+    trace_payload: dict[str, Any] | None = None
 
-    try:
+    if live_runtime_provenance is not None:
+        runtime_provenance = live_runtime_provenance
+        trace_payload = _empty_agentic_live_trace(
+            live_runtime_provenance,
+            template_path=str(_resolve_template_path(config)),
+        )
+        live_provider_generator = _build_live_provider_generator(
+            job=job,
+            evidence_payload=evidence_payload,
+            gap_summary=gap_summary,
+            profile=profile,
+            config=config,
+            fit=fit,
+            evidence_selection_summary=evidence_selection_summary,
+            env_values=_build_fitcv_langgraph_env_values(_discover_fitcv_langgraph_repo_root()),
+        )
+
+        def _writer_attempt(repair_targets: list[str] | None) -> tuple[dict[str, Any] | None, str, dict[str, Any]]:
+            attempt_index = len(trace_payload["attempts"]) + 1
+            attempt_trace = {
+                "attempt_index": attempt_index,
+                "attempt_type": "initial_generation" if attempt_index == 1 else "repair_retry",
+                "retry_reason": None if attempt_index == 1 else "missing_or_shallow_sections",
+            }
+            trace_payload["attempts"].append(attempt_trace)
+            if attempt_index > 1:
+                sleep_secs = _cv_generation_sleep_secs(config)
+                if sleep_secs > 0.0:
+                    time.sleep(sleep_secs)
+            result = _execute_generation_attempt(
+                lambda missing: live_provider_generator(missing, attempt_trace, attempt_index),
+                profile=profile,
+                config=config,
+                analysis_grounding=analysis_grounding,
+                repair_missing_sections=repair_targets,
+            )
+            attempt_trace.setdefault("provider_status", "accepted")
+            attempt_trace.setdefault("accepted_output_present", True)
+            return result
+
+        failure_stage = "agentic_live_provider"
+    else:
+        runtime_provenance = resolve_cv_generation_runtime_provenance(
+            config,
+            default_model=get_cv_generation_model(config),
+        )
         fallback_provider_generator = _build_fallback_provider_generator(
             job=job,
             evidence_payload=evidence_payload,
@@ -1417,16 +1601,29 @@ def generate_from_analysis(
             profile=profile,
             config=config,
             fit=fit,
-            evidence_selection_summary=dict(analysis_record.get("evidence_selection_summary") or {}),
+            evidence_selection_summary=evidence_selection_summary,
         )
 
-        structured_cv, markdown, validation = _execute_generation_attempt(
-            fallback_provider_generator,
-            profile=profile,
-            config=config,
-            analysis_grounding=analysis_grounding,
-            repair_missing_sections=None,
-        )
+        def _writer_attempt(repair_targets: list[str] | None) -> tuple[dict[str, Any] | None, str, dict[str, Any]]:
+            if repair_targets:
+                sleep_secs = _cv_generation_sleep_secs(config)
+                if sleep_secs > 0.0:
+                    time.sleep(sleep_secs)
+            return _execute_generation_attempt(
+                fallback_provider_generator,
+                profile=profile,
+                config=config,
+                analysis_grounding=analysis_grounding,
+                repair_missing_sections=repair_targets,
+            )
+
+        failure_stage = "generation"
+
+    structured_cv_initial: dict[str, Any] | None = None
+    validation_initial: ValidationSnapshot | None = None
+    repair_attempt = _empty_repair_attempt()
+    try:
+        structured_cv, markdown, validation = _writer_attempt(None)
         structured_cv_initial = structured_cv
         validation_initial = _build_validation_snapshot(validation)
         structured_cv, markdown, validation, repair_attempt = _run_repair_cycle(
@@ -1436,49 +1633,89 @@ def generate_from_analysis(
             profile=profile,
             config=config,
             analysis_grounding=analysis_grounding,
-            retry_executor=_build_fallback_retry_executor(
-                fallback_provider_generator=fallback_provider_generator,
-                profile=profile,
-                config=config,
-                analysis_grounding=analysis_grounding,
-            ),
+            retry_executor=lambda targets: _writer_attempt(targets),
         )
-
-        if not validation["valid"]:
-            return _build_generation_result_payload(
-                analysis_record=analysis_record,
-                job=job,
-                status=VALIDATION_FAILED_STATUS,
-                fit_classification=fit_classification,
-                structured_cv_initial=structured_cv_initial,
+        result_status: GenerationStatus = ACCEPTED_STATUS if validation.get("valid") else VALIDATION_FAILED_STATUS
+        error: ErrorPayload | None = None
+        structured_cv_final = structured_cv if result_status == ACCEPTED_STATUS else None
+        markdown_final = markdown if result_status == ACCEPTED_STATUS else None
+        if result_status == VALIDATION_FAILED_STATUS:
+            error = {
+                "stage": "validation",
+                "message": f"CV validation failed for {extract_job_url(job)}",
+            }
+        if trace_payload is not None:
+            trace_payload["input_summary"] = {
+                "attempt_count": len(trace_payload["attempts"]),
+                "input_item_count": len(evidence_payload),
+            }
+            trace_payload["repair_summary"] = {
+                "repair_attempted": bool(repair_attempt.get("performed")),
+                "repair_attempt_count": max(len(trace_payload["attempts"]) - 1, 0),
+                "repair_targets": list(repair_attempt.get("missing_sections") or []),
+                "repair_reason": str(repair_attempt.get("reason") or ""),
+            }
+            _update_live_trace_validation_cycle(
+                trace_payload,
                 validation_initial=validation_initial,
-                repair_attempt=repair_attempt,
-                structured_cv_final=None,
-                markdown_final=None,
-                validation=validation,
-                error={
-                    "stage": "validation",
-                    "message": f"CV validation failed for {extract_job_url(job)}",
-                },
-                runtime_provenance=fallback_runtime_provenance,
+                validation_final=validation,
             )
-
-        return _build_generation_result_payload(
+            trace_payload["output_summary"] = {
+                "accepted_output_present": result_status == ACCEPTED_STATUS,
+                "final_status": result_status,
+            }
+            trace_payload["error_summary"] = error
+        return _build_result(
             analysis_record=analysis_record,
             job=job,
-            status=ACCEPTED_STATUS,
+            status=result_status,
             fit_classification=fit_classification,
             structured_cv_initial=structured_cv_initial,
             validation_initial=validation_initial,
             repair_attempt=repair_attempt,
-            structured_cv_final=structured_cv,
-            markdown_final=markdown,
+            structured_cv_final=structured_cv_final,
+            markdown_final=markdown_final,
             validation=validation,
-            error=None,
-            runtime_provenance=fallback_runtime_provenance,
+            error=error,
+            runtime_provenance=runtime_provenance,
+            agentic_live_trace=trace_payload,
         )
     except Exception as exc:
-        return _build_generation_result_payload(
+        if trace_payload is not None:
+            if not trace_payload["attempts"]:
+                trace_payload["attempts"].append({"attempt_index": 1, "attempt_type": "initial_generation"})
+            latest_attempt = trace_payload["attempts"][-1]
+            latest_attempt.setdefault("provider_status", "error")
+            latest_attempt.setdefault("accepted_output_present", False)
+            latest_attempt.setdefault("error_stage", failure_stage)
+            latest_attempt.setdefault("error_message", str(exc))
+            latest_attempt.setdefault("error_code", _error_code_from_message(str(exc)))
+            trace_payload["trace_status"] = "degraded"
+            trace_payload["input_summary"] = {
+                "attempt_count": len(trace_payload["attempts"]),
+                "input_item_count": len(evidence_payload),
+            }
+            trace_payload["repair_summary"] = {
+                "repair_attempted": bool(repair_attempt.get("performed")),
+                "repair_attempt_count": max(len(trace_payload["attempts"]) - 1, 0),
+                "repair_targets": list(repair_attempt.get("missing_sections") or []),
+                "repair_reason": str(repair_attempt.get("reason") or ""),
+            }
+            _update_live_trace_validation_cycle(
+                trace_payload,
+                validation_initial=validation_initial,
+                validation_final=None,
+            )
+            trace_payload["output_summary"] = {
+                "accepted_output_present": False,
+                "final_status": GENERATION_FAILED_STATUS,
+            }
+            trace_payload["error_summary"] = {
+                "error_stage": failure_stage,
+                "error_code": _error_code_from_message(str(exc)),
+                "error_message": str(exc),
+            }
+        return _build_result(
             analysis_record=analysis_record,
             job=job,
             status=GENERATION_FAILED_STATUS,
@@ -1489,15 +1726,46 @@ def generate_from_analysis(
             structured_cv_final=None,
             markdown_final=None,
             validation=None,
-            error={
-                "stage": "generation",
-                "message": str(exc),
-            },
-            runtime_provenance=fallback_runtime_provenance,
+            error={"stage": failure_stage, "message": str(exc)},
+            runtime_provenance=runtime_provenance,
+            agentic_live_trace=trace_payload,
         )
 
-
-
-
-
-
+def generate_from_analysis(
+    analysis_record: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+    *,
+    reusable_record: dict[str, Any] | None = None,
+) -> CvGenerationResult:
+    if not isinstance(analysis_record, dict) or not isinstance(profile, dict) or not isinstance(config, dict):
+        raise TypeError("analysis_record, profile, and config must be mappings")
+    fingerprint_result = build_cv_generation_input_fingerprint(analysis_record, config)
+    if str(analysis_record.get("status") or "") == READY_FOR_GENERATION_STATUS:
+        reused = _reusable_result_or_none(
+            analysis_record=analysis_record,
+            profile=profile,
+            config=config,
+            reusable_record=reusable_record,
+            fingerprint_result=fingerprint_result,
+        )
+        if reused is not None:
+            return _finalize_generation_result(
+                reused,
+                analysis_record=analysis_record,
+                config=config,
+                fingerprint_result=fingerprint_result,
+                reuse_status="reused_exact_match",
+                reuse_reason_code="exact_fingerprint_match",
+                reused_cv_version_id=str((reusable_record or {}).get("version_id") or "") or None,
+            )
+    fresh = _generate_fresh_from_analysis(analysis_record, profile, config)
+    reuse_reason = "candidate_rejected" if reusable_record is not None else "fresh_compute_required"
+    return _finalize_generation_result(
+        fresh,
+        analysis_record=analysis_record,
+        config=config,
+        fingerprint_result=fingerprint_result,
+        reuse_status="fresh_compute",
+        reuse_reason_code=reuse_reason,
+    )

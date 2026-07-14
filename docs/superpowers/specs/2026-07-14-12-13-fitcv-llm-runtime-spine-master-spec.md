@@ -125,10 +125,11 @@ Required child detailed spec set:
      internal to analyzer boundary only.
 
 2. **Phase 2 — `cv_generation` adapter-only LangGraph boundary**
-   - existing child spec:
+   - child spec:
      `docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md`
-   - authoritative child spec name:
+   - child spec name:
      `langgraph-runtime-adapter-only-late-stage-cv-generation`
+   - status: `completed`
    - scope:
      keep one repo-native late-stage generation contract and demote LangGraph to
      runtime adapter/orchestrator only.

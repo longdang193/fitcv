@@ -502,6 +502,7 @@ workstreams:
     - docs/superpowers/plans/2026-07-12-23-59-fitcv-ssot-symmetry-closeout-remaining-agreed-points-plan.md
     - docs/superpowers/plans/2026-07-13-00-53-fitcv-ssot-symmetry-closeout-remaining-residue-plan.md
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
+    - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     derived_completion: completed
   - thread_id: workstream-operator-control-plane.operator-control-plane-phase-2-degraded-mode-and-portability-surface
     status: completed

@@ -1,9 +1,11 @@
 stage_id: cv_generation
 name: CV Generation
-summary: Convert generation-ready CV-analysis records into accepted or rejected CV artifacts through structured prompt-driven writing, hybrid analysis-grounded validation, repair, and persistence without recomputing analysis or reselecting evidence by default, while emitting stage-owned accepted and validation-failure quality metrics for bottleneck diagnosis.
+summary: Convert generation-ready CV-analysis records through one canonical generation contract that owns fingerprints, reuse validity, structured writing, validation, repair, acceptance or review decisions, and result meaning while LangGraph and direct writers remain transport adapters and pipeline owns scheduling and persistence I/O.
 boundaries:
   - cv-analysis-ready jobs enter and accepted or rejected CV artifacts leave
-  - generation, validation, repair, and persistence ownership belong to this stage
+  - "`fitcv.agentic_cv_generation.generate_from_analysis` owns generation fingerprints, reuse validity, validation, repair, acceptance or review decisions, and canonical result meaning"
+  - "pipeline orchestration owns scheduling, candidate lookup, accepted-result persistence I/O, and observation projection"
+  - "LangGraph and direct writers own transport and runtime telemetry only"
   - evidence retrieval, gap analysis, and fit-gate ownership do not belong to this stage
 inputs:
   - CV generation settings plus section-visibility controls and warning-only max-pages validation settings
@@ -14,7 +16,7 @@ outputs:
   - '`stage_transition_artifacts.cv_generation.decision_summary.quality_metrics` with accepted, validation-failed, generation-failed, and persistence-failed counts and rates'
   - bounded `stage_transition_artifacts.cv_generation` runtime block with input, output, and changed-state samples, including bounded upstream `cv_analysis` inputs, selected evidence context, and hybrid validation provenance for debugging
   - rendered markdown CVs
-  - stage-owned final CV generation statuses (accepted, validation_failed, generation_failed, persistence_failed)
+  - stage-owned final CV generation statuses (accepted, review_required, validation_failed, generation_failed, persistence_failed)
   - structured CV artifacts
   - validation and repair outcomes
 depends_on:
@@ -34,6 +36,7 @@ refs:
     - docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
     - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
     - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
   plan:
     - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
     - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
@@ -41,6 +44,7 @@ refs:
     - docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
     - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
     - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
   history: []
 keywords:
   - cv generation
@@ -48,4 +52,4 @@ keywords:
   - repair
   - structured cv
 status: active
-purpose: Convert generation-ready CV-analysis records into accepted or rejected CV artifacts through structured prompt-driven writing, hybrid analysis-grounded validation, repair, and persistence without recomputing analysis or reselecting evidence by default, while emitting stage-owned accepted and validation-failure quality metrics for bottleneck diagnosis.
+purpose: Apply one canonical CV-generation state machine uniformly across fresh, reused, direct-writer, LangGraph, replay, and resume cases, then expose accepted artifacts or canonical non-accepted outcomes to orchestration.

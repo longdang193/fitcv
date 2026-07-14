@@ -142,8 +142,8 @@ Examples:
 ### Settings Mode Strip SSOT Contract
 
 - mode-strip fields (`Agentic Mode`, `Live Provider`, `Live Model`, `Authority State`) are resolved by one control-plane authority resolver
-- `Agentic Mode` source: persisted setting `cv.agentic_late_stage.enabled`
-- `Live Provider` and `Live Model` source: shared live LangGraph runtime expectation resolver (`resolve_langgraph_runtime_expectation()`), with env overrides applied only at that boundary
+- `Agentic Mode` source: persisted compatibility setting `cv.agentic_late_stage.enabled`; this label is observational only and does not select generation semantics, fingerprints, validation, repair, acceptance, or persistence behavior
+- `Live Provider` and `Live Model` source: shared live LangGraph runtime expectation resolver (`resolve_langgraph_runtime_expectation()`), with env overrides applied only at that transport boundary; direct and LangGraph writers feed the same repo-native generation contract
 - `Authority State`:
   - `aligned`: toggle and resolved live runtime expectations are consistent
   - `drifted`: toggle and resolved live runtime expectations conflict; UI shows explicit drift reason

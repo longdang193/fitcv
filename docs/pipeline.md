@@ -30,7 +30,7 @@ Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
 - `shortlist`: vector/retrieval candidate narrowing
 - `ranking`: authoritative fit scoring and decision labels
 - `cv_analysis`: one canonical per-job analyzer owns evidence selection, gap, fit-gate, reuse validity, and generation readiness; pipeline owns batch invocation, persistence, and observations
-- `cv_generation`: structured generation, validation, repair, persistence
+- `cv_generation`: one canonical `generate_from_analysis` contract for fingerprints, reuse validity, structured generation, validation, repair, acceptance/review meaning, and result shape; direct and LangGraph writers are transport adapters, while pipeline persists canonical `accepted` results only
 
 ## Execution Modes
 

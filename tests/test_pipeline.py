@@ -25,7 +25,17 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
-from fitcv.agentic_cv_analysis import build_cv_analysis_record as build_agentic_cv_analysis_record
+from fitcv.agentic_cv_analysis import (
+    build_cv_analysis_record as build_agentic_cv_analysis_record,
+    build_decision_chain,
+)
+from fitcv.agentic_cv_generation import (
+    build_validation_evidence_fingerprint,
+    check_cv_acceptance_policy as _evaluate_cv_acceptance_policy,
+    generate_from_analysis as canonical_generate_from_analysis,
+    hitl_review_reason_for_case as _hitl_review_reason_for_agentic_case,
+    normalize_review_required_reason_code as _normalize_review_required_reason_code,
+)
 from fitcv.late_stage_contract import (
     CV_DEBUG_ANALYSIS_OMISSION_STATUSES,
     CV_GENERATION_ATTEMPTED_STATUSES,
@@ -35,10 +45,7 @@ from fitcv.late_stage_contract import (
 from fitcv.pipeline import (
     _build_export_results,
     _build_stage_transition_artifacts,
-    _build_cv_generation_debug_record,
-    _evaluate_cv_acceptance_policy,
-    _hitl_review_reason_for_agentic_case,
-    _normalize_review_required_reason_code,
+    _build_cv_generation_debug_record as _project_cv_generation_debug_record,
     _collect_mapping_suggestions,
     _enrich_jobs_with_reuse,
     _materialize_scoring_shortlist,
@@ -49,6 +56,85 @@ from fitcv.pipeline import (
     run_pipeline,
 )
 from fitcv.rule_filter import DEFAULT_SELECTED_RULE_FILTERS
+
+
+def _build_cv_generation_debug_record(
+    *,
+    job: dict[str, Any],
+    status: str,
+    fit_classification: str | None,
+    evidence_used: list[dict[str, Any]],
+    evidence_selection_summary: dict[str, Any] | None,
+    analysis_input_summary: dict[str, Any] | None,
+    gap_summary: dict[str, Any] | None,
+    structured_cv_initial: dict[str, Any] | None,
+    validation_initial: dict[str, Any] | None,
+    repair_attempt: dict[str, Any],
+    structured_cv_final: dict[str, Any] | None,
+    markdown_final: str | None,
+    enabled_sections: list[str] | None,
+    cv_generation_model: str | None,
+    cv_prompt_id: str | None,
+    cv_prompt_template_path: str | None,
+    error: dict[str, str] | None,
+    validation_final: dict[str, Any] | None = None,
+    runtime_provenance: dict[str, Any] | None = None,
+    agentic_live_trace: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    ranking_fit_label = str(job.get("fit_label") or fit_classification or "").strip() or None
+    cv_analysis_status = (
+        status
+        if status in {"blocked_by_reranker_fit", "skipped_fit_gate", "analysis_failed"}
+        else "ready_for_generation"
+    )
+    cv_status = "not_attempted" if status == "blocked_by_reranker_fit" else status
+    reason_code = _normalize_review_required_reason_code(
+        status=status,
+        error=error,
+        validation_initial=validation_final or validation_initial,
+    )
+    generation_result: dict[str, Any] = {
+        "job_url": str(job.get("job_url") or ""),
+        "job_title": str(job.get("title") or job.get("job_title") or ""),
+        "status": status,
+        "ranking_fit_label": ranking_fit_label,
+        "fit_classification": fit_classification,
+        "decision_chain": build_decision_chain(
+            job=job,
+            fit_classification=fit_classification,
+            cv_analysis_status=cv_analysis_status,
+            cv_status=cv_status,
+        ),
+        "analysis_input_summary": dict(analysis_input_summary or {}),
+        "evidence_used": list(evidence_used),
+        "evidence_selection_summary": dict(evidence_selection_summary or {}),
+        "gap_summary": gap_summary,
+        "structured_cv_initial": structured_cv_initial,
+        "validation_initial": validation_initial,
+        "repair_attempt": repair_attempt,
+        "structured_cv_final": structured_cv_final,
+        "markdown_final": markdown_final,
+        "validation": validation_final,
+        "outcome_reason": error if status in {"blocked_by_reranker_fit", "skipped_fit_gate"} else None,
+        "error": error if status not in {"blocked_by_reranker_fit", "skipped_fit_gate"} else None,
+        "review_required_reason_code": reason_code.value if reason_code is not None else None,
+    }
+    generation_result["validation_evidence_fingerprint"] = build_validation_evidence_fingerprint(
+        status=status,
+        validation=validation_final or validation_initial,
+        error=error,
+    )
+    if runtime_provenance is not None:
+        generation_result["runtime_provenance"] = runtime_provenance
+    if agentic_live_trace is not None:
+        generation_result["agentic_live_trace"] = agentic_live_trace
+    return _project_cv_generation_debug_record(
+        generation_result=generation_result,
+        enabled_sections=list(enabled_sections or []),
+        cv_generation_model=cv_generation_model,
+        cv_prompt_id=str(cv_prompt_id or ""),
+        cv_prompt_template_path=str(cv_prompt_template_path or ""),
+    )
 
 _ROLE_TAXONOMY_CONFIG = {
     "role_taxonomy": {
@@ -1259,8 +1345,8 @@ def test_run_pipeline_resume_from_checkpoint_uses_canonical_next_stage_only(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.load_profile_yaml")
@@ -1599,8 +1685,8 @@ def test_run_pipeline_resume_from_cv_generation_preserves_reranker_blocked_final
 
 @patch("fitcv.pipeline.logger")
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -1697,9 +1783,9 @@ def test_run_pipeline_logs_full_validation_reasons(
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.render_cv_markdown")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+@patch("fitcv.agentic_cv_generation.render_cv_markdown")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -1767,13 +1853,7 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
     mock_create_version.return_value = {"version_id": "cv-1"}
-    first_attempt = _agentic_generation_result(
-        status="generation_failed",
-        markdown=None,
-        validation_initial=None,
-        error={"stage": "generation", "message": "model timeout"},
-    )
-    second_attempt = _agentic_generation_result(
+    canonical_result = _agentic_generation_result(
         status="accepted",
         markdown="# Repaired Draft",
         validation_initial={
@@ -1784,23 +1864,29 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
             "warnings": [],
         },
     )
+    canonical_result["repair_attempt"] = {
+        "performed": True,
+        "missing_sections": ["Experience"],
+        "reason": "missing_or_shallow_sections",
+    }
+    canonical_result["agentic_live_trace"] = {"attempts": [{"attempt_index": 1}, {"attempt_index": 2}]}
     with (
         patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
-        patch("fitcv.pipeline.run_agentic_cv_generation", side_effect=[first_attempt, second_attempt]) as mock_agentic_gen,
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=canonical_result) as mock_agentic_gen,
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
         result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     assert result["cvs_generated"] == 1
-    assert mock_agentic_gen.call_count == 2
+    mock_agentic_gen.assert_called_once()
     mock_store_ver.assert_called_once()
 
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.render_cv_markdown")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+@patch("fitcv.agentic_cv_generation.render_cv_markdown")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -2115,6 +2201,8 @@ def _agentic_generation_result(
     markdown: str | None = "# CV Markdown",
     validation_initial: dict[str, Any] | None = None,
     error: dict[str, str] | None = None,
+    job_url: str = "https://example.com/1",
+    job_title: str = "Data Engineer",
 ) -> dict[str, Any]:
     resolved_structured_cv = structured_cv or {
         "schema_version": "cv_doc_v1",
@@ -2154,9 +2242,32 @@ def _agentic_generation_result(
             "support_source_summary": dict(resolved_validation_initial.get("support_source_summary") or {}),
         }
 
-    return {
+    validation = resolved_validation_initial
+    review_reason_code = _normalize_review_required_reason_code(
+        status=status,
+        error=error,
+        validation_initial=validation,
+    )
+    result = {
+        "result_contract_version": "cv_generation_result_v2",
+        "raw_job_fingerprint": "raw-job-fp",
+        "job_url": job_url,
+        "job_title": job_title,
+        "analysis_input_fingerprint": "analysis-fp",
+        "cv_generation_input_fingerprint": "generation-fp",
+        "cv_generation_input_components": {"schema_version": "cv_generation_input_v2"},
+        "cv_generation_reuse_status": "fresh_compute",
+        "reuse_decision": {"decision": "fresh_compute", "reason_code": "fresh_compute_required"},
+        "reused_cv_version_id": None,
         "status": status,
+        "ranking_fit_label": fit_classification,
         "fit_classification": fit_classification,
+        "decision_chain": build_decision_chain(
+            job={"job_url": job_url, "title": job_title, "fit_label": fit_classification},
+            fit_classification=fit_classification,
+            cv_analysis_status="ready_for_generation",
+            cv_status=status,
+        ),
         "analysis_input_summary": {"job_excerpt": "Data engineer role"},
         "evidence_used": [
             {
@@ -2176,15 +2287,26 @@ def _agentic_generation_result(
             resolved_structured_cv if status in {"accepted", "persistence_failed", "review_required"} else None
         ),
         "markdown_final": markdown if status in {"accepted", "persistence_failed", "review_required"} else None,
+        "validation": validation,
+        "outcome_reason": None,
+        "review_required_reason_code": review_reason_code.value if review_reason_code is not None else None,
         "runtime_provenance": {
+            "route_part": "cv_generation",
             "runtime_path": "fitcv_cv_generation_openai_compatible",
+            "adapter": "direct",
             "provider": "openai_compatible",
             "model": "cx/gpt-5.2",
+            "wire_api": "chat_completions",
         },
         "agentic_live_trace": {},
         "error": error,
     }
-
+    result["validation_evidence_fingerprint"] = build_validation_evidence_fingerprint(
+        status=status,
+        validation=validation,
+        error=error,
+    )
+    return result
 
 def _raw_scraper_job(url: str = "https://example.com/1") -> dict:
     return {
@@ -2646,13 +2768,13 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_accepted_generati
         )
         stack.enter_context(
             patch(
-                "fitcv.pipeline.generate_cv",
+                "fitcv.agentic_cv_generation.generate_cv",
                 return_value={"structured_cv": structured_cv, "markdown": "# Test Candidate\n\n## Summary\nGrounded summary."},
             )
         )
         stack.enter_context(
             patch(
-                "fitcv.pipeline.run_all_validations",
+                "fitcv.agentic_cv_generation.run_all_validations",
                 return_value={"valid": True, "missing_sections": [], "grounding_violations": [], "skill_violations": [], "warnings": []},
             )
         )
@@ -2813,13 +2935,13 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_validation_failed
         )
         stack.enter_context(
             patch(
-                "fitcv.pipeline.generate_cv",
+                "fitcv.agentic_cv_generation.generate_cv",
                 return_value={"structured_cv": structured_cv, "markdown": "# Test Candidate\n\n## Summary\nGrounded summary."},
             )
         )
         stack.enter_context(
             patch(
-                "fitcv.pipeline.run_all_validations",
+                "fitcv.agentic_cv_generation.run_all_validations",
                 return_value={
                     "valid": False,
                     "missing_sections": ["Skills"],
@@ -2988,13 +3110,13 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_review_required()
         )
         stack.enter_context(
             patch(
-                "fitcv.pipeline.generate_cv",
+                "fitcv.agentic_cv_generation.generate_cv",
                 return_value={"structured_cv": structured_cv, "markdown": "# Test Candidate\n\n## Summary\nGrounded summary."},
             )
         )
         stack.enter_context(
             patch(
-                "fitcv.pipeline.run_all_validations",
+                "fitcv.agentic_cv_generation.run_all_validations",
                 return_value={
                     "valid": True,
                     "missing_sections": [],
@@ -3012,7 +3134,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_review_required()
         stack.enter_context(patch("fitcv.pipeline.create_cv_version_record"))
         stack.enter_context(patch("fitcv.pipeline.PipelineStore.store_cv_version"))
         generation_result = _agentic_generation_result(
-            status="accepted",
+            status="review_required",
             structured_cv=structured_cv,
             markdown="# Test Candidate\n\n## Summary\nGrounded summary.",
             validation_initial={
@@ -3031,6 +3153,14 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_review_required()
         generation_result["analysis_input_summary"] = {
             "job_id": job["job_url"],
             "constraints": ["SQL", "Python"],
+        }
+        generation_result["validation"] = dict(generation_result["validation_initial"])
+        generation_result["review_required_reason_code"] = "markdown_structure_violation"
+        generation_result["validation_evidence_fingerprint"] = "validation::markdown-review"
+        generation_result["outcome_reason"] = {
+            "stage": "review",
+            "code": "markdown_structure_violation",
+            "message": "Markdown quality requires review: bullets too dense",
         }
         stack.enter_context(patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)))
         stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result))
@@ -3053,9 +3183,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_review_required()
         assert metadata["status"] == "review_required"
         assert metadata["output_structured"]["status"] == "review_required"
         assert metadata["output_structured"]["validation_summary"]["valid"] is True
-        assert metadata["output_structured"]["validation_summary"]["review_issues"] == [
-            "Markdown quality requires review: bullets too dense"
-        ]
+        assert metadata["output_structured"]["validation_summary"]["review_issues"] == ["bullets too dense"]
         assert metadata["output_structured"]["persistence_outcome"] == "review_required"
         assert "## Review Issues" in item_attributes["langfuse.observation.output"]
 
@@ -3353,7 +3481,7 @@ def test_run_pipeline_emits_cv_generation_item_retry_metadata_for_agentic_genera
         "structured_cv_final": None,
         "markdown_final": None,
         "runtime_provenance": {"provider": "gemini", "model": "gemini-test"},
-        "agentic_live_trace": {},
+        "agentic_live_trace": {"attempts": [{"attempt_index": 1}, {"attempt_index": 2}]},
         "error": {"stage": "generation", "message": "model timeout"},
     }
 
@@ -3400,7 +3528,7 @@ def test_run_pipeline_emits_cv_generation_item_retry_metadata_for_agentic_genera
         stack.enter_context(
             patch(
                 "fitcv.pipeline.run_agentic_cv_generation",
-                side_effect=[dict(failed_result), dict(failed_result)],
+                return_value=dict(failed_result),
             )
         )
         run_pipeline(
@@ -3476,7 +3604,7 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
         "structured_cv_final": {"schema_version": "cv_doc_v1", "sections": {"header": {"name": "Test Candidate"}}},
         "markdown_final": "# Test Candidate\n\n## Summary\nGrounded summary.",
         "runtime_provenance": {"provider": "gemini", "model": "gemini-test"},
-        "agentic_live_trace": {},
+        "agentic_live_trace": {"attempts": [{"attempt_index": 1}, {"attempt_index": 2}]},
         "error": None,
     }
 
@@ -3549,7 +3677,7 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
         stack.enter_context(
             patch(
                 "fitcv.pipeline.run_agentic_cv_generation",
-                side_effect=[dict(failed_result), dict(accepted_result)],
+                return_value=dict(accepted_result),
             )
         )
         stack.enter_context(patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None))
@@ -3577,8 +3705,8 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
     assert "## Generated CV Markdown" in item_attributes["langfuse.observation.output"]
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -3660,8 +3788,8 @@ def test_run_pipeline_uses_supplied_run_id_for_summary_and_cv_records(
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -3752,8 +3880,8 @@ def test_run_pipeline_uses_runtime_profile_json_without_touching_profile_path(
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -3868,8 +3996,8 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -3974,8 +4102,8 @@ def test_run_pipeline_persists_structured_cv_and_includes_it_in_export(
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -4107,16 +4235,19 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
     assert record["markdown_final"] == "# CV Markdown"
     assert record["error"] is None
     assert record["runtime_provenance"] == {
+        "route_part": "cv_generation",
         "runtime_path": "fitcv_cv_generation_openai_compatible",
+        "adapter": "direct",
         "provider": "openai_compatible",
         "model": "cx/gpt-5.2",
+        "wire_api": "chat_completions",
     }
     assert result["export_results"][0]["cv"]["runtime_path"] == "fitcv_cv_generation_openai_compatible"
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -4194,11 +4325,16 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
     mock_create_version.side_effect = _create_version
 
     def _agentic_generation_side_effect(*, analysis_record: dict[str, Any], **_: Any) -> dict[str, Any]:
-        job_url = str((analysis_record.get("job") or {}).get("job_url") or "")
+        job = dict(analysis_record.get("job_snapshot") or {})
+        job_url = str(job.get("job_url") or "")
         if job_url.endswith("job-a"):
             import time as _time
             _time.sleep(0.08)
-        return _agentic_generation_result(markdown="# CV")
+        return _agentic_generation_result(
+            markdown="# CV",
+            job_url=job_url,
+            job_title=str(job.get("title") or job.get("job_title") or ""),
+        )
 
     with (
         patch(
@@ -4222,8 +4358,8 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -4348,8 +4484,8 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -4467,8 +4603,8 @@ def test_run_pipeline_returns_debug_record_for_persistence_failed_cv(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -4584,8 +4720,8 @@ def test_run_pipeline_returns_correct_schema(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -4664,8 +4800,8 @@ def test_run_pipeline_prepares_raw_rows_before_bigquery_insert(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -5766,7 +5902,7 @@ def test_build_stage_transition_artifacts_caps_samples_at_20_and_truncates_text(
 
 
 def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> None:
-    from fitcv.pipeline import _build_cv_generation_debug_record, _debug_record_output_sample
+    from fitcv.pipeline import _debug_record_output_sample
 
     record = _build_cv_generation_debug_record(
         job={
@@ -5839,8 +5975,8 @@ def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> Non
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -5922,8 +6058,8 @@ def test_run_pipeline_passes_enriched_shortlist_rows_to_ai_scoring(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -6057,8 +6193,8 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -6166,8 +6302,8 @@ def test_pipeline_source_has_no_direct_ranking_fit_label_assignment_in_reuse_bra
     source = Path("src/fitcv/pipeline.py").read_text(encoding="utf-8")
     assert '"ranking_fit_label": fit' not in source
 
-@patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
@@ -6260,8 +6396,8 @@ def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -6336,8 +6472,8 @@ def test_run_pipeline_skips_reranker_skip_fit_jobs(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -6424,8 +6560,8 @@ def test_run_pipeline_skips_invalid_cv(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -6497,8 +6633,8 @@ def test_run_pipeline_per_job_failure_skips_not_crashes(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -6622,8 +6758,8 @@ def test_run_pipeline_emits_layer4_cv_error_for_analysis_failed_record(
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -6723,8 +6859,8 @@ def test_run_pipeline_emits_shortlist_and_ai_score_counts(
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -6819,8 +6955,8 @@ def test_run_pipeline_emits_normalization_dedupe_event(
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -6915,8 +7051,8 @@ def test_run_pipeline_emits_normalize_event_even_when_no_duplicates_removed(
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -7017,8 +7153,8 @@ def test_run_pipeline_pipeline_complete_event_omits_export_rows(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -7235,8 +7371,8 @@ def test_normalize_late_stage_reuse_snapshots_skips_poisoned_runtime_exception_r
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -7357,8 +7493,8 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -7550,9 +7686,23 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         section_confidence_hints=None,
         do_not_claim=[],
     )
+    def _generation_result_for_analysis(
+        analysis_record: dict[str, Any],
+        profile: dict[str, Any],
+        config: dict[str, Any],
+        **_: Any,
+    ) -> dict[str, Any]:
+        if str(analysis_record.get("status") or "") != "ready_for_generation":
+            return dict(canonical_generate_from_analysis(analysis_record, profile, config))
+        job = dict(analysis_record.get("job_snapshot") or {})
+        return _agentic_generation_result(
+            job_url=str(job.get("job_url") or ""),
+            job_title=str(job.get("title") or job.get("job_title") or ""),
+        )
+
     with (
         patch("fitcv.pipeline.analyze_ranked_job", side_effect=[analysis_ready, analysis_blocked]),
-        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
+        patch("fitcv.pipeline.run_agentic_cv_generation", side_effect=_generation_result_for_analysis),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
         result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="run-export")
@@ -7647,7 +7797,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     assert len(debug_records) == 2
     debug_by_status = {record["status"]: record for record in debug_records}
     assert debug_by_status["accepted"]["ranking_fit_label"] == "strong"
-    assert debug_by_status["accepted"]["reranker_fit_label"] == "strong"
+    assert "reranker_fit_label" not in debug_by_status["accepted"]
     assert debug_by_status["accepted"]["decision_chain"] == {
         "shortlist": {
             "status": "returned_by_vector_search",
@@ -7670,7 +7820,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         },
     }
     assert debug_by_status["blocked_by_reranker_fit"]["ranking_fit_label"] == "skip"
-    assert debug_by_status["blocked_by_reranker_fit"]["reranker_fit_label"] == "skip"
+    assert "reranker_fit_label" not in debug_by_status["blocked_by_reranker_fit"]
     assert debug_by_status["blocked_by_reranker_fit"]["decision_chain"] == {
         "shortlist": {
             "status": "returned_by_vector_search",
@@ -7776,8 +7926,8 @@ def test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependenci
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -7866,7 +8016,10 @@ def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
         "job_title": "Enriched Title",
         "fit_label_source": "reranker",
     }
-    generation_result = _agentic_generation_result()
+    generation_result = _agentic_generation_result(
+        job_url=analysis_job_snapshot["job_url"],
+        job_title=analysis_job_snapshot["title"],
+    )
     generation_result["gap_summary"] = analysis_gap
     with (
         patch(
@@ -7896,8 +8049,8 @@ def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
 @patch("fitcv.embeddings.embed_and_store_candidate")
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -7982,8 +8135,8 @@ def test_run_pipeline_shortlist_does_not_write_candidate_chunk_embeddings(
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -8302,8 +8455,8 @@ def test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage(
 
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -8379,8 +8532,8 @@ def test_run_pipeline_calls_load_run_structured_jobs(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -8513,8 +8666,8 @@ def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -8722,8 +8875,8 @@ def test_run_pipeline_canonical_enrich_runtime_overrides_legacy_throughput_keys(
 
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -8812,8 +8965,8 @@ def test_run_pipeline_blocks_pre_filtered_jobs_before_enrichment(
     assert rejected_export["pipeline_status"] == "rejected_before_enrichment"
 
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
@@ -8959,8 +9112,8 @@ def test_build_ranking_features_ignores_diagnostic_reranker_lists_for_scoring() 
 
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.run_all_validations")
-@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.store_final_ranking")
