@@ -36,6 +36,12 @@ Settings-specific boundary:
 
 Owns stage execution, ranking and CV lanes, validation, artifact emission, and stage-level truth.
 
+CV-analysis ownership boundary:
+
+- `src/fitcv/agentic_cv_analysis.py::analyze_ranked_job` owns per-job CV-analysis meaning and canonical `CvAnalysisRecord` output.
+- `src/fitcv/pipeline.py` owns batch ordering, reuse-candidate lookup, persistence, observations, and downstream projection only.
+- runtime adapters may change provider or orchestration mechanics, but not status semantics, evidence summary shape, gap meaning, or readiness output.
+
 ## Portability and Routing
 
 - backend portability: sqlite execution path is selected through control-plane backend runtime resolution

@@ -1,3 +1,18 @@
+"""
+@meta
+type: test
+scope: integration
+domain: cv_generation
+covers:
+  - canonical CV-analysis pipeline routing and late-stage generation adapters
+excludes:
+  - live provider network calls
+  - persistent storage integration
+tags:
+  - fast
+  - ci-safe
+"""
+
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -258,8 +273,6 @@ def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -297,8 +310,6 @@ def test_run_pipeline_uses_agentic_late_stage_path_under_hard_flip(
     mock_build_ranking_features: MagicMock,
     mock_rank_jobs: MagicMock,
     mock_store_final_ranking: MagicMock,
-    mock_retrieve_evidence_bundle: MagicMock,
-    mock_compute_gap: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
     mock_store_cv_version: MagicMock,
@@ -326,14 +337,6 @@ def test_run_pipeline_uses_agentic_late_stage_path_under_hard_flip(
     mock_run_ai_scoring.return_value = [{"job_url": job["job_url"], "ai_score": 0.85, "fit_label": "strong"}]
     mock_build_ranking_features.return_value = [ranked_job]
     mock_rank_jobs.return_value = [ranked_job]
-    mock_retrieve_evidence_bundle.return_value = {
-        "selected_evidence": [{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
-        "channel_counts": {"required_skill_support": 1},
-        "merged_pool_size": 1,
-        "deduped_pool_size": 1,
-        "selected_evidence_count": 1,
-    }
-    mock_compute_gap.return_value = {"matched": ["SQL"], "missing": []}
     mock_generate_cv.return_value = "# Test Candidate\n## Summary\nGrounded summary"
     mock_run_all_validations.return_value = {
         "valid": True,
@@ -356,7 +359,7 @@ def test_run_pipeline_uses_agentic_late_stage_path_under_hard_flip(
         "gap_summary": {"matched": ["SQL"], "missing": []},
     }
 
-    with patch("fitcv.pipeline.run_agentic_cv_analysis", create=True, return_value=analysis_record) as mock_agentic_analysis, patch(
+    with patch("fitcv.pipeline.analyze_ranked_job", create=True, return_value=analysis_record) as mock_agentic_analysis, patch(
         "fitcv.pipeline.run_agentic_cv_generation",
         create=True,
         return_value={
@@ -389,8 +392,6 @@ def test_run_pipeline_uses_agentic_late_stage_path_under_hard_flip(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -428,8 +429,6 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     mock_build_ranking_features: MagicMock,
     mock_rank_jobs: MagicMock,
     mock_store_final_ranking: MagicMock,
-    mock_retrieve_evidence_bundle: MagicMock,
-    mock_compute_gap: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
     mock_store_cv_version: MagicMock,
@@ -466,14 +465,6 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     mock_run_ai_scoring.return_value = [{"job_url": job["job_url"], "ai_score": 0.85, "fit_label": "strong"}]
     mock_build_ranking_features.return_value = [ranked_job]
     mock_rank_jobs.return_value = [ranked_job]
-    mock_retrieve_evidence_bundle.return_value = {
-        "selected_evidence": [{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
-        "channel_counts": {"required_skill_support": 1},
-        "merged_pool_size": 1,
-        "deduped_pool_size": 1,
-        "selected_evidence_count": 1,
-    }
-    mock_compute_gap.return_value = {"matched": ["SQL"], "missing": []}
     mock_run_all_validations.return_value = {
         "valid": True,
         "missing_sections": [],
@@ -569,7 +560,7 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     }
 
     with patch(
-        "fitcv.pipeline.run_agentic_cv_analysis",
+        "fitcv.pipeline.analyze_ranked_job",
         create=True,
         return_value=agentic_analysis_result,
     ) as mock_agentic_analysis, patch(
@@ -609,7 +600,7 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     assert "started_at" in cv_generation_started_event[3]["output_snapshot"]
     assert "worker_slot" in cv_generation_started_event[3]["output_snapshot"]
     cv_analysis_invoked_event = next(event for event in reporter.events if event[0] == "layer4_cv_analysis_invoked")
-    assert cv_analysis_invoked_event[3]["output_snapshot"]["cv_analysis_concurrency_effective"] >= 1
+    assert cv_analysis_invoked_event[3]["output_snapshot"]["cv_analysis_concurrency_effective"] == 1
     cv_generation_invoked_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_invoked")
     assert cv_generation_invoked_event[3]["provenance"]["cv_generation_model"] == "cx/gpt-5.5"
     cv_generation_result_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_result")
@@ -621,8 +612,6 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -660,8 +649,6 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
     mock_build_ranking_features: MagicMock,
     mock_rank_jobs: MagicMock,
     mock_store_final_ranking: MagicMock,
-    mock_retrieve_evidence_bundle: MagicMock,
-    mock_compute_gap: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
     mock_store_cv_version: MagicMock,
@@ -683,14 +670,6 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
     mock_run_ai_scoring.return_value = [{"job_url": job["job_url"], "ai_score": 0.7, "fit_label": "stretch"}]
     mock_build_ranking_features.return_value = [ranked_job]
     mock_rank_jobs.return_value = [ranked_job]
-    mock_retrieve_evidence_bundle.return_value = {
-        "selected_evidence": [{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
-        "channel_counts": {"required_skill_support": 1},
-        "merged_pool_size": 1,
-        "deduped_pool_size": 1,
-        "selected_evidence_count": 1,
-    }
-    mock_compute_gap.return_value = {"matched": ["SQL"], "missing": ["Python"]}
     mock_run_all_validations.return_value = {"valid": True, "missing_sections": []}
 
     agentic_analysis_result = {
@@ -723,7 +702,7 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
         "agentic_live_trace": {"trace_family": "agentic_step_trace", "step_id": "cv_generation", "trace_status": "completed"},
     }
 
-    with patch("fitcv.pipeline.run_agentic_cv_analysis", create=True, return_value=agentic_analysis_result), patch(
+    with patch("fitcv.pipeline.analyze_ranked_job", create=True, return_value=agentic_analysis_result), patch(
         "fitcv.pipeline.run_agentic_cv_generation",
         create=True,
         return_value=agentic_generation_result,
@@ -740,8 +719,6 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -779,8 +756,6 @@ def test_run_pipeline_marks_review_required_from_markdown_quality_flags(
     mock_build_ranking_features: MagicMock,
     mock_rank_jobs: MagicMock,
     mock_store_final_ranking: MagicMock,
-    mock_retrieve_evidence_bundle: MagicMock,
-    mock_compute_gap: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
     mock_store_cv_version: MagicMock,
@@ -802,14 +777,6 @@ def test_run_pipeline_marks_review_required_from_markdown_quality_flags(
     mock_run_ai_scoring.return_value = [{"job_url": job["job_url"], "ai_score": 0.7, "fit_label": "stretch"}]
     mock_build_ranking_features.return_value = [ranked_job]
     mock_rank_jobs.return_value = [ranked_job]
-    mock_retrieve_evidence_bundle.return_value = {
-        "selected_evidence": [{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
-        "channel_counts": {"required_skill_support": 1},
-        "merged_pool_size": 1,
-        "deduped_pool_size": 1,
-        "selected_evidence_count": 1,
-    }
-    mock_compute_gap.return_value = {"matched": ["SQL"], "missing": ["Python"]}
     mock_run_all_validations.return_value = {"valid": True, "missing_sections": []}
 
     agentic_analysis_result = {
@@ -847,7 +814,7 @@ def test_run_pipeline_marks_review_required_from_markdown_quality_flags(
         "agentic_live_trace": {"trace_family": "agentic_step_trace", "step_id": "cv_generation", "trace_status": "completed"},
     }
 
-    with patch("fitcv.pipeline.run_agentic_cv_analysis", create=True, return_value=agentic_analysis_result), patch(
+    with patch("fitcv.pipeline.analyze_ranked_job", create=True, return_value=agentic_analysis_result), patch(
         "fitcv.pipeline.run_agentic_cv_generation",
         create=True,
         return_value=agentic_generation_result,

@@ -35,7 +35,6 @@ from fitcv.late_stage_contract import (
 from fitcv.pipeline import (
     _build_export_results,
     _build_stage_transition_artifacts,
-    _build_cv_analysis_record,
     _build_cv_generation_debug_record,
     _evaluate_cv_acceptance_policy,
     _hitl_review_reason_for_agentic_case,
@@ -423,15 +422,17 @@ def test_skipped_fit_gate_keeps_cv_analysis_stage_authority() -> None:
     }
     outcome_reason = {"stage": "fit_gate", "message": "skipped"}
 
-    record = _build_cv_analysis_record(
+    record = build_agentic_cv_analysis_record(
         job=job,
         status="skipped_fit_gate",
         analysis_input_fingerprint="analysis-fp",
         analysis_reuse_status="fresh_compute",
         evidence_payload=[],
-        evidence_used=[],
         evidence_selection_summary=None,
         gap_summary={"matched": [], "partial": [], "missing": ["SQL"]},
+        requirement_coverage=None,
+        section_confidence_hints=None,
+        do_not_claim=[],
         fit_classification="skip",
         error=outcome_reason,
     )
@@ -1188,8 +1189,8 @@ def test_run_pipeline_resume_from_ranking_uses_checkpoint_payload(
     assert mock_ai.call_args.args[0] == shortlist
 
 
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.load_candidate_profile")
@@ -1260,8 +1261,8 @@ def test_run_pipeline_resume_from_checkpoint_uses_canonical_next_stage_only(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_config")
 def test_run_pipeline_resume_from_cv_generation_recomputes_shortlist_debug_state(
@@ -1352,8 +1353,8 @@ def test_pipeline_source_has_no_direct_ranking_fit_label_assignment_in_reuse_bra
     source = Path("src/fitcv/pipeline.py").read_text(encoding="utf-8")
     assert '"ranking_fit_label": fit' not in source
 
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_config")
 def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
@@ -1413,9 +1414,9 @@ def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
     assert result["checkpoint_payload"]["cv_generation_debug_records"] == []
 
 
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
-@patch("fitcv.pipeline.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_config")
 def test_run_pipeline_manual_pause_after_cv_analysis_preserves_reranker_blocked_debug_records(
@@ -1600,9 +1601,8 @@ def test_run_pipeline_resume_from_cv_generation_preserves_reranker_blocked_final
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -1642,7 +1642,6 @@ def test_run_pipeline_logs_full_validation_reasons(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -1675,7 +1674,7 @@ def test_run_pipeline_logs_full_validation_reasons(
         "warnings": [],
     }
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch(
             "fitcv.pipeline.run_agentic_cv_generation",
             return_value=_agentic_generation_result(
@@ -1701,9 +1700,8 @@ def test_run_pipeline_logs_full_validation_reasons(
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
 @patch("fitcv.pipeline.render_cv_markdown")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -1743,7 +1741,6 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_render_cv_markdown: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
@@ -1788,7 +1785,7 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
         },
     )
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch("fitcv.pipeline.run_agentic_cv_generation", side_effect=[first_attempt, second_attempt]) as mock_agentic_gen,
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
@@ -1804,9 +1801,8 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
 @patch("fitcv.pipeline.render_cv_markdown")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -1846,7 +1842,6 @@ def test_run_pipeline_repairs_candidate_name_placeholder_without_llm_retry(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_render_cv_markdown: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
@@ -1908,7 +1903,6 @@ def test_run_pipeline_repairs_candidate_name_placeholder_without_llm_retry(
     mock_rank.return_value = [job]
     mock_evidence.return_value = [{"evidence_id": "e1", "text": "built pipelines"}]
     mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
     mock_gen_cv.return_value = {
         "structured_cv": placeholder_structured_cv,
         "markdown": "# Candidate Name\n## Summary\nGrounded summary\n## Skills\nSQL\n## Experience\nBuilt pipelines",
@@ -1941,7 +1935,7 @@ def test_run_pipeline_repairs_candidate_name_placeholder_without_llm_retry(
     mock_create_version.return_value = {"version_id": "cv-1", "generated_at": "2026-04-08T12:00:00+00:00"}
 
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch(
             "fitcv.pipeline.run_agentic_cv_generation",
             return_value=_agentic_generation_result(
@@ -2048,6 +2042,38 @@ def test_cv_analysis_stage_concurrency_coerces_and_clamps() -> None:
     assert _cv_analysis_stage_concurrency({"stage_runtime": {"cv_analysis": {"concurrency": 0}}}) == 1
     assert _cv_analysis_stage_concurrency({"stage_runtime": {"cv_analysis": {"concurrency": -2}}}) == 1
     assert _cv_analysis_stage_concurrency({"stage_runtime": {"cv_analysis": {"concurrency": "bad"}}}) == 1
+
+def _canonical_reusable_cv_analysis_record(
+    job: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    from fitcv.agentic_cv_analysis import analyze_ranked_job
+    from fitcv.enrich import build_raw_job_fingerprint
+
+    job["raw_job_fingerprint"] = build_raw_job_fingerprint(job)["fingerprint"]
+    evidence = {
+        "evidence_id": "e1",
+        "evidence_type": "experience_entry",
+        "source_ref": "experiences[0]",
+        "name": "DE",
+    }
+    with (
+        patch(
+            "fitcv.agentic_cv_analysis.retrieve_evidence_bundle",
+            return_value={
+                "selected_evidence": [evidence],
+                "selected_evidence_ids": ["e1"],
+                "selected_evidence_count": 1,
+            },
+        ),
+        patch(
+            "fitcv.agentic_cv_analysis.compute_gap",
+            return_value={"matched": ["SQL"], "partial": [], "missing": []},
+        ),
+    ):
+        return dict(analyze_ranked_job(job, profile, config))
+
 
 def _agentic_analysis_ready(
     job: dict[str, Any],
@@ -2375,34 +2401,8 @@ def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
     }
     profile = _minimal_profile()
     config = _minimal_config()
-    analysis_fingerprint = build_cv_analysis_input_fingerprint(
-        profile,
-        job,
-        config,
-    )["fingerprint"]
-    reused_analysis_record = {
-        "job_url": job["job_url"],
-        "job_title": "Data Engineer",
-        "status": "ready_for_generation",
-        "ranking_fit_label": "strong",
-        "fit_classification": "strong",
-        "decision_chain": {
-            "shortlist": {"status": "returned_by_vector_search", "advanced_to_scoring": True},
-            "primary_fit": {"source": "reranker", "label": "strong"},
-            "cv_analysis": {"status": "ready_for_generation", "completed": True},
-            "cv_generation": {"status": "not_attempted", "attempted": False},
-            "validation": {"status": "not_run"},
-        },
-        "job_snapshot": dict(job),
-        "evidence_payload": [{"evidence_id": "e1", "evidence_type": "experience_entry", "source_ref": "experiences[0]"}],
-        "evidence_used": [{"evidence_type": "experience_entry", "source_ref": "experiences[0]", "name": "DE"}],
-        "evidence_selection_summary": {"selected_evidence_count": 1},
-        "gap_summary": {"matched": ["SQL"], "partial": [], "missing": []},
-        "analysis_input_fingerprint": analysis_fingerprint,
-        "analysis_reuse_status": "reused_exact_match",
-        "outcome_reason": None,
-        "error": None,
-    }
+    reused_analysis_record = _canonical_reusable_cv_analysis_record(job, profile, config)
+    analysis_fingerprint = str(reused_analysis_record["analysis_input_fingerprint"])
     reuse_snapshots = {
         "schema_version": "late_stage_reuse_v1",
         "ranking_ai_scores": [],
@@ -2433,8 +2433,8 @@ def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
          patch("fitcv.pipeline.run_vector_search", return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]), \
          patch("fitcv.pipeline.run_ai_scoring", return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}]), \
          patch("fitcv.pipeline.store_final_ranking"), \
-         patch("fitcv.pipeline.retrieve_evidence_bundle") as mock_retrieve_bundle, \
-         patch("fitcv.pipeline.compute_gap") as mock_compute_gap:
+         patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle") as mock_retrieve_bundle, \
+         patch("fitcv.agentic_cv_analysis.compute_gap") as mock_compute_gap:
         result = run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
@@ -2482,30 +2482,8 @@ def test_run_pipeline_emits_cv_analysis_item_observation_for_reused_analysis() -
     }
     profile = _minimal_profile()
     config = _minimal_config()
-    analysis_fingerprint = build_cv_analysis_input_fingerprint(profile, job, config)["fingerprint"]
-    reused_analysis_record = {
-        "job_url": job["job_url"],
-        "job_title": "Data Engineer",
-        "status": "ready_for_generation",
-        "ranking_fit_label": "strong",
-        "fit_classification": "strong",
-        "decision_chain": {
-            "shortlist": {"status": "returned_by_vector_search", "advanced_to_scoring": True},
-            "primary_fit": {"source": "reranker", "label": "strong"},
-            "cv_analysis": {"status": "ready_for_generation", "completed": True},
-            "cv_generation": {"status": "not_attempted", "attempted": False},
-            "validation": {"status": "not_run"},
-        },
-        "job_snapshot": dict(job),
-        "evidence_payload": [{"evidence_id": "e1", "evidence_type": "experience_entry", "source_ref": "experiences[0]"}],
-        "evidence_used": [{"evidence_type": "experience_entry", "source_ref": "experiences[0]", "name": "DE"}],
-        "evidence_selection_summary": {"selected_evidence_count": 1, "fallback_used": False},
-        "gap_summary": {"matched": ["SQL"], "partial": [], "missing": []},
-        "analysis_input_fingerprint": analysis_fingerprint,
-        "analysis_reuse_status": "reused_exact_match",
-        "outcome_reason": None,
-        "error": None,
-    }
+    reused_analysis_record = _canonical_reusable_cv_analysis_record(job, profile, config)
+    analysis_fingerprint = str(reused_analysis_record["analysis_input_fingerprint"])
     reuse_snapshots = {
         "schema_version": "late_stage_reuse_v1",
         "ranking_ai_scores": [],
@@ -2537,8 +2515,8 @@ def test_run_pipeline_emits_cv_analysis_item_observation_for_reused_analysis() -
          patch("fitcv.pipeline.run_vector_search", return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]), \
          patch("fitcv.pipeline.run_ai_scoring", return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}]), \
          patch("fitcv.pipeline.store_final_ranking"), \
-         patch("fitcv.pipeline.retrieve_evidence_bundle") as mock_retrieve_bundle, \
-         patch("fitcv.pipeline.compute_gap") as mock_compute_gap:
+         patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle") as mock_retrieve_bundle, \
+         patch("fitcv.agentic_cv_analysis.compute_gap") as mock_compute_gap:
         run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
@@ -2563,169 +2541,6 @@ def test_run_pipeline_emits_cv_analysis_item_observation_for_reused_analysis() -
     assert metadata["selected"] is True
     assert metadata["input_structured"]["job_id"] == job["job_url"]
     assert metadata["input_structured"]["requirements_excerpt"] == ["SQL"]
-
-def test_attach_analysis_input_components_hydrates_agentic_record_defaults() -> None:
-    from fitcv.pipeline import _attach_analysis_input_components
-
-    job = _minimal_job()
-    record = {
-        "status": "ready_for_generation",
-        "fit_classification": "strong",
-    }
-    hydrated = _attach_analysis_input_components(
-        analysis_record=record,
-        job=job,
-        analysis_input_fingerprint="fp-123",
-        analysis_input_components={
-            "contract_fingerprint": "cf-1",
-            "profile_payload_hash": "p-1",
-            "job_payload_hash": "j-1",
-        },
-    )
-
-    assert hydrated["analysis_input_fingerprint"] == "fp-123"
-    assert hydrated["analysis_input_components"]["contract_fingerprint"] == "cf-1"
-    assert hydrated["job_url"] == job["job_url"]
-    assert hydrated["job_title"]
-    assert hydrated["analysis_reuse_status"] == "fresh_compute"
-    assert isinstance(hydrated["reuse_decision"], dict)
-
-def test_run_pipeline_emits_bounded_reused_cv_analysis_failure_event() -> None:
-    from fitcv.evidence import build_cv_analysis_input_fingerprint
-    from fitcv.pipeline import run_pipeline
-
-    class _Reporter:
-        def __init__(self) -> None:
-            self.events: list[tuple[str, str, str, dict[str, Any] | None]] = []
-
-        def emit(self, stage: str, level: str, message: str, payload: dict[str, Any] | None = None) -> None:
-            self.events.append((stage, level, message, payload))
-
-    job = {
-        **_minimal_job(),
-        "title": "Data Engineer",
-        "required_skills": ["SQL"],
-        "preferred_skills": ["Python"],
-        "responsibilities": ["Build data pipelines for stakeholders."],
-        "domain": "banking",
-        "job_family": "analytics",
-        "fit_label": "strong",
-        "fit_label_source": "reranker",
-    }
-    profile = _minimal_profile()
-    config = _minimal_config()
-    reporter = _Reporter()
-    analysis_fingerprint = build_cv_analysis_input_fingerprint(
-        profile,
-        job,
-        config,
-    )["fingerprint"]
-    reused_analysis_record = {
-        "job_url": job["job_url"],
-        "job_title": "Data Engineer",
-        "status": "analysis_failed",
-        "ranking_fit_label": "strong",
-        "fit_classification": "strong",
-        "decision_chain": {
-            "shortlist": {"status": "returned_by_vector_search", "advanced_to_scoring": True},
-            "primary_fit": {"source": "reranker", "label": "strong"},
-            "cv_analysis": {"status": "analysis_failed", "completed": True},
-            "cv_generation": {"status": "not_attempted", "attempted": False},
-            "validation": {"status": "not_run"},
-        },
-        "job_snapshot": dict(job),
-        "evidence_payload": [{"evidence_id": "e1", "evidence_type": "experience_entry", "source_ref": "experiences[0]"}],
-        "evidence_used": [{"evidence_type": "experience_entry", "source_ref": "experiences[0]", "name": "DE"}],
-        "evidence_selection_summary": {"selected_evidence_count": 1},
-        "gap_summary": {"matched": ["SQL"], "partial": [], "missing": []},
-        "analysis_input_fingerprint": analysis_fingerprint,
-        "analysis_reuse_status": "reused_exact_match",
-        "outcome_reason": {"stage": "analysis", "message": "cached failure"},
-        "error": {"stage": "analysis", "message": "cached failure"},
-    }
-    reuse_snapshots = {
-        "schema_version": "late_stage_reuse_v1",
-        "ranking_ai_scores": [],
-        "cv_analysis_records": [
-            {
-                "job_url": job["job_url"],
-                "analysis_input_fingerprint": analysis_fingerprint,
-                "analysis_record": reused_analysis_record,
-            }
-        ],
-    }
-
-    observed_calls: list[tuple[str, dict[str, Any]]] = []
-
-    @contextmanager
-    def _capture_observe_span(name: str, *, attributes: dict[str, Any] | None = None):
-        observed_calls.append((name, dict(attributes or {})))
-        yield None
-
-    with patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span), \
-         patch("fitcv.pipeline.load_config", return_value=config), \
-         patch("fitcv.pipeline.parse_jobs_file", return_value=[job]), \
-         patch("fitcv.pipeline.normalize_batch", return_value=[job]), \
-         patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])), \
-         patch("fitcv.pipeline.load_raw_jobs"), \
-         patch("fitcv.pipeline.apply_pre_enrichment_global_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
-         patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}), \
-         patch("fitcv.pipeline.enrich_batch", return_value=[job]), \
-         patch("fitcv.pipeline.load_structured_jobs"), \
-         patch("fitcv.pipeline.load_run_structured_jobs"), \
-         patch("fitcv.pipeline.load_profile_yaml", return_value=profile), \
-         patch("fitcv.pipeline.load_candidate_profile"), \
-         patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
-         patch("fitcv.pipeline.store_filter_results"), \
-         patch("fitcv.pipeline.embed_and_store_jobs"), \
-         patch("fitcv.pipeline.run_vector_search", return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]), \
-         patch("fitcv.pipeline.run_ai_scoring", return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}]), \
-         patch("fitcv.pipeline.store_final_ranking"), \
-         patch("fitcv.pipeline.retrieve_evidence_bundle") as mock_retrieve_bundle, \
-         patch("fitcv.pipeline.compute_gap") as mock_compute_gap:
-        run_pipeline(
-            "data/sample_jobs.json",
-            config_path=".env.yaml",
-            reuse_snapshots=reuse_snapshots,
-            reporter=reporter,
-            stop_after_stage="cv_analysis",
-        )
-
-    mock_retrieve_bundle.assert_not_called()
-    mock_compute_gap.assert_not_called()
-    item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_analysis_item"]
-    assert len(item_calls) == 1
-    metadata = json.loads(item_calls[0]["langfuse.observation.metadata"])
-    assert metadata["output_structured"]["generation_readiness"] is False
-    assert metadata["output_structured"]["disposition"] == "analysis_failed"
-    assert metadata["output_structured"]["failure_summary"] == "cached failure"
-    assert "## Failure Summary" in item_calls[0]["langfuse.observation.output"]
-    assert (
-        "layer4_cv_error",
-        "error",
-        f"CV analysis failed for {job['job_url']}: {reused_analysis_record['error']}",
-        {
-            "event_name": "cv_analysis_decision",
-            "event_family": "decision",
-            "source_stage": "cv_analysis",
-            "job_url": job["job_url"],
-            "event_status": "completed",
-            "deterministic_outcome": "rejected",
-            "stage_owned_subreason": "analysis_failed",
-            "fallback_used": False,
-            "input_snapshot": {
-                "ranking_fit_label": "strong",
-            },
-            "output_snapshot": {
-                "error_stage": "analysis",
-            },
-            "artifact_refs": {
-                "stage_id": "cv_analysis",
-            },
-        },
-    ) in reporter.events
-
-
 
 def test_run_pipeline_emits_cv_generation_item_observation_for_accepted_generation() -> None:
     from contextlib import ExitStack
@@ -2805,7 +2620,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_accepted_generati
         stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
         stack.enter_context(
             patch(
-                "fitcv.pipeline.retrieve_evidence_bundle",
+                "fitcv.agentic_cv_analysis.retrieve_evidence_bundle",
                 return_value={
                     "selected_evidence": [
                         {
@@ -2825,7 +2640,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_accepted_generati
         )
         stack.enter_context(
             patch(
-                "fitcv.pipeline.compute_gap",
+                "fitcv.agentic_cv_analysis.compute_gap",
                 return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
             )
         )
@@ -2864,7 +2679,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_accepted_generati
             "job_id": job["job_url"],
             "constraints": ["SQL", "Python"],
         }
-        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)))
+        stack.enter_context(patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)))
         stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result))
         stack.enter_context(patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None))
         run_pipeline(
@@ -2972,7 +2787,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_validation_failed
         stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
         stack.enter_context(
             patch(
-                "fitcv.pipeline.retrieve_evidence_bundle",
+                "fitcv.agentic_cv_analysis.retrieve_evidence_bundle",
                 return_value={
                     "selected_evidence": [
                         {
@@ -2992,7 +2807,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_validation_failed
         )
         stack.enter_context(
             patch(
-                "fitcv.pipeline.compute_gap",
+                "fitcv.agentic_cv_analysis.compute_gap",
                 return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
             )
         )
@@ -3043,7 +2858,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_validation_failed
             "job_id": job["job_url"],
             "constraints": ["SQL", "Python"],
         }
-        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)))
+        stack.enter_context(patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)))
         stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result))
         stack.enter_context(patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None))
         run_pipeline(
@@ -3147,7 +2962,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_review_required()
         stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
         stack.enter_context(
             patch(
-                "fitcv.pipeline.retrieve_evidence_bundle",
+                "fitcv.agentic_cv_analysis.retrieve_evidence_bundle",
                 return_value={
                     "selected_evidence": [
                         {
@@ -3167,7 +2982,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_review_required()
         )
         stack.enter_context(
             patch(
-                "fitcv.pipeline.compute_gap",
+                "fitcv.agentic_cv_analysis.compute_gap",
                 return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
             )
         )
@@ -3217,7 +3032,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_review_required()
             "job_id": job["job_url"],
             "constraints": ["SQL", "Python"],
         }
-        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)))
+        stack.enter_context(patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)))
         stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result))
         stack.enter_context(
             patch(
@@ -3324,7 +3139,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_persistence_faile
         stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
         stack.enter_context(
             patch(
-                "fitcv.pipeline.retrieve_evidence_bundle",
+                "fitcv.agentic_cv_analysis.retrieve_evidence_bundle",
                 return_value={
                     "selected_evidence": [
                         {
@@ -3344,11 +3159,11 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_persistence_faile
         )
         stack.enter_context(
             patch(
-                "fitcv.pipeline.compute_gap",
+                "fitcv.agentic_cv_analysis.compute_gap",
                 return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
             )
         )
-        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)))
+        stack.enter_context(patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.run_agentic_cv_generation",
@@ -3447,7 +3262,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
         stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
         stack.enter_context(
             patch(
-                "fitcv.pipeline.retrieve_evidence_bundle",
+                "fitcv.agentic_cv_analysis.retrieve_evidence_bundle",
                 return_value={
                     "selected_evidence": [
                         {
@@ -3467,11 +3282,11 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
         )
         stack.enter_context(
             patch(
-                "fitcv.pipeline.compute_gap",
+                "fitcv.agentic_cv_analysis.compute_gap",
                 return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
             )
         )
-        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)))
+        stack.enter_context(patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)))
         stack.enter_context(
             patch(
                 "fitcv.pipeline.run_agentic_cv_generation",
@@ -3707,7 +3522,7 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
         stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
         stack.enter_context(
             patch(
-                "fitcv.pipeline.retrieve_evidence_bundle",
+                "fitcv.agentic_cv_analysis.retrieve_evidence_bundle",
                 return_value={
                     "selected_evidence": [
                         {
@@ -3727,7 +3542,7 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
         )
         stack.enter_context(
             patch(
-                "fitcv.pipeline.compute_gap",
+                "fitcv.agentic_cv_analysis.compute_gap",
                 return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
             )
         )
@@ -3764,9 +3579,8 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -3806,7 +3620,6 @@ def test_run_pipeline_uses_supplied_run_id_for_summary_and_cv_records(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -3831,7 +3644,7 @@ def test_run_pipeline_uses_supplied_run_id_for_summary_and_cv_records(
     mock_create_version.return_value = {"version_id": "v1"}
 
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
@@ -3849,9 +3662,8 @@ def test_run_pipeline_uses_supplied_run_id_for_summary_and_cv_records(
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -3893,7 +3705,6 @@ def test_run_pipeline_uses_runtime_profile_json_without_touching_profile_path(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -3923,7 +3734,6 @@ def test_run_pipeline_uses_runtime_profile_json_without_touching_profile_path(
     mock_rank.return_value = [job]
     mock_evidence.return_value = [{"evidence_id": "e1"}]
     mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
     mock_gen_cv.return_value = "# CV Markdown"
     mock_validate.return_value = {
         "valid": True,
@@ -3944,9 +3754,8 @@ def test_run_pipeline_uses_runtime_profile_json_without_touching_profile_path(
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -3990,7 +3799,6 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -4026,7 +3834,6 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
     mock_rank.return_value = [job]
     mock_evidence.return_value = [{"evidence_id": "e1", "name": "Python", "evidence_type": "project", "source_ref": "p1"}]
     mock_gap.return_value = {"matched": ["Python"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
     mock_gen_cv.return_value = "# CV Markdown"
     mock_validate.return_value = {
         "valid": True,
@@ -4063,9 +3870,8 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -4105,7 +3911,6 @@ def test_run_pipeline_persists_structured_cv_and_includes_it_in_export(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -4148,7 +3953,7 @@ def test_run_pipeline_persists_structured_cv_and_includes_it_in_export(
     }
 
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch(
             "fitcv.pipeline.run_agentic_cv_generation",
             return_value=_agentic_generation_result(structured_cv=structured_cv),
@@ -4171,9 +3976,8 @@ def test_run_pipeline_persists_structured_cv_and_includes_it_in_export(
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -4215,7 +4019,6 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -4270,7 +4073,7 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
 
     with (
         patch(
-            "fitcv.pipeline.run_agentic_cv_analysis",
+            "fitcv.pipeline.analyze_ranked_job",
             return_value=_agentic_analysis_ready(job, evidence_payload=evidence, gap_summary=gap),
         ),
         patch(
@@ -4314,9 +4117,8 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -4358,7 +4160,6 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -4401,7 +4202,7 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
 
     with (
         patch(
-            "fitcv.pipeline.run_agentic_cv_analysis",
+            "fitcv.pipeline.analyze_ranked_job",
             side_effect=[
                 _agentic_analysis_ready(job_a),
                 _agentic_analysis_ready(job_b),
@@ -4423,9 +4224,8 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -4467,7 +4267,6 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -4512,7 +4311,7 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch(
             "fitcv.pipeline.run_agentic_cv_generation",
             return_value=_agentic_generation_result(
@@ -4551,9 +4350,8 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -4595,7 +4393,6 @@ def test_run_pipeline_returns_debug_record_for_persistence_failed_cv(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -4634,7 +4431,7 @@ def test_run_pipeline_returns_debug_record_for_persistence_failed_cv(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch(
             "fitcv.pipeline.run_agentic_cv_generation",
             return_value=_agentic_generation_result(
@@ -4672,9 +4469,8 @@ def test_run_pipeline_returns_debug_record_for_persistence_failed_cv(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -4714,7 +4510,6 @@ def test_run_pipeline_returns_correct_schema(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -4741,7 +4536,7 @@ def test_run_pipeline_returns_correct_schema(
     mock_store_ver.return_value = None
     # create_cv_version_record is NOT mocked — it runs for real
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
@@ -4791,9 +4586,8 @@ def test_run_pipeline_returns_correct_schema(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -4833,7 +4627,6 @@ def test_run_pipeline_prepares_raw_rows_before_bigquery_insert(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -4857,7 +4650,7 @@ def test_run_pipeline_prepares_raw_rows_before_bigquery_insert(
     mock_build_feat.return_value = [normalized_job]
     mock_rank.return_value = [normalized_job]
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(normalized_job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(normalized_job)),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
@@ -4873,9 +4666,8 @@ def test_run_pipeline_prepares_raw_rows_before_bigquery_insert(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -4915,7 +4707,6 @@ def test_run_pipeline_passes_job_dicts_to_embeddings_and_urls_to_vector_search(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -4940,7 +4731,7 @@ def test_run_pipeline_passes_job_dicts_to_embeddings_and_urls_to_vector_search(
 
     with (
         patch(
-            "fitcv.pipeline.run_agentic_cv_analysis",
+            "fitcv.pipeline.analyze_ranked_job",
                 return_value=_agentic_analysis_ready(job, fit_classification="stretch"),
         ),
         patch(
@@ -6050,9 +5841,8 @@ def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> Non
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -6092,7 +5882,6 @@ def test_run_pipeline_passes_enriched_shortlist_rows_to_ai_scoring(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -6135,9 +5924,8 @@ def test_run_pipeline_passes_enriched_shortlist_rows_to_ai_scoring(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -6177,7 +5965,6 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -6232,7 +6019,7 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
 
     with (
         patch(
-            "fitcv.pipeline.run_agentic_cv_analysis",
+            "fitcv.pipeline.analyze_ranked_job",
             return_value=_agentic_analysis_ready(first_job, fit_classification="stretch"),
         ),
         patch(
@@ -6272,9 +6059,8 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -6314,7 +6100,6 @@ def test_run_pipeline_uses_ranked_fit_label_as_floor_for_layer4_fit_gate(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -6343,7 +6128,6 @@ def test_run_pipeline_uses_ranked_fit_label_as_floor_for_layer4_fit_gate(
     mock_rank.return_value = [job]
     mock_evidence.return_value = [{"evidence_id": "e1"}]
     mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": ["Power BI"]}
-    mock_classify.return_value = "skip"
     mock_gen_cv.return_value = "# CV Markdown"
     mock_validate.return_value = {
         "valid": True,
@@ -6359,7 +6143,7 @@ def test_run_pipeline_uses_ranked_fit_label_as_floor_for_layer4_fit_gate(
 
     with (
         patch(
-            "fitcv.pipeline.run_agentic_cv_analysis",
+            "fitcv.pipeline.analyze_ranked_job",
             return_value=_agentic_analysis_ready(job, fit_classification="stretch"),
         ),
         patch(
@@ -6382,13 +6166,12 @@ def test_pipeline_source_has_no_direct_ranking_fit_label_assignment_in_reuse_bra
     source = Path("src/fitcv/pipeline.py").read_text(encoding="utf-8")
     assert '"ranking_fit_label": fit' not in source
 
-@patch("fitcv.pipeline.classify_fit")
 @patch("fitcv.pipeline.generate_cv")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.store_cv_version")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -6428,7 +6211,6 @@ def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -6460,13 +6242,11 @@ def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
     mock_rank.return_value = [job]
     mock_evidence.return_value = [{"evidence_id": "e1"}]
     mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
 
     result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     mock_gen_cv.assert_not_called()
     mock_validate.assert_not_called()
-    mock_classify.assert_not_called()
     assert result["cv_generation_debug_records"][0]["status"] == "blocked_by_reranker_fit"
     assert result["cv_generation_debug_records"][0]["fit_classification"] == "skip"
     assert result["export_results"][0]["pipeline_status"] == "ranked_blocked_by_reranker_fit"
@@ -6482,9 +6262,8 @@ def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -6524,7 +6303,6 @@ def test_run_pipeline_skips_reranker_skip_fit_jobs(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -6553,7 +6331,6 @@ def test_run_pipeline_skips_reranker_skip_fit_jobs(
     mock_rank.return_value = [job]
     mock_evidence.return_value = []
     mock_gap.return_value = {"matched": [], "partial": [], "missing": ["SQL"]}
-    mock_classify.return_value = "strong"
     result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
     assert result["cvs_generated"] == 0
 
@@ -6561,9 +6338,8 @@ def test_run_pipeline_skips_reranker_skip_fit_jobs(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -6603,7 +6379,6 @@ def test_run_pipeline_skips_invalid_cv(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -6626,7 +6401,7 @@ def test_run_pipeline_skips_invalid_cv(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch(
             "fitcv.pipeline.run_agentic_cv_generation",
             return_value=_agentic_generation_result(
@@ -6651,9 +6426,8 @@ def test_run_pipeline_skips_invalid_cv(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -6693,7 +6467,6 @@ def test_run_pipeline_per_job_failure_skips_not_crashes(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -6726,9 +6499,8 @@ def test_run_pipeline_per_job_failure_skips_not_crashes(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -6748,7 +6520,7 @@ def test_run_pipeline_per_job_failure_skips_not_crashes(
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
-def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
+def test_run_pipeline_emits_layer4_cv_error_for_analysis_failed_record(
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_norm: MagicMock,
@@ -6770,7 +6542,6 @@ def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -6806,7 +6577,21 @@ def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
-    with patch("fitcv.pipeline.run_agentic_cv_analysis", side_effect=RuntimeError("BQ connection failed")):
+    analysis_record = build_agentic_cv_analysis_record(
+        job=job,
+        status="analysis_failed",
+        analysis_input_fingerprint=None,
+        analysis_reuse_status="fresh_compute",
+        evidence_payload=[],
+        evidence_selection_summary=None,
+        gap_summary=None,
+        requirement_coverage=None,
+        section_confidence_hints=None,
+        do_not_claim=[],
+        fit_classification="strong",
+        error={"stage": "analysis", "message": "BQ connection failed"},
+    )
+    with patch("fitcv.pipeline.analyze_ranked_job", return_value=analysis_record):
         run_pipeline("data/sample_jobs.json", config_path=".env.yaml", reporter=reporter)
 
     assert (
@@ -6839,9 +6624,8 @@ def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -6883,7 +6667,6 @@ def test_run_pipeline_emits_shortlist_and_ai_score_counts(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -6918,7 +6701,6 @@ def test_run_pipeline_emits_shortlist_and_ai_score_counts(
     mock_rank.return_value = [jobs[0]]
     mock_evidence.return_value = [{"evidence_id": "e1"}]
     mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
     mock_gen_cv.return_value = "# CV Markdown"
     mock_validate.return_value = {
         "valid": True,
@@ -6930,7 +6712,7 @@ def test_run_pipeline_emits_shortlist_and_ai_score_counts(
     mock_create_version.return_value = {"version_id": "v1"}
 
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(jobs[0])),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(jobs[0])),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
     ):
         run_pipeline("data/sample_jobs.json", config_path=".env.yaml", reporter=reporter)
@@ -6943,9 +6725,8 @@ def test_run_pipeline_emits_shortlist_and_ai_score_counts(
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -6985,7 +6766,6 @@ def test_run_pipeline_emits_normalization_dedupe_event(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -7022,7 +6802,7 @@ def test_run_pipeline_emits_normalization_dedupe_event(
 
     with (
         patch(
-            "fitcv.pipeline.run_agentic_cv_analysis",
+            "fitcv.pipeline.analyze_ranked_job",
             return_value=_agentic_analysis_ready(_minimal_job("https://example.com/1")),
         ),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
@@ -7041,9 +6821,8 @@ def test_run_pipeline_emits_normalization_dedupe_event(
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -7083,7 +6862,6 @@ def test_run_pipeline_emits_normalize_event_even_when_no_duplicates_removed(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -7120,7 +6898,7 @@ def test_run_pipeline_emits_normalize_event_even_when_no_duplicates_removed(
 
     with (
         patch(
-            "fitcv.pipeline.run_agentic_cv_analysis",
+            "fitcv.pipeline.analyze_ranked_job",
             return_value=_agentic_analysis_ready(_minimal_job("https://example.com/1")),
         ),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
@@ -7139,9 +6917,8 @@ def test_run_pipeline_emits_normalize_event_even_when_no_duplicates_removed(
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -7183,7 +6960,6 @@ def test_run_pipeline_pipeline_complete_event_omits_export_rows(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -7221,7 +6997,6 @@ def test_run_pipeline_pipeline_complete_event_omits_export_rows(
     mock_rank.return_value = [job]
     mock_evidence.return_value = [{"evidence_id": "e1"}]
     mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
     mock_gen_cv.return_value = "# CV Markdown"
     mock_validate.return_value = {
         "valid": True,
@@ -7233,7 +7008,7 @@ def test_run_pipeline_pipeline_complete_event_omits_export_rows(
     mock_create_version.return_value = {"version_id": "v1", "generated_at": "2026-03-29T16:11:40Z"}
 
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
     ):
         run_pipeline("data/sample_jobs.json", config_path=".env.yaml", reporter=reporter)
@@ -7244,9 +7019,8 @@ def test_run_pipeline_pipeline_complete_event_omits_export_rows(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -7288,7 +7062,6 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -7338,7 +7111,7 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
     assert output_snapshot["blocked_by_reranker_fit"] == 1
     assert output_snapshot["skipped_fit_gate"] == 0
     assert output_snapshot["analysis_failed"] == 0
-    assert output_snapshot["cv_analysis_concurrency_effective"] == 3
+    assert output_snapshot["cv_analysis_concurrency_effective"] == 1
     assert output_snapshot["fresh_analysis_reuse_mismatch_reasons"] == {}
     assert output_snapshot["fresh_analysis_overlap_urls"] == 0
     assert output_snapshot["fresh_analysis_no_overlap_urls"] == 0
@@ -7417,7 +7190,7 @@ def test_run_pipeline_cv_analysis_concurrency_preserves_result_order(
     ]
 
     with patch(
-        "fitcv.pipeline.run_agentic_cv_analysis",
+        "fitcv.pipeline.analyze_ranked_job",
         side_effect=[_agentic_analysis_ready(job_a), _agentic_analysis_ready(job_b)],
     ):
         result = run_pipeline(
@@ -7464,9 +7237,8 @@ def test_normalize_late_stage_reuse_snapshots_skips_poisoned_runtime_exception_r
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -7510,7 +7282,6 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -7547,7 +7318,6 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
     mock_rank.return_value = [job]
     mock_evidence.return_value = [{"evidence_id": "e1", "source_ref": "profile:experience"}]
     mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
     mock_gen_cv.return_value = "# Broken CV"
     mock_validate.return_value = {
         "valid": False,
@@ -7558,7 +7328,7 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
     }
 
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch(
             "fitcv.pipeline.run_agentic_cv_generation",
             return_value=_agentic_generation_result(
@@ -7589,9 +7359,8 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -7633,7 +7402,6 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -7783,7 +7551,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         do_not_claim=[],
     )
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", side_effect=[analysis_ready, analysis_blocked]),
+        patch("fitcv.pipeline.analyze_ranked_job", side_effect=[analysis_ready, analysis_blocked]),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
@@ -7931,9 +7699,9 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     assert debug_by_status["blocked_by_reranker_fit"]["error"] is None
 
 
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
-@patch("fitcv.pipeline.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_config")
 def test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependencies(
@@ -8010,9 +7778,8 @@ def test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependenci
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -8054,7 +7821,6 @@ def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -8104,7 +7870,7 @@ def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
     generation_result["gap_summary"] = analysis_gap
     with (
         patch(
-            "fitcv.pipeline.run_agentic_cv_analysis",
+            "fitcv.pipeline.analyze_ranked_job",
             return_value=_agentic_analysis_ready(
                 analysis_job_snapshot,
                 fit_classification="strong",
@@ -8132,9 +7898,8 @@ def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -8174,7 +7939,6 @@ def test_run_pipeline_shortlist_does_not_write_candidate_chunk_embeddings(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -8220,9 +7984,8 @@ def test_run_pipeline_shortlist_does_not_write_candidate_chunk_embeddings(
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -8260,7 +8023,6 @@ def test_run_pipeline_export_marks_deduplicated_rows_explicitly(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_create_version: MagicMock,
@@ -8306,7 +8068,7 @@ def test_run_pipeline_uses_shared_config_loader(mock_config: MagicMock) -> None:
     mock_config.assert_called_once_with(".env.yaml")
 
 
-@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_config")
 def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
@@ -8427,7 +8189,7 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
     mock_compute_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
 
     with patch(
-        "fitcv.pipeline.run_agentic_cv_analysis",
+        "fitcv.pipeline.analyze_ranked_job",
         return_value=_agentic_analysis_ready(
             job,
             evidence_payload=evidence_bundle["selected_evidence"],
@@ -8526,7 +8288,7 @@ def test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage(
     assert trace_payload["trace_summary"]["records_total"] == 1
     record = trace_payload["records"][0]
     assert record["scope_type"] == "job"
-    assert record["scope_key"] == "https://example.com/trace-analysis"
+    assert record["scope_key"] == "url:https://example.com/trace-analysis"
     assert record["status"] == "ready_for_generation"
     assert record["runtime_provenance"]["runtime_path"] == "fitcv_agentic_cv_analysis_builtin"
     assert record["attempts"][0]["attempt_type"] == "analysis"
@@ -8542,9 +8304,8 @@ def test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -8580,7 +8341,6 @@ def test_run_pipeline_calls_load_run_structured_jobs(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -8621,9 +8381,8 @@ def test_run_pipeline_calls_load_run_structured_jobs(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -8663,7 +8422,6 @@ def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
     mock_store_rank: MagicMock,
     mock_retrieve_bundle: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -8741,7 +8499,7 @@ def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
         },
     )
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=analysis_record),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=analysis_record),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result) as mock_agentic_generation,
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
@@ -8757,9 +8515,8 @@ def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -8797,7 +8554,6 @@ def test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -8968,9 +8724,8 @@ def test_run_pipeline_canonical_enrich_runtime_overrides_legacy_throughput_keys(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -9010,7 +8765,6 @@ def test_run_pipeline_blocks_pre_filtered_jobs_before_enrichment(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -9060,9 +8814,8 @@ def test_run_pipeline_blocks_pre_filtered_jobs_before_enrichment(
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -9100,7 +8853,6 @@ def test_run_pipeline_preserves_agentic_evidence_selection_summary_contract(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
@@ -9140,7 +8892,7 @@ def test_run_pipeline_preserves_agentic_evidence_selection_summary_contract(
     generation_result = _agentic_generation_result(status="accepted")
 
     with (
-        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=analysis_record),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=analysis_record),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result) as mock_agentic_generation,
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
@@ -9209,9 +8961,8 @@ def test_build_ranking_features_ignores_diagnostic_reranker_lists_for_scoring() 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
-@patch("fitcv.pipeline.classify_fit")
-@patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.store_final_ranking")
 @patch("fitcv.pipeline.rank_jobs")
 @patch("fitcv.pipeline.build_ranking_features")
@@ -9249,7 +9000,6 @@ def test_run_pipeline_incremental_enrich_persists_each_store_exactly_once(
     mock_store_rank: MagicMock,
     mock_evidence: MagicMock,
     mock_gap: MagicMock,
-    mock_classify: MagicMock,
     mock_gen_cv: MagicMock,
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,

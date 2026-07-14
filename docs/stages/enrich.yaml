@@ -39,10 +39,10 @@ capability_refs:
 - pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
 - pipeline_performance.fallback-path-for-unparseable-responses
 - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
-- pipeline_performance.structured-output-with-json-schema-and-pydantic
 - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
 - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
 - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
+- pipeline_performance.structured-output-with-json-schema-and-pydantic
 - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
 - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
 - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events

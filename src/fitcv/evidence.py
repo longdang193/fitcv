@@ -448,7 +448,7 @@ def build_cv_analysis_input_fingerprint(
 ) -> dict[str, Any]:
     coerced_job_context = _coerce_job_context(job_context)
     job_payload = {
-        "job_url": str(coerced_job_context.get("job_url") or ""),
+        "raw_job_fingerprint": str(coerced_job_context.get("raw_job_fingerprint") or ""),
         "job_title": str(coerced_job_context.get("job_title") or ""),
         "job_family": str(coerced_job_context.get("job_family") or ""),
         "domain": str(coerced_job_context.get("domain") or ""),
@@ -593,6 +593,7 @@ def _coerce_job_context(job_context: dict[str, Any] | list[str]) -> dict[str, An
     if isinstance(job_context, list):
         required_skills = _canonicalize_terms(job_context)
         return {
+            "raw_job_fingerprint": "",
             "job_url": "",
             "job_title": "",
             "job_family": "",
@@ -615,6 +616,7 @@ def _coerce_job_context(job_context: dict[str, Any] | list[str]) -> dict[str, An
     )
     responsibilities = _normalize_text_list(job_context.get("responsibilities"))
     context: dict[str, Any] = {
+        "raw_job_fingerprint": _normalize_optional_text(job_context.get("raw_job_fingerprint")),
         "job_url": _normalize_optional_text(job_context.get("job_url")),
         "job_title": _normalize_optional_text(job_context.get("title") or job_context.get("job_title")),
         "job_family": _normalize_optional_text(job_context.get("job_family")),

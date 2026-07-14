@@ -116,8 +116,9 @@ Required child detailed spec set:
 1. **Phase 1 — `cv_analysis` single-owner collapse**
    - required child spec name:
      `fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner`
-   - required output path shape:
-     `docs/superpowers/specs/YYYY-MM-DD-HH-MM-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md`
+   - child spec:
+     `docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md`
+   - status: `completed`
    - scope:
      make one canonical `CvAnalysisRecord` owner, delete pipeline and
      stage-runner duplicated analysis semantics, and keep adapter variation

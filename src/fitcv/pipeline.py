@@ -56,7 +56,7 @@ from copy import deepcopy
 from typing import Any, Callable, cast
 
 from fitcv.ai_score import build_ai_score_input_fingerprint, run_ai_scoring
-from fitcv.agentic_cv_analysis import analyze_ranked_job as run_agentic_cv_analysis
+from fitcv.agentic_cv_analysis import analyze_ranked_job
 from fitcv.agentic_cv_generation import generate_from_analysis as run_agentic_cv_generation
 from fitcv.candidate import (
     flatten_skills,
@@ -119,12 +119,6 @@ from fitcv.enrich import (
     load_structured_jobs,
     lookup_reusable_structured_jobs,
 )
-from fitcv.evidence import (
-    build_cv_analysis_input_fingerprint,
-    retrieve_evidence,
-    retrieve_evidence_bundle,
-)
-from fitcv.gap_analysis import classify_fit, compute_gap
 from fitcv.ingest import load_raw_jobs, parse_jobs_file, prepare_raw_rows
 from fitcv.normalize import normalize_batch, normalize_batch_with_exclusions
 from fitcv.ranking import (
@@ -1115,90 +1109,23 @@ def _index_late_stage_reuse_rows(
         indexed[fingerprint] = deepcopy(payload)
     return indexed
 
-def _index_cv_analysis_reuse_by_url(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
-    indexed: dict[str, list[dict[str, Any]]] = {}
+def _index_cv_analysis_reuse_by_identity(
+    rows: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    indexed: dict[str, dict[str, Any]] = {}
     for row in rows:
-        job_url = str(row.get("job_url") or "").strip()
         payload = row.get("analysis_record")
-        if not job_url or not isinstance(payload, dict):
+        if not isinstance(payload, dict):
             continue
-        indexed.setdefault(job_url, []).append(deepcopy(payload))
+        identity_source = {
+            **dict(payload.get("job_snapshot") or {}),
+            **payload,
+        }
+        if not identity_source.get("job_url"):
+            identity_source["job_url"] = str(row.get("job_url") or "")
+        for identity_key in job_identity_keys(identity_source):
+            indexed.setdefault(identity_key, deepcopy(payload))
     return indexed
-
-def _analysis_input_components(payload: dict[str, Any]) -> dict[str, Any]:
-    profile_payload = dict(payload.get("profile") or {})
-    job_payload = dict(payload.get("job") or {})
-
-    def _hash(value: Any) -> str:
-        seed = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-        return hashlib.sha256(seed.encode("utf-8")).hexdigest()
-
-    return {
-        "contract_fingerprint": str(payload.get("contract_fingerprint") or ""),
-        "profile_payload_hash": _hash(profile_payload),
-        "job_payload_hash": _hash(job_payload),
-    }
-
-def _attach_analysis_input_components(
-    *,
-    analysis_record: dict[str, Any],
-    job: dict[str, Any],
-    analysis_input_fingerprint: str,
-    analysis_input_components: dict[str, Any],
-) -> dict[str, Any]:
-    hydrated = dict(analysis_record or {})
-    hydrated["analysis_input_fingerprint"] = analysis_input_fingerprint
-    hydrated["analysis_input_components"] = dict(analysis_input_components or {})
-    hydrated["job_url"] = str(
-        hydrated.get("job_url")
-        or job.get("job_url")
-        or ""
-    )
-    hydrated["job_title"] = str(
-        hydrated.get("job_title")
-        or extract_job_title(job)
-    )
-    hydrated["job_snapshot"] = dict(hydrated.get("job_snapshot") or job)
-    reuse_status = str(hydrated.get("analysis_reuse_status") or "")
-    if not reuse_status:
-        hydrated["analysis_reuse_status"] = "fresh_compute"
-    if not isinstance(hydrated.get("reuse_decision"), dict):
-        hydrated["reuse_decision"] = build_reuse_decision(
-            decision="fresh_compute",
-            reason_code="no_reusable_snapshot_match",
-            fingerprint=analysis_input_fingerprint,
-            source_artifact_type="cv_analysis",
-        )
-    return hydrated
-
-def _cv_analysis_reuse_mismatch_reason(
-    *,
-    current_record: dict[str, Any],
-    prior_records_for_url: list[dict[str, Any]],
-) -> str:
-    current_components = dict(current_record.get("analysis_input_components") or {})
-    if not prior_records_for_url:
-        return "no_overlap_prior_url"
-    if not current_components:
-        return "missing_current_components"
-    prior_components = [
-        dict(item.get("analysis_input_components") or {})
-        for item in prior_records_for_url
-        if isinstance(item, dict)
-    ]
-    if not any(prior_components):
-        return "overlap_without_prior_components"
-    contract = str(current_components.get("contract_fingerprint") or "")
-    if any(str(item.get("contract_fingerprint") or "") != contract for item in prior_components):
-        return "contract_fingerprint_changed"
-    profile_hash = str(current_components.get("profile_payload_hash") or "")
-    if any(str(item.get("profile_payload_hash") or "") != profile_hash for item in prior_components):
-        return "profile_payload_changed"
-    job_hash = str(current_components.get("job_payload_hash") or "")
-    if any(str(item.get("job_payload_hash") or "") != job_hash for item in prior_components):
-        return "job_payload_changed"
-    return "overlap_exact_match_not_used"
-
 
 def _build_late_stage_reuse_metrics(
     *,
@@ -2803,64 +2730,6 @@ def _build_cv_analysis_trace_summary(
     }
 
 
-def _build_cv_analysis_record(
-    *,
-    job: dict[str, Any],
-    status: str,
-    analysis_input_fingerprint: str | None,
-    analysis_reuse_status: str,
-    evidence_payload: list[dict[str, Any]],
-    evidence_used: list[dict[str, Any]],
-    evidence_selection_summary: dict[str, Any] | None,
-    gap_summary: dict[str, Any] | None,
-    fit_classification: str | None,
-    error: dict[str, str] | None,
-    pre_writing_decision: dict[str, Any] | None = None,
-    readiness_diagnostics: dict[str, Any] | None = None,
-    reuse_decision: dict[str, Any] | None = None,
-    analysis_input_components: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    ranking_fit_label = _authoritative_ranking_fit_label(job, fit_classification)
-    ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
-    cv_status = _cv_generation_status_for_analysis_status(status)
-    resolved_reuse_decision = reuse_decision or build_reuse_decision(
-        decision=analysis_reuse_status,
-        reason_code=analysis_reuse_status,
-        fingerprint=analysis_input_fingerprint,
-        source_artifact_type="cv_analysis",
-    )
-    decision_chain = _build_decision_chain(
-        shortlist_status=_shortlist_status_for_ranked_job(job),
-        advanced_to_scoring=True,
-        ranking_fit_label=ranking_fit_label,
-        ranking_fit_source=ranking_fit_source,
-        cv_analysis_status=status,
-        cv_status=cv_status,
-    )
-    return {
-        "job_url": str(job.get("job_url") or ""),
-        "job_title": extract_job_title(job),
-        "status": status,
-        "analysis_input_fingerprint": analysis_input_fingerprint,
-        "analysis_input_components": dict(analysis_input_components or {}),
-        "analysis_reuse_status": analysis_reuse_status,
-        "reuse_decision": dict(resolved_reuse_decision),
-        "ranking_fit_label": ranking_fit_label,
-        "fit_classification": fit_classification,
-        "decision_chain": decision_chain,
-        "job_snapshot": dict(job),
-        "evidence_payload": list(evidence_payload),
-        "evidence_used": evidence_used,
-        "evidence_selection_summary": dict(evidence_selection_summary or {}),
-        "gap_summary": gap_summary,
-        "pre_writing_decision": dict(pre_writing_decision or {}),
-        "readiness_diagnostics": dict(readiness_diagnostics or {}),
-        # Reranker blocks and fit-gate skips are expected analysis outcomes, not runtime errors.
-        "outcome_reason": error if status in {CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS, CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
-        "error": error if status not in {CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS, CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
-    }
-
-
 def _stage_block_not_reached(stage: str) -> dict[str, Any]:
     def _stage_result_builder(stage_id: str) -> dict[str, Any]:
         return _build_stage_result(
@@ -3772,12 +3641,7 @@ def run_pipeline(
             fingerprint_key="ai_score_input_fingerprint",
             payload_key="ai_score_row",
         )
-        cv_analysis_reuse_index = _index_late_stage_reuse_rows(
-            normalized_reuse_snapshots["cv_analysis_records"],
-            fingerprint_key="analysis_input_fingerprint",
-            payload_key="analysis_record",
-        )
-        cv_analysis_reuse_by_url = _index_cv_analysis_reuse_by_url(
+        cv_analysis_reuse_by_identity = _index_cv_analysis_reuse_by_identity(
             normalized_reuse_snapshots["cv_analysis_records"],
         )
         raw_jobs = list(state["raw_jobs"])
@@ -4318,8 +4182,12 @@ def run_pipeline(
         agentic_late_stage_enabled = _agentic_late_stage_enabled(config)
         cv_analysis_concurrency = _cv_analysis_stage_concurrency(config)
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("cv_analysis"):
-            with observe_span("pipeline.cv_analysis", attributes={"run_id": run_id, "ranked_jobs": len(ranked_jobs_for_cv)}):
+            with observe_span(
+                "pipeline.cv_analysis",
+                attributes={"run_id": run_id, "ranked_jobs": len(ranked_jobs_for_cv)},
+            ):
                 cv_analysis_started_monotonic = time.monotonic()
+                cv_analysis_effective_concurrency = 1
                 if reporter is not None:
                     reporter.emit(
                         "layer4_cv_analysis_invoked",
@@ -4332,66 +4200,84 @@ def run_pipeline(
                             event_status="started",
                             fallback_used=False,
                             provenance={
-                                "late_stage_mode": "agentic",
-                                "cv_analysis_concurrency_effective": cv_analysis_concurrency,
+                                "late_stage_mode": "canonical",
+                                "cv_analysis_concurrency_effective": cv_analysis_effective_concurrency,
                             },
                             input_snapshot={
                                 "ranked_jobs": len(ranked_jobs_for_cv),
                                 "cv_analysis_concurrency_configured": cv_analysis_concurrency,
                             },
                             output_snapshot={
-                                "cv_analysis_concurrency_effective": cv_analysis_concurrency,
+                                "cv_analysis_concurrency_effective": cv_analysis_effective_concurrency,
                             },
                             artifact_refs={"stage_id": "cv_analysis"},
                         ),
                     )  # type: ignore[union-attr]
                 if cancellation_check and cancellation_check():
                     raise PipelineCancelled("Cancelled before CV analysis")
+
                 cv_analysis_results = []
                 cv_analysis_reuse_enabled = _reuse_stage_enabled(config, "cv_analysis")
-                pending_agentic_analysis: list[
-                    tuple[int, dict[str, Any], Future[dict[str, Any]], str, dict[str, Any]]
-                ] = []
-                agentic_executor: ThreadPoolExecutor | None = None
+                fresh_analysis_reuse_reason_counts: dict[str, int] = {}
+                fresh_identity_overlap = 0
+                fresh_identity_no_overlap = 0
                 for job in ranked_jobs_for_cv:
-                    ranking_fit_label = _resolve_layer4_fit(job, gap_fit=None, config=config)
-                    if ranking_fit_label == "skip":
+                    reusable_record = None
+                    if cv_analysis_reuse_enabled:
+                        for identity_key in job_identity_keys(job):
+                            reusable_record = cv_analysis_reuse_by_identity.get(identity_key)
+                            if reusable_record is not None:
+                                break
+                    analysis_record = cast(
+                        dict[str, Any],
+                        dict(
+                            analyze_ranked_job(
+                                job,
+                                profile,
+                                config,
+                                reusable_record=reusable_record,
+                            )
+                        ),
+                    )
+                    cv_analysis_results.append(analysis_record)
+                    _emit_cv_analysis_item_observation(
+                        run_id=run_id,
+                        profile=profile,
+                        job=job,
+                        analysis_record=analysis_record,
+                    )
+
+                    analysis_status = str(analysis_record.get("status") or "analysis_failed")
+                    if analysis_status == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
                         logger.info(
                             "[run_id=%s] Blocking job %s before CV analysis (reranker fit=skip)",
                             run_id,
                             job.get("job_url"),
                         )
-                        analysis_record = _build_cv_analysis_record(
-                            job=job,
-                            status=CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
-                            analysis_input_fingerprint=None,
-                            analysis_reuse_status="not_run_reranker_skip",
-                            evidence_payload=[],
-                            evidence_used=[],
-                            evidence_selection_summary=None,
-                            gap_summary=None,
-                            fit_classification=ranking_fit_label,
-                            error={
-                                "stage": "reranker_fit",
-                                "message": f"Blocked {job.get('job_url')} before CV analysis (reranker fit=skip)",
-                            },
+                    if str(analysis_record.get("analysis_reuse_status") or "") == "fresh_compute":
+                        if reusable_record is None:
+                            fresh_identity_no_overlap += 1
+                        else:
+                            fresh_identity_overlap += 1
+                        reuse_reason = str(
+                            dict(analysis_record.get("reuse_decision") or {}).get("reason_code")
+                            or "unknown"
                         )
-                        cv_analysis_results.append(analysis_record)
-                        _emit_cv_analysis_item_observation(
-                            run_id=run_id,
-                            profile=profile,
-                            job=job,
-                            analysis_record=analysis_record,
-                        )
+                        fresh_analysis_reuse_reason_counts[reuse_reason] = int(
+                            fresh_analysis_reuse_reason_counts.get(reuse_reason) or 0
+                        ) + 1
+                    if analysis_status != CV_ANALYSIS_READY_FOR_GENERATION_STATUS:
                         cv_generation_debug_records.append(
                             _build_cv_generation_debug_record(
                                 job=job,
-                                status=CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
-                                fit_classification=ranking_fit_label,
-                                evidence_used=[],
-                                evidence_selection_summary=None,
+                                status=analysis_status,
+                                fit_classification=analysis_record.get("fit_classification"),
+                                evidence_used=list(analysis_record.get("evidence_used") or []),
+                                evidence_selection_summary=analysis_record.get(
+                                    "evidence_selection_summary"
+                                ),
                                 analysis_input_summary=_build_cv_generation_analysis_input_summary(job),
-                                gap_summary=None,
+                                gap_summary=analysis_record.get("gap_summary"),
                                 structured_cv_initial=None,
                                 validation_initial=None,
                                 repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
@@ -4402,543 +4288,178 @@ def run_pipeline(
                                 runtime_provenance=None,
                                 cv_prompt_id=cv_prompt_id_value,
                                 cv_prompt_template_path=cv_prompt_template_path_value,
-                                error=analysis_record.get("outcome_reason"),
+                                error=analysis_record.get("outcome_reason")
+                                or analysis_record.get("error"),
                             )
                         )
-                        continue
-                    analysis_fingerprint_record = build_cv_analysis_input_fingerprint(profile, job, config)
-                    analysis_input_components = _analysis_input_components(
-                        dict(analysis_fingerprint_record.get("payload") or {}),
-                    )
-                    reused_analysis_record = (
-                        cv_analysis_reuse_index.get(analysis_fingerprint_record["fingerprint"])
-                        if cv_analysis_reuse_enabled
-                        else None
-                    )
-                    if reused_analysis_record is not None:
-                        analysis_record = {
-                            **deepcopy(reused_analysis_record),
-                            "job_url": str(job.get("job_url") or ""),
-                            "job_title": extract_job_title(job),
-                            "job_snapshot": dict(job),
-                            "analysis_input_fingerprint": analysis_fingerprint_record["fingerprint"],
-                            "analysis_input_components": dict(analysis_input_components),
-                            "analysis_reuse_status": "reused_exact_match",
-                            "reuse_decision": build_reuse_decision(
-                                decision="reused_exact_match",
-                                reason_code="exact_fingerprint_match",
-                                fingerprint=analysis_fingerprint_record["fingerprint"],
-                                source_artifact_type="cv_analysis",
+                    if reporter is not None and analysis_status == CV_ANALYSIS_FAILED_STATUS:
+                        analysis_error = dict(analysis_record.get("error") or {})
+                        reporter.emit(
+                            "layer4_cv_error",
+                            "error",
+                            f"CV analysis failed for {job.get('job_url')}: {analysis_error.get('message')}",
+                            _bounded_event_payload(
+                                event_name="cv_analysis_decision",
+                                event_family="decision",
+                                source_stage="cv_analysis",
+                                event_status="completed",
+                                job_url=str(job.get("job_url") or ""),
+                                deterministic_outcome="rejected",
+                                stage_owned_subreason=CV_ANALYSIS_FAILED_STATUS,
+                                input_snapshot={
+                                    "ranking_fit_label": analysis_record.get("ranking_fit_label"),
+                                },
+                                output_snapshot={
+                                    "error_stage": str(analysis_error.get("stage") or ""),
+                                },
+                                artifact_refs={"stage_id": "cv_analysis"},
+                            ),
+                        )  # type: ignore[union-attr]
+
+                if reporter is not None:
+                    blocked_by_reranker_diagnostics = [
+                        {
+                            "job_url": str(record.get("job_url") or ""),
+                            "ranking_fit_label": str(record.get("ranking_fit_label") or ""),
+                            "fit_classification": str(record.get("fit_classification") or ""),
+                            "ai_score": (record.get("job_snapshot") or {}).get("ai_score"),
+                            "fit_label_source": str(
+                                ((record.get("job_snapshot") or {}).get("fit_label_source")) or ""
                             ),
                         }
-                        cv_analysis_results.append(analysis_record)
-                        _emit_cv_analysis_item_observation(
-                            run_id=run_id,
-                            profile=profile,
-                            job=job,
-                            analysis_record=analysis_record,
-                        )
-                        reused_status = str(analysis_record.get("status") or "")
-                        if reused_status in {"skipped_fit_gate", "analysis_failed"}:
-                            debug_error = (
-                                analysis_record.get("outcome_reason")
-                                if reused_status == "skipped_fit_gate"
-                                else analysis_record.get("error")
-                            )
-                            cv_generation_debug_records.append(
-                                _build_cv_generation_debug_record(
-                                    job=job,
-                                    status=reused_status,
-                                    fit_classification=analysis_record.get("fit_classification"),
-                                    evidence_used=list(analysis_record.get("evidence_used") or []),
-                                    evidence_selection_summary=analysis_record.get("evidence_selection_summary"),
-                                    analysis_input_summary=_build_cv_generation_analysis_input_summary(job),
-                                    gap_summary=analysis_record.get("gap_summary"),
-                                    structured_cv_initial=None,
-                                    validation_initial=None,
-                                    repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
-                                    structured_cv_final=None,
-                                    markdown_final=None,
-                                    enabled_sections=enabled_cv_sections,
-                                    cv_generation_model=cv_generation_model_value,
-                                    runtime_provenance=None,
-                                    cv_prompt_id=cv_prompt_id_value,
-                                    cv_prompt_template_path=cv_prompt_template_path_value,
-                                    error=debug_error if isinstance(debug_error, dict) else None,
-                                )
-                            )
-                            if reporter is not None and reused_status == "analysis_failed":
-                                reporter.emit(
-                                    "layer4_cv_error",
-                                    "error",
-                                    f"CV analysis failed for {job.get('job_url')}: {debug_error}",
-                                    _bounded_event_payload(
-                                        event_name="cv_analysis_decision",
-                                        event_family="decision",
-                                        source_stage="cv_analysis",
-                                        event_status="completed",
-                                        job_url=str(job.get("job_url") or ""),
-                                        deterministic_outcome="rejected",
-                                        stage_owned_subreason=CV_ANALYSIS_FAILED_STATUS,
-                                        input_snapshot={
-                                            "ranking_fit_label": analysis_record.get("ranking_fit_label"),
-                                        },
-                                        output_snapshot={
-                                            "error_stage": str(
-                                                (debug_error or {}).get("stage") if isinstance(debug_error, dict) else ""
-                                            ),
-                                        },
-                                        artifact_refs={"stage_id": "cv_analysis"},
-                                    ),
-                                )  # type: ignore[union-attr]
-                        continue
-                    evidence: list[dict[str, Any]] = []
-                    evidence_selection_summary: dict[str, Any] = {}
-                    gap: dict[str, Any] | None = None
-                    fit = "skip"
-                    try:
-                        if agentic_late_stage_enabled:
-                            if cv_analysis_concurrency > 1:
-                                if agentic_executor is None:
-                                    agentic_executor = ThreadPoolExecutor(max_workers=cv_analysis_concurrency)
-                                future: Future[dict[str, Any]] = agentic_executor.submit(
-                                    lambda pending_job: dict(run_agentic_cv_analysis(pending_job, profile, config)),
-                                    job,
-                                )
-                                placeholder_index = len(cv_analysis_results)
-                                cv_analysis_results.append({})
-                                pending_agentic_analysis.append(
-                                    (
-                                        placeholder_index,
-                                        dict(job),
-                                        future,
-                                        analysis_fingerprint_record["fingerprint"],
-                                        dict(analysis_input_components),
-                                    )
-                                )
-                                continue
-                            analysis_record = _attach_analysis_input_components(
-                                analysis_record=dict(run_agentic_cv_analysis(job, profile, config)),
-                                job=job,
-                                analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
-                                analysis_input_components=analysis_input_components,
-                            )
-                            cv_analysis_results.append(analysis_record)
-                            _emit_cv_analysis_item_observation(
-                                run_id=run_id,
-                                profile=profile,
-                                job=job,
-                                analysis_record=analysis_record,
-                            )
-                            evidence = list(analysis_record.get("evidence_payload") or [])
-                            evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
-                            gap = analysis_record.get("gap_summary")
-                            fit = str(analysis_record.get("fit_classification") or fit)
-                            if str(analysis_record.get("status") or "") != "ready_for_generation":
-                                cv_generation_debug_records.append(
-                                    _build_cv_generation_debug_record(
-                                        job=job,
-                                        status=str(analysis_record.get("status") or "analysis_failed"),
-                                        fit_classification=fit,
-                                        evidence_used=analysis_record["evidence_used"],
-                                        evidence_selection_summary=analysis_record.get("evidence_selection_summary"),
-                                        analysis_input_summary=_build_cv_generation_analysis_input_summary(job),
-                                        gap_summary=gap,
-                                        structured_cv_initial=None,
-                                        validation_initial=None,
-                                        repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
-                                        structured_cv_final=None,
-                                        markdown_final=None,
-                                        enabled_sections=enabled_cv_sections,
-                                        cv_generation_model=cv_generation_model_value,
-                                        runtime_provenance=None,
-                                        cv_prompt_id=cv_prompt_id_value,
-                                        cv_prompt_template_path=cv_prompt_template_path_value,
-                                        error=analysis_record.get("outcome_reason") or analysis_record["error"],
-                                    )
-                                )
-                            continue
-                        evidence_top_k = pipeline_int(config, "evidence_top_k", default=0)
-                        evidence_bundle = retrieve_evidence_bundle(
-                            profile,
-                            job,
-                            top_k=evidence_top_k,
-                            config=config,
-                        )
-                        evidence = list(evidence_bundle.get("selected_evidence") or [])
-                        evidence_selection_summary = _build_analysis_evidence_selection_summary(
-                            evidence_bundle,
-                            evidence,
-                            fallback_used=False,
-                        )
-                        if not evidence:
-                            evidence = retrieve_evidence(
-                                profile,
-                                job,
-                                top_k=evidence_top_k,
-                            )
-                            if evidence:
-                                evidence_selection_summary = _build_analysis_evidence_selection_summary(
-                                    {
-                                        **evidence_bundle,
-                                        "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in evidence],
-                                        "merged_pool_size": max(
-                                            len(evidence),
-                                            int(evidence_selection_summary.get("merged_pool_size") or 0),
-                                        ),
-                                        "deduped_pool_size": max(
-                                            len(evidence),
-                                            int(evidence_selection_summary.get("deduped_pool_size") or 0),
-                                        ),
-                                        "unselected_top_candidates": list(
-                                            evidence_selection_summary.get("unselected_top_candidates") or []
-                                        ),
-                                        "hybrid_alignment": evidence_selection_summary.get("hybrid_alignment") or {},
-                                        "semantic_alignment": evidence_selection_summary.get("semantic_alignment") or {},
-                                    },
-                                    evidence,
-                                    fallback_used=True,
-                                )
-
-                        gap = compute_gap(
-                            required_skills=job.get("required_skills") or [],
-                            candidate_skills=candidate_skill_names,
-                            years_experience_min=job.get("years_experience_min"),
-                            years_experience_max=job.get("years_experience_max"),
-                            years_candidate=profile.get("years_experience"),
-                            config=config,
-                        )
-
-                        fit = _resolve_layer4_fit(job, gap_fit=None, config=config)
-                        if fit == "skip":
-                            logger.info("[run_id=%s] Skipping job %s (fit=skip)", run_id, job.get("job_url"))
-                            analysis_record = _build_cv_analysis_record(
-                                job=job,
-                                status="skipped_fit_gate",
-                                analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
-                                analysis_input_components=analysis_input_components,
-                                analysis_reuse_status="fresh_compute",
-                                evidence_payload=evidence,
-                                evidence_used=_build_debug_evidence_used(evidence),
-                                evidence_selection_summary=evidence_selection_summary,
-                                gap_summary=gap,
-                                fit_classification=fit,
-                                error={
-                                    "stage": "fit_gate",
-                                    "message": f"Skipped {job.get('job_url')} (fit=skip)",
-                                },
-                            )
-                            cv_analysis_results.append(analysis_record)
-                            _emit_cv_analysis_item_observation(
-                                run_id=run_id,
-                                profile=profile,
-                                job=job,
-                                analysis_record=analysis_record,
-                            )
-                            cv_generation_debug_records.append(
-                                _build_cv_generation_debug_record(
-                                    job=job,
-                                    status="skipped_fit_gate",
-                                    fit_classification=fit,
-                                    evidence_used=analysis_record["evidence_used"],
-                                    evidence_selection_summary=analysis_record.get("evidence_selection_summary"),
-                                    analysis_input_summary=_build_cv_generation_analysis_input_summary(job),
-                                    gap_summary=gap,
-                                    structured_cv_initial=None,
-                                    validation_initial=None,
-                                    repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
-                                    structured_cv_final=None,
-                                    markdown_final=None,
-                                    enabled_sections=enabled_cv_sections,
-                                    cv_generation_model=cv_generation_model_value,
-                                    runtime_provenance=None,
-                                    cv_prompt_id=cv_prompt_id_value,
-                                    cv_prompt_template_path=cv_prompt_template_path_value,
-                                    error=analysis_record.get("outcome_reason") or analysis_record["error"],
-                                )
-                            )
-                            continue
-
-                        analysis_record = _build_cv_analysis_record(
-                            job=job,
-                            status="ready_for_generation",
-                            analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
-                            analysis_input_components=analysis_input_components,
-                            analysis_reuse_status="fresh_compute",
-                            evidence_payload=evidence,
-                            evidence_used=_build_debug_evidence_used(evidence),
-                            evidence_selection_summary=evidence_selection_summary,
-                            gap_summary=gap,
-                            fit_classification=fit,
-                            error=None,
-                        )
-                        cv_analysis_results.append(analysis_record)
-                        _emit_cv_analysis_item_observation(
-                            run_id=run_id,
-                            profile=profile,
-                            job=job,
-                            analysis_record=analysis_record,
-                        )
-                    except Exception as exc:
-                        logger.error("[run_id=%s] CV analysis failed for %s: %s", run_id, job.get("job_url"), exc)
-                        analysis_record = _build_cv_analysis_record(
-                            job=job,
-                            status="analysis_failed",
-                            analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
-                            analysis_input_components=analysis_input_components,
-                            analysis_reuse_status="fresh_compute",
-                            evidence_payload=evidence,
-                            evidence_used=_build_debug_evidence_used(evidence),
-                            evidence_selection_summary=evidence_selection_summary,
-                            gap_summary=gap,
-                            fit_classification=fit if fit else None,
-                            error={
-                                "stage": "analysis",
-                                "message": str(exc),
-                            },
-                        )
-                        cv_analysis_results.append(analysis_record)
-                        _emit_cv_analysis_item_observation(
-                            run_id=run_id,
-                            profile=profile,
-                            job=job,
-                            analysis_record=analysis_record,
-                        )
-                        cv_generation_debug_records.append(
-                            _build_cv_generation_debug_record(
-                                job=job,
-                                status="analysis_failed",
-                                fit_classification=analysis_record.get("fit_classification"),
-                                evidence_used=analysis_record["evidence_used"],
-                                evidence_selection_summary=analysis_record.get("evidence_selection_summary"),
-                                analysis_input_summary=_build_cv_generation_analysis_input_summary(job),
-                                gap_summary=gap,
-                                structured_cv_initial=None,
-                                validation_initial=None,
-                                repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
-                                structured_cv_final=None,
-                                markdown_final=None,
-                                enabled_sections=enabled_cv_sections,
-                                cv_generation_model=cv_generation_model_value,
-                                runtime_provenance=None,
-                                cv_prompt_id=cv_prompt_id_value,
-                                cv_prompt_template_path=cv_prompt_template_path_value,
-                                error=analysis_record["error"],
-                            )
-                        )
-                        if reporter is not None:
-                            reporter.emit(
-                                "layer4_cv_error",
-                                "error",
-                                f"CV analysis failed for {job.get('job_url')}: {exc}",
-                                _bounded_event_payload(
-                                    event_name="cv_analysis_decision",
-                                    event_family="decision",
-                                    source_stage="cv_analysis",
-                                    event_status="completed",
-                                    job_url=str(job.get("job_url") or ""),
-                                    deterministic_outcome="rejected",
-                                    stage_owned_subreason=CV_ANALYSIS_FAILED_STATUS,
-                                    input_snapshot={
-                                        "ranking_fit_label": analysis_record.get("ranking_fit_label"),
-                                    },
-                                    output_snapshot={
-                                        "error_stage": str(analysis_record["error"].get("stage") or ""),
-                                    },
-                                    artifact_refs={"stage_id": "cv_analysis"},
-                                ),
-                            )  # type: ignore[union-attr]
-                        continue
-                if agentic_executor is not None:
-                    agentic_executor.shutdown(wait=True)
-                for (
-                    placeholder_index,
-                    pending_job,
-                    future,
-                    analysis_input_fingerprint,
-                    analysis_input_components,
-                ) in pending_agentic_analysis:
-                    analysis_record = _attach_analysis_input_components(
-                        analysis_record=dict(future.result()),
-                        job=pending_job,
-                        analysis_input_fingerprint=analysis_input_fingerprint,
-                        analysis_input_components=analysis_input_components,
-                    )
-                    cv_analysis_results[placeholder_index] = analysis_record
-                    _emit_cv_analysis_item_observation(
-                        run_id=run_id,
-                        profile=profile,
-                        job=pending_job,
-                        analysis_record=analysis_record,
-                    )
-                    evidence = list(analysis_record.get("evidence_payload") or [])
-                    evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
-                    gap = analysis_record.get("gap_summary")
-                    fit = str(analysis_record.get("fit_classification") or "skip")
-                    if str(analysis_record.get("status") or "") != "ready_for_generation":
-                        cv_generation_debug_records.append(
-                            _build_cv_generation_debug_record(
-                                job=pending_job,
-                                status=str(analysis_record.get("status") or "analysis_failed"),
-                                fit_classification=fit,
-                                evidence_used=analysis_record["evidence_used"],
-                                evidence_selection_summary=evidence_selection_summary,
-                                analysis_input_summary=_build_cv_generation_analysis_input_summary(pending_job),
-                                gap_summary=gap,
-                                structured_cv_initial=None,
-                                validation_initial=None,
-                                repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
-                                structured_cv_final=None,
-                                markdown_final=None,
-                                enabled_sections=enabled_cv_sections,
-                                cv_generation_model=cv_generation_model_value,
-                                runtime_provenance=None,
-                                cv_prompt_id=cv_prompt_id_value,
-                                cv_prompt_template_path=cv_prompt_template_path_value,
-                                error=analysis_record.get("outcome_reason") or analysis_record["error"],
-                            )
-                        )
-            if reporter is not None:
-                fresh_analysis_reuse_reason_counts: dict[str, int] = {}
-                fresh_overlap_urls = 0
-                fresh_no_overlap_urls = 0
-                for record in cv_analysis_results:
-                    if str(record.get("analysis_reuse_status") or "") != "fresh_compute":
-                        continue
-                    if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
-                        continue
-                    job_url = str(record.get("job_url") or "").strip()
-                    prior_records_for_url = list(cv_analysis_reuse_by_url.get(job_url) or [])
-                    if prior_records_for_url:
-                        fresh_overlap_urls += 1
-                    else:
-                        fresh_no_overlap_urls += 1
-                    reason = _cv_analysis_reuse_mismatch_reason(
-                        current_record=record,
-                        prior_records_for_url=prior_records_for_url,
-                    )
-                    fresh_analysis_reuse_reason_counts[reason] = int(
-                        fresh_analysis_reuse_reason_counts.get(reason) or 0
-                    ) + 1
-                blocked_by_reranker_diagnostics = [
-                    {
-                        "job_url": str(record.get("job_url") or ""),
-                        "ranking_fit_label": str(record.get("ranking_fit_label") or ""),
-                        "fit_classification": str(record.get("fit_classification") or ""),
-                        "ai_score": (record.get("job_snapshot") or {}).get("ai_score"),
-                        "fit_label_source": str(((record.get("job_snapshot") or {}).get("fit_label_source")) or ""),
-                    }
-                    for record in cv_analysis_results
-                    if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
-                ][:10]
-                reporter.emit(
-                    "layer4_cv_analysis",
-                    "info",
-                    (
-                        "CV analysis complete: "
-                        f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == 'ready_for_generation')} ready, "
-                        f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS)} blocked by reranker, "
-                        f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == 'skipped_fit_gate')} skipped, "
-                        f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == 'analysis_failed')} failed"
-                    ),
-                    _bounded_event_payload(
-                        event_name="cv_analysis_decision",
-                        event_family="decision",
-                        source_stage="cv_analysis",
-                        event_status="completed",
-                        deterministic_outcome=None,
-                        stage_owned_subreason="stage_summary",
-                        input_snapshot={
-                            "ranked_jobs": len(ranked),
-                            "cv_analysis_concurrency_configured": cv_analysis_concurrency,
-                        },
-                        output_snapshot={
-                            "reused_analysis_rows": sum(
-                                1 for record in cv_analysis_results
-                                if str(record.get("analysis_reuse_status") or "") == "reused_exact_match"
-                            ),
-                            "fresh_analysis_rows": sum(
-                                1 for record in cv_analysis_results
-                                if str(record.get("analysis_reuse_status") or "") == "fresh_compute"
-                            ),
-                            "ready_for_generation": sum(
-                                1 for record in cv_analysis_results
-                                if str(record.get("status") or "") == CV_ANALYSIS_READY_FOR_GENERATION_STATUS
-                            ),
-                            "blocked_by_reranker_fit": sum(
-                                1 for record in cv_analysis_results
-                                if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
-                            ),
-                            "skipped_fit_gate": sum(
-                                1 for record in cv_analysis_results
-                                if str(record.get("status") or "") == CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS
-                            ),
-                            "analysis_failed": sum(
-                                1 for record in cv_analysis_results
-                                if str(record.get("status") or "") == CV_ANALYSIS_FAILED_STATUS
-                            ),
-                            "fresh_analysis_reuse_mismatch_reasons": dict(fresh_analysis_reuse_reason_counts),
-                            "fresh_analysis_overlap_urls": fresh_overlap_urls,
-                            "fresh_analysis_no_overlap_urls": fresh_no_overlap_urls,
-                            "cv_analysis_concurrency_effective": cv_analysis_concurrency,
-                        },
-                        artifact_refs={"stage_id": "cv_analysis"},
-                        latency_ms=int((time.monotonic() - cv_analysis_started_monotonic) * 1000),
-                    ),
-                )  # type: ignore[union-attr]
-                if blocked_by_reranker_diagnostics:
+                        for record in cv_analysis_results
+                        if str(record.get("status") or "")
+                        == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
+                    ][:10]
                     reporter.emit(
-                        "layer4_cv_analysis_blocked_details",
+                        "layer4_cv_analysis",
                         "info",
-                        f"Blocked by reranker diagnostics: {len(blocked_by_reranker_diagnostics)} job(s)",
+                        (
+                            "CV analysis complete: "
+                            f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == CV_ANALYSIS_READY_FOR_GENERATION_STATUS)} ready, "
+                            f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS)} blocked by reranker, "
+                            f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS)} skipped, "
+                            f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == CV_ANALYSIS_FAILED_STATUS)} failed"
+                        ),
                         _bounded_event_payload(
-                            event_name="cv_analysis_blocked_diagnostics",
-                            event_family="debug",
+                            event_name="cv_analysis_decision",
+                            event_family="decision",
                             source_stage="cv_analysis",
                             event_status="completed",
-                            deterministic_outcome="rejected",
-                            stage_owned_subreason=CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
+                            deterministic_outcome=None,
+                            stage_owned_subreason="stage_summary",
                             input_snapshot={
-                                "fit_label_thresholds": dict(config.get("fit_label_thresholds") or {}),
+                                "ranked_jobs": len(ranked),
+                                "cv_analysis_concurrency_configured": cv_analysis_concurrency,
                             },
                             output_snapshot={
-                                "blocked_jobs": blocked_by_reranker_diagnostics,
+                                "reused_analysis_rows": sum(
+                                    1
+                                    for record in cv_analysis_results
+                                    if str(record.get("analysis_reuse_status") or "")
+                                    == "reused_exact_match"
+                                ),
+                                "fresh_analysis_rows": sum(
+                                    1
+                                    for record in cv_analysis_results
+                                    if str(record.get("analysis_reuse_status") or "")
+                                    == "fresh_compute"
+                                ),
+                                "ready_for_generation": sum(
+                                    1
+                                    for record in cv_analysis_results
+                                    if str(record.get("status") or "")
+                                    == CV_ANALYSIS_READY_FOR_GENERATION_STATUS
+                                ),
+                                "blocked_by_reranker_fit": sum(
+                                    1
+                                    for record in cv_analysis_results
+                                    if str(record.get("status") or "")
+                                    == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
+                                ),
+                                "skipped_fit_gate": sum(
+                                    1
+                                    for record in cv_analysis_results
+                                    if str(record.get("status") or "")
+                                    == CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS
+                                ),
+                                "analysis_failed": sum(
+                                    1
+                                    for record in cv_analysis_results
+                                    if str(record.get("status") or "")
+                                    == CV_ANALYSIS_FAILED_STATUS
+                                ),
+                                "fresh_analysis_reuse_mismatch_reasons": dict(
+                                    fresh_analysis_reuse_reason_counts
+                                ),
+                                "fresh_analysis_overlap_urls": fresh_identity_overlap,
+                                "fresh_analysis_no_overlap_urls": fresh_identity_no_overlap,
+                                "cv_analysis_concurrency_effective": cv_analysis_effective_concurrency,
                             },
                             artifact_refs={"stage_id": "cv_analysis"},
+                            latency_ms=int(
+                                (time.monotonic() - cv_analysis_started_monotonic) * 1000
+                            ),
                         ),
                     )  # type: ignore[union-attr]
-            set_span_attributes(
-                {
-                    "cv_analysis_records": len(cv_analysis_results),
-                    "cv_analysis_ready": sum(
-                        1 for record in cv_analysis_results
-                        if str(record.get("status") or "") == CV_ANALYSIS_READY_FOR_GENERATION_STATUS
-                    ),
-                    "cv_analysis_failed": sum(
-                        1 for record in cv_analysis_results
-                        if str(record.get("status") or "") == CV_ANALYSIS_FAILED_STATUS
-                    ),
-                    "cv_analysis_concurrency_effective": cv_analysis_concurrency,
-                }
-            )
-            state["cv_analysis_results"] = cv_analysis_results
-            state["cv_generation_debug_records"] = cv_generation_debug_records
-            stage_boundary_result = _handle_stage_boundary(
-                run_id=run_id,
-                last_completed_stage="cv_analysis",
-                stop_after_stage=stop_after_stage,
-                state=state,
-                profile=profile,
-                config=config,
-                vector_top_n=vector_top_n,
-                candidate_summary=candidate_summary,
-                candidate_query_components=candidate_query_components,
-                candidate_query_debug=candidate_query_debug,
-                final_top_n=final_top_n,
-                stage_progress_callback=stage_progress_callback,
-            )
-            if stage_boundary_result is not None:
-                return stage_boundary_result
+                    if blocked_by_reranker_diagnostics:
+                        reporter.emit(
+                            "layer4_cv_analysis_blocked_details",
+                            "info",
+                            f"Blocked by reranker diagnostics: {len(blocked_by_reranker_diagnostics)} job(s)",
+                            _bounded_event_payload(
+                                event_name="cv_analysis_blocked_diagnostics",
+                                event_family="debug",
+                                source_stage="cv_analysis",
+                                event_status="completed",
+                                deterministic_outcome="rejected",
+                                stage_owned_subreason=CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
+                                input_snapshot={
+                                    "fit_label_thresholds": dict(
+                                        config.get("fit_label_thresholds") or {}
+                                    ),
+                                },
+                                output_snapshot={
+                                    "blocked_jobs": blocked_by_reranker_diagnostics,
+                                },
+                                artifact_refs={"stage_id": "cv_analysis"},
+                            ),
+                        )  # type: ignore[union-attr]
+                set_span_attributes(
+                    {
+                        "cv_analysis_records": len(cv_analysis_results),
+                        "cv_analysis_ready": sum(
+                            1
+                            for record in cv_analysis_results
+                            if str(record.get("status") or "")
+                            == CV_ANALYSIS_READY_FOR_GENERATION_STATUS
+                        ),
+                        "cv_analysis_failed": sum(
+                            1
+                            for record in cv_analysis_results
+                            if str(record.get("status") or "") == CV_ANALYSIS_FAILED_STATUS
+                        ),
+                        "cv_analysis_concurrency_effective": cv_analysis_effective_concurrency,
+                    }
+                )
+                state["cv_analysis_results"] = cv_analysis_results
+                state["cv_generation_debug_records"] = cv_generation_debug_records
+                stage_boundary_result = _handle_stage_boundary(
+                    run_id=run_id,
+                    last_completed_stage="cv_analysis",
+                    stop_after_stage=stop_after_stage,
+                    state=state,
+                    profile=profile,
+                    config=config,
+                    vector_top_n=vector_top_n,
+                    candidate_summary=candidate_summary,
+                    candidate_query_components=candidate_query_components,
+                    candidate_query_debug=candidate_query_debug,
+                    final_top_n=final_top_n,
+                    stage_progress_callback=stage_progress_callback,
+                )
+                if stage_boundary_result is not None:
+                    return stage_boundary_result
 
         cv_analysis_results = list(state["cv_analysis_results"])
         if cancellation_check and cancellation_check():

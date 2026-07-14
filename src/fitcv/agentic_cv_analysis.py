@@ -15,7 +15,10 @@ lifecycle:
   - status: active
 """
 
+import hashlib
+import json
 import time
+from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, cast
 
 from fitcv.candidate import flatten_skills
@@ -26,6 +29,8 @@ from fitcv.evidence import (
     retrieve_evidence_bundle,
 )
 from fitcv.gap_analysis import compute_gap
+from fitcv.pipeline_stages.common import job_identity_keys
+from fitcv.reuse import build_reuse_decision
 from fitcv.late_stage_contract import (
     AnalysisStatus,
     CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS as BLOCKED_BY_RERANKER_STATUS,
@@ -48,11 +53,14 @@ class ErrorPayload(TypedDict):
 
 
 class CvAnalysisRecord(TypedDict, total=False):
+    raw_job_fingerprint: str
     job_url: str
     job_title: str
     status: AnalysisStatus
     analysis_input_fingerprint: str | None
+    analysis_input_components: dict[str, Any]
     analysis_reuse_status: str
+    reuse_decision: dict[str, Any]
     ranking_fit_label: str | None
     fit_classification: FitClassification | None
     decision_chain: dict[str, Any]
@@ -169,7 +177,8 @@ def _build_cv_analysis_trace_record(
     section_confidence_hints: dict[str, str] | None,
     error: ErrorPayload | None,
 ) -> dict[str, Any]:
-    job_url = extract_job_url(job)
+    identity_keys = job_identity_keys(job)
+    canonical_identity = identity_keys[0] if identity_keys else extract_job_title(job)
     normalized_summary = dict(evidence_selection_summary or {})
     selected_evidence_count = int(normalized_summary.get("selected_evidence_count") or 0)
     fallback_used = bool(normalized_summary.get("fallback_used", False))
@@ -187,9 +196,9 @@ def _build_cv_analysis_trace_record(
         "trace_family": "agentic_step_trace",
         "step_id": "cv_analysis",
         "trace_status": trace_status,
-        "record_id": job_url or extract_job_title(job),
+        "record_id": canonical_identity,
         "scope_type": "job",
-        "scope_key": job_url,
+        "scope_key": canonical_identity,
         "status": status,
         "runtime_provenance": _build_runtime_provenance(),
         "attempts": [
@@ -269,9 +278,16 @@ def build_cv_analysis_record(
     do_not_claim: list[str] | None,
     fit_classification: FitClassification | None,
     error: ErrorPayload | None,
+    analysis_input_components: dict[str, Any] | None = None,
+    reuse_decision: dict[str, Any] | None = None,
 ) -> CvAnalysisRecord:
     cv_status = cv_generation_status_for_analysis_status(status)
-
+    resolved_reuse_decision = reuse_decision or build_reuse_decision(
+        decision=analysis_reuse_status,
+        reason_code=analysis_reuse_status,
+        fingerprint=analysis_input_fingerprint,
+        source_artifact_type="cv_analysis",
+    )
     evidence_used = build_evidence_used(evidence_payload)
     trace_record = _build_cv_analysis_trace_record(
         job=job,
@@ -283,11 +299,14 @@ def build_cv_analysis_record(
         error=error,
     )
     return {
+        "raw_job_fingerprint": str(job.get("raw_job_fingerprint") or ""),
         "job_url": extract_job_url(job),
         "job_title": extract_job_title(job),
         "status": status,
         "analysis_input_fingerprint": analysis_input_fingerprint,
+        "analysis_input_components": dict(analysis_input_components or {}),
         "analysis_reuse_status": analysis_reuse_status,
+        "reuse_decision": dict(resolved_reuse_decision),
         "ranking_fit_label": _authoritative_ranking_fit_label(job, fit_classification),
         "fit_classification": fit_classification,
         "decision_chain": build_decision_chain(
@@ -353,13 +372,13 @@ def _build_section_confidence_hints(
 
 
 def is_generation_ready(record: dict[str, Any]) -> bool:
-    return str(record.get("status") or "") == READY_FOR_GENERATION_STATUS
+    return bool(str(record.get("status") or "") == READY_FOR_GENERATION_STATUS)
 
 
 def _candidate_skill_names(profile: dict[str, Any]) -> list[str]:
     candidate_skills = flatten_skills(profile)
     if candidate_skills:
-        return candidate_skills
+        return [str(skill) for skill in candidate_skills if str(skill)]
     return [
         str(skill)
         for skill in list(profile.get("skills") or [])
@@ -407,38 +426,189 @@ def _cv_analysis_sleep_secs(config: dict[str, Any]) -> float:
     return float(cv_analysis_runtime.get("sleep_secs", 0.0))
 
 
+_REUSABLE_ANALYSIS_STATUSES = {READY_FOR_GENERATION_STATUS, SKIPPED_FIT_GATE_STATUS}
+_REUSABLE_RECORD_REQUIRED_FIELDS = frozenset(
+    {
+        "raw_job_fingerprint",
+        "job_url",
+        "job_title",
+        "status",
+        "analysis_input_fingerprint",
+        "analysis_input_components",
+        "analysis_reuse_status",
+        "reuse_decision",
+        "ranking_fit_label",
+        "fit_classification",
+        "decision_chain",
+        "job_snapshot",
+        "evidence_payload",
+        "evidence_used",
+        "evidence_selection_summary",
+        "gap_summary",
+        "requirement_coverage",
+        "section_confidence_hints",
+        "do_not_claim",
+        "outcome_reason",
+        "error",
+        "cv_analysis_trace",
+    }
+)
+
+
+def _build_analysis_input_components(payload: dict[str, Any]) -> dict[str, Any]:
+    def _hash(value: Any) -> str:
+        seed = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        return hashlib.sha256(seed.encode("utf-8")).hexdigest()
+
+    return {
+        "contract_fingerprint": str(payload.get("contract_fingerprint") or ""),
+        "profile_payload_hash": _hash(dict(payload.get("profile") or {})),
+        "job_payload_hash": _hash(dict(payload.get("job") or {})),
+    }
+
+
+def _validate_analysis_inputs(
+    job: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+    top_k: int | None,
+) -> None:
+    for name, value in (("job", job), ("profile", profile), ("config", config)):
+        if not isinstance(value, Mapping):
+            raise TypeError(f"{name} must be a mapping")
+    if top_k is not None and (isinstance(top_k, bool) or not isinstance(top_k, int)):
+        raise TypeError("top_k must be an integer")
+
+
+def _reuse_rejection_reason(
+    reusable_record: dict[str, Any] | None,
+    *,
+    analysis_input_fingerprint: str,
+    analysis_input_components: dict[str, Any],
+) -> str | None:
+    if not isinstance(reusable_record, dict):
+        return "no_reusable_snapshot_match"
+    if str(reusable_record.get("status") or "") not in _REUSABLE_ANALYSIS_STATUSES:
+        return "reusable_status_not_eligible"
+    if str(reusable_record.get("analysis_input_fingerprint") or "") != analysis_input_fingerprint:
+        return "analysis_input_fingerprint_mismatch"
+    if not _REUSABLE_RECORD_REQUIRED_FIELDS.issubset(reusable_record):
+        return "incomplete_reusable_record"
+    prior_components = dict(reusable_record.get("analysis_input_components") or {})
+    if str(prior_components.get("contract_fingerprint") or "") != str(
+        analysis_input_components.get("contract_fingerprint") or ""
+    ):
+        return "contract_fingerprint_changed"
+    return None
+
+
+def _rebuild_reused_record(
+    *,
+    job: dict[str, Any],
+    reusable_record: dict[str, Any],
+    analysis_input_fingerprint: str,
+    analysis_input_components: dict[str, Any],
+) -> CvAnalysisRecord:
+    status = cast(AnalysisStatus, str(reusable_record["status"]))
+    fit_value = str(reusable_record.get("fit_classification") or "")
+    fit_classification = cast(FitClassification, fit_value) if fit_value in _FIT_LABEL_ORDER else None
+    prior_error = (
+        reusable_record.get("outcome_reason")
+        if status in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS}
+        else reusable_record.get("error")
+    )
+    return build_cv_analysis_record(
+        job=job,
+        status=status,
+        analysis_input_fingerprint=analysis_input_fingerprint,
+        analysis_input_components=analysis_input_components,
+        analysis_reuse_status="reused_exact_match",
+        reuse_decision=build_reuse_decision(
+            decision="reused_exact_match",
+            reason_code="exact_fingerprint_match",
+            fingerprint=analysis_input_fingerprint,
+            source_artifact_type="cv_analysis",
+        ),
+        evidence_payload=list(reusable_record.get("evidence_payload") or []),
+        evidence_selection_summary=dict(reusable_record.get("evidence_selection_summary") or {}),
+        gap_summary=reusable_record.get("gap_summary"),
+        requirement_coverage=list(reusable_record.get("requirement_coverage") or []),
+        section_confidence_hints=dict(reusable_record.get("section_confidence_hints") or {}),
+        do_not_claim=list(reusable_record.get("do_not_claim") or []),
+        fit_classification=fit_classification,
+        error=cast(ErrorPayload | None, prior_error),
+    )
+
+
 def analyze_ranked_job(
     job: dict[str, Any],
     profile: dict[str, Any],
     config: dict[str, Any],
     *,
     top_k: int | None = None,
+    reusable_record: dict[str, Any] | None = None,
 ) -> CvAnalysisRecord:
-    ranking_fit_label = resolve_ranked_job_fit(job, config)
-    if ranking_fit_label == "skip":
-        return build_cv_analysis_record(
-            job=job,
-            status=BLOCKED_BY_RERANKER_STATUS,
-            analysis_input_fingerprint=None,
-            analysis_reuse_status="not_run_reranker_skip",
-            evidence_payload=[],
-            evidence_selection_summary=None,
-            gap_summary=None,
-            requirement_coverage=[],
-            section_confidence_hints={},
-            do_not_claim=[],
-            fit_classification=ranking_fit_label,
-            error={
-                "stage": "reranker_fit",
-                "message": f"Blocked {extract_job_url(job)} before CV analysis (reranker fit=skip)",
-            },
-        )
-
-    analysis_fingerprint_record = build_cv_analysis_input_fingerprint(profile, job, config)
+    _validate_analysis_inputs(job, profile, config, top_k)
+    ranking_fit_label: FitClassification | None = None
+    analysis_input_fingerprint: str | None = None
+    analysis_input_components: dict[str, Any] = {}
+    reuse_reason = "no_reusable_snapshot_match"
     evidence: list[dict[str, Any]] = []
     evidence_selection_summary: dict[str, Any] = {}
     gap_summary: dict[str, Any] | None = None
     try:
+        ranking_fit_label = resolve_ranked_job_fit(job, config)
+        if ranking_fit_label == "skip":
+            return build_cv_analysis_record(
+                job=job,
+                status=cast(AnalysisStatus, BLOCKED_BY_RERANKER_STATUS),
+                analysis_input_fingerprint=None,
+                analysis_input_components={},
+                analysis_reuse_status="not_run_reranker_skip",
+                reuse_decision=build_reuse_decision(
+                    decision="not_run_reranker_skip",
+                    reason_code="reranker_blocked_before_analysis",
+                    fingerprint=None,
+                    source_artifact_type="cv_analysis",
+                ),
+                evidence_payload=[],
+                evidence_selection_summary=None,
+                gap_summary=None,
+                requirement_coverage=[],
+                section_confidence_hints={},
+                do_not_claim=[],
+                fit_classification=ranking_fit_label,
+                error={
+                    "stage": "reranker_fit",
+                    "message": f"Blocked {extract_job_url(job)} before CV analysis (reranker fit=skip)",
+                },
+            )
+
+        fingerprint_record = build_cv_analysis_input_fingerprint(profile, job, config)
+        analysis_input_fingerprint = str(fingerprint_record["fingerprint"])
+        analysis_input_components = _build_analysis_input_components(
+            dict(fingerprint_record.get("payload") or {})
+        )
+        rejection_reason = _reuse_rejection_reason(
+            reusable_record,
+            analysis_input_fingerprint=analysis_input_fingerprint,
+            analysis_input_components=analysis_input_components,
+        )
+        if rejection_reason is None:
+            return _rebuild_reused_record(
+                job=job,
+                reusable_record=cast(dict[str, Any], reusable_record),
+                analysis_input_fingerprint=analysis_input_fingerprint,
+                analysis_input_components=analysis_input_components,
+            )
+        reuse_reason = rejection_reason
+        reuse_decision = build_reuse_decision(
+            decision="fresh_compute",
+            reason_code=reuse_reason,
+            fingerprint=analysis_input_fingerprint,
+            source_artifact_type="cv_analysis",
+        )
+
         sleep_secs = _cv_analysis_sleep_secs(config)
         if sleep_secs > 0:
             time.sleep(sleep_secs)
@@ -477,14 +647,18 @@ def analyze_ranked_job(
                             int(evidence_selection_summary.get("deduped_pool_size") or 0),
                         ),
                         "selected_evidence_count": len(evidence),
-                        "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in evidence],
+                        "selected_evidence_ids": [
+                            str(item.get("evidence_id") or "") for item in evidence
+                        ],
                         "unselected_top_candidates": list(
                             evidence_selection_summary.get("unselected_top_candidates") or []
                         ),
                         "hybrid_alignment": normalize_analysis_channel_mapping(
                             evidence_selection_summary.get("hybrid_alignment") or {}
                         ),
-                        "semantic_alignment": dict(evidence_selection_summary.get("semantic_alignment") or {}),
+                        "semantic_alignment": dict(
+                            evidence_selection_summary.get("semantic_alignment") or {}
+                        ),
                     }
                 )
 
@@ -498,14 +672,20 @@ def analyze_ranked_job(
         )
 
         fit_classification = resolve_ranked_job_fit(job, config)
+        required_skills = [
+            str(skill) for skill in list(job.get("required_skills") or []) if str(skill)
+        ]
+        missing_skills = [
+            str(skill) for skill in list((gap_summary or {}).get("missing") or []) if str(skill)
+        ]
         if fit_classification == "skip":
-            required_skills = [str(skill) for skill in list(job.get("required_skills") or []) if str(skill)]
-            missing_skills = [str(skill) for skill in list((gap_summary or {}).get("missing") or []) if str(skill)]
             return build_cv_analysis_record(
                 job=job,
-                status=SKIPPED_FIT_GATE_STATUS,
-                analysis_input_fingerprint=str(analysis_fingerprint_record["fingerprint"]),
+                status=cast(AnalysisStatus, SKIPPED_FIT_GATE_STATUS),
+                analysis_input_fingerprint=analysis_input_fingerprint,
+                analysis_input_components=analysis_input_components,
                 analysis_reuse_status="fresh_compute",
+                reuse_decision=reuse_decision,
                 evidence_payload=evidence,
                 evidence_selection_summary=evidence_selection_summary,
                 gap_summary=gap_summary,
@@ -523,13 +703,13 @@ def analyze_ranked_job(
                 },
             )
 
-        required_skills = [str(skill) for skill in list(job.get("required_skills") or []) if str(skill)]
-        missing_skills = [str(skill) for skill in list((gap_summary or {}).get("missing") or []) if str(skill)]
         return build_cv_analysis_record(
             job=job,
-            status=READY_FOR_GENERATION_STATUS,
-            analysis_input_fingerprint=str(analysis_fingerprint_record["fingerprint"]),
+            status=cast(AnalysisStatus, READY_FOR_GENERATION_STATUS),
+            analysis_input_fingerprint=analysis_input_fingerprint,
+            analysis_input_components=analysis_input_components,
             analysis_reuse_status="fresh_compute",
+            reuse_decision=reuse_decision,
             evidence_payload=evidence,
             evidence_selection_summary=evidence_selection_summary,
             gap_summary=gap_summary,
@@ -546,9 +726,16 @@ def analyze_ranked_job(
     except Exception as exc:
         return build_cv_analysis_record(
             job=job,
-            status=ANALYSIS_FAILED_STATUS,
-            analysis_input_fingerprint=str(analysis_fingerprint_record["fingerprint"]),
+            status=cast(AnalysisStatus, ANALYSIS_FAILED_STATUS),
+            analysis_input_fingerprint=analysis_input_fingerprint,
+            analysis_input_components=analysis_input_components,
             analysis_reuse_status="fresh_compute",
+            reuse_decision=build_reuse_decision(
+                decision="fresh_compute",
+                reason_code=reuse_reason if analysis_input_fingerprint else "analysis_runtime_failure",
+                fingerprint=analysis_input_fingerprint,
+                source_artifact_type="cv_analysis",
+            ),
             evidence_payload=evidence,
             evidence_selection_summary=evidence_selection_summary,
             gap_summary=gap_summary,
@@ -561,8 +748,3 @@ def analyze_ranked_job(
                 "message": str(exc),
             },
         )
-
-
-
-
-

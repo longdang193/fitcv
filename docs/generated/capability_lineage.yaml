@@ -96,7 +96,6 @@ features:
     - pipeline_performance.fallback-path-for-unparseable-responses
     - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
     - pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
-    - pipeline_performance.structured-output-with-json-schema-and-pydantic
     - pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
     - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
     - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
@@ -105,6 +104,7 @@ features:
     - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
     - pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors
     - pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
+    - pipeline_performance.structured-output-with-json-schema-and-pydantic
   run_lifecycle_controls:
     summary: Admins can stop queued, running, or paused `awaiting_continue` runs, archive or unarchive completed runs, apply lifecycle actions in bulk from the runs list, and rely on a server-owned max-runtime timeout guard whose diagnostics distinguish active runtime from Stage by Stage manual-wait time.
     status: active

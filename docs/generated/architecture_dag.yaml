@@ -318,12 +318,6 @@ nodes:
   feature_id: pipeline_performance
   state: active
   path: docs/features/pipeline_performance/lineage.generated.yaml
-- id: pipeline_performance.structured-output-with-json-schema-and-pydantic
-  type: capability
-  kind: capability
-  feature_id: pipeline_performance
-  state: active
-  path: docs/features/pipeline_performance/lineage.generated.yaml
 - id: pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
   type: capability
   kind: capability
@@ -367,6 +361,12 @@ nodes:
   state: active
   path: docs/features/pipeline_performance/lineage.generated.yaml
 - id: pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
+  type: capability
+  kind: capability
+  feature_id: pipeline_performance
+  state: active
+  path: docs/features/pipeline_performance/lineage.generated.yaml
+- id: pipeline_performance.structured-output-with-json-schema-and-pydantic
   type: capability
   kind: capability
   feature_id: pipeline_performance
@@ -1200,9 +1200,6 @@ edges:
   to: pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
   type: owns_capability
 - from: pipeline_performance
-  to: pipeline_performance.structured-output-with-json-schema-and-pydantic
-  type: owns_capability
-- from: pipeline_performance
   to: pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
   type: owns_capability
 - from: pipeline_performance
@@ -1227,6 +1224,9 @@ edges:
   to: pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
   type: owns_capability
 - from: pipeline_performance
+  to: pipeline_performance.structured-output-with-json-schema-and-pydantic
+  type: owns_capability
+- from: pipeline_performance
   to: cv_analysis
   type: participates_in
   role: primary
@@ -1245,10 +1245,10 @@ edges:
   - pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
   - pipeline_performance.fallback-path-for-unparseable-responses
   - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
-  - pipeline_performance.structured-output-with-json-schema-and-pydantic
   - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
   - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
   - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
+  - pipeline_performance.structured-output-with-json-schema-and-pydantic
 - from: pipeline_performance
   to: ranking
   type: participates_in

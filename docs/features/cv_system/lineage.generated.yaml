@@ -126,6 +126,9 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-17-35-ranking-ssot-symmetry-invariance-spec.md
     - docs/superpowers/specs/2026-05-20-20-54-fitcv-ingest-tracker-normalize-ssot-refactor-spec.md
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
+    - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
+    - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
+    - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -215,6 +218,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-12-30-path-1-reranker-diagnostic-fields-clarity-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -351,6 +355,9 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-17-35-ranking-ssot-symmetry-invariance-spec.md
     - docs/superpowers/specs/2026-05-20-20-54-fitcv-ingest-tracker-normalize-ssot-refactor-spec.md
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
+    - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
+    - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
+    - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -440,6 +447,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-12-30-path-1-reranker-diagnostic-fields-clarity-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -558,6 +566,9 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-17-35-ranking-ssot-symmetry-invariance-spec.md
     - docs/superpowers/specs/2026-05-20-20-54-fitcv-ingest-tracker-normalize-ssot-refactor-spec.md
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
+    - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
+    - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
+    - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -647,6 +658,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-12-30-path-1-reranker-diagnostic-fields-clarity-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -772,6 +784,9 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-17-35-ranking-ssot-symmetry-invariance-spec.md
     - docs/superpowers/specs/2026-05-20-20-54-fitcv-ingest-tracker-normalize-ssot-refactor-spec.md
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
+    - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
+    - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
+    - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -861,6 +876,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-12-30-path-1-reranker-diagnostic-fields-clarity-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -987,6 +1003,9 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-17-35-ranking-ssot-symmetry-invariance-spec.md
     - docs/superpowers/specs/2026-05-20-20-54-fitcv-ingest-tracker-normalize-ssot-refactor-spec.md
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
+    - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
+    - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
+    - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1076,6 +1095,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-12-30-path-1-reranker-diagnostic-fields-clarity-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1200,6 +1220,9 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-17-35-ranking-ssot-symmetry-invariance-spec.md
     - docs/superpowers/specs/2026-05-20-20-54-fitcv-ingest-tracker-normalize-ssot-refactor-spec.md
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
+    - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
+    - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
+    - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1289,6 +1312,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-12-30-path-1-reranker-diagnostic-fields-clarity-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1419,6 +1443,9 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-17-35-ranking-ssot-symmetry-invariance-spec.md
     - docs/superpowers/specs/2026-05-20-20-54-fitcv-ingest-tracker-normalize-ssot-refactor-spec.md
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
+    - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
+    - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
+    - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1508,6 +1535,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-12-30-path-1-reranker-diagnostic-fields-clarity-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1642,6 +1670,9 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-17-35-ranking-ssot-symmetry-invariance-spec.md
     - docs/superpowers/specs/2026-05-20-20-54-fitcv-ingest-tracker-normalize-ssot-refactor-spec.md
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
+    - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
+    - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
+    - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1731,6 +1762,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-12-30-path-1-reranker-diagnostic-fields-clarity-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

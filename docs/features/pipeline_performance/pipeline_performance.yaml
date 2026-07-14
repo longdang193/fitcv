@@ -78,10 +78,10 @@ stage_participation:
   - pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
   - pipeline_performance.fallback-path-for-unparseable-responses
   - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
-  - pipeline_performance.structured-output-with-json-schema-and-pydantic
   - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
   - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
   - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
+  - pipeline_performance.structured-output-with-json-schema-and-pydantic
 - stage_id: rule_filter
   role: primary
   capability_ids:
@@ -132,6 +132,7 @@ refs:
   - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
   - docs/superpowers/specs/2026-05-28-14-09-shortlist-hybrid-retrieval-spec.md
   - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
+  - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
   - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md

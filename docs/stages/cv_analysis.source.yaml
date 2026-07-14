@@ -4,6 +4,8 @@ summary: Prepare ranked jobs for writing by merging enriched context, retrieving
 boundaries:
   - ranked jobs enter and stage-owned `ready_for_generation`, `blocked_by_reranker_fit`, `skipped_fit_gate`, or `analysis_failed` records leave
   - evidence retrieval, final evidence selection, gap analysis, and fit-gate ownership belong to this stage
+  - "`fitcv.agentic_cv_analysis.analyze_ranked_job` is the sole per-job business entrypoint and canonical record owner"
+  - "pipeline orchestration may locate reuse candidates, persist records, and emit observations, but it does not recreate analysis decisions"
   - this stage does not generate or persist final CV artifacts
 inputs:
   - candidate profile
@@ -30,10 +32,12 @@ refs:
     - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
     - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
     - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+    - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
   plan:
     - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
     - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
     - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+    - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
 keywords:
   - cv analysis
   - evidence retrieval
