@@ -483,6 +483,8 @@ workstreams:
     - docs/superpowers/specs/2026-07-12-20-20-fitcv-ssot-symmetry-phase-4-routing-runtime-envelope-persistence-truth-spec.md
     - docs/superpowers/specs/2026-07-12-23-35-fitcv-ssot-symmetry-phase-6-registry-closeout-and-legacy-arg-deletion-spec.md
     - docs/superpowers/specs/2026-07-12-23-58-fitcv-ssot-symmetry-closeout-remaining-agreed-points-spec.md
+    - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
+    - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     plans:
     - docs/superpowers/plans/2026-05-24-10-05-fitcv-cp-app-ssot-symmetry-refactor-plan.md
     - docs/superpowers/plans/2026-05-24-14-25-fitcv-cp-worker-job-ssot-symmetry-refactor-plan.md
