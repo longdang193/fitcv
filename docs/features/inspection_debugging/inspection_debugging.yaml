@@ -39,7 +39,7 @@ capabilities:
   statement: Surface effective enrich, ranking, and CV-generation prompt identifiers, templates, and models in diagnostics.
   state: active
 - capability_id: inspection_debugging.ranking-diagnostics
-  statement: Expose ranking contract details, weighted contributions, fit thresholds, and reranker reuse state.
+  statement: Expose ranking-v2 policy and contract fingerprints, configured/effective weights, absolute normalizers, missing-value use, factor contributions, baseline labels, migration summary, and AI-score reuse state.
   state: active
 - capability_id: inspection_debugging.shortlist-diagnostics
   statement: Show shortlist retrieval facts, raw-hit visibility, candidate-query inputs, and embedding reuse provenance.
@@ -286,6 +286,7 @@ refs:
   - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
   - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
   - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+  - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
   - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -388,11 +389,12 @@ refs:
   - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
   - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
   - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+  - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
   docs:
   - docs/features/inspection_debugging/history.md
   configs:
   - config/runtime/prompts.yaml
   components: []
-revision: 9
-latest_change_id: 2026-07-15-fitcv-inverse-optimization-phase-2-vector-only-shortlist
-last_updated_at: '2026-07-15T21:00:05+02:00'
+revision: 10
+latest_change_id: 2026-07-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline
+last_updated_at: '2026-07-16T00:02:20+02:00'

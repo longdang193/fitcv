@@ -143,7 +143,7 @@ def _build_cv_generation_debug_record(
     runtime_provenance: dict[str, Any] | None = None,
     cv_generation_trace: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    ranking_fit_label = str(job.get("fit_label") or fit_classification or "").strip() or None
+    ranking_fit_label = str(job.get("baseline_fit_label") or fit_classification or "").strip() or None
     cv_analysis_status = (
         status
         if status in {"blocked_by_reranker_fit", "skipped_fit_gate", "analysis_failed"}
@@ -238,8 +238,8 @@ def test_create_run_id_unique() -> None:
 
 def _make_shortlist() -> list[dict]:
     return [
-        {"job_url": "https://example.com/1", "similarity_score": 0.9, "rank": 1},
-        {"job_url": "https://example.com/2", "similarity_score": 0.7, "rank": 2},
+        {"job_url": "https://example.com/1", "raw_job_fingerprint": "raw-1", "similarity_score": 0.9, "rank": 1},
+        {"job_url": "https://example.com/2", "raw_job_fingerprint": "raw-2", "similarity_score": 0.7, "rank": 2},
     ]
 
 
@@ -248,7 +248,7 @@ def _make_ai_scores() -> list[dict]:
         {
             "job_url": "https://example.com/1",
             "ai_score": 0.85,
-            "fit_label": "strong",
+            "legacy_model_fit_label": "strong",
             "must_have_match": 1.0,
             "title_relevance": 0.8,
             "seniority_fit": 0.9,
@@ -260,7 +260,7 @@ def _make_ai_scores() -> list[dict]:
         {
             "job_url": "https://example.com/2",
             "ai_score": 0.6,
-            "fit_label": "stretch",
+            "legacy_model_fit_label": "stretch",
             "must_have_match": 0.5,
             "title_relevance": 0.6,
             "seniority_fit": 0.8,
@@ -274,7 +274,7 @@ def _make_ai_scores() -> list[dict]:
 
 def test_build_ranking_features_merges_by_job_url() -> None:
     profile: dict = {"preferences": {"target_role": "Data Engineer"}}
-    features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, {})
+    features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, _ranking_v2_config())
     assert len(features) == 2
     urls = {f["job_url"] for f in features}
     assert urls == {"https://example.com/1", "https://example.com/2"}
@@ -282,7 +282,7 @@ def test_build_ranking_features_merges_by_job_url() -> None:
 
 def test_build_ranking_features_includes_vector_similarity() -> None:
     profile: dict = {"preferences": {}}
-    features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, {})
+    features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, _ranking_v2_config())
     job1 = next(f for f in features if f["job_url"] == "https://example.com/1")
     assert job1["vector_similarity"] == pytest.approx(0.9)
 
@@ -378,10 +378,11 @@ def test_build_export_results_uses_raw_job_fingerprint_when_urls_drift() -> None
         "job_url": "https://jobs.example.com/fingerprint-role",
         "title": "Fingerprint Role",
         "raw_job_fingerprint": "raw-fp-1",
-        "final_score": 0.82,
-        "ai_score": 0.71,
+        "baseline_fit": 0.82,
+        "baseline_fit_label": "strong",
+        "baseline_rank": 1,
+        "holistic_ai_fit": 0.71,
         "vector_similarity": 0.65,
-        "fit_label": "strong",
     }
 
     rows = _build_export_results(
@@ -402,6 +403,8 @@ def test_build_export_results_uses_raw_job_fingerprint_when_urls_drift() -> None
     )
 
     assert rows[0]["pipeline_status"] == "ranked_no_cv"
+    assert rows[0]["scores"]["baseline_fit"] == pytest.approx(0.82)
+    assert rows[0]["scores"]["baseline_fit_label"] == "strong"
     assert rows[0]["scores"]["final_score"] == pytest.approx(0.82)
 
 
@@ -409,8 +412,7 @@ def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:
     job = {
         "job_url": "https://example.com/ready",
         "title": "Ready Job",
-        "fit_label": "strong",
-        "fit_label_source": "reranker",
+        "baseline_fit_label": "strong",
     }
 
     record = build_agentic_cv_analysis_record(
@@ -431,7 +433,7 @@ def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:
     assert record["ranking_fit_label"] == "strong"
     assert record["fit_classification"] == "skip"
     assert record["decision_chain"]["primary_fit"] == {
-        "source": "reranker",
+        "source": "baseline_fit_label",
         "label": "strong",
     }
     assert record["decision_chain"]["cv_analysis"] == {
@@ -521,8 +523,7 @@ def test_blocked_by_reranker_fit_keeps_cv_analysis_stage_authority() -> None:
     job = {
         "job_url": "https://example.com/blocked",
         "title": "Blocked Job",
-        "fit_label": "stretch",
-        "fit_label_source": "reranker",
+        "baseline_fit_label": "stretch",
     }
 
     record = _build_cv_generation_debug_record(
@@ -548,7 +549,7 @@ def test_blocked_by_reranker_fit_keeps_cv_analysis_stage_authority() -> None:
     assert record["ranking_fit_label"] == "stretch"
     assert record["fit_classification"] == "strong"
     assert record["decision_chain"]["primary_fit"] == {
-        "source": "reranker",
+        "source": "baseline_fit_label",
         "label": "stretch",
     }
     assert record["decision_chain"]["cv_analysis"] == {
@@ -565,8 +566,7 @@ def test_skipped_fit_gate_keeps_cv_analysis_stage_authority() -> None:
     job = {
         "job_url": "https://example.com/skipped",
         "title": "Skipped Job",
-        "fit_label": "strong",
-        "fit_label_source": "reranker",
+        "baseline_fit_label": "strong",
     }
     outcome_reason = {"stage": "fit_gate", "message": "skipped"}
 
@@ -588,7 +588,7 @@ def test_skipped_fit_gate_keeps_cv_analysis_stage_authority() -> None:
     assert record["ranking_fit_label"] == "strong"
     assert record["fit_classification"] == "skip"
     assert record["decision_chain"]["primary_fit"] == {
-        "source": "reranker",
+        "source": "baseline_fit_label",
         "label": "strong",
     }
     assert record["decision_chain"]["cv_analysis"] == {
@@ -618,8 +618,7 @@ def test_ready_for_generation_keeps_generation_terminal_statuses_stage_owned(
     job = {
         "job_url": "https://example.com/generation",
         "title": "Generation Job",
-        "fit_label": "strong",
-        "fit_label_source": "reranker",
+        "baseline_fit_label": "strong",
     }
 
     record = _build_cv_generation_debug_record(
@@ -646,7 +645,7 @@ def test_ready_for_generation_keeps_generation_terminal_statuses_stage_owned(
     assert record["ranking_fit_label"] == "strong"
     assert record["fit_classification"] == "skip"
     assert record["decision_chain"]["primary_fit"] == {
-        "source": "reranker",
+        "source": "baseline_fit_label",
         "label": "strong",
     }
     assert record["decision_chain"]["cv_analysis"] == {
@@ -665,12 +664,11 @@ def test_ready_for_generation_keeps_generation_terminal_statuses_stage_owned(
 
 
 @pytest.mark.parametrize("status", ["accepted", "review_required", "validation_failed"])
-def test_cv_generation_terminal_statuses_keep_reranker_primary_fit_authority_matrix(status: str) -> None:
+def test_cv_generation_terminal_statuses_keep_baseline_primary_fit_authority_matrix(status: str) -> None:
     job = {
         "job_url": "https://example.com/status-matrix",
         "title": "Status Matrix Job",
-        "fit_label": "strong",
-        "fit_label_source": "reranker",
+        "baseline_fit_label": "strong",
     }
 
     record = _build_cv_generation_debug_record(
@@ -696,7 +694,7 @@ def test_cv_generation_terminal_statuses_keep_reranker_primary_fit_authority_mat
     assert record["ranking_fit_label"] == "strong"
     assert record["fit_classification"] == "skip"
     assert record["decision_chain"]["primary_fit"]["label"] == record["ranking_fit_label"]
-    assert record["decision_chain"]["primary_fit"]["source"] == "reranker"
+    assert record["decision_chain"]["primary_fit"]["source"] == "baseline_fit_label"
 def test_review_required_reason_code_mapping_for_markdown_review() -> None:
     reason_code = _normalize_review_required_reason_code(
         status="review_required",
@@ -757,16 +755,16 @@ def test_hitl_review_reason_for_unsupported_requirements_is_actionable() -> None
 def test_build_ranking_features_accepts_vector_search_field_names() -> None:
     profile: dict = {"preferences": {}}
     shortlist = [
-        {"job_url": "https://example.com/1", "vector_similarity": 0.93, "vector_rank": 1},
-        {"job_url": "https://example.com/2", "vector_similarity": 0.71, "vector_rank": 2},
+        {"job_url": "https://example.com/1", "raw_job_fingerprint": "raw-1", "vector_similarity": 0.93, "vector_rank": 1},
+        {"job_url": "https://example.com/2", "raw_job_fingerprint": "raw-2", "vector_similarity": 0.71, "vector_rank": 2},
     ]
-    features = build_ranking_features(shortlist, _make_ai_scores(), profile, {})
+    features = build_ranking_features(shortlist, _make_ai_scores(), profile, _ranking_v2_config())
     job1 = next(f for f in features if f["job_url"] == "https://example.com/1")
     assert job1["vector_similarity"] == pytest.approx(0.93)
     assert job1["vector_rank"] == 1
 
 
-def test_build_ranking_features_carries_ai_score_fields() -> None:
+def test_build_ranking_features_carries_canonical_factor_fields() -> None:
     profile: dict = {
         "skills": [{"name": "SQL"}, {"name": "Python"}],
         "preferences": {
@@ -778,6 +776,8 @@ def test_build_ranking_features_carries_ai_score_fields() -> None:
     shortlist = [
         {
             "job_url": "https://example.com/1",
+            "raw_job_fingerprint": "raw-1",
+            "raw_job_fingerprint": "raw-1",
             "similarity_score": 0.9,
             "rank": 1,
             "required_skills": ["SQL", "Python"],
@@ -787,6 +787,8 @@ def test_build_ranking_features_carries_ai_score_fields() -> None:
         },
         {
             "job_url": "https://example.com/2",
+            "raw_job_fingerprint": "raw-2",
+            "raw_job_fingerprint": "raw-2",
             "similarity_score": 0.7,
             "rank": 2,
             "required_skills": ["Spark"],
@@ -795,16 +797,13 @@ def test_build_ranking_features_carries_ai_score_fields() -> None:
             "location_type": "onsite",
         },
     ]
-    features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, _ROLE_TAXONOMY_CONFIG)
-    features = build_ranking_features(shortlist, _make_ai_scores(), profile, _ROLE_TAXONOMY_CONFIG)
+    features = build_ranking_features(shortlist, _make_ai_scores(), profile, _ranking_v2_config())
     job1 = next(f for f in features if f["job_url"] == "https://example.com/1")
-    assert job1["ai_score"] == pytest.approx(0.85)
-    assert job1["must_have_match"] == pytest.approx(1.0)
-    assert job1["title_relevance"] == pytest.approx(1.0)
-    assert job1["seniority_fit"] == pytest.approx(1.0)
-    assert job1["preference_fit"] == pytest.approx(0.65)
-    assert job1["feature_contributions"]["ai_score"] == pytest.approx(0.34)
-    assert job1["feature_contributions"]["preference_fit"] == pytest.approx(0.0325)
+    assert job1["holistic_ai_fit"] == pytest.approx(0.85)
+    assert job1["normalized_factors"]["must_have_match"]["value"] == pytest.approx(1.0)
+    assert job1["normalized_factors"]["title_relevance"]["value"] == pytest.approx(1.0)
+    assert job1["normalized_factors"]["seniority_fit"]["value"] == pytest.approx(1.0)
+    assert job1["normalized_factors"]["declared_preference_fit"]["value"] == pytest.approx(0.65)
 
 
 def test_run_pipeline_emits_run_all_stage_progress_after_normalize() -> None:
@@ -891,6 +890,62 @@ def test_materialize_scoring_shortlist_preserves_global_vector_ranks() -> None:
     ]
 
 
+def _ranking_v2_config() -> dict[str, Any]:
+    from fitcv.config import load_config
+
+    config = load_config()
+    config.update(_ROLE_TAXONOMY_CONFIG)
+    return config
+
+
+def test_build_ranking_features_emits_canonical_ranking_v2_row() -> None:
+    from fitcv.config import load_config
+
+    shortlist = [
+        {
+            "job_url": "https://example.com/1",
+            "raw_job_fingerprint": "raw-fingerprint-1",
+            "vector_similarity": 0.99,
+            "vector_rank": 1,
+            "required_skills_canonical": ["sql"],
+            "title": "Data Engineer",
+            "seniority": "mid",
+            "fit_factor_results": {
+                "location_fit": {"ranking_value": 0.25},
+                "language_fit": {"ranking_value": 0.75},
+            },
+            "eligibility_policy_fingerprint": "eligibility-fingerprint",
+        }
+    ]
+    ai_scores = [
+        {
+            "job_url": "https://example.com/1",
+            "ai_score": 0.72,
+            "legacy_model_fit_label": "skip",
+            "score_reasoning": "diagnostic",
+        }
+    ]
+    profile = {
+        "skills": [{"name": "SQL"}],
+        "preferences": {"target_role": "Data Engineer"},
+    }
+
+    rows = build_ranking_features(shortlist, ai_scores, profile, load_config())
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["holistic_ai_fit"] == pytest.approx(0.72)
+    assert row["baseline_fit"] == pytest.approx(0.72)
+    assert row["baseline_fit_label"] == "strong"
+    assert row["normalized_factors"]["location_fit"]["value"] == pytest.approx(0.25)
+    assert row["normalized_factors"]["language_fit"]["value"] == pytest.approx(0.75)
+    assert row["legacy_model_fit_label"] == "skip"
+    assert row["raw_job_fingerprint"] == "raw-fingerprint-1"
+    assert "final_score" not in row
+    assert "fit_label" not in row
+    assert "preference_fit" not in row
+
+
 def test_materialize_scoring_shortlist_preserves_only_retrieved_rows() -> None:
     passed_jobs = [
         {"job_url": "https://example.com/1", "title": "Data Engineer"},
@@ -919,6 +974,7 @@ def test_build_ranking_features_uses_all_supported_weighted_features() -> None:
     shortlist = [
         {
             "job_url": "https://example.com/1",
+            "raw_job_fingerprint": "raw-1",
             "vector_similarity": 0.9,
             "vector_rank": 1,
             "required_skills": ["SQL", "Python"],
@@ -927,55 +983,31 @@ def test_build_ranking_features_uses_all_supported_weighted_features() -> None:
             "job_family": "analytics",
             "location_type": "remote",
             "domain": "data_science",
+            "fit_factor_results": {
+                "location_fit": {"ranking_value": 1.0},
+                "language_fit": {"ranking_value": 0.5},
+            },
         },
     ]
-    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.85, "fit_label": "strong"}]
-    config = {
-        "ranking_weights": {
-            "ai_score": 0.40,
-            "must_have_match": 0.20,
-            "vector_similarity": 0.15,
-            "title_relevance": 0.10,
-            "seniority_fit": 0.10,
-            "preference_fit": 0.05,
-        },
-        "missing_value_defaults": {
-            "ai_score": 0.0,
-            "must_have_match": 0.5,
-            "vector_similarity": 0.0,
-            "title_relevance": 0.5,
-            "seniority_fit": 0.5,
-            "preference_fit": 0.5,
-        },
-        "preference_fit_weights": {
-            "domain": 0.5,
-            "role_family": 0.3,
-            "location_type": 0.2,
-        },
-        **_ROLE_TAXONOMY_CONFIG,
-    }
+    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.85}]
+    config = _ranking_v2_config()
 
     features = build_ranking_features(shortlist, ai_scores, profile, config)
     job1 = features[0]
 
-    assert job1["must_have_match"] == pytest.approx(1.0)
-    assert job1["title_relevance"] == pytest.approx(1.0)
-    assert job1["seniority_fit"] == pytest.approx(1.0)
-    assert job1["preference_fit"] == pytest.approx(1.0)
-    assert job1["feature_contributions"] == {
-        "ai_score": pytest.approx(0.34),
-        "must_have_match": pytest.approx(0.2),
-        "vector_similarity": pytest.approx(0.135),
-        "title_relevance": pytest.approx(0.1),
-        "seniority_fit": pytest.approx(0.1),
-        "preference_fit": pytest.approx(0.05),
-    }
-    assert job1["final_score"] == pytest.approx(
-        (0.85 * 0.40) + (1.0 * 0.20) + (0.9 * 0.15) + (1.0 * 0.10) + (1.0 * 0.10) + (1.0 * 0.05)
+    normalized = job1["normalized_factors"]
+    assert {factor["value"] for factor in normalized.values()} <= {0.5, 1.0}
+    assert normalized["must_have_match"]["value"] == pytest.approx(1.0)
+    assert normalized["declared_preference_fit"]["value"] == pytest.approx(1.0)
+    assert normalized["location_fit"]["value"] == pytest.approx(1.0)
+    assert normalized["language_fit"]["value"] == pytest.approx(0.5)
+    assert sum(factor["contribution"] for factor in normalized.values()) == pytest.approx(
+        job1["structured_fit"]
     )
+    assert job1["baseline_fit"] == pytest.approx(0.85)
 
 
-def test_build_ranking_features_preserves_zero_weight_features_in_payload() -> None:
+def test_build_ranking_features_preserves_structured_diagnostics_when_baseline_weight_is_zero() -> None:
     profile: dict = {
         "skills": [{"name": "SQL"}, {"name": "Python"}],
         "preferences": {
@@ -988,6 +1020,7 @@ def test_build_ranking_features_preserves_zero_weight_features_in_payload() -> N
     shortlist = [
         {
             "job_url": "https://example.com/1",
+            "raw_job_fingerprint": "raw-1",
             "vector_similarity": 0.9,
             "vector_rank": 1,
             "required_skills": ["SQL", "Python"],
@@ -997,71 +1030,42 @@ def test_build_ranking_features_preserves_zero_weight_features_in_payload() -> N
             "location_type": "remote",
         },
     ]
-    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.85, "fit_label": "strong"}]
-    config = {
-        "ranking_weights": {
-            "ai_score": 0.73,
-            "must_have_match": 0.0,
-            "vector_similarity": 0.27,
-            "title_relevance": 0.0,
-            "seniority_fit": 0.0,
-            "preference_fit": 0.0,
-        },
-    }
+    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.85}]
+    config = _ranking_v2_config()
 
     features = build_ranking_features(shortlist, ai_scores, profile, config)
     job1 = features[0]
 
-    assert job1["must_have_match"] == pytest.approx(1.0)
-    assert "title_relevance" in job1
-    assert job1["seniority_fit"] == pytest.approx(1.0)
-    assert job1["preference_fit"] == pytest.approx(0.35)
-    assert job1["final_score"] == pytest.approx((0.85 * 0.73) + (0.9 * 0.27))
-    assert job1["feature_contributions"]["must_have_match"] == pytest.approx(0.0)
-    assert job1["feature_contributions"]["title_relevance"] == pytest.approx(0.0)
-    assert job1["feature_contributions"]["seniority_fit"] == pytest.approx(0.0)
-    assert job1["feature_contributions"]["preference_fit"] == pytest.approx(0.0)
+    assert job1["normalized_factors"]["must_have_match"]["value"] == pytest.approx(1.0)
+    assert job1["normalized_factors"]["seniority_fit"]["value"] == pytest.approx(1.0)
+    assert job1["structured_fit"] > 0.0
+    assert job1["baseline_fit"] == pytest.approx(0.85)
+    assert config["ranking_policy"]["baseline_weights"]["structured_fit"] == 0.0
 
 
-def test_build_ranking_features_prefers_missing_value_defaults_key() -> None:
+def test_build_ranking_features_uses_policy_missing_defaults() -> None:
     profile: dict = {"preferences": {}}
-    shortlist = [{"job_url": "https://example.com/1", "vector_similarity": None, "vector_rank": 1}]
-    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.4, "fit_label": "stretch"}]
-    config = {
-        "ranking_weights": {
-            "ai_score": 0.4,
-            "must_have_match": 0.2,
-            "vector_similarity": 0.15,
-            "title_relevance": 0.1,
-            "seniority_fit": 0.1,
-            "preference_fit": 0.05,
-        },
-        "missing_value_defaults": {
-            "ai_score": 0.0,
-            "vector_similarity": 0.25,
-            "must_have_match": 0.5,
-            "title_relevance": 0.25,
-            "seniority_fit": 0.25,
-            "preference_fit": 0.25,
-        },
-        "ranking_null_defaults": {
-            "ai_score": 0.0,
-            "vector_similarity": 0.99,
-        },
-    }
+    shortlist = [{"job_url": "https://example.com/1", "raw_job_fingerprint": "raw-1", "vector_similarity": None, "vector_rank": 1}]
+    ai_scores = [{"job_url": "https://example.com/1", "ai_score": None}]
+    config = _ranking_v2_config()
 
     features = build_ranking_features(shortlist, ai_scores, profile, config)
 
-    assert features[0]["final_score"] == pytest.approx(
-        (0.4 * 0.4) + (0.5 * 0.2) + (0.25 * 0.15) + (0.5 * 0.1) + (0.5 * 0.1) + (0.5 * 0.05)
-    )
+    row = features[0]
+    assert row["normalized_factors"]["location_fit"]["value"] == pytest.approx(0.5)
+    assert row["normalized_factors"]["location_fit"]["missing_default_applied"] is True
+    assert row["normalized_factors"]["language_fit"]["value"] == pytest.approx(0.5)
+    assert row["holistic_ai_fit"] == pytest.approx(0.0)
+    assert row["holistic_ai_fit_missing_default_applied"] is True
+    assert row["vector_similarity"] is None
+    assert row["baseline_fit"] == pytest.approx(0.0)
 
 
 def test_build_ranking_features_drops_jobs_missing_from_ai_scores() -> None:
     """Jobs in shortlist but absent from ai_scores (e.g. filtered upstream) are dropped."""
-    shortlist = _make_shortlist() + [{"job_url": "https://example.com/99", "similarity_score": 0.5, "rank": 3}]
+    shortlist = _make_shortlist() + [{"job_url": "https://example.com/99", "raw_job_fingerprint": "raw-99", "similarity_score": 0.5, "rank": 3}]
     profile: dict = {"preferences": {}}
-    features = build_ranking_features(shortlist, _make_ai_scores(), profile, {})
+    features = build_ranking_features(shortlist, _make_ai_scores(), profile, _ranking_v2_config())
     assert all(f["job_url"] != "https://example.com/99" for f in features)
 
 
@@ -1205,7 +1209,7 @@ def test_build_ranking_features_preserves_structured_job_fields_from_shortlist()
             "years_required": 3,
         },
     ]
-    features = build_ranking_features(shortlist, _make_ai_scores(), profile, {})
+    features = build_ranking_features(shortlist, _make_ai_scores(), profile, _ranking_v2_config())
     job1 = next(f for f in features if f["job_url"] == "https://example.com/1")
     assert job1["required_skills"] == ["SQL", "Python"]
     assert job1["title"] == "Structured Data Engineer"
@@ -1226,6 +1230,7 @@ def test_build_ranking_features_uses_inferred_effective_preferences_when_yaml_is
     shortlist = [
         {
             "job_url": "https://example.com/1",
+            "raw_job_fingerprint": "raw-1",
             "vector_similarity": 0.9,
             "vector_rank": 1,
             "required_skills": ["SQL"],
@@ -1235,8 +1240,9 @@ def test_build_ranking_features_uses_inferred_effective_preferences_when_yaml_is
             "location_type": "hybrid",
         },
     ]
-    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.8, "fit_label": "stretch"}]
-    config = {
+    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.8}]
+    config = _ranking_v2_config()
+    config.update({
         "role_taxonomy": {
             "canonical_role_by_alias": {
                 "senior data analyst": "data analyst",
@@ -1251,12 +1257,12 @@ def test_build_ranking_features_uses_inferred_effective_preferences_when_yaml_is
                 "analytics": ("data_science",),
             },
         }
-    }
+    })
 
     features = build_ranking_features(shortlist, ai_scores, profile, config)
 
-    assert features[0]["title_relevance"] == pytest.approx(1.0)
-    assert features[0]["preference_fit"] == pytest.approx(1.0)
+    assert features[0]["normalized_factors"]["title_relevance"]["value"] == pytest.approx(1.0)
+    assert features[0]["normalized_factors"]["declared_preference_fit"]["value"] == pytest.approx(1.0)
     assert features[0]["effective_preferences"]["target_role"] == "Data Analyst"
     assert features[0]["preference_sources"]["target_role"] == "inferred_recent_experience"
 
@@ -1269,6 +1275,7 @@ def test_build_ranking_features_prefers_required_skills_canonical_when_present()
     shortlist = [
         {
             "job_url": "https://example.com/1",
+            "raw_job_fingerprint": "raw-1",
             "vector_similarity": 0.93,
             "vector_rank": 1,
             "required_skills": ["Python programming for data science"],
@@ -1276,11 +1283,11 @@ def test_build_ranking_features_prefers_required_skills_canonical_when_present()
             "title": "Structured Data Engineer",
         },
     ]
-    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.85, "fit_label": "strong"}]
+    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.85}]
 
-    features = build_ranking_features(shortlist, ai_scores, profile, {})
+    features = build_ranking_features(shortlist, ai_scores, profile, _ranking_v2_config())
 
-    assert features[0]["must_have_match"] == pytest.approx(1.0)
+    assert features[0]["normalized_factors"]["must_have_match"]["value"] == pytest.approx(1.0)
 
 
 @patch("fitcv.pipeline.load_run_structured_jobs")
@@ -1405,11 +1412,11 @@ def test_run_pipeline_resume_from_checkpoint_uses_canonical_next_stage_only(
     ranked = [{
         **job,
         "job_url": job["job_url"],
-        "final_score": 0.9,
+        "baseline_fit": 0.9,
         "ai_score": 0.8,
         "vector_rank": 1,
         "ranking_fit_label": "stretch",
-        "fit_label": "stretch",
+        "baseline_fit_label": "stretch",
     }]
     checkpoint_payload = {
         "raw_jobs": [job],
@@ -1422,7 +1429,7 @@ def test_run_pipeline_resume_from_checkpoint_uses_canonical_next_stage_only(
         "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
         "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
         "shortlist_diagnostics": {},
-        "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "stretch"}],
+        "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8}],
         "ranking_inputs": ranked,
         "ranked": ranked,
     }
@@ -1475,11 +1482,11 @@ def test_run_pipeline_resume_from_cv_generation_recomputes_shortlist_debug_state
     ranked = [{
         **job,
         "job_url": job["job_url"],
-        "final_score": 0.9,
+        "baseline_fit": 0.9,
         "ai_score": 0.8,
         "vector_rank": 1,
         "ranking_fit_label": "stretch",
-        "fit_label": "stretch",
+        "baseline_fit_label": "stretch",
     }]
     checkpoint_payload = {
         "raw_jobs": [job],
@@ -1492,7 +1499,7 @@ def test_run_pipeline_resume_from_cv_generation_recomputes_shortlist_debug_state
         "raw_shortlist": shortlist,
         "shortlist": shortlist,
         "shortlist_diagnostics": {},
-        "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "stretch"}],
+        "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8}],
         "ranking_inputs": ranked,
         "ranked": ranked,
         "cv_analysis_results": [
@@ -1563,11 +1570,11 @@ def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
     ranked = [{
         **job,
         "job_url": job["job_url"],
-        "final_score": 0.9,
+        "baseline_fit": 0.9,
         "ai_score": 0.8,
         "vector_rank": 1,
         "ranking_fit_label": "stretch",
-        "fit_label": "stretch",
+        "baseline_fit_label": "stretch",
     }]
     checkpoint_payload = {
         "raw_jobs": [job],
@@ -1580,7 +1587,7 @@ def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
         "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
         "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
         "shortlist_diagnostics": {},
-        "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "stretch"}],
+        "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8}],
         "ranking_inputs": ranked,
         "ranked": ranked,
     }
@@ -1633,9 +1640,9 @@ def test_run_pipeline_manual_pause_after_cv_analysis_preserves_reranker_blocked_
         "title": "Blocked Before Analysis",
         "job_title": "Blocked Before Analysis",
         "required_skills": ["SQL"],
-        "fit_label": "skip",
-        "fit_label_source": "reranker",
-        "final_rank": 1,
+        "baseline_fit": 0.2,
+        "baseline_fit_label": "skip",
+        "baseline_rank": 1,
         "shortlist_origin": "vector_search",
     }
     checkpoint_payload = {
@@ -1699,9 +1706,9 @@ def test_run_pipeline_resume_from_cv_generation_preserves_reranker_blocked_final
         "title": "Blocked Before Analysis",
         "job_title": "Blocked Before Analysis",
         "required_skills": ["SQL"],
-        "fit_label": "skip",
-        "fit_label_source": "reranker",
-        "final_rank": 1,
+        "baseline_fit": 0.2,
+        "baseline_fit_label": "skip",
+        "baseline_rank": 1,
         "shortlist_origin": "vector_search",
     }
     checkpoint_payload = {
@@ -2159,7 +2166,8 @@ def test_run_pipeline_repairs_candidate_name_placeholder_without_llm_retry(
 # ── run_pipeline (integrated, with all I/O mocked) ───────────────────────────
 
 def _minimal_config() -> dict:
-    return {
+    config = _ranking_v2_config()
+    config.update({
         "paths": {"candidate_profile": "data/candidate_profile.yaml"},
         "pipeline": {
             "vector_search_top_n": 2,
@@ -2189,7 +2197,8 @@ def _minimal_config() -> dict:
         "required_cv_sections": ["Experience", "Skills"],
         "cv_max_pages": 2,
         "prompt_version": "v1",
-    }
+    })
+    return config
 
 
 def _minimal_profile() -> dict:
@@ -2207,12 +2216,18 @@ def _minimal_profile() -> dict:
 def _minimal_job(url: str = "https://example.com/1") -> dict:
     return {
         "job_url": url,
+        "raw_job_fingerprint": f"raw-{url.rsplit('/', 1)[-1]}",
         "job_title": "Data Engineer",
         "required_skills": ["SQL"],
         "years_required": 3,
         "vector_rank": 1,
         "ai_score": 0.85,
-        "final_score": 0.80,
+        "baseline_fit": 0.80,
+        "baseline_fit_label": "strong",
+        "fit_factor_results": {
+            "location_fit": {"ranking_value": 0.5},
+            "language_fit": {"ranking_value": 0.5},
+        },
         "seniority": "senior",
         "location_type": "remote",
         "preferences": {},
@@ -2380,7 +2395,11 @@ def _agentic_generation_result(
         "ranking_fit_label": fit_classification,
         "fit_classification": fit_classification,
         "decision_chain": build_decision_chain(
-            job={"job_url": job_url, "title": job_title, "fit_label": fit_classification},
+            job={
+                "job_url": job_url,
+                "title": job_title,
+                "baseline_fit_label": fit_classification,
+            },
             fit_classification=fit_classification,
             cv_analysis_status="ready_for_generation",
             cv_status=status,
@@ -4083,9 +4102,9 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
         **_minimal_job("https://example.com/1"),
         "job_title": "Data Engineer",
         "title": "Data Engineer",
-        "fit_label": "strong",
         "ai_score": 0.91,
-        "final_score": 0.91,
+        "baseline_fit": 0.91,
+        "baseline_fit_label": "strong",
         "ranking_fit_label": "strong",
     }
     profile = _minimal_profile()
@@ -4105,7 +4124,7 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
         [{"job_url": job["job_url"], "vector_similarity": 0.95, "vector_rank": 1}],
         candidate_query={"components": {}, "text": "candidate"},
     )
-    mock_ai.return_value = [{"job_url": job["job_url"], "ai_score": 0.91, "fit_label": "strong"}]
+    mock_ai.return_value = [{"job_url": job["job_url"], "ai_score": 0.91}]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
     mock_evidence.return_value = [{"evidence_id": "e1", "name": "Python", "evidence_type": "project", "source_ref": "p1"}]
@@ -4842,8 +4861,8 @@ def test_run_pipeline_returns_correct_schema(
     from fitcv.pipeline import run_pipeline
 
     job = _minimal_job()
-    job["fit_label"] = "strong"
-    job["final_score"] = 0.91
+    job["baseline_fit"] = 0.91
+    job["baseline_fit_label"] = "strong"
     profile = _minimal_profile()
 
     config = _minimal_config()
@@ -4879,7 +4898,7 @@ def test_run_pipeline_returns_correct_schema(
     assert result["total_jobs"] == 1
     assert result["cvs_generated"] == 1
     stage_artifacts = result["stage_transition_artifacts"]
-    assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v7"
+    assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v8"
     assert set(stage_artifacts["stages"]) == {
         "normalize",
         "enrich",
@@ -5104,14 +5123,18 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
         {
             "job_url": "https://example.com/1",
             "title": "Data Analyst",
-            "ai_score": 0.9,
-            "must_have_match": 1.0,
+            "holistic_ai_fit": 0.9,
             "vector_similarity": 0.91,
-            "title_relevance": 1.0,
-            "seniority_fit": 1.0,
-            "preference_fit": 0.5,
-            "fit_label": "strong",
-            "final_score": 0.905,
+            "normalized_factors": {
+                "must_have_match": {"value": 1.0},
+                "title_relevance": {"value": 1.0},
+                "seniority_fit": {"value": 1.0},
+                "declared_preference_fit": {"value": 0.5},
+                "location_fit": {"value": 0.5},
+                "language_fit": {"value": 0.5},
+            },
+            "baseline_fit": 0.9,
+            "baseline_fit_label": "strong",
         },
     ]
     ranked: list[dict[str, Any]] = []
@@ -5145,7 +5168,7 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
         final_top_n=10,
         cv_generation_debug_records=[],
         profile={"preferences": {"target_role": "Data Analyst"}, "skills": ["SQL", "Python"]},
-        config={"cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}}},
+        config=_minimal_config(),
     )
 
     shortlist_block = artifacts["stages"]["shortlist"]
@@ -5157,7 +5180,7 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
     assert shortlist_block["audit_sample"][0]["job_url"] == "https://example.com/2"
     assert shortlist_block["production_retrieval_rows"] == raw_shortlist
     assert ranking_block["dropped_or_changed_sample"][0]["change_type"] == "scored_not_ranked"
-    assert ranking_block["dropped_or_changed_sample"][0]["title_relevance"] == pytest.approx(1.0)
+    assert ranking_block["dropped_or_changed_sample"][0]["normalized_factors"]["title_relevance"]["value"] == pytest.approx(1.0)
 
 
 def test_build_stage_transition_artifacts_enrich_sample_includes_canonical_fields() -> None:
@@ -5743,14 +5766,18 @@ def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract()
         {
             "job_url": "https://example.com/1",
             "title": "Data Engineer",
-            "ai_score": 0.85,
-            "must_have_match": 1.0,
+            "holistic_ai_fit": 0.85,
             "vector_similarity": 0.9,
-            "title_relevance": 1.0,
-            "seniority_fit": 1.0,
-            "preference_fit": 1.0,
-            "fit_label": "strong",
-            "final_score": 0.925,
+            "normalized_factors": {
+                "must_have_match": {"value": 1.0},
+                "title_relevance": {"value": 1.0},
+                "seniority_fit": {"value": 1.0},
+                "declared_preference_fit": {"value": 1.0},
+                "location_fit": {"value": 0.5},
+                "language_fit": {"value": 0.5},
+            },
+            "baseline_fit": 0.85,
+            "baseline_fit_label": "strong",
             "shortlist_origin": "vector_search",
         }
     ]
@@ -5775,58 +5802,20 @@ def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract()
         final_top_n=10,
         cv_generation_debug_records=[],
         profile={"preferences": {"target_role": "Data Engineer"}},
-        config={
-            "ranking_weights": {
-                "ai_score": 0.73,
-                "must_have_match": 0.0,
-                "vector_similarity": 0.27,
-                "title_relevance": 0.0,
-                "seniority_fit": 0.0,
-                "preference_fit": 0.0,
-            },
-            "missing_value_defaults": {
-                "ai_score": 0.0,
-                "must_have_match": 0.5,
-                "vector_similarity": 0.0,
-                "title_relevance": 0.5,
-                "seniority_fit": 0.5,
-                "preference_fit": 0.5,
-            },
-            "cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}},
-        },
+        config=_minimal_config(),
     )
 
     ranking_block = artifacts["stages"]["ranking"]
     decision_summary = ranking_block["decision_summary"]
 
-    assert decision_summary["configured_ranking_weights"] == {
-        "ai_score": 0.73,
-        "must_have_match": 0.0,
-        "vector_similarity": 0.27,
-        "title_relevance": 0.0,
-        "seniority_fit": 0.0,
-        "preference_fit": 0.0,
-    }
-    assert decision_summary["configured_missing_value_defaults"] == {
-        "ai_score": 0.0,
-        "must_have_match": 0.5,
-        "vector_similarity": 0.0,
-        "title_relevance": 0.5,
-        "seniority_fit": 0.5,
-        "preference_fit": 0.5,
-    }
-    assert decision_summary["zero_weight_features"] == [
-        "must_have_match",
-        "title_relevance",
-        "seniority_fit",
-        "preference_fit",
-    ]
-    assert decision_summary["contributing_features"] == [
-        "ai_score",
-        "vector_similarity",
-    ]
-    assert ranking_block["inputs_sample"][0]["must_have_match"] == pytest.approx(1.0)
-    assert ranking_block["inputs_sample"][0]["preference_fit"] == pytest.approx(1.0)
+    assert decision_summary["ranking_policy"] == _minimal_config()["ranking_policy"]
+    assert decision_summary["ranking_contract_fingerprint"] == _minimal_config()["ranking_contract"]["ranking_contract_fingerprint"]
+    assert decision_summary["effective_structured_factor_weights"] == _minimal_config()["ranking_contract"]["effective_structured_factor_weights"]
+    assert decision_summary["normalizer_version"] == "absolute-fit-v1"
+    assert decision_summary["zero_weight_features"] == ["structured_fit"]
+    assert decision_summary["contributing_features"] == ["holistic_ai_fit"]
+    assert ranking_block["inputs_sample"][0]["normalized_factors"]["must_have_match"]["value"] == pytest.approx(1.0)
+    assert ranking_block["inputs_sample"][0]["normalized_factors"]["declared_preference_fit"]["value"] == pytest.approx(1.0)
 
 
 def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
@@ -5849,20 +5838,20 @@ def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
         {
             "job_url": "https://example.com/1",
             "title": "Job 1",
-            "fit_label": "strong",
-            "final_score": 0.92,
+            "baseline_fit_label": "strong",
+            "baseline_fit": 0.92,
         },
         {
             "job_url": "https://example.com/2",
             "title": "Job 2",
-            "fit_label": "stretch",
-            "final_score": 0.61,
+            "baseline_fit_label": "stretch",
+            "baseline_fit": 0.61,
         },
         {
             "job_url": "https://example.com/3",
             "title": "Job 3",
-            "fit_label": "skip",
-            "final_score": 0.22,
+            "baseline_fit_label": "skip",
+            "baseline_fit": 0.22,
         },
     ]
     cv_analysis_results = [
@@ -5909,7 +5898,7 @@ def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
         final_top_n=10,
         cv_generation_debug_records=cv_generation_debug_records,
         profile={"preferences": {"target_role": "Data Analyst"}},
-        config={"cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}}},
+        config=_minimal_config(),
     )
 
     shortlist_metrics = artifacts["stages"]["shortlist"]["decision_summary"]["quality_metrics"]
@@ -6528,7 +6517,7 @@ def test_pipeline_source_has_no_direct_ranking_fit_label_assignment_in_reuse_bra
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
-def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
+def test_run_pipeline_uses_baseline_fit_as_sole_post_filter_cv_gate(
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_norm: MagicMock,
@@ -6559,9 +6548,9 @@ def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
 
     job = {
         **_minimal_job(),
-        "fit_label": "skip",
+        "baseline_fit_label": "skip",
+        "baseline_fit": 0.2,
         "ai_score": 0.2,
-        "final_score": 0.2,
         "title": "Retail Banking Analyst",
     }
     profile = _minimal_profile()
@@ -7413,7 +7402,11 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
         def emit(self, stage: str, level: str, message: str, payload: dict[str, Any] | None = None) -> None:
             self.events.append((stage, level, message, payload))
 
-    job = _minimal_job()
+    job = {
+        **_minimal_job(),
+        "baseline_fit": 0.2,
+        "baseline_fit_label": "skip",
+    }
     profile = _minimal_profile()
     reporter = _Reporter()
 
@@ -7427,9 +7420,9 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
     mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
-    mock_ai.return_value = [{**job, "fit_label": "skip", "fit_label_source": "reranker"}]
-    mock_build_feat.return_value = [{**job, "fit_label": "skip", "fit_label_source": "reranker"}]
-    mock_rank.return_value = [{**job, "fit_label": "skip", "fit_label_source": "reranker"}]
+    mock_ai.return_value = [{**job, "ai_score": 0.2}]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = [job]
 
     run_pipeline("data/sample_jobs.json", config_path=".env.yaml", reporter=reporter)
 
@@ -7767,22 +7760,22 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "title": "Ranked With CV",
         "job_title": "Ranked With CV",
         "required_skills": ["SQL"],
-        "ai_score": 0.91,
-        "final_score": 0.95,
+        "holistic_ai_fit": 0.91,
+        "baseline_fit": 0.95,
         "vector_similarity": 0.88,
-        "fit_label": "strong",
-        "final_rank": 1,
+        "baseline_fit_label": "strong",
+        "baseline_rank": 1,
     }
     ranked_no_cv = {
         **_minimal_job("https://example.com/2"),
         "title": "Ranked No CV",
         "job_title": "Ranked No CV",
         "required_skills": ["Python"],
-        "ai_score": 0.20,
-        "final_score": 0.80,
+        "holistic_ai_fit": 0.20,
+        "baseline_fit": 0.20,
         "vector_similarity": 0.70,
-        "fit_label": "skip",
-        "final_rank": 2,
+        "baseline_fit_label": "skip",
+        "baseline_rank": 2,
     }
     not_shortlisted = {
         **_minimal_job("https://example.com/3"),
@@ -7801,10 +7794,10 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "title": "Scored Not Ranked",
         "job_title": "Scored Not Ranked",
         "required_skills": ["Airflow"],
-        "ai_score": 0.44,
-        "final_score": 0.45,
+        "holistic_ai_fit": 0.44,
+        "baseline_fit": 0.45,
         "vector_similarity": 0.52,
-        "fit_label": "stretch",
+        "baseline_fit_label": "stretch",
     }
     rejected_raw = _raw_scraper_job("https://example.com/4")
 
@@ -7954,7 +7947,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             "advanced_to_scoring": True,
         },
         "primary_fit": {
-            "source": "reranker",
+            "source": "baseline_fit_label",
             "label": "strong",
         },
         "cv_analysis": {
@@ -7979,7 +7972,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             "advanced_to_scoring": True,
         },
         "primary_fit": {
-            "source": "reranker",
+            "source": "baseline_fit_label",
             "label": "skip",
         },
         "cv_analysis": {
@@ -8008,6 +8001,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     assert export_results[3]["scores"]["vector_score"] == pytest.approx(0.55)
     assert "shortlist_debug" not in export_results[3]
     assert export_results[4]["pipeline_status"] == "scored_not_ranked"
+    assert export_results[4]["scores"]["baseline_fit"] == pytest.approx(0.45)
     assert export_results[4]["scores"]["final_score"] == pytest.approx(0.45)
     assert export_results[5]["pipeline_status"] == "rejected_before_enrichment"
     debug_records = result["cv_generation_debug_records"]
@@ -8021,7 +8015,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             "advanced_to_scoring": True,
         },
         "primary_fit": {
-            "source": "reranker",
+            "source": "baseline_fit_label",
             "label": "strong",
         },
         "cv_analysis": {
@@ -8044,7 +8038,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             "advanced_to_scoring": True,
         },
         "primary_fit": {
-            "source": "reranker",
+            "source": "baseline_fit_label",
             "label": "skip",
         },
         "cv_analysis": {
@@ -8071,14 +8065,14 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_config")
-def test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependencies(
+def test_run_pipeline_short_circuits_baseline_skip_before_cv_analysis_dependencies(
     mock_config: MagicMock,
     mock_profile_yaml: MagicMock,
     mock_retrieve_bundle: MagicMock,
     mock_retrieve_evidence: MagicMock,
     mock_gap: MagicMock,
 ) -> None:
-    """@proves pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis"""
+    """@proves pipeline_performance.baseline-skip-short-circuits-cv-analysis"""
     from fitcv.pipeline import run_pipeline
 
     job = {
@@ -8086,9 +8080,9 @@ def test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependenci
         "title": "Blocked Before Analysis",
         "job_title": "Blocked Before Analysis",
         "required_skills": ["SQL"],
-        "fit_label": "skip",
-        "fit_label_source": "reranker",
-        "final_rank": 1,
+        "baseline_fit": 0.2,
+        "baseline_fit_label": "skip",
+        "baseline_rank": 1,
         "shortlist_origin": "vector_search",
     }
     checkpoint_payload = {
@@ -8939,6 +8933,10 @@ def test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch(
     cfg = dict(_minimal_config())
     cfg["enrichment_batch_size"] = 5
     cfg["enrichment_concurrency"] = 3
+    cfg["pipeline"]["enrichment_batch_size"] = 5
+    cfg["pipeline"]["enrichment_concurrency"] = 3
+    cfg["stage_runtime"]["enrich"]["batch_size"] = 5
+    cfg["stage_runtime"]["enrich"]["concurrency"] = 3
 
     mock_config.return_value = cfg
     mock_parse.return_value = [job]
@@ -9302,7 +9300,7 @@ def test_bounded_event_payload_uses_canonical_observability_builder() -> None:
 
 def test_build_ranking_features_ignores_diagnostic_reranker_lists_for_scoring() -> None:
     profile: dict = {"preferences": {"target_role": "Data Engineer"}}
-    config: dict = {}
+    config = _ranking_v2_config()
 
     ai_scores_a = _make_ai_scores()
     ai_scores_b = _make_ai_scores()
@@ -9318,7 +9316,7 @@ def test_build_ranking_features_ignores_diagnostic_reranker_lists_for_scoring() 
     by_url_b = {row["job_url"]: row for row in features_b}
     assert by_url_a.keys() == by_url_b.keys()
     for url in by_url_a:
-        assert by_url_a[url]["final_score"] == pytest.approx(by_url_b[url]["final_score"])
+        assert by_url_a[url]["baseline_fit"] == pytest.approx(by_url_b[url]["baseline_fit"])
 
 
 

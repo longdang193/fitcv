@@ -28,8 +28,8 @@ def _job() -> dict:
     return {
         "job_url": "https://example.com/job/1",
         "title": "Data Analyst",
-        "fit_label": "strong",
-        "fit_label_source": "reranker",
+        "baseline_fit": 0.8,
+        "baseline_fit_label": "strong",
         "required_skills": ["SQL", "Python"],
         "preferred_skills": [],
         "responsibilities": ["Build dashboards"],
@@ -49,7 +49,7 @@ def _profile() -> dict:
 def _config() -> dict:
     return {
         "pipeline": {"evidence_top_k": 3},
-        "fit_label_thresholds": {"strong": 0.7, "stretch": 0.4},
+        "ranking_policy": {"fit_label_thresholds": {"strong": 0.7, "stretch": 0.4}},
     }
 
 
@@ -149,9 +149,11 @@ def test_analyze_ranked_job_uses_stage_runtime_cv_analysis_sleep(
 
 
 
-def test_resolve_ranked_job_fit_ignores_diagnostic_lists_when_fit_label_present() -> None:
+def test_resolve_ranked_job_fit_uses_persisted_baseline_label_only() -> None:
     base_job = _job()
-    base_job["fit_label"] = "stretch"
+    base_job["baseline_fit_label"] = "stretch"
+    base_job["fit_label"] = "skip"
+    base_job["ai_score"] = 0.99
     job_a = dict(base_job)
     job_b = dict(base_job)
     job_a["matched_strengths"] = ["SQL"]
@@ -161,6 +163,11 @@ def test_resolve_ranked_job_fit_ignores_diagnostic_lists_when_fit_label_present(
 
     assert resolve_ranked_job_fit(job_a, _config()) == "stretch"
     assert resolve_ranked_job_fit(job_b, _config()) == "stretch"
+
+
+def test_resolve_ranked_job_fit_derives_from_baseline_score_then_defaults_to_skip() -> None:
+    assert resolve_ranked_job_fit({"baseline_fit": 0.55}, _config()) == "stretch"
+    assert resolve_ranked_job_fit({"ai_score": 0.99, "fit_label": "strong"}, _config()) == "skip"
 
 def test_build_analysis_input_summary_prefers_canonical_skill_lists_when_available() -> None:
     summary = build_analysis_input_summary(
@@ -577,7 +584,7 @@ def test_analyze_ranked_job_blocks_reranker_skip_before_analysis_dependencies(
     mock_gap,
 ) -> None:
     job = _job()
-    job["fit_label"] = "skip"
+    job["baseline_fit_label"] = "skip"
 
     result = analyze_ranked_job(job, _profile(), _config())
 

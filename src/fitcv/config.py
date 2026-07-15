@@ -25,6 +25,7 @@ from typing import Any
 import yaml
 from fitcv import config_compat, config_loader, config_validators
 from fitcv.fit_factors import fingerprint_eligibility_policy, validate_eligibility_policy
+from fitcv.ranking_contract import build_ranking_contract_context, validate_ranking_policy
 from fitcv.cv_presets import SUPPORTED_PRESETS
 from fitcv.prompts import get_prompt_definition
 
@@ -68,7 +69,7 @@ _RETIRED_CONFIG_SURFACES = (
     "live_smoke.yaml",
 )
 _DEFAULT_ENRICH_PROMPT_ID = "enrich.extraction.v1"
-_DEFAULT_RANKING_AI_SCORE_PROMPT_ID = "ranking.ai_score.v1"
+_DEFAULT_RANKING_AI_SCORE_PROMPT_ID = "ranking.ai_score.v2"
 _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID = "cv_generation.structured_write.v1"
 _DEFAULT_CV_REQUIRED_MATCH_POLICY = {
     "required_match": {
@@ -103,6 +104,7 @@ _CANONICAL_PIPELINE_TOP_LEVEL_KEYS = {
 _CANONICAL_POLICY_TOP_LEVEL_KEYS = {
     "cv",
     "eligibility_policy",
+    "ranking_policy",
 }
 _CANONICAL_TAXONOMY_TOP_LEVEL_KEYS = {
     "seniority",
@@ -929,6 +931,30 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
             cfg["eligibility_policy"]
         )
 
+    retired_ranking_keys = sorted(
+        key
+        for key in (
+            "ranking_weights",
+            "preference_fit_weights",
+            "missing_value_defaults",
+            "ranking_null_defaults",
+        )
+        if key in cfg
+    )
+    if "ranking_policy" in cfg and retired_ranking_keys:
+        raise ValueError(
+            "Retired ranking config keys are not supported with ranking-v2: "
+            + ", ".join(retired_ranking_keys)
+        )
+    if "ranking_policy" in cfg:
+        if "eligibility_policy" not in cfg:
+            raise ValueError("ranking-v2 requires canonical eligibility_policy")
+        cfg["ranking_policy"] = validate_ranking_policy(cfg["ranking_policy"])
+        cfg["ranking_contract"] = build_ranking_contract_context(
+            cfg["ranking_policy"],
+            eligibility_policy=cfg["eligibility_policy"],
+            eligibility_policy_fingerprint=str(cfg["eligibility_policy_fingerprint"]),
+        )
     overlaps = _detect_pipeline_ssot_overlap(env_cfg_snapshot, pipeline_policy_snapshot)
     _handle_ssot_overlaps(
         mode=ssot_mode,
@@ -939,6 +965,8 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         raise FileNotFoundError(
             f"Canonical eligibility policy file not found: {config_dir / 'policy' / 'eligibility.yaml'}"
         )
+    if "ranking_policy" not in cfg and ssot_mode == "strict":
+        raise FileNotFoundError(loaded_policy_paths["ranking"])
     cfg = _apply_prompt_defaults(cfg)
 
     base_skill_synonyms = _normalize_skill_synonyms(cfg.get("skill_synonyms"))

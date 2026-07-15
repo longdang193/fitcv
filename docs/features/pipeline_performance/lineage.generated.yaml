@@ -1507,9 +1507,9 @@ capabilities:
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: incomplete
-  "pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis":
+  pipeline_performance.baseline-skip-short-circuits-cv-analysis:
     state: active
-    statement: Ranked jobs with authoritative reranker `fit_label = skip` now stop before evidence retrieval, gap computation, and semantic alignment inside `cv_analysis`
+    statement: Ranked jobs with authoritative `baseline_fit_label = skip` stop before evidence retrieval, gap computation, and semantic alignment inside `cv_analysis`
     satisfies: []
     code: []
     tests:
@@ -1518,7 +1518,7 @@ capabilities:
       source:
       - python_proves
       symbols:
-      - test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependencies
+      - test_run_pipeline_short_circuits_baseline_skip_before_cv_analysis_dependencies
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:

@@ -429,7 +429,9 @@ def build_cv_analysis_contract_fingerprint(config: dict[str, Any]) -> dict[str, 
         "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
         "semantic_alignment": _semantic_alignment_settings(config),
         "selection_policy": _cv_analysis_policy_settings(config),
-        "fit_label_thresholds": dict(config.get("fit_label_thresholds") or {}),
+        "fit_label_thresholds": dict(
+            (config.get("ranking_policy") or {}).get("fit_label_thresholds") or {}
+        ),
         "role_taxonomy": dict(config.get("role_taxonomy") or {}),
         # Use semantic synonym map, not runtime counters/metadata, to keep
         # reuse keys stable across runs when behavior is unchanged.

@@ -10,36 +10,35 @@
 # role: config
 # canonical: true
 
-# Ranking policy — six-feature weights, thresholds, and missing-value defaults.
-# Consumed by: pipeline.py / ranking.py and ai_score.py (fit_label derivation).
-
-# ── Supported ranking weights (must sum to 1.0) ──────────────────────────────
-ranking_weights:
-  ai_score: 0.40
-  must_have_match: 0.20
-  vector_similarity: 0.15
-  title_relevance: 0.10
-  seniority_fit: 0.10
-  preference_fit: 0.05
-
-preference_fit_weights:
-  domain: 0.50
-  role_family: 0.30
-  location_type: 0.20
-
-# ── Fit label thresholds (used by ai_score.py and ranking.py) ─────────────────
-# score >= strong_threshold        → strong
-# score >= stretch_threshold       → stretch
-# score <  stretch_threshold       → skip
-fit_label_thresholds:
-  strong: 0.70
-  stretch: 0.40
-
-# ── Missing-value defaults for supported ranking features ─────────────────────
-missing_value_defaults:
-  ai_score: 0.0            # conservative: failed scoring → unknown fit
-  must_have_match: 0.5     # neutral when required skills are unavailable
-  vector_similarity: 0.0   # conservative: not retrieved → low semantic match
-  title_relevance: 0.5     # neutral when title context is unavailable
-  seniority_fit: 0.5       # neutral when seniority context is unavailable
-  preference_fit: 0.5      # neutral when preference context is unavailable
+ranking_policy:
+  policy_version: ranking-v2
+  normalizer_version: absolute-fit-v1
+  active_baseline_mode: holistic_ai_only
+  baseline_weights:
+    holistic_ai_fit: 1.0
+    structured_fit: 0.0
+  structured_factor_weights:
+    must_have_match: 0.30
+    title_relevance: 0.20
+    seniority_fit: 0.15
+    declared_preference_fit: 0.15
+    location_fit: 0.10
+    language_fit: 0.10
+  declared_preference_component_weights:
+    domain: 0.50
+    role_family: 0.30
+    work_mode: 0.20
+  missing_value_defaults:
+    holistic_ai_fit: 0.0
+    must_have_match: 0.5
+    title_relevance: 0.5
+    seniority_fit: 0.5
+    declared_preference_fit: 0.5
+    location_fit: 0.5
+    language_fit: 0.5
+  fit_label_thresholds:
+    strong: 0.70
+    stretch: 0.40
+  label_migration_gate:
+    maximum_total_label_migration_rate: 0.10
+    maximum_strong_skip_crossings: 0

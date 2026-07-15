@@ -17,6 +17,7 @@ lifecycle:
 
 import hashlib
 import json
+import math
 import time
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, cast
@@ -130,18 +131,24 @@ def build_analysis_input_summary(job: dict[str, Any]) -> dict[str, Any]:
         if value not in (None, "", [])
     }
 
-def _fit_label_from_ai_score(score: float, config: dict[str, Any]) -> FitClassification:
+def _fit_label_from_baseline_score(score: float, config: dict[str, Any]) -> FitClassification:
     return cast(FitClassification, fit_label_from_score(score, config))
 
 
 def resolve_ranked_job_fit(job: dict[str, Any], config: dict[str, Any]) -> FitClassification:
-    ranked_fit_raw = str(job.get("fit_label") or "").strip().lower()
+    ranked_fit_raw = str(job.get("baseline_fit_label") or "").strip().lower()
     if ranked_fit_raw in _FIT_LABEL_ORDER:
         return cast(FitClassification, ranked_fit_raw)
-    raw_ai_score = job.get("ai_score")
-    if raw_ai_score is None:
+    raw_baseline_fit = job.get("baseline_fit")
+    if raw_baseline_fit is None:
         return "skip"
-    return _fit_label_from_ai_score(float(raw_ai_score), config)
+    try:
+        baseline_fit = float(raw_baseline_fit)
+    except (TypeError, ValueError):
+        return "skip"
+    if not math.isfinite(baseline_fit):
+        return "skip"
+    return _fit_label_from_baseline_score(baseline_fit, config)
 
 
 
@@ -150,7 +157,7 @@ def _authoritative_ranking_fit_label(
     job: dict[str, Any],
     fit_classification: FitClassification | None,
 ) -> FitClassification | None:
-    ranked_fit_raw = str(job.get("fit_label") or "").strip().lower()
+    ranked_fit_raw = str(job.get("baseline_fit_label") or "").strip().lower()
     if ranked_fit_raw in _FIT_LABEL_ORDER:
         return cast(FitClassification, ranked_fit_raw)
     if fit_classification is None:
@@ -231,7 +238,13 @@ def build_decision_chain(
     cv_status: str,
 ) -> dict[str, Any]:
     ranking_fit_label = _authoritative_ranking_fit_label(job, fit_classification)
-    ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
+    ranking_fit_source = (
+        "baseline_fit_label"
+        if str(job.get("baseline_fit_label") or "").strip().lower() in _FIT_LABEL_ORDER
+        else "baseline_fit_thresholds"
+        if job.get("baseline_fit") is not None
+        else "missing_baseline_fit"
+    )
     return {
         "shortlist": {
             "status": shortlist_status_for_ranked_job(job),

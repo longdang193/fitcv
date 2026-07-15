@@ -63,8 +63,8 @@ def test_all_expected_keys_present():
     assert "cv_analysis.semantic_alignment.responsibility_lexical_weight" in keys
     assert "cv_analysis.semantic_alignment.domain_semantic_weight" in keys
     assert "run_lifecycle.max_runtime_minutes" in keys
-    assert "ranking_weights.ai_score" in keys
-    assert "fit_label_thresholds.strong" in keys
+    assert "ranking_policy.structured_factor_weights.must_have_match" in keys
+    assert "ranking_policy.fit_label_thresholds.strong" in keys
     assert "gap_thresholds.strong_min_matched_ratio" in keys
     assert "reuse.enrich.enabled" in keys
     assert "reuse.ranking.enabled" in keys
@@ -92,7 +92,7 @@ def test_settings_ia_domain_filter_returns_expected_keys() -> None:
     assert "cv_summary_enabled" in general_keys
     assert "cv_skills_enabled" in general_keys
     rules_keys = set(settings_keys_for_domain("rules"))
-    assert "ranking_weights.ai_score" in rules_keys
+    assert "ranking_policy.structured_factor_weights.must_have_match" in rules_keys
     assert "rule_filter.selected_filters" in rules_keys
 
 def test_settings_ia_stage_filter_returns_expected_keys() -> None:
@@ -239,7 +239,7 @@ def test_schema_tracks_editable_keys_separately_from_metadata_only() -> None:
 
 def test_settings_native_input_attrs_follow_existing_schema_conventions() -> None:
     assert settings_native_input_attrs("cv_max_pages") == {"min": "1", "step": "1"}
-    assert settings_native_input_attrs("ranking_weights.ai_score") == {"min": "0", "max": "1", "step": "any"}
+    assert settings_native_input_attrs("ranking_policy.structured_factor_weights.must_have_match") == {"min": "0", "max": "1", "step": "any"}
     assert settings_native_input_attrs("stage_runtime.enrich.sleep_secs") == {"min": "0", "step": "any"}
     assert settings_native_input_attrs("cv_generation_model") == {}
 
@@ -449,7 +449,7 @@ def test_coerce_int_from_string():
 
 def test_coerce_float_from_string():
     from fitcv_cp.settings_schema import coerce_value
-    assert coerce_value("ranking_weights.ai_score", "0.5") == 0.5
+    assert coerce_value("ranking_policy.structured_factor_weights.must_have_match", "0.5") == 0.5
 
 
 def test_coerce_rejects_unknown_key():
@@ -466,8 +466,8 @@ def test_int_top_n_must_be_positive():
 
 
 def test_float_threshold_must_be_in_range():
-    with pytest.raises(ValidationError, match="fit_label_thresholds.strong"):
-        validate_settings({"fit_label_thresholds.strong": 1.5})
+    with pytest.raises(ValidationError, match="ranking_policy.fit_label_thresholds.strong"):
+        validate_settings({"ranking_policy.fit_label_thresholds.strong": 1.5})
 
 
 def test_sleep_secs_may_be_zero():
@@ -488,10 +488,10 @@ def test_top_n_relational_constraint():
 
 
 def test_fit_label_strong_must_exceed_stretch():
-    with pytest.raises(ValidationError, match="fit_label_thresholds"):
+    with pytest.raises(ValidationError, match="ranking_policy.fit_label_thresholds"):
         validate_settings({
-            "fit_label_thresholds.strong": 0.40,
-            "fit_label_thresholds.stretch": 0.70,   # violates: stretch > strong
+            "ranking_policy.fit_label_thresholds.strong": 0.40,
+            "ranking_policy.fit_label_thresholds.stretch": 0.70,   # violates: stretch > strong
         })
 
 
@@ -510,29 +510,29 @@ def test_relational_constraint_error_message_exact_for_top_n() -> None:
 
 def test_weight_sum_tolerance_boundary_and_message_parity() -> None:
     # Preserve current behavior: 1.0100 total is rejected in practice (float precision path).
-    with pytest.raises(ValidationError, match=r"ranking_weights must sum to 1\.0"):
+    with pytest.raises(ValidationError, match=r"ranking_policy\.structured_factor_weights must sum to 1\.0"):
         validate_settings({
-            "ranking_weights.ai_score": 0.41,
-            "ranking_weights.must_have_match": 0.20,
-            "ranking_weights.vector_similarity": 0.15,
-            "ranking_weights.title_relevance": 0.10,
-            "ranking_weights.seniority_fit": 0.10,
-            "ranking_weights.preference_fit": 0.05,
+            "ranking_policy.structured_factor_weights.must_have_match": 0.31,
+            "ranking_policy.structured_factor_weights.title_relevance": 0.20,
+            "ranking_policy.structured_factor_weights.seniority_fit": 0.15,
+            "ranking_policy.structured_factor_weights.declared_preference_fit": 0.15,
+            "ranking_policy.structured_factor_weights.location_fit": 0.10,
+            "ranking_policy.structured_factor_weights.language_fit": 0.10,
         })
     # Beyond tolerance is also rejected with canonical label path.
-    with pytest.raises(ValidationError, match=r"ranking_weights must sum to 1\.0"):
+    with pytest.raises(ValidationError, match=r"ranking_policy\.structured_factor_weights must sum to 1\.0"):
         validate_settings({
-            "ranking_weights.ai_score": 0.42,
-            "ranking_weights.must_have_match": 0.20,
-            "ranking_weights.vector_similarity": 0.15,
-            "ranking_weights.title_relevance": 0.10,
-            "ranking_weights.seniority_fit": 0.10,
-            "ranking_weights.preference_fit": 0.05,
+            "ranking_policy.structured_factor_weights.must_have_match": 0.32,
+            "ranking_policy.structured_factor_weights.title_relevance": 0.20,
+            "ranking_policy.structured_factor_weights.seniority_fit": 0.15,
+            "ranking_policy.structured_factor_weights.declared_preference_fit": 0.15,
+            "ranking_policy.structured_factor_weights.location_fit": 0.10,
+            "ranking_policy.structured_factor_weights.language_fit": 0.10,
         })
 
 def test_ranking_weights_partial_update_skips_sum_check():
-    """Partial updates are allowed; sum-to-1 only checked when ALL 6 are present."""
-    validate_settings({"ranking_weights.ai_score": 0.50})  # should not raise
+    """Partial updates are allowed; sum-to-1 only checks complete weight families."""
+    validate_settings({"ranking_policy.structured_factor_weights.must_have_match": 0.50})
 
 
 def test_gap_thresholds_strong_must_exceed_stretch():
@@ -554,8 +554,11 @@ def test_gap_thresholds_strong_must_exceed_stretch():
             r"pipeline\.final_top_n \(30\) must be <= pipeline\.ai_score_top_n \(20\)",
         ),
         (
-            {"fit_label_thresholds.strong": 0.40, "fit_label_thresholds.stretch": 0.70},
-            r"fit_label_thresholds\.strong \(0\.4\) must be > stretch \(0\.7\)",
+            {
+                "ranking_policy.fit_label_thresholds.strong": 0.40,
+                "ranking_policy.fit_label_thresholds.stretch": 0.70,
+            },
+            r"ranking_policy\.fit_label_thresholds\.strong \(0\.4\) must be > stretch \(0\.7\)",
         ),
         (
             {
@@ -581,10 +584,19 @@ def test_unknown_key_rejected():
 # ── config application ────────────────────────────────────────────────────────
 
 def test_apply_settings_to_config_nested():
-    config = {"pipeline": {"final_top_n": 10}, "ranking_weights": {"ai_score": 0.40}}
-    apply_settings_to_config(config, {"pipeline.final_top_n": 5, "ranking_weights.ai_score": 0.50})
+    config = {
+        "pipeline": {"final_top_n": 10},
+        "ranking_policy": {"structured_factor_weights": {"must_have_match": 0.30}},
+    }
+    apply_settings_to_config(
+        config,
+        {
+            "pipeline.final_top_n": 5,
+            "ranking_policy.structured_factor_weights.must_have_match": 0.50,
+        },
+    )
     assert config["pipeline"]["final_top_n"] == 5
-    assert config["ranking_weights"]["ai_score"] == 0.50
+    assert config["ranking_policy"]["structured_factor_weights"]["must_have_match"] == 0.50
 
 
 def test_apply_settings_to_config_flat_key():
@@ -906,11 +918,12 @@ def test_cv_analysis_semantic_alignment_validate_rejects_unbalanced_domain_weigh
 
 # ── RANKING_GROUPS registry ───────────────────────────────────────────────────
 
-def test_ranking_groups_has_four_slugs():
+def test_ranking_groups_has_five_slugs():
     from fitcv_cp.settings_schema import RANKING_GROUPS
     assert set(RANKING_GROUPS.keys()) == {
         "ranking-weights",
         "preference-fit-weights",
+        "ranking-missing-defaults",
         "fit-label-thresholds",
         "gap-thresholds",
     }
@@ -924,7 +937,7 @@ def test_ranking_groups_all_keys_in_schema():
             assert key in schema_keys, f"{key!r} from group {slug!r} not found in SETTINGS_SCHEMA"
 
 
-def test_ranking_weights_group_has_six_keys():
+def test_ranking_weights_group_has_six_structured_keys():
     from fitcv_cp.settings_schema import RANKING_GROUPS
     assert len(RANKING_GROUPS["ranking-weights"]) == 6
 
@@ -936,41 +949,40 @@ def test_preference_fit_weights_group_has_three_keys() -> None:
 
 def test_ranking_weight_copy_matches_runtime_semantics():
     schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
-    assert schema_by_key["ranking_weights.title_relevance"]["description"] == (
-        "How much influence semantic role alignment between the job title and the candidate's target role has on the final ranking."
+    assert schema_by_key["ranking_policy.structured_factor_weights.title_relevance"]["description"] == (
+        "Relative weight of target-role alignment within structured_fit."
     )
-    assert schema_by_key["ranking_weights.preference_fit"]["label"] == "Weight: Preference Alignment"
-    assert schema_by_key["ranking_weights.preference_fit"]["description"] == (
-        "How much influence weighted candidate preference alignment across domain, role family, and location type has on the final candidate ranking."
+    assert schema_by_key["ranking_policy.structured_factor_weights.declared_preference_fit"]["label"] == (
+        "Structured Weight: Declared Preference Fit"
     )
 
 
 def test_preference_fit_weight_keys_registered() -> None:
     keys = {s["key"] for s in SETTINGS_SCHEMA}
-    assert "preference_fit_weights.domain" in keys
-    assert "preference_fit_weights.role_family" in keys
-    assert "preference_fit_weights.location_type" in keys
+    assert "ranking_policy.declared_preference_component_weights.domain" in keys
+    assert "ranking_policy.declared_preference_component_weights.role_family" in keys
+    assert "ranking_policy.declared_preference_component_weights.work_mode" in keys
 
 
 def test_preference_fit_weight_copy_matches_runtime_semantics() -> None:
     schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
-    assert schema_by_key["preference_fit_weights.domain"]["description"] == (
-        "Relative importance of explicit domain preference alignment within the preference-fit feature."
+    assert schema_by_key["ranking_policy.declared_preference_component_weights.domain"]["description"] == (
+        "Relative domain importance within declared_preference_fit."
     )
-    assert schema_by_key["preference_fit_weights.role_family"]["description"] == (
-        "Relative importance of explicit role-family preference alignment within the preference-fit feature."
+    assert schema_by_key["ranking_policy.declared_preference_component_weights.role_family"]["description"] == (
+        "Relative role-family importance within declared_preference_fit."
     )
-    assert schema_by_key["preference_fit_weights.location_type"]["description"] == (
-        "Relative importance of explicit location-type preference alignment within the preference-fit feature."
+    assert schema_by_key["ranking_policy.declared_preference_component_weights.work_mode"]["description"] == (
+        "Relative work-mode importance within declared_preference_fit."
     )
 
 
 def test_preference_fit_weights_must_sum_to_one() -> None:
-    with pytest.raises(ValidationError, match="preference_fit_weights"):
+    with pytest.raises(ValidationError, match="ranking_policy.declared_preference_component_weights"):
         validate_settings({
-            "preference_fit_weights.domain": 0.70,
-            "preference_fit_weights.role_family": 0.20,
-            "preference_fit_weights.location_type": 0.20,
+            "ranking_policy.declared_preference_component_weights.domain": 0.70,
+            "ranking_policy.declared_preference_component_weights.role_family": 0.20,
+            "ranking_policy.declared_preference_component_weights.work_mode": 0.20,
         })
 
 @pytest.mark.parametrize(
@@ -978,22 +990,22 @@ def test_preference_fit_weights_must_sum_to_one() -> None:
     [
         (
             {
-                "ranking_weights.ai_score": 0.42,
-                "ranking_weights.must_have_match": 0.20,
-                "ranking_weights.vector_similarity": 0.15,
-                "ranking_weights.title_relevance": 0.10,
-                "ranking_weights.seniority_fit": 0.10,
-                "ranking_weights.preference_fit": 0.05,
+                "ranking_policy.structured_factor_weights.must_have_match": 0.30,
+                "ranking_policy.structured_factor_weights.title_relevance": 0.20,
+                "ranking_policy.structured_factor_weights.seniority_fit": 0.15,
+                "ranking_policy.structured_factor_weights.declared_preference_fit": 0.15,
+                "ranking_policy.structured_factor_weights.location_fit": 0.10,
+                "ranking_policy.structured_factor_weights.language_fit": 0.11,
             },
-            "ranking_weights",
+            "ranking_policy.structured_factor_weights",
         ),
         (
             {
-                "preference_fit_weights.domain": 0.70,
-                "preference_fit_weights.role_family": 0.20,
-                "preference_fit_weights.location_type": 0.20,
+                "ranking_policy.declared_preference_component_weights.domain": 0.70,
+                "ranking_policy.declared_preference_component_weights.role_family": 0.20,
+                "ranking_policy.declared_preference_component_weights.work_mode": 0.20,
             },
-            "preference_fit_weights",
+            "ranking_policy.declared_preference_component_weights",
         ),
         (
             {
@@ -1036,6 +1048,7 @@ def test_ranking_groups_threshold_groups_have_two_keys_each():
     from fitcv_cp.settings_schema import RANKING_GROUPS
     assert len(RANKING_GROUPS["fit-label-thresholds"]) == 2
     assert len(RANKING_GROUPS["gap-thresholds"]) == 2
+    assert len(RANKING_GROUPS["ranking-missing-defaults"]) == 7
 
 
 # ── SETTINGS_SECTIONS registry ────────────────────────────────────────────────

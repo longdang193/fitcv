@@ -84,6 +84,25 @@ _EXCLUDED_AGENTIC_KEYS: frozenset[str] = frozenset(
     }
 )
 
+_RANKING_POLICY_DEFAULTS = dict(load_config().get("ranking_policy") or {})
+
+def _ranking_policy_setting(
+    section: str,
+    name: str,
+    label: str,
+    description: str,
+) -> dict[str, Any]:
+    values = dict(_RANKING_POLICY_DEFAULTS.get(section) or {})
+    return {
+        "key": f"ranking_policy.{section}.{name}",
+        "type": "float",
+        "default": float(values[name]),
+        "label": label,
+        "description": description,
+        "group": "ranking",
+        "config_path": ["ranking_policy", section, name],
+    }
+
 
 # ── schema registry ──────────────────────────────────────────────────────────
 
@@ -506,105 +525,29 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "config_path": ["run_lifecycle", "max_runtime_minutes"],
     },
     # ── Ranking Policy ────────────────────────────────────────────────────────
-    {
-        "key": "ranking_weights.ai_score",
-        "type": "float",
-        "default": 0.40,
-        "label": "Weight: AI Score",
-        "description": "How much influence the LLM-evaluated fit score has on the final candidate ranking.",
-        "group": "ranking",
-        "config_path": ["ranking_weights", "ai_score"],
-    },
-    {
-        "key": "ranking_weights.must_have_match",
-        "type": "float",
-        "default": 0.20,
-        "label": "Weight: Must-Have Skills",
-        "description": "How much influence the strict matching of required skills has on the final ranking.",
-        "group": "ranking",
-        "config_path": ["ranking_weights", "must_have_match"],
-    },
-    {
-        "key": "ranking_weights.vector_similarity",
-        "type": "float",
-        "default": 0.15,
-        "label": "Weight: Vector Similarity",
-        "description": "How much influence the embedding-based vector similarity score has on the final ranking.",
-        "group": "ranking",
-        "config_path": ["ranking_weights", "vector_similarity"],
-    },
-    {
-        "key": "ranking_weights.title_relevance",
-        "type": "float",
-        "default": 0.10,
-        "label": "Weight: Title Relevance",
-        "description": "How much influence semantic role alignment between the job title and the candidate's target role has on the final ranking.",
-        "group": "ranking",
-        "config_path": ["ranking_weights", "title_relevance"],
-    },
-    {
-        "key": "ranking_weights.seniority_fit",
-        "type": "float",
-        "default": 0.10,
-        "label": "Weight: Seniority Alignment",
-        "description": "How much influence the match between job seniority requirements and candidate experience has.",
-        "group": "ranking",
-        "config_path": ["ranking_weights", "seniority_fit"],
-    },
-    {
-        "key": "ranking_weights.preference_fit",
-        "type": "float",
-        "default": 0.05,
-        "label": "Weight: Preference Alignment",
-        "description": "How much influence weighted candidate preference alignment across domain, role family, and location type has on the final candidate ranking.",
-        "group": "ranking",
-        "config_path": ["ranking_weights", "preference_fit"],
-    },
-    {
-        "key": "preference_fit_weights.domain",
-        "type": "float",
-        "default": 0.50,
-        "label": "Preference Weight: Domain",
-        "description": "Relative importance of explicit domain preference alignment within the preference-fit feature.",
-        "group": "ranking",
-        "config_path": ["preference_fit_weights", "domain"],
-    },
-    {
-        "key": "preference_fit_weights.role_family",
-        "type": "float",
-        "default": 0.30,
-        "label": "Preference Weight: Role Family",
-        "description": "Relative importance of explicit role-family preference alignment within the preference-fit feature.",
-        "group": "ranking",
-        "config_path": ["preference_fit_weights", "role_family"],
-    },
-    {
-        "key": "preference_fit_weights.location_type",
-        "type": "float",
-        "default": 0.20,
-        "label": "Preference Weight: Location Type",
-        "description": "Relative importance of explicit location-type preference alignment within the preference-fit feature.",
-        "group": "ranking",
-        "config_path": ["preference_fit_weights", "location_type"],
-    },
-    {
-        "key": "fit_label_thresholds.strong",
-        "type": "float",
-        "default": 0.70,
-        "label": "Threshold: Strong Overall Fit",
-        "description": "The minimum AI reranker score required to categorize a shortlisted job as a 'Strong' fit.",
-        "group": "ranking",
-        "config_path": ["fit_label_thresholds", "strong"],
-    },
-    {
-        "key": "fit_label_thresholds.stretch",
-        "type": "float",
-        "default": 0.40,
-        "label": "Threshold: Stretch Overall Fit",
-        "description": "The minimum AI reranker score required to categorize a shortlisted job as a 'Stretch' fit.",
-        "group": "ranking",
-        "config_path": ["fit_label_thresholds", "stretch"],
-    },
+    *[
+        _ranking_policy_setting(section, name, label, description)
+        for section, name, label, description in (
+            ("structured_factor_weights", "must_have_match", "Structured Weight: Must-Have Match", "Relative weight of required-skill coverage within structured_fit."),
+            ("structured_factor_weights", "title_relevance", "Structured Weight: Title Relevance", "Relative weight of target-role alignment within structured_fit."),
+            ("structured_factor_weights", "seniority_fit", "Structured Weight: Seniority Fit", "Relative weight of seniority alignment within structured_fit."),
+            ("structured_factor_weights", "declared_preference_fit", "Structured Weight: Declared Preference Fit", "Relative weight of explicit candidate preferences within structured_fit."),
+            ("structured_factor_weights", "location_fit", "Structured Weight: Location Fit", "Relative weight of canonical location fit when ranking-enabled."),
+            ("structured_factor_weights", "language_fit", "Structured Weight: Language Fit", "Relative weight of canonical language fit when ranking-enabled."),
+            ("declared_preference_component_weights", "domain", "Declared Preference Weight: Domain", "Relative domain importance within declared_preference_fit."),
+            ("declared_preference_component_weights", "role_family", "Declared Preference Weight: Role Family", "Relative role-family importance within declared_preference_fit."),
+            ("declared_preference_component_weights", "work_mode", "Declared Preference Weight: Work Mode", "Relative work-mode importance within declared_preference_fit."),
+            ("missing_value_defaults", "holistic_ai_fit", "Missing Default: Holistic AI Fit", "Stable fallback for a missing holistic AI fit scalar."),
+            ("missing_value_defaults", "must_have_match", "Missing Default: Must-Have Match", "Stable fallback for missing required-skill coverage."),
+            ("missing_value_defaults", "title_relevance", "Missing Default: Title Relevance", "Stable fallback for missing title relevance."),
+            ("missing_value_defaults", "seniority_fit", "Missing Default: Seniority Fit", "Stable fallback for missing seniority fit."),
+            ("missing_value_defaults", "declared_preference_fit", "Missing Default: Declared Preference Fit", "Stable fallback for missing declared preference fit."),
+            ("missing_value_defaults", "location_fit", "Missing Default: Location Fit", "Stable fallback for missing location fit."),
+            ("missing_value_defaults", "language_fit", "Missing Default: Language Fit", "Stable fallback for missing language fit."),
+            ("fit_label_thresholds", "strong", "Threshold: Strong Baseline Fit", "Minimum unrounded baseline_fit classified as strong."),
+            ("fit_label_thresholds", "stretch", "Threshold: Stretch Baseline Fit", "Minimum unrounded baseline_fit classified as stretch."),
+        )
+    ],
     {
         "key": "gap_thresholds.strong_min_matched_ratio",
         "type": "float",
@@ -833,21 +776,30 @@ def _ordered_key_projection(keys: list[str]) -> list[str]:
 def _derive_ranking_groups() -> dict[str, list[str]]:
     return {
         "ranking-weights": _ordered_key_projection([
-            "ranking_weights.ai_score",
-            "ranking_weights.must_have_match",
-            "ranking_weights.vector_similarity",
-            "ranking_weights.title_relevance",
-            "ranking_weights.seniority_fit",
-            "ranking_weights.preference_fit",
+            "ranking_policy.structured_factor_weights.must_have_match",
+            "ranking_policy.structured_factor_weights.title_relevance",
+            "ranking_policy.structured_factor_weights.seniority_fit",
+            "ranking_policy.structured_factor_weights.declared_preference_fit",
+            "ranking_policy.structured_factor_weights.location_fit",
+            "ranking_policy.structured_factor_weights.language_fit",
         ]),
         "preference-fit-weights": _ordered_key_projection([
-            "preference_fit_weights.domain",
-            "preference_fit_weights.role_family",
-            "preference_fit_weights.location_type",
+            "ranking_policy.declared_preference_component_weights.domain",
+            "ranking_policy.declared_preference_component_weights.role_family",
+            "ranking_policy.declared_preference_component_weights.work_mode",
+        ]),
+        "ranking-missing-defaults": _ordered_key_projection([
+            "ranking_policy.missing_value_defaults.holistic_ai_fit",
+            "ranking_policy.missing_value_defaults.must_have_match",
+            "ranking_policy.missing_value_defaults.title_relevance",
+            "ranking_policy.missing_value_defaults.seniority_fit",
+            "ranking_policy.missing_value_defaults.declared_preference_fit",
+            "ranking_policy.missing_value_defaults.location_fit",
+            "ranking_policy.missing_value_defaults.language_fit",
         ]),
         "fit-label-thresholds": _ordered_key_projection([
-            "fit_label_thresholds.strong",
-            "fit_label_thresholds.stretch",
+            "ranking_policy.fit_label_thresholds.strong",
+            "ranking_policy.fit_label_thresholds.stretch",
         ]),
         "gap-thresholds": _ordered_key_projection([
             "gap_thresholds.strong_min_matched_ratio",
@@ -997,11 +949,13 @@ _EDITABLE_AGENTIC_KEYS: frozenset[str] = frozenset(
 _METADATA_ONLY_AGENTIC_KEYS: frozenset[str] = frozenset(
     key for key in _AGENTIC_KEYS if key in _METADATA_ONLY_KEYS
 )
-_WEIGHT_KEYS: frozenset[str] = frozenset(
-    s["key"] for s in SETTINGS_SCHEMA if s["key"].startswith("ranking_weights.")
+_STRUCTURED_WEIGHT_KEYS: frozenset[str] = frozenset(
+    s["key"] for s in SETTINGS_SCHEMA
+    if s["key"].startswith("ranking_policy.structured_factor_weights.")
 )
 _PREFERENCE_WEIGHT_KEYS: frozenset[str] = frozenset(
-    s["key"] for s in SETTINGS_SCHEMA if s["key"].startswith("preference_fit_weights.")
+    s["key"] for s in SETTINGS_SCHEMA
+    if s["key"].startswith("ranking_policy.declared_preference_component_weights.")
 )
 
 # Declarative constraint registry (Task 4 Step 1): behavior still enforced by legacy checks below.
@@ -1017,9 +971,9 @@ _RELATIONAL_ORDER_CONSTRAINTS: tuple[tuple[str, str, str], ...] = (
         "pipeline.final_top_n ({rhs}) must be <= pipeline.ai_score_top_n ({lhs})",
     ),
     (
-        "fit_label_thresholds.strong",
-        "fit_label_thresholds.stretch",
-        "fit_label_thresholds.strong ({lhs}) must be > stretch ({rhs})",
+        "ranking_policy.fit_label_thresholds.strong",
+        "ranking_policy.fit_label_thresholds.stretch",
+        "ranking_policy.fit_label_thresholds.strong ({lhs}) must be > stretch ({rhs})",
     ),
     (
         "gap_thresholds.strong_min_matched_ratio",
@@ -1029,8 +983,8 @@ _RELATIONAL_ORDER_CONSTRAINTS: tuple[tuple[str, str, str], ...] = (
 )
 
 _WEIGHT_SUM_CONSTRAINTS: tuple[tuple[frozenset[str], str], ...] = (
-    (_WEIGHT_KEYS, "ranking_weights"),
-    (_PREFERENCE_WEIGHT_KEYS, "preference_fit_weights"),
+    (_STRUCTURED_WEIGHT_KEYS, "ranking_policy.structured_factor_weights"),
+    (_PREFERENCE_WEIGHT_KEYS, "ranking_policy.declared_preference_component_weights"),
     (_RESPONSIBILITY_ALIGNMENT_WEIGHT_KEYS, "cv_analysis responsibility semantic alignment weights"),
     (_REQUIRED_SKILL_ALIGNMENT_WEIGHT_KEYS, "cv_analysis required-skill semantic alignment weights"),
     (_ROLE_ALIGNMENT_WEIGHT_KEYS, "cv_analysis role semantic alignment weights"),
@@ -1631,29 +1585,38 @@ def build_settings_page_spec() -> dict[str, Any]:
         {
             "id": "ranking",
             "title": "Ranking",
-            "helper": "Tune how shortlisted jobs are scored, labeled, and gap-penalized.",
+            "helper": "Tune the versioned baseline policy, stable defaults, labels, and downstream gap thresholds.",
             "cards": [
                 {
                     "id": "ranking-weights",
-                    "title": "Ranking Weights",
-                    "helper": "All six weights must sum to 1.0 (±0.01).",
+                    "title": "Structured Factor Weights",
+                    "helper": "All six structured-factor weights must sum to 1.0 (±0.01). Baseline mode remains fixed to holistic AI only.",
                     "submit_kind": "group",
                     "submit_slug": "ranking-weights",
                     "keys": RANKING_GROUPS["ranking-weights"],
                 },
                 {
                     "id": "ranking-preference-fit",
-                    "title": "Preference Fit Mix",
-                    "helper": "Split preference alignment across domain, role family, and location type.",
+                    "title": "Declared Preference Mix",
+                    "helper": "Split explicit preference alignment across domain, role family, and work mode.",
                     "submit_kind": "group",
                     "submit_slug": "preference-fit-weights",
                     "form_id": "form-preference-fit-weights",
                     "keys": RANKING_GROUPS["preference-fit-weights"],
                 },
                 {
+                    "id": "ranking-missing-defaults",
+                    "title": "Missing-Value Defaults",
+                    "helper": "Set absolute, cohort-independent fallbacks for missing baseline factor inputs.",
+                    "submit_kind": "group",
+                    "submit_slug": "ranking-missing-defaults",
+                    "form_id": "form-ranking-missing-defaults",
+                    "keys": RANKING_GROUPS["ranking-missing-defaults"],
+                },
+                {
                     "id": "ranking-fit-thresholds",
                     "title": "Fit Label Thresholds",
-                    "helper": "Set the score boundaries for Strong and Stretch fit labels.",
+                    "helper": "Set deterministic Strong and Stretch boundaries over unrounded baseline_fit.",
                     "submit_kind": "group",
                     "submit_slug": "fit-label-thresholds",
                     "form_id": "form-fit-label-thresholds",

@@ -29,10 +29,10 @@ capabilities:
     statement: Global job filters
     state: active
   - capability_id: settings_system.ranking-settings
-    statement: Configure six-feature ranking weights, zero-weight semantics, and runtime-aligned copy.
+    statement: Configure exact ranking-v2 baseline weights, six structured-factor weights, stable missing-value defaults, and runtime-aligned canonical policy paths.
     state: active
   - capability_id: settings_system.preference-fit-calibration
-    statement: Configure preference-fit subweights and fit-label threshold guidance for reranker calibration.
+    statement: Configure declared-preference component weights and deterministic baseline fit-label thresholds without exposing retired ranking aliases.
     state: active
   - capability_id: settings_system.cv-analysis-alignment-settings
     statement: Configure semantic-alignment enablement, model selection, and lexical-vs-semantic balance for `cv_analysis`.

@@ -57,7 +57,11 @@ from copy import deepcopy
 from typing import Any, Callable, cast
 
 from fitcv.ai_score import build_ai_score_input_fingerprint, run_ai_scoring
-from fitcv.agentic_cv_analysis import analyze_ranked_job, build_analysis_input_summary
+from fitcv.agentic_cv_analysis import (
+    analyze_ranked_job,
+    build_analysis_input_summary,
+    resolve_ranked_job_fit,
+)
 from fitcv.agentic_cv_generation import (
     build_cv_generation_input_fingerprint,
     generate_from_analysis as run_agentic_cv_generation,
@@ -128,17 +132,10 @@ from fitcv.ingest import load_raw_jobs, parse_jobs_file, prepare_raw_rows
 from fitcv.pipeline_stage_runner import merge_passed_filter_records
 from fitcv.normalize import normalize_batch, normalize_batch_with_exclusions
 from fitcv.ranking import (
-    compute_feature_contributions,
-    compute_final_score,
     compute_must_have_match,
-    compute_preference_fit_details,
-    compute_preference_fit,
-    compute_ranking_runtime_diagnostics,
+    compute_declared_preference_fit_details,
     compute_seniority_fit,
     compute_title_relevance,
-    get_active_missing_value_defaults,
-    get_preference_fit_weights,
-    get_active_ranking_weights,
     rank_jobs,
     store_final_ranking,
 )
@@ -155,7 +152,11 @@ from fitcv.late_stage_contract import (
     shortlist_status_for_ranked_job as _shortlist_status_for_ranked_job,
     validation_status_for_cv_status as _validation_status_for_cv_status,
 )
-from fitcv.ranking_contract import fit_label_from_score
+from fitcv.ranking_contract import (
+    build_baseline_result,
+    fit_label_from_score,
+    project_legacy_ranking_aliases,
+)
 from fitcv.rule_filter import (
     DEFAULT_SELECTED_RULE_FILTERS,
     apply_pre_enrichment_global_filters,
@@ -806,7 +807,7 @@ def _build_export_results(
             return "not_shortlisted"
         return "unknown_pipeline_state"
 
-    def _sort_key(row: dict[str, Any]) -> tuple[int, float, float, float, int, int]:
+    def _sort_key(row: dict[str, Any]) -> tuple[int, float, str, str, int, int]:
         status = str(row["pipeline_status"])
         category = {
             "ranked_with_cv": 0,
@@ -822,12 +823,12 @@ def _build_export_results(
             "unknown_pipeline_state": 10,
         }.get(status, 10)
         scores = dict(row.get("scores") or {})
-        final_score = float(scores.get("final_score") or 0.0)
-        ai_score = float(scores.get("ai_score") or 0.0)
-        vector_score = float(scores.get("vector_score") or 0.0)
+        baseline_fit = float(scores.get("baseline_fit") or 0.0)
+        raw_job_fingerprint = str(row.get("raw_job_fingerprint") or "")
+        job_url = str(row.get("job_url") or "")
         rank = int(row.get("rank") or 0) or 999999
         input_index = int(row.get("_input_index") or 0)
-        return (category, -final_score, -ai_score, -vector_score, rank, input_index)
+        return (category, -baseline_fit, raw_job_fingerprint, job_url, rank, input_index)
 
     rows: list[dict[str, Any]] = []
     for input_index, raw_job in enumerate(raw_jobs):
@@ -904,10 +905,14 @@ def _build_export_results(
         else:
             shortlist_status = "not_applicable"
 
-        ranking_fit_label = str(score_source.get("fit_label") or "").strip() or None
-        ranking_fit_source = str(score_source.get("fit_label_source") or "").strip() or None
-        if ranking_fit_label is not None and ranking_fit_source is None:
-            ranking_fit_source = "reranker"
+        ranking_fit_label = str(score_source.get("baseline_fit_label") or "").strip() or None
+        ranking_fit_source = (
+            "baseline_fit_label"
+            if ranking_fit_label is not None
+            else "baseline_fit_thresholds"
+            if score_source.get("baseline_fit") is not None
+            else None
+        )
         debug_row = _lookup(debug_by_identity, seeded_raw_job)
         if debug_row is not None:
             cv_status = str(debug_row.get("status") or "not_attempted")
@@ -931,6 +936,13 @@ def _build_export_results(
             else _deterministic_truth_fields(analysis_row.get("status"))
             if isinstance(analysis_row, dict)
             else _deterministic_truth_fields(None)
+        )
+        score_projection = project_legacy_ranking_aliases(
+            {
+                "baseline_fit": score_source.get("baseline_fit"),
+                "baseline_fit_label": score_source.get("baseline_fit_label"),
+                "baseline_rank": score_source.get("baseline_rank"),
+            }
         )
 
         rows.append(
@@ -958,10 +970,12 @@ def _build_export_results(
                 "reject_reasons": reject_reasons,
                 "rule_filter_marks": rule_filter_marks,
                 "scores": {
-                    "final_score": score_source.get("final_score"),
-                    "ai_score": score_source.get("ai_score"),
+                    **score_projection,
+                    "holistic_ai_fit": score_source.get("holistic_ai_fit"),
+                    "structured_fit": score_source.get("structured_fit"),
+                    "normalized_factors": score_source.get("normalized_factors"),
+                    "ranking_contract_fingerprint": score_source.get("ranking_contract_fingerprint"),
                     "vector_score": score_source.get("vector_similarity"),
-                    "fit_label": score_source.get("fit_label"),
                     "ai_score_reuse_status": score_source.get("ai_score_reuse_status"),
                     "ai_score_input_fingerprint": score_source.get("ai_score_input_fingerprint"),
                 },
@@ -975,7 +989,7 @@ def _build_export_results(
                     else None
                 ),
                 "decision_chain": decision_chain,
-                "rank": score_source.get("final_rank"),
+                "rank": score_source.get("baseline_rank"),
                 "cv": (
                     {
                         key: value
@@ -1607,14 +1621,7 @@ def _resolve_layer4_fit(
 ) -> str:
     """Return the authoritative post-filter fit label for a ranked job."""
     del gap_fit
-    ranked_fit_raw = str(job.get("fit_label") or "").strip().lower()
-    ranked_fit = ranked_fit_raw if ranked_fit_raw in _FIT_LABEL_ORDER else None
-    if ranked_fit is not None:
-        return ranked_fit
-    raw_ai_score = job.get("ai_score")
-    if raw_ai_score is None:
-        return "skip"
-    return fit_label_from_score(float(raw_ai_score), config)
+    return resolve_ranked_job_fit(job, config)
 
 
 def _shortlist_status_for_export_row(
@@ -1884,7 +1891,7 @@ def _authoritative_ranking_fit_label(
     job: dict[str, Any],
     fit_classification: str | None,
 ) -> str | None:
-    ranked_fit_raw = str(job.get("fit_label") or "").strip().lower()
+    ranked_fit_raw = str(job.get("baseline_fit_label") or "").strip().lower()
     if ranked_fit_raw in _FIT_LABEL_ORDER:
         return ranked_fit_raw
     fallback_fit_raw = str(fit_classification or "").strip().lower()
@@ -2252,7 +2259,7 @@ def _build_ranking_quality_metrics(ranking_inputs: list[dict[str, Any]], config:
     stretch_count = 0
     skip_count = 0
     for row in ranking_inputs:
-        fit_label = str(row.get("fit_label") or "").strip().lower()
+        fit_label = str(row.get("baseline_fit_label") or "").strip().lower()
         if fit_label == "strong":
             strong_count += 1
         elif fit_label == "stretch":
@@ -2611,20 +2618,20 @@ def _build_stage_transition_artifacts(
     )
     ranking_fit_distribution: dict[str, int] = {}
     for row in ranking_inputs:
-        fit_label = str(row.get("fit_label") or "")
+        fit_label = str(row.get("baseline_fit_label") or "")
         if fit_label:
             ranking_fit_distribution[fit_label] = ranking_fit_distribution.get(fit_label, 0) + 1
-    ranking_weights = get_active_ranking_weights(config)
-    ranking_defaults = get_active_missing_value_defaults(config)
-    preference_fit_weights = get_preference_fit_weights(config)
+    ranking_policy = dict(config.get("ranking_policy") or {})
+    ranking_contract = dict(config.get("ranking_contract") or {})
+    baseline_weights = dict(ranking_policy.get("baseline_weights") or {})
     zero_weight_features = [
         feature_name
-        for feature_name, weight in ranking_weights.items()
+        for feature_name, weight in baseline_weights.items()
         if float(weight) == 0.0
     ]
     contributing_features = [
         feature_name
-        for feature_name, weight in ranking_weights.items()
+        for feature_name, weight in baseline_weights.items()
         if float(weight) > 0.0
     ]
     cv_status_counts = {
@@ -2835,9 +2842,13 @@ def _build_stage_transition_artifacts(
                 ranking_quality_metrics=ranking_quality_metrics,
                 ranking_reuse_metrics=ranking_reuse_metrics,
                 ranking_prompt_provenance=ranking_prompt_provenance,
-                ranking_weights=ranking_weights,
-                ranking_defaults=ranking_defaults,
-                preference_fit_weights=preference_fit_weights,
+                ranking_policy=ranking_policy,
+                ranking_contract=ranking_contract,
+                legacy_checkpoint_adaptation_count=sum(
+                    1
+                    for row in ranking_inputs
+                    if row.get("legacy_checkpoint_default_applied")
+                ),
                 zero_weight_features=zero_weight_features,
                 contributing_features=contributing_features,
                 profile=profile,
@@ -2896,12 +2907,14 @@ def build_ranking_features(
     profile: dict[str, Any],
     config: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Merge shortlist + AI-score records into a single six-feature ranking row."""
+    """Build canonical ranking-v2 rows from shortlist and AI-score inputs."""
     shortlist_index: dict[str, dict[str, Any]] = {
         row["job_url"]: row for row in shortlist
     }
-    weights = get_active_ranking_weights(config)
-    null_defaults = get_active_missing_value_defaults(config)
+    ranking_context = dict(config.get("ranking_contract") or {})
+    ranking_policy = dict(ranking_context.get("ranking_policy") or {})
+    if not ranking_policy:
+        raise ValueError("ranking-v2 requires config.ranking_contract")
     candidate_skills = flatten_skills(profile)
     preference_resolution = infer_effective_preferences(profile, config)
     effective_preferences = dict(preference_resolution["effective_preferences"] or {})
@@ -2917,17 +2930,8 @@ def build_ranking_features(
 
         vector_rank = sl_row.get("vector_rank", sl_row.get("rank"))
         raw_vector_similarity = sl_row.get("vector_similarity", sl_row.get("similarity_score"))
-        vector_similarity = (
-            float(raw_vector_similarity)
-            if raw_vector_similarity is not None
-            else null_defaults["vector_similarity"]
-        )
+        vector_similarity = float(raw_vector_similarity) if raw_vector_similarity is not None else None
         raw_ai_score = ai_row.get("ai_score")
-        ai_score = (
-            float(raw_ai_score)
-            if raw_ai_score is not None
-            else null_defaults["ai_score"]
-        )
         ranking_source: dict[str, Any] = {
             **sl_row,
             **ai_row,
@@ -2949,30 +2953,42 @@ def build_ranking_features(
             str(effective_preferences.get("seniority_target") or "") or None,
             config,
         )
-        preference_fit_details = compute_preference_fit_details(ranking_source, effective_preferences, config)
-        preference_fit = float(preference_fit_details["score"])
-
-        feature_values = {
-            "ai_score": ai_score,
+        preference_fit_details = compute_declared_preference_fit_details(
+            ranking_source,
+            effective_preferences,
+            config,
+        )
+        fit_factor_results = dict(ranking_source.get("fit_factor_results") or {})
+        structured_factors = {
             "must_have_match": must_have_match,
-            "vector_similarity": vector_similarity,
             "title_relevance": title_relevance,
             "seniority_fit": seniority_fit,
-            "preference_fit": preference_fit,
+            "declared_preference_fit": float(preference_fit_details["score"]),
+            "location_fit": dict(fit_factor_results.get("location_fit") or {}).get("ranking_value"),
+            "language_fit": dict(fit_factor_results.get("language_fit") or {}).get("ranking_value"),
         }
+        baseline_result = build_baseline_result(
+            holistic_ai_fit=raw_ai_score,
+            structured_factors=structured_factors,
+            context=ranking_context,
+        )
 
         feature: dict[str, Any] = {
             **ranking_source,
             "vector_rank": int(vector_rank or 0),
-            **feature_values,
-            "feature_contributions": compute_feature_contributions(feature_values, weights, null_defaults),
-            "preference_fit_components": preference_fit_details["components"],
+            "vector_similarity": vector_similarity,
+            **baseline_result,
+            "declared_preference_fit_components": preference_fit_details["components"],
+            "declared_preference_fit_match_details": preference_fit_details["match_details"],
+            "declared_preference_fit_weights": preference_fit_details["weights"],
             "effective_preferences": effective_preferences,
             "inferred_preferences": inferred_preferences,
             "preference_sources": preference_sources,
-            "fit_label_source": "reranker" if ai_row.get("fit_label") is not None else "reranker_score_thresholds",
+            "eligibility_policy_fingerprint": ranking_source.get("eligibility_policy_fingerprint")
+            or config.get("eligibility_policy_fingerprint"),
         }
-        feature["final_score"] = compute_final_score(feature, weights, null_defaults)
+        for retired_key in ("ai_score", "fit_label", "final_score", "final_rank", "preference_fit"):
+            feature.pop(retired_key, None)
         features.append(feature)
 
     return features
@@ -3841,7 +3857,10 @@ def run_pipeline(
                                 stage_owned_subreason=CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
                                 input_snapshot={
                                     "fit_label_thresholds": dict(
-                                        config.get("fit_label_thresholds") or {}
+                                        (config.get("ranking_policy") or {}).get(
+                                            "fit_label_thresholds"
+                                        )
+                                        or {}
                                     ),
                                 },
                                 output_snapshot={
@@ -4399,7 +4418,7 @@ def run_pipeline(
                 enrichment_version=str(config.get("enrichment_version") or "v1"),
                 vector_rank=int(job.get("vector_rank") or 0),
                 ai_score=float(job.get("ai_score") or 0.0),
-                final_score=float(job.get("final_score") or 0.0),
+                final_score=float(job.get("baseline_fit") or 0.0),
                 evidence_ids=[str(e.get("evidence_id") or "") for e in evidence],
                 prompt_version=cv_prompt_version_value,
                 cv_markdown=cv,

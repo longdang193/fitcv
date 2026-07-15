@@ -190,10 +190,9 @@ def _policy_registry_version(config_payload: dict[str, Any] | None) -> str:
 def _policy_envelope_signature(config_payload: dict[str, Any] | None) -> str:
     cfg = dict(config_payload or {})
     envelope = {
-        "ranking_weights": dict(cfg.get("ranking_weights") or {}),
-        "preference_fit_weights": dict(cfg.get("preference_fit_weights") or {}),
-        "missing_value_defaults": dict(cfg.get("missing_value_defaults") or {}),
-        "fit_label_thresholds": dict(cfg.get("fit_label_thresholds") or {}),
+        "ranking_contract_fingerprint": str(
+            (cfg.get("ranking_contract") or {}).get("ranking_contract_fingerprint") or ""
+        ),
         "cv": dict(cfg.get("cv") or {}),
         "pipeline": dict(cfg.get("pipeline") or {}),
         "prompts_runtime": dict(cfg.get("prompts_runtime") or {}),

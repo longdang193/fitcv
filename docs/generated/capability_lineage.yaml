@@ -32,7 +32,7 @@ features:
     status: active
     type: add
     lineage_file: docs/features/cv_system/lineage.generated.yaml
-    capability_count: 10
+    capability_count: 11
     capabilities:
     - cv_system.analysis-evidence-selection
     - cv_system.analysis-grounded-validation
@@ -41,6 +41,7 @@ features:
     - cv_system.fit-gate-resolution
     - cv_system.header-placeholder-repair
     - cv_system.location-language-eligibility
+    - cv_system.ranking-v2-baseline
     - cv_system.stage-artifact-diagnostics
     - cv_system.structured-cv-generation
     - cv_system.vector-only-shortlist
@@ -87,6 +88,7 @@ features:
     lineage_file: docs/features/pipeline_performance/lineage.generated.yaml
     capability_count: 19
     capabilities:
+    - pipeline_performance.baseline-skip-short-circuits-cv-analysis
     - pipeline_performance.canonical-skill-companion-lists-and-entity-payloads-for-required-preferred-skills
     - pipeline_performance.cv-analysis-now-uses-bounded-semantic-lift-for-required-skill-and-role-channels-instead-of-reserving-semantic-work-only-for-domain-and-responsibility-alignment
     - pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes
@@ -100,7 +102,6 @@ features:
     - pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
     - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
     - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
-    - pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis
     - pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
     - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
     - pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors

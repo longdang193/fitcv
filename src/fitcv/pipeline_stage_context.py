@@ -20,6 +20,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
+from fitcv.ranking_contract import adapt_legacy_ranking_row
+
 
 @dataclass
 class PipelineState:
@@ -44,6 +46,7 @@ class PipelineState:
     cv_analysis_results: list[dict[str, Any]] = field(default_factory=list)
     cv_results: list[dict[str, Any]] = field(default_factory=list)
     cv_generation_debug_records: list[dict[str, Any]] = field(default_factory=list)
+    legacy_checkpoint_adaptation_count: int = 0
     completed_stage: str | None = None
 
     @classmethod
@@ -70,6 +73,14 @@ class PipelineState:
                 )
 
         state = cls(run_id=run_id)
+        raw_adaptation_count = payload.get(
+            "legacy_checkpoint_adaptation_count",
+            root_payload.get("legacy_checkpoint_adaptation_count", 0),
+        )
+        try:
+            state.legacy_checkpoint_adaptation_count = max(0, int(raw_adaptation_count or 0))
+        except (TypeError, ValueError):
+            state.legacy_checkpoint_adaptation_count = 0
         for key in cls.payload_keys():
             value = payload.get(key, root_payload.get(key))
             if key in {"candidate_query_debug", "shortlist_diagnostics"}:
@@ -81,7 +92,24 @@ class PipelineState:
                     state.completed_stage = value.strip()
                 continue
             if isinstance(value, list):
-                setattr(state, key, list(value))
+                if key in {"ranking_inputs", "ranked"}:
+                    rows: list[dict[str, Any]] = []
+                    for item in value:
+                        if not isinstance(item, dict):
+                            continue
+                        is_legacy = any(name in item for name in ("final_score", "fit_label", "final_rank"))
+                        adapted = adapt_legacy_ranking_row(item)
+                        if is_legacy:
+                            adapted["legacy_checkpoint_default_applied"] = [
+                                factor_id
+                                for factor_id in ("location_fit", "language_fit")
+                                if factor_id not in dict(adapted.get("fit_factor_results") or {})
+                            ]
+                            state.legacy_checkpoint_adaptation_count += 1
+                        rows.append(adapted)
+                    setattr(state, key, rows)
+                else:
+                    setattr(state, key, list(value))
         return state
 
     @classmethod
@@ -131,6 +159,7 @@ class PipelineState:
             "cv_analysis_results": list(self.cv_analysis_results),
             "cv_results": list(self.cv_results),
             "cv_generation_debug_records": list(self.cv_generation_debug_records),
+            "legacy_checkpoint_adaptation_count": self.legacy_checkpoint_adaptation_count,
             "completed_stage": self.completed_stage,
         }
 

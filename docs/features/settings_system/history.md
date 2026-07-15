@@ -74,6 +74,27 @@ Verification:
 Outcome:
 Completed the phase 10 settings and performance residual evidence audit.
 
+
+## 2026-07-16
+
+### FitCV inverse optimization Phase 3 ranking-v2 baseline implementation plan
+
+Source plan: `docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md`
+
+Verification:
+- `python -m pytest tests/test_config.py tests/test_ranking.py tests/test_ranking_contract.py tests/test_ai_score.py -q`
+- `python -m pytest tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py -q`
+- `python -m pytest tests/test_agentic_cv_analysis.py -q`
+- `python -m pytest tests/test_fitcv_cp/test_settings_schema.py -q`
+- `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_structural_contract_guardrails.py tests/test_pipeline_status_registry.py -q`
+- `python tools/docs/generate_architecture_metadata.py --check`
+- `python scripts/validate_planning_lifecycle.py`
+- `python scripts/validate_repo_contracts.py --fast`
+- `git diff --check`
+
+Outcome:
+Completed ranking-v2 fixed baseline with exact policy SSOT, canonical downstream baseline truth, artifact v8, settings cutover, source-first docs, and no optimizer or rating runtime.
+
 <!-- GENERATED HISTORY END -->
 
 ## Human Notes

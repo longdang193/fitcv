@@ -10,7 +10,11 @@ from unittest.mock import patch
 
 import pytest
 
-from fitcv.ai_score import build_scoring_prompt, parse_score_response
+from fitcv.ai_score import (
+    build_ai_score_contract_fingerprint,
+    build_scoring_prompt,
+    parse_score_response,
+)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -22,6 +26,43 @@ _VALID_RESPONSE = json.dumps({
     "matched_strengths": ["SQL", "Python", "BigQuery"],
     "key_risks": [],
 })
+
+
+def test_ranking_ai_prompt_v2_requests_score_without_fit_label() -> None:
+    prompt = build_scoring_prompt(
+        jd_summary="DE role",
+        candidate_summary="candidate",
+        top_evidence=[],
+    )
+
+    assert '"ai_score"' in prompt
+    assert "fit_label" not in prompt
+    assert "strong_threshold" not in prompt
+    assert "stretch_threshold" not in prompt
+
+
+def test_parse_score_response_keeps_legacy_label_diagnostic_only() -> None:
+    result = parse_score_response(_VALID_RESPONSE)
+
+    assert "fit_label" not in result
+    assert result["legacy_model_fit_label"] == "strong"
+
+
+def test_ai_score_contract_fingerprint_excludes_fit_thresholds() -> None:
+    base = {
+        "ai_score_model": "cx/test-model",
+        "prompts": {"ranking": {"ai_score": {"prompt_id": "ranking.ai_score.v2"}}},
+    }
+    first = build_ai_score_contract_fingerprint(
+        {**base, "fit_label_thresholds": {"strong": 0.7, "stretch": 0.4}}
+    )
+    second = build_ai_score_contract_fingerprint(
+        {**base, "fit_label_thresholds": {"strong": 0.9, "stretch": 0.8}}
+    )
+
+    assert first == second
+    assert "strong_threshold" not in first["payload"]
+    assert "stretch_threshold" not in first["payload"]
 
 
 # ── build_scoring_prompt ──────────────────────────────────────────────────────
@@ -64,16 +105,13 @@ def test_build_scoring_prompt_includes_rubric_range() -> None:
     assert "0.0" in prompt or "1.0" in prompt
 
 
-def test_build_scoring_prompt_includes_fit_labels() -> None:
-    """strong / stretch / skip must be present so model knows the classification."""
+def test_build_scoring_prompt_excludes_fit_labels() -> None:
     prompt = build_scoring_prompt(
         jd_summary="DE role",
         candidate_summary="candidate",
         top_evidence=[],
     )
-    assert "strong" in prompt.lower()
-    assert "stretch" in prompt.lower()
-    assert "skip" in prompt.lower()
+    assert "fit_label" not in prompt
 
 
 def test_build_scoring_prompt_includes_top_evidence() -> None:
@@ -91,7 +129,7 @@ def test_build_scoring_prompt_contains_required_skills_in_rubric() -> None:
         candidate_summary="mid-level engineer",
         top_evidence=[],
     )
-    assert "required skills" in prompt.lower() or "required_skills" in prompt
+    assert "required-skill" in prompt.lower()
 
 
 def test_build_scoring_prompt_makes_preferences_secondary() -> None:
@@ -123,16 +161,15 @@ def test_build_scoring_prompt_specifies_json_output() -> None:
     assert "json" in prompt.lower()
 
 
-def test_build_scoring_prompt_uses_configured_fit_thresholds() -> None:
+def test_build_scoring_prompt_ignores_ranking_threshold_config() -> None:
     prompt = build_scoring_prompt(
         jd_summary="DE role",
         candidate_summary="candidate",
         top_evidence=[],
-        strong_threshold=0.8,
-        stretch_threshold=0.55,
+        config={"fit_label_thresholds": {"strong": 0.8, "stretch": 0.55}},
     )
-    assert "0.8" in prompt
-    assert "0.55" in prompt
+    assert "0.8" not in prompt
+    assert "0.55" not in prompt
 
 
 def test_build_scoring_prompt_empty_evidence_does_not_crash() -> None:
@@ -150,14 +187,20 @@ def test_build_scoring_prompt_empty_evidence_does_not_crash() -> None:
 def test_parse_score_response_valid_json() -> None:
     result = parse_score_response(_VALID_RESPONSE)
     assert result["ai_score"] == 0.85
-    assert result["fit_label"] == "strong"
+    assert result["legacy_model_fit_label"] == "strong"
     assert result["matched_strengths"] == ["SQL", "Python", "BigQuery"]
     assert isinstance(result["key_risks"], list)
 
 
 def test_parse_score_response_returns_all_required_keys() -> None:
     result = parse_score_response(_VALID_RESPONSE)
-    assert {"ai_score", "fit_label", "score_reasoning", "matched_strengths", "key_risks"} <= set(result.keys())
+    assert {
+        "ai_score",
+        "legacy_model_fit_label",
+        "score_reasoning",
+        "matched_strengths",
+        "key_risks",
+    } <= set(result.keys())
 
 
 def test_parse_score_response_score_clamped_below_upper_bound() -> None:
@@ -178,19 +221,19 @@ def test_parse_score_response_score_clamped_above_lower_bound() -> None:
     assert result["ai_score"] >= 0.0
 
 
-def test_parse_score_response_bad_fit_label_mapped_to_skip() -> None:
+def test_parse_score_response_bad_fit_label_dropped() -> None:
     raw = json.dumps({
         "ai_score": 0.3, "fit_label": "maybe",
         "score_reasoning": "", "matched_strengths": [], "key_risks": [],
     })
     result = parse_score_response(raw)
-    assert result["fit_label"] in ("strong", "stretch", "skip")
+    assert result["legacy_model_fit_label"] is None
 
 
 def test_parse_score_response_malformed_json_returns_defaults() -> None:
     result = parse_score_response("not json at all")
     assert result["ai_score"] == 0.0
-    assert result["fit_label"] == "skip"
+    assert result["legacy_model_fit_label"] is None
     assert result["score_reasoning"] == "Scoring response parse failure: malformed_json"
     assert result["parser_status"] == "malformed_json"
     assert result["matched_strengths"] == []
@@ -202,11 +245,10 @@ def test_parse_score_response_markdown_fenced_json() -> None:
     raw = '```json\n{"ai_score": 0.75, "fit_label": "strong", "score_reasoning": "good", "matched_strengths": [], "key_risks": []}\n```'
     result = parse_score_response(raw)
     assert result["ai_score"] == 0.75
-    assert result["fit_label"] == "strong"
+    assert result["legacy_model_fit_label"] == "strong"
 
 
-def test_parse_score_response_fit_label_derived_from_score_if_missing() -> None:
-    """If fit_label missing, derive from ai_score thresholds."""
+def test_parse_score_response_does_not_derive_fit_label() -> None:
     raw = json.dumps({
         "ai_score": 0.8,
         "score_reasoning": "good match",
@@ -214,7 +256,7 @@ def test_parse_score_response_fit_label_derived_from_score_if_missing() -> None:
         "key_risks": [],
     })
     result = parse_score_response(raw)
-    assert result["fit_label"] == "strong"
+    assert result["legacy_model_fit_label"] is None
 
 
 def test_score_job_uses_shared_runtime_contract() -> None:
@@ -380,7 +422,7 @@ def test_run_ai_scoring_parallel_path_isolates_runtime_exceptions() -> None:
         return {
             "job_url": job["job_url"],
             "ai_score": 0.8,
-            "fit_label": "strong",
+            "legacy_model_fit_label": "strong",
             "score_reasoning": "ok",
             "matched_strengths": [],
             "key_risks": [],
@@ -397,9 +439,9 @@ def test_run_ai_scoring_parallel_path_isolates_runtime_exceptions() -> None:
         )
 
     assert results[0]["job_url"] == "https://example.com/1"
-    assert results[0]["fit_label"] == "strong"
+    assert results[0]["legacy_model_fit_label"] == "strong"
     assert results[1]["job_url"] == "https://example.com/2"
-    assert results[1]["fit_label"] == "skip"
+    assert results[1]["legacy_model_fit_label"] is None
     assert results[1]["parser_status"] == "runtime_exception"
 
 def test_run_ai_scoring_parallel_path_overlaps_workers_when_sleep_zero() -> None:
@@ -482,7 +524,7 @@ def test_store_ai_scores_writes_sqlite_rows(
         {
             "job_url": "https://example.com/job-1",
             "ai_score": 0.91,
-            "fit_label": "strong",
+            "legacy_model_fit_label": "strong",
             "score_reasoning": "Strong SQL and Python fit",
             "matched_strengths": ["SQL", "Python"],
             "key_risks": ["No dbt"],
@@ -490,7 +532,7 @@ def test_store_ai_scores_writes_sqlite_rows(
         {
             "job_url": "https://example.com/job-2",
             "ai_score": 0.55,
-            "fit_label": "stretch",
+            "legacy_model_fit_label": "stretch",
             "score_reasoning": "Partial analytics overlap",
             "matched_strengths": ["Looker"],
             "key_risks": [],
@@ -544,7 +586,7 @@ def test_score_job_integration(config: dict) -> None:
         config=config,
     )
     assert 0.0 <= result["ai_score"] <= 1.0
-    assert result["fit_label"] in ("strong", "stretch", "skip")
+    assert "fit_label" not in result
 """
 @meta
 type: test
@@ -607,7 +649,7 @@ def test_run_ai_scoring_emits_stable_runtime_observation(monkeypatch: pytest.Mon
         status="succeeded",
         parsed_value={
             "ai_score": 0.9,
-            "fit_label": "strong",
+            "legacy_model_fit_label": "strong",
             "score_reasoning": "match",
             "matched_strengths": [],
             "key_risks": [],

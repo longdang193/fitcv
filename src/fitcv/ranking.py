@@ -20,42 +20,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fitcv.candidate import canonicalize_role_title, infer_role_family
-from fitcv.ranking_contract import (
-    validate_missing_defaults_contract,
-    validate_preference_fit_weights_contract,
-    validate_weight_contract,
-)
+from fitcv.ranking_contract import STRUCTURED_FACTOR_IDS
 
-SUPPORTED_RANKING_FEATURES = (
-    "ai_score",
-    "must_have_match",
-    "vector_similarity",
-    "title_relevance",
-    "seniority_fit",
-    "preference_fit",
-)
-DEFAULT_ACTIVE_RANKING_WEIGHTS = {
-    "ai_score": 0.40,
-    "must_have_match": 0.20,
-    "vector_similarity": 0.15,
-    "title_relevance": 0.10,
-    "seniority_fit": 0.10,
-    "preference_fit": 0.05,
-}
-DEFAULT_ACTIVE_MISSING_VALUE_DEFAULTS = {
-    "ai_score": 0.0,
-    "must_have_match": 0.5,
-    "vector_similarity": 0.0,
-    "title_relevance": 0.5,
-    "seniority_fit": 0.5,
-    "preference_fit": 0.5,
-}
-LEGACY_MISSING_VALUE_DEFAULTS_KEY = "ranking_null_defaults"
-DEFAULT_PREFERENCE_FIT_WEIGHTS = {
-    "domain": 0.50,
-    "role_family": 0.30,
-    "location_type": 0.20,
-}
+SUPPORTED_RANKING_FEATURES = STRUCTURED_FACTOR_IDS
 
 
 def _normalize_text(value: str | None) -> str:
@@ -110,51 +77,7 @@ def _role_family_neighbors(config: dict[str, Any] | None = None) -> dict[str, fr
     }
 
 
-def get_active_ranking_weights(config: dict[str, Any] | None = None) -> dict[str, float]:
-    """Return the supported runtime ranking weights."""
-    configured = (config or {}).get("ranking_weights") or {}
-    if not isinstance(configured, dict):
-        return dict(DEFAULT_ACTIVE_RANKING_WEIGHTS)
 
-    resolved = dict(DEFAULT_ACTIVE_RANKING_WEIGHTS)
-    for feature_name in SUPPORTED_RANKING_FEATURES:
-        raw_weight = configured.get(feature_name)
-        if raw_weight is not None:
-            resolved[feature_name] = float(raw_weight)
-    validate_weight_contract(resolved)
-    return resolved
-
-
-def get_active_missing_value_defaults(config: dict[str, Any] | None = None) -> dict[str, float]:
-    """Return missing-value defaults for the supported runtime ranking contract."""
-    cfg = config or {}
-    configured = cfg.get("missing_value_defaults")
-    if configured is None:
-        configured = cfg.get(LEGACY_MISSING_VALUE_DEFAULTS_KEY)
-    if not isinstance(configured, dict):
-        return dict(DEFAULT_ACTIVE_MISSING_VALUE_DEFAULTS)
-
-    resolved = dict(DEFAULT_ACTIVE_MISSING_VALUE_DEFAULTS)
-    for feature_name in SUPPORTED_RANKING_FEATURES:
-        raw_default = configured.get(feature_name)
-        if raw_default is not None:
-            resolved[feature_name] = float(raw_default)
-    validate_missing_defaults_contract(resolved, supported_features=SUPPORTED_RANKING_FEATURES)
-    return resolved
-
-
-def get_preference_fit_weights(config: dict[str, Any] | None = None) -> dict[str, float]:
-    configured = (config or {}).get("preference_fit_weights") or {}
-    if not isinstance(configured, dict):
-        return dict(DEFAULT_PREFERENCE_FIT_WEIGHTS)
-
-    resolved = dict(DEFAULT_PREFERENCE_FIT_WEIGHTS)
-    for key in DEFAULT_PREFERENCE_FIT_WEIGHTS:
-        raw_weight = configured.get(key)
-        if raw_weight is not None:
-            resolved[key] = float(raw_weight)
-    validate_preference_fit_weights_contract(resolved)
-    return resolved
 
 
 # ── feature computation ───────────────────────────────────────────────────────
@@ -311,35 +234,42 @@ def _preference_dimension_score_with_neighbors(
     return 0.0, "none"
 
 
-def compute_preference_fit_details(
+def compute_declared_preference_fit_details(
     job: dict[str, Any],
     prefs: dict[str, Any],
     config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    ranking_policy = dict((config or {}).get("ranking_policy") or {})
+    configured_weights = ranking_policy.get("declared_preference_component_weights")
+    if not isinstance(configured_weights, dict):
+        raise ValueError("ranking_policy.declared_preference_component_weights is required")
+    weights = {
+        key: float(configured_weights[key])
+        for key in ("domain", "role_family", "work_mode")
+    }
     pref_domains = [_canonical_domain(value, config) for value in _normalized_preferences(prefs.get("domains", []))]
     pref_role_families = [_canonical_role_family(value, config) for value in _normalized_preferences(prefs.get("role_families", []))]
-    pref_locations = _normalized_preferences(prefs.get("location_types", []))
+    pref_work_modes = _normalized_preferences(prefs.get("location_types", []))
     domain_neighbors = _domain_neighbors(config)
     role_family_neighbors = _role_family_neighbors(config)
     neighbor_score = _preference_neighbor_score(config)
 
-    if not (pref_domains or pref_role_families or pref_locations):
+    if not (pref_domains or pref_role_families or pref_work_modes):
         return {
             "score": 0.5,
-            "weights": get_preference_fit_weights(config),
+            "weights": weights,
             "components": {
                 "domain": 0.5,
                 "role_family": 0.5,
-                "location_type": 0.5,
+                "work_mode": 0.5,
             },
             "match_details": {
                 "domain": "neutral",
                 "role_family": "neutral",
-                "location_type": "neutral",
+                "work_mode": "neutral",
             },
         }
 
-    weights = get_preference_fit_weights(config)
     canonical_domain = _canonical_domain(str(job.get("domain") or ""), config)
     canonical_role_family = _canonical_role_family(str(job.get("job_family") or ""), config)
     domain_score, domain_match_type = _preference_dimension_score_with_neighbors(
@@ -354,18 +284,21 @@ def compute_preference_fit_details(
         neighbors=role_family_neighbors,
         neighbor_score=neighbor_score,
     )
-    location_score = _preference_dimension_score(str(job.get("location_type") or ""), pref_locations)
+    work_mode_score = _preference_dimension_score(
+        str(job.get("location_type") or ""),
+        pref_work_modes,
+    )
     components = {
         "domain": domain_score,
         "role_family": role_family_score,
-        "location_type": location_score,
+        "work_mode": work_mode_score,
     }
-    location_match_type = (
+    work_mode_match_type = (
         "neutral"
-        if not pref_locations
-        else ("exact" if location_score == 1.0 else "none")
+        if not pref_work_modes
+        else ("exact" if work_mode_score == 1.0 else "none")
     )
-    score = sum(components[key] * weights[key] for key in DEFAULT_PREFERENCE_FIT_WEIGHTS)
+    score = sum(components[key] * weights[key] for key in weights)
     return {
         "score": score,
         "weights": weights,
@@ -373,102 +306,50 @@ def compute_preference_fit_details(
         "match_details": {
             "domain": domain_match_type,
             "role_family": role_family_match_type,
-            "location_type": location_match_type,
+            "work_mode": work_mode_match_type,
         },
         "canonical_values": {
             "job": {
                 "domain": canonical_domain,
                 "role_family": canonical_role_family,
-                "location_type": _normalize_text(str(job.get("location_type") or "")),
+                "work_mode": _normalize_text(str(job.get("location_type") or "")),
             },
             "preferences": {
                 "domains": [value for value in pref_domains if value],
                 "role_families": [value for value in pref_role_families if value],
-                "location_types": [value for value in pref_locations if value],
+                "work_modes": [value for value in pref_work_modes if value],
             },
         },
     }
 
 
-def compute_preference_fit(
-    job: dict[str, Any],
-    prefs: dict[str, Any],
-    config: dict[str, Any] | None = None,
-) -> float:
-    """Compute weighted alignment of explicit preferences.
-
-    Dimensions:
-    - domain
-    - role_family
-    - location_type
-    """
-    return float(compute_preference_fit_details(job, prefs, config)["score"])
 
 
 # ── composite score ───────────────────────────────────────────────────────────
 
-def compute_final_score(
-    features: dict[str, float],
-    weights: dict[str, float],
-    null_defaults: dict[str, float],
-) -> float:
-    """Compute the weighted composite score, applying missing-value fallbacks.
-
-    Args:
-        features: Dictionary of scores (e.g. ai_score, title_relevance, etc.)
-        weights: Dictionary of weights summing to 1.0
-        null_defaults: Dictionary of fallback values when a feature is missing
-    """
-    validate_weight_contract(weights)
-    validate_missing_defaults_contract(null_defaults, supported_features=SUPPORTED_RANKING_FEATURES)
-    score = 0.0
-    for feature_name, weight in weights.items():
-        val = features.get(feature_name)
-        if val is None:
-            val = null_defaults.get(feature_name, 0.0)
-        score += val * weight
-    return score
-
-
-def compute_feature_contributions(
-    features: dict[str, float],
-    weights: dict[str, float],
-    null_defaults: dict[str, float],
-) -> dict[str, float]:
-    validate_weight_contract(weights)
-    validate_missing_defaults_contract(null_defaults, supported_features=SUPPORTED_RANKING_FEATURES)
-    contributions: dict[str, float] = {}
-    for feature_name, weight in weights.items():
-        value = features.get(feature_name)
-        if value is None:
-            value = null_defaults.get(feature_name, 0.0)
-        contributions[feature_name] = float(value) * weight
-    return contributions
 
 
 # ── sorting and ranking ───────────────────────────────────────────────────────
 
 def rank_jobs(jobs: list[dict[str, Any]], top_n: int) -> list[dict[str, Any]]:
-    """Sort jobs by final score and assign a final_rank.
-
-    Tie-breaking order:
-    1. final_score DESC
-    2. ai_score DESC
-    3. vector_similarity DESC
-    """
+    """Sort canonical ranking-v2 rows and assign baseline_rank."""
+    for job in jobs:
+        if not str(job.get("raw_job_fingerprint") or "").strip():
+            raise ValueError("ranking row requires raw_job_fingerprint")
+        if job.get("baseline_fit") is None:
+            raise ValueError("ranking row requires baseline_fit")
     sorted_jobs = sorted(
         jobs,
         key=lambda j: (
-            float(j.get("final_score", 0.0)),
-            float(j.get("ai_score", 0.0)),
-            float(j.get("vector_similarity", 0.0)),
+            -float(j["baseline_fit"]),
+            str(j["raw_job_fingerprint"]),
+            str(j.get("job_url") or ""),
         ),
-        reverse=True,
     )
 
     ranked = sorted_jobs[:top_n]
     for i, job in enumerate(ranked):
-        job["final_rank"] = i + 1
+        job["baseline_rank"] = i + 1
 
     return ranked
 
@@ -494,8 +375,8 @@ def compute_ranking_runtime_diagnostics(
     for feature_name in supported_features:
         count = 0
         for row in ranking_inputs:
-            flags = row.get("missing_feature_default_applied")
-            if isinstance(flags, dict) and bool(flags.get(feature_name)):
+            factor = dict((row.get("normalized_factors") or {}).get(feature_name) or {})
+            if bool(factor.get("missing_default_applied")):
                 count += 1
         total_applied += count
         by_feature[feature_name] = {
@@ -510,7 +391,7 @@ def compute_ranking_runtime_diagnostics(
     unmatched_total = 0
 
     for row in ranking_inputs:
-        match_details = row.get("preference_fit_match_details")
+        match_details = row.get("declared_preference_fit_match_details")
         if not isinstance(match_details, dict):
             continue
         for key in ("domain", "role_family"):

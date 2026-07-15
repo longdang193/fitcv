@@ -21,10 +21,10 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 
-RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION = "ranking_ai_score_prompt_v1"
+RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION = "ranking_ai_score_prompt_v2"
 STRUCTURED_CV_SCHEMA_VERSION = "cv_doc_v1"
 CV_ANALYSIS_REUSE_SCHEMA_VERSION = "cv_analysis_reuse_v2"
-STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION = "stage_transition_artifacts_v7"
+STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION = "stage_transition_artifacts_v8"
 STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION = "stage_transition_artifacts_run_v1"
 STAGE_TRANSITION_ARTIFACTS_STAGE_SCHEMA_VERSION = "stage_transition_artifacts_stage_v1"
 MAPPING_SUGGESTIONS_SCHEMA_VERSION = "mapping_suggestions_v1"

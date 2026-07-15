@@ -1350,7 +1350,7 @@ def test_load_config_adds_default_enrich_prompt_id() -> None:
 def test_load_config_adds_default_ranking_and_cv_generation_prompt_ids() -> None:
     cfg = load_config()
 
-    assert cfg["prompts"]["ranking"]["ai_score"]["prompt_id"] == "ranking.ai_score.v1"
+    assert cfg["prompts"]["ranking"]["ai_score"]["prompt_id"] == "ranking.ai_score.v2"
     assert cfg["prompts"]["cv_generation"]["structured_write"]["prompt_id"] == "cv_generation.structured_write.v1"
 
 
@@ -1359,7 +1359,7 @@ def test_load_config_builds_prompts_runtime_for_all_major_stages() -> None:
     cfg = load_config()
 
     assert cfg["prompts_runtime"]["enrich"]["extraction"]["prompt_id"] == "enrich.extraction.v1"
-    assert cfg["prompts_runtime"]["ranking"]["ai_score"]["prompt_id"] == "ranking.ai_score.v1"
+    assert cfg["prompts_runtime"]["ranking"]["ai_score"]["prompt_id"] == "ranking.ai_score.v2"
     assert cfg["prompts_runtime"]["cv_generation"]["structured_write"]["prompt_id"] == "cv_generation.structured_write.v1"
 
 
@@ -1368,7 +1368,7 @@ def test_config_accessors_resolve_centralized_prompt_ids_and_model_defaults() ->
     cfg = load_config()
 
     assert get_ranking_ai_score_model(cfg) == "cx/gpt-5.4-mini"
-    assert get_ranking_prompt_id(cfg) == "ranking.ai_score.v1"
+    assert get_ranking_prompt_id(cfg) == "ranking.ai_score.v2"
     assert get_cv_generation_structured_prompt_id(cfg) == "cv_generation.structured_write.v1"
 
 
@@ -1610,4 +1610,65 @@ def test_load_config_rejects_eligibility_policy_shadow(
         )
 
     with pytest.raises(ValueError, match="eligibility_policy.*canonical"):
+        load_config(env_yaml)
+
+
+def _write_ranking_v2_policy(tmp_path: Path, *, extra: str = "") -> Path:
+    ranking_path = tmp_path / "config" / "policy" / "ranking.yaml"
+    ranking_path.write_text(
+        "ranking_policy:\n"
+        "  policy_version: ranking-v2\n"
+        "  normalizer_version: absolute-fit-v1\n"
+        "  active_baseline_mode: holistic_ai_only\n"
+        "  baseline_weights:\n"
+        "    holistic_ai_fit: 1.0\n"
+        "    structured_fit: 0.0\n"
+        "  structured_factor_weights:\n"
+        "    must_have_match: 0.30\n"
+        "    title_relevance: 0.20\n"
+        "    seniority_fit: 0.15\n"
+        "    declared_preference_fit: 0.15\n"
+        "    location_fit: 0.10\n"
+        "    language_fit: 0.10\n"
+        "  declared_preference_component_weights:\n"
+        "    domain: 0.50\n"
+        "    role_family: 0.30\n"
+        "    work_mode: 0.20\n"
+        "  missing_value_defaults:\n"
+        "    holistic_ai_fit: 0.0\n"
+        "    must_have_match: 0.5\n"
+        "    title_relevance: 0.5\n"
+        "    seniority_fit: 0.5\n"
+        "    declared_preference_fit: 0.5\n"
+        "    location_fit: 0.5\n"
+        "    language_fit: 0.5\n"
+        "  fit_label_thresholds:\n"
+        "    strong: 0.70\n"
+        "    stretch: 0.40\n"
+        "  label_migration_gate:\n"
+        "    maximum_total_label_migration_rate: 0.10\n"
+        "    maximum_strong_skip_crossings: 0\n"
+        + extra,
+        encoding="utf-8",
+    )
+    return ranking_path
+
+
+def test_load_config_validates_ranking_v2_and_builds_contract_context(tmp_path: Path) -> None:
+    env_yaml = _write_minimal_eligibility_config(tmp_path)
+    _write_ranking_v2_policy(tmp_path)
+
+    cfg = load_config(env_yaml)
+
+    assert cfg["ranking_policy"]["policy_version"] == "ranking-v2"
+    assert cfg["ranking_contract"]["ranking_contract_fingerprint"]
+    assert "language_fit" in cfg["ranking_contract"]["effective_structured_factor_weights"]
+    assert "ranking_weights" not in cfg
+
+
+def test_load_config_rejects_unknown_ranking_v2_keys(tmp_path: Path) -> None:
+    env_yaml = _write_minimal_eligibility_config(tmp_path)
+    _write_ranking_v2_policy(tmp_path, extra="  unknown_key: true\n")
+
+    with pytest.raises(ValueError, match="Unknown ranking_policy keys"):
         load_config(env_yaml)

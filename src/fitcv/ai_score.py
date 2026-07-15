@@ -18,6 +18,7 @@ lifecycle:
 import json
 import hashlib
 import logging
+import math
 import os
 import re
 import sqlite3
@@ -46,34 +47,21 @@ from fitcv.llm_runtime import (
 from fitcv.persistence import get_local_sqlite_path
 from fitcv.pipeline_stages.common import job_identity_keys
 from fitcv.prompts import render_prompt
-from fitcv.ranking_contract import (
-    DEFAULT_FIT_LABEL_STRONG_THRESHOLD,
-    DEFAULT_FIT_LABEL_STRETCH_THRESHOLD,
-    VALID_FIT_LABELS,
-    fit_label_from_score,
-)
+from fitcv.ranking_contract import VALID_FIT_LABELS
 
 logger = logging.getLogger(__name__)
 
 # ── constants ─────────────────────────────────────────────────────────────────
-_DEFAULT_STRONG_THRESHOLD = DEFAULT_FIT_LABEL_STRONG_THRESHOLD
-_DEFAULT_STRETCH_THRESHOLD = DEFAULT_FIT_LABEL_STRETCH_THRESHOLD
-_VALID_FIT_LABELS = VALID_FIT_LABELS
-
-
 def _stable_json_fingerprint(payload: dict[str, Any]) -> str:
     payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
 
 
 def build_ai_score_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
-    thresholds = dict(config.get("fit_label_thresholds") or {})
     payload = {
         "ai_score_model": get_ranking_ai_score_model(config),
         "prompt_schema_version": RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION,
         "prompt_id": get_ranking_prompt_id(config),
-        "strong_threshold": float(thresholds.get("strong", DEFAULT_FIT_LABEL_STRONG_THRESHOLD)),
-        "stretch_threshold": float(thresholds.get("stretch", DEFAULT_FIT_LABEL_STRETCH_THRESHOLD)),
     }
     return {
         "payload": payload,
@@ -89,13 +77,10 @@ def build_ai_score_input_fingerprint(
 ) -> dict[str, Any]:
     from fitcv.embeddings import build_job_summary_text
 
-    thresholds = dict(config.get("fit_label_thresholds") or {})
     prompt = build_scoring_prompt(
         jd_summary=build_job_summary_text(job),
         candidate_summary=candidate_summary,
         top_evidence=top_evidence[:2],
-        strong_threshold=float(thresholds.get("strong", DEFAULT_FIT_LABEL_STRONG_THRESHOLD)),
-        stretch_threshold=float(thresholds.get("stretch", DEFAULT_FIT_LABEL_STRETCH_THRESHOLD)),
         config=config,
     )
     contract_record = build_ai_score_contract_fingerprint(config)
@@ -117,8 +102,6 @@ def build_scoring_prompt(
     candidate_summary: str,
     top_evidence: list[str],
     *,
-    strong_threshold: float = DEFAULT_FIT_LABEL_STRONG_THRESHOLD,
-    stretch_threshold: float = DEFAULT_FIT_LABEL_STRETCH_THRESHOLD,
     config: dict[str, Any] | None = None,
 ) -> str:
     """Build the structured reranking prompt for one job.
@@ -142,8 +125,6 @@ def build_scoring_prompt(
             "jd_summary": jd_summary,
             "candidate_summary": candidate_summary,
             "evidence_section": evidence_section,
-            "strong_threshold": strong_threshold,
-            "stretch_threshold": stretch_threshold,
         },
     ).text
 
@@ -157,18 +138,16 @@ def parse_score_response(response_text: str, config: dict[str, Any] | None = Non
     Handles:
     - Valid JSON
     - Markdown-fenced JSON (```json ... ```)
-    - Missing fit_label → derived from ai_score
-    - Unknown fit_label → mapped to "skip"
+    - Legacy fit_label → retained only as migration diagnostics
     - Score outside [0, 1] → clamped
-    - Malformed JSON → safe defaults (ai_score=0.0, fit_label="skip")
+    - Malformed JSON → safe score defaults
 
     Returns:
-        Dict with keys: ai_score, fit_label, score_reasoning,
-                        matched_strengths, key_risks
+        Dict with score fields plus optional legacy label diagnostics.
     """
     _defaults: dict[str, Any] = {
         "ai_score": 0.0,
-        "fit_label": "skip",
+        "legacy_model_fit_label": None,
         "score_reasoning": "",
         "matched_strengths": [],
         "key_risks": [],
@@ -203,16 +182,17 @@ def parse_score_response(response_text: str, config: dict[str, Any] | None = Non
         failed["score_reasoning"] = "Scoring response parse failure: invalid_ai_score"
         failed["parser_status"] = "invalid_ai_score"
         return failed
+    if not math.isfinite(raw_score):
+        failed = _defaults.copy()
+        failed["score_reasoning"] = "Scoring response parse failure: invalid_ai_score"
+        failed["parser_status"] = "invalid_ai_score"
+        return failed
     ai_score = max(0.0, min(1.0, raw_score))
-
-    # Validate / derive fit_label
-    fit_label = str(data.get("fit_label", "")).lower().strip()
-    if fit_label not in VALID_FIT_LABELS:
-        fit_label = fit_label_from_score(ai_score, config=config)
+    legacy_label = str(data.get("fit_label") or "").lower().strip()
 
     return {
         "ai_score":          ai_score,
-        "fit_label":         fit_label,
+        "legacy_model_fit_label": legacy_label if legacy_label in VALID_FIT_LABELS else None,
         "score_reasoning":   str(data.get("score_reasoning", "")),
         "matched_strengths": list(data.get("matched_strengths", []) or []),
         "key_risks":         list(data.get("key_risks", []) or []),
@@ -232,13 +212,10 @@ def _execute_ranking_runtime(
 ) -> LlmRuntimeResult:
     from fitcv.embeddings import build_job_summary_text
 
-    thresholds = dict(config.get("fit_label_thresholds") or {})
     prompt = build_scoring_prompt(
         jd_summary=build_job_summary_text(job),
         candidate_summary=candidate_summary,
         top_evidence=top_evidence[:2],
-        strong_threshold=float(thresholds.get("strong", DEFAULT_FIT_LABEL_STRONG_THRESHOLD)),
-        stretch_threshold=float(thresholds.get("stretch", DEFAULT_FIT_LABEL_STRETCH_THRESHOLD)),
         config=config,
     )
     request = LlmTaskRequest(
@@ -253,7 +230,7 @@ def _execute_ranking_runtime(
     def _validator(value: Any) -> LlmValidationResult:
         is_valid = isinstance(value, dict) and {
             "ai_score",
-            "fit_label",
+            "legacy_model_fit_label",
             "score_reasoning",
             "matched_strengths",
             "key_risks",
@@ -370,7 +347,7 @@ def run_ai_scoring(
         except Exception as exc:  # noqa: BLE001
             return {
                 "job_url": str(job.get("job_url", "")),
-                "ai_score": 0.0, "fit_label": "skip",
+                "ai_score": 0.0, "legacy_model_fit_label": None,
                 "score_reasoning": f"Scoring error: {exc}",
                 "matched_strengths": [], "key_risks": [],
                 "parser_status": "runtime_exception",
@@ -458,7 +435,7 @@ def store_ai_scores(
                 (
                     str(score["job_url"]),
                     float(score["ai_score"]),
-                    str(score["fit_label"]),
+                    str(score.get("legacy_model_fit_label") or ""),
                     str(score.get("score_reasoning") or ""),
                     json.dumps(list(score.get("matched_strengths") or []), ensure_ascii=False),
                     json.dumps(list(score.get("key_risks") or []), ensure_ascii=False),

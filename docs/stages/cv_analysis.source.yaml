@@ -4,6 +4,8 @@ summary: Prepare ranked jobs for writing by merging enriched context, retrieving
 boundaries:
   - ranked jobs enter and stage-owned `ready_for_generation`, `blocked_by_reranker_fit`, `skipped_fit_gate`, or `analysis_failed` records leave
   - evidence retrieval, final evidence selection, gap analysis, and fit-gate ownership belong to this stage
+  - ranking owns baseline score and label; this stage consumes persisted `baseline_fit_label`, or derives it from persisted `baseline_fit` through the same ranking-policy thresholds when the label is absent
+  - AI diagnostics, vector evidence, gap findings, and personalized-score placeholders cannot override baseline qualification
   - '`fitcv.agentic_cv_analysis.analyze_ranked_job` is the sole per-job business entrypoint and canonical record owner'
   - pipeline orchestration may locate reuse candidates, persist records, and emit stage observations, but it does not recreate analysis decisions or fabricate LLM provenance
   - this stage does not generate or persist final CV artifacts
@@ -16,6 +18,7 @@ inputs:
   - semantic-alignment settings
 outputs:
   - blocked_by_reranker_fit, skipped_fit_gate, and analysis_failed outcomes
+  - consumed `baseline_fit_label` and `ranking_contract_fingerprint` references without copied ranking-policy numbers
   - persisted cv-analysis records
   - ready_for_generation records with selected evidence and gap payloads
   - stage-neutral `stage_execution_trace` records; current analysis mechanics emit no `llm_runtime_evidence_v1` because they do not call the shared LLM runtime

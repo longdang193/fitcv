@@ -9766,12 +9766,12 @@ def test_run_detail_hides_cv_generation_quality_metrics_when_absent():
 # ── grouped settings endpoint ─────────────────────────────────────────────────
 
 _VALID_WEIGHTS = {
-    "ranking_weights.ai_score": "0.40",
-    "ranking_weights.must_have_match": "0.20",
-    "ranking_weights.vector_similarity": "0.15",
-    "ranking_weights.title_relevance": "0.10",
-    "ranking_weights.seniority_fit": "0.10",
-    "ranking_weights.preference_fit": "0.05",
+    "ranking_policy.structured_factor_weights.must_have_match": "0.30",
+    "ranking_policy.structured_factor_weights.title_relevance": "0.20",
+    "ranking_policy.structured_factor_weights.seniority_fit": "0.15",
+    "ranking_policy.structured_factor_weights.declared_preference_fit": "0.15",
+    "ranking_policy.structured_factor_weights.location_fit": "0.10",
+    "ranking_policy.structured_factor_weights.language_fit": "0.10",
 }
 
 
@@ -9792,7 +9792,7 @@ def test_grouped_save_valid_ranking_weights_redirects():
 def test_grouped_save_weights_dont_sum_to_one_returns_422():
     """Weights summing to 0.9 → 422; no write."""
     bad_weights = dict(_VALID_WEIGHTS)
-    bad_weights["ranking_weights.ai_score"] = "0.30"  # sum = 0.90
+    bad_weights["ranking_policy.structured_factor_weights.must_have_match"] = "0.20"
     with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).post(
@@ -9806,7 +9806,7 @@ def test_grouped_save_weights_dont_sum_to_one_returns_422():
 def test_grouped_save_weights_error_preserved_in_response():
     """Error response must contain the submitted form values (so admin can correct)."""
     bad_weights = dict(_VALID_WEIGHTS)
-    bad_weights["ranking_weights.ai_score"] = "0.30"  # sum ≠ 1.0
+    bad_weights["ranking_policy.structured_factor_weights.must_have_match"] = "0.20"
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).post(
             "/admin/settings/group/ranking-weights",
@@ -9814,7 +9814,7 @@ def test_grouped_save_weights_error_preserved_in_response():
         )
     assert resp.status_code == 422
     # The form values must persist (input elements show the submitted values)
-    assert "0.30" in resp.text
+    assert "0.20" in resp.text
 
 
 def test_grouped_save_fit_label_thresholds_valid():
@@ -9827,8 +9827,8 @@ def test_grouped_save_fit_label_thresholds_valid():
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/settings/group/fit-label-thresholds",
             data={
-                "fit_label_thresholds.strong": "0.70",
-                "fit_label_thresholds.stretch": "0.40",
+                "ranking_policy.fit_label_thresholds.strong": "0.70",
+                "ranking_policy.fit_label_thresholds.stretch": "0.40",
             },
         )
     assert resp.status_code == 303
@@ -9845,8 +9845,8 @@ def test_grouped_save_fit_label_thresholds_invalid_order():
         resp = TestClient(_app()).post(
             "/admin/settings/group/fit-label-thresholds",
             data={
-                "fit_label_thresholds.strong": "0.40",
-                "fit_label_thresholds.stretch": "0.70",
+                "ranking_policy.fit_label_thresholds.strong": "0.40",
+                "ranking_policy.fit_label_thresholds.stretch": "0.70",
             },
         )
     assert resp.status_code == 422
@@ -9899,8 +9899,8 @@ def test_grouped_save_bq_error_returns_422_not_303():
         resp = TestClient(_app()).post(
             "/admin/settings/group/fit-label-thresholds",
             data={
-                "fit_label_thresholds.strong": "0.70",
-                "fit_label_thresholds.stretch": "0.40",
+                "ranking_policy.fit_label_thresholds.strong": "0.70",
+                "ranking_policy.fit_label_thresholds.stretch": "0.40",
             },
         )
     assert resp.status_code == 422
@@ -9919,8 +9919,8 @@ def test_grouped_save_audit_identity_encoded_in_updated_by():
         TestClient(_app(), follow_redirects=False).post(
             "/admin/settings/group/fit-label-thresholds",
             data={
-                "fit_label_thresholds.strong": "0.70",
-                "fit_label_thresholds.stretch": "0.40",
+                "ranking_policy.fit_label_thresholds.strong": "0.70",
+                "ranking_policy.fit_label_thresholds.stretch": "0.40",
             },
         )
     assert captured.get("updated_by", "").startswith("admin:grp:")
@@ -13356,7 +13356,7 @@ def test_settings_ranking_section_has_no_tailwind_classes():
     assert resp.status_code == 200
     html = resp.text
     # Find the ranking section
-    ranking_start = html.index("Ranking Weights")
+    ranking_start = html.index("Structured Factor Weights")
     section_slice = html[ranking_start:ranking_start + 3000]
     tailwind_prefixes = ("text-gray-", "bg-slate-", "bg-indigo-", "text-indigo-", "rounded-", "px-", "py-", "mb-", "mt-", "mr-", "ml-", "gap-", "border-")
     for prefix in tailwind_prefixes:
@@ -13372,6 +13372,7 @@ def test_settings_ranking_contains_group_forms():
     for form_id in (
         "form-ranking-weights",
         "form-preference-fit-weights",
+        "form-ranking-missing-defaults",
         "form-fit-label-thresholds",
         "form-gap-thresholds",
     ):
@@ -13387,6 +13388,7 @@ def test_settings_ranking_group_forms_have_save_buttons_with_correct_form_target
     for form_id in (
         "form-ranking-weights",
         "form-preference-fit-weights",
+        "form-ranking-missing-defaults",
         "form-fit-label-thresholds",
         "form-gap-thresholds",
     ):
@@ -14854,9 +14856,9 @@ def test_admin_settings_preflight_script_drops_duplicate_blocking_rules() -> Non
     resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert 'ranking_weights total must equal 1.0 (±0.01).' not in html
-    assert 'preference_fit_weights total must equal 1.0 (±0.01).' not in html
-    assert 'fit_label_thresholds.strong must be greater than fit_label_thresholds.stretch.' not in html
+    assert 'ranking_policy.structured_factor_weights total must equal 1.0 (±0.01).' not in html
+    assert 'ranking_policy.declared_preference_component_weights total must equal 1.0 (±0.01).' not in html
+    assert 'ranking_policy.fit_label_thresholds.strong must be greater than ranking_policy.fit_label_thresholds.stretch.' not in html
     assert 'gap_thresholds.strong_min_matched_ratio must be greater than gap_thresholds.stretch_min_matched_ratio.' not in html
     assert '__enable_prereq_promote_global' in html
 
@@ -14891,7 +14893,7 @@ def test_admin_settings_renders_number_attrs_from_schema_conventions() -> None:
     assert 'min="1"' in cv_max_pages
     assert 'step="1"' in cv_max_pages
 
-    ai_score = _input_tag("ranking_weights.ai_score")
+    ai_score = _input_tag("ranking_policy.structured_factor_weights.must_have_match")
     assert 'type="number"' in ai_score
     assert 'min="0"' in ai_score
     assert 'max="1"' in ai_score

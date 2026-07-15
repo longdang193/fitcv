@@ -120,6 +120,12 @@ nodes:
   feature_id: cv_system
   state: active
   path: docs/features/cv_system/lineage.generated.yaml
+- id: cv_system.ranking-v2-baseline
+  type: capability
+  kind: capability
+  feature_id: cv_system
+  state: active
+  path: docs/features/cv_system/lineage.generated.yaml
 - id: cv_system.stage-artifact-diagnostics
   type: capability
   kind: capability
@@ -270,6 +276,12 @@ nodes:
   feature_id: multi_file_job_input
   state: active
   path: docs/features/multi_file_job_input/lineage.generated.yaml
+- id: pipeline_performance.baseline-skip-short-circuits-cv-analysis
+  type: capability
+  kind: capability
+  feature_id: pipeline_performance
+  state: active
+  path: docs/features/pipeline_performance/lineage.generated.yaml
 - id: pipeline_performance.canonical-skill-companion-lists-and-entity-payloads-for-required-preferred-skills
   type: capability
   kind: capability
@@ -343,12 +355,6 @@ nodes:
   state: active
   path: docs/features/pipeline_performance/lineage.generated.yaml
 - id: pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
-  type: capability
-  kind: capability
-  feature_id: pipeline_performance
-  state: active
-  path: docs/features/pipeline_performance/lineage.generated.yaml
-- id: pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis
   type: capability
   kind: capability
   feature_id: pipeline_performance
@@ -915,6 +921,9 @@ edges:
   to: cv_system.location-language-eligibility
   type: owns_capability
 - from: cv_system
+  to: cv_system.ranking-v2-baseline
+  type: owns_capability
+- from: cv_system
   to: cv_system.stage-artifact-diagnostics
   type: owns_capability
 - from: cv_system
@@ -958,10 +967,11 @@ edges:
 - from: cv_system
   to: ranking
   type: participates_in
-  role: supporting
+  role: primary
   capability_ids:
   - cv_system.exact-match-late-stage-reuse
   - cv_system.fit-gate-resolution
+  - cv_system.ranking-v2-baseline
 - from: cv_system
   to: rule_filter
   type: participates_in
@@ -1211,6 +1221,9 @@ edges:
   to: inspection_debugging
   type: related_feature
 - from: pipeline_performance
+  to: pipeline_performance.baseline-skip-short-circuits-cv-analysis
+  type: owns_capability
+- from: pipeline_performance
   to: pipeline_performance.canonical-skill-companion-lists-and-entity-payloads-for-required-preferred-skills
   type: owns_capability
 - from: pipeline_performance
@@ -1250,9 +1263,6 @@ edges:
   to: pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
   type: owns_capability
 - from: pipeline_performance
-  to: pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis
-  type: owns_capability
-- from: pipeline_performance
   to: pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
   type: owns_capability
 - from: pipeline_performance
@@ -1272,8 +1282,8 @@ edges:
   type: participates_in
   role: primary
   capability_ids:
+  - pipeline_performance.baseline-skip-short-circuits-cv-analysis
   - pipeline_performance.cv-analysis-now-uses-bounded-semantic-lift-for-required-skill-and-role-channels-instead-of-reserving-semantic-work-only-for-domain-and-responsibility-alignment
-  - pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis
 - from: pipeline_performance
   to: enrich
   type: participates_in

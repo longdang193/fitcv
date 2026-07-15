@@ -44,7 +44,7 @@ def test_full_run_snapshot_contract_parity() -> None:
     assert payload["next_stage"] is None
     assert payload["last_completed_stage"] == "cv_generation"
     assert payload["completed_stages"] == list(PIPELINE_STAGE_SEQUENCE)
-    assert payload["stage_artifacts_schema_version"] == "stage_transition_artifacts_v7"
+    assert payload["stage_artifacts_schema_version"] == "stage_transition_artifacts_v8"
     assert payload["event_count"] >= 1
     assert "pipeline_start" in payload["event_stages_head"]
 
@@ -57,7 +57,7 @@ def test_checkpointed_run_snapshot_contract_parity() -> None:
     assert payload["next_stage"] == "enrich"
     assert payload["last_completed_stage"] == "normalize"
     assert payload["completed_stages"] == ["normalize"]
-    assert payload["stage_artifacts_schema_version"] == "stage_transition_artifacts_v7"
+    assert payload["stage_artifacts_schema_version"] == "stage_transition_artifacts_v8"
     assert payload["event_count"] >= 1
     assert "pipeline_failed" in payload["event_stages_tail"]
 
@@ -127,6 +127,46 @@ def test_pipeline_state_persists_shortlist_diagnostics_without_audit_or_backfill
     assert "_shortlist_audit_rows" not in payload
     assert restored.shortlist_diagnostics == {"embedding_coverage_rate": 0.5}
     assert not hasattr(restored, "backfilled_job_urls")
+
+
+def test_pipeline_state_adapts_legacy_ranking_rows_at_checkpoint_boundary() -> None:
+    restored = PipelineState.from_checkpoint_payload(
+        run_id="run-legacy",
+        checkpoint_payload={
+            "ranking_inputs": [
+                {
+                    "job_url": "https://example.com/1",
+                    "final_score": 0.8,
+                    "fit_label": "strong",
+                    "final_rank": 1,
+                }
+            ],
+            "ranked": [
+                {
+                    "job_url": "https://example.com/1",
+                    "final_score": 0.8,
+                    "fit_label": "strong",
+                    "final_rank": 1,
+                }
+            ],
+        },
+    )
+
+    assert restored.ranked[0]["baseline_fit"] == 0.8
+    assert restored.ranked[0]["baseline_fit_label"] == "strong"
+    assert restored.ranked[0]["baseline_rank"] == 1
+    assert "final_score" not in restored.ranked[0]
+    assert restored.legacy_checkpoint_adaptation_count == 2
+
+
+def test_pipeline_state_restores_legacy_checkpoint_adaptation_count() -> None:
+    restored = PipelineState.from_checkpoint_payload(
+        run_id="run-restored-count",
+        checkpoint_payload={"legacy_checkpoint_adaptation_count": 3},
+    )
+
+    assert restored.legacy_checkpoint_adaptation_count == 3
+    assert restored.as_state_dict()["legacy_checkpoint_adaptation_count"] == 3
 
 
 def test_shortlist_stage_consumes_vector_envelope_without_persisting_audit() -> None:

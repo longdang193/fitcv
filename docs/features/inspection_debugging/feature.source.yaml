@@ -38,7 +38,7 @@ capabilities:
     statement: Surface effective enrich, ranking, and CV-generation prompt identifiers, templates, and models in diagnostics.
     state: active
   - capability_id: inspection_debugging.ranking-diagnostics
-    statement: Expose ranking contract details, weighted contributions, fit thresholds, and reranker reuse state.
+    statement: Expose ranking-v2 policy and contract fingerprints, configured/effective weights, absolute normalizers, missing-value use, factor contributions, baseline labels, migration summary, and AI-score reuse state.
     state: active
   - capability_id: inspection_debugging.shortlist-diagnostics
     statement: Show shortlist retrieval facts, raw-hit visibility, candidate-query inputs, and embedding reuse provenance.

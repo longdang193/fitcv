@@ -38,6 +38,13 @@ _PROMPT_REGISTRY: dict[str, PromptDefinition] = {
         template_path=_TEMPLATES_DIR / "ranking_ai_score_v1.md",
         summary="Structured AI reranking prompt for shortlist scoring.",
     ),
+    "ranking.ai_score.v2": PromptDefinition(
+        prompt_id="ranking.ai_score.v2",
+        stage_id="ranking",
+        version="v2",
+        template_path=_TEMPLATES_DIR / "ranking_ai_score_v2.md",
+        summary="Holistic AI fit-score prompt without label authority.",
+    ),
     "cv_generation.write.v1": PromptDefinition(
         prompt_id="cv_generation.write.v1",
         stage_id="cv_generation",

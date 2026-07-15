@@ -14,16 +14,11 @@ tags:
 
 import pytest
 import fitcv.ranking as ranking_module
+import fitcv.ranking_contract as ranking_contract
 
 from fitcv.ranking import (
-    compute_feature_contributions,
-    get_active_missing_value_defaults,
-    get_preference_fit_weights,
-    get_active_ranking_weights,
-    compute_final_score,
+    compute_declared_preference_fit_details,
     compute_must_have_match,
-    compute_preference_fit,
-    compute_preference_fit_details,
     compute_ranking_runtime_diagnostics,
     compute_seniority_fit,
     compute_title_relevance,
@@ -32,190 +27,6 @@ from fitcv.ranking import (
 )
 
 
-_DEFAULT_WEIGHTS = {
-    "ai_score": 0.40,
-    "must_have_match": 0.20,
-    "vector_similarity": 0.15,
-    "title_relevance": 0.10,
-    "seniority_fit": 0.10,
-    "preference_fit": 0.05,
-}
-
-_NULL_DEFAULTS = {
-    "ai_score": 0.0,
-    "must_have_match": 0.5,
-    "vector_similarity": 0.0,
-    "title_relevance": 0.5,
-    "seniority_fit": 0.5,
-    "preference_fit": 0.5,
-}
-
-
-# ── compute_final_score ───────────────────────────────────────────────────────
-
-def test_compute_final_score_weighted():
-    features = {
-        "ai_score": 0.8,
-        "must_have_match": 1.0,
-        "vector_similarity": 0.7,
-        "title_relevance": 0.5,
-        "seniority_fit": 1.0,
-        "preference_fit": 0.0,
-    }
-    score = compute_final_score(features, _DEFAULT_WEIGHTS, _NULL_DEFAULTS)
-    expected = (
-        0.40 * 0.8
-        + 0.20 * 1.0
-        + 0.15 * 0.7
-        + 0.10 * 0.5
-        + 0.10 * 1.0
-        + 0.05 * 0.0
-    )
-    assert abs(score - expected) < 0.001
-
-
-def test_compute_final_score_handles_missing_ai_score():
-    """Missing ai_score → fallback 0.0 (conservative)."""
-    features = {
-        "must_have_match": 1.0,
-        "vector_similarity": 1.0,
-        "title_relevance": 1.0,
-        "seniority_fit": 1.0,
-        "preference_fit": 1.0,
-    }
-    score = compute_final_score(features, _DEFAULT_WEIGHTS, _NULL_DEFAULTS)
-    expected = 0.20 + 0.15 + 0.10 + 0.10 + 0.05
-    assert abs(score - expected) < 0.001
-
-
-def test_compute_final_score_handles_missing_vector_similarity():
-    """Missing vector_similarity → fallback 0.0 (conservative)."""
-    features = {
-        "ai_score": 0.8,
-        "must_have_match": 1.0,
-        "title_relevance": 1.0,
-        "seniority_fit": 1.0,
-        "preference_fit": 1.0,
-    }
-    score = compute_final_score(features, _DEFAULT_WEIGHTS, _NULL_DEFAULTS)
-    expected = (0.40 * 0.8) + 0.20 + 0.10 + 0.10 + 0.05
-    assert abs(score - expected) < 0.001
-
-
-def test_compute_final_score_accepts_config_weights():
-    """Weights must come from the weights dict, not hardcoded."""
-    features = {
-        "ai_score": 1.0,
-        "must_have_match": 0.0,
-        "vector_similarity": 0.0,
-        "title_relevance": 0.0,
-        "seniority_fit": 0.0,
-        "preference_fit": 0.0,
-    }
-    custom_weights = {
-        "ai_score": 1.0,
-        "must_have_match": 0.0,
-        "vector_similarity": 0.0,
-        "title_relevance": 0.0,
-        "seniority_fit": 0.0,
-        "preference_fit": 0.0,
-    }
-    # With weight fully on ai_score=1.0, final score should be 1.0
-    assert abs(compute_final_score(features, custom_weights, _NULL_DEFAULTS) - 1.0) < 0.001
-
-
-def test_get_active_ranking_weights_returns_full_six_feature_contract() -> None:
-    config = {
-        "ranking_weights": {
-            "ai_score": 0.4,
-            "must_have_match": 0.2,
-            "vector_similarity": 0.15,
-            "title_relevance": 0.1,
-            "seniority_fit": 0.1,
-            "preference_fit": 0.05,
-        }
-    }
-
-    weights = get_active_ranking_weights(config)
-
-    assert weights == {
-        "ai_score": 0.4,
-        "must_have_match": 0.2,
-        "vector_similarity": 0.15,
-        "title_relevance": 0.1,
-        "seniority_fit": 0.1,
-        "preference_fit": 0.05,
-    }
-
-
-def test_get_active_ranking_weights_preserves_zero_weight_features() -> None:
-    config = {
-        "ranking_weights": {
-            "ai_score": 0.73,
-            "must_have_match": 0.0,
-            "vector_similarity": 0.27,
-            "title_relevance": 0.0,
-            "seniority_fit": 0.0,
-            "preference_fit": 0.0,
-        }
-    }
-
-    weights = get_active_ranking_weights(config)
-
-    assert weights == {
-        "ai_score": 0.73,
-        "must_have_match": 0.0,
-        "vector_similarity": 0.27,
-        "title_relevance": 0.0,
-        "seniority_fit": 0.0,
-        "preference_fit": 0.0,
-    }
-
-
-def test_get_active_missing_value_defaults_prefers_canonical_key() -> None:
-    config = {
-        "missing_value_defaults": {
-            "ai_score": 0.0,
-            "must_have_match": 0.5,
-            "vector_similarity": 0.25,
-            "title_relevance": 0.5,
-            "seniority_fit": 0.5,
-            "preference_fit": 0.25,
-        },
-        "ranking_null_defaults": {
-            "ai_score": 0.0,
-            "vector_similarity": 0.99,
-        },
-    }
-
-    defaults = get_active_missing_value_defaults(config)
-
-    assert defaults == {
-        "ai_score": 0.0,
-        "must_have_match": 0.5,
-        "vector_similarity": 0.25,
-        "title_relevance": 0.5,
-        "seniority_fit": 0.5,
-        "preference_fit": 0.25,
-    }
-
-
-def test_get_preference_fit_weights_uses_runtime_config() -> None:
-    weights = get_preference_fit_weights(
-        {
-            "preference_fit_weights": {
-                "domain": 0.6,
-                "role_family": 0.25,
-                "location_type": 0.15,
-            }
-        }
-    )
-
-    assert weights == {
-        "domain": 0.6,
-        "role_family": 0.25,
-        "location_type": 0.15,
-    }
 
 def test_canonicalization_helpers_resolve_domain_and_role_family_aliases() -> None:
     config = {
@@ -325,109 +136,61 @@ def test_compute_title_relevance_uses_semantic_role_alignment() -> None:
     assert compute_title_relevance("Machine Learning Engineer", "Data Analyst", config=config) == 0.0
 
 
-# ── compute_preference_fit ────────────────────────────────────────────────────
-
-def test_compute_preference_fit():
-    prefs = {"domains": ["fintech", "health"], "location_types": ["remote"]}
-    config = {"preference_fit_weights": {"domain": 0.5, "role_family": 0.3, "location_type": 0.2}}
-    assert compute_preference_fit({"domain": "fintech", "location_type": "remote"}, prefs, config) == pytest.approx(0.85)
-    assert compute_preference_fit({"domain": "fintech", "location_type": "onsite"}, prefs, config) == pytest.approx(0.65)
-    assert compute_preference_fit({"domain": "retail", "location_type": "onsite"}, prefs, config) == pytest.approx(0.15)
-    # no preferences = 0.5 neutral
-    assert compute_preference_fit({"domain": "fintech"}, {}, config) == pytest.approx(0.5)
-
-
-def test_compute_preference_fit_weights_domain_role_family_and_location_separately() -> None:
-    prefs = {
-        "domains": ["fintech"],
-        "role_families": ["analytics"],
-        "location_types": ["remote"],
+def _declared_preference_config(**extra: object) -> dict[str, object]:
+    return {
+        "ranking_policy": {
+            "declared_preference_component_weights": {
+                "domain": 0.5,
+                "role_family": 0.3,
+                "work_mode": 0.2,
+            }
+        },
+        **extra,
     }
-    config = {"preference_fit_weights": {"domain": 0.5, "role_family": 0.3, "location_type": 0.2}}
 
-    assert compute_preference_fit(
-        {"domain": "telecommunications", "job_family": "analytics", "location_type": "remote"},
-        prefs,
-        config,
-    ) == 0.5
 
-def test_compute_preference_fit_uses_domain_and_role_family_alias_maps() -> None:
-    prefs = {
-        "domains": ["fintech"],
-        "role_families": ["bi analyst"],
-        "location_types": ["remote"],
-    }
-    config = {
-        "preference_fit_weights": {"domain": 0.5, "role_family": 0.3, "location_type": 0.2},
-        "domain_alias_map": {"fintech": "financial services"},
-        "role_family_alias_map": {"bi analyst": "analytics"},
-    }
-    score = compute_preference_fit(
-        {"domain": "Financial Services", "job_family": "analytics", "location_type": "remote"},
-        prefs,
-        config,
+def test_compute_declared_preference_fit_uses_canonical_components() -> None:
+    details = compute_declared_preference_fit_details(
+        {"domain": "fintech", "location_type": "remote"},
+        {"domains": ["fintech"], "location_types": ["remote"]},
+        _declared_preference_config(),
     )
-    assert score == pytest.approx(1.0)
 
-def test_compute_preference_fit_applies_neighbor_score_for_domain() -> None:
-    prefs = {"domains": ["fintech"], "role_families": [], "location_types": []}
-    config = {
-        "preference_fit_weights": {"domain": 0.5, "role_family": 0.3, "location_type": 0.2},
-        "domain_alias_map": {"fintech": "financial services"},
-        "domain_neighbors": {"financial services": ["banking"]},
-        "preference_fit_neighbor_score": 0.6,
+    assert details["score"] == pytest.approx(0.85)
+    assert details["components"] == {
+        "domain": 1.0,
+        "role_family": 0.5,
+        "work_mode": 1.0,
     }
-    score = compute_preference_fit(
-        {"domain": "banking", "job_family": "", "location_type": ""},
-        prefs,
-        config,
+    assert details["match_details"]["work_mode"] == "exact"
+
+
+def test_compute_declared_preference_fit_uses_aliases_and_neighbors() -> None:
+    details = compute_declared_preference_fit_details(
+        {"domain": "banking", "job_family": "BI Analyst", "location_type": "onsite"},
+        {"domains": ["financial services"], "role_families": ["analytics"]},
+        _declared_preference_config(
+            domain_alias_map={"banking": "banking"},
+            domain_neighbors={"financial services": ["banking"]},
+            role_family_alias_map={"bi analyst": "analytics"},
+        ),
     )
-    assert score == pytest.approx(0.6 * 0.5 + 0.5 * 0.3 + 0.5 * 0.2)
 
-def test_compute_preference_fit_details_exposes_match_and_canonical_diagnostics() -> None:
-    prefs = {"domains": ["fintech"], "role_families": ["bi analyst"], "location_types": ["remote"]}
-    config = {
-        "domain_alias_map": {"fintech": "financial services"},
-        "role_family_alias_map": {"bi analyst": "analytics"},
-    }
-    details = compute_preference_fit_details(
-        {"domain": "financial services", "job_family": "analytics", "location_type": "remote"},
-        prefs,
-        config,
-    )
-    assert details["match_details"]["domain"] == "exact"
-    assert details["match_details"]["role_family"] == "exact"
-    assert details["canonical_values"]["job"]["domain"] == "financial services"
-    assert details["canonical_values"]["preferences"]["role_families"] == ["analytics"]
+    assert details["components"]["domain"] == pytest.approx(0.7)
+    assert details["components"]["role_family"] == pytest.approx(1.0)
+    assert details["match_details"]["domain"] == "neighbor"
+    assert details["canonical_values"]["job"]["work_mode"] == "onsite"
 
 
-def test_compute_feature_contributions_sum_to_final_score() -> None:
-    features = {
-        "ai_score": 0.8,
-        "must_have_match": 1.0,
-        "vector_similarity": 0.7,
-        "title_relevance": 0.9,
-        "seniority_fit": 1.0,
-        "preference_fit": 0.5,
-    }
-    contributions = compute_feature_contributions(features, _DEFAULT_WEIGHTS, _NULL_DEFAULTS)
+def test_compute_declared_preference_fit_requires_policy_weights() -> None:
+    with pytest.raises(ValueError, match="declared_preference_component_weights"):
+        compute_declared_preference_fit_details({}, {}, {})
 
-    assert contributions == {
-        "ai_score": pytest.approx(0.32),
-        "must_have_match": pytest.approx(0.2),
-        "vector_similarity": pytest.approx(0.105),
-        "title_relevance": pytest.approx(0.09),
-        "seniority_fit": pytest.approx(0.1),
-        "preference_fit": pytest.approx(0.025),
-    }
-
-
-# ── rank_jobs ─────────────────────────────────────────────────────────────────
 
 def test_rank_jobs_sorts_descending():
     jobs = [
-        {"job_url": "u1", "final_score": 0.5, "ai_score": 0.5, "vector_similarity": 0.5},
-        {"job_url": "u2", "final_score": 0.9, "ai_score": 0.9, "vector_similarity": 0.9},
+        {"job_url": "u1", "raw_job_fingerprint": "f1", "baseline_fit": 0.5},
+        {"job_url": "u2", "raw_job_fingerprint": "f2", "baseline_fit": 0.9},
     ]
     ranked = rank_jobs(jobs, top_n=2)
     assert ranked[0]["job_url"] == "u2"
@@ -435,102 +198,66 @@ def test_rank_jobs_sorts_descending():
 
 def test_rank_jobs_respects_top_n():
     jobs = [
-        {"job_url": "u1", "final_score": 0.9, "ai_score": 0.9, "vector_similarity": 0.9},
-        {"job_url": "u2", "final_score": 0.8, "ai_score": 0.8, "vector_similarity": 0.8},
-        {"job_url": "u3", "final_score": 0.7, "ai_score": 0.7, "vector_similarity": 0.7},
+        {"job_url": "u1", "raw_job_fingerprint": "f1", "baseline_fit": 0.9},
+        {"job_url": "u2", "raw_job_fingerprint": "f2", "baseline_fit": 0.8},
+        {"job_url": "u3", "raw_job_fingerprint": "f3", "baseline_fit": 0.7},
     ]
     ranked = rank_jobs(jobs, top_n=2)
     assert len(ranked) == 2
 
 
-def test_rank_jobs_breaks_ties_by_ai_score_then_vector():
-    """Tie in final_score → higher ai_score wins; tie in ai_score → higher vector_similarity wins."""
+def test_rank_jobs_breaks_ties_by_fingerprint_then_url():
     jobs = [
-        {"job_url": "u1", "final_score": 0.8, "ai_score": 0.7, "vector_similarity": 0.8},
-        {"job_url": "u2", "final_score": 0.8, "ai_score": 0.9, "vector_similarity": 0.6},
-        {"job_url": "u3", "final_score": 0.8, "ai_score": 0.9, "vector_similarity": 0.7},
+        {"job_url": "u2", "raw_job_fingerprint": "f2", "baseline_fit": 0.8},
+        {"job_url": "u3", "raw_job_fingerprint": "f1", "baseline_fit": 0.8},
+        {"job_url": "u1", "raw_job_fingerprint": "f1", "baseline_fit": 0.8},
     ]
     ranked = rank_jobs(jobs, top_n=3)
-    # tie break 1: u3 and u2 have higher ai_score than u1 (0.9 vs 0.7)
-    # tie break 2: u3 has higher vector_similarity than u2 (0.7 vs 0.6)
-    assert ranked[0]["job_url"] == "u3"
-    assert ranked[1]["job_url"] == "u2"
-    assert ranked[2]["job_url"] == "u1"
+    assert [row["job_url"] for row in ranked] == ["u1", "u3", "u2"]
 
 
-def test_rank_jobs_assigns_final_rank():
-    """rank_jobs must add a final_rank field (1-indexed)."""
+def test_rank_jobs_assigns_baseline_rank():
     jobs = [
-        {"job_url": "u1", "final_score": 0.5, "ai_score": 0.5, "vector_similarity": 0.5},
-        {"job_url": "u2", "final_score": 0.9, "ai_score": 0.9, "vector_similarity": 0.9},
+        {"job_url": "u1", "raw_job_fingerprint": "f1", "baseline_fit": 0.5},
+        {"job_url": "u2", "raw_job_fingerprint": "f2", "baseline_fit": 0.9},
     ]
     ranked = rank_jobs(jobs, top_n=2)
-    assert ranked[0]["final_rank"] == 1
-    assert ranked[1]["final_rank"] == 2
-"""
-@meta
-type: test
-scope: unit
-domain: ranking
-covers:
-  - ranking behavior
-excludes:
-  - live reranker APIs
-tags:
-  - fast
-  - ci-safe
-"""
-
-def test_get_preference_fit_weights_rejects_invalid_sum() -> None:
-    with pytest.raises(ValueError, match="Invalid preference-fit weights sum"):
-        get_preference_fit_weights(
-            {
-                "preference_fit_weights": {
-                    "domain": 0.8,
-                    "role_family": 0.3,
-                    "location_type": 0.2,
-                }
-            }
-        )
-
+    assert ranked[0]["baseline_rank"] == 1
+    assert ranked[1]["baseline_rank"] == 2
 def test_compute_ranking_runtime_diagnostics_counts_fallback_and_taxonomy_drift() -> None:
     diagnostics = compute_ranking_runtime_diagnostics(
         [
             {
-                "missing_feature_default_applied": {
-                    "ai_score": True,
-                    "must_have_match": False,
-                    "vector_similarity": True,
-                    "title_relevance": False,
-                    "seniority_fit": False,
-                    "preference_fit": False,
+                "normalized_factors": {
+                    "must_have_match": {"missing_default_applied": True},
+                    "title_relevance": {"missing_default_applied": False},
+                    "seniority_fit": {"missing_default_applied": False},
+                    "declared_preference_fit": {"missing_default_applied": True},
+                    "location_fit": {"missing_default_applied": False},
+                    "language_fit": {"missing_default_applied": False},
                 },
-                "preference_fit_match_details": {
+                "declared_preference_fit_match_details": {
                     "domain": "none",
                     "role_family": "neighbor",
-                    "location_type": "exact",
+                    "work_mode": "exact",
                 },
             },
             {
-                "missing_feature_default_applied": {
-                    "ai_score": False,
-                    "must_have_match": False,
-                    "vector_similarity": False,
-                    "title_relevance": False,
-                    "seniority_fit": False,
-                    "preference_fit": False,
+                "normalized_factors": {
+                    factor_id: {"missing_default_applied": False}
+                    for factor_id in ranking_contract.STRUCTURED_FACTOR_IDS
                 },
-                "preference_fit_match_details": {
+                "declared_preference_fit_match_details": {
                     "domain": "exact",
                     "role_family": "neutral",
-                    "location_type": "neutral",
+                    "work_mode": "neutral",
                 },
             },
         ]
     )
     assert diagnostics["missing_feature_fallbacks"]["total_applied"] == 2
-    assert diagnostics["missing_feature_fallbacks"]["by_feature"]["ai_score"]["count"] == 1
-    assert diagnostics["missing_feature_fallbacks"]["by_feature"]["vector_similarity"]["count"] == 1
+    assert diagnostics["missing_feature_fallbacks"]["by_feature"]["must_have_match"]["count"] == 1
+    assert diagnostics["missing_feature_fallbacks"]["by_feature"]["declared_preference_fit"]["count"] == 1
     assert diagnostics["taxonomy_drift"]["domain_unmatched_count"] == 1
     assert diagnostics["taxonomy_drift"]["role_family_unmatched_count"] == 0
     assert diagnostics["taxonomy_drift"]["neighbor_match_count"] == 1
@@ -546,17 +273,15 @@ def test_eligibility_artifacts_do_not_change_ranking_order_or_fit_labels() -> No
     baseline_jobs = [
         {
             "job_url": "u1",
-            "final_score": 0.8,
-            "ai_score": 0.7,
-            "vector_similarity": 0.6,
-            "fit_label": "strong",
+            "raw_job_fingerprint": "f1",
+            "baseline_fit": 0.8,
+            "baseline_fit_label": "strong",
         },
         {
             "job_url": "u2",
-            "final_score": 0.6,
-            "ai_score": 0.9,
-            "vector_similarity": 0.9,
-            "fit_label": "stretch",
+            "raw_job_fingerprint": "f2",
+            "baseline_fit": 0.6,
+            "baseline_fit_label": "stretch",
         },
     ]
     artifact = {
@@ -578,9 +303,192 @@ def test_eligibility_artifacts_do_not_change_ranking_order_or_fit_labels() -> No
     assert [job["job_url"] for job in with_artifacts] == [
         job["job_url"] for job in baseline
     ]
-    assert [job["final_score"] for job in with_artifacts] == [
-        job["final_score"] for job in baseline
+    assert [job["baseline_fit"] for job in with_artifacts] == [
+        job["baseline_fit"] for job in baseline
     ]
-    assert [job["fit_label"] for job in with_artifacts] == [
-        job["fit_label"] for job in baseline
+    assert [job["baseline_fit_label"] for job in with_artifacts] == [
+        job["baseline_fit_label"] for job in baseline
     ]
+
+
+def _ranking_v2_policy() -> dict[str, object]:
+    return {
+        "policy_version": "ranking-v2",
+        "normalizer_version": "absolute-fit-v1",
+        "active_baseline_mode": "holistic_ai_only",
+        "baseline_weights": {"holistic_ai_fit": 1.0, "structured_fit": 0.0},
+        "structured_factor_weights": {
+            "must_have_match": 0.30,
+            "title_relevance": 0.20,
+            "seniority_fit": 0.15,
+            "declared_preference_fit": 0.15,
+            "location_fit": 0.10,
+            "language_fit": 0.10,
+        },
+        "declared_preference_component_weights": {
+            "domain": 0.50,
+            "role_family": 0.30,
+            "work_mode": 0.20,
+        },
+        "missing_value_defaults": {
+            "holistic_ai_fit": 0.0,
+            "must_have_match": 0.5,
+            "title_relevance": 0.5,
+            "seniority_fit": 0.5,
+            "declared_preference_fit": 0.5,
+            "location_fit": 0.5,
+            "language_fit": 0.5,
+        },
+        "fit_label_thresholds": {"strong": 0.70, "stretch": 0.40},
+        "label_migration_gate": {
+            "maximum_total_label_migration_rate": 0.10,
+            "maximum_strong_skip_crossings": 0,
+        },
+    }
+
+
+def test_ranking_v2_contract_builds_one_effective_policy_fingerprint() -> None:
+    context = ranking_contract.build_ranking_contract_context(
+        _ranking_v2_policy(),
+        eligibility_policy={
+            "policy_version": "eligibility-v1",
+            "factors": {
+                "location_fit": {"mode": "ranking_only"},
+                "language_fit": {"mode": "hard_gate"},
+            },
+        },
+        eligibility_policy_fingerprint="eligibility-fingerprint",
+    )
+
+    assert set(context["effective_structured_factor_weights"]) == {
+        "must_have_match",
+        "title_relevance",
+        "seniority_fit",
+        "declared_preference_fit",
+        "location_fit",
+    }
+    assert sum(context["effective_structured_factor_weights"].values()) == pytest.approx(1.0)
+    assert len(context["ranking_contract_fingerprint"]) == 64
+    assert "baseline_policy_fingerprint" not in context
+
+
+def test_ranking_v2_rejects_non_holistic_baseline_weights() -> None:
+    policy = _ranking_v2_policy()
+    policy["baseline_weights"] = {"holistic_ai_fit": 0.8, "structured_fit": 0.2}
+
+    with pytest.raises(ValueError, match="active_baseline_mode is holistic_ai_only"):
+        ranking_contract.validate_ranking_policy(policy)
+
+
+def test_build_baseline_result_is_absolute_and_vector_independent() -> None:
+    context = ranking_contract.build_ranking_contract_context(
+        _ranking_v2_policy(),
+        eligibility_policy={
+            "policy_version": "eligibility-v1",
+            "factors": {
+                "location_fit": {"mode": "ranking_only"},
+                "language_fit": {"mode": "ranking_only"},
+            },
+        },
+        eligibility_policy_fingerprint="eligibility-fingerprint",
+    )
+    result = ranking_contract.build_baseline_result(
+        holistic_ai_fit=0.72,
+        structured_factors={
+            "must_have_match": 1.0,
+            "title_relevance": 0.5,
+            "seniority_fit": 0.5,
+            "declared_preference_fit": 0.5,
+            "location_fit": 0.0,
+            "language_fit": 1.0,
+        },
+        context=context,
+    )
+
+    assert result["baseline_fit"] == pytest.approx(0.72)
+    assert result["baseline_fit_label"] == "strong"
+    assert result["normalized_factors"]["location_fit"]["effective_weight"] == 0.10
+    assert "vector_similarity" not in result["normalized_factors"]
+
+
+def test_build_baseline_result_uses_policy_default_for_missing_holistic_ai_fit() -> None:
+    context = ranking_contract.build_ranking_contract_context(
+        _ranking_v2_policy(),
+        eligibility_policy={
+            "policy_version": "eligibility-v1",
+            "factors": {
+                "location_fit": {"mode": "ranking_only"},
+                "language_fit": {"mode": "ranking_only"},
+            },
+        },
+        eligibility_policy_fingerprint="eligibility-fingerprint",
+    )
+
+    result = ranking_contract.build_baseline_result(
+        holistic_ai_fit=None,
+        structured_factors={},
+        context=context,
+    )
+
+    assert result["holistic_ai_fit"] == 0.0
+    assert result["holistic_ai_fit_missing_default_applied"] is True
+    assert result["baseline_fit"] == 0.0
+    assert result["baseline_fit_label"] == "skip"
+
+
+def test_rank_jobs_uses_stable_fingerprint_before_url() -> None:
+    jobs = [
+        {"job_url": "same", "raw_job_fingerprint": "b", "baseline_fit": 0.8},
+        {"job_url": "same", "raw_job_fingerprint": "a", "baseline_fit": 0.8},
+    ]
+
+    ranked = rank_jobs(jobs, top_n=2)
+
+    assert [row["raw_job_fingerprint"] for row in ranked] == ["a", "b"]
+    assert [row["baseline_rank"] for row in ranked] == [1, 2]
+
+
+def test_rank_jobs_rejects_missing_stable_fingerprint() -> None:
+    with pytest.raises(ValueError, match="raw_job_fingerprint"):
+        rank_jobs([{"job_url": "u1", "baseline_fit": 0.8}], top_n=1)
+
+
+def test_legacy_adapter_normalizes_equivalent_values_and_rejects_conflicts() -> None:
+    adapted = ranking_contract.adapt_legacy_ranking_row(
+        {
+            "job_url": "u1",
+            "raw_job_fingerprint": "fp1",
+            "baseline_fit": 0.7,
+            "final_score": "0.70",
+            "baseline_fit_label": "strong",
+            "fit_label": " Strong ",
+            "baseline_rank": 1,
+            "final_rank": "1",
+        }
+    )
+    assert adapted["baseline_fit"] == 0.7
+    assert adapted["baseline_fit_label"] == "strong"
+    assert "final_score" not in adapted
+
+    with pytest.raises(ValueError, match="conflicting"):
+        ranking_contract.adapt_legacy_ranking_row(
+            {"baseline_fit": 0.7, "final_score": 0.6}
+        )
+
+
+def test_label_migration_summary_reports_crossings_and_insufficient_evidence() -> None:
+    failed = ranking_contract.build_label_migration_summary(
+        [
+            {"legacy_model_fit_label": "strong", "baseline_fit_label": "skip"},
+            {"legacy_model_fit_label": "stretch", "baseline_fit_label": "stretch"},
+        ],
+        _ranking_v2_policy()["label_migration_gate"],
+    )
+    assert failed["status"] == "failed"
+    assert failed["strong_skip_crossings"] == 1
+
+    insufficient = ranking_contract.build_label_migration_summary(
+        [{"baseline_fit_label": "strong"}],
+        _ranking_v2_policy()["label_migration_gate"],
+    )
+    assert insufficient["status"] == "insufficient_evidence"

@@ -47,7 +47,7 @@ Phase 1 uses one path for both factors:
 - every passed or rejected enriched row carries the same eligibility payload and policy fingerprint
 - hard gates run before shortlist and ranking inputs are built
 - only confirmed `gate_required` failures reject; unknown evidence stays eligible
-- final ranking score, order, and `strong | stretch | skip` labels remain unchanged in Phase 1
+- Phase 3 consumes these factor values without changing their absolute normalization or eligibility truth
 
 ## Vector-Only Shortlist
 
@@ -63,6 +63,25 @@ Phase 2 uses one path:
 - deterministic below-cutoff audit rows exist only in `stage_transition_artifacts.stages.shortlist.audit_sample`
 - audit rows never reach shortlist persistence, AI scoring, ranking, exports, or `strong | stretch | skip` labels
 - continuation preserves prior completed shortlist artifact block, including audit evidence, while current execution updates only stages in its execution segment
+
+## Ranking-V2 Fixed Baseline
+
+Phase 3 uses one path for every admissible scored job:
+
+`holistic AI scalar + six absolute structured factors -> structured_fit -> baseline_fit -> baseline_fit_label -> total order`
+
+- `config/policy/ranking.yaml` owns one exact, versioned policy; production accepts only `holistic_ai_only`
+- AI scoring emits `ai_score` plus diagnostics; model-authored labels have no ranking authority
+- `holistic_ai_fit` is the bounded AI scalar and sole active baseline contribution
+- six structured factors remain independently normalized, weighted, persisted, and observable
+- hard-gated or disabled location/language factors are removed once from effective structured weights, then retained weights renormalize once
+- missing factor inputs use globally stable policy defaults, never cohort statistics
+- ordering is `baseline_fit DESC`, `raw_job_fingerprint ASC`, then `job_url ASC`
+- vector similarity/rank remain shortlist evidence and never affect baseline score, label, fingerprint, or tie order
+- canonical ranking rows use `baseline_fit`, `baseline_fit_label`, `baseline_rank`, factor records, policy versions, and `ranking_contract_fingerprint`
+- checkpoint schema remains v1; centralized adapters read old ranking aliases and reject canonical/legacy conflicts
+- stage-transition artifacts use v8 and preserve full-run/resume parity
+- CV analysis consumes persisted baseline truth only; gap findings, vector evidence, and AI diagnostics do not override ranking qualification
 
 ## Execution Modes
 
@@ -110,6 +129,8 @@ Ownership rule:
 - Location and language use the same factor result envelope and policy projection table for all admissible statuses and modes.
 - Eligibility normalization is policy-versioned and run-cohort independent; filtered jobs cannot change surviving jobs' normalized values.
 - Full-run and stage-resume paths build candidate fit context once and preserve identical eligibility payloads.
+- Baseline normalization is absolute and cohort-independent; changing Top-N, unrelated rows, or input order cannot change a surviving job's score or label.
+- Full-run, checkpoint resume, app replay, worker replay, exports, and CV analysis consume the same ranking contract fingerprint and canonical baseline fields.
 
 ## AI Credential and Error Contract
 

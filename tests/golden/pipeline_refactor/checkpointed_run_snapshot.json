@@ -8,7 +8,7 @@
     "normalize"
   ],
   "summary_keys": [],
-  "stage_artifacts_schema_version": "stage_transition_artifacts_v7",
+  "stage_artifacts_schema_version": "stage_transition_artifacts_v8",
   "event_count": 7,
   "event_stages_head": [
     "pipeline_start",

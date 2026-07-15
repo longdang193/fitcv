@@ -54,7 +54,16 @@ Location/language eligibility ownership:
 - `src/fitcv/enrich.py` owns versioned canonical `actual_location` and `language_requirements` facts. Language requirements remain separate from canonical skills.
 - `src/fitcv/fit_factors.py` owns one symmetric factor algebra: candidate adaptation, evaluation truth, absolute normalization, policy projection, and policy fingerprinting.
 - `src/fitcv/rule_filter.py` owns eligibility projection. Only confirmed failures under `gate_required` reject; unknown and not-applicable facts remain eligible with diagnostics.
-- Phase 1 emits ranking-ready values only. Ranking weights, final score, ordering, and `strong | stretch | skip` labels remain unchanged.
+- ranking consumes the same location/language projections without redefining their normalization or hard-gate behavior.
+
+Ranking-v2 ownership:
+
+- `config/policy/ranking.yaml` is the sole mutable owner of ranking policy versions, baseline weights, six structured-factor weights, declared-preference component weights, absolute missing-value defaults, and fit-label thresholds.
+- `src/fitcv/ranking_contract.py` owns exact policy validation, effective location/language weight projection, normalized factor records, `structured_fit`, `baseline_fit`, deterministic `baseline_fit_label`, total ordering, compatibility adapters, and `ranking_contract_fingerprint`.
+- production mode is `holistic_ai_only`: `holistic_ai_fit` determines `baseline_fit`; structured factors remain versioned diagnostics until a later approved mode changes policy.
+- ranking order is `baseline_fit DESC`, `raw_job_fingerprint ASC`, then `job_url ASC`. Vector evidence never enters baseline score, label, fingerprint, or tie-breaks.
+- canonical writes use `baseline_fit`, `baseline_fit_label`, and `baseline_rank`. `final_score`, `fit_label`, and `final_rank` exist only at explicit legacy read/export boundaries.
+- ranking owns baseline labels. CV analysis consumes persisted `baseline_fit_label`, or derives from persisted `baseline_fit` using the same policy thresholds when the label is absent.
 
 Shortlist ownership:
 
@@ -73,6 +82,7 @@ Shortlist ownership:
 
 - queue orchestration is supported by default with persisted run/orchestration bindings
 - structured run events and stage artifacts back operator inspection flows
+- stage-transition artifacts use pipeline schema `stage_transition_artifacts_v8`; checkpoint schema remains v1 with centralized legacy ranking adaptation
 - operator-facing exports are primary inspection evidence surfaces
 - CV analysis and generation share the `stage_execution_trace` family; `cv-generation-trace.json` is canonical, while the former agentic-live route remains read-only compatibility
 

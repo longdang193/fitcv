@@ -518,7 +518,10 @@ def finalize_cv_analysis_stage(
                     deterministic_outcome="rejected",
                     stage_owned_subreason=blocked_status,
                     input_snapshot={
-                        "fit_label_thresholds": dict(config.get("fit_label_thresholds") or {}),
+                        "fit_label_thresholds": dict(
+                            (config.get("ranking_policy") or {}).get("fit_label_thresholds")
+                            or {}
+                        ),
                     },
                     output_snapshot={
                         "blocked_jobs": blocked_by_reranker_diagnostics,

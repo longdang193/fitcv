@@ -34,6 +34,7 @@ This matrix defines current SSOT ownership for migration execution.
 | `config/runtime/pipeline.yaml` | pipeline execution knobs | Owns enrichment/rerank timing, Top-N controls, `pipeline.shortlist_audit_sample_n`, lifecycle limits, replay health thresholds, and model defaults used by runtime pipeline stages. |
 | `config/policy/cv.yaml` | CV generation and validation policy | Owns nested `cv.*` contract (`preset`, composition, validation, generation defaults). |
 | `config/policy/eligibility.yaml` | location/language eligibility policy | Sole mutable owner of factor modes and absolute normalization values; ranking/runtime/env config may not shadow `eligibility_policy`. |
+| `config/policy/ranking.yaml` | ranking-v2 baseline policy | Sole mutable owner of exact ranking policy, absolute defaults, fixed weights, label thresholds, active baseline mode, and label-migration gate. |
 | `config/taxonomy/taxonomy.yaml` | shared business taxonomy and enum families | Owns seniority taxonomy, location/contract/experience enums, role taxonomy maps. |
 | `.env.yaml` | bootstrap trigger input | Current default `config_path`; now limited to small bootstrap-only values. |
 | `config/env.private.yaml` | no active canonical owner in this worktree | File not present in tracked worktree; treat as deprecated/removed unless explicitly reintroduced as local-only untracked override. |
@@ -84,7 +85,22 @@ Canonical policy owner: `config/policy/eligibility.yaml` key `eligibility_policy
 - environment variables, trigger overrides, ranking config, and other policy files may not define a second `eligibility_policy` owner.
 - runtime validates the exact shape and fingerprints the validated mapping with deterministic canonical JSON.
 - `gate_required` rejects only confirmed factor failures; unknown and not-applicable states remain eligible.
-- Phase 1 does not add these values to ranking composition. Later ranking phases consume the emitted `ranking_value` without redefining normalization.
+- ranking-v2 consumes emitted `ranking_value` fields without redefining normalization; `gate_required` and `disabled` factors are excluded once from effective structured weights.
+
+### Ranking-V2 Baseline Policy
+
+Canonical policy owner: `config/policy/ranking.yaml` key `ranking_policy`.
+
+- exact policy version: `ranking-v2`
+- absolute normalizer version: `absolute-fit-v1`
+- sole production mode: `holistic_ai_only`
+- baseline inputs: `holistic_ai_fit` and diagnostic `structured_fit`
+- structured factors: `must_have_match`, `title_relevance`, `seniority_fit`, `declared_preference_fit`, `location_fit`, `language_fit`
+- declared preference components: `domain`, `role_family`, `work_mode`
+- globally stable missing-value defaults and fit-label thresholds are policy-owned; runtime code has no numeric fallback owner
+- config loading rejects missing, unknown, retired, non-finite, out-of-range, invalid-sum, or unsupported policy values
+- top-level `ranking_weights`, `preference_fit_weights`, and `fit_label_thresholds` are retired settings surfaces, not semantic migration inputs
+- Phase 3 baseline weights remain fixed and config-only at `holistic_ai_fit: 1.0` and `structured_fit: 0.0`; admin settings expose canonical structured-factor and declared-preference weights only
 
 ### Planned Deprecation Boundaries
 
