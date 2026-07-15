@@ -157,14 +157,37 @@ def _operator_prompt_for_review_required(
         return "Review whether evidence coverage is acceptable, then choose approve as-is, regenerate once, or reject."
     return "Review this CV outcome and choose approve as-is, regenerate once, or reject."
 
+def load_cv_generation_trace_payload(payload: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(payload, dict):
+        return None
+    current = payload.get("cv_generation_trace")
+    if isinstance(current, dict):
+        return dict(current)
+    historical = payload.get("agentic_live_trace")
+    if isinstance(historical, dict):
+        return dict(historical)
+    return None
+
+
+def _latest_llm_runtime_provenance(record: dict[str, Any]) -> dict[str, Any]:
+    observations = list(record.get("llm_runtime_observations") or [])
+    for observation in reversed(observations):
+        if not isinstance(observation, dict):
+            continue
+        evidence = observation.get("evidence")
+        if isinstance(evidence, dict) and isinstance(evidence.get("provenance"), dict):
+            return dict(evidence["provenance"])
+    return {}
+
+
 def _extract_review_required_request_id(record: dict[str, Any]) -> str | None:
-    runtime_provenance = dict(record.get("runtime_provenance") or {})
+    runtime_provenance = _latest_llm_runtime_provenance(record)
     for key in ("request_id", "response_id"):
         value = str(runtime_provenance.get(key) or "").strip()
         if value:
             return value
-    live_trace = dict(record.get("agentic_live_trace") or {})
-    for attempt in list(live_trace.get("attempts") or []):
+    trace = dict(record.get("cv_generation_trace") or {})
+    for attempt in list(trace.get("attempts") or []):
         if not isinstance(attempt, dict):
             continue
         for key in ("request_id", "response_id"):
@@ -172,6 +195,7 @@ def _extract_review_required_request_id(record: dict[str, Any]) -> str | None:
             if value:
                 return value
     return None
+
 
 def _normalized_cv_debug_payload_for_export(run: PipelineRun) -> dict[str, Any] | None:
     payload = _load_run_cv_generation_debug_payload(run)
@@ -197,10 +221,6 @@ def _normalized_cv_debug_payload_for_export(run: PipelineRun) -> dict[str, Any] 
             row["reranker_fit_label"] = ranking_fit_label
         if str(row.get("status") or "").strip() == "review_required":
             row["review_required_reason_code"] = _map_review_required_reason_code(row)
-            if _extract_review_required_request_id(row) is not None:
-                runtime = dict(row.get("runtime_provenance") or {})
-                runtime["request_id"] = _extract_review_required_request_id(row)
-                row["runtime_provenance"] = runtime
         normalized_records.append(row)
     if "debug_records" in copied:
         copied["debug_records"] = normalized_records
@@ -237,7 +257,7 @@ def _build_cv_generation_review_required_payload(run: PipelineRun) -> dict[str, 
                 "failed_rule_ids": list(record.get("failed_rule_ids") or []),
                 "first_failing_section_key": record.get("first_failing_section_key"),
                 "operator_note": record.get("operator_note"),
-                "provider_name": str((record.get("runtime_provenance") or {}).get("provider") or ""),
+                "provider_name": str(_latest_llm_runtime_provenance(record).get("provider") or ""),
                 "model_name": str(record.get("cv_generation_model") or ""),
                 "request_id": _extract_review_required_request_id(record),
             }

@@ -24,6 +24,7 @@ from typing import Any
 
 from fitcv_cp.sqlite_store import get_events, get_run
 from fitcv_cp.models import RunEvent, RunStatus
+from fitcv_cp.app_run_support import load_cv_generation_trace_payload
 
 logger = logging.getLogger(__name__)
 
@@ -124,9 +125,9 @@ def build_terminal_run_artifact_payloads(
             )
     cv_debug_payload = payloads.get("cv-debug.json")
     if isinstance(cv_debug_payload, dict):
-        agentic_trace = cv_debug_payload.get("agentic_live_trace")
-        if isinstance(agentic_trace, dict):
-            payloads["agentic-live-trace.json"] = agentic_trace
+        cv_generation_trace = load_cv_generation_trace_payload(cv_debug_payload)
+        if isinstance(cv_generation_trace, dict):
+            payloads["cv-generation-trace.json"] = cv_generation_trace
         cv_analysis_trace = cv_debug_payload.get("cv_analysis_trace")
         if isinstance(cv_analysis_trace, dict):
             payloads["cv-analysis-trace.json"] = cv_analysis_trace

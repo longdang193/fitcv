@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+from fastapi import HTTPException
+from redis.exceptions import ConnectionError as RedisConnectionError
+
 from fitcv_cp.orchestrator import (
     OrchestrationAdapter,
     PrefectOrchestrationAdapter,
@@ -53,6 +57,24 @@ def test_default_adapter_submit_cancel_status_and_continue() -> None:
     assert enqueue_mock.call_count == 2
     cancel_mock.assert_called_once_with(queue_job_id="job-1", redis_url="redis://localhost:6379/0")
     status_mock.assert_called_once_with(queue_job_id="job-1", redis_url="redis://localhost:6379/0")
+
+def test_default_adapter_submit_returns_503_when_queue_backend_unavailable() -> None:
+    adapter = OrchestrationAdapter(name="default_queue")
+
+    with patch(
+        "fitcv_cp.orchestrator.queue.enqueue_run_with_job_id",
+        side_effect=RedisConnectionError("missing backend"),
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            adapter.submit(
+                jobs_path="jobs.json",
+                config_path=".env.yaml",
+                triggered_by="admin",
+                redis_url="redis://localhost:6379/0",
+            )
+
+    assert exc_info.value.status_code == 503
+    assert exc_info.value.detail == "Queue backend unavailable"
 
 
 def test_prefect_adapter_preserves_submit_contract_with_prefect_backend_label() -> None:

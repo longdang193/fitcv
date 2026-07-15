@@ -46,32 +46,7 @@ _SETTINGS_COMPATIBILITY_KEYS = {
 }
 
 
-def _config_agentic_late_stage_enabled(config: dict[str, Any] | None) -> bool:
-    cv_block = dict((config or {}).get("cv") or {})
-    late_stage_block = dict(cv_block.get("agentic_late_stage") or {})
-    return bool(late_stage_block.get("enabled"))
 
-
-def _build_late_stage_mode_payload(
-    *,
-    summary: dict[str, Any],
-    effective_config: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    existing_payload = summary.get("late_stage_mode")
-    if isinstance(existing_payload, dict):
-        normalized = dict(existing_payload)
-        normalized["late_stage_mode"] = "agentic"
-        normalized["agentic_late_stage_enabled"] = True
-        normalized["mode_source"] = "cv.agentic_late_stage.unified_runtime"
-        normalized["agentic_status"] = "completed"
-        return normalized
-    _ = _config_agentic_late_stage_enabled(effective_config)
-    return {
-        "late_stage_mode": "agentic",
-        "agentic_late_stage_enabled": True,
-        "mode_source": "cv.agentic_late_stage.unified_runtime",
-        "agentic_status": "completed",
-    }
 
 def _build_stage_transition_artifacts_payload_dict(
     *,
@@ -197,6 +172,9 @@ def _build_settings_used_payload_dict(
         settings["stage_runtime"] = stage_runtime
 
     _materialize_stage_runtime_snapshot(effective_settings)
+    cv_settings = dict(effective_settings.get("cv") or {})
+    cv_settings.pop("agentic_late_stage", None)
+    effective_settings["cv"] = cv_settings
     sqlite_mode = resolve_backend_runtime_or_active().backend_type == "sqlite"
     compatibility_projection = {
         key: effective_settings.pop(key)
@@ -208,10 +186,6 @@ def _build_settings_used_payload_dict(
         "settings_schema_version": SETTINGS_USED_SCHEMA_VERSION,
         "schema_version": SETTINGS_USED_SCHEMA_VERSION,
         "created_at": finished_at.isoformat(),
-        "late_stage_mode": _build_late_stage_mode_payload(
-            summary={},
-            effective_config=effective_config,
-        ),
         "effective_settings": effective_settings,
         "sources": {
             "config_path": str(config_path or getattr(run_record, "config_path", "") or ""),

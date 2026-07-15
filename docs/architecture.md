@@ -43,8 +43,8 @@ CV-analysis ownership boundary:
 - runtime adapters may change provider or orchestration mechanics, but not status semantics, evidence summary shape, gap meaning, or readiness output.
 LLM runtime spine ownership:
 
-- `src/fitcv/llm_runtime.py` owns routed adapter execution, wire compatibility, normalized operational failures, and runtime provenance for enrichment, ranking, and CV generation.
-- stage modules own prompt meaning, parsing, structural validation, semantic fallback, and output/failure policy.
+- `src/fitcv/llm_runtime.py` owns routed adapter execution, wire compatibility, normalized operational failures, runtime provenance, and the only persistable `llm_runtime_evidence_v1` projection for enrichment, ranking, and CV generation.
+- stage modules own prompt meaning, parsing, structural validation, semantic fallback, output/failure policy, and ordered observation scope. Only actual runtime calls emit evidence; reuse, replay, resume, blocked, and skipped paths do not.
 - `src/fitcv/runtime_routing.py` plus `config/runtime/control_plane.yaml` remain provider/model/credential routing SSOT; stage modules do not own HTTP clients or route tables.
 
 ## Portability and Routing
@@ -58,6 +58,7 @@ LLM runtime spine ownership:
 - queue orchestration is supported by default with persisted run/orchestration bindings
 - structured run events and stage artifacts back operator inspection flows
 - operator-facing exports are primary inspection evidence surfaces
+- CV analysis and generation share the `stage_execution_trace` family; `cv-generation-trace.json` is canonical, while the former agentic-live route remains read-only compatibility
 
 ## Related Docs
 

@@ -51,7 +51,7 @@ import os
 import time
 import uuid
 import datetime
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from copy import deepcopy
 from typing import Any, Callable, cast
 
@@ -76,6 +76,7 @@ from fitcv.config import (
     get_cv_generation_prompt_version,
     get_ranking_ai_score_model,
     get_stage_runtime_concurrency,
+    get_stage_runtime_sleep_secs,
     load_config,
     resolve_model_routing_part,
 )
@@ -158,7 +159,6 @@ from fitcv.rule_filter import (
     apply_rule_filters,
     store_filter_results,
 )
-from fitcv.runtime_routing import resolve_cv_generation_runtime_provenance
 from fitcv.runtime_routing import validate_cv_generation_routing_ready
 from fitcv.tracker import (
     create_cv_version_record,
@@ -370,6 +370,7 @@ def _enrich_jobs_with_reuse(
     pipeline_store: PipelineStore | None = None,
     heartbeat_callback: Callable[[dict[str, Any]], None] | None = None,
     incremental_save_run_id: str | None = None,
+    runtime_observations: list[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     import threading
 
@@ -452,15 +453,6 @@ def _enrich_jobs_with_reuse(
         return list(result_holder.get("rows") or [])
 
     if fresh_jobs:
-        heartbeat_events_enabled = str(os.environ.get("FITCV_ENRICH_HEARTBEAT_EVENTS", "") or "").strip().lower() in {
-            "1",
-            "true",
-            "yes",
-            "on",
-        }
-        if not heartbeat_events_enabled:
-            heartbeat_callback = None
-
         debug_heartbeat_enabled = str(os.environ.get("FITCV_ENRICH_DEBUG_HEARTBEAT", "") or "").strip().lower() in {
             "1",
             "true",
@@ -515,7 +507,13 @@ def _enrich_jobs_with_reuse(
                     )
                 try:
                     batch_rows = _run_enrich_call_with_polling(
-                        lambda: enrich_batch([job], config),
+                        lambda: enrich_batch(
+                            [job],
+                            config,
+                            runtime_observation_callback=(
+                                runtime_observations.append if runtime_observations is not None else None
+                            ),
+                        ),
                         timeout_secs=per_job_timeout_secs,
                     )
                 except TimeoutError as exc:
@@ -604,6 +602,9 @@ def _enrich_jobs_with_reuse(
                     fresh_jobs,
                     config,
                     job_event_callback=_job_event_callback if emit_job_events_enabled else None,
+                    runtime_observation_callback=(
+                        runtime_observations.append if runtime_observations is not None else None
+                    ),
                     on_chunk_complete=_on_chunk_complete if incremental_save_run_id else None,
                 ),
                 heartbeat_interval_secs=heartbeat_interval_secs,
@@ -871,21 +872,19 @@ def _build_export_results(
         analysis_row = _lookup(analysis_by_identity, seeded_raw_job)
         cv_payload = None
         if cv_row is not None:
+            runtime_observations = list(cv_row.get("llm_runtime_observations") or [])
+            runtime_provenance = {}
+            if runtime_observations and isinstance(runtime_observations[-1], dict):
+                evidence = runtime_observations[-1].get("evidence")
+                if isinstance(evidence, dict) and isinstance(evidence.get("provenance"), dict):
+                    runtime_provenance = dict(evidence["provenance"])
             cv_payload = {
                 "version_id": cv_row.get("cv_version_id"),
                 "ranking_fit_label": cv_row.get("ranking_fit_label") or cv_row.get("fit_classification"),
                 "fit_classification": cv_row.get("fit_classification"),
                 "model_used": cv_row.get("cv_generation_model"),
-                "runtime_path": (
-                    (cv_row.get("runtime_provenance") or {}).get("runtime_path")
-                    if isinstance(cv_row.get("runtime_provenance"), dict)
-                    else None
-                ),
-                "provider": (
-                    (cv_row.get("runtime_provenance") or {}).get("provider")
-                    if isinstance(cv_row.get("runtime_provenance"), dict)
-                    else None
-                ),
+                "runtime_path": runtime_provenance.get("runtime_path"),
+                "provider": runtime_provenance.get("provider"),
                 "prompt_id": cv_row.get("cv_prompt_id"),
                 "prompt_template_path": cv_row.get("cv_prompt_template_path"),
                 "schema_version": (
@@ -1233,7 +1232,7 @@ def _reuse_anomaly_payload(
             or 0
         )
         rate = float(stage_metrics.get("reuse_rate") or stage_metrics.get("analysis_reuse_rate") or 0.0)
-        if total < min_overlap or rate >= floor:
+        if reused <= 0 or total < min_overlap or rate >= floor:
             continue
         stages.append(
             {
@@ -1430,6 +1429,8 @@ def _build_stage_progress_summary(
     shortlist = list(state.get("shortlist") or [])
     backfilled_job_urls = list(state.get("backfilled_job_urls") or [])
     ai_scores = list(state.get("ai_scores") or [])
+    enrich_llm_runtime_observations = list(state.get("enrich_llm_runtime_observations") or [])
+    ranking_llm_runtime_observations = list(state.get("ranking_llm_runtime_observations") or [])
     ranking_inputs = list(state.get("ranking_inputs") or [])
     ranked = list(state.get("ranked") or [])
     cv_analysis_results = list(state.get("cv_analysis_results") or [])
@@ -1464,6 +1465,8 @@ def _build_stage_progress_summary(
         ranking_inputs=ranking_inputs,
         ranked=ranked,
         cv_analysis_results=cv_analysis_results,
+        enrich_llm_runtime_observations=enrich_llm_runtime_observations,
+        ranking_llm_runtime_observations=ranking_llm_runtime_observations,
         final_top_n=final_top_n_value,
         cv_generation_debug_records=cv_generation_debug_records,
         profile=candidate_profile,
@@ -1511,24 +1514,13 @@ def _build_checkpoint_summary(
     cv_analysis_results = list(state.get("cv_analysis_results") or [])
     cv_generation_debug_records = list(state.get("cv_generation_debug_records") or [])
     ranked = list(state.get("ranked") or [])
-    cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
-    cv_generation_reached = any(
-        str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
-        for record in cv_generation_debug_records
-    )
-    late_stage_mode_payload = _build_late_stage_mode_payload(
-        agentic_late_stage_enabled=_agentic_late_stage_enabled(config),
-        stage_reached=cv_analysis_reached or cv_generation_reached,
-    )
     summary["cv_analysis_trace"] = _build_cv_analysis_trace_summary(
         run_id=run_id,
         cv_analysis_results=cv_analysis_results,
-        late_stage_mode=late_stage_mode_payload,
     )
-    summary["agentic_live_trace"] = _build_agentic_live_trace_summary(
+    summary["cv_generation_trace"] = _build_cv_generation_trace_summary(
         run_id=run_id,
         cv_generation_debug_records=cv_generation_debug_records,
-        late_stage_mode=late_stage_mode_payload,
     )
     summary["paused_after_stage"] = paused_after_stage
     checkpoint_payload = _checkpoint_payload_from_state(state)
@@ -1599,13 +1591,6 @@ def _cv_generation_enabled_sections(config: dict[str, Any]) -> list[str]:
     return enabled_sections
 
 
-def _agentic_late_stage_enabled(config: dict[str, Any]) -> bool:
-    cv_block = config.get("cv") or {}
-    late_stage_block = cv_block.get("agentic_late_stage") or {}
-    if isinstance(late_stage_block, dict):
-        return True
-    return False
-
 
 def _cv_analysis_stage_concurrency(config: dict[str, Any]) -> int:
     return get_stage_runtime_concurrency(config, stage="cv_analysis", default=1)
@@ -1622,20 +1607,8 @@ def _ranking_stage_concurrency(config: dict[str, Any]) -> int:
     return get_stage_runtime_concurrency(config, stage="ranking", default=1)
 
 
-def _build_late_stage_mode_payload(
-    *,
-    agentic_late_stage_enabled: bool,
-    stage_reached: bool,
-) -> dict[str, Any]:
-    del agentic_late_stage_enabled
-    return {
-        "late_stage_mode": "agentic",
-        "agentic_late_stage_enabled": True,
-        "mode_source": "cv.agentic_late_stage.unified_runtime",
-        "agentic_status": (
-            "completed" if stage_reached else "pending"
-        ),
-    }
+def _effective_stage_concurrency(configured_concurrency: int, work_items: int) -> int:
+    return min(max(int(configured_concurrency), 1), max(int(work_items), 0))
 
 
 def _build_validation_grounding_payload(
@@ -1691,8 +1664,8 @@ def _shortlist_status_for_export_row(
 _bounded_event_payload = _build_bounded_event_payload_observability
 
 
-def _extract_generation_trace_metrics(agentic_live_trace: dict[str, Any] | None) -> dict[str, Any]:
-    trace = dict(agentic_live_trace or {})
+def _extract_generation_trace_metrics(cv_generation_trace: dict[str, Any] | None) -> dict[str, Any]:
+    trace = dict(cv_generation_trace or {})
     attempts = [
         dict(item)
         for item in list(trace.get("attempts") or [])
@@ -1997,7 +1970,7 @@ def _build_cv_generation_debug_record(
             "enabled_sections": list(enabled_sections),
             "cv_generation_model": _resolved_cv_generation_model(
                 cv_generation_model,
-                cast(dict[str, Any] | None, generation_result.get("runtime_provenance")),
+                cast(list[dict[str, Any]], generation_result.get("llm_runtime_observations") or []),
             ),
             "cv_prompt_id": cv_prompt_id,
             "cv_prompt_template_path": cv_prompt_template_path,
@@ -2016,33 +1989,16 @@ def _build_cv_generation_debug_record(
 
 def _resolved_cv_generation_model(
     default_model: str | None,
-    runtime_provenance: dict[str, Any] | None,
+    runtime_observations: list[dict[str, Any]] | None,
 ) -> str | None:
-    if isinstance(runtime_provenance, dict):
-        runtime_model = str(runtime_provenance.get("model") or "").strip()
+    for observation in reversed(list(runtime_observations or [])):
+        evidence = dict(observation.get("evidence") or {})
+        provenance = dict(evidence.get("provenance") or {})
+        runtime_model = str(provenance.get("model") or "").strip()
         if runtime_model:
             return runtime_model
     return default_model
 
-
-def _default_cv_generation_runtime_provenance(
-    cv_generation_model: str | None,
-) -> dict[str, Any]:
-    return {
-        "runtime_path": "fitcv_cv_generation_builtin",
-        "provider": "fitcv_builtin",
-        "model": str(cv_generation_model or "").strip() or None,
-    }
-
-
-def _non_agentic_cv_generation_runtime_provenance(
-    config: dict[str, Any],
-    cv_generation_model: str | None,
-) -> dict[str, Any]:
-    return resolve_cv_generation_runtime_provenance(
-        config,
-        default_model=str(cv_generation_model or "").strip() or None,
-    )
 
 
 def _extract_failed_rule_ids(validation: dict[str, Any] | None) -> list[str]:
@@ -2110,11 +2066,14 @@ def _summarize_cv_generation_provider(
     cv_generation_debug_records: list[dict[str, Any]],
 ) -> str | None:
     providers = [
-        str((record.get("runtime_provenance") or {}).get("provider") or "").strip()
+        str((observation.get("evidence") or {}).get("provenance", {}).get("provider") or "").strip()
         for record in cv_generation_debug_records
         if str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
-        and isinstance(record.get("runtime_provenance"), dict)
-        and str((record.get("runtime_provenance") or {}).get("provider") or "").strip()
+        for observation in list(record.get("llm_runtime_observations") or [])
+        if isinstance(observation, dict)
+        and isinstance(observation.get("evidence"), dict)
+        and isinstance((observation.get("evidence") or {}).get("provenance"), dict)
+        and str((observation.get("evidence") or {}).get("provenance", {}).get("provider") or "").strip()
     ]
     unique_providers = sorted(set(providers))
     if len(unique_providers) == 1:
@@ -2124,38 +2083,18 @@ def _summarize_cv_generation_provider(
     return None
 
 
-def _build_agentic_live_trace_summary(
+def _build_cv_generation_trace_summary(
     *,
     run_id: str | None,
     cv_generation_debug_records: list[dict[str, Any]],
-    late_stage_mode: dict[str, Any],
 ) -> dict[str, Any]:
-    agentic_mode = str(late_stage_mode.get("late_stage_mode") or "").strip()
-    if agentic_mode != "agentic":
-        return {
-            "run_id": run_id,
-            "trace_schema_version": "agentic_step_trace_run_v1",
-            "trace_family": "agentic_step_trace",
-            "step_id": "cv_generation",
-            "late_stage_mode": dict(late_stage_mode),
-            "trace_status": "not_applicable",
-            "trace_summary": {
-                "records_total": 0,
-                "present_records": 0,
-                "attempted_generation_jobs_total": 0,
-            },
-            "records": [],
-            "degradation": {},
-            "artifact_refs": {},
-        }
-
     attempted_records = [
         record for record in cv_generation_debug_records
         if str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
     ]
     trace_records: list[dict[str, Any]] = []
     for record in attempted_records:
-        raw_trace = record.get("agentic_live_trace")
+        raw_trace = record.get("cv_generation_trace")
         if not isinstance(raw_trace, dict):
             continue
         trace_record = dict(raw_trace)
@@ -2176,7 +2115,7 @@ def _build_agentic_live_trace_summary(
     degradation: dict[str, Any] = {}
     if attempted_total == 0:
         trace_status = "partial"
-        degradation = {"reason": "agentic_enabled_without_attempted_generation_records"}
+        degradation = {"reason": "no_attempted_generation_records"}
     elif present_total < attempted_total:
         trace_status = "partial"
         degradation = {"reason": "missing_job_trace_records"}
@@ -2185,10 +2124,9 @@ def _build_agentic_live_trace_summary(
         degradation = {"reason": "provider_or_capture_degraded"}
     return {
         "run_id": run_id,
-        "trace_schema_version": "agentic_step_trace_run_v1",
-        "trace_family": "agentic_step_trace",
+        "trace_schema_version": "stage_execution_trace_run_v1",
+        "trace_family": "stage_execution_trace",
         "step_id": "cv_generation",
-        "late_stage_mode": dict(late_stage_mode),
         "trace_status": trace_status,
         "trace_summary": {
             "records_total": attempted_total,
@@ -2208,27 +2146,7 @@ def _build_cv_analysis_trace_summary(
     *,
     run_id: str | None,
     cv_analysis_results: list[dict[str, Any]],
-    late_stage_mode: dict[str, Any],
 ) -> dict[str, Any]:
-    agentic_mode = str(late_stage_mode.get("late_stage_mode") or "").strip()
-    if agentic_mode != "agentic":
-        return {
-            "run_id": run_id,
-            "trace_schema_version": "agentic_step_trace_run_v1",
-            "trace_family": "agentic_step_trace",
-            "step_id": "cv_analysis",
-            "late_stage_mode": dict(late_stage_mode),
-            "trace_status": "not_applicable",
-            "trace_summary": {
-                "records_total": 0,
-                "present_records": 0,
-                "attempted_analysis_jobs_total": 0,
-            },
-            "records": [],
-            "degradation": {},
-            "artifact_refs": {},
-        }
-
     trace_records: list[dict[str, Any]] = []
     attempted_total = 0
     for record in cv_analysis_results:
@@ -2236,43 +2154,9 @@ def _build_cv_analysis_trace_summary(
         if status != CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
             attempted_total += 1
         raw_trace = record.get("cv_analysis_trace")
-        trace_record: dict[str, Any]
-        if isinstance(raw_trace, dict):
-            trace_record = dict(raw_trace)
-        else:
-            # Backward-compatibility fallback for reused historical analysis
-            # records that predate cv_analysis_trace embedding.
-            trace_record = {
-                "trace_schema_version": "agentic_step_trace_record_v1",
-                "trace_family": "agentic_step_trace",
-                "step_id": "cv_analysis",
-                "trace_status": "degraded" if status == CV_ANALYSIS_FAILED_STATUS else "completed",
-                "runtime_provenance": {
-                    "runtime_path": "fitcv_agentic_cv_analysis_builtin",
-                    "provider": "fitcv_builtin",
-                    "mode_source": "cv.agentic_late_stage.unified_runtime",
-                },
-                "attempts": [
-                    {
-                        "attempt_index": 1,
-                        "attempt_type": "analysis",
-                        "attempt_status": status or "unknown",
-                        "provider_status": "failed" if status == CV_ANALYSIS_FAILED_STATUS else "completed",
-                    }
-                ],
-                "input_summary": {
-                    "analysis_input_fingerprint": record.get("analysis_input_fingerprint"),
-                },
-                "output_summary": {
-                    "selected_evidence_count": len(list(record.get("evidence_used") or [])),
-                    "fallback_used": bool(
-                        dict(record.get("evidence_selection_summary") or {}).get("fallback_used", False)
-                    ),
-                },
-                "validation_summary": {"status": "not_run"},
-                "repair_summary": {"repair_attempted": False, "repair_attempts": 0},
-                "error_summary": dict(record.get("error") or {}) or None,
-            }
+        if not isinstance(raw_trace, dict):
+            continue
+        trace_record = dict(raw_trace)
         job_url = str(record.get("job_url") or "").strip()
         trace_record.setdefault("record_id", job_url or str(record.get("job_title") or "").strip())
         trace_record.setdefault("scope_type", "job")
@@ -2291,7 +2175,7 @@ def _build_cv_analysis_trace_summary(
     degradation: dict[str, Any] = {}
     if records_total == 0:
         trace_status = "partial"
-        degradation = {"reason": "agentic_enabled_without_cv_analysis_records"}
+        degradation = {"reason": "no_cv_analysis_records"}
     elif present_total < records_total:
         trace_status = "partial"
         degradation = {"reason": "missing_job_trace_records"}
@@ -2301,10 +2185,9 @@ def _build_cv_analysis_trace_summary(
 
     return {
         "run_id": run_id,
-        "trace_schema_version": "agentic_step_trace_run_v1",
-        "trace_family": "agentic_step_trace",
+        "trace_schema_version": "stage_execution_trace_run_v1",
+        "trace_family": "stage_execution_trace",
         "step_id": "cv_analysis",
-        "late_stage_mode": dict(late_stage_mode),
         "trace_status": trace_status,
         "trace_summary": {
             "records_total": records_total,
@@ -2559,7 +2442,7 @@ def _stage_block(
     outputs_sample: list[dict[str, Any]],
     dropped_or_changed_sample: list[dict[str, Any]],
     settings_refs: list[str] | None = None,
-    late_stage_mode: dict[str, Any] | None = None,
+    llm_runtime_observations: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     def _stage_result_builder(
         local_stage_id: str,
@@ -2588,7 +2471,7 @@ def _stage_block(
             outputs_sample=outputs_sample,
             dropped_or_changed_sample=dropped_or_changed_sample,
             settings_refs=settings_refs,
-            late_stage_mode=late_stage_mode,
+            llm_runtime_observations=llm_runtime_observations,
             truncate_value=_truncate_stage_value,
             stage_result_builder=_stage_result_builder,
         ),
@@ -2673,9 +2556,13 @@ def _build_stage_transition_artifacts(
     profile: dict[str, Any],
     config: dict[str, Any],
     candidate_query_debug: dict[str, Any] | None = None,
+    enrich_llm_runtime_observations: list[dict[str, Any]] | None = None,
+    ranking_llm_runtime_observations: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """@capability cv_system.stage-artifact-diagnostics"""
     candidate_query_debug = dict(candidate_query_debug or {})
+    enrich_llm_runtime_observations = list(enrich_llm_runtime_observations or [])
+    ranking_llm_runtime_observations = list(ranking_llm_runtime_observations or [])
     cv_analysis_results = list(cv_analysis_results or [])
     shortlist_reached = len(passed_jobs) > 0
     ranking_reached = shortlist_reached and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
@@ -2895,8 +2782,6 @@ def _build_stage_transition_artifacts(
         int(cv_generation_reuse_metrics["reused_rows"]),
         int(cv_generation_reuse_metrics["total_rows"]),
     )
-    agentic_late_stage_enabled = _agentic_late_stage_enabled(config)
-
     return {
         "schema_version": STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION,
         "stages": {
@@ -2922,6 +2807,7 @@ def _build_stage_transition_artifacts(
                 enrich_prompt_provenance=enrich_prompt_provenance,
                 enrich_reuse_counts=enrich_reuse_counts,
                 enrich_reuse_metrics=enrich_reuse_metrics,
+                llm_runtime_observations=enrich_llm_runtime_observations,
                 stage_block_builder=_stage_block,
                 sample_rows_builder=_sample_rows,
                 job_sample_builder=_job_sample,
@@ -2988,6 +2874,7 @@ def _build_stage_transition_artifacts(
                 extract_job_url=extract_job_url,
                 ai_score_model_resolver=get_ranking_ai_score_model,
                 effective_preferences_resolver=infer_effective_preferences,
+                llm_runtime_observations=ranking_llm_runtime_observations,
             ),
             "cv_analysis": _build_cv_analysis_stage_block_artifacts(
                 cv_analysis_reached=cv_analysis_reached,
@@ -2996,7 +2883,6 @@ def _build_stage_transition_artifacts(
                 cv_analysis_quality_metrics=cv_analysis_quality_metrics,
                 cv_analysis_reuse_metrics=cv_analysis_reuse_metrics,
                 config=config,
-                agentic_late_stage_enabled=agentic_late_stage_enabled,
                 blocked_by_reranker_status=CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
                 ready_for_generation_status=CV_ANALYSIS_READY_FOR_GENERATION_STATUS,
                 skipped_fit_gate_status=CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
@@ -3007,7 +2893,6 @@ def _build_stage_transition_artifacts(
                 ranking_row_sample_builder=_ranking_row_sample,
                 analysis_record_output_sample_builder=_analysis_record_output_sample,
                 analysis_record_changed_sample_builder=_analysis_record_changed_sample,
-                late_stage_mode_payload_builder=_build_late_stage_mode_payload,
             ),
             "cv_generation": _build_cv_generation_stage_block_artifacts(
                 cv_generation_reached=cv_generation_reached,
@@ -3018,14 +2903,12 @@ def _build_stage_transition_artifacts(
                 cv_generation_reuse_metrics=cv_generation_reuse_metrics,
                 cv_generation_prompt_provenance=cv_generation_prompt_provenance,
                 config=config,
-                agentic_late_stage_enabled=agentic_late_stage_enabled,
                 stage_block_builder=_stage_block,
                 stage_block_not_reached_builder=_stage_block_not_reached,
                 sample_rows_builder=_sample_rows,
                 analysis_record_output_sample_builder=_analysis_record_output_sample,
                 debug_record_output_sample_builder=_debug_record_output_sample,
                 debug_record_changed_sample_builder=_debug_record_changed_sample,
-                late_stage_mode_payload_builder=_build_late_stage_mode_payload,
                 cv_generation_model_summarizer=_summarize_cv_generation_model,
                 cv_generation_provider_summarizer=_summarize_cv_generation_provider,
                 cv_generation_model_resolver=get_cv_generation_model,
@@ -3209,12 +3092,14 @@ def run_pipeline(
         deduplicated_jobs = list(state["deduplicated_jobs"])
         pre_filter_rejected_jobs = list(state["pre_filter_rejected_jobs"])
         enriched = list(state["enriched"])
+        enrich_llm_runtime_observations = list(state["enrich_llm_runtime_observations"])
         passed_jobs = list(state["passed_jobs"])
         candidate_filter_rejected_jobs = list(state["candidate_filter_rejected_jobs"])
         raw_shortlist = list(state["raw_shortlist"])
         shortlist = list(state["shortlist"])
         backfilled_job_urls = list(state["backfilled_job_urls"])
         ai_scores = list(state["ai_scores"])
+        ranking_llm_runtime_observations = list(state["ranking_llm_runtime_observations"])
         ranking_inputs = list(state["ranking_inputs"])
         ranked = list(state["ranked"])
         cv_analysis_results = list(state["cv_analysis_results"])
@@ -3275,6 +3160,10 @@ def run_pipeline(
             with observe_span("pipeline.enrich", attributes={"run_id": run_id}):
                 enrich_runtime_config = _enrich_runtime_projection(config)
                 enrich_concurrency = _enrich_stage_concurrency(config)
+                enrich_batch_size = max(
+                    int(enrich_runtime_config.get("enrichment_batch_size", 10)),
+                    1,
+                )
                 raw_global = config.get("global_job_filters", {})
                 global_settings = (
                     {f"global_job_filters.{k}": v for k, v in raw_global.items()}
@@ -3301,6 +3190,7 @@ def run_pipeline(
                     enrich_runtime_config,
                     pipeline_store=pipeline_store,
                     incremental_save_run_id=run_id,
+                    runtime_observations=enrich_llm_runtime_observations,
                     heartbeat_callback=(
                         (lambda payload: reporter.emit(  # type: ignore[union-attr]
                             "enrich_heartbeat",
@@ -3308,7 +3198,16 @@ def run_pipeline(
                             "Enrich in progress",
                             {
                                 **dict(payload or {}),
-                                "enrich_concurrency_effective": int(enrich_concurrency),
+                                "configured_concurrency": int(enrich_concurrency),
+                                "enrich_concurrency_effective": _effective_stage_concurrency(
+                                    enrich_concurrency,
+                                    (
+                                        int((payload or {}).get("fresh_jobs_total") or 0)
+                                        + enrich_batch_size
+                                        - 1
+                                    )
+                                    // enrich_batch_size,
+                                ),
                             },
                         ))
                         if reporter is not None else None
@@ -3332,6 +3231,7 @@ def run_pipeline(
                     )
                 state["pre_filter_rejected_jobs"] = pre_filter_rejected_jobs
                 state["enriched"] = enriched
+                state["enrich_llm_runtime_observations"] = enrich_llm_runtime_observations
                 set_span_attributes(
                     {
                         "normalized_jobs": len(normalized),
@@ -3605,11 +3505,17 @@ def run_pipeline(
                     if job_url:
                         fresh_ai_score_fingerprints[job_url] = fingerprint_record["fingerprint"]
 
+                ranking_concurrency = _ranking_stage_concurrency(config)
+                ranking_effective_concurrency = _effective_stage_concurrency(
+                    ranking_concurrency,
+                    len(fresh_scoring_jobs),
+                )
                 fresh_ai_scores = run_ai_scoring(
                     fresh_scoring_jobs,
                     candidate_summary,
                     config,
                     top_n=len(fresh_scoring_jobs),
+                    runtime_observation_callback=ranking_llm_runtime_observations.append,
                 ) if fresh_scoring_jobs else []
                 fresh_ai_scores_by_url: dict[str, dict[str, Any]] = {}
                 for ai_row in fresh_ai_scores:
@@ -3652,7 +3558,8 @@ def run_pipeline(
                             event_status="completed",
                             output_snapshot={
                                 "ai_scored_jobs": len(ai_scores),
-                                "ranking_concurrency_effective": _ranking_stage_concurrency(config),
+                                "configured_concurrency": ranking_concurrency,
+                                "ranking_concurrency_effective": ranking_effective_concurrency,
                             },
                             artifact_refs={"stage_id": "ranking"},
                         ),
@@ -3682,7 +3589,8 @@ def run_pipeline(
                             event_status="completed",
                             output_snapshot={
                                 "ranked_jobs": len(ranked),
-                                "ranking_concurrency_effective": _ranking_stage_concurrency(config),
+                                "configured_concurrency": ranking_concurrency,
+                                "ranking_concurrency_effective": ranking_effective_concurrency,
                                 "reused_ai_scores": reused_ai_count,
                                 "fresh_ai_scores": fresh_ai_count,
                             },
@@ -3690,6 +3598,7 @@ def run_pipeline(
                         ),
                     )
                 state["ai_scores"] = ai_scores
+                state["ranking_llm_runtime_observations"] = ranking_llm_runtime_observations
                 state["ranking_inputs"] = ranking_inputs
                 state["ranked"] = ranked
                 set_span_attributes(
@@ -3738,7 +3647,6 @@ def run_pipeline(
         cv_prompt_template_path_value = cv_generation_prompt_runtime["template_path"]
         cv_prompt_version_value = get_cv_generation_prompt_version(config)
         enabled_cv_sections = _cv_generation_enabled_sections(config)
-        agentic_late_stage_enabled = _agentic_late_stage_enabled(config)
         cv_analysis_concurrency = _cv_analysis_stage_concurrency(config)
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("cv_analysis"):
             with observe_span(
@@ -3746,7 +3654,10 @@ def run_pipeline(
                 attributes={"run_id": run_id, "ranked_jobs": len(ranked_jobs_for_cv)},
             ):
                 cv_analysis_started_monotonic = time.monotonic()
-                cv_analysis_effective_concurrency = 1
+                cv_analysis_effective_concurrency = _effective_stage_concurrency(
+                    cv_analysis_concurrency,
+                    len(ranked_jobs_for_cv),
+                )
                 if reporter is not None:
                     reporter.emit(
                         "layer4_cv_analysis_invoked",
@@ -3759,7 +3670,7 @@ def run_pipeline(
                             event_status="started",
                             fallback_used=False,
                             provenance={
-                                "late_stage_mode": "canonical",
+                                "configured_concurrency": cv_analysis_concurrency,
                                 "cv_analysis_concurrency_effective": cv_analysis_effective_concurrency,
                             },
                             input_snapshot={
@@ -3767,6 +3678,8 @@ def run_pipeline(
                                 "cv_analysis_concurrency_configured": cv_analysis_concurrency,
                             },
                             output_snapshot={
+                                "ranked_jobs": len(ranked_jobs_for_cv),
+                                "configured_concurrency": cv_analysis_concurrency,
                                 "cv_analysis_concurrency_effective": cv_analysis_effective_concurrency,
                             },
                             artifact_refs={"stage_id": "cv_analysis"},
@@ -3780,6 +3693,7 @@ def run_pipeline(
                 fresh_analysis_reuse_reason_counts: dict[str, int] = {}
                 fresh_identity_overlap = 0
                 fresh_identity_no_overlap = 0
+                analysis_inputs: list[tuple[dict[str, Any], dict[str, Any] | None]] = []
                 for job in ranked_jobs_for_cv:
                     reusable_record = None
                     if cv_analysis_reuse_enabled:
@@ -3787,17 +3701,28 @@ def run_pipeline(
                             reusable_record = cv_analysis_reuse_by_identity.get(identity_key)
                             if reusable_record is not None:
                                 break
-                    analysis_record = cast(
-                        dict[str, Any],
-                        dict(
-                            analyze_ranked_job(
-                                job,
-                                profile,
-                                config,
-                                reusable_record=reusable_record,
-                            )
-                        ),
+                    analysis_inputs.append((job, reusable_record))
+
+                def _analyze_cv_job(
+                    analysis_input: tuple[dict[str, Any], dict[str, Any] | None],
+                ) -> dict[str, Any]:
+                    job, reusable_record = analysis_input
+                    return dict(
+                        analyze_ranked_job(
+                            job,
+                            profile,
+                            config,
+                            reusable_record=reusable_record,
+                        )
                     )
+
+                if cv_analysis_effective_concurrency > 1:
+                    with ThreadPoolExecutor(max_workers=cv_analysis_effective_concurrency) as executor:
+                        analyzed_records = list(executor.map(_analyze_cv_job, analysis_inputs))
+                else:
+                    analyzed_records = [_analyze_cv_job(item) for item in analysis_inputs]
+
+                for (job, reusable_record), analysis_record in zip(analysis_inputs, analyzed_records):
                     cv_analysis_results.append(analysis_record)
                     _emit_cv_analysis_item_observation(
                         run_id=run_id,
@@ -3944,6 +3869,7 @@ def run_pipeline(
                                 ),
                                 "fresh_analysis_overlap_urls": fresh_identity_overlap,
                                 "fresh_analysis_no_overlap_urls": fresh_identity_no_overlap,
+                                "configured_concurrency": cv_analysis_concurrency,
                                 "cv_analysis_concurrency_effective": cv_analysis_effective_concurrency,
                             },
                             artifact_refs={"stage_id": "cv_analysis"},
@@ -4024,7 +3950,16 @@ def run_pipeline(
             stage="cv_generation",
             default=1,
         )
+        cv_generation_sleep_secs = get_stage_runtime_sleep_secs(
+            config,
+            stage="cv_generation",
+            default=0.0,
+        )
         generation_total = len(indexed_generation_ready_records)
+        cv_generation_effective_concurrency = _effective_stage_concurrency(
+            configured_cv_generation_concurrency,
+            generation_total,
+        )
         cv_generation_reuse_enabled = _reuse_stage_enabled(config, "cv_generation")
         cv_generation_fingerprint_by_index: dict[int, str] = {}
         cv_generation_reuse_index: dict[str, dict[str, Any]] = {}
@@ -4062,12 +3997,12 @@ def run_pipeline(
                 ),
                 "gap": analysis_record.get("gap_summary"),
                 "fit": str(analysis_record.get("fit_classification") or "skip"),
-                "generation_worker_slot": generation_index % configured_cv_generation_concurrency,
+                "generation_worker_slot": generation_index % cv_generation_effective_concurrency,
             }
 
         def _initialize_cv_generation_runtime_state(work_item: dict[str, Any]) -> dict[str, Any]:
             job = dict(work_item["job"])
-            job_runtime_provenance: dict[str, Any] | None = None
+            job_llm_runtime_observations: list[dict[str, Any]] = []
             return {
                 "job": job,
                 "evidence": list(work_item["evidence"]),
@@ -4082,12 +4017,12 @@ def run_pipeline(
                 "repair_attempt": dict(_EMPTY_REPAIR_ATTEMPT),
                 "structured_cv_final": None,
                 "markdown_final": None,
-                "job_runtime_provenance": job_runtime_provenance,
+                "job_llm_runtime_observations": job_llm_runtime_observations,
                 "job_cv_generation_model_value": _resolved_cv_generation_model(
                     cv_generation_model_value,
-                    job_runtime_provenance,
+                    job_llm_runtime_observations,
                 ),
-                "job_agentic_live_trace": None,
+                "job_cv_generation_trace": None,
                 "generation_attempt_count": 1,
                 "generation_started_at_iso": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "generation_finished_at_iso": None,
@@ -4125,7 +4060,7 @@ def run_pipeline(
                     },
                     output_snapshot={
                         "configured_concurrency": int(configured_cv_generation_concurrency),
-                        "cv_generation_concurrency_effective": int(configured_cv_generation_concurrency),
+                        "cv_generation_concurrency_effective": int(cv_generation_effective_concurrency),
                         "worker_slot": int(generation_worker_slot),
                         "started_at": generation_started_at_iso,
                     },
@@ -4182,7 +4117,7 @@ def run_pipeline(
                         "attempt_count": int(attempt_count),
                         "retry_count": int(retry_count),
                         "configured_concurrency": int(configured_cv_generation_concurrency),
-                        "cv_generation_concurrency_effective": int(configured_cv_generation_concurrency),
+                        "cv_generation_concurrency_effective": int(cv_generation_effective_concurrency),
                         "worker_slot": int(generation_worker_slot),
                         "started_at": generation_started_at_iso,
                         "finished_at": generation_finished_at_iso,
@@ -4222,10 +4157,16 @@ def run_pipeline(
                     fallback_used=False,
                     provenance={
                         "cv_generation_model": cv_generation_model_value,
+                        "configured_concurrency": configured_cv_generation_concurrency,
+                        "cv_generation_concurrency_effective": cv_generation_effective_concurrency,
                     },
                     input_snapshot={
                         "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
                         "fit_classification": fit,
+                    },
+                    output_snapshot={
+                        "configured_concurrency": configured_cv_generation_concurrency,
+                        "cv_generation_concurrency_effective": cv_generation_effective_concurrency,
                     },
                     artifact_refs={"stage_id": "cv_generation"},
                 ),
@@ -4241,8 +4182,8 @@ def run_pipeline(
             cv_prompt_id_value: str,
             cv_prompt_template_path_value: str,
             job_cv_generation_model_value: str | None,
-            job_runtime_provenance: dict[str, Any] | None,
-            job_agentic_live_trace: dict[str, Any] | None,
+            job_llm_runtime_observations: list[dict[str, Any]],
+            job_cv_generation_trace: dict[str, Any] | None,
             generation_attempt_count: int,
             latency_ms: int,
             run_id: str,
@@ -4308,8 +4249,8 @@ def run_pipeline(
             validation_initial = cast(dict[str, Any] | None, state["validation_initial"])
             repair_attempt = cast(dict[str, Any], state["repair_attempt"])
             job_cv_generation_model_value = cast(str | None, state["job_cv_generation_model_value"])
-            job_runtime_provenance = cast(dict[str, Any] | None, state["job_runtime_provenance"])
-            job_agentic_live_trace = cast(dict[str, Any] | None, state["job_agentic_live_trace"])
+            job_llm_runtime_observations = cast(list[dict[str, Any]], state["job_llm_runtime_observations"])
+            job_cv_generation_trace = cast(dict[str, Any] | None, state["job_cv_generation_trace"])
 
             logger.error("[run_id=%s] Failed for %s: %s", run_id, job.get("job_url"), exc)
             canonical_result = cast(dict[str, Any] | None, state.get("canonical_result"))
@@ -4377,7 +4318,7 @@ def run_pipeline(
                 )  # type: ignore[union-attr]
 
         generation_work_items_by_index: dict[int, tuple[dict[str, Any], dict[str, Any]]] = {}
-        if configured_cv_generation_concurrency > 1 and len(indexed_generation_ready_records) > 1:
+        if cv_generation_effective_concurrency > 1:
             def _prepare_indexed_work_item(
                 generation_index: int,
                 analysis_record: dict[str, Any],
@@ -4388,7 +4329,7 @@ def run_pipeline(
                 )
                 return generation_index, analysis_record, prepared
 
-            with ThreadPoolExecutor(max_workers=configured_cv_generation_concurrency) as executor:
+            with ThreadPoolExecutor(max_workers=cv_generation_effective_concurrency) as executor:
                 future_to_index: dict[Future[tuple[int, dict[str, Any], dict[str, Any]]], int] = {}
                 for generation_index, analysis_record in indexed_generation_ready_records:
                     future = executor.submit(_prepare_indexed_work_item, generation_index, analysis_record)
@@ -4442,9 +4383,9 @@ def run_pipeline(
                 "repair_attempt": cast(dict[str, Any], generation_state["repair_attempt"]),
                 "structured_cv_final": cast(dict[str, Any] | None, generation_state["structured_cv_final"]),
                 "markdown_final": cast(str | None, generation_state["markdown_final"]),
-                "job_runtime_provenance": cast(dict[str, Any] | None, generation_state["job_runtime_provenance"]),
+                "job_llm_runtime_observations": cast(list[dict[str, Any]], generation_state["job_llm_runtime_observations"]),
                 "job_cv_generation_model_value": cast(str | None, generation_state["job_cv_generation_model_value"]),
-                "job_agentic_live_trace": cast(dict[str, Any] | None, generation_state["job_agentic_live_trace"]),
+                "job_cv_generation_trace": cast(dict[str, Any] | None, generation_state["job_cv_generation_trace"]),
                 "generation_attempt_count": int(generation_state["generation_attempt_count"]),
                 "generation_started_at_iso": str(generation_state["generation_started_at_iso"]),
                 "generation_finished_at_iso": cast(str | None, generation_state["generation_finished_at_iso"]),
@@ -4468,8 +4409,8 @@ def run_pipeline(
             structured_cv_final: dict[str, Any] | None,
             markdown_final: str | None,
             job_cv_generation_model_value: str | None,
-            job_runtime_provenance: dict[str, Any] | None,
-            job_agentic_live_trace: dict[str, Any] | None,
+            job_llm_runtime_observations: list[dict[str, Any]],
+            job_cv_generation_trace: dict[str, Any] | None,
             generation_attempt_count: int,
             validation_initial: dict[str, Any] | None,
             repair_attempt: dict[str, Any],
@@ -4530,7 +4471,7 @@ def run_pipeline(
                 "gap": gap,
                 "structured_cv": structured_cv,
                 "cv_generation_model": job_cv_generation_model_value,
-                "runtime_provenance": job_runtime_provenance,
+                "llm_runtime_observations": job_llm_runtime_observations,
                 "cv_prompt_id": cv_prompt_id_value,
                 "cv_prompt_template_path": cv_prompt_template_path_value,
                 "cv_markdown": cv,
@@ -4549,8 +4490,8 @@ def run_pipeline(
                 cv_prompt_id_value=cv_prompt_id_value,
                 cv_prompt_template_path_value=cv_prompt_template_path_value,
                 job_cv_generation_model_value=job_cv_generation_model_value,
-                job_runtime_provenance=job_runtime_provenance,
-                job_agentic_live_trace=job_agentic_live_trace,
+                job_llm_runtime_observations=job_llm_runtime_observations,
+                job_cv_generation_trace=job_cv_generation_trace,
                 generation_attempt_count=generation_attempt_count,
                 latency_ms=latency_ms,
                 run_id=run_id,
@@ -4585,13 +4526,13 @@ def run_pipeline(
             repair_attempt = dict(generation_result.get("repair_attempt") or _EMPTY_REPAIR_ATTEMPT)
             structured_cv_final = cast(dict[str, Any] | None, generation_result.get("structured_cv_final"))
             markdown_final = cast(str | None, generation_result.get("markdown_final"))
-            runtime_provenance = cast(dict[str, Any] | None, generation_result.get("runtime_provenance"))
-            agentic_live_trace = cast(dict[str, Any] | None, generation_result.get("agentic_live_trace"))
-            generation_metrics = _extract_generation_trace_metrics(agentic_live_trace)
+            llm_runtime_observations = cast(list[dict[str, Any]], generation_result.get("llm_runtime_observations") or [])
+            cv_generation_trace = cast(dict[str, Any] | None, generation_result.get("cv_generation_trace"))
+            generation_metrics = _extract_generation_trace_metrics(cv_generation_trace)
             attempt_count = max(int(generation_metrics["attempt_count"]), 1)
             cv_generation_model = _resolved_cv_generation_model(
                 cv_generation_model_value,
-                runtime_provenance,
+                llm_runtime_observations,
             )
             reason_payload = cast(
                 dict[str, str] | None,
@@ -4631,6 +4572,9 @@ def run_pipeline(
                             "attempt_count": attempt_count,
                             "retry_count": max(attempt_count - 1, 0),
                             "configured_concurrency": int(configured_cv_generation_concurrency),
+                            "cv_generation_concurrency_effective": int(
+                                cv_generation_effective_concurrency
+                            ),
                             "worker_slot": int(generation_worker_slot),
                             "started_at": generation_started_at_iso,
                             "finished_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -4668,9 +4612,9 @@ def run_pipeline(
                 "repair_attempt": repair_attempt,
                 "structured_cv_final": structured_cv_final,
                 "markdown_final": markdown_final,
-                "job_runtime_provenance": runtime_provenance,
+                "job_llm_runtime_observations": llm_runtime_observations,
                 "job_cv_generation_model_value": cv_generation_model,
-                "job_agentic_live_trace": agentic_live_trace,
+                "job_cv_generation_trace": cv_generation_trace,
                 "generation_attempt_count": attempt_count,
                 "structured_cv": structured_cv_final,
                 "cv": str(markdown_final or ""),
@@ -4715,24 +4659,57 @@ def run_pipeline(
             )
 
         compute_outcomes_by_index: dict[int, dict[str, Any]] = {}
-        if configured_cv_generation_concurrency > 1 and len(generation_runtime_by_index) > 1:
-            with ThreadPoolExecutor(max_workers=configured_cv_generation_concurrency) as executor:
-                future_to_generation_index: dict[Future[dict[str, Any]], int] = {
-                    executor.submit(_compute_for_index, generation_index): generation_index
-                    for generation_index in sorted(generation_runtime_by_index)
-                }
-                for future in as_completed(future_to_generation_index):
-                    generation_index = future_to_generation_index[future]
-                    try:
-                        compute_outcomes_by_index[generation_index] = future.result()
-                    except Exception as exc:
-                        compute_outcomes_by_index[generation_index] = {"_compute_exception": exc}
-        else:
-            for generation_index in sorted(generation_runtime_by_index):
-                try:
-                    compute_outcomes_by_index[generation_index] = _compute_for_index(generation_index)
-                except Exception as exc:
-                    compute_outcomes_by_index[generation_index] = {"_compute_exception": exc}
+        if generation_runtime_by_index:
+            with ThreadPoolExecutor(max_workers=cv_generation_effective_concurrency) as executor:
+                generation_indexes = sorted(generation_runtime_by_index)
+                future_to_generation_index: dict[Future[dict[str, Any]], int] = {}
+                for position, generation_index in enumerate(generation_indexes):
+                    future_to_generation_index[
+                        executor.submit(_compute_for_index, generation_index)
+                    ] = generation_index
+                    if position < len(generation_indexes) - 1 and cv_generation_sleep_secs > 0:
+                        time.sleep(cv_generation_sleep_secs)
+                pending_futures = set(future_to_generation_index)
+                heartbeat_count = 0
+                heartbeat_started_monotonic = time.monotonic()
+                while pending_futures:
+                    completed_futures, pending_futures = wait(
+                        pending_futures,
+                        timeout=15.0,
+                        return_when=FIRST_COMPLETED,
+                    )
+                    if not completed_futures:
+                        heartbeat_count += 1
+                        if reporter is not None:
+                            reporter.emit(
+                                "cv_generation_heartbeat",
+                                "info",
+                                "CV generation in progress",
+                                {
+                                    "phase": "batch_progress",
+                                    "generation_total": generation_total,
+                                    "completed_items": len(compute_outcomes_by_index),
+                                    "pending_items": len(pending_futures),
+                                    "heartbeat_count": heartbeat_count,
+                                    "elapsed_secs": int(
+                                        time.monotonic() - heartbeat_started_monotonic
+                                    ),
+                                    "heartbeat_interval_secs": 15,
+                                    "configured_concurrency": int(
+                                        configured_cv_generation_concurrency
+                                    ),
+                                    "cv_generation_concurrency_effective": int(
+                                        cv_generation_effective_concurrency
+                                    ),
+                                },
+                            )
+                        continue
+                    for future in completed_futures:
+                        generation_index = future_to_generation_index[future]
+                        try:
+                            compute_outcomes_by_index[generation_index] = future.result()
+                        except Exception as exc:
+                            compute_outcomes_by_index[generation_index] = {"_compute_exception": exc}
 
         for generation_index in sorted(generation_work_items_by_index):
             runtime = generation_runtime_by_index[generation_index]
@@ -4752,9 +4729,9 @@ def run_pipeline(
             repair_attempt = cast(dict[str, Any], runtime["repair_attempt"])
             structured_cv_final = cast(dict[str, Any] | None, runtime["structured_cv_final"])
             markdown_final = cast(str | None, runtime["markdown_final"])
-            job_runtime_provenance = cast(dict[str, Any] | None, runtime["job_runtime_provenance"])
+            job_llm_runtime_observations = cast(list[dict[str, Any]], runtime["job_llm_runtime_observations"])
             job_cv_generation_model_value = cast(str | None, runtime["job_cv_generation_model_value"])
-            job_agentic_live_trace = cast(dict[str, Any] | None, runtime["job_agentic_live_trace"])
+            job_cv_generation_trace = cast(dict[str, Any] | None, runtime["job_cv_generation_trace"])
             generation_attempt_count = int(runtime["generation_attempt_count"])
             reuse_fingerprint = str(cv_generation_fingerprint_by_index.get(generation_index) or "").strip()
             try:
@@ -4799,9 +4776,9 @@ def run_pipeline(
                 repair_attempt = cast(dict[str, Any], canonical_outcome["repair_attempt"])
                 structured_cv_final = cast(dict[str, Any] | None, canonical_outcome["structured_cv_final"])
                 markdown_final = cast(str | None, canonical_outcome["markdown_final"])
-                job_runtime_provenance = cast(dict[str, Any] | None, canonical_outcome["job_runtime_provenance"])
+                job_llm_runtime_observations = cast(list[dict[str, Any]], canonical_outcome["job_llm_runtime_observations"])
                 job_cv_generation_model_value = cast(str | None, canonical_outcome["job_cv_generation_model_value"])
-                job_agentic_live_trace = cast(dict[str, Any] | None, canonical_outcome["job_agentic_live_trace"])
+                job_cv_generation_trace = cast(dict[str, Any] | None, canonical_outcome["job_cv_generation_trace"])
                 generation_attempt_count = int(canonical_outcome["generation_attempt_count"])
                 structured_cv = cast(dict[str, Any] | None, canonical_outcome["structured_cv"])
                 cv = str(canonical_outcome["cv"] or "")
@@ -4817,9 +4794,9 @@ def run_pipeline(
                 generation_state["repair_attempt"] = repair_attempt
                 generation_state["structured_cv_final"] = structured_cv_final
                 generation_state["markdown_final"] = markdown_final
-                generation_state["job_runtime_provenance"] = job_runtime_provenance
+                generation_state["job_llm_runtime_observations"] = job_llm_runtime_observations
                 generation_state["job_cv_generation_model_value"] = job_cv_generation_model_value
-                generation_state["job_agentic_live_trace"] = job_agentic_live_trace
+                generation_state["job_cv_generation_trace"] = job_cv_generation_trace
                 generation_state["generation_attempt_count"] = generation_attempt_count
 
                 should_continue, structured_cv_final, markdown_final = _execute_cv_generation_item(
@@ -4837,8 +4814,8 @@ def run_pipeline(
                     structured_cv_final=structured_cv_final,
                     markdown_final=markdown_final,
                     job_cv_generation_model_value=job_cv_generation_model_value,
-                    job_runtime_provenance=job_runtime_provenance,
-                    job_agentic_live_trace=job_agentic_live_trace,
+                    job_llm_runtime_observations=job_llm_runtime_observations,
+                    job_cv_generation_trace=job_cv_generation_trace,
                     generation_attempt_count=generation_attempt_count,
                     validation_initial=validation_initial,
                     repair_attempt=repair_attempt,
@@ -4902,6 +4879,8 @@ def run_pipeline(
             ranking_inputs=ranking_inputs,
             ranked=ranked,
             cv_analysis_results=cv_analysis_results,
+            enrich_llm_runtime_observations=enrich_llm_runtime_observations,
+            ranking_llm_runtime_observations=ranking_llm_runtime_observations,
             final_top_n=final_top_n,
             cv_generation_debug_records=cv_generation_debug_records,
             profile=profile,
@@ -4911,31 +4890,19 @@ def run_pipeline(
             ai_scores=ai_scores,
             cv_analysis_results=cv_analysis_results,
         )
-        cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
-        cv_generation_reached = any(
-            str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
-            for record in cv_generation_debug_records
-        )
-        late_stage_mode_payload = _build_late_stage_mode_payload(
-            agentic_late_stage_enabled=agentic_late_stage_enabled,
-            stage_reached=cv_analysis_reached or cv_generation_reached,
-        )
         summary: dict[str, Any] = {
             "run_id": run_id,
             "total_jobs": len(raw_jobs),
             "passed_filter": len(passed_jobs),
             "ranked": len(ranked),
             "cvs_generated": len(results),
-            "late_stage_mode": late_stage_mode_payload,
             "cv_analysis_trace": _build_cv_analysis_trace_summary(
                 run_id=run_id,
                 cv_analysis_results=cv_analysis_results,
-                late_stage_mode=late_stage_mode_payload,
             ),
-            "agentic_live_trace": _build_agentic_live_trace_summary(
+            "cv_generation_trace": _build_cv_generation_trace_summary(
                 run_id=run_id,
                 cv_generation_debug_records=cv_generation_debug_records,
-                late_stage_mode=late_stage_mode_payload,
             ),
             "late_stage_reuse_snapshots": late_stage_reuse_snapshots,
             "cv_generation_debug_records": cv_generation_debug_records,

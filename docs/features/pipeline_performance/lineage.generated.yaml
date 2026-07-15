@@ -53,6 +53,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -80,6 +81,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -137,6 +139,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -164,6 +167,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -209,6 +213,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -236,6 +241,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -295,6 +301,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -322,6 +329,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -379,6 +387,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -406,6 +415,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -463,6 +473,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -490,6 +501,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -541,6 +553,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -568,6 +581,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -625,6 +639,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -652,6 +667,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -661,7 +677,7 @@ capabilities:
     completeness_status: incomplete
   pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs:
     state: active
-    statement: Fingerprint-based enrich-result reuse happens before LLM enrichment using normalized raw-job inputs
+    statement: Fingerprint-based enrich-result reuse happens before LLM enrichment and emits no new runtime evidence
     satisfies: []
     code: []
     tests:
@@ -703,6 +719,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -730,6 +747,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -781,6 +799,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -808,6 +827,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -853,6 +873,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -880,6 +901,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -939,6 +961,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -966,6 +989,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1011,6 +1035,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -1038,6 +1063,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -1085,6 +1111,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -1112,6 +1139,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -1159,6 +1187,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -1186,6 +1215,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -1239,6 +1269,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -1266,6 +1297,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1317,6 +1349,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -1344,6 +1377,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1401,6 +1435,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -1428,6 +1463,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1479,6 +1515,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -1506,6 +1543,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-28-14-14-shortlist-hybrid-retrieval-plan.md
     - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

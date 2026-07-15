@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from typing import Literal
 
 import httpx
+from fastapi import HTTPException
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from fitcv_cp import queue
 from fitcv_cp.runtime_contracts import normalize_orchestration_status
@@ -112,13 +114,16 @@ class OrchestrationAdapter:
         redis_url: str,
         run_id: str | None = None,
     ) -> RunSubmission:
-        run_id_value, queue_job_id = queue.enqueue_run_with_job_id(
-            jobs_path=jobs_path,
-            config_path=config_path,
-            triggered_by=triggered_by,
-            redis_url=redis_url,
-            run_id=run_id,
-        )
+        try:
+            run_id_value, queue_job_id = queue.enqueue_run_with_job_id(
+                jobs_path=jobs_path,
+                config_path=config_path,
+                triggered_by=triggered_by,
+                redis_url=redis_url,
+                run_id=run_id,
+            )
+        except RedisConnectionError as exc:
+            raise HTTPException(status_code=503, detail="Queue backend unavailable") from exc
         return RunSubmission(
             run_id=run_id_value,
             queue_job_id=queue_job_id,

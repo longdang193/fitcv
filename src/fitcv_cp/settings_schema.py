@@ -126,16 +126,6 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "config_path": ["pipeline", "evidence_top_k"],
     },
     {
-        "key": "cv.agentic_late_stage.enabled",
-        "type": "bool",
-        "default": False,
-        "label": "Agentic Late Stage Enabled",
-        "description": "Enable the bounded agentic late-stage analysis and generation path for future runs.",
-        "group": "agentic",
-        "config_path": ["cv", "agentic_late_stage", "enabled"],
-        "agentic_section": _AGENTIC_SECTION_CORE,
-    },
-    {
         "key": "synonym_management.propose_enabled",
         "type": "bool",
         "default": True,
@@ -905,7 +895,6 @@ def _derive_settings_sections() -> dict[str, list[str]]:
 def _derive_agentic_settings_sections() -> dict[str, list[str]]:
     return {
         "agentic-enablement": _ordered_key_projection([
-            "cv.agentic_late_stage.enabled",
             "cv_analysis.semantic_alignment.enabled",
             "synonym_management.propose_enabled",
             "synonym_management.apply_to_run_enabled",
@@ -1169,7 +1158,7 @@ _GROUP_TO_APPLIES_WHEN: dict[str, str] = {
     "run_lifecycle": "Used by control-plane timeout guard for queued/running/manual-wait runs.",
     "ranking": "Used during reranking, fit labeling, and gap classification.",
     "timing": "Used by enrich, ranking, cv_analysis, and cv_generation runtime throttling/concurrency controls.",
-    "agentic": "Used only when agentic late-stage path or synonym-management controls are active.",
+    "agentic": "Used by CV-analysis semantic alignment and synonym-management controls.",
     "cv_composition": "Used when CV generation decides section visibility and output composition intent.",
     "cv_validation": "Used by post-generation CV validation checks.",
     "cv_preset": "Used when resolving CV preset/model defaults for generation.",
@@ -1195,7 +1184,7 @@ def _seed_schema_entry_metadata(entry: dict[str, Any]) -> None:
         entry.setdefault("stage", _WORKFLOW_STAGE_CV_ANALYSIS)
         entry.setdefault("control_surface", _CONTROL_SURFACE_STANDARD_PIPELINE)
         return
-    if key == "cv.agentic_late_stage.enabled" or key.startswith("cv_analysis.semantic_alignment."):
+    if key.startswith("cv_analysis.semantic_alignment."):
         entry.setdefault("stage", _WORKFLOW_STAGE_CV_ANALYSIS)
         entry.setdefault("control_surface", _CONTROL_SURFACE_AGENTIC_RUNTIME)
 
@@ -1320,7 +1309,6 @@ def _default_decision_area(entry: dict[str, Any]) -> str:
         if key.startswith("synonym_management.auto_") or key.endswith("_recommendation_enabled"):
             return _DECISION_AREA_AUTOMATION
         if key in {
-            "cv.agentic_late_stage.enabled",
             "synonym_management.propose_enabled",
             "synonym_management.apply_to_run_enabled",
             "synonym_management.promote_global_enabled",

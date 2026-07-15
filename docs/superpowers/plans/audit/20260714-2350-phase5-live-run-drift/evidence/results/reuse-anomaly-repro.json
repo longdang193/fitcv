@@ -1,0 +1,29 @@
+{
+  "status": "breached",
+  "min_overlap": 5,
+  "reuse_rate_floor": 0.05,
+  "stages": [
+    {
+      "stage_id": "enrich",
+      "total": 13,
+      "reused": 0,
+      "fresh": 13,
+      "reuse_rate": 0.0,
+      "reason_histogram": {
+        "exact_fingerprint_match": 0,
+        "no_reusable_snapshot_match": 13
+      }
+    },
+    {
+      "stage_id": "ranking",
+      "total": 5,
+      "reused": 0,
+      "fresh": 5,
+      "reuse_rate": 0.0,
+      "reason_histogram": {
+        "exact_fingerprint_match": 0,
+        "no_reusable_snapshot_match": 5
+      }
+    }
+  ]
+}

@@ -2,7 +2,7 @@ feature_id: pipeline_performance
 name: Pipeline Performance
 status: active
 type: modify
-summary: Reduced API costs by filtering jobs before enrichment, using reliable structured output parsing, centralizing enrich prompt management, reusing unchanged enrich results via fingerprints, reusing unchanged shortlist embeddings via a structured signature plus embedding contract, extending bounded semantic lift to the most important `cv_analysis` fit channels, short-circuiting reranker `skip` jobs before expensive `cv_analysis` work, and trimming dead-weight operator-facing payloads, especially by tightening the `results.json` ledger boundary and row-scaled timeline noise.
+summary: Reduced API costs by filtering before enrichment, reusing unchanged enrich and ranking results before LLM invocation, reusing shortlist embeddings by contract fingerprint, short-circuiting reranker `skip` jobs before `cv_analysis`, emitting runtime evidence only for actual calls, and trimming dead-weight operator payloads.
 invariants: []
 domains:
   - api_optimization
@@ -34,7 +34,7 @@ capabilities:
     statement: Enrich-stage mapping suggestion capture for review/debug surfaces
     state: active
   - capability_id: pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
-    statement: Fingerprint-based enrich-result reuse happens before LLM enrichment using normalized raw-job inputs
+    statement: Fingerprint-based enrich-result reuse happens before LLM enrichment and emits no new runtime evidence
     state: active
   - capability_id: pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes
     statement: Enrich-contract fingerprinting invalidates reuse automatically when prompt/model/schema behavior changes

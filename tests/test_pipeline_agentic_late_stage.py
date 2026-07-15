@@ -15,6 +15,7 @@ tags:
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from fitcv.pipeline import run_pipeline
@@ -143,6 +144,80 @@ def _minimal_structured_cv() -> dict:
         },
     }
 
+def _minimal_runtime_evidence(
+    *,
+    adapter: str = "langgraph",
+    runtime_path: str = "fitcv_llm_langgraph",
+    provider: str = "openai",
+    model: str = "cx/gpt-5.5",
+    response_id: str = "resp-1",
+) -> dict:
+    return {
+        "contract_version": "llm_runtime_evidence_v1",
+        "status": "succeeded",
+        "provenance": {
+            "adapter": adapter,
+            "runtime_path": runtime_path,
+            "provider": provider,
+            "model": model,
+            "routing_part": "cv_generation_structured_write",
+            "wire_api": "responses",
+            "response_id": response_id,
+            "attempt_count": 1,
+        },
+        "failure": None,
+    }
+
+
+def _minimal_runtime_observation(*, invocation_index: int = 1, **evidence_kwargs: str) -> dict:
+    return {
+        "contract_version": "llm_runtime_observation_v1",
+        "scope_key": "https://example.com/1",
+        "input_index": 0,
+        "invocation_index": invocation_index,
+        "evidence": _minimal_runtime_evidence(**evidence_kwargs),
+    }
+
+
+def _minimal_cv_generation_trace() -> dict:
+    return {
+        "trace_schema_version": "stage_execution_trace_record_v1",
+        "trace_family": "stage_execution_trace",
+        "step_id": "cv_generation",
+        "trace_status": "completed",
+        "trace_metadata": {
+            "prompt_contract": "fitcv_structured_generation_prompt",
+            "template_path": "src/fitcv/prompts/templates/europass.md",
+            "response_schema_name": "fitcv_structured_cv_document",
+        },
+        "attempts": [
+            {
+                "attempt_index": 1,
+                "provider_status": "accepted",
+                "attempt_type": "initial_generation",
+                "input_character_count": 512,
+                "input_item_count": 1,
+            }
+        ],
+        "input_summary": {"attempt_count": 1, "input_item_count": 1},
+        "output_summary": {"accepted_output_present": True, "final_status": "accepted"},
+        "validation_summary": {
+            "initial_valid": True,
+            "final_valid": True,
+            "initial_missing_fields": [],
+            "final_missing_fields": [],
+            "violation_count": 0,
+            "warning_count": 0,
+        },
+        "repair_summary": {
+            "repair_attempted": False,
+            "repair_attempt_count": 0,
+            "repair_targets": [],
+        },
+        "error_summary": None,
+    }
+
+
 def test_shallow_section_repair_targets_flags_context_only_projects() -> None:
     structured_cv = _minimal_structured_cv()
     structured_cv["sections"]["projects"] = [
@@ -255,7 +330,7 @@ def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
     mock_build_ranking_features.return_value = [ranked_job]
     mock_rank_jobs.return_value = [ranked_job]
 
-    with patch.dict("os.environ", {"FITCV_ENRICH_HEARTBEAT_EVENTS": "1"}, clear=False):
+    with patch.dict("os.environ", {"FITCV_ENRICH_HEARTBEAT_EVENTS": ""}, clear=False):
         run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
@@ -266,13 +341,16 @@ def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
 
     enrich_heartbeat_event = next(event for event in reporter.events if event[0] == "enrich_heartbeat")
     assert enrich_heartbeat_event[3] is not None
-    assert enrich_heartbeat_event[3]["enrich_concurrency_effective"] == 2
+    assert enrich_heartbeat_event[3]["configured_concurrency"] == 2
+    assert enrich_heartbeat_event[3]["enrich_concurrency_effective"] == 1
     ai_score_event = next(event for event in reporter.events if event[0] == "layer3_ai_score")
     assert ai_score_event[3] is not None
-    assert ai_score_event[3]["output_snapshot"]["ranking_concurrency_effective"] == 3
+    assert ai_score_event[3]["output_snapshot"]["configured_concurrency"] == 3
+    assert ai_score_event[3]["output_snapshot"]["ranking_concurrency_effective"] == 1
     ranking_event = next(event for event in reporter.events if event[0] == "layer3_ranking")
     assert ranking_event[3] is not None
-    assert ranking_event[3]["output_snapshot"]["ranking_concurrency_effective"] == 3
+    assert ranking_event[3]["output_snapshot"]["configured_concurrency"] == 3
+    assert ranking_event[3]["output_snapshot"]["ranking_concurrency_effective"] == 1
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.agentic_cv_generation.run_all_validations")
@@ -378,8 +456,8 @@ def test_run_pipeline_uses_agentic_late_stage_path_under_hard_flip(
             "repair_attempt": {"performed": False, "missing_sections": []},
             "structured_cv_final": _minimal_structured_cv(),
             "markdown_final": "# Test Candidate\n## Summary\nGrounded summary",
-            "runtime_provenance": {"provider": "openai_compatible", "model": "cx/gpt-5.2"},
-            "agentic_live_trace": {},
+            "llm_runtime_observations": [_minimal_runtime_observation(model="cx/gpt-5.2")],
+            "cv_generation_trace": _minimal_cv_generation_trace(),
             "error": None,
         },
     ) as mock_agentic_generation:
@@ -389,8 +467,10 @@ def test_run_pipeline_uses_agentic_late_stage_path_under_hard_flip(
     mock_agentic_generation.assert_called_once()
     mock_generate_cv.assert_not_called()
     stage_artifacts = result["stage_transition_artifacts"]["stages"]
-    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["late_stage_mode"] == "agentic"
-    assert stage_artifacts["cv_generation"]["late_stage_mode"]["late_stage_mode"] == "agentic"
+    assert "late_stage_mode" not in stage_artifacts["cv_analysis"]
+    assert "late_stage_mode" not in stage_artifacts["cv_generation"]
+    assert stage_artifacts["cv_analysis"]["llm_runtime_summary"]["calls_total"] == 0
+    assert stage_artifacts["cv_generation"]["llm_runtime_summary"]["calls_total"] == 1
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -449,6 +529,16 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     config = _minimal_config()
     config["cv"]["agentic_late_stage"]["enabled"] = True
     reporter = _Reporter()
+    from concurrent.futures import wait as real_wait
+
+    wait_call_count = 0
+
+    def _wait_with_initial_timeout(futures: Any, *, timeout: float, return_when: Any) -> Any:
+        nonlocal wait_call_count
+        wait_call_count += 1
+        if wait_call_count == 1:
+            return set(), set(futures)
+        return real_wait(futures, timeout=timeout, return_when=return_when)
 
     mock_config.return_value = config
     mock_parse.return_value = [job]
@@ -512,55 +602,8 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
         "structured_cv_final": {"sections": {"header": {"name": "Test Candidate"}}},
         "markdown_final": "# Test Candidate\n## Summary\nGrounded summary",
         "error": None,
-        "runtime_provenance": {
-            "runtime_path": "fitcv_langgraph_live",
-            "provider": "openai",
-            "model": "cx/gpt-5.5",
-        },
-        "agentic_live_trace": {
-            "trace_family": "agentic_step_trace",
-            "step_id": "cv_generation",
-            "trace_status": "completed",
-            "runtime_provenance": {
-                "runtime_path": "fitcv_langgraph_live",
-                "provider": "openai",
-                "model": "cx/gpt-5.5",
-                "prompt_contract": "fitcv_structured_generation_prompt",
-                "template_path": "src/fitcv/prompts/templates/europass.md",
-                "response_schema_name": "fitcv_structured_cv_document",
-            },
-            "attempts": [
-                {
-                    "attempt_index": 1,
-                    "provider_status": "accepted",
-                    "attempt_type": "initial_generation",
-                    "input_character_count": 512,
-                    "input_item_count": 1,
-                }
-            ],
-            "input_summary": {
-                "attempt_count": 1,
-                "input_item_count": 1,
-            },
-            "output_summary": {
-                "accepted_output_present": True,
-                "final_status": "accepted",
-            },
-            "validation_summary": {
-                "initial_valid": True,
-                "final_valid": True,
-                "initial_missing_fields": [],
-                "final_missing_fields": [],
-                "violation_count": 0,
-                "warning_count": 0,
-            },
-            "repair_summary": {
-                "repair_attempted": False,
-                "repair_attempt_count": 0,
-                "repair_targets": [],
-            },
-            "error_summary": None,
-        },
+        "llm_runtime_observations": [_minimal_runtime_observation()],
+        "cv_generation_trace": _minimal_cv_generation_trace(),
     }
 
     with patch(
@@ -571,7 +614,10 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
         "fitcv.pipeline.run_agentic_cv_generation",
         create=True,
         return_value=agentic_generation_result,
-    ) as mock_agentic_generation:
+    ) as mock_agentic_generation, patch(
+        "fitcv.pipeline.wait",
+        side_effect=_wait_with_initial_timeout,
+    ):
         result = run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
@@ -584,29 +630,40 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     mock_generate_cv.assert_not_called()
     assert result["cv_generation_debug_records"][0]["status"] == "accepted"
     assert result["cv_generation_debug_records"][0]["cv_generation_model"] == "cx/gpt-5.5"
-    assert result["cv_generation_debug_records"][0]["runtime_provenance"]["provider"] == "openai"
-    assert result["cv_generation_debug_records"][0]["agentic_live_trace"]["trace_status"] == "completed"
+    observation = result["cv_generation_debug_records"][0]["llm_runtime_observations"][0]
+    assert observation["evidence"]["provenance"]["provider"] == "openai"
+    assert result["cv_generation_debug_records"][0]["cv_generation_trace"]["trace_status"] == "completed"
     assert result["cv_generation_debug_records"][0]["markdown_final"].startswith("# Test Candidate")
-    assert result["agentic_live_trace"]["trace_status"] == "completed"
-    assert result["agentic_live_trace"]["trace_family"] == "agentic_step_trace"
-    assert result["agentic_live_trace"]["step_id"] == "cv_generation"
-    assert result["agentic_live_trace"]["records"][0]["attempts"][0]["provider_status"] == "accepted"
+    assert result["cv_generation_trace"]["trace_status"] == "completed"
+    assert result["cv_generation_trace"]["trace_family"] == "stage_execution_trace"
+    assert result["cv_generation_trace"]["step_id"] == "cv_generation"
+    assert result["cv_generation_trace"]["records"][0]["attempts"][0]["provider_status"] == "accepted"
     stage_artifacts = result["stage_transition_artifacts"]["stages"]
-    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["late_stage_mode"] == "agentic"
-    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["agentic_late_stage_enabled"] is True
-    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["agentic_status"] == "completed"
-    assert stage_artifacts["cv_generation"]["late_stage_mode"]["late_stage_mode"] == "agentic"
+    assert "late_stage_mode" not in stage_artifacts["cv_analysis"]
+    assert "late_stage_mode" not in stage_artifacts["cv_generation"]
+    assert stage_artifacts["cv_analysis"]["llm_runtime_summary"]["calls_total"] == 0
+    assert stage_artifacts["cv_generation"]["llm_runtime_summary"]["calls_total"] == 1
     assert stage_artifacts["cv_generation"]["decision_summary"]["cv_generation_model"] == "cx/gpt-5.5"
     assert stage_artifacts["cv_generation"]["decision_summary"]["cv_generation_provider"] == "openai"
+    cv_generation_heartbeat_event = next(
+        event for event in reporter.events if event[0] == "cv_generation_heartbeat"
+    )
+    assert cv_generation_heartbeat_event[3] is not None
+    assert cv_generation_heartbeat_event[3]["pending_items"] == 1
+    assert cv_generation_heartbeat_event[3]["cv_generation_concurrency_effective"] == 1
     cv_generation_started_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_started")
     assert cv_generation_started_event[3]["output_snapshot"]["configured_concurrency"] >= 1
     assert cv_generation_started_event[3]["output_snapshot"]["cv_generation_concurrency_effective"] >= 1
     assert "started_at" in cv_generation_started_event[3]["output_snapshot"]
     assert "worker_slot" in cv_generation_started_event[3]["output_snapshot"]
     cv_analysis_invoked_event = next(event for event in reporter.events if event[0] == "layer4_cv_analysis_invoked")
+    assert cv_analysis_invoked_event[3]["output_snapshot"]["ranked_jobs"] == 1
+    assert cv_analysis_invoked_event[3]["output_snapshot"]["configured_concurrency"] == 1
     assert cv_analysis_invoked_event[3]["output_snapshot"]["cv_analysis_concurrency_effective"] == 1
     cv_generation_invoked_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_invoked")
     assert cv_generation_invoked_event[3]["provenance"]["cv_generation_model"] == "cx/gpt-5.5"
+    assert cv_generation_invoked_event[3]["output_snapshot"]["configured_concurrency"] == 1
+    assert cv_generation_invoked_event[3]["output_snapshot"]["cv_generation_concurrency_effective"] == 1
     cv_generation_result_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_result")
     assert cv_generation_result_event[3]["output_snapshot"]["cv_generation_concurrency_effective"] >= 1
     assert "started_at" in cv_generation_result_event[3]["output_snapshot"]
@@ -710,8 +767,8 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
         "structured_cv_final": {"sections": {"header": {"name": "Test Candidate"}}},
         "markdown_final": "# Test Candidate\n## Summary\nGrounded summary",
         "error": None,
-        "runtime_provenance": {"runtime_path": "fitcv_langgraph_live", "provider": "openai", "model": "cx/gpt-5.2"},
-        "agentic_live_trace": {"trace_family": "agentic_step_trace", "step_id": "cv_generation", "trace_status": "completed"},
+        "llm_runtime_observations": [_minimal_runtime_observation(model="cx/gpt-5.2")],
+        "cv_generation_trace": _minimal_cv_generation_trace(),
     }
 
     with patch("fitcv.pipeline.analyze_ranked_job", create=True, return_value=agentic_analysis_result), patch(
@@ -836,8 +893,8 @@ def test_run_pipeline_marks_review_required_from_markdown_quality_flags(
         "structured_cv_final": {"sections": {"header": {"name": "Test Candidate"}}},
         "markdown_final": "# Test Candidate\n## Summary\nGrounded summary",
         "error": None,
-        "runtime_provenance": {"runtime_path": "fitcv_langgraph_live", "provider": "openai", "model": "cx/gpt-5.2"},
-        "agentic_live_trace": {"trace_family": "agentic_step_trace", "step_id": "cv_generation", "trace_status": "completed"},
+        "llm_runtime_observations": [_minimal_runtime_observation(model="cx/gpt-5.2")],
+        "cv_generation_trace": _minimal_cv_generation_trace(),
     }
 
     with patch("fitcv.pipeline.analyze_ranked_job", create=True, return_value=agentic_analysis_result), patch(
@@ -884,6 +941,7 @@ def test_generate_from_analysis_uses_fitcv_langgraph_live_provider_when_env_pres
     fake_generated_cv = {
         "structured_cv": _minimal_structured_cv(),
         "markdown": "# Test Candidate\n## Summary\nGrounded summary\n## Skills\nSQL, Python\n## Experience\n- Built grounded reporting workflows.",
+        "llm_runtime_evidence": _minimal_runtime_evidence(model="cx/gpt-5.4"),
     }
 
     with patch(
@@ -907,13 +965,16 @@ def test_generate_from_analysis_uses_fitcv_langgraph_live_provider_when_env_pres
     mock_generate_cv.assert_not_called()
     assert result["status"] == "review_required"
     assert result["review_required_reason_code"] == "unsupported_requirement_gap"
-    assert result["runtime_provenance"]["runtime_path"] == "fitcv_langgraph_live"
-    assert result["agentic_live_trace"]["trace_status"] == "completed"
-    assert result["agentic_live_trace"]["trace_family"] == "agentic_step_trace"
-    assert result["agentic_live_trace"]["step_id"] == "cv_generation"
-    assert result["agentic_live_trace"]["runtime_provenance"]["response_schema_name"] == "fitcv_structured_cv_document"
-    assert result["agentic_live_trace"]["attempts"][0]["provider_status"] == "accepted"
-    assert result["agentic_live_trace"]["validation_summary"]["final_valid"] is True
+    observations = result["llm_runtime_observations"]
+    assert len(observations) == 1
+    assert observations[0]["evidence"]["provenance"]["adapter"] == "langgraph"
+    assert observations[0]["evidence"]["provenance"]["runtime_path"] == "fitcv_llm_langgraph"
+    assert result["cv_generation_trace"]["trace_status"] == "completed"
+    assert result["cv_generation_trace"]["trace_family"] == "stage_execution_trace"
+    assert result["cv_generation_trace"]["step_id"] == "cv_generation"
+    assert result["cv_generation_trace"]["trace_metadata"]["response_schema_name"] == "fitcv_structured_cv_document"
+    assert result["cv_generation_trace"]["attempts"][0]["provider_status"] == "accepted"
+    assert result["cv_generation_trace"]["validation_summary"]["final_valid"] is True
 
 
 @patch("fitcv.agentic_cv_generation.generate_cv")
@@ -941,15 +1002,15 @@ def test_generate_from_analysis_does_not_silently_fallback_when_live_runtime_ret
     mock_live_generation.assert_called_once()
     mock_generate_cv.assert_not_called()
     assert result["status"] == "generation_failed"
-    assert result["runtime_provenance"]["runtime_path"] == "fitcv_langgraph_live"
+    assert "llm_runtime_observations" not in result
     assert result["error"]["stage"] == "agentic_live_provider"
-    assert result["agentic_live_trace"]["trace_status"] == "degraded"
-    assert result["agentic_live_trace"]["attempts"][0]["provider_status"] == "error"
-    assert result["agentic_live_trace"]["attempts"][0]["error_stage"] == "agentic_live_provider"
-    assert result["agentic_live_trace"]["error_summary"]["error_stage"] == "agentic_live_provider"
+    assert result["cv_generation_trace"]["trace_status"] == "degraded"
+    assert result["cv_generation_trace"]["attempts"][0]["provider_status"] == "error"
+    assert result["cv_generation_trace"]["attempts"][0]["error_stage"] == "agentic_live_provider"
+    assert result["cv_generation_trace"]["error_summary"]["error_stage"] == "agentic_live_provider"
 
 @patch("fitcv.agentic_cv_generation.generate_cv")
-def test_generate_from_analysis_fallback_path_has_no_live_trace(
+def test_generate_from_analysis_direct_path_has_canonical_trace(
     mock_generate_cv: MagicMock,
 ) -> None:
     analysis_record = _minimal_analysis_record()
@@ -960,6 +1021,12 @@ def test_generate_from_analysis_fallback_path_has_no_live_trace(
     mock_generate_cv.return_value = {
         "structured_cv": _minimal_structured_cv(),
         "markdown": "# Test Candidate\n## Summary\nGrounded summary",
+        "llm_runtime_evidence": _minimal_runtime_evidence(
+            adapter="direct",
+            runtime_path="fitcv_llm_direct",
+            provider="openai_compatible",
+            model="cx/gpt-5.4-mini",
+        ),
     }
 
     with patch(
@@ -969,8 +1036,22 @@ def test_generate_from_analysis_fallback_path_has_no_live_trace(
         result = generate_from_analysis(analysis_record, profile, config)
 
     assert result["status"] in {"accepted", "validation_failed"}
-    assert result["runtime_provenance"]["runtime_path"] == "fitcv_cv_generation_openai_compatible"
-    assert "agentic_live_trace" not in result
+    observation = result["llm_runtime_observations"][0]
+    assert observation["evidence"]["provenance"]["adapter"] == "direct"
+    assert observation["evidence"]["provenance"]["runtime_path"] == "fitcv_llm_direct"
+    trace = result["cv_generation_trace"]
+    assert trace["trace_status"] == "completed"
+    assert trace["trace_family"] == "stage_execution_trace"
+    assert trace["step_id"] == "cv_generation"
+    assert trace["input_summary"]["attempt_count"] == len(trace["attempts"])
+    assert trace["attempts"]
+    assert all(attempt["provider_status"] == "accepted" for attempt in trace["attempts"])
+    assert all(attempt["accepted_output_present"] is True for attempt in trace["attempts"])
+    assert all(
+        attempt["llm_runtime_evidence"]["provenance"]["adapter"] == "direct"
+        for attempt in trace["attempts"]
+    )
+    assert trace["validation_summary"]["final_valid"] is (result["status"] == "accepted")
 
 
 
@@ -984,7 +1065,6 @@ def test_cv_generation_fingerprint_ignores_mode_labels_and_mutable_job_url() -> 
     analysis_record["job_url"] = "https://example.com/moved"
     analysis_record["job_snapshot"]["job_url"] = "https://example.com/moved"
     config["cv"]["agentic_late_stage"]["enabled"] = True
-    config["late_stage_mode"] = "agentic"
     toggled = build_cv_generation_input_fingerprint(analysis_record, config)
 
     assert toggled == baseline
@@ -1003,6 +1083,12 @@ def test_generate_from_analysis_returns_complete_canonical_result(
     mock_generate_cv.return_value = {
         "structured_cv": _minimal_structured_cv(),
         "markdown": "# Test Candidate\n## Experience\nBuilt grounded reporting workflows.\n## Skills\nSQL",
+        "llm_runtime_evidence": _minimal_runtime_evidence(
+            adapter="direct",
+            runtime_path="fitcv_llm_direct",
+            provider="openai_compatible",
+            model="cx/gpt-5.4-mini",
+        ),
     }
     mock_run_all_validations.return_value = {
         "valid": True,
@@ -1029,9 +1115,11 @@ def test_generate_from_analysis_returns_complete_canonical_result(
     assert result["reuse_decision"]["decision"] == "fresh_compute"
     assert result["review_required_reason_code"] is None
     assert result["validation_evidence_fingerprint"]
-    assert result["runtime_provenance"]["route_part"] == "cv_generation"
-    assert result["runtime_provenance"]["adapter"] == "direct"
-    assert result["runtime_provenance"]["wire_api"]
+    observation = result["llm_runtime_observations"][0]
+    provenance = observation["evidence"]["provenance"]
+    assert provenance["routing_part"] == "cv_generation_structured_write"
+    assert provenance["adapter"] == "direct"
+    assert provenance["wire_api"]
 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
@@ -1197,6 +1285,7 @@ def test_generate_from_analysis_live_provider_uses_template_rendering_and_full_v
     fake_generated_cv = {
         "structured_cv": _minimal_structured_cv(),
         "markdown": "",
+        "llm_runtime_evidence": _minimal_runtime_evidence(model="cx/gpt-5.4"),
     }
 
     with patch(
@@ -1213,10 +1302,10 @@ def test_generate_from_analysis_live_provider_uses_template_rendering_and_full_v
         result = generate_from_analysis(analysis_record, profile, config)
 
     assert result["status"] == "validation_failed"
-    assert result["runtime_provenance"]["runtime_path"] == "fitcv_langgraph_live"
+    assert result["llm_runtime_observations"][0]["evidence"]["provenance"]["adapter"] == "langgraph"
     assert set(result["validation"]["missing_sections"]) >= {"Experience", "Projects"}
-    assert result["agentic_live_trace"]["trace_status"] == "completed"
-    assert set(result["agentic_live_trace"]["validation_summary"]["final_missing_fields"]) >= {"Experience", "Projects"}
+    assert result["cv_generation_trace"]["trace_status"] == "completed"
+    assert set(result["cv_generation_trace"]["validation_summary"]["final_missing_fields"]) >= {"Experience", "Projects"}
 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
@@ -1255,6 +1344,7 @@ def test_generate_from_analysis_live_provider_records_retry_trace(
     fake_generated_cv = {
         "structured_cv": _minimal_structured_cv(),
         "markdown": "# Test Candidate\n## Experience\n- Built grounded reporting workflows.",
+        "llm_runtime_evidence": _minimal_runtime_evidence(model="cx/gpt-5.4"),
     }
 
     with patch(
@@ -1275,11 +1365,12 @@ def test_generate_from_analysis_live_provider_records_retry_trace(
     mock_live_generation.assert_called()
     mock_generate_cv.assert_not_called()
     assert result["status"] == "accepted"
-    assert result["agentic_live_trace"]["repair_summary"]["repair_attempted"] is True
-    assert result["agentic_live_trace"]["repair_summary"]["repair_attempt_count"] == 1
-    assert result["agentic_live_trace"]["repair_summary"]["repair_targets"] == ["Projects"]
-    assert result["agentic_live_trace"]["attempts"][1]["attempt_index"] == 2
-    assert result["agentic_live_trace"]["attempts"][1]["retry_reason"] == "missing_or_shallow_sections"
+    assert result["cv_generation_trace"]["repair_summary"]["repair_attempted"] is True
+    assert result["cv_generation_trace"]["repair_summary"]["repair_attempt_count"] == 1
+    assert result["cv_generation_trace"]["repair_summary"]["repair_targets"] == ["Projects"]
+    assert [item["invocation_index"] for item in result["llm_runtime_observations"]] == [1, 2]
+    assert result["cv_generation_trace"]["attempts"][1]["attempt_index"] == 2
+    assert result["cv_generation_trace"]["attempts"][1]["retry_reason"] == "missing_or_shallow_sections"
     mock_sleep.assert_called_once_with(0.2)
 
 

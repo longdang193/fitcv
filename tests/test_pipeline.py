@@ -49,6 +49,7 @@ from fitcv.pipeline import (
     _collect_mapping_suggestions,
     _enrich_jobs_with_reuse,
     _materialize_scoring_shortlist,
+    _reuse_anomaly_payload,
     _stage_block,
     PipelineCancelled,
     build_ranking_features,
@@ -56,6 +57,39 @@ from fitcv.pipeline import (
     run_pipeline,
 )
 from fitcv.rule_filter import DEFAULT_SELECTED_RULE_FILTERS
+
+
+def test_reuse_anomaly_ignores_fresh_run_without_reused_rows() -> None:
+    payload = _reuse_anomaly_payload(
+        reuse_metrics={
+            "enrich": {
+                "total_rows": 100,
+                "reused_rows": 0,
+                "fresh_rows": 100,
+                "reuse_rate": 0.0,
+            }
+        },
+        config={"reuse": {"anomaly_guard": {"min_overlap": 5, "reuse_rate_floor": 0.05}}},
+    )
+
+    assert payload is None
+
+
+def test_reuse_anomaly_keeps_low_nonzero_reuse_warning() -> None:
+    payload = _reuse_anomaly_payload(
+        reuse_metrics={
+            "enrich": {
+                "total_rows": 100,
+                "reused_rows": 1,
+                "fresh_rows": 99,
+                "reuse_rate": 0.01,
+            }
+        },
+        config={"reuse": {"anomaly_guard": {"min_overlap": 5, "reuse_rate_floor": 0.05}}},
+    )
+
+    assert payload is not None
+    assert payload["stages"][0]["reused"] == 1
 
 
 def _build_cv_generation_debug_record(
@@ -79,7 +113,7 @@ def _build_cv_generation_debug_record(
     error: dict[str, str] | None,
     validation_final: dict[str, Any] | None = None,
     runtime_provenance: dict[str, Any] | None = None,
-    agentic_live_trace: dict[str, Any] | None = None,
+    cv_generation_trace: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     ranking_fit_label = str(job.get("fit_label") or fit_classification or "").strip() or None
     cv_analysis_status = (
@@ -126,8 +160,8 @@ def _build_cv_generation_debug_record(
     )
     if runtime_provenance is not None:
         generation_result["runtime_provenance"] = runtime_provenance
-    if agentic_live_trace is not None:
-        generation_result["agentic_live_trace"] = agentic_live_trace
+    if cv_generation_trace is not None:
+        generation_result["cv_generation_trace"] = cv_generation_trace
     return _project_cv_generation_debug_record(
         generation_result=generation_result,
         enabled_sections=list(enabled_sections or []),
@@ -1065,12 +1099,42 @@ def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_pro
         cv_generation_debug_records=[cv_debug_record],
         profile=_minimal_profile(),
         config=config,
+        enrich_llm_runtime_observations=[
+            {
+                "contract_version": "llm_runtime_observation_v1",
+                "scope_key": "enrich-1",
+                "input_index": 0,
+                "invocation_index": 1,
+                "evidence": {
+                    "contract_version": "llm_runtime_evidence_v1",
+                    "status": "succeeded",
+                    "provenance": {"adapter": "default", "runtime_path": "direct"},
+                    "failure": None,
+                },
+            }
+        ],
+        ranking_llm_runtime_observations=[
+            {
+                "contract_version": "llm_runtime_observation_v1",
+                "scope_key": "ranking-1",
+                "input_index": 0,
+                "invocation_index": 1,
+                "evidence": {
+                    "contract_version": "llm_runtime_evidence_v1",
+                    "status": "succeeded",
+                    "provenance": {"adapter": "default", "runtime_path": "direct"},
+                    "failure": None,
+                },
+            }
+        ],
     )
 
     ranking_summary = artifacts["stages"]["ranking"]["decision_summary"]
     assert ranking_summary["ranking_prompt_id"] == "ranking.ai_score.v1"
     assert ranking_summary["ranking_prompt_template_path"] == "ranking_ai_score_v1.md"
     assert ranking_summary["ai_score_model"] == "cx/gpt-5.4-mini"
+    assert artifacts["stages"]["enrich"]["llm_runtime_summary"]["calls_total"] == 1
+    assert artifacts["stages"]["ranking"]["llm_runtime_summary"]["calls_total"] == 1
 
     cv_generation_summary = artifacts["stages"]["cv_generation"]["decision_summary"]
     assert cv_generation_summary["cv_prompt_id"] == "cv_generation.structured_write.v1"
@@ -1869,7 +1933,7 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
         "missing_sections": ["Experience"],
         "reason": "missing_or_shallow_sections",
     }
-    canonical_result["agentic_live_trace"] = {"attempts": [{"attempt_index": 1}, {"attempt_index": 2}]}
+    canonical_result["cv_generation_trace"] = {"attempts": [{"attempt_index": 1}, {"attempt_index": 2}]}
     with (
         patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=canonical_result) as mock_agentic_gen,
@@ -2129,6 +2193,16 @@ def test_cv_analysis_stage_concurrency_coerces_and_clamps() -> None:
     assert _cv_analysis_stage_concurrency({"stage_runtime": {"cv_analysis": {"concurrency": -2}}}) == 1
     assert _cv_analysis_stage_concurrency({"stage_runtime": {"cv_analysis": {"concurrency": "bad"}}}) == 1
 
+
+def test_effective_stage_concurrency_caps_to_work_items() -> None:
+    import fitcv.pipeline as pipeline
+
+    effective_stage_concurrency = getattr(pipeline, "_effective_stage_concurrency", None)
+    assert effective_stage_concurrency is not None
+    assert effective_stage_concurrency(4, 0) == 0
+    assert effective_stage_concurrency(4, 3) == 3
+    assert effective_stage_concurrency(4, 5) == 4
+
 def _canonical_reusable_cv_analysis_record(
     job: dict[str, Any],
     profile: dict[str, Any],
@@ -2298,7 +2372,29 @@ def _agentic_generation_result(
             "model": "cx/gpt-5.2",
             "wire_api": "chat_completions",
         },
-        "agentic_live_trace": {},
+        "llm_runtime_observations": [
+            {
+                "contract_version": "llm_runtime_observation_v1",
+                "scope_key": job_url,
+                "input_index": 0,
+                "invocation_index": 1,
+                "evidence": {
+                    "contract_version": "llm_runtime_evidence_v1",
+                    "status": "succeeded",
+                    "provenance": {
+                        "routing_part": "cv_generation_structured_write",
+                        "runtime_path": "fitcv_cv_generation_openai_compatible",
+                        "adapter": "direct",
+                        "provider": "openai_compatible",
+                        "model": "cx/gpt-5.2",
+                        "wire_api": "chat_completions",
+                        "attempt_count": 1,
+                    },
+                    "failure": None,
+                },
+            }
+        ],
+        "cv_generation_trace": {},
         "error": error,
     }
     result["validation_evidence_fingerprint"] = build_validation_evidence_fingerprint(
@@ -3481,7 +3577,7 @@ def test_run_pipeline_emits_cv_generation_item_retry_metadata_for_agentic_genera
         "structured_cv_final": None,
         "markdown_final": None,
         "runtime_provenance": {"provider": "gemini", "model": "gemini-test"},
-        "agentic_live_trace": {"attempts": [{"attempt_index": 1}, {"attempt_index": 2}]},
+        "cv_generation_trace": {"attempts": [{"attempt_index": 1}, {"attempt_index": 2}]},
         "error": {"stage": "generation", "message": "model timeout"},
     }
 
@@ -3588,7 +3684,7 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
         "structured_cv_final": None,
         "markdown_final": None,
         "runtime_provenance": {"provider": "gemini", "model": "gemini-test"},
-        "agentic_live_trace": {},
+        "cv_generation_trace": {},
         "error": {"stage": "generation", "message": "model timeout"},
     }
     accepted_result = {
@@ -3604,7 +3700,7 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
         "structured_cv_final": {"schema_version": "cv_doc_v1", "sections": {"header": {"name": "Test Candidate"}}},
         "markdown_final": "# Test Candidate\n\n## Summary\nGrounded summary.",
         "runtime_provenance": {"provider": "gemini", "model": "gemini-test"},
-        "agentic_live_trace": {"attempts": [{"attempt_index": 1}, {"attempt_index": 2}]},
+        "cv_generation_trace": {"attempts": [{"attempt_index": 1}, {"attempt_index": 2}]},
         "error": None,
     }
 
@@ -4301,7 +4397,34 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
     profile = _minimal_profile()
     config = _minimal_config()
     config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
-    config.setdefault("stage_runtime", {}).setdefault("cv_generation", {})["concurrency"] = 2
+    cv_generation_runtime = config.setdefault("stage_runtime", {}).setdefault("cv_generation", {})
+    cv_generation_runtime["concurrency"] = 4
+    cv_generation_runtime["sleep_secs"] = 0.25
+
+    class _Reporter:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, str, str, dict[str, Any] | None]] = []
+
+        def emit(
+            self,
+            stage: str,
+            level: str,
+            message: str,
+            payload: dict[str, Any] | None = None,
+        ) -> None:
+            self.events.append((stage, level, message, payload))
+
+    reporter = _Reporter()
+    from concurrent.futures import wait as real_wait
+
+    wait_call_count = 0
+
+    def _wait_with_initial_timeout(futures: Any, *, timeout: float, return_when: Any) -> Any:
+        nonlocal wait_call_count
+        wait_call_count += 1
+        if wait_call_count == 1:
+            return set(), set(futures)
+        return real_wait(futures, timeout=timeout, return_when=return_when)
 
     mock_config.return_value = config
     mock_parse.return_value = [job_a, job_b]
@@ -4349,9 +4472,23 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
             side_effect=_agentic_generation_side_effect,
         ),
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+        patch("fitcv.pipeline.wait", side_effect=_wait_with_initial_timeout, create=True),
+        patch("fitcv.pipeline.time.sleep") as mock_generation_sleep,
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="parallel-order")
+        result = run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+            run_id="parallel-order",
+            reporter=reporter,
+        )
 
+    heartbeat = next(event for event in reporter.events if event[0] == "cv_generation_heartbeat")
+    assert heartbeat[3] is not None
+    assert heartbeat[3]["completed_items"] == 0
+    assert heartbeat[3]["pending_items"] == 2
+    assert heartbeat[3]["configured_concurrency"] == 4
+    assert heartbeat[3]["cv_generation_concurrency_effective"] == 2
+    mock_generation_sleep.assert_any_call(0.25)
     debug_urls = [str(r.get("job_url") or "") for r in result["cv_generation_debug_records"]]
     assert debug_urls == [job_a["job_url"], job_b["job_url"]]
     assert result["export_results"][0]["cv"]["provider"] == "openai_compatible"
@@ -5185,7 +5322,13 @@ def test_enrich_jobs_with_reuse_preserves_order_and_separates_shared_upserts(
     assert enriched_rows[1]["raw_job_fingerprint"] == "raw-2"
     assert all(row["enrich_contract_fingerprint"] == "contract-1" for row in enriched_rows)
     assert [row["job_url"] for row in fresh_rows] == ["https://example.com/2"]
-    mock_enrich_batch.assert_called_once_with([jobs[1]], {"ai_score_model": "cx/gpt-5.4-mini"}, job_event_callback=None, on_chunk_complete=None)
+    mock_enrich_batch.assert_called_once_with(
+        [jobs[1]],
+        {"ai_score_model": "cx/gpt-5.4-mini"},
+        job_event_callback=None,
+        runtime_observation_callback=None,
+        on_chunk_complete=None,
+    )
 
 
 def test_collect_mapping_suggestions_deduplicates_per_run_by_alias_canonical_and_must_have_skill() -> None:
@@ -7325,10 +7468,24 @@ def test_run_pipeline_cv_analysis_concurrency_preserves_result_order(
         {**job_b, "fit_label": "strong", "fit_label_source": "reranker", "final_rank": 2},
     ]
 
-    with patch(
-        "fitcv.pipeline.analyze_ranked_job",
-        side_effect=[_agentic_analysis_ready(job_a), _agentic_analysis_ready(job_b)],
-    ):
+    import threading
+    import time
+
+    active_calls = 0
+    max_active_calls = 0
+    active_calls_lock = threading.Lock()
+
+    def _analyze_with_overlap(job: dict[str, Any], *_: Any, **__: Any) -> dict[str, Any]:
+        nonlocal active_calls, max_active_calls
+        with active_calls_lock:
+            active_calls += 1
+            max_active_calls = max(max_active_calls, active_calls)
+        time.sleep(0.05)
+        with active_calls_lock:
+            active_calls -= 1
+        return _agentic_analysis_ready(job)
+
+    with patch("fitcv.pipeline.analyze_ranked_job", side_effect=_analyze_with_overlap):
         result = run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
@@ -7340,6 +7497,7 @@ def test_run_pipeline_cv_analysis_concurrency_preserves_result_order(
         job_a["job_url"],
         job_b["job_url"],
     ]
+    assert max_active_calls == 2
 
 
 def test_normalize_late_stage_reuse_snapshots_skips_poisoned_runtime_exception_rows() -> None:
@@ -8435,7 +8593,7 @@ def test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage(
     )
 
     trace_payload = result["cv_analysis_trace"]
-    assert trace_payload["trace_family"] == "agentic_step_trace"
+    assert trace_payload["trace_family"] == "stage_execution_trace"
     assert trace_payload["step_id"] == "cv_analysis"
     assert trace_payload["trace_status"] == "completed"
     assert trace_payload["trace_summary"]["records_total"] == 1
@@ -8443,7 +8601,7 @@ def test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage(
     assert record["scope_type"] == "job"
     assert record["scope_key"] == "url:https://example.com/trace-analysis"
     assert record["status"] == "ready_for_generation"
-    assert record["runtime_provenance"]["runtime_path"] == "fitcv_agentic_cv_analysis_builtin"
+    assert "runtime_provenance" not in record
     assert record["attempts"][0]["attempt_type"] == "analysis"
     assert record["input_summary"]["analysis_input_fingerprint"]
     assert record["output_summary"]["selected_evidence_count"] == 1
@@ -9174,7 +9332,13 @@ def test_run_pipeline_incremental_enrich_persists_each_store_exactly_once(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
 
-    def enrich_side_effect(rows, config, job_event_callback=None, on_chunk_complete=None):
+    def enrich_side_effect(
+        rows,
+        config,
+        job_event_callback=None,
+        runtime_observation_callback=None,
+        on_chunk_complete=None,
+    ):
         enriched = [
             {
                 **row,
@@ -9194,3 +9358,36 @@ def test_run_pipeline_incremental_enrich_persists_each_store_exactly_once(
 
     assert mock_load_struct.call_count == 1
     assert mock_load_run_struct.call_count == 1
+
+
+def test_llm_runtime_summary_is_deterministic_and_stage_neutral() -> None:
+    from fitcv.pipeline_stage_artifacts import build_llm_runtime_summary
+
+    def observation(scope_key: str, input_index: int, status: str, code: str | None = None) -> dict[str, Any]:
+        return {
+            "contract_version": "llm_runtime_observation_v1",
+            "scope_key": scope_key,
+            "input_index": input_index,
+            "invocation_index": 1,
+            "evidence": {
+                "contract_version": "llm_runtime_evidence_v1",
+                "status": status,
+                "provenance": {"adapter": "fake", "runtime_path": "test"},
+                "failure": None if code is None else {"stage": "adapter", "code": code},
+            },
+        }
+
+    summary = build_llm_runtime_summary(
+        [observation("b", 1, "succeeded"), observation("a", 0, "failed", "adapter_timeout")],
+        sample_limit=1,
+    )
+
+    assert summary["contract_version"] == "llm_stage_runtime_summary_v1"
+    assert summary["calls_total"] == 2
+    assert summary["succeeded_total"] == 1
+    assert summary["failed_total"] == 1
+    assert summary["failure_counts_by_stage"] == {"adapter": 1}
+    assert summary["failure_counts_by_code"] == {"adapter_timeout": 1}
+    assert summary["adapters"] == ["fake"]
+    assert summary["runtime_paths"] == ["test"]
+    assert [item["scope_key"] for item in summary["evidence_sample"]] == ["a"]

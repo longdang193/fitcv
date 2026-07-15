@@ -93,6 +93,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -154,6 +155,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -245,6 +247,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -306,6 +309,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -315,7 +319,7 @@ capabilities:
     completeness_status: incomplete
   settings_system.operator-facing-agentic-settings:
     state: active
-    statement: Expose a bounded operator-facing registry for editable, metadata-only, and excluded agentic defaults.
+    statement: Expose bounded semantic-alignment, reuse, automation, and advanced controls while retired late-stage mode toggles remain excluded.
     satisfies: []
     code: []
     tests: []
@@ -391,6 +395,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -452,6 +457,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -545,6 +551,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -606,6 +613,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -697,6 +705,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -758,6 +767,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -849,6 +859,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -910,6 +921,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1001,6 +1013,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1062,6 +1075,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1153,6 +1167,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1214,6 +1229,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1305,6 +1321,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1366,6 +1383,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1469,6 +1487,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1530,6 +1549,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1627,6 +1647,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1688,6 +1709,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1785,6 +1807,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1846,6 +1869,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1937,6 +1961,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1998,6 +2023,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2089,6 +2115,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -2150,6 +2177,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2241,6 +2269,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -2302,6 +2331,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2399,6 +2429,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -2460,6 +2491,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2557,6 +2589,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -2618,6 +2651,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2715,6 +2749,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -2776,6 +2811,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2861,6 +2897,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -2922,6 +2959,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -3021,6 +3059,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -3082,6 +3121,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3179,6 +3219,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
     - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -3240,6 +3281,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

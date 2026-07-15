@@ -98,7 +98,7 @@ its source changes.
 - Modify: `tests/test_pipeline_stage_resume_parity.py`
 
 **Preconditions:**
-- Phase 1 spec has `status: active`
+- At Task 1 start, Phase 1 spec was active
 - current analyzer and pipeline tests pass before new assertions are added
 
 **Steps:**

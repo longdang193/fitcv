@@ -25,6 +25,8 @@ from fitcv.pipeline_contracts import (
     next_pipeline_stage,
 )
 
+from fitcv.pipeline_stage_context import PipelineState
+
 _FIXTURE_DIR = Path("tests/golden/pipeline_refactor")
 
 
@@ -75,3 +77,26 @@ def test_stage_dispatch_map_scaffold_matches_sequence() -> None:
     assert list(dispatch_map.keys()) == list(PIPELINE_STAGE_SEQUENCE)
     assert list(dispatch_map.values()) == list(PIPELINE_STAGE_SEQUENCE)
 
+
+
+def test_pipeline_state_round_trips_llm_runtime_observations() -> None:
+    observation = {
+        "contract_version": "llm_runtime_observation_v1",
+        "scope_key": "job-1",
+        "input_index": 0,
+        "invocation_index": 1,
+        "evidence": {"contract_version": "llm_runtime_evidence_v1", "status": "succeeded"},
+    }
+    state = PipelineState(
+        run_id="run-1",
+        enrich_llm_runtime_observations=[observation],
+        ranking_llm_runtime_observations=[observation],
+    )
+
+    restored = PipelineState.from_checkpoint_payload(
+        run_id="run-1",
+        checkpoint_payload=state.as_state_dict(),
+    )
+
+    assert restored.enrich_llm_runtime_observations == [observation]
+    assert restored.ranking_llm_runtime_observations == [observation]

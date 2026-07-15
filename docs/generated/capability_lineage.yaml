@@ -15,7 +15,7 @@ features:
     - admin_control_plane_core.pipelinereporter-integration
     - admin_control_plane_core.rq-background-worker-integration
   bounded_parallel_enrichment:
-    summary: Enrichment runs in bounded parallel batches with admin-controlled concurrency settings.
+    summary: Enrichment runs in bounded parallel batches with admin-controlled concurrency, deterministic row order, and ordered runtime observations emitted only for actual LLM calls.
     status: active
     type: add
     lineage_file: docs/features/bounded_parallel_enrichment/lineage.generated.yaml
@@ -28,7 +28,7 @@ features:
     - bounded_parallel_enrichment.per-job-failure-isolation
     - bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
   cv_system:
-    summary: Own the grounded CV-writing path from post-ranking evidence preparation through `cv_analysis` and `cv_generation`, including evidence selection, fit-gate resolution, structured CV generation, validation against selected evidence, and the stage-owned artifacts that explain final CV outcomes.
+    summary: Own the grounded CV-writing path from post-ranking analysis through one canonical CV-generation meaning owner, with LangGraph and direct runtimes behind the same adapter contract, canonical per-call evidence, and stage-neutral traces.
     status: active
     type: add
     lineage_file: docs/features/cv_system/lineage.generated.yaml
@@ -43,8 +43,7 @@ features:
     - cv_system.stage-artifact-diagnostics
     - cv_system.structured-cv-generation
   inspection_debugging:
-    summary: Admins can see what the pipeline did for a run, including shared stage progress for both `Run All` and `Stage by Stage`, paused staged checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, richer shortlist candidate-query components, explicit shortlist candidate-query reuse provenance, ranking contribution visibility and calibration surfaces, late-stage reuse diagnostics for `ranking` and `cv_analysis`, slimmer job-ledger exports, compact per-job `results.json` rows, stage-local artifacts, compact severity-based run health with explicit `Pending` vs `N/A`, stage-gated export availability, a job-ledger `results.json` split from bundled stage diagnostics, outcome-first artifact samples, stable normalize timeline ownership, aggregate-first timeline summaries, explicit separation between reranker-blocked rows and true analyzed-and-skipped `cv_analysis` outcomes, truthful reranker-blocked propagation into compact
-      `results.json` decision chains and `cv-debug` omission accounting, multi-channel evidence-selection provenance, lexical-vs-semantic alignment detail, inputs used, generated CVs, explicit decision detail, hybrid validation provenance from deterministic and soft-claim grounding checks, canonicalized settings-used exports, clearer `cv-debug` coverage accounting, and prompt-id-based provenance for both ranking and the active structured-only `cv_generation` path.
+    summary: Admins can inspect run, stage, and per-job truth through compact ledgers, stage-owned artifacts, canonical runtime evidence, stage-neutral CV traces, reuse diagnostics, prompt provenance, validation outcomes, and bounded compatibility reads for historical artifacts.
     status: active
     type: add
     lineage_file: docs/features/inspection_debugging/lineage.generated.yaml
@@ -80,7 +79,7 @@ features:
     - multi_file_job_input.one-immutable-snapshot-stored-per-run
     - multi_file_job_input.per-file-server-side-validation
   pipeline_performance:
-    summary: Reduced API costs by filtering jobs before enrichment, using reliable structured output parsing, centralizing enrich prompt management, reusing unchanged enrich results via fingerprints, reusing unchanged shortlist embeddings via a structured signature plus embedding contract, extending bounded semantic lift to the most important `cv_analysis` fit channels, short-circuiting reranker `skip` jobs before expensive `cv_analysis` work, and trimming dead-weight operator-facing payloads, especially by tightening the `results.json` ledger boundary and row-scaled timeline noise.
+    summary: Reduced API costs by filtering before enrichment, reusing unchanged enrich and ranking results before LLM invocation, reusing shortlist embeddings by contract fingerprint, short-circuiting reranker `skip` jobs before `cv_analysis`, emitting runtime evidence only for actual calls, and trimming dead-weight operator payloads.
     status: active
     type: modify
     lineage_file: docs/features/pipeline_performance/lineage.generated.yaml
@@ -122,7 +121,7 @@ features:
     - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
     - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
   settings_system:
-    summary: Admins can view and edit pipeline tuning defaults through a task-first settings UI with clearer current-vs-draft feedback, basic-versus-advanced disclosure, denser CV output controls, and metadata-only treatment for fixed single-option runtime fields, while baseline defaults still resolve from centralized YAML/config ownership, persisted overrides now live in SQLite, and operator-facing settings-used exports continue to present canonical settings instead of compatibility-era duplicate keys.
+    summary: Admins can edit task-first pipeline settings while provider routing stays centrally owned, retired late-stage mode toggles stay absent, persisted overrides live in SQLite, and settings-used exports remain canonical.
     status: active
     type: add
     lineage_file: docs/features/settings_system/lineage.generated.yaml

@@ -2,7 +2,7 @@ feature_id: cv_system
 name: CV System
 status: active
 type: add
-summary: Own the grounded CV-writing path from post-ranking evidence preparation through `cv_analysis` and `cv_generation`, including evidence selection, fit-gate resolution, structured CV generation, validation against selected evidence, and the stage-owned artifacts that explain final CV outcomes.
+summary: Own the grounded CV-writing path from post-ranking analysis through one canonical CV-generation meaning owner, with LangGraph and direct runtimes behind the same adapter contract, canonical per-call evidence, and stage-neutral traces.
 invariants: []
 domains:
   - cv_generation
@@ -36,7 +36,7 @@ capabilities:
       '
     state: active
   - capability_id: cv_system.stage-artifact-diagnostics
-    statement: 'Emit stage-owned diagnostics, quality metrics, and transition artifacts for `cv_analysis` and `cv_generation`.
+    statement: 'Emit stage-owned diagnostics, quality metrics, canonical runtime evidence, and stage-neutral traces for `cv_analysis` and `cv_generation`.
 
       '
     state: active
@@ -46,7 +46,7 @@ capabilities:
       '
     state: active
   - capability_id: cv_system.config-owned-generation-contract
-    statement: 'Keep prompt and runtime ownership for active CV generation under the structured-write contract and central config layers.
+    statement: 'Keep generation meaning under one structured-write contract while direct and LangGraph adapters share central runtime routing.
 
       '
     state: active
@@ -75,4 +75,3 @@ stage_participation:
       - cv_system.header-placeholder-repair
       - cv_system.stage-artifact-diagnostics
       - cv_system.structured-cv-generation
-

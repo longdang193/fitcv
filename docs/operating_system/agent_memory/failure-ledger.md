@@ -86,7 +86,7 @@ Use this file for repeated or important failures, not every small mistake.
 - Trigger / Context: Local queue-mode CV generation failed with `OpenAI-compatible CV generation routing requires API key in env.` even though repo `.env` contained `OPENAI_API_KEY`.
 - What went wrong: `fitcv_cp.main` loaded `.env` defaults in-process, but `fitcv_cp.worker_job` did not. Web path could see env-backed routing inputs while worker path depended on external launcher injection. Starting worker outside canonical PowerShell script, or before `.env` changed, split runtime truth.
 - Correct behavior: Web and worker entrypoints should share one Python-side dotenv default loader so runtime env behavior is symmetric regardless of launcher.
-- Prevention added or required: Keep shared loader in `src/fitcv_cp/env_defaults.py`; call it from control-plane web startup and worker execution entrypoints before routing/key validation.
+- Prevention added or required: Keep shared loader in `src/fitcv_cp/env_defaults.py`; call it from control-plane web startup and worker execution entrypoints before routing/key validation. On Windows, force inline execution when `REDIS_URL` is absent so a false-like dotenv value cannot select an unavailable queue backend.
 - Related artifacts:
   - `src/fitcv_cp/env_defaults.py`
   - `src/fitcv_cp/main.py`
@@ -118,3 +118,32 @@ Use this file for repeated or important failures, not every small mistake.
   - `docs/configuration.md`
   - `docs/stages/enrich.source.yaml`
   - `docs/stages/ranking.source.yaml`
+
+## Provider work can be healthy while stage timeline appears stalled
+
+- Title: Reporter callbacks are liveness contracts, not debug toggles
+- Date: 2026-07-15
+- Trigger / Context: A 13-job live run continued making provider calls while enrichment and CV generation emitted no periodic stage events.
+- What went wrong: Enrichment silently discarded an available heartbeat callback unless an env switch was enabled, and CV generation blocked on `as_completed` without timed progress emission.
+- Correct behavior: When a reporter callback exists, long provider stages emit bounded periodic heartbeats without changing business semantics or creating extra LLM calls. Single-item and concurrent CV-generation batches use the same executor/wait skeleton.
+- Prevention added or required: Keep liveness callback activation contract-driven; use timed `wait(..., FIRST_COMPLETED)` around pending futures; cover callback-enabled, single-item, concurrent, and live artifact cases. Verification runs must also disable tracked SSOT mutation unless mutation is scenario scope.
+- Related artifacts:
+  - `src/fitcv/pipeline.py`
+  - `tests/test_pipeline.py`
+  - `tests/test_pipeline_agentic_late_stage.py`
+  - `docs/superpowers/plans/audit/20260714-2350-phase5-live-run-drift/`
+
+## Configured concurrency cap was reported as effective runtime use
+
+- Title: Effective concurrency must be derived from runnable work, not copied from settings
+- Date: 2026-07-15
+- Trigger / Context: Live-run artifacts reported enrichment and CV-generation effective concurrency equal to configured caps even when only two enrich batches or three CV rows existed; CV-analysis concurrency and CV-generation pacing settings were present but not fully consumed.
+- What went wrong: Stage events treated configured limits as observed execution, while one stage remained serial and one persisted pacing setting was a no-op. This split settings truth, executor behavior, and observability.
+- Correct behavior: Keep configured concurrency as a cap, derive effective concurrency as `min(configured, runnable_work_items)`, use that value for executor size and worker slots, and emit both values. Persisted runtime settings must be consumed or removed.
+- Prevention added or required: Route all LLM stages through the shared effective-concurrency rule; preserve deterministic result order; test zero-work, under-cap, over-cap, concurrent overlap, and pacing cases.
+- Related artifacts:
+  - `src/fitcv/pipeline.py`
+  - `tests/test_pipeline.py`
+  - `tests/test_pipeline_agentic_late_stage.py`
+  - `docs/configuration.md`
+  - `docs/observability.md`

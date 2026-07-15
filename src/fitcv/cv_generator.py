@@ -19,7 +19,6 @@ import json
 import re
 import textwrap
 from copy import deepcopy
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -57,6 +56,7 @@ from fitcv.llm_runtime import (
     LlmTaskRequest,
     LlmValidationResult,
     execute_llm_task,
+    project_llm_runtime_evidence,
 )
 from fitcv.rule_filter import canonicalize_skill
 
@@ -1669,7 +1669,7 @@ def _execute_cv_generation_runtime(
 def _runtime_value_or_raise(result: LlmRuntimeResult) -> dict[str, Any]:
     if result.status == "succeeded" and isinstance(result.parsed_value, dict):
         value = dict(result.parsed_value)
-        value["runtime_provenance"] = asdict(result.provenance)
+        value["llm_runtime_evidence"] = project_llm_runtime_evidence(result)
         return value
     message = result.failure.message if result.failure else "LLM runtime failed."
     raise RuntimeError(message)

@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: completed
 template_id: detailed-specification
 name: fitcv-llm-runtime-spine-master-symmetry
 parent_thread: workstream-operator-control-plane.fitcv-cp-app-ssot-symmetry-refactor
@@ -158,8 +158,9 @@ Required child detailed spec set:
 5. **Phase 5 — observability, parity, and legacy-label closeout**
    - required child spec name:
      `fitcv-llm-runtime-spine-phase-5-observability-parity-closeout`
-   - required output path shape:
-     `docs/superpowers/specs/YYYY-MM-DD-HH-MM-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md`
+   - child spec:
+     `docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md`
+   - status: `completed`
    - scope:
      converge artifact/provenance/failure-taxonomy surfaces, lock adapter
      parity tests, and delete residual semantic labels such as runtime-mode
@@ -178,16 +179,16 @@ phase.
   transport/orchestration duplication
 
 **Steps:**
-- [ ] confirm current routed LLM parts in `config/runtime/control_plane.yaml`
-- [ ] inventory current client-builder, parser, routing, and provenance logic
+- [x] confirm current routed LLM parts in `config/runtime/control_plane.yaml`
+- [x] inventory current client-builder, parser, routing, and provenance logic
       across `enrich.py`, `ai_score.py`, `cv_generator.py`, and related helpers
-- [ ] inventory stage-owned semantic duplication in `pipeline.py` and
+- [x] inventory stage-owned semantic duplication in `pipeline.py` and
       `pipeline_stage_runner.py` for `cv_analysis` and `cv_generation`
-- [ ] classify each duplication as `stage meaning`, `runtime adapter`,
+- [x] classify each duplication as `stage meaning`, `runtime adapter`,
       `diagnostic projection`, or `legacy compatibility baggage`
 
 **Verification:**
-- [ ] no remediation lane depends on guessed ownership
+- [x] no remediation lane depends on guessed ownership
 
 **Exit Criteria:**
 - current-state split is explicit enough to design ordered collapse
@@ -198,13 +199,13 @@ phase.
 - lock final SSOT owner split and remediation order
 
 **Steps:**
-- [ ] define one shared LLM runtime spine contract
-- [ ] define one repo-native semantic owner for each active LLM-adjacent stage
-- [ ] define LangGraph responsibilities and explicit non-responsibilities
-- [ ] define ordered migration lanes, child detailed specs, and deletion gates
+- [x] define one shared LLM runtime spine contract
+- [x] define one repo-native semantic owner for each active LLM-adjacent stage
+- [x] define LangGraph responsibilities and explicit non-responsibilities
+- [x] define ordered migration lanes, child detailed specs, and deletion gates
 
 **Verification:**
-- [ ] every meaningful semantic fact has one owner and one non-owner
+- [x] every meaningful semantic fact has one owner and one non-owner
 
 **Exit Criteria:**
 - implementation planning can proceed without reopening core owner boundaries
@@ -215,15 +216,15 @@ phase.
 - make SSOT and symmetry proof executable
 
 **Steps:**
-- [ ] define parity tests for enrich, ranking, and CV generation
-- [ ] define stage-owner tests for `cv_analysis` and `cv_generation`
-- [ ] define residue grep gates for deleted branch labels and duplicated helper
+- [x] define parity tests for enrich, ranking, and CV generation
+- [x] define stage-owner tests for `cv_analysis` and `cv_generation`
+- [x] define residue grep gates for deleted branch labels and duplicated helper
       logic
-- [ ] define exact child detailed spec inventory and phase handoff rules
-- [ ] define docs/settings proof for one runtime-authoritative explanation
+- [x] define exact child detailed spec inventory and phase handoff rules
+- [x] define docs/settings proof for one runtime-authoritative explanation
 
 **Verification:**
-- [ ] validation plan can fail any partial migration that keeps two meaning
+- [x] validation plan can fail any partial migration that keeps two meaning
       owners alive
 
 **Exit Criteria:**

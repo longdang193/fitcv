@@ -192,20 +192,20 @@ Observability and artifact builders derive projections from a complete
 - preserve required behavior before deleting duplicate owners
 
 **Steps:**
-- [ ] inventory every `CvAnalysisRecord` field consumed by CV generation,
+- [x] inventory every `CvAnalysisRecord` field consumed by CV generation,
       observability, stage artifacts, worker summaries, and control-plane views
-- [ ] inventory current fresh, blocked, reused, skipped, ready, and failed paths
+- [x] inventory current fresh, blocked, reused, skipped, ready, and failed paths
       in analyzer, pipeline, and stage runner
-- [ ] define deterministic parity fixtures for each admissible outcome
-- [ ] add identity fixtures for URL drift, duplicate URLs with distinct raw
+- [x] define deterministic parity fixtures for each admissible outcome
+- [x] add identity fixtures for URL drift, duplicate URLs with distinct raw
       fingerprints, and minimal inputs without raw fingerprints
-- [ ] add reuse fixtures for incomplete records and contract-version mismatch
-- [ ] identify fields that belong to CV generation and must leave analysis output
+- [x] add reuse fixtures for incomplete records and contract-version mismatch
+- [x] identify fields that belong to CV generation and must leave analysis output
 
 **Verification:**
-- [ ] field inventory distinguishes required contract fields from branch-local
+- [x] field inventory distinguishes required contract fields from branch-local
       debug baggage
-- [ ] parity fixture set covers every canonical status and reuse path
+- [x] parity fixture set covers every canonical status and reuse path
 
 **Exit Criteria:**
 - no output field or status behavior is preserved only because one duplicate
@@ -217,28 +217,28 @@ Observability and artifact builders derive projections from a complete
 - make `analyze_ranked_job` sufficient for all per-job analysis cases
 
 **Steps:**
-- [ ] extend canonical record type and builder with required identity and reuse
+- [x] extend canonical record type and builder with required identity and reuse
       fields currently hydrated in pipeline
-- [ ] reuse `job_identity_keys` for canonical record, trace, and reuse identity;
+- [x] reuse `job_identity_keys` for canonical record, trace, and reuse identity;
       keep normalized URL only as compatibility fallback
-- [ ] remove mutable URL from CV-analysis semantic fingerprint payload and bump
+- [x] remove mutable URL from CV-analysis semantic fingerprint payload and bump
       `CV_ANALYSIS_REUSE_SCHEMA_VERSION`
-- [ ] move exact-match reuse validation, reusable-status eligibility, and
+- [x] move exact-match reuse validation, reusable-status eligibility, and
       canonical record rebinding into analyzer boundary
-- [ ] require current contract fingerprint and complete canonical field set
+- [x] require current contract fingerprint and complete canonical field set
       before reuse; recompute incompatible or incomplete candidates
-- [ ] keep reranker gate, evidence selection, fallback, gap computation, fit
+- [x] keep reranker gate, evidence selection, fallback, gap computation, fit
       decision, record build, and trace build in one semantic flow
-- [ ] place all accepted per-job runtime work inside one failure envelope
-- [ ] use status constants from `late_stage_contract.py`; remove local status
+- [x] place all accepted per-job runtime work inside one failure envelope
+- [x] use status constants from `late_stage_contract.py`; remove local status
       spelling where canonical constants exist
-- [ ] keep `top_k` override optional and otherwise use configured
+- [x] keep `top_k` override optional and otherwise use configured
       `pipeline.evidence_top_k`
 
 **Verification:**
-- [ ] one analyzer call returns complete canonical record for every fixture
-- [ ] reuse candidate with mismatched fingerprint cannot be reused
-- [ ] canonical builder alone controls `outcome_reason` versus `error`
+- [x] one analyzer call returns complete canonical record for every fixture
+- [x] reuse candidate with mismatched fingerprint cannot be reused
+- [x] canonical builder alone controls `outcome_reason` versus `error`
 
 **Exit Criteria:**
 - analyzer output needs no semantic hydration by pipeline before downstream use
@@ -249,24 +249,24 @@ Observability and artifact builders derive projections from a complete
 - remove second and third meaning owners
 
 **Steps:**
-- [ ] replace pipeline built-in versus agentic CV-analysis selection with one
+- [x] replace pipeline built-in versus agentic CV-analysis selection with one
       analyzer call
-- [ ] remove `agentic_late_stage_enabled` as CV-analysis semantic selector
-- [ ] delete pipeline-local CV-analysis record builder and hydration helpers that
+- [x] remove `agentic_late_stage_enabled` as CV-analysis semantic selector
+- [x] delete pipeline-local CV-analysis record builder and hydration helpers that
       duplicate canonical builder behavior
-- [ ] delete stage-runner reranker-skip, reuse, and compute helpers that rebuild
+- [x] delete stage-runner reranker-skip, reuse, and compute helpers that rebuild
       analysis semantics
-- [ ] keep batch scheduling, persistence, observation emission, and downstream
+- [x] keep batch scheduling, persistence, observation emission, and downstream
       debug projection outside analyzer
-- [ ] keep Phase 1 CV-analysis scheduling serial; retain configured concurrency
+- [x] keep Phase 1 CV-analysis scheduling serial; retain configured concurrency
       only as observational input and report effective concurrency as `1`
-- [ ] use `is_generation_ready` or canonical status constant for readiness
+- [x] use `is_generation_ready` or canonical status constant for readiness
       filtering
 
 **Verification:**
-- [ ] residue search finds no pipeline or stage-runner evidence-selection, gap,
+- [x] residue search finds no pipeline or stage-runner evidence-selection, gap,
       fit-gate, or record-building branch
-- [ ] retained compatibility labels do not change analysis output
+- [x] retained compatibility labels do not change analysis output
 
 **Exit Criteria:**
 - every ranked job reaches one analyzer entrypoint regardless of launch path or
@@ -278,16 +278,16 @@ Observability and artifact builders derive projections from a complete
 - lock owner boundary and prevent semantic duplication from returning
 
 **Steps:**
-- [ ] move analyzer-focused tests to `tests/test_agentic_cv_analysis.py`
-- [ ] keep pipeline tests focused on scheduling, persistence, observation, and
+- [x] move analyzer-focused tests to `tests/test_agentic_cv_analysis.py`
+- [x] keep pipeline tests focused on scheduling, persistence, observation, and
       artifact projection
-- [ ] update `cv_analysis.source.yaml`, pipeline docs, and architecture docs only
+- [x] update `cv_analysis.source.yaml`, pipeline docs, and architecture docs only
       where owner wording changes
-- [ ] add residue checks for deleted helpers and mode-based semantic branches
+- [x] add residue checks for deleted helpers and mode-based semantic branches
 
 **Verification:**
-- [ ] repo validators and focused tests pass
-- [ ] generated architecture docs are synchronized if stage source changes
+- [x] repo validators and focused tests pass
+- [x] generated architecture docs are synchronized if stage source changes
 
 **Exit Criteria:**
 - Phase 1 owner collapse is executable, documented, and ready for implementation

@@ -30,6 +30,7 @@ class PipelineState:
     deduplicated_jobs: list[dict[str, Any]] = field(default_factory=list)
     pre_filter_rejected_jobs: list[dict[str, Any]] = field(default_factory=list)
     enriched: list[dict[str, Any]] = field(default_factory=list)
+    enrich_llm_runtime_observations: list[dict[str, Any]] = field(default_factory=list)
     passed_jobs: list[dict[str, Any]] = field(default_factory=list)
     candidate_filter_rejected_jobs: list[dict[str, Any]] = field(default_factory=list)
     raw_shortlist: list[dict[str, Any]] = field(default_factory=list)
@@ -37,6 +38,7 @@ class PipelineState:
     backfilled_job_urls: list[str] = field(default_factory=list)
     candidate_query_debug: dict[str, Any] = field(default_factory=dict)
     ai_scores: list[dict[str, Any]] = field(default_factory=list)
+    ranking_llm_runtime_observations: list[dict[str, Any]] = field(default_factory=list)
     ranking_inputs: list[dict[str, Any]] = field(default_factory=list)
     ranked: list[dict[str, Any]] = field(default_factory=list)
     cv_analysis_results: list[dict[str, Any]] = field(default_factory=list)
@@ -90,6 +92,7 @@ class PipelineState:
             "deduplicated_jobs",
             "pre_filter_rejected_jobs",
             "enriched",
+            "enrich_llm_runtime_observations",
             "passed_jobs",
             "candidate_filter_rejected_jobs",
             "raw_shortlist",
@@ -97,6 +100,7 @@ class PipelineState:
             "backfilled_job_urls",
             "candidate_query_debug",
             "ai_scores",
+            "ranking_llm_runtime_observations",
             "ranking_inputs",
             "ranked",
             "cv_analysis_results",
@@ -113,6 +117,7 @@ class PipelineState:
             "deduplicated_jobs": list(self.deduplicated_jobs),
             "pre_filter_rejected_jobs": list(self.pre_filter_rejected_jobs),
             "enriched": list(self.enriched),
+            "enrich_llm_runtime_observations": list(self.enrich_llm_runtime_observations),
             "passed_jobs": list(self.passed_jobs),
             "candidate_filter_rejected_jobs": list(self.candidate_filter_rejected_jobs),
             "raw_shortlist": list(self.raw_shortlist),
@@ -120,6 +125,7 @@ class PipelineState:
             "backfilled_job_urls": list(self.backfilled_job_urls),
             "candidate_query_debug": dict(self.candidate_query_debug),
             "ai_scores": list(self.ai_scores),
+            "ranking_llm_runtime_observations": list(self.ranking_llm_runtime_observations),
             "ranking_inputs": list(self.ranking_inputs),
             "ranked": list(self.ranked),
             "cv_analysis_results": list(self.cv_analysis_results),

@@ -1,0 +1,2433 @@
+{
+  "run_id": "b26e96bd-f8fb-4b12-9c94-fd5eb3e9976d",
+  "status": "succeeded",
+  "input": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\data\\sample_data_engineer_jobs.json",
+  "output_dir": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.worktrees\\fitcv-llm-runtime-spine-phase1\\runtime\\phase5_postfix_live_run_20260714T221147Z",
+  "sqlite_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.worktrees\\fitcv-llm-runtime-spine-phase1\\runtime\\phase5_postfix_live_run_20260714T221147Z\\fitcv_live.sqlite3",
+  "mirror_dir": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.worktrees\\fitcv-llm-runtime-spine-phase1\\artifacts\\live_run_b26e96bd-f8fb-4b12-9c94-fd5eb3e9976d",
+  "event_count": 103,
+  "heartbeat_count": 71,
+  "heartbeat_events": [
+    {
+      "created_at": "2026-07-14T22:11:48.281730+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_start",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:12:03.292214+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 1,
+        "elapsed_secs": 15,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:12:18.305214+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 2,
+        "elapsed_secs": 30,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:12:33.318278+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 3,
+        "elapsed_secs": 45,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:12:48.333882+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 4,
+        "elapsed_secs": 60,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:13:03.358318+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 5,
+        "elapsed_secs": 75,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:13:18.385875+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 6,
+        "elapsed_secs": 90,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:13:33.400073+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 7,
+        "elapsed_secs": 105,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:13:48.424735+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 8,
+        "elapsed_secs": 120,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:14:03.446584+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 9,
+        "elapsed_secs": 135,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:14:18.461925+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 10,
+        "elapsed_secs": 150,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:14:33.480871+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 11,
+        "elapsed_secs": 165,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:14:48.503492+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 12,
+        "elapsed_secs": 180,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:15:03.524902+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 13,
+        "elapsed_secs": 195,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:15:18.540078+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 14,
+        "elapsed_secs": 210,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:15:33.550912+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 15,
+        "elapsed_secs": 225,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:15:48.569787+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 16,
+        "elapsed_secs": 240,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:16:03.578238+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 17,
+        "elapsed_secs": 255,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:16:18.596418+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 18,
+        "elapsed_secs": 270,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:16:33.603561+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 19,
+        "elapsed_secs": 285,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:16:48.606489+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 20,
+        "elapsed_secs": 300,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:17:03.620499+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 21,
+        "elapsed_secs": 315,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:17:18.641056+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 22,
+        "elapsed_secs": 330,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:17:33.659937+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 23,
+        "elapsed_secs": 345,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:17:48.680890+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 24,
+        "elapsed_secs": 360,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:18:03.709203+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 25,
+        "elapsed_secs": 375,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:18:18.733092+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 26,
+        "elapsed_secs": 390,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:18:33.761524+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 27,
+        "elapsed_secs": 405,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:18:48.775866+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 28,
+        "elapsed_secs": 420,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:19:03.805348+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 29,
+        "elapsed_secs": 435,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:19:18.816798+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 30,
+        "elapsed_secs": 450,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:19:33.848906+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 31,
+        "elapsed_secs": 465,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:19:48.874857+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 32,
+        "elapsed_secs": 480,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:20:03.888382+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 33,
+        "elapsed_secs": 495,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:20:18.897973+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 34,
+        "elapsed_secs": 510,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:20:33.919339+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 35,
+        "elapsed_secs": 525,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:20:48.937665+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 36,
+        "elapsed_secs": 540,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:21:03.960617+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 37,
+        "elapsed_secs": 555,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:21:18.985619+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 38,
+        "elapsed_secs": 570,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:21:34.009628+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 39,
+        "elapsed_secs": 585,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:21:49.026002+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 40,
+        "elapsed_secs": 600,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:22:04.046213+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 41,
+        "elapsed_secs": 615,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:22:19.065386+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 42,
+        "elapsed_secs": 630,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:22:34.081533+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 43,
+        "elapsed_secs": 645,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:22:49.103240+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 44,
+        "elapsed_secs": 660,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:23:04.113210+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 45,
+        "elapsed_secs": 675,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:23:19.133490+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 46,
+        "elapsed_secs": 690,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:23:34.157238+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 47,
+        "elapsed_secs": 705,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:23:49.174877+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 48,
+        "elapsed_secs": 720,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:24:04.185021+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 49,
+        "elapsed_secs": 735,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:24:19.200265+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 50,
+        "elapsed_secs": 750,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:24:34.212830+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 51,
+        "elapsed_secs": 765,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:24:49.226257+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 52,
+        "elapsed_secs": 780,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:25:04.256957+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 53,
+        "elapsed_secs": 795,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:25:19.288580+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 54,
+        "elapsed_secs": 810,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:25:34.313735+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 55,
+        "elapsed_secs": 826,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:25:49.335960+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 56,
+        "elapsed_secs": 841,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:26:04.357391+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 57,
+        "elapsed_secs": 856,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:26:19.369517+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 58,
+        "elapsed_secs": 871,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:26:34.394025+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 59,
+        "elapsed_secs": 886,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:26:49.414469+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 60,
+        "elapsed_secs": 901,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:27:04.436086+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 61,
+        "elapsed_secs": 916,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:27:19.456894+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 62,
+        "elapsed_secs": 931,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:27:34.473771+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 63,
+        "elapsed_secs": 946,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:27:49.500735+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 64,
+        "elapsed_secs": 961,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:28:04.521816+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 65,
+        "elapsed_secs": 976,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:28:19.536272+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 66,
+        "elapsed_secs": 991,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:28:34.559057+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 67,
+        "elapsed_secs": 1006,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:28:49.571365+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 68,
+        "elapsed_secs": 1021,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:29:04.589480+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_progress",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "heartbeat_count": 69,
+        "elapsed_secs": 1036,
+        "heartbeat_interval_secs": 15,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    },
+    {
+      "created_at": "2026-07-14T22:29:19.094237+00:00",
+      "message": "Enrich in progress",
+      "payload": {
+        "phase": "batch_done",
+        "fresh_jobs_total": 13,
+        "reused_jobs_total": 0,
+        "fresh_rows_total": 13,
+        "enrich_concurrency_effective": 8,
+        "trace_context": {
+          "trace_id": "ec3df3459c9d11bf54d94cedb763ebea",
+          "span_id": "6cc8b881216d3c83",
+          "parent_span_id": "885865ee93ed9c1c"
+        },
+        "telemetry_export": {
+          "status": "disabled",
+          "degradation_reason": "otel_disabled"
+        },
+        "langfuse_rich_io": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled",
+          "input": null,
+          "output": null
+        },
+        "langfuse_rich_io_native": {
+          "status": "disabled",
+          "degradation_reason": "langfuse_rich_io_disabled"
+        }
+      }
+    }
+  ],
+  "warning_count": 1,
+  "warnings": [
+    {
+      "stage": "cv_review_required",
+      "message": "Run paused: 3 review-required CV item(s) pending operator action. Auto-accepted=0."
+    }
+  ],
+  "error_count": 0,
+  "reuse_anomaly_count": 0,
+  "trace_summary": {
+    "records_total": 3,
+    "present_records": 3,
+    "attempted_generation_jobs_total": 3
+  },
+  "trace_status": "completed",
+  "debug_records_total": 5,
+  "debug_records_with_runtime_evidence": 3,
+  "endpoint_results": {
+    "export.json": {
+      "status_code": 200,
+      "content_type": "application/json",
+      "sha256": "9cd8e9dde5f7b52bd8380847acbdf187dbe9d754e3bfe2e622897ce66de78ca4",
+      "bytes": 30854
+    },
+    "cv-debug.json": {
+      "status_code": 200,
+      "content_type": "application/json",
+      "sha256": "69b9c88c4145f3e5ccf612bd94b9dcab1ed6c401078116a69c2ca878061dace5",
+      "bytes": 171875
+    },
+    "settings-used.json": {
+      "status_code": 200,
+      "content_type": "application/json",
+      "sha256": "c0c60e2d392994f1dc35a402255b37c64a1ef1e31a2dce3bda9f6446fe9a5406",
+      "bytes": 183469
+    },
+    "cv-analysis-trace.json": {
+      "status_code": 200,
+      "content_type": "application/json",
+      "sha256": "175da74f7e0da4ba63d2e809e6361f20753c41300aefafdfe665f44321393aa7",
+      "bytes": 10427
+    },
+    "cv-generation-trace.json": {
+      "status_code": 200,
+      "content_type": "application/json",
+      "sha256": "5716e2d53866825f1f4527b989d72212a63c0f79682397186236a893d6187a72",
+      "bytes": 11250
+    },
+    "agentic-live-trace.json": {
+      "status_code": 200,
+      "content_type": "application/json",
+      "sha256": "5716e2d53866825f1f4527b989d72212a63c0f79682397186236a893d6187a72",
+      "bytes": 11250
+    },
+    "artifacts.zip": {
+      "status_code": 200,
+      "content_type": "application/zip",
+      "sha256": "41ee2f4fb517bd40d17f7719936a2c7091c8c0217f8e421844d66ce0918e5265",
+      "bytes": 220741
+    }
+  },
+  "mirror_files": [
+    {
+      "path": "cv-analysis-trace.json",
+      "bytes": 10766,
+      "sha256": "08d547070c28f8dbf7010af21f759b3449d307f01df555c92168ab9a69bfe59f"
+    },
+    {
+      "path": "cv-debug.json",
+      "bytes": 175902,
+      "sha256": "4b23f788138824cd61f3931c82150f1f2a1ecced7126410377ca7d5d65cbaa69"
+    },
+    {
+      "path": "cv-generation-trace.json",
+      "bytes": 11574,
+      "sha256": "cce7fca56477e8d99af60b2a209314928403f79db46426f14ab9b196d60aac6c"
+    },
+    {
+      "path": "events.json",
+      "bytes": 106168,
+      "sha256": "322952399fbb482991df856380d8346a7afc34ea18658d3e4bdc7caa3387f8b2"
+    },
+    {
+      "path": "export.json",
+      "bytes": 31810,
+      "sha256": "399a9ac0c7faf8de2df8f5e63d70a5956d61bb6c798962898735a1ac160c707b"
+    },
+    {
+      "path": "hitl-review-audit.json",
+      "bytes": 10110,
+      "sha256": "56007b3d7e249fb33677719eb29641c267e9033b61c0124406dbb77f07b58ab8"
+    },
+    {
+      "path": "mapping-suggestions.json",
+      "bytes": 35587,
+      "sha256": "2992a47b6763fe8420c285e1666883d67615a26910c865675be7b7f1d00e4d5a"
+    },
+    {
+      "path": "run.json",
+      "bytes": 1277589,
+      "sha256": "c1b610f485d008f1b603a8e4dd7b800127151f0af59f37685e3614c9b9285fd7"
+    },
+    {
+      "path": "settings-used.json",
+      "bytes": 185076,
+      "sha256": "a489f0e02620cbacd2c3e5e44d4722f8d44dae01c4f648e021a4424bb2422b51"
+    },
+    {
+      "path": "stage-artifacts.json",
+      "bytes": 504207,
+      "sha256": "3a817e2f8eedc4772fcb4814fe9beb9a990e30561ee09f4496529dfea33d1a45"
+    },
+    {
+      "path": "synonym-proposals-trace.json",
+      "bytes": 44719,
+      "sha256": "b4a9ee41e2ac22f89d010dd66db34bfb42502639c686d6e40ddd52b6f9d777bc"
+    },
+    {
+      "path": "synonym-proposals.json",
+      "bytes": 142846,
+      "sha256": "2c441b823fdcca2d6ea1cdfdd01e9823950f5dfa5e677f5eba1674b4e50393a1"
+    },
+    {
+      "path": "synonym-suppression-diff.json",
+      "bytes": 4965,
+      "sha256": "8e6852a178a71b4070be1d5984a2f8de6440895c2ae59f045956f7ea364f77ed"
+    }
+  ],
+  "endpoint_mirror_semantic_parity": {
+    "export.json": true,
+    "cv-debug.json": true,
+    "settings-used.json": true,
+    "cv-analysis-trace.json": true,
+    "cv-generation-trace.json": true
+  },
+  "taxonomy_sha256_before": "856926460996c96420a46c68e131f443b8eaddf9673c8cd5a9dee3b0b21dc866",
+  "taxonomy_sha256_after": "856926460996c96420a46c68e131f443b8eaddf9673c8cd5a9dee3b0b21dc866",
+  "checks": {
+    "run_succeeded": true,
+    "heartbeat_events_present": true,
+    "heartbeat_switch_unset": true,
+    "no_reuse_anomaly": true,
+    "trace_completed": true,
+    "trace_all_records_present": true,
+    "canonical_historical_trace_equal": true,
+    "endpoint_mirror_semantic_parity": true,
+    "taxonomy_unchanged": true,
+    "no_error_events": true,
+    "attempted_records_have_runtime_evidence": true,
+    "gated_records_are_zero_call": true
+  },
+  "attempted_records_total": 3,
+  "gated_records_total": 2
+}

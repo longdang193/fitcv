@@ -1,0 +1,54 @@
+{
+  "enrich": {
+    "calls_total": 13,
+    "succeeded_total": 13,
+    "failed_total": 0,
+    "adapters": [
+      "openai_compatible"
+    ],
+    "runtime_paths": [
+      "fitcv_llm_openai_compatible"
+    ],
+    "sample_count": 10,
+    "sample_latency_min_ms": 31578,
+    "sample_latency_max_ms": 166653
+  },
+  "ranking": {
+    "calls_total": 5,
+    "succeeded_total": 5,
+    "failed_total": 0,
+    "adapters": [
+      "openai_compatible"
+    ],
+    "runtime_paths": [
+      "fitcv_llm_openai_compatible"
+    ],
+    "sample_count": 5,
+    "sample_latency_min_ms": 6688,
+    "sample_latency_max_ms": 13453
+  },
+  "cv_analysis": {
+    "calls_total": 0,
+    "succeeded_total": 0,
+    "failed_total": 0,
+    "adapters": [],
+    "runtime_paths": [],
+    "sample_count": 0,
+    "sample_latency_min_ms": null,
+    "sample_latency_max_ms": null
+  },
+  "cv_generation": {
+    "calls_total": 3,
+    "succeeded_total": 3,
+    "failed_total": 0,
+    "adapters": [
+      "openai_compatible"
+    ],
+    "runtime_paths": [
+      "fitcv_llm_openai_compatible"
+    ],
+    "sample_count": 3,
+    "sample_latency_min_ms": 75878,
+    "sample_latency_max_ms": 144546
+  }
+}

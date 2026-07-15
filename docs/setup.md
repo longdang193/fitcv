@@ -127,6 +127,10 @@ Open:
 
 ### Track B: Local web + worker
 
+On Windows, a direct web start without `REDIS_URL` forces inline execution even
+when `.env` contains a false-like `FITCV_CP_INLINE_EXECUTION` value. Configure
+`REDIS_URL` when queue mode is intentional.
+
 Terminal 1:
 
 ```powershell

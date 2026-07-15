@@ -24,6 +24,10 @@ Execute selected live-run scope and produce complete, traceable run evidence.
 ## Execution Flow
 
 1. Execute the selected scenario pipeline or bounded stage scope.
+   - For verification runs, disable writes to tracked runtime SSOT surfaces through
+     scenario overrides unless that mutation is the behavior under test. For synonym
+     verification, set both `synonym_management.auto_promote_global_enabled=false`
+     and `synonym_management.promote_global_enabled=false`.
 2. Capture:
    - stage outputs
    - intermediate artifacts
@@ -41,8 +45,12 @@ Execute selected live-run scope and produce complete, traceable run evidence.
    - run is invalid if outputs/telemetry references are incomplete.
 3. Outcome gate:
    - routing must follow observed run status only.
+4. Mutation-safety gate:
+   - verification execution is invalid if it mutates a tracked SSOT surface that is
+     outside selected scenario scope.
 
 ## Exit Criteria
 
 - Success/failure signal is explicit.
 - Evidence package is complete enough for verification or debugging.
+- Tracked SSOT surfaces remain unchanged unless mutation was selected scenario scope.

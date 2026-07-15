@@ -120,6 +120,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -218,6 +219,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -348,6 +350,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -446,6 +449,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -570,6 +574,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -668,6 +673,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -677,7 +683,7 @@ capabilities:
     completeness_status: incomplete
   inspection_debugging.run-owned-artifact-exports:
     state: active
-    statement: Provide run-scoped downloads such as CVs, artifact bundles, and CV debug exports when owned outputs exist.
+    statement: Provide run-scoped downloads such as CVs, artifact bundles, CV debug, and canonical CV-generation trace exports when owned outputs exist.
     satisfies: []
     code: []
     tests:
@@ -798,6 +804,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -896,6 +903,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1020,6 +1028,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1118,6 +1127,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1254,6 +1264,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1352,6 +1363,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1488,6 +1500,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1586,6 +1599,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1716,6 +1730,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1814,6 +1829,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1943,6 +1959,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2041,6 +2058,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2165,6 +2183,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2263,6 +2282,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2387,6 +2407,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2485,6 +2506,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2615,6 +2637,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2713,6 +2736,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2722,7 +2746,7 @@ capabilities:
     completeness_status: incomplete
   inspection_debugging.cv-generation-diagnostics:
     state: active
-    statement: Expose CV-writing outcomes, grounding and support validation detail, and authoritative fit context.
+    statement: Expose CV-writing outcomes, canonical runtime evidence, stage-neutral generation traces, validation detail, and authoritative fit context.
     satisfies: []
     code: []
     tests:
@@ -2843,6 +2867,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2941,6 +2966,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3077,6 +3103,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -3175,6 +3202,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3305,6 +3333,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -3403,6 +3432,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3527,6 +3557,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -3625,6 +3656,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3749,6 +3781,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -3847,6 +3880,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

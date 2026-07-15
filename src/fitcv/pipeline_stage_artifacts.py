@@ -18,15 +18,6 @@ lifecycle:
 from typing import Any, Callable, Protocol, cast
 
 
-class LateStageModePayloadBuilder(Protocol):
-    def __call__(
-        self,
-        *,
-        agentic_late_stage_enabled: bool,
-        stage_reached: bool,
-    ) -> dict[str, Any]: ...
-
-
 def truncate_stage_text(value: str, *, limit: int) -> str:
     if len(value) <= limit:
         return value
@@ -72,6 +63,58 @@ def sample_strings(values: list[str], *, limit: int, text_limit: int) -> list[st
     ]
 
 
+def build_llm_runtime_summary(
+    observations: list[dict[str, Any]],
+    *,
+    sample_limit: int = 10,
+) -> dict[str, Any]:
+    ordered = sorted(
+        (dict(item) for item in observations),
+        key=lambda item: (
+            str(item.get("scope_key") or ""),
+            int(item.get("input_index") or 0),
+            int(item.get("invocation_index") or 0),
+        ),
+    )
+    failures = [
+        dict(item.get("evidence", {}).get("failure") or {})
+        for item in ordered
+        if str(item.get("evidence", {}).get("status") or "") == "failed"
+    ]
+    failure_counts_by_stage: dict[str, int] = {}
+    failure_counts_by_code: dict[str, int] = {}
+    for failure in failures:
+        stage = str(failure.get("stage") or "unknown")
+        code = str(failure.get("code") or "unknown")
+        failure_counts_by_stage[stage] = failure_counts_by_stage.get(stage, 0) + 1
+        failure_counts_by_code[code] = failure_counts_by_code.get(code, 0) + 1
+    return {
+        "contract_version": "llm_stage_runtime_summary_v1",
+        "calls_total": len(ordered),
+        "succeeded_total": sum(
+            1 for item in ordered if str(item.get("evidence", {}).get("status") or "") == "succeeded"
+        ),
+        "failed_total": len(failures),
+        "failure_counts_by_stage": failure_counts_by_stage,
+        "failure_counts_by_code": failure_counts_by_code,
+        "adapters": sorted(
+            {
+                str(item.get("evidence", {}).get("provenance", {}).get("adapter") or "")
+                for item in ordered
+                if str(item.get("evidence", {}).get("provenance", {}).get("adapter") or "")
+            }
+        ),
+        "runtime_paths": sorted(
+            {
+                str(item.get("evidence", {}).get("provenance", {}).get("runtime_path") or "")
+                for item in ordered
+                if str(item.get("evidence", {}).get("provenance", {}).get("runtime_path") or "")
+            }
+        ),
+        "evidence_sample": ordered[:sample_limit],
+    }
+
+
 def build_stage_block_not_reached(
     *,
     stage: str,
@@ -105,7 +148,7 @@ def build_stage_block(
     truncate_value: Callable[[Any], Any],
     stage_result_builder: Callable[[str, str, dict[str, Any], dict[str, Any], dict[str, Any]], dict[str, Any]],
     settings_refs: list[str] | None = None,
-    late_stage_mode: dict[str, Any] | None = None,
+    llm_runtime_observations: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     stage_result = stage_result_builder(
         stage_id,
@@ -128,8 +171,8 @@ def build_stage_block(
     }
     if settings_refs:
         block["settings_refs"] = settings_refs
-    if late_stage_mode:
-        block["late_stage_mode"] = late_stage_mode
+    if llm_runtime_observations is not None:
+        block["llm_runtime_summary"] = build_llm_runtime_summary(llm_runtime_observations)
     return cast(dict[str, Any], truncate_value(block))
 
 
@@ -180,6 +223,7 @@ def build_enrich_stage_block(
     enrich_prompt_provenance: dict[str, Any],
     enrich_reuse_counts: dict[str, Any],
     enrich_reuse_metrics: dict[str, Any],
+    llm_runtime_observations: list[dict[str, Any]],
     stage_block_builder: Callable[..., dict[str, Any]],
     sample_rows_builder: Callable[[list[Any], Callable[[Any], dict[str, Any] | None]], list[dict[str, Any]]],
     job_sample_builder: Callable[[dict[str, Any]], dict[str, Any] | None],
@@ -227,6 +271,7 @@ def build_enrich_stage_block(
             if job_sample_builder(job)
             else None,
         ),
+        llm_runtime_observations=llm_runtime_observations,
     )
 
 
@@ -440,6 +485,7 @@ def build_ranking_stage_block(
     extract_job_url: Callable[[dict[str, Any]], str],
     ai_score_model_resolver: Callable[[dict[str, Any]], str],
     effective_preferences_resolver: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]],
+    llm_runtime_observations: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if not ranking_reached:
         return stage_block_not_reached_builder("ranking")
@@ -489,6 +535,7 @@ def build_ranking_stage_block(
             "pipeline.final_top_n",
             "prompts.ranking.ai_score.prompt_id",
         ],
+        llm_runtime_observations=llm_runtime_observations,
     )
 
 
@@ -500,7 +547,6 @@ def build_cv_analysis_stage_block(
     cv_analysis_quality_metrics: dict[str, Any],
     cv_analysis_reuse_metrics: dict[str, Any],
     config: dict[str, Any],
-    agentic_late_stage_enabled: bool,
     blocked_by_reranker_status: str,
     ready_for_generation_status: str,
     skipped_fit_gate_status: str,
@@ -511,7 +557,6 @@ def build_cv_analysis_stage_block(
     ranking_row_sample_builder: Callable[[dict[str, Any]], dict[str, Any] | None],
     analysis_record_output_sample_builder: Callable[[dict[str, Any]], dict[str, Any] | None],
     analysis_record_changed_sample_builder: Callable[[dict[str, Any]], dict[str, Any] | None],
-    late_stage_mode_payload_builder: LateStageModePayloadBuilder,
 ) -> dict[str, Any]:
     if not cv_analysis_reached:
         return stage_block_not_reached_builder("cv_analysis")
@@ -578,10 +623,7 @@ def build_cv_analysis_stage_block(
             "cv_analysis.semantic_alignment.domain_semantic_weight",
             "cv_analysis.semantic_alignment.channel_pool_size",
         ],
-        late_stage_mode=late_stage_mode_payload_builder(
-            agentic_late_stage_enabled=agentic_late_stage_enabled,
-            stage_reached=cv_analysis_reached,
-        ),
+        llm_runtime_observations=[],
     )
 
 
@@ -595,14 +637,12 @@ def build_cv_generation_stage_block(
     cv_generation_reuse_metrics: dict[str, Any],
     cv_generation_prompt_provenance: dict[str, Any],
     config: dict[str, Any],
-    agentic_late_stage_enabled: bool,
     stage_block_builder: Callable[..., dict[str, Any]],
     stage_block_not_reached_builder: Callable[[str], dict[str, Any]],
     sample_rows_builder: Callable[[list[Any], Callable[[Any], dict[str, Any] | None]], list[dict[str, Any]]],
     analysis_record_output_sample_builder: Callable[[dict[str, Any]], dict[str, Any] | None],
     debug_record_output_sample_builder: Callable[[dict[str, Any]], dict[str, Any] | None],
     debug_record_changed_sample_builder: Callable[[dict[str, Any]], dict[str, Any] | None],
-    late_stage_mode_payload_builder: Callable[..., dict[str, Any]],
     cv_generation_model_summarizer: Callable[[list[dict[str, Any]], str], str],
     cv_generation_provider_summarizer: Callable[[list[dict[str, Any]]], str],
     cv_generation_model_resolver: Callable[[dict[str, Any]], str],
@@ -613,6 +653,12 @@ def build_cv_generation_stage_block(
         record
         for record in cv_analysis_results
         if str(record.get("status") or "") == "ready_for_generation"
+    ]
+    runtime_observations = [
+        dict(observation)
+        for record in cv_generation_debug_records
+        for observation in list(record.get("llm_runtime_observations") or [])
+        if isinstance(observation, dict)
     ]
     return stage_block_builder(
         stage_id="cv_generation",
@@ -663,8 +709,5 @@ def build_cv_generation_stage_block(
             "cv.generation.model",
             "prompts.cv_generation.structured_write.prompt_id",
         ],
-        late_stage_mode=late_stage_mode_payload_builder(
-            agentic_late_stage_enabled=agentic_late_stage_enabled,
-            stage_reached=cv_generation_reached,
-        ),
+        llm_runtime_observations=runtime_observations,
     )

@@ -1903,3 +1903,68 @@ def test_enrich_retry_callbacks_remain_attempt_scoped(monkeypatch: pytest.Monkey
 
     assert result == [{"job_url": "url1"}]
     assert events == ["job_start", "job_start", "job_done"]
+
+
+def test_enrich_runtime_observations_record_each_outer_retry(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fitcv.enrich import enrich_batch
+    from fitcv.llm_runtime import (
+        LlmRuntimeFailure,
+        LlmRuntimeProvenance,
+        LlmRuntimeResult,
+        LlmValidationResult,
+    )
+
+    provenance = LlmRuntimeProvenance(
+        routing_part="enrich_extraction",
+        runtime_path="test",
+        adapter="fake",
+        provider="test",
+        model="test",
+        wire_api="responses",
+        attempt_count=1,
+        response_id=None,
+        trace_id=None,
+        latency_ms=1,
+    )
+    results = iter(
+        [
+            LlmRuntimeResult(
+                status="failed",
+                parsed_value=None,
+                validation=None,
+                failure=LlmRuntimeFailure(
+                    stage="adapter",
+                    code="adapter_http_error",
+                    message="rate limited",
+                    retryable=True,
+                    http_status=429,
+                ),
+                provenance=provenance,
+                adapter_response=None,
+            ),
+            LlmRuntimeResult(
+                status="succeeded",
+                parsed_value={"parsed": {}, "errors": []},
+                validation=LlmValidationResult(valid=True, errors=[], details={}),
+                failure=None,
+                provenance=provenance,
+                adapter_response=None,
+            ),
+        ]
+    )
+    monkeypatch.setattr("fitcv.enrich._execute_enrich_runtime", lambda job, config: next(results))
+    monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
+    monkeypatch.setattr("time.sleep", lambda seconds: None)
+    observations: list[dict[str, Any]] = []
+
+    rows = enrich_batch(
+        [{"job_url": "https://example.com/jobs/1", "title": "Data Engineer"}],
+        {"enrichment_sleep_secs": 0, "enrichment_max_retries": 1},
+        runtime_observation_callback=observations.append,
+    )
+
+    assert len(rows) == 1
+    assert [item["invocation_index"] for item in observations] == [1, 2]
+    assert [item["evidence"]["status"] for item in observations] == ["failed", "succeeded"]
+    assert observations[0]["scope_key"] == observations[1]["scope_key"]
+    assert observations[0]["input_index"] == 0

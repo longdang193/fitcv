@@ -1,0 +1,62 @@
+audit_id: 20260714-2237-phase5-focused-test-drift
+status: resolved
+created_at: 2026-07-14T22:37:38+02:00
+updated_at: 2026-07-15T11:19:36+02:00
+report: report.md
+artifacts:
+  - path: report.md
+    type: report
+  - path: manifest.yaml
+    type: manifest
+  - path: evidence/results/before.log
+    type: evidence
+  - path: evidence/results/after.log
+    type: evidence
+  - path: evidence/results/full-suite-before.log
+    type: evidence
+  - path: evidence/results/full-suite-after.log
+    type: evidence
+  - path: evidence/results/closure-full-suite-before.txt
+    type: evidence
+  - path: evidence/results/closure-full-suite-after.txt
+    type: evidence
+  - path: repro/repro_steps.md
+    type: repro
+evidence:
+  - path: evidence/results/before.log
+    kind: result
+    captured_at: 2026-07-14T22:37:38+02:00
+    producer: codex-local-terminal
+    sha256: 4a0798c40c78139cdba5ce52abe8c59344d1db9ea26bfa222ba7cf9279f25b15
+  - path: evidence/results/after.log
+    kind: result
+    captured_at: 2026-07-14T22:45:00+02:00
+    producer: codex-local-terminal
+    sha256: 68b561e34fefa768a19bf0dbd81affb9f8dfaab57a29c3c4d985f073a6b6bead
+  - path: evidence/results/full-suite-before.log
+    kind: result
+    captured_at: 2026-07-14T22:55:00+02:00
+    producer: codex-local-terminal
+    sha256: 940e6a7cc80645a8560cfa06ce088187deba12854e403d18618f220f40670e1c
+  - path: evidence/results/full-suite-after.log
+    kind: result
+    captured_at: 2026-07-14T22:58:00+02:00
+    producer: codex-local-terminal
+    sha256: 41fe40f7a03a1f6f0c4efbab77e4445edfe56209d360ba3ad0d17d1a02ed659c
+  - path: evidence/results/closure-full-suite-before.txt
+    kind: result
+    captured_at: 2026-07-15T11:16:32+02:00
+    producer: codex-local-terminal
+    sha256: 1e2e34174bc19c9743a21bed4a9642e1a69ce4f2611a9d6d4d1f33a42cba395a
+  - path: evidence/results/closure-full-suite-after.txt
+    kind: result
+    captured_at: 2026-07-15T11:19:36+02:00
+    producer: codex-local-terminal
+    sha256: 0c994d7086d03d3e40c41557ffa86db2c2aa6ad904b3ee6e8e5ab1e5d593d5a5
+repro:
+  - path: repro/repro_steps.md
+    kind: markdown
+verification:
+  gate_command: python scripts/audit_check.py docs/superpowers/plans/audit/20260714-2237-phase5-focused-test-drift
+  last_run: 2026-07-15T11:19:36+02:00
+  result: passed

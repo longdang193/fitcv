@@ -126,7 +126,7 @@ wording or generated references become stale.
 - Modify: `tests/test_pipeline_stage_resume_parity.py`
 
 **Preconditions:**
-- Phase 2 detailed spec has `status: active`
+- At Task 1 start, Phase 2 detailed spec was active
 - Phase 1 canonical `CvAnalysisRecord` tests pass
 - current generation-focused tests pass before new assertions are added
 - reviewed spec and plan changes are committed or otherwise checkpointed before code edits begin

@@ -1,0 +1,832 @@
+FFFFFF                                                                   [100%]
+================================== FAILURES ===================================
+_____ test_run_pipeline_persists_structured_cv_and_includes_it_in_export ______
+
+mock_config = <MagicMock name='load_config' id='2855178415680'>
+mock_parse = <MagicMock name='parse_jobs_file' id='2855182613008'>
+mock_norm = <MagicMock name='normalize_batch' id='2855182613344'>
+mock_load_bq = <MagicMock name='load_raw_jobs' id='2855182613680'>
+mock_enrich = <MagicMock name='enrich_batch' id='2855182614016'>
+mock_load_struct = <MagicMock name='load_structured_jobs' id='2855184547920'>
+mock_load_run_struct = <MagicMock name='load_run_structured_jobs' id='2855184548256'>
+mock_profile_yaml = <MagicMock name='load_profile_yaml' id='2855184548592'>
+mock_load_cand = <MagicMock name='load_candidate_profile' id='2855184548928'>
+mock_filter = <MagicMock name='apply_rule_filters' id='2855184549264'>
+mock_store_filter = <MagicMock name='store_filter_results' id='2855184549600'>
+mock_embed_jobs = <MagicMock name='embed_and_store_jobs' id='2855184549936'>
+mock_embed_cand = <MagicMock name='embed_and_store_candidate' id='2855184550272'>
+mock_vec = <MagicMock name='run_vector_search' id='2855184550608'>
+mock_ai = <MagicMock name='run_ai_scoring' id='2855184550944'>
+mock_build_feat = <MagicMock name='build_ranking_features' id='2855184551280'>
+mock_rank = <MagicMock name='rank_jobs' id='2855184551616'>
+mock_store_rank = <MagicMock name='store_final_ranking' id='2855184551952'>
+mock_evidence = <MagicMock name='retrieve_evidence' id='2855184552288'>
+mock_gap = <MagicMock name='compute_gap' id='2855184552624'>
+mock_gen_cv = <MagicMock name='generate_cv' id='2855184552960'>
+mock_validate = <MagicMock name='run_all_validations' id='2855184553296'>
+mock_create_version = <MagicMock name='create_cv_version_record' id='2855184553632'>
+mock_store_ver = <MagicMock name='store_cv_version' id='2855184553968'>
+
+    @patch("fitcv.pipeline.store_cv_version")
+    @patch("fitcv.pipeline.create_cv_version_record")
+    @patch("fitcv.agentic_cv_generation.run_all_validations")
+    @patch("fitcv.agentic_cv_generation.generate_cv")
+    @patch("fitcv.agentic_cv_analysis.compute_gap")
+    @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+    @patch("fitcv.pipeline.store_final_ranking")
+    @patch("fitcv.pipeline.rank_jobs")
+    @patch("fitcv.pipeline.build_ranking_features")
+    @patch("fitcv.pipeline.run_ai_scoring")
+    @patch("fitcv.pipeline.run_vector_search")
+    @patch("fitcv.pipeline.embed_and_store_candidate")
+    @patch("fitcv.pipeline.embed_and_store_jobs")
+    @patch("fitcv.pipeline.store_filter_results")
+    @patch("fitcv.pipeline.apply_rule_filters")
+    @patch("fitcv.pipeline.load_candidate_profile")
+    @patch("fitcv.pipeline.load_profile_yaml")
+    @patch("fitcv.pipeline.load_run_structured_jobs")
+    @patch("fitcv.pipeline.load_structured_jobs")
+    @patch("fitcv.pipeline.enrich_batch")
+    @patch("fitcv.pipeline.load_raw_jobs")
+    @patch("fitcv.pipeline.normalize_batch")
+    @patch("fitcv.pipeline.parse_jobs_file")
+    @patch("fitcv.pipeline.load_config")
+    def test_run_pipeline_persists_structured_cv_and_includes_it_in_export(
+        mock_config: MagicMock,
+        mock_parse: MagicMock,
+        mock_norm: MagicMock,
+        mock_load_bq: MagicMock,
+        mock_enrich: MagicMock,
+        mock_load_struct: MagicMock,
+        mock_load_run_struct: MagicMock,
+        mock_profile_yaml: MagicMock,
+        mock_load_cand: MagicMock,
+        mock_filter: MagicMock,
+        mock_store_filter: MagicMock,
+        mock_embed_jobs: MagicMock,
+        mock_embed_cand: MagicMock,
+        mock_vec: MagicMock,
+        mock_ai: MagicMock,
+        mock_build_feat: MagicMock,
+        mock_rank: MagicMock,
+        mock_store_rank: MagicMock,
+        mock_evidence: MagicMock,
+        mock_gap: MagicMock,
+        mock_gen_cv: MagicMock,
+        mock_validate: MagicMock,
+        mock_create_version: MagicMock,
+        mock_store_ver: MagicMock,
+    ) -> None:
+        from fitcv.pipeline import run_pipeline
+    
+        job = _minimal_job()
+        profile = _minimal_profile()
+        structured_cv = {
+            "schema_version": "cv_doc_v1",
+            "sections": {
+                "header": {"name": "Jane Doe", "title": "Data Engineer", "location": None, "contact": {"email": None, "phone": None, "linkedin": None}},
+                "summary": {"text": "Grounded summary."},
+                "experience": [],
+                "projects": [],
+                "education": [],
+                "skills": {"groups": []},
+                "certifications": [],
+                "publications": [],
+                "languages": [],
+            },
+        }
+    
+        config = _minimal_config()
+        config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+        mock_config.return_value = config
+        mock_parse.return_value = [job]
+        mock_norm.return_value = [job]
+        mock_enrich.return_value = [job]
+        mock_profile_yaml.return_value = profile
+        mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+        mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+        mock_ai.return_value = [job]
+        mock_build_feat.return_value = [job]
+        mock_rank.return_value = [job]
+        mock_create_version.return_value = {
+            "version_id": "v-structured",
+            "generated_at": "2026-03-29T12:00:00+00:00",
+        }
+    
+        with (
+            patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
+            patch(
+                "fitcv.pipeline.run_agentic_cv_generation",
+                return_value=_agentic_generation_result(structured_cv=structured_cv),
+            ),
+            patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+        ):
+            result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="structured-run")
+    
+        create_kwargs = mock_create_version.call_args.kwargs
+        assert create_kwargs["cv_structured"] == structured_cv
+>       assert create_kwargs["cv_generation_model"] == "cx/gpt-5.2"
+E       AssertionError: assert 'cx/gpt-5.4-mini' == 'cx/gpt-5.2'
+E         
+E         - cx/gpt-5.2
+E         + cx/gpt-5.4-mini
+
+tests\test_pipeline.py:4125: AssertionError
+___________ test_run_pipeline_returns_debug_record_for_accepted_cv ____________
+
+mock_config = <MagicMock name='load_config' id='2855182612336'>
+mock_parse = <MagicMock name='parse_jobs_file' id='2855184561024'>
+mock_norm = <MagicMock name='normalize_batch' id='2855184563376'>
+mock_norm_with_exclusions = <MagicMock name='normalize_batch_with_exclusions' id='2855184563712'>
+mock_load_bq = <MagicMock name='load_raw_jobs' id='2855186399312'>
+mock_enrich = <MagicMock name='enrich_batch' id='2855186399648'>
+mock_load_struct = <MagicMock name='load_structured_jobs' id='2855186399984'>
+mock_load_run_struct = <MagicMock name='load_run_structured_jobs' id='2855186400320'>
+mock_profile_yaml = <MagicMock name='load_profile_yaml' id='2855186400656'>
+mock_load_cand = <MagicMock name='load_candidate_profile' id='2855186400992'>
+mock_filter = <MagicMock name='apply_rule_filters' id='2855186401328'>
+mock_store_filter = <MagicMock name='store_filter_results' id='2855186401664'>
+mock_embed_jobs = <MagicMock name='embed_and_store_jobs' id='2855186402000'>
+mock_embed_cand = <MagicMock name='embed_and_store_candidate' id='2855186402336'>
+mock_vec = <MagicMock name='run_vector_search' id='2855186402672'>
+mock_ai = <MagicMock name='run_ai_scoring' id='2855186403008'>
+mock_build_feat = <MagicMock name='build_ranking_features' id='2855186403344'>
+mock_rank = <MagicMock name='rank_jobs' id='2855186403680'>
+mock_store_rank = <MagicMock name='store_final_ranking' id='2855186404016'>
+mock_evidence = <MagicMock name='retrieve_evidence' id='2855186404352'>
+mock_gap = <MagicMock name='compute_gap' id='2855186404688'>
+mock_gen_cv = <MagicMock name='generate_cv' id='2855186405024'>
+mock_validate = <MagicMock name='run_all_validations' id='2855186405360'>
+mock_create_version = <MagicMock name='create_cv_version_record' id='2855186405696'>
+mock_store_ver = <MagicMock name='store_cv_version' id='2855186406032'>
+
+    @patch("fitcv.pipeline.store_cv_version")
+    @patch("fitcv.pipeline.create_cv_version_record")
+    @patch("fitcv.agentic_cv_generation.run_all_validations")
+    @patch("fitcv.agentic_cv_generation.generate_cv")
+    @patch("fitcv.agentic_cv_analysis.compute_gap")
+    @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+    @patch("fitcv.pipeline.store_final_ranking")
+    @patch("fitcv.pipeline.rank_jobs")
+    @patch("fitcv.pipeline.build_ranking_features")
+    @patch("fitcv.pipeline.run_ai_scoring")
+    @patch("fitcv.pipeline.run_vector_search")
+    @patch("fitcv.pipeline.embed_and_store_candidate")
+    @patch("fitcv.pipeline.embed_and_store_jobs")
+    @patch("fitcv.pipeline.store_filter_results")
+    @patch("fitcv.pipeline.apply_rule_filters")
+    @patch("fitcv.pipeline.load_candidate_profile")
+    @patch("fitcv.pipeline.load_profile_yaml")
+    @patch("fitcv.pipeline.load_run_structured_jobs")
+    @patch("fitcv.pipeline.load_structured_jobs")
+    @patch("fitcv.pipeline.enrich_batch")
+    @patch("fitcv.pipeline.load_raw_jobs")
+    @patch("fitcv.pipeline.normalize_batch_with_exclusions")
+    @patch("fitcv.pipeline.normalize_batch")
+    @patch("fitcv.pipeline.parse_jobs_file")
+    @patch("fitcv.pipeline.load_config")
+    def test_run_pipeline_returns_debug_record_for_accepted_cv(
+        mock_config: MagicMock,
+        mock_parse: MagicMock,
+        mock_norm: MagicMock,
+        mock_norm_with_exclusions: MagicMock,
+        mock_load_bq: MagicMock,
+        mock_enrich: MagicMock,
+        mock_load_struct: MagicMock,
+        mock_load_run_struct: MagicMock,
+        mock_profile_yaml: MagicMock,
+        mock_load_cand: MagicMock,
+        mock_filter: MagicMock,
+        mock_store_filter: MagicMock,
+        mock_embed_jobs: MagicMock,
+        mock_embed_cand: MagicMock,
+        mock_vec: MagicMock,
+        mock_ai: MagicMock,
+        mock_build_feat: MagicMock,
+        mock_rank: MagicMock,
+        mock_store_rank: MagicMock,
+        mock_evidence: MagicMock,
+        mock_gap: MagicMock,
+        mock_gen_cv: MagicMock,
+        mock_validate: MagicMock,
+        mock_create_version: MagicMock,
+        mock_store_ver: MagicMock,
+    ) -> None:
+        from fitcv.pipeline import run_pipeline
+    
+        job = _minimal_job()
+        profile = _minimal_profile()
+        structured_cv = {
+            "schema_version": "cv_doc_v1",
+            "sections": {
+                "header": {"name": "Jane Doe", "title": "Data Engineer", "location": None, "contact": {"email": None, "phone": None, "linkedin": None}},
+                "summary": {"text": "Grounded summary."},
+                "experience": [],
+                "projects": [],
+                "education": [],
+                "skills": {"groups": []},
+                "certifications": [],
+                "publications": [],
+                "languages": [],
+            },
+        }
+        evidence = [
+            {
+                "evidence_id": "e1",
+                "evidence_type": "experience_entry",
+                "source_ref": "experience[0]",
+                "name": "Data Engineer at Fintech Startup GmbH",
+                "skills": ["SQL", "Python"],
+            }
+        ]
+        gap = {"matched": ["SQL"], "partial": [], "missing": []}
+    
+        config = _minimal_config()
+        config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+        mock_config.return_value = config
+        mock_parse.return_value = [job]
+        mock_norm.return_value = [job]
+        mock_norm_with_exclusions.return_value = ([job], [])
+        mock_enrich.return_value = [job]
+        mock_profile_yaml.return_value = profile
+        mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+        mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+        mock_ai.return_value = [job]
+        mock_build_feat.return_value = [job]
+        mock_rank.return_value = [job]
+        mock_create_version.return_value = {
+            "version_id": "v-debug",
+            "generated_at": "2026-03-31T12:00:00+00:00",
+        }
+    
+        with (
+            patch(
+                "fitcv.pipeline.analyze_ranked_job",
+                return_value=_agentic_analysis_ready(job, evidence_payload=evidence, gap_summary=gap),
+            ),
+            patch(
+                "fitcv.pipeline.run_agentic_cv_generation",
+                return_value=_agentic_generation_result(structured_cv=structured_cv, markdown="# CV Markdown"),
+            ),
+            patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+        ):
+            result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="debug-accepted")
+    
+        debug_records = result["cv_generation_debug_records"]
+        assert len(debug_records) == 1
+        record = debug_records[0]
+        assert record["job_url"] == job["job_url"]
+        assert record["status"] == "accepted"
+        assert record["fit_classification"] == "strong"
+        assert record["evidence_used"] == [
+            {
+                "evidence_type": "experience_entry",
+                "source_ref": "experience[0]",
+                "name": "Data Engineer at Fintech Startup GmbH",
+                "matched_channels": [],
+                "selection_reasons": [],
+            }
+        ]
+        assert record["gap_summary"] == gap
+        assert record["structured_cv_initial"] == structured_cv
+        assert record["validation_initial"]["valid"] is True
+        assert record["repair_attempt"] == {"performed": False, "missing_sections": []}
+        assert record["structured_cv_final"] == structured_cv
+        assert record["markdown_final"] == "# CV Markdown"
+        assert record["error"] is None
+        assert record["runtime_provenance"] == {
+            "route_part": "cv_generation",
+            "runtime_path": "fitcv_cv_generation_openai_compatible",
+            "adapter": "direct",
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "wire_api": "chat_completions",
+        }
+>       assert result["export_results"][0]["cv"]["runtime_path"] == "fitcv_cv_generation_openai_compatible"
+E       AssertionError: assert None == 'fitcv_cv_generation_openai_compatible'
+
+tests\test_pipeline.py:4275: AssertionError
+_ test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_debug_order _
+
+mock_config = <MagicMock name='load_config' id='2855178415680'>
+mock_parse = <MagicMock name='parse_jobs_file' id='2855182613008'>
+mock_norm = <MagicMock name='normalize_batch' id='2855182613344'>
+mock_norm_with_exclusions = <MagicMock name='normalize_batch_with_exclusions' id='2855182613680'>
+mock_load_bq = <MagicMock name='load_raw_jobs' id='2855182614016'>
+mock_enrich = <MagicMock name='enrich_batch' id='2855182612672'>
+mock_load_struct = <MagicMock name='load_run_structured_jobs' id='2855184547920'>
+mock_load_run_struct = <MagicMock name='load_structured_jobs' id='2855184548256'>
+mock_profile_yaml = <MagicMock name='load_profile_yaml' id='2855184548592'>
+mock_load_cand = <MagicMock name='load_candidate_profile' id='2855184548928'>
+mock_filter = <MagicMock name='apply_rule_filters' id='2855184549264'>
+mock_store_filter = <MagicMock name='store_filter_results' id='2855184549600'>
+mock_embed_jobs = <MagicMock name='embed_and_store_jobs' id='2855184549936'>
+mock_embed_cand = <MagicMock name='embed_and_store_candidate' id='2855184550272'>
+mock_vec = <MagicMock name='run_vector_search' id='2855184550608'>
+mock_ai = <MagicMock name='run_ai_scoring' id='2855184550944'>
+mock_build_feat = <MagicMock name='build_ranking_features' id='2855184551280'>
+mock_rank = <MagicMock name='rank_jobs' id='2855184551616'>
+mock_store_rank = <MagicMock name='store_final_ranking' id='2855184551952'>
+mock_evidence = <MagicMock name='retrieve_evidence' id='2855184552288'>
+mock_gap = <MagicMock name='compute_gap' id='2855184552624'>
+mock_gen_cv = <MagicMock name='generate_cv' id='2855184552960'>
+mock_validate = <MagicMock name='run_all_validations' id='2855184553296'>
+mock_create_version = <MagicMock name='create_cv_version_record' id='2855184553632'>
+mock_store_ver = <MagicMock name='store_cv_version' id='2855184553968'>
+
+    @patch("fitcv.pipeline.store_cv_version")
+    @patch("fitcv.pipeline.create_cv_version_record")
+    @patch("fitcv.agentic_cv_generation.run_all_validations")
+    @patch("fitcv.agentic_cv_generation.generate_cv")
+    @patch("fitcv.agentic_cv_analysis.compute_gap")
+    @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+    @patch("fitcv.pipeline.store_final_ranking")
+    @patch("fitcv.pipeline.rank_jobs")
+    @patch("fitcv.pipeline.build_ranking_features")
+    @patch("fitcv.pipeline.run_ai_scoring")
+    @patch("fitcv.pipeline.run_vector_search")
+    @patch("fitcv.pipeline.embed_and_store_candidate")
+    @patch("fitcv.pipeline.embed_and_store_jobs")
+    @patch("fitcv.pipeline.store_filter_results")
+    @patch("fitcv.pipeline.apply_rule_filters")
+    @patch("fitcv.pipeline.load_candidate_profile")
+    @patch("fitcv.pipeline.load_profile_yaml")
+    @patch("fitcv.pipeline.load_structured_jobs")
+    @patch("fitcv.pipeline.load_run_structured_jobs")
+    @patch("fitcv.pipeline.enrich_batch")
+    @patch("fitcv.pipeline.load_raw_jobs")
+    @patch("fitcv.pipeline.normalize_batch_with_exclusions")
+    @patch("fitcv.pipeline.normalize_batch")
+    @patch("fitcv.pipeline.parse_jobs_file")
+    @patch("fitcv.pipeline.load_config")
+    def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_debug_order(
+        mock_config: MagicMock,
+        mock_parse: MagicMock,
+        mock_norm: MagicMock,
+        mock_norm_with_exclusions: MagicMock,
+        mock_load_bq: MagicMock,
+        mock_enrich: MagicMock,
+        mock_load_struct: MagicMock,
+        mock_load_run_struct: MagicMock,
+        mock_profile_yaml: MagicMock,
+        mock_load_cand: MagicMock,
+        mock_filter: MagicMock,
+        mock_store_filter: MagicMock,
+        mock_embed_jobs: MagicMock,
+        mock_embed_cand: MagicMock,
+        mock_vec: MagicMock,
+        mock_ai: MagicMock,
+        mock_build_feat: MagicMock,
+        mock_rank: MagicMock,
+        mock_store_rank: MagicMock,
+        mock_evidence: MagicMock,
+        mock_gap: MagicMock,
+        mock_gen_cv: MagicMock,
+        mock_validate: MagicMock,
+        mock_create_version: MagicMock,
+        mock_store_ver: MagicMock,
+    ) -> None:
+        job_a = _minimal_job(url="https://example.com/job-a")
+        job_b = _minimal_job(url="https://example.com/job-b")
+        profile = _minimal_profile()
+        config = _minimal_config()
+        config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+        config.setdefault("stage_runtime", {}).setdefault("cv_generation", {})["concurrency"] = 2
+    
+        mock_config.return_value = config
+        mock_parse.return_value = [job_a, job_b]
+        mock_norm.return_value = [job_a, job_b]
+        mock_norm_with_exclusions.return_value = ([job_a, job_b], [])
+        mock_enrich.return_value = [job_a, job_b]
+        mock_profile_yaml.return_value = profile
+        mock_filter.return_value = {"passed": [job_a["job_url"], job_b["job_url"]], "rejected": []}
+        mock_vec.return_value = [
+            {"job_url": job_a["job_url"], "similarity_score": 0.91, "rank": 1},
+            {"job_url": job_b["job_url"], "similarity_score": 0.90, "rank": 2},
+        ]
+        mock_ai.return_value = [job_a, job_b]
+        mock_build_feat.return_value = [job_a, job_b]
+        mock_rank.return_value = [job_a, job_b]
+    
+        def _create_version(*, job_url: str, **_: Any) -> dict[str, Any]:
+            suffix = "a" if job_url.endswith("job-a") else "b"
+            return {"version_id": f"v-{suffix}", "generated_at": "2026-03-31T12:00:00+00:00"}
+    
+        mock_create_version.side_effect = _create_version
+    
+        def _agentic_generation_side_effect(*, analysis_record: dict[str, Any], **_: Any) -> dict[str, Any]:
+            job = dict(analysis_record.get("job_snapshot") or {})
+            job_url = str(job.get("job_url") or "")
+            if job_url.endswith("job-a"):
+                import time as _time
+                _time.sleep(0.08)
+            return _agentic_generation_result(
+                markdown="# CV",
+                job_url=job_url,
+                job_title=str(job.get("title") or job.get("job_title") or ""),
+            )
+    
+        with (
+            patch(
+                "fitcv.pipeline.analyze_ranked_job",
+                side_effect=[
+                    _agentic_analysis_ready(job_a),
+                    _agentic_analysis_ready(job_b),
+                ],
+            ),
+            patch(
+                "fitcv.pipeline.run_agentic_cv_generation",
+                side_effect=_agentic_generation_side_effect,
+            ),
+            patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+        ):
+            result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="parallel-order")
+    
+        debug_urls = [str(r.get("job_url") or "") for r in result["cv_generation_debug_records"]]
+        assert debug_urls == [job_a["job_url"], job_b["job_url"]]
+>       assert result["export_results"][0]["cv"]["provider"] == "openai_compatible"
+E       AssertionError: assert None == 'openai_compatible'
+
+tests\test_pipeline.py:4387: AssertionError
+__ test_enrich_jobs_with_reuse_preserves_order_and_separates_shared_upserts ___
+
+self = <MagicMock name='enrich_batch' id='2855186406704'>
+args = ([{'description': 'Enrich me', 'job_url': 'https://example.com/2', 'title': 'Fresh role'}], {'ai_score_model': 'cx/gpt-5.4-mini'})
+kwargs = {'job_event_callback': None, 'on_chunk_complete': None}
+expected = call([{'job_url': 'https://example.com/2', 'title': 'Fresh role', 'description': 'Enrich me'}], {'ai_score_model': 'cx/gpt-5.4-mini'}, job_event_callback=None, on_chunk_complete=None)
+actual = call([{'job_url': 'https://example.com/2', 'title': 'Fresh role', 'description': 'Enrich me'}], {'ai_score_model': 'cx/gpt-5.4-mini'}, job_event_callback=None, runtime_observation_callback=None, on_chunk_complete=None)
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x00000298C3C0D4E0>
+cause = None
+
+    def assert_called_with(self, /, *args, **kwargs):
+        """assert that the last call was made with the specified arguments.
+    
+        Raises an AssertionError if the args and keyword args passed in are
+        different to the last call to the mock."""
+        if self.call_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            actual = 'not called.'
+            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
+                    % (expected, actual))
+            raise AssertionError(error_message)
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs)
+            return msg
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.call_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: enrich_batch([{'job_url': 'https://example.com/2', 'title': 'Fresh role', 'description': 'Enrich me'}], {'ai_score_model': 'cx/gpt-5.4-mini'}, job_event_callback=None, on_chunk_complete=None)
+E             Actual: enrich_batch([{'job_url': 'https://example.com/2', 'title': 'Fresh role', 'description': 'Enrich me'}], {'ai_score_model': 'cx/gpt-5.4-mini'}, job_event_callback=None, runtime_observation_callback=None, on_chunk_complete=None)
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:979: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+self = <MagicMock name='enrich_batch' id='2855186406704'>
+args = ([{'description': 'Enrich me', 'job_url': 'https://example.com/2', 'title': 'Fresh role'}], {'ai_score_model': 'cx/gpt-5.4-mini'})
+kwargs = {'job_event_callback': None, 'on_chunk_complete': None}
+
+    def assert_called_once_with(self, /, *args, **kwargs):
+        """assert that the mock was called exactly once and that that call was
+        with the specified arguments."""
+        if not self.call_count == 1:
+            msg = ("Expected '%s' to be called once. Called %s times.%s"
+                   % (self._mock_name or 'mock',
+                      self.call_count,
+                      self._calls_repr()))
+            raise AssertionError(msg)
+>       return self.assert_called_with(*args, **kwargs)
+E       AssertionError: expected call not found.
+E       Expected: enrich_batch([{'job_url': 'https://example.com/2', 'title': 'Fresh role', 'description': 'Enrich me'}], {'ai_score_model': 'cx/gpt-5.4-mini'}, job_event_callback=None, on_chunk_complete=None)
+E         Actual: enrich_batch([{'job_url': 'https://example.com/2', 'title': 'Fresh role', 'description': 'Enrich me'}], {'ai_score_model': 'cx/gpt-5.4-mini'}, job_event_callback=None, runtime_observation_callback=None, on_chunk_complete=None)
+E       
+E       pytest introspection follows:
+E       
+E       Kwargs:
+E       assert {'job_event_c...llback': None} == {'job_event_c...mplete': None}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'runtime_observation_callback': None}
+E         Use -v to get more diff
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:991: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+mock_raw_job_fingerprint = <MagicMock name='build_raw_job_fingerprint' id='2855184554640'>
+mock_contract_fingerprint = <MagicMock name='build_enrich_contract_fingerprint' id='2855184555312'>
+mock_lookup_reusable = <MagicMock name='lookup_reusable_structured_jobs' id='2855186407040'>
+mock_enrich_batch = <MagicMock name='enrich_batch' id='2855186406704'>
+
+    @patch("fitcv.pipeline.enrich_batch")
+    @patch("fitcv.pipeline.lookup_reusable_structured_jobs")
+    @patch("fitcv.pipeline.build_enrich_contract_fingerprint")
+    @patch("fitcv.pipeline.build_raw_job_fingerprint")
+    def test_enrich_jobs_with_reuse_preserves_order_and_separates_shared_upserts(
+        mock_raw_job_fingerprint: MagicMock,
+        mock_contract_fingerprint: MagicMock,
+        mock_lookup_reusable: MagicMock,
+        mock_enrich_batch: MagicMock,
+    ) -> None:
+        jobs = [
+            {
+                "job_url": "https://example.com/1",
+                "title": "Reused role",
+                "description": "Reuse me",
+            },
+            {
+                "job_url": "https://example.com/2",
+                "title": "Fresh role",
+                "description": "Enrich me",
+            },
+        ]
+        mock_raw_job_fingerprint.side_effect = [
+            {"payload": {"job_url": jobs[0]["job_url"]}, "fingerprint": "raw-1"},
+            {"payload": {"job_url": jobs[1]["job_url"]}, "fingerprint": "raw-2"},
+        ]
+        mock_contract_fingerprint.return_value = {
+            "payload": {"prompt_id": "enrich.extraction.v1"},
+            "fingerprint": "contract-1",
+        }
+        mock_lookup_reusable.return_value = {
+            jobs[0]["job_url"]: {
+                "job_url": jobs[0]["job_url"],
+                "title": jobs[0]["title"],
+                "enrichment_version": "v1",
+                "enrichment_model": "cx/gpt-5.4-mini",
+                "enriched_at": "2026-04-03T00:00:00+00:00",
+            }
+        }
+        mock_enrich_batch.return_value = [
+            {
+                "job_url": jobs[1]["job_url"],
+                "title": jobs[1]["title"],
+                "enrichment_version": "v1",
+                "enrichment_model": "cx/gpt-5.4-mini",
+                "enriched_at": "2026-04-03T00:01:00+00:00",
+            }
+        ]
+    
+        enriched_rows, fresh_rows = _enrich_jobs_with_reuse(
+            jobs,
+            {"ai_score_model": "cx/gpt-5.4-mini"},
+        )
+    
+        assert [row["job_url"] for row in enriched_rows] == [
+            "https://example.com/1",
+            "https://example.com/2",
+        ]
+        assert enriched_rows[0]["enrich_reuse_status"] == "reused_cached_enrichment"
+        assert enriched_rows[1]["enrich_reuse_status"] == "fresh_enrichment"
+        assert enriched_rows[0]["raw_job_fingerprint"] == "raw-1"
+        assert enriched_rows[1]["raw_job_fingerprint"] == "raw-2"
+        assert all(row["enrich_contract_fingerprint"] == "contract-1" for row in enriched_rows)
+        assert [row["job_url"] for row in fresh_rows] == ["https://example.com/2"]
+>       mock_enrich_batch.assert_called_once_with([jobs[1]], {"ai_score_model": "cx/gpt-5.4-mini"}, job_event_callback=None, on_chunk_complete=None)
+E       AssertionError: expected call not found.
+E       Expected: enrich_batch([{'job_url': 'https://example.com/2', 'title': 'Fresh role', 'description': 'Enrich me'}], {'ai_score_model': 'cx/gpt-5.4-mini'}, job_event_callback=None, on_chunk_complete=None)
+E         Actual: enrich_batch([{'job_url': 'https://example.com/2', 'title': 'Fresh role', 'description': 'Enrich me'}], {'ai_score_model': 'cx/gpt-5.4-mini'}, job_event_callback=None, runtime_observation_callback=None, on_chunk_complete=None)
+E       
+E       pytest introspection follows:
+E       
+E       Kwargs:
+E       assert {'job_event_c...llback': None} == {'job_event_c...mplete': None}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'runtime_observation_callback': None}
+E         Use -v to get more diff
+
+tests\test_pipeline.py:5218: AssertionError
+____ test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage ____
+
+mock_load_config = <MagicMock name='load_config' id='2855186406368'>
+mock_load_profile = <MagicMock name='load_profile_yaml' id='2855186410064'>
+mock_retrieve_bundle = <MagicMock name='retrieve_evidence_bundle' id='2855186410400'>
+mock_compute_gap = <MagicMock name='compute_gap' id='2855186410736'>
+mock_load_run_structured_jobs = <MagicMock name='load_run_structured_jobs' id='2855186411072'>
+
+    @patch("fitcv.pipeline.load_run_structured_jobs")
+    @patch("fitcv.agentic_cv_analysis.compute_gap")
+    @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+    @patch("fitcv.pipeline.load_profile_yaml")
+    @patch("fitcv.pipeline.load_config")
+    def test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage(
+        mock_load_config: MagicMock,
+        mock_load_profile: MagicMock,
+        mock_retrieve_bundle: MagicMock,
+        mock_compute_gap: MagicMock,
+        mock_load_run_structured_jobs: MagicMock,
+    ) -> None:
+        job = {
+            "job_url": "https://example.com/trace-analysis",
+            "title": "Trace Analysis Job",
+            "required_skills": ["SQL"],
+            "preferred_skills": ["Python"],
+            "responsibilities": ["Build pipelines"],
+            "fit_label": "strong",
+            "fit_label_source": "reranker",
+        }
+        config = _minimal_config()
+        config["cv"]["agentic_late_stage"]["enabled"] = True
+        profile = _minimal_profile()
+        checkpoint_payload = {
+            "raw_jobs": [job],
+            "normalized": [job],
+            "enriched": [job],
+            "passed_jobs": [job],
+            "shortlist": [job],
+            "ranked": [job],
+            "cv_analysis_results": [],
+        }
+        mock_load_config.return_value = config
+        mock_load_profile.return_value = profile
+        mock_load_run_structured_jobs.return_value = [job]
+        mock_retrieve_bundle.return_value = {
+            "selected_evidence": [{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
+            "channel_counts": {"required_skill_support": 1},
+            "effective_channel_pool_size": 1,
+            "merged_pool_size": 1,
+            "deduped_pool_size": 1,
+            "selected_evidence_ids": ["exp-1"],
+        }
+        mock_compute_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+    
+        result = run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+            run_id="cv-analysis-trace",
+            start_stage="cv_analysis",
+            stop_after_stage="cv_analysis",
+            checkpoint_payload=checkpoint_payload,
+        )
+    
+        trace_payload = result["cv_analysis_trace"]
+>       assert trace_payload["trace_family"] == "agentic_step_trace"
+E       AssertionError: assert 'stage_execution_trace' == 'agentic_step_trace'
+E         
+E         - agentic_step_trace
+E         + stage_execution_trace
+
+tests\test_pipeline.py:8468: AssertionError
+____ test_run_pipeline_incremental_enrich_persists_each_store_exactly_once ____
+
+mock_config = <MagicMock name='load_config' id='2855186412080'>
+mock_parse = <MagicMock name='parse_jobs_file' id='2855186411744'>
+mock_norm = <MagicMock name='normalize_batch' id='2855186411408'>
+mock_load_bq = <MagicMock name='load_raw_jobs' id='2855186412416'>
+mock_enrich = <MagicMock name='enrich_batch' id='2855186412752'>
+mock_load_struct = <MagicMock name='load_structured_jobs' id='2855186413088'>
+mock_profile_yaml = <MagicMock name='load_profile_yaml' id='2855186413424'>
+mock_load_cand = <MagicMock name='load_candidate_profile' id='2855186413760'>
+mock_filter = <MagicMock name='apply_rule_filters' id='2855186414096'>
+mock_store_filter = <MagicMock name='store_filter_results' id='2855186414432'>
+mock_embed_jobs = <MagicMock name='embed_and_store_jobs' id='2855186414768'>
+mock_embed_cand = <MagicMock name='embed_and_store_candidate' id='2855186415104'>
+mock_vec = <MagicMock name='run_vector_search' id='2855188217936'>
+mock_ai = <MagicMock name='run_ai_scoring' id='2855188218272'>
+mock_build_feat = <MagicMock name='build_ranking_features' id='2855188218608'>
+mock_rank = <MagicMock name='rank_jobs' id='2855188218944'>
+mock_store_rank = <MagicMock name='store_final_ranking' id='2855188219280'>
+mock_evidence = <MagicMock name='retrieve_evidence_bundle' id='2855188219616'>
+mock_gap = <MagicMock name='compute_gap' id='2855188219952'>
+mock_gen_cv = <MagicMock name='generate_cv' id='2855188220288'>
+mock_validate = <MagicMock name='run_all_validations' id='2855188220624'>
+mock_store_ver = <MagicMock name='store_cv_version' id='2855188220960'>
+mock_load_run_struct = <MagicMock name='load_run_structured_jobs' id='2855188221296'>
+
+    @patch("fitcv.pipeline.load_run_structured_jobs")
+    @patch("fitcv.pipeline.store_cv_version")
+    @patch("fitcv.agentic_cv_generation.run_all_validations")
+    @patch("fitcv.agentic_cv_generation.generate_cv")
+    @patch("fitcv.agentic_cv_analysis.compute_gap")
+    @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+    @patch("fitcv.pipeline.store_final_ranking")
+    @patch("fitcv.pipeline.rank_jobs")
+    @patch("fitcv.pipeline.build_ranking_features")
+    @patch("fitcv.pipeline.run_ai_scoring")
+    @patch("fitcv.pipeline.run_vector_search")
+    @patch("fitcv.pipeline.embed_and_store_candidate")
+    @patch("fitcv.pipeline.embed_and_store_jobs")
+    @patch("fitcv.pipeline.store_filter_results")
+    @patch("fitcv.pipeline.apply_rule_filters")
+    @patch("fitcv.pipeline.load_candidate_profile")
+    @patch("fitcv.pipeline.load_profile_yaml")
+    @patch("fitcv.pipeline.load_structured_jobs")
+    @patch("fitcv.pipeline.enrich_batch")
+    @patch("fitcv.pipeline.load_raw_jobs")
+    @patch("fitcv.pipeline.normalize_batch")
+    @patch("fitcv.pipeline.parse_jobs_file")
+    @patch("fitcv.pipeline.load_config")
+    def test_run_pipeline_incremental_enrich_persists_each_store_exactly_once(
+        mock_config: MagicMock,
+        mock_parse: MagicMock,
+        mock_norm: MagicMock,
+        mock_load_bq: MagicMock,
+        mock_enrich: MagicMock,
+        mock_load_struct: MagicMock,
+        mock_profile_yaml: MagicMock,
+        mock_load_cand: MagicMock,
+        mock_filter: MagicMock,
+        mock_store_filter: MagicMock,
+        mock_embed_jobs: MagicMock,
+        mock_embed_cand: MagicMock,
+        mock_vec: MagicMock,
+        mock_ai: MagicMock,
+        mock_build_feat: MagicMock,
+        mock_rank: MagicMock,
+        mock_store_rank: MagicMock,
+        mock_evidence: MagicMock,
+        mock_gap: MagicMock,
+        mock_gen_cv: MagicMock,
+        mock_validate: MagicMock,
+        mock_store_ver: MagicMock,
+        mock_load_run_struct: MagicMock,
+    ) -> None:
+        """Incremental enrich persistence must not duplicate structured or run-scoped writes."""
+        from fitcv.pipeline import run_pipeline
+    
+        job = _minimal_job()
+        profile = _minimal_profile()
+    
+        mock_config.return_value = _minimal_config()
+        mock_parse.return_value = [job]
+        mock_norm.return_value = [job]
+        mock_profile_yaml.return_value = profile
+        mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+        mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+        mock_ai.return_value = [job]
+        mock_build_feat.return_value = [job]
+        mock_rank.return_value = []
+    
+        def enrich_side_effect(rows, config, job_event_callback=None, on_chunk_complete=None):
+            enriched = [
+                {
+                    **row,
+                    "enrichment_version": "v1",
+                    "enrichment_model": "cx/gpt-5.4-mini",
+                    "enriched_at": "2026-04-03T00:01:00+00:00",
+                }
+                for row in rows
+            ]
+            if on_chunk_complete is not None:
+                on_chunk_complete(enriched)
+            return enriched
+    
+        mock_enrich.side_effect = enrich_side_effect
+    
+>       run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="test-run-id")
+
+tests\test_pipeline.py:9223: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\fitcv\pipeline.py:3189: in run_pipeline
+    enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(
+src\fitcv\pipeline.py:608: in _enrich_jobs_with_reuse
+    fresh_rows = _run_enrich_call_with_polling(
+src\fitcv\pipeline.py:451: in _run_enrich_call_with_polling
+    raise error
+src\fitcv\pipeline.py:430: in _target
+    result_holder["rows"] = fn()
+src\fitcv\pipeline.py:609: in <lambda>
+    lambda: enrich_batch(
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1169: in __call__
+    return self._mock_call(*args, **kwargs)
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1173: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <MagicMock name='enrich_batch' id='2855186412752'>
+args = ([{'ai_score': 0.85, 'final_score': 0.8, 'job_title': 'Data Engineer', 'job_url': 'https://example.com/1', ...}], {'cv...tion_model': 'cx/gpt-5.4-mini', 'cv_max_pages': 2, 'paths': {'candidate_profile': 'data/candidate_profile.yaml'}, ...})
+kwargs = {'job_event_callback': None, 'on_chunk_complete': <function _enrich_jobs_with_reuse.<locals>._on_chunk_complete at 0x00000298C65D91C0>, 'runtime_observation_callback': <built-in method append of list object at 0x00000298C82F0740>}
+effect = <function test_run_pipeline_incremental_enrich_persists_each_store_exactly_once.<locals>.enrich_side_effect at 0x00000298C632FC40>
+
+    def _execute_mock_call(self, /, *args, **kwargs):
+        # separate from _increment_mock_call so that awaited functions are
+        # executed separately from their call, also AsyncMock overrides this method
+    
+        effect = self.side_effect
+        if effect is not None:
+            if _is_exception(effect):
+                raise effect
+            elif not _callable(effect):
+                result = next(effect)
+                if _is_exception(result):
+                    raise result
+            else:
+>               result = effect(*args, **kwargs)
+E               TypeError: test_run_pipeline_incremental_enrich_persists_each_store_exactly_once.<locals>.enrich_side_effect() got an unexpected keyword argument 'runtime_observation_callback'
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1234: TypeError
+=========================== short test summary info ===========================
+FAILED tests/test_pipeline.py::test_run_pipeline_persists_structured_cv_and_includes_it_in_export
+FAILED tests/test_pipeline.py::test_run_pipeline_returns_debug_record_for_accepted_cv
+FAILED tests/test_pipeline.py::test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_debug_order
+FAILED tests/test_pipeline.py::test_enrich_jobs_with_reuse_preserves_order_and_separates_shared_upserts
+FAILED tests/test_pipeline.py::test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage
+FAILED tests/test_pipeline.py::test_run_pipeline_incremental_enrich_persists_each_store_exactly_once
+6 failed in 1.64s

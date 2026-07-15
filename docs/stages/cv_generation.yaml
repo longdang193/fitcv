@@ -74,6 +74,7 @@ doc_refs:
 - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
 - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
 - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
+- docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
 - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
 config_refs: []
 component_refs: []
@@ -87,6 +88,8 @@ inputs:
 outputs:
 - '`stage_transition_artifacts.cv_generation.decision_summary.quality_metrics` with accepted, validation-failed, generation-failed, and persistence-failed counts and rates'
 - bounded `stage_transition_artifacts.cv_generation` runtime block with input, output, and changed-state samples, including bounded upstream `cv_analysis` inputs, selected evidence context, and hybrid validation provenance for debugging
+- ordered `llm_runtime_observations` for actual generation calls and one canonical `cv-generation-trace.json` projection using the stage-neutral trace family
+- periodic `cv_generation_heartbeat` progress events while provider calls remain pending, using one bounded executor path for single-item and concurrent batches and the same liveness frame as enrichment heartbeats
 - rendered markdown CVs
 - stage-owned final CV generation statuses (accepted, review_required, validation_failed, generation_failed, persistence_failed)
 - structured CV artifacts
@@ -95,7 +98,7 @@ invariants:
 - cv-analysis-ready jobs enter and accepted or rejected CV artifacts leave
 - '`fitcv.agentic_cv_generation.generate_from_analysis` owns generation fingerprints, reuse validity, validation, repair, acceptance or review decisions, and canonical result meaning'
 - pipeline orchestration owns scheduling, candidate lookup, accepted-result persistence I/O, and observation projection
-- LangGraph and direct writers own transport and runtime telemetry only
+- LangGraph and direct writers own transport and runtime telemetry only; both return through the same repo-native runtime result contract
 - evidence retrieval, gap analysis, and fit-gate ownership do not belong to this stage
 human_notes:
 - cv generation

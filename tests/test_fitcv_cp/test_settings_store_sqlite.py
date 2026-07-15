@@ -54,19 +54,27 @@ def test_local_settings_group_save_without_bq(tmp_path, monkeypatch):
     assert active["pipeline.final_top_n"] == 10
 
 
-def test_local_settings_persist_across_module_reload(tmp_path, monkeypatch):
+def test_local_settings_prunes_removed_agentic_late_stage_row(tmp_path, monkeypatch):
     sqlite_path = tmp_path / "settings.sqlite3"
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    ss.save_setting("pipeline.final_top_n", 10, updated_by="local")
 
-    ss.save_setting(
-        "cv.agentic_late_stage.enabled",
-        True,
-        updated_by="local",
-    )
+    with sqlite3.connect(sqlite_path) as conn:
+        conn.execute(
+            "INSERT INTO pipeline_settings (setting_key, setting_value_json, updated_by, updated_at) VALUES (?, ?, ?, ?)",
+            ("cv.agentic_late_stage.enabled", "true", "legacy", "9999-01-01T00:00:00+00:00"),
+        )
+        conn.commit()
 
     active = ss.load_active_settings()
 
-    assert active["cv.agentic_late_stage.enabled"] is True
+    assert "cv.agentic_late_stage.enabled" not in active
+    with sqlite3.connect(sqlite_path) as conn:
+        rows = conn.execute(
+            "SELECT setting_key FROM pipeline_settings WHERE setting_key = ?",
+            ("cv.agentic_late_stage.enabled",),
+        ).fetchall()
+    assert rows == []
 
 
 def test_local_settings_load_recovers_from_disk_io_error(tmp_path, monkeypatch):

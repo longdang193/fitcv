@@ -101,6 +101,38 @@ class LlmRuntimeResult:
     adapter_response: LlmAdapterResponse | None
 
 
+def project_llm_runtime_evidence(result: LlmRuntimeResult) -> dict[str, Any]:
+    provenance = result.provenance
+    failure = result.failure
+    return {
+        "contract_version": "llm_runtime_evidence_v1",
+        "status": result.status,
+        "provenance": {
+            "routing_part": provenance.routing_part,
+            "runtime_path": provenance.runtime_path,
+            "adapter": provenance.adapter,
+            "provider": provenance.provider,
+            "model": provenance.model,
+            "wire_api": provenance.wire_api,
+            "attempt_count": provenance.attempt_count,
+            "response_id": provenance.response_id,
+            "trace_id": provenance.trace_id,
+            "latency_ms": provenance.latency_ms,
+        },
+        "failure": (
+            {
+                "stage": failure.stage,
+                "code": failure.code,
+                "message": failure.message,
+                "retryable": failure.retryable,
+                "http_status": failure.http_status,
+            }
+            if failure is not None
+            else None
+        ),
+    }
+
+
 class LlmAdapterError(RuntimeError):
     def __init__(
         self,

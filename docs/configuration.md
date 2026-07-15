@@ -136,17 +136,19 @@ Examples:
 - hidden-deprecated: legacy AI-authority controls (for example `cv_generation_model`) retained only for compatibility projection, not operator control
 - compatibility-readonly: runtime throughput legacy aliases mapped to canonical `stage_runtime.*` keys
 - canonical-save-path: settings-save routes persist canonical `stage_runtime.*` throughput keys and ignore compatibility alias inputs in timing-section writes
-- enrich-pacing-contract: enrich concurrency controls worker parallelism; shared request-start pacing still limits aggregate request rate
-- ranking-pacing-contract: ranking uses `stage_runtime.ranking.concurrency` workers, but submit loop still sleeps `stage_runtime.ranking.sleep_secs` between submissions, so provider timestamps can look sequential when sleep is positive
+- effective-concurrency-contract: `configured_concurrency` is the stage cap; `*_concurrency_effective` is `min(configured_concurrency, runnable_work_items)` and is `0` when reuse or gating leaves no runnable work
+- enrich-pacing-contract: enrich work items are batches, so effective concurrency is capped by `ceil(fresh_jobs / batch_size)`; shared request-start pacing still limits aggregate request rate
+- ranking-pacing-contract: ranking work items are fresh AI-score rows; the submit loop still sleeps `stage_runtime.ranking.sleep_secs` between submissions, so provider timestamps can look sequential when sleep is positive
+- cv-analysis-pacing-contract: CV analysis runs ranked-job work concurrently up to `stage_runtime.cv_analysis.concurrency` while preserving input order
+- cv-generation-pacing-contract: CV generation runs generation-ready rows concurrently up to `stage_runtime.cv_generation.concurrency`, preserves input order, and applies `stage_runtime.cv_generation.sleep_secs` between provider-call submissions
 
-### Settings Mode Strip SSOT Contract
+### LLM Runtime Adapter Contract
 
-- mode-strip fields (`Agentic Mode`, `Live Provider`, `Live Model`, `Authority State`) are resolved by one control-plane authority resolver
-- `Agentic Mode` source: persisted compatibility setting `cv.agentic_late_stage.enabled`; this label is observational only and does not select generation semantics, fingerprints, validation, repair, acceptance, or persistence behavior
-- `Live Provider` and `Live Model` source: shared live LangGraph runtime expectation resolver (`resolve_langgraph_runtime_expectation()`), with env overrides applied only at that transport boundary; direct and LangGraph writers feed the same repo-native generation contract
-- `Authority State`:
-  - `aligned`: toggle and resolved live runtime expectations are consistent
-  - `drifted`: toggle and resolved live runtime expectations conflict; UI shows explicit drift reason
+- no persisted mode toggle selects late-stage CV semantics
+- direct and LangGraph adapters feed one repo-native runtime contract
+- LangGraph remains transport/orchestration only; stage meaning, validation, repair, acceptance, and persistence stay repo-owned
+- live provider/model environment values configure adapter routing only and do not create a second semantic path
+- `cv.agentic_late_stage.enabled` is retired from the active settings schema; stale persisted rows are pruned, not projected into current settings
 
 ## Backend and Provider Routing
 

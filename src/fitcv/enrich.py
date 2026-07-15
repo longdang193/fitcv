@@ -38,6 +38,7 @@ from fitcv.llm_runtime import (
     LlmTaskRequest,
     LlmValidationResult,
     execute_llm_task,
+    project_llm_runtime_evidence,
 )
 from fitcv.pipeline_stages.common import extract_job_url
 from fitcv.prompts import get_prompt_definition, render_prompt
@@ -1572,9 +1573,11 @@ def _execute_enrich_runtime(
     )
 
 
-def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
-    """Extract structured fields through shared LLM runtime."""
-    result = _execute_enrich_runtime(job, config)
+def _enrich_result_to_row(
+    job: dict[str, Any],
+    config: dict[str, Any],
+    result: LlmRuntimeResult,
+) -> dict[str, Any]:
     if result.status != "succeeded" or not isinstance(result.parsed_value, dict):
         failure = result.failure or LlmRuntimeFailure(
             stage="validate",
@@ -1592,11 +1595,19 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
         )
     return merge_scraped_and_enriched(job, extraction["parsed"], config)
 
+
+def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    """Extract structured fields through shared LLM runtime."""
+    return _enrich_result_to_row(job, config, _execute_enrich_runtime(job, config))
+
+
 def _enrich_chunk(
     chunk: list[dict[str, Any]],
     config: dict[str, Any],
     *,
     job_event_callback: Callable[[dict[str, Any]], None] | None = None,
+    runtime_observation_callback: Callable[[dict[str, Any]], None] | None = None,
+    input_offset: int = 0,
 ) -> list[dict[str, Any]]:
     """Enrich one bounded chunk of normalized jobs with global rate limiting and retry.
 
@@ -1613,7 +1624,7 @@ def _enrich_chunk(
     sleep_secs = float(config.get("enrichment_sleep_secs", 1.0))
     max_retries = int(config.get("enrichment_max_retries", 2))
     results: list[dict[str, Any]] = []
-    for job in chunk:
+    for local_index, job in enumerate(chunk):
         attempts = 0
         while True:
             _acquire_enrich_rate_slot(sleep_secs)
@@ -1625,7 +1636,26 @@ def _enrich_chunk(
                         job_event_callback({"phase": "job_start", "job_url": job_url})
                     except Exception:  # noqa: BLE001
                         pass
-                enriched = enrich_job(job, config)
+                if runtime_observation_callback is None:
+                    enriched = enrich_job(job, config)
+                else:
+                    result = _execute_enrich_runtime(job, config)
+                    try:
+                        runtime_observation_callback(
+                            {
+                                "contract_version": "llm_runtime_observation_v1",
+                                "scope_key": str(
+                                    job.get("raw_job_fingerprint")
+                                    or build_raw_job_fingerprint(job)["fingerprint"]
+                                ),
+                                "input_index": input_offset + local_index,
+                                "invocation_index": attempts + 1,
+                                "evidence": project_llm_runtime_evidence(result),
+                            }
+                        )
+                    except Exception:  # noqa: BLE001
+                        logger.warning("runtime observation callback failed", exc_info=True)
+                    enriched = _enrich_result_to_row(job, config, result)
                 results.append(enriched)
                 elapsed_secs = max(0.0, time.monotonic() - started_at)
                 if job_event_callback and job_url:
@@ -1660,6 +1690,7 @@ def enrich_batch(
     config: dict[str, Any],
     *,
     job_event_callback: Callable[[dict[str, Any]], None] | None = None,
+    runtime_observation_callback: Callable[[dict[str, Any]], None] | None = None,
     on_chunk_complete: Callable[[list[dict[str, Any]]], None] | None = None,
 ) -> list[dict[str, Any]]:
     """Enrich a batch of normalized jobs with bounded parallel execution.
@@ -1706,7 +1737,20 @@ def enrich_batch(
     # completion-driven callbacks for incremental persistence.
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
         future_to_idx = {
-            executor.submit(_enrich_chunk, chunk, config, job_event_callback=job_event_callback): idx
+            executor.submit(
+                _enrich_chunk,
+                chunk,
+                config,
+                job_event_callback=job_event_callback,
+                **(
+                    {
+                        "runtime_observation_callback": runtime_observation_callback,
+                        "input_offset": idx * batch_size,
+                    }
+                    if runtime_observation_callback is not None
+                    else {}
+                ),
+            ): idx
             for idx, chunk in enumerate(chunks)
         }
 

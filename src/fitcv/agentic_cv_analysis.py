@@ -130,14 +130,6 @@ def build_analysis_input_summary(job: dict[str, Any]) -> dict[str, Any]:
         if value not in (None, "", [])
     }
 
-def _build_runtime_provenance() -> dict[str, Any]:
-    return {
-        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
-        "provider": "fitcv_builtin",
-        "mode_source": "cv.agentic_late_stage.enabled",
-    }
-
-
 def _fit_label_from_ai_score(score: float, config: dict[str, Any]) -> FitClassification:
     return cast(FitClassification, fit_label_from_score(score, config))
 
@@ -192,15 +184,14 @@ def _build_cv_analysis_trace_record(
     if not trace_preferred_skills:
         trace_preferred_skills = list(job.get("preferred_skills") or [])
     return {
-        "trace_schema_version": "agentic_step_trace_record_v1",
-        "trace_family": "agentic_step_trace",
+        "trace_schema_version": "stage_execution_trace_record_v1",
+        "trace_family": "stage_execution_trace",
         "step_id": "cv_analysis",
         "trace_status": trace_status,
         "record_id": canonical_identity,
         "scope_type": "job",
         "scope_key": canonical_identity,
         "status": status,
-        "runtime_provenance": _build_runtime_provenance(),
         "attempts": [
             {
                 "attempt_index": 1,

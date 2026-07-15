@@ -3,7 +3,7 @@ feature_id: cv_system
 name: CV System
 status: active
 type: add
-summary: Own the grounded CV-writing path from post-ranking evidence preparation through `cv_analysis` and `cv_generation`, including evidence selection, fit-gate resolution, structured CV generation, validation against selected evidence, and the stage-owned artifacts that explain final CV outcomes.
+summary: Own the grounded CV-writing path from post-ranking analysis through one canonical CV-generation meaning owner, with LangGraph and direct runtimes behind the same adapter contract, canonical per-call evidence, and stage-neutral traces.
 invariants: []
 domains:
 - cv_generation
@@ -27,13 +27,13 @@ capabilities:
   statement: Reject unresolved candidate-name placeholders and allow one deterministic header-only repair when a real name is available.
   state: active
 - capability_id: cv_system.stage-artifact-diagnostics
-  statement: Emit stage-owned diagnostics, quality metrics, and transition artifacts for `cv_analysis` and `cv_generation`.
+  statement: Emit stage-owned diagnostics, quality metrics, canonical runtime evidence, and stage-neutral traces for `cv_analysis` and `cv_generation`.
   state: active
 - capability_id: cv_system.exact-match-late-stage-reuse
   statement: Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
   state: active
 - capability_id: cv_system.config-owned-generation-contract
-  statement: Keep prompt and runtime ownership for active CV generation under the structured-write contract and central config layers.
+  statement: Keep generation meaning under one structured-write contract while direct and LangGraph adapters share central runtime routing.
   state: active
 stage_participation:
 - stage_id: enrich
@@ -165,6 +165,7 @@ refs:
   - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
   - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
   - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+  - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
   - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -258,6 +259,7 @@ refs:
   - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
   - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
   - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+  - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
   docs:
   - docs/features/cv_system/history.md
   configs:

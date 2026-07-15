@@ -1,0 +1,826 @@
+[
+  {
+    "event_id": "ae1ec792-dce2-4547-8559-efcd54e58d2d",
+    "stage": "run_attempt",
+    "level": "info",
+    "message": "Run attempt started",
+    "payload_json": "{\"schema_version\": \"run_attempt.v1\", \"attempt\": {\"attempt_id\": \"8a827451-334a-455d-848c-6074693e103a\", \"status\": \"running\", \"rq_job_id\": \"inline-6e203b48-4a8d-45b4-a6ca-c6c04411fa94\", \"worker_id\": null, \"lease_started_at\": \"2026-07-14T22:11:48.100201+00:00\", \"lease_expires_at\": \"2026-07-14T22:26:48.100201+00:00\", \"finished_at\": null, \"error\": {\"classification\": null, \"summary\": null, \"details\": null}, \"retry\": {\"eligible\": null, \"after_seconds\": null}}}",
+    "created_at": "2026-07-14T22:11:48.100277+00:00"
+  },
+  {
+    "event_id": "3fea6d12-1e73-4394-9209-4ec6e47ab338",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=b26e96bd-f8fb-4b12-9c94-fd5eb3e9976d]",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"88e42adc643844c4f38d014aa81f4be0\", \"span_id\": \"0f5c36e8a899de12\", \"parent_span_id\": \"1f8adafb34f9bea7\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:11:48.119580+00:00"
+  },
+  {
+    "event_id": "2458991c-3a09-43a0-9990-29c64aa2ac13",
+    "stage": "layer1_normalize",
+    "level": "info",
+    "message": "Normalization dedupe: kept 13 of 13 jobs, removed 0 duplicate(s)",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"6c09d8619c51e91d93f544994299f5d4\", \"span_id\": \"4e7f3fdf0fdae03f\", \"parent_span_id\": \"b17ea2bfe6b22b59\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:11:48.135927+00:00"
+  },
+  {
+    "event_id": "71ee8ac9-28c0-485c-bb46-8bd52628be43",
+    "stage": "layer1b_pre_filter",
+    "level": "info",
+    "message": "Pre-enrichment filter: 13 pass, 0 rejected",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"0faea7fb08f4519afc653697a6b058f8\", \"span_id\": \"c56002327b98c8e8\", \"parent_span_id\": \"6d1f0f5908c43c37\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:11:48.252668+00:00"
+  },
+  {
+    "event_id": "9d6f10bb-d75b-4aa4-bde4-d5d41591660f",
+    "stage": "run_attempt",
+    "level": "info",
+    "message": "Run attempt lease renewed",
+    "payload_json": "{\"schema_version\": \"run_attempt.v1\", \"attempt\": {\"attempt_id\": \"8a827451-334a-455d-848c-6074693e103a\", \"status\": \"running\", \"rq_job_id\": \"inline-6e203b48-4a8d-45b4-a6ca-c6c04411fa94\", \"worker_id\": null, \"lease_started_at\": \"2026-07-14T22:11:48.267961+00:00\", \"lease_expires_at\": \"2026-07-14T22:26:48.267961+00:00\", \"finished_at\": null, \"error\": {\"classification\": null, \"summary\": null, \"details\": null}, \"retry\": {\"eligible\": null, \"after_seconds\": null}}}",
+    "created_at": "2026-07-14T22:11:48.268048+00:00"
+  },
+  {
+    "event_id": "9df73d9b-c10f-451c-9325-0d959e3ed742",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_start\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:11:48.281730+00:00"
+  },
+  {
+    "event_id": "c44db165-0865-4897-98c6-4584d0fffddc",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 1, \"elapsed_secs\": 15, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:12:03.292214+00:00"
+  },
+  {
+    "event_id": "02672904-e890-4690-88cf-3e95a1b0480c",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 2, \"elapsed_secs\": 30, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:12:18.305214+00:00"
+  },
+  {
+    "event_id": "d177f6b5-4779-4b9c-a64d-906033ccd7e6",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 3, \"elapsed_secs\": 45, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:12:33.318278+00:00"
+  },
+  {
+    "event_id": "d61f4caf-8356-44ff-a10d-c956dc1acd24",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 4, \"elapsed_secs\": 60, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:12:48.333882+00:00"
+  },
+  {
+    "event_id": "d153cdec-087d-4d05-b129-d71626222166",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 5, \"elapsed_secs\": 75, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:13:03.358318+00:00"
+  },
+  {
+    "event_id": "fea8c4b8-8ab5-4df8-b5df-c481ab856eca",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 6, \"elapsed_secs\": 90, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:13:18.385875+00:00"
+  },
+  {
+    "event_id": "e9f47f60-8869-4da9-9471-017d9631c94a",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 7, \"elapsed_secs\": 105, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:13:33.400073+00:00"
+  },
+  {
+    "event_id": "294088ab-3d77-4ddf-bc45-b7ce89636e74",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 8, \"elapsed_secs\": 120, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:13:48.424735+00:00"
+  },
+  {
+    "event_id": "9394a8f8-7224-4faf-b66b-acf7736e6b63",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 9, \"elapsed_secs\": 135, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:14:03.446584+00:00"
+  },
+  {
+    "event_id": "28a5eba5-104e-45ee-aa61-e4e259fe4aba",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 10, \"elapsed_secs\": 150, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:14:18.461925+00:00"
+  },
+  {
+    "event_id": "1783099c-a7de-486a-98be-2e218e1592b7",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 11, \"elapsed_secs\": 165, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:14:33.480871+00:00"
+  },
+  {
+    "event_id": "f5d67e56-d70d-49f6-8887-c540fa8f2625",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 12, \"elapsed_secs\": 180, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:14:48.503492+00:00"
+  },
+  {
+    "event_id": "6888eef3-84aa-4284-b84d-b5633a553d02",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 13, \"elapsed_secs\": 195, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:15:03.524902+00:00"
+  },
+  {
+    "event_id": "5ea6e975-9b9b-40d9-8d64-9ff1e340d211",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 14, \"elapsed_secs\": 210, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:15:18.540078+00:00"
+  },
+  {
+    "event_id": "e84851dc-65c5-43b8-bd68-ae3b11e409d4",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 15, \"elapsed_secs\": 225, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:15:33.550912+00:00"
+  },
+  {
+    "event_id": "4c367e31-1da4-4b9a-aa6f-f44fcf00afd2",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 16, \"elapsed_secs\": 240, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:15:48.569787+00:00"
+  },
+  {
+    "event_id": "2c028de7-25fc-419e-8ffc-fd833cfdcbea",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 17, \"elapsed_secs\": 255, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:16:03.578238+00:00"
+  },
+  {
+    "event_id": "3cb3b0bb-5be5-4cbe-ad30-bf44ac9ab775",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 18, \"elapsed_secs\": 270, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:16:18.596418+00:00"
+  },
+  {
+    "event_id": "fe9f2efd-fa5c-435a-a357-27272d15cc6e",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 19, \"elapsed_secs\": 285, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:16:33.603561+00:00"
+  },
+  {
+    "event_id": "8bb2a2aa-e5bf-4f99-9ff4-268283454d71",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 20, \"elapsed_secs\": 300, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:16:48.606489+00:00"
+  },
+  {
+    "event_id": "d1d04182-f134-4ff9-9020-441e15ff4c94",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 21, \"elapsed_secs\": 315, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:17:03.620499+00:00"
+  },
+  {
+    "event_id": "b22af63e-965e-49c8-89ce-a96c4ab00e02",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 22, \"elapsed_secs\": 330, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:17:18.641056+00:00"
+  },
+  {
+    "event_id": "3812edd0-39bc-456b-939d-47076ef8b6ca",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 23, \"elapsed_secs\": 345, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:17:33.659937+00:00"
+  },
+  {
+    "event_id": "004a7948-aa55-4014-a48d-ad39a187efdf",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 24, \"elapsed_secs\": 360, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:17:48.680890+00:00"
+  },
+  {
+    "event_id": "74c4da8f-3f4e-4566-8c56-409326b0c1b7",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 25, \"elapsed_secs\": 375, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:18:03.709203+00:00"
+  },
+  {
+    "event_id": "d8a8fb4b-aeef-45fc-ad30-b8ffc264d39f",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 26, \"elapsed_secs\": 390, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:18:18.733092+00:00"
+  },
+  {
+    "event_id": "8e31ad95-be62-49e5-9990-7b4945de3ab8",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 27, \"elapsed_secs\": 405, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:18:33.761524+00:00"
+  },
+  {
+    "event_id": "148456d4-90fb-4200-958c-06f73560fc2a",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 28, \"elapsed_secs\": 420, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:18:48.775866+00:00"
+  },
+  {
+    "event_id": "0c0aaf83-66b1-4c0d-bbd4-9b357dbb820a",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 29, \"elapsed_secs\": 435, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:19:03.805348+00:00"
+  },
+  {
+    "event_id": "80326193-1d07-45fb-b542-a7a8cef666b0",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 30, \"elapsed_secs\": 450, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:19:18.816798+00:00"
+  },
+  {
+    "event_id": "9e2726e6-c446-432a-a1a3-e6c226df85c4",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 31, \"elapsed_secs\": 465, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:19:33.848906+00:00"
+  },
+  {
+    "event_id": "94ba12ed-ee06-4de2-af04-c18a968d951d",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 32, \"elapsed_secs\": 480, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:19:48.874857+00:00"
+  },
+  {
+    "event_id": "9c4e4f9c-79c3-4f80-9730-5223c9e4079f",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 33, \"elapsed_secs\": 495, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:20:03.888382+00:00"
+  },
+  {
+    "event_id": "0dbc3da0-45a4-42ca-9219-0703bd4996ef",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 34, \"elapsed_secs\": 510, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:20:18.897973+00:00"
+  },
+  {
+    "event_id": "0cb12813-7742-4328-b0c8-e64b289f0a68",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 35, \"elapsed_secs\": 525, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:20:33.919339+00:00"
+  },
+  {
+    "event_id": "d0dba696-a3a1-49f0-9095-524d043faa72",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 36, \"elapsed_secs\": 540, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:20:48.937665+00:00"
+  },
+  {
+    "event_id": "54e2e327-eaf7-4fe2-b18b-b6199f691685",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 37, \"elapsed_secs\": 555, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:21:03.960617+00:00"
+  },
+  {
+    "event_id": "0eb85b2e-b1b9-43fe-8e42-3b37644603b4",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 38, \"elapsed_secs\": 570, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:21:18.985619+00:00"
+  },
+  {
+    "event_id": "95fc8881-6c26-442c-b685-4148be0c5c86",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 39, \"elapsed_secs\": 585, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:21:34.009628+00:00"
+  },
+  {
+    "event_id": "eaff982b-7210-42de-a9aa-cbd80ee234b6",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 40, \"elapsed_secs\": 600, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:21:49.026002+00:00"
+  },
+  {
+    "event_id": "5ec1965b-4a1b-4243-9090-a7db4bbfcd35",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 41, \"elapsed_secs\": 615, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:22:04.046213+00:00"
+  },
+  {
+    "event_id": "b985f236-e845-44ce-8b77-5cfcdc73f6b0",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 42, \"elapsed_secs\": 630, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:22:19.065386+00:00"
+  },
+  {
+    "event_id": "6c542308-b151-44b0-a09e-0cc8a4927b4d",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 43, \"elapsed_secs\": 645, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:22:34.081533+00:00"
+  },
+  {
+    "event_id": "ea79648c-4656-457e-8ddd-52611095e95a",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 44, \"elapsed_secs\": 660, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:22:49.103240+00:00"
+  },
+  {
+    "event_id": "79893438-f1bc-48db-9a1a-2bc23c78d5dd",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 45, \"elapsed_secs\": 675, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:23:04.113210+00:00"
+  },
+  {
+    "event_id": "17755ea3-7bd0-45c6-8538-ebaa097fdbb0",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 46, \"elapsed_secs\": 690, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:23:19.133490+00:00"
+  },
+  {
+    "event_id": "59fc9ccc-0ba0-40e0-9346-b267ac86cfa0",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 47, \"elapsed_secs\": 705, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:23:34.157238+00:00"
+  },
+  {
+    "event_id": "e6a649bc-c352-40b6-a0ea-7a2fae66bc0c",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 48, \"elapsed_secs\": 720, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:23:49.174877+00:00"
+  },
+  {
+    "event_id": "50807424-cddc-4eee-ab4b-6c6e6abb093d",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 49, \"elapsed_secs\": 735, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:24:04.185021+00:00"
+  },
+  {
+    "event_id": "e8442c94-4527-46a1-ae55-9c5cacde1877",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 50, \"elapsed_secs\": 750, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:24:19.200265+00:00"
+  },
+  {
+    "event_id": "5c047417-65e1-4733-b486-4019c4d9895a",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 51, \"elapsed_secs\": 765, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:24:34.212830+00:00"
+  },
+  {
+    "event_id": "61623c04-e743-4816-867e-13814c271c42",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 52, \"elapsed_secs\": 780, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:24:49.226257+00:00"
+  },
+  {
+    "event_id": "eceb112b-ae8c-40e7-9ac8-fde7957c69ff",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 53, \"elapsed_secs\": 795, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:25:04.256957+00:00"
+  },
+  {
+    "event_id": "f7be5e3b-e600-431b-9f52-fff69ed9fb67",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 54, \"elapsed_secs\": 810, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:25:19.288580+00:00"
+  },
+  {
+    "event_id": "99c7a70a-8f92-465a-8934-43ec90213590",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 55, \"elapsed_secs\": 826, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:25:34.313735+00:00"
+  },
+  {
+    "event_id": "4261fc45-b666-421e-bf0e-faf51de7c029",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 56, \"elapsed_secs\": 841, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:25:49.335960+00:00"
+  },
+  {
+    "event_id": "ddf8970c-efd5-45d1-a903-c9d446b6be02",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 57, \"elapsed_secs\": 856, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:26:04.357391+00:00"
+  },
+  {
+    "event_id": "2e8d0963-c96b-48a9-8e4f-150e49f294c1",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 58, \"elapsed_secs\": 871, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:26:19.369517+00:00"
+  },
+  {
+    "event_id": "d4580de2-b9d8-468b-9018-00d0508dcc9a",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 59, \"elapsed_secs\": 886, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:26:34.394025+00:00"
+  },
+  {
+    "event_id": "2ae11be3-7c81-4d02-af77-2e7d4b9dfe3f",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 60, \"elapsed_secs\": 901, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:26:49.414469+00:00"
+  },
+  {
+    "event_id": "a54fb986-bf48-401c-8844-c3df03701c77",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 61, \"elapsed_secs\": 916, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:27:04.436086+00:00"
+  },
+  {
+    "event_id": "1e29200a-cb56-446b-86ce-64231f037c94",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 62, \"elapsed_secs\": 931, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:27:19.456894+00:00"
+  },
+  {
+    "event_id": "e17f2223-1e83-460f-ba17-0973a13595b0",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 63, \"elapsed_secs\": 946, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:27:34.473771+00:00"
+  },
+  {
+    "event_id": "62e87c9e-500e-420c-a10a-907c481fb529",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 64, \"elapsed_secs\": 961, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:27:49.500735+00:00"
+  },
+  {
+    "event_id": "c776afa9-c146-4428-8381-781c4bcab4aa",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 65, \"elapsed_secs\": 976, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:28:04.521816+00:00"
+  },
+  {
+    "event_id": "aed756d8-3a64-46e7-b880-d034700c0e06",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 66, \"elapsed_secs\": 991, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:28:19.536272+00:00"
+  },
+  {
+    "event_id": "aa86c5b0-a5f4-4e83-b798-0c1c77859b65",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 67, \"elapsed_secs\": 1006, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:28:34.559057+00:00"
+  },
+  {
+    "event_id": "982b07e5-1c93-4b10-a521-fe21a5b5d48c",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 68, \"elapsed_secs\": 1021, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:28:49.571365+00:00"
+  },
+  {
+    "event_id": "8bccd884-43b3-4b4c-a612-4f91f7d6c00f",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_progress\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"heartbeat_count\": 69, \"elapsed_secs\": 1036, \"heartbeat_interval_secs\": 15, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:04.589480+00:00"
+  },
+  {
+    "event_id": "b55aa1a2-a002-4f31-905e-ea72489d20bc",
+    "stage": "enrich_heartbeat",
+    "level": "info",
+    "message": "Enrich in progress",
+    "payload_json": "{\"phase\": \"batch_done\", \"fresh_jobs_total\": 13, \"reused_jobs_total\": 0, \"fresh_rows_total\": 13, \"enrich_concurrency_effective\": 8, \"trace_context\": {\"trace_id\": \"ec3df3459c9d11bf54d94cedb763ebea\", \"span_id\": \"6cc8b881216d3c83\", \"parent_span_id\": \"885865ee93ed9c1c\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:19.094237+00:00"
+  },
+  {
+    "event_id": "49c4f0fa-5e28-4a16-b440-ff8041991749",
+    "stage": "layer1_jobs",
+    "level": "info",
+    "message": "Ingested 13 jobs, enriched 13 (after pre-filter; fresh=13, reused=0)",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"15ed8b3f35e07dc90875c4d8a40c4522\", \"span_id\": \"18c834bb07fd4f2e\", \"parent_span_id\": \"55f2de3d18b783ef\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:19.101395+00:00"
+  },
+  {
+    "event_id": "96708f24-4d3e-4521-a0d5-1ab135a1fbfe",
+    "stage": "synonym_proposal_triage_completed",
+    "level": "info",
+    "message": "Synonym triage refresh completed: triaged=32, reused=0, fallback=0, skipped=0, failed=0",
+    "payload_json": "{\"triaged_count\": 32, \"reused_count\": 0, \"reused_strict_count\": 0, \"reused_core_count\": 0, \"fresh_count\": 32, \"fallback_count\": 0, \"skipped_count\": 0, \"failed_count\": 0, \"reuse_reason\": \"reuse_enabled\", \"auto_triage_recommendation_enabled\": true, \"triage_recommendation_reuse_enabled\": true, \"provider\": \"fitcv_builtin\", \"model\": \"synonym_triage_v1\", \"base_url\": null, \"wire_api\": \"builtin\", \"api_key_available\": false, \"sleep_secs\": 0.0, \"concurrency\": 1}",
+    "created_at": "2026-07-14T22:29:19.215129+00:00"
+  },
+  {
+    "event_id": "22ad907a-c888-4744-9683-04a037a73ed7",
+    "stage": "synonym_proposal_auto_apply_completed",
+    "level": "info",
+    "message": "Synonym auto-apply completed: applied=32, skipped=0, failed=0",
+    "payload_json": "{\"applied_count\": 32, \"skipped_count\": 0, \"failed_count\": 0, \"reason_counts\": {}, \"acted_by\": \"system\", \"note\": \"auto:run-execution\"}",
+    "created_at": "2026-07-14T22:29:19.222313+00:00"
+  },
+  {
+    "event_id": "508a39cf-f234-4c5c-a5b2-7a47fd380156",
+    "stage": "synonym_proposal_suppression_summary",
+    "level": "info",
+    "message": "Suppressed synonym proposals already covered by global map: 23",
+    "payload_json": "{\"suppressed_as_already_global_count\": 23, \"generated_for_review_count\": 32, \"suppression_source\": \"run_effective_skill_synonyms\", \"suppression_examples\": [{\"field\": \"skill\", \"alias\": \"strong command of sql\", \"canonical\": \"sql\"}, {\"field\": \"skill\", \"alias\": \"familiarity with data modeling\", \"canonical\": \"data modeling\"}, {\"field\": \"skill\", \"alias\": \"partitioning strategies\", \"canonical\": \"partitioning\"}, {\"field\": \"skill\", \"alias\": \"ci/cd pipelines\", \"canonical\": \"ci/cd\"}, {\"field\": \"role_family\", \"alias\": \"data engineering\", \"canonical\": \"data_engineering\"}, {\"field\": \"skill\", \"alias\": \"hochverfügbaren daten-pipelines\", \"canonical\": \"data pipelines\"}, {\"field\": \"skill\", \"alias\": \"backend-anwendungen\", \"canonical\": \"backend development\"}, {\"field\": \"skill\", \"alias\": \"flatfiles\", \"canonical\": \"flat files\"}, {\"field\": \"skill\", \"alias\": \"sql auf expertenniveau\", \"canonical\": \"sql\"}, {\"field\": \"skill\", \"alias\": \"idealerweise python\", \"canonical\": \"python\"}], \"suppression_fingerprint\": \"208fc73135f6aac74291545b7074ecc16cec9467de821d8292aa88b7374f43f1\", \"suppression_fingerprint_legacy_sha1\": \"9021479ce0840c24c51e9a047fbe06f80e67373f\", \"suppression_payload_canonical_json\": \"{\\\"generated_for_review_count\\\":32,\\\"suppressed_as_already_global_count\\\":23,\\\"suppression_examples\\\":[{\\\"alias\\\":\\\"strong command of sql\\\",\\\"canonical\\\":\\\"sql\\\",\\\"field\\\":\\\"skill\\\"},{\\\"alias\\\":\\\"familiarity with data modeling\\\",\\\"canonical\\\":\\\"data modeling\\\",\\\"field\\\":\\\"skill\\\"},{\\\"alias\\\":\\\"partitioning strategies\\\",\\\"canonical\\\":\\\"partitioning\\\",\\\"field\\\":\\\"skill\\\"},{\\\"alias\\\":\\\"ci/cd pipelines\\\",\\\"canonical\\\":\\\"ci/cd\\\",\\\"field\\\":\\\"skill\\\"},{\\\"alias\\\":\\\"data engineering\\\",\\\"canonical\\\":\\\"data_engineering\\\",\\\"field\\\":\\\"role_family\\\"},{\\\"alias\\\":\\\"hochverfügbaren daten-pipelines\\\",\\\"canonical\\\":\\\"data pipelines\\\",\\\"field\\\":\\\"skill\\\"},{\\\"alias\\\":\\\"backend-anwendungen\\\",\\\"canonical\\\":\\\"backend development\\\",\\\"field\\\":\\\"skill\\\"},{\\\"alias\\\":\\\"flatfiles\\\",\\\"canonical\\\":\\\"flat files\\\",\\\"field\\\":\\\"skill\\\"},{\\\"alias\\\":\\\"sql auf expertenniveau\\\",\\\"canonical\\\":\\\"sql\\\",\\\"field\\\":\\\"skill\\\"},{\\\"alias\\\":\\\"idealerweise python\\\",\\\"canonical\\\":\\\"python\\\",\\\"field\\\":\\\"skill\\\"}],\\\"suppression_source\\\":\\\"run_effective_skill_synonyms\\\"}\"}",
+    "created_at": "2026-07-14T22:29:19.269816+00:00"
+  },
+  {
+    "event_id": "5a3d1509-423e-4392-b712-985ad203e9b5",
+    "stage": "layer2_candidate",
+    "level": "info",
+    "message": "Candidate profile loaded",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"029d6f342b9e380cd6642fe22cf91057\", \"span_id\": \"40d71a6ca2d1a3f3\", \"parent_span_id\": \"83751acb2308c2f5\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:19.277736+00:00"
+  },
+  {
+    "event_id": "537c5708-1019-4466-ad21-8be85e540054",
+    "stage": "layer3_filter",
+    "level": "info",
+    "message": "5 passed rule filter",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"334172836ef13878c699e07d1d9caf43\", \"span_id\": \"67112c211118b0b4\", \"parent_span_id\": \"a8396ee99cd8293e\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:19.294769+00:00"
+  },
+  {
+    "event_id": "0402b57c-5bb6-45d0-8bd9-a8b37571f431",
+    "stage": "synonym_proposal_auto_apply_completed",
+    "level": "info",
+    "message": "Synonym auto-apply completed: applied=32, skipped=0, failed=0",
+    "payload_json": "{\"applied_count\": 32, \"skipped_count\": 0, \"failed_count\": 0, \"reason_counts\": {}, \"acted_by\": \"system\", \"note\": \"auto:run-execution\"}",
+    "created_at": "2026-07-14T22:29:19.465123+00:00"
+  },
+  {
+    "event_id": "736d6b4b-75b8-44ce-9554-f026d4e7b84f",
+    "stage": "layer3_shortlist",
+    "level": "info",
+    "message": "Vector shortlist: 5 raw hits",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"40c50abac9a744ac431014d04c158160\", \"span_id\": \"7240a7f589feccd1\", \"parent_span_id\": \"e5d4e58fb66eace0\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:19.534265+00:00"
+  },
+  {
+    "event_id": "234345eb-eb28-4948-b7ab-cd5f27bdd264",
+    "stage": "synonym_proposal_auto_apply_completed",
+    "level": "info",
+    "message": "Synonym auto-apply completed: applied=32, skipped=0, failed=0",
+    "payload_json": "{\"applied_count\": 32, \"skipped_count\": 0, \"failed_count\": 0, \"reason_counts\": {}, \"acted_by\": \"system\", \"note\": \"auto:run-execution\"}",
+    "created_at": "2026-07-14T22:29:19.693040+00:00"
+  },
+  {
+    "event_id": "20c9f7c1-65e0-4849-abe9-b453888ca132",
+    "stage": "run_attempt",
+    "level": "info",
+    "message": "Run attempt lease renewed",
+    "payload_json": "{\"schema_version\": \"run_attempt.v1\", \"attempt\": {\"attempt_id\": \"8a827451-334a-455d-848c-6074693e103a\", \"status\": \"running\", \"rq_job_id\": \"inline-6e203b48-4a8d-45b4-a6ca-c6c04411fa94\", \"worker_id\": null, \"lease_started_at\": \"2026-07-14T22:29:19.748006+00:00\", \"lease_expires_at\": \"2026-07-14T22:44:19.748006+00:00\", \"finished_at\": null, \"error\": {\"classification\": null, \"summary\": null, \"details\": null}, \"retry\": {\"eligible\": null, \"after_seconds\": null}}}",
+    "created_at": "2026-07-14T22:29:19.748190+00:00"
+  },
+  {
+    "event_id": "4b68bc3a-6ade-4c05-a8e2-bee2e5889544",
+    "stage": "layer3_ai_score",
+    "level": "info",
+    "message": "AI scored: 5 jobs",
+    "payload_json": "{\"event_name\": \"ranking_ai_scored\", \"event_family\": \"summary\", \"source_stage\": \"ranking\", \"event_status\": \"completed\", \"deterministic_outcome\": null, \"fallback_used\": false, \"output_snapshot\": {\"ai_scored_jobs\": 5, \"ranking_concurrency_effective\": 4}, \"artifact_refs\": {\"stage_id\": \"ranking\"}, \"trace_context\": {\"trace_id\": \"8a364383007ff31c948fc03820d02afb\", \"span_id\": \"4114840ad5a4b6ea\", \"parent_span_id\": \"e58a6095bd126810\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:32.054456+00:00"
+  },
+  {
+    "event_id": "5073f939-722b-46db-9926-172a33baf97d",
+    "stage": "layer3_ranking",
+    "level": "info",
+    "message": "Final ranking: top 5 jobs",
+    "payload_json": "{\"event_name\": \"ranking_completed\", \"event_family\": \"summary\", \"source_stage\": \"ranking\", \"event_status\": \"completed\", \"deterministic_outcome\": null, \"fallback_used\": false, \"output_snapshot\": {\"ranked_jobs\": 5, \"ranking_concurrency_effective\": 4, \"reused_ai_scores\": 0, \"fresh_ai_scores\": 5}, \"artifact_refs\": {\"stage_id\": \"ranking\"}, \"trace_context\": {\"trace_id\": \"ea2e0461c13af89906fc0205e75d5223\", \"span_id\": \"1d7cce6aa81f1136\", \"parent_span_id\": \"c2e791529cab071a\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:32.079282+00:00"
+  },
+  {
+    "event_id": "039d0d8d-6fb4-4681-b0bf-4cea855c3106",
+    "stage": "synonym_proposal_auto_apply_completed",
+    "level": "info",
+    "message": "Synonym auto-apply completed: applied=32, skipped=0, failed=0",
+    "payload_json": "{\"applied_count\": 32, \"skipped_count\": 0, \"failed_count\": 0, \"reason_counts\": {}, \"acted_by\": \"system\", \"note\": \"auto:run-execution\"}",
+    "created_at": "2026-07-14T22:29:32.253904+00:00"
+  },
+  {
+    "event_id": "041d32e9-c71d-4bc1-9d9b-79ff6e38cb17",
+    "stage": "layer4_cv_analysis_invoked",
+    "level": "info",
+    "message": "CV analysis invoked for 5 ranked job(s)",
+    "payload_json": "{\"event_name\": \"cv_analysis_invoked\", \"event_family\": \"invocation\", \"source_stage\": \"cv_analysis\", \"event_status\": \"started\", \"deterministic_outcome\": null, \"fallback_used\": false, \"provenance\": {\"cv_analysis_concurrency_effective\": 1}, \"input_snapshot\": {\"ranked_jobs\": 5, \"cv_analysis_concurrency_configured\": 4}, \"output_snapshot\": {\"cv_analysis_concurrency_effective\": 1}, \"artifact_refs\": {\"stage_id\": \"cv_analysis\"}, \"trace_context\": {\"trace_id\": \"a3942ab12becbbb04e5fdd9d8a585fb1\", \"span_id\": \"fbb9d6424ca27fc8\", \"parent_span_id\": \"abd34d17631da20e\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:32.297687+00:00"
+  },
+  {
+    "event_id": "196c55c3-79df-46c1-9ef8-4b15167a3045",
+    "stage": "layer4_cv_analysis",
+    "level": "info",
+    "message": "CV analysis complete: 3 ready, 2 blocked by reranker, 0 skipped, 0 failed",
+    "payload_json": "{\"event_name\": \"cv_analysis_decision\", \"event_family\": \"decision\", \"source_stage\": \"cv_analysis\", \"event_status\": \"completed\", \"deterministic_outcome\": null, \"fallback_used\": false, \"stage_owned_subreason\": \"stage_summary\", \"input_snapshot\": {\"ranked_jobs\": 5, \"cv_analysis_concurrency_configured\": 4}, \"output_snapshot\": {\"reused_analysis_rows\": 0, \"fresh_analysis_rows\": 3, \"ready_for_generation\": 3, \"blocked_by_reranker_fit\": 2, \"skipped_fit_gate\": 0, \"analysis_failed\": 0, \"fresh_analysis_reuse_mismatch_reasons\": {\"no_reusable_snapshot_match\": 3}, \"fresh_analysis_overlap_urls\": 0, \"fresh_analysis_no_overlap_urls\": 3, \"cv_analysis_concurrency_effective\": 1}, \"artifact_refs\": {\"stage_id\": \"cv_analysis\"}, \"latency_ms\": 907, \"trace_context\": {\"trace_id\": \"c1ec4a50049d6674e7d8be7b2a43a98e\", \"span_id\": \"0e0956201cf6f076\", \"parent_span_id\": \"b80f515b09efe4e9\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:33.205572+00:00"
+  },
+  {
+    "event_id": "1e1cc221-f21c-4901-af85-417bf73bcbf4",
+    "stage": "layer4_cv_analysis_blocked_details",
+    "level": "info",
+    "message": "Blocked by reranker diagnostics: 2 job(s)",
+    "payload_json": "{\"event_name\": \"cv_analysis_blocked_diagnostics\", \"event_family\": \"debug\", \"source_stage\": \"cv_analysis\", \"event_status\": \"completed\", \"deterministic_outcome\": \"rejected\", \"fallback_used\": false, \"stage_owned_subreason\": \"blocked_by_reranker_fit\", \"input_snapshot\": {\"fit_label_thresholds\": {\"strong\": 0.7, \"stretch\": 0.4}}, \"output_snapshot\": {\"blocked_jobs\": [{\"job_url\": \"https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title\", \"ranking_fit_label\": \"skip\", \"fit_classification\": \"skip\", \"ai_score\": 0.33, \"fit_label_source\": \"reranker\"}, {\"job_url\": \"https://www.linkedin.com/jobs/view/4433509746\", \"ranking_fit_label\": \"skip\", \"fit_classification\": \"skip\", \"ai_score\": 0.12, \"fit_label_source\": \"reranker\"}]}, \"artifact_refs\": {\"stage_id\": \"cv_analysis\"}, \"trace_context\": {\"trace_id\": \"4a8d4bf468e73f54014bffc751720581\", \"span_id\": \"c6676d7d7e48ae11\", \"parent_span_id\": \"15e9ed078ccde904\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:33.215677+00:00"
+  },
+  {
+    "event_id": "886b8654-a921-4bc3-8980-a82f205c44b5",
+    "stage": "synonym_proposal_auto_apply_completed",
+    "level": "info",
+    "message": "Synonym auto-apply completed: applied=32, skipped=0, failed=0",
+    "payload_json": "{\"applied_count\": 32, \"skipped_count\": 0, \"failed_count\": 0, \"reason_counts\": {}, \"acted_by\": \"system\", \"note\": \"auto:run-execution\"}",
+    "created_at": "2026-07-14T22:29:33.448749+00:00"
+  },
+  {
+    "event_id": "8a583299-dade-480e-a51b-bb03bb4bae65",
+    "stage": "layer4_cv_generation_started",
+    "level": "info",
+    "message": "CV generation started for https://de.linkedin.com/jobs/view/business-operations-analyst-transformation-m-w-d-at-youlend-4376832121?trk=public_jobs_topcard-title [item 1/3]",
+    "payload_json": "{\"event_name\": \"cv_generation_started\", \"event_family\": \"invocation\", \"source_stage\": \"cv_generation\", \"event_status\": \"started\", \"deterministic_outcome\": null, \"fallback_used\": false, \"job_url\": \"https://de.linkedin.com/jobs/view/business-operations-analyst-transformation-m-w-d-at-youlend-4376832121?trk=public_jobs_topcard-title\", \"input_snapshot\": {\"ranking_fit_label\": \"stretch\", \"fit_classification\": \"stretch\", \"generation_index\": 0, \"generation_total\": 3}, \"output_snapshot\": {\"configured_concurrency\": 4, \"cv_generation_concurrency_effective\": 4, \"worker_slot\": 0, \"started_at\": \"2026-07-14T22:29:33.521758+00:00\"}, \"artifact_refs\": {\"stage_id\": \"cv_generation\"}, \"trace_context\": {\"trace_id\": \"ac3fa99ec93b6928fe4e27c452087c41\", \"span_id\": \"273cffd1157d552c\", \"parent_span_id\": \"d46d864f570447b5\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:33.521871+00:00"
+  },
+  {
+    "event_id": "546d9764-c686-4559-b275-de1b564f9887",
+    "stage": "layer4_cv_generation_started",
+    "level": "info",
+    "message": "CV generation started for https://www.linkedin.com/jobs/view/4405033868 [item 2/3]",
+    "payload_json": "{\"event_name\": \"cv_generation_started\", \"event_family\": \"invocation\", \"source_stage\": \"cv_generation\", \"event_status\": \"started\", \"deterministic_outcome\": null, \"fallback_used\": false, \"job_url\": \"https://www.linkedin.com/jobs/view/4405033868\", \"input_snapshot\": {\"ranking_fit_label\": \"stretch\", \"fit_classification\": \"stretch\", \"generation_index\": 1, \"generation_total\": 3}, \"output_snapshot\": {\"configured_concurrency\": 4, \"cv_generation_concurrency_effective\": 4, \"worker_slot\": 1, \"started_at\": \"2026-07-14T22:29:33.530428+00:00\"}, \"artifact_refs\": {\"stage_id\": \"cv_generation\"}, \"trace_context\": {\"trace_id\": \"4a3ffbc1f6682db48a2e98777e977cd4\", \"span_id\": \"635420f459987ea3\", \"parent_span_id\": \"6d5060e57de725d0\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:33.530546+00:00"
+  },
+  {
+    "event_id": "e84d8473-9799-4cf4-81b7-53c342a384a1",
+    "stage": "layer4_cv_generation_started",
+    "level": "info",
+    "message": "CV generation started for https://de.linkedin.com/jobs/view/research-assistant-at-hangzhou-kingbo-pharmatech-co-ltd-4374897271?trk=public_jobs_topcard-title [item 3/3]",
+    "payload_json": "{\"event_name\": \"cv_generation_started\", \"event_family\": \"invocation\", \"source_stage\": \"cv_generation\", \"event_status\": \"started\", \"deterministic_outcome\": null, \"fallback_used\": false, \"job_url\": \"https://de.linkedin.com/jobs/view/research-assistant-at-hangzhou-kingbo-pharmatech-co-ltd-4374897271?trk=public_jobs_topcard-title\", \"input_snapshot\": {\"ranking_fit_label\": \"stretch\", \"fit_classification\": \"stretch\", \"generation_index\": 2, \"generation_total\": 3}, \"output_snapshot\": {\"configured_concurrency\": 4, \"cv_generation_concurrency_effective\": 4, \"worker_slot\": 2, \"started_at\": \"2026-07-14T22:29:33.539282+00:00\"}, \"artifact_refs\": {\"stage_id\": \"cv_generation\"}, \"trace_context\": {\"trace_id\": \"9049f130f3bd07b62781027351c571eb\", \"span_id\": \"0e9988a7121595ba\", \"parent_span_id\": \"41428b2311108462\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:29:33.539428+00:00"
+  },
+  {
+    "event_id": "fbe82532-eef2-444b-977f-5f608960e184",
+    "stage": "layer4_cv_generation_result",
+    "level": "info",
+    "message": "CV generation result for https://de.linkedin.com/jobs/view/business-operations-analyst-transformation-m-w-d-at-youlend-4376832121?trk=public_jobs_topcard-title: review_required",
+    "payload_json": "{\"event_name\": \"cv_generation_result\", \"event_family\": \"decision\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": \"review_required\", \"fallback_used\": false, \"job_url\": \"https://de.linkedin.com/jobs/view/business-operations-analyst-transformation-m-w-d-at-youlend-4376832121?trk=public_jobs_topcard-title\", \"input_snapshot\": {\"ranking_fit_label\": \"stretch\", \"fit_classification\": \"stretch\"}, \"output_snapshot\": {\"status\": \"review_required\", \"reuse_status\": \"fresh_compute\", \"reused_cv_version_id\": \"\", \"cv_generation_input_fingerprint\": \"52f3880ed8110143cc2c167caff5573c8add41df32a01b70021fd74c57a3397e\", \"review_required_reason_code\": \"unsupported_requirement_gap\", \"validation_evidence_fingerprint\": \"ed03265d1b8ab8a17322884d053dac478ef51166c140026c6fa5e670c98a6b68\", \"attempt_count\": 1, \"retry_count\": 0, \"configured_concurrency\": 4, \"worker_slot\": 0, \"started_at\": \"2026-07-14T22:29:33.521758+00:00\", \"finished_at\": \"2026-07-14T22:31:05.254428+00:00\"}, \"artifact_refs\": {\"stage_id\": \"cv_generation\"}, \"trace_context\": {\"trace_id\": \"1df3b8c7b0910fd2043b9e512f6dc2eb\", \"span_id\": \"cb20541345ff139f\", \"parent_span_id\": \"74ae85649a0a2a2e\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:32:26.326722+00:00"
+  },
+  {
+    "event_id": "1da7849c-a718-4675-998a-500f55d1cdb9",
+    "stage": "layer4_cv_generation_result",
+    "level": "info",
+    "message": "CV generation result for https://www.linkedin.com/jobs/view/4405033868: review_required",
+    "payload_json": "{\"event_name\": \"cv_generation_result\", \"event_family\": \"decision\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": \"review_required\", \"fallback_used\": false, \"job_url\": \"https://www.linkedin.com/jobs/view/4405033868\", \"input_snapshot\": {\"ranking_fit_label\": \"stretch\", \"fit_classification\": \"stretch\"}, \"output_snapshot\": {\"status\": \"review_required\", \"reuse_status\": \"fresh_compute\", \"reused_cv_version_id\": \"\", \"cv_generation_input_fingerprint\": \"e1b1e245f906c1ee39c22e4e7a4512cfe7e29ec29efc14e28a88f1243834f023\", \"review_required_reason_code\": \"unsupported_requirement_gap\", \"validation_evidence_fingerprint\": \"0e646776565e3064c5196d453e6b06b1263a02e751c68b61901bcdf382203da8\", \"attempt_count\": 1, \"retry_count\": 0, \"configured_concurrency\": 4, \"worker_slot\": 1, \"started_at\": \"2026-07-14T22:29:33.530428+00:00\", \"finished_at\": \"2026-07-14T22:31:34.114475+00:00\"}, \"artifact_refs\": {\"stage_id\": \"cv_generation\"}, \"trace_context\": {\"trace_id\": \"8fa6b632d9e7f65c3c4317baf1f7a46a\", \"span_id\": \"0855b24289e2749a\", \"parent_span_id\": \"19343b30f2907478\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:32:26.336210+00:00"
+  },
+  {
+    "event_id": "47288f3f-f4e6-463a-b198-65b622a940a7",
+    "stage": "layer4_cv_generation_result",
+    "level": "info",
+    "message": "CV generation result for https://de.linkedin.com/jobs/view/research-assistant-at-hangzhou-kingbo-pharmatech-co-ltd-4374897271?trk=public_jobs_topcard-title: review_required",
+    "payload_json": "{\"event_name\": \"cv_generation_result\", \"event_family\": \"decision\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": \"review_required\", \"fallback_used\": false, \"job_url\": \"https://de.linkedin.com/jobs/view/research-assistant-at-hangzhou-kingbo-pharmatech-co-ltd-4374897271?trk=public_jobs_topcard-title\", \"input_snapshot\": {\"ranking_fit_label\": \"stretch\", \"fit_classification\": \"stretch\"}, \"output_snapshot\": {\"status\": \"review_required\", \"reuse_status\": \"fresh_compute\", \"reused_cv_version_id\": \"\", \"cv_generation_input_fingerprint\": \"51c228ccca6cddcb24b3a02c3f57cbb102e3694992799c2f2eb67511e5cab997\", \"review_required_reason_code\": \"unsupported_requirement_gap\", \"validation_evidence_fingerprint\": \"6fa6355139da1083c2f544b91d6443e54f875c549acba2b0ff05b48b2d60a8ad\", \"attempt_count\": 1, \"retry_count\": 0, \"configured_concurrency\": 4, \"worker_slot\": 2, \"started_at\": \"2026-07-14T22:29:33.539282+00:00\", \"finished_at\": \"2026-07-14T22:32:26.325719+00:00\"}, \"artifact_refs\": {\"stage_id\": \"cv_generation\"}, \"trace_context\": {\"trace_id\": \"a2ec6dfe438f17d86f851162c7f8e759\", \"span_id\": \"da2284e4f5ab0f64\", \"parent_span_id\": \"d154b37874731fc2\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:32:26.345028+00:00"
+  },
+  {
+    "event_id": "2d107158-a073-4401-a0ce-20fc2457864e",
+    "stage": "pipeline_compute_complete",
+    "level": "info",
+    "message": "Pipeline compute complete: ranked=5, attempted=3, accepted=0, review_required=3, failed=0, retries=0",
+    "payload_json": "{\"event_name\": \"pipeline_compute_complete\", \"event_family\": \"summary\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": null, \"fallback_used\": false, \"input_snapshot\": {\"total_jobs\": 13, \"passed_filter\": 5, \"ranked\": 5}, \"output_snapshot\": {\"cvs_generated\": 0, \"quality_summary\": {\"acceptance_review_failure\": {\"accepted\": 0, \"review_required\": 3, \"validation_failed\": 0, \"generation_failed\": 0, \"persistence_failed\": 0, \"accepted_rate\": 0.0, \"review_required_rate\": 1.0, \"failure_rate\": 0.0}, \"analysis_to_generation_conversion\": {\"ready_for_generation\": 3, \"generation_attempted\": 3, \"conversion_rate\": 1.0}, \"retry_counts\": {\"total_retry_count\": 0, \"attempted_jobs\": 3}}}, \"trace_context\": {\"trace_id\": \"5a6cd77c701125a975b6560f16d21650\", \"span_id\": \"6e223d2a86abcc8d\", \"parent_span_id\": \"15e3aaa6e058787b\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}",
+    "created_at": "2026-07-14T22:32:26.376090+00:00"
+  },
+  {
+    "event_id": "e3eb626a-2d74-40ff-a38e-ee070fb9c26b",
+    "stage": "run_attempt",
+    "level": "info",
+    "message": "Run attempt finished",
+    "payload_json": "{\"schema_version\": \"run_attempt.v1\", \"attempt\": {\"attempt_id\": \"8a827451-334a-455d-848c-6074693e103a\", \"status\": \"succeeded\", \"rq_job_id\": \"inline-6e203b48-4a8d-45b4-a6ca-c6c04411fa94\", \"worker_id\": null, \"lease_started_at\": null, \"lease_expires_at\": null, \"finished_at\": \"2026-07-14T22:32:26.401284+00:00\", \"error\": {\"classification\": null, \"summary\": null, \"details\": null}, \"retry\": {\"eligible\": null, \"after_seconds\": null}}}",
+    "created_at": "2026-07-14T22:32:26.401366+00:00"
+  },
+  {
+    "event_id": "1c92e221-895d-4f4a-ac9f-cdb94c759701",
+    "stage": "cv_review_required",
+    "level": "warning",
+    "message": "Run paused: 3 review-required CV item(s) pending operator action. Auto-accepted=0.",
+    "payload_json": "{\"review_required_total\": 3, \"auto_accepted\": 0, \"remaining\": 3, \"remaining_missing_job_url\": 0, \"reason_counts\": {\"unsupported_requirement_gap\": 3}}",
+    "created_at": "2026-07-14T22:32:26.484779+00:00"
+  },
+  {
+    "event_id": "ae085e53-98ab-4ce6-97be-447f2e77bf4a",
+    "stage": "synonym_proposal_auto_apply_completed",
+    "level": "info",
+    "message": "Synonym auto-apply completed: applied=32, skipped=0, failed=0",
+    "payload_json": "{\"applied_count\": 32, \"skipped_count\": 0, \"failed_count\": 0, \"reason_counts\": {}, \"acted_by\": \"system\", \"note\": \"auto:run-execution\"}",
+    "created_at": "2026-07-14T22:32:26.802642+00:00"
+  }
+]

@@ -77,6 +77,7 @@ def test_admin_route_manifest_matches_native_fastapi_contract() -> None:
         ("/admin/runs/{run_id}/cv-analysis-trace.json", ("GET",), "download_run_cv_analysis_trace_json", "DefaultPlaceholder"),
         ("/admin/runs/{run_id}/cv-debug.json", ("GET",), "download_run_cv_debug_json", "DefaultPlaceholder"),
         ("/admin/runs/{run_id}/cv-generation-review-required.json", ("GET",), "download_run_cv_generation_review_required_json", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/cv-generation-trace.json", ("GET",), "download_run_cv_generation_trace_json", "DefaultPlaceholder"),
         ("/admin/runs/{run_id}/cv-review-action", ("POST",), "admin_run_cv_review_action", "DefaultPlaceholder"),
         ("/admin/runs/{run_id}/cv-review-batch-action", ("POST",), "admin_run_cv_review_batch_action", "DefaultPlaceholder"),
         ("/admin/runs/{run_id}/enriched/export-filtered.zip", ("GET",), "download_run_enriched_filtered_zip", "DefaultPlaceholder"),
@@ -824,13 +825,13 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
     assert profile_snapshot["preferences"]["domains"] == ["fintech"]
     effective = json.loads(captured["run"].effective_settings_json)
     assert json.loads(effective["runtime_inputs"]["candidate_profile_json"]) == profile_snapshot
-    assert "agentic_runtime_expectation" in effective["runtime_inputs"]
+    assert "cv_generation_runtime_expectation" in effective["runtime_inputs"]
     synonym_settings = dict(effective.get("synonym_management") or {})
     assert synonym_settings.get("auto_apply_recommendation_enabled") is False
     assert synonym_settings.get("auto_promote_global_enabled") is False
     assert synonym_settings.get("auto_accept_ai_action_enabled") is True
 
-def test_post_runs_path_trigger_captures_agentic_runtime_expectation(tmp_path) -> None:
+def test_post_runs_path_trigger_captures_cv_generation_runtime_expectation(tmp_path) -> None:
     captured = {}
     jobs_file = tmp_path / "jobs.json"
     jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
@@ -862,7 +863,7 @@ def test_post_runs_path_trigger_captures_agentic_runtime_expectation(tmp_path) -
 
     assert resp.status_code == 201, resp.text
     effective = json.loads(captured["run"].effective_settings_json)
-    expectation = effective["runtime_inputs"]["agentic_runtime_expectation"]
+    expectation = effective["runtime_inputs"]["cv_generation_runtime_expectation"]
     assert expectation["provider"] == "9router"
     assert expectation["model"] == "cx/gpt-5.2"
     assert expectation["base_url"] == "http://localhost:20128/v1"
@@ -4127,7 +4128,7 @@ def test_admin_run_detail_shows_download_settings_used_json_button():
     assert "Settings Used JSON" in resp.text
 
 
-def test_admin_run_detail_shows_agentic_live_trace_export_when_present() -> None:
+def test_admin_run_detail_shows_cv_generation_trace_export_when_present() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -4171,8 +4172,8 @@ def test_admin_run_detail_shows_agentic_live_trace_export_when_present() -> None
     patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/test-agentic-live-trace-btn")
     assert resp.status_code == 200
-    assert 'href="/admin/runs/test-agentic-live-trace-btn/agentic-live-trace.json"' in resp.text
-    assert "Agentic Live Trace JSON" in resp.text
+    assert 'href="/admin/runs/test-agentic-live-trace-btn/cv-generation-trace.json"' in resp.text
+    assert "CV Generation Trace JSON" in resp.text
 
 
 def test_admin_run_detail_shows_cv_analysis_trace_export_when_present() -> None:
@@ -8595,7 +8596,7 @@ def test_download_cv_generation_review_required_json_uses_structured_missing_req
     assert row["unsupported_requirements"] == ["Snowflake", "Talend"]
 
 
-def test_download_agentic_live_trace_json_endpoint_200() -> None:
+def test_download_cv_generation_trace_json_endpoint_translates_historical_payload() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -8632,16 +8633,21 @@ def test_download_agentic_live_trace_json_endpoint_200() -> None:
         settings_used_json='{"run_id":"run-agentic-trace-1","late_stage_mode":{"late_stage_mode":"agentic","agentic_late_stage_enabled":true,"mode_source":"cv.agentic_late_stage.enabled","agentic_status":"completed"}}',
     )
     with patch("fitcv_cp.app.get_run", return_value=run):
-        resp = TestClient(_app()).get("/admin/runs/run-agentic-trace-1/agentic-live-trace.json")
+        client = TestClient(_app())
+        resp = client.get("/admin/runs/run-agentic-trace-1/cv-generation-trace.json")
+        alias_resp = client.get("/admin/runs/run-agentic-trace-1/agentic-live-trace.json")
     assert resp.status_code == 200
+    assert alias_resp.status_code == 200
+    assert alias_resp.json() == resp.json()
     assert resp.json()["run_id"] == "run-agentic-trace-1"
     assert resp.json()["trace_family"] == "agentic_step_trace"
     assert resp.json()["step_id"] == "cv_generation"
     assert resp.headers["content-type"] == "application/json"
-    assert 'attachment; filename="fitcv-run-run-agentic-trace-1-agentic-live-trace.json"' in resp.headers["content-disposition"]
+    assert 'attachment; filename="fitcv-run-run-agentic-trace-1-cv-generation-trace.json"' in resp.headers["content-disposition"]
+    assert alias_resp.headers["content-disposition"] == resp.headers["content-disposition"]
 
 
-def test_download_agentic_live_trace_json_endpoint_404_when_not_applicable() -> None:
+def test_download_cv_generation_trace_json_endpoint_404_when_not_applicable() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -8657,7 +8663,7 @@ def test_download_agentic_live_trace_json_endpoint_404_when_not_applicable() -> 
         settings_used_json='{"run_id":"run-agentic-trace-2","late_stage_mode":{"late_stage_mode":"non_agentic","agentic_late_stage_enabled":false,"mode_source":"cv.agentic_late_stage.enabled","agentic_status":"not_applicable"}}',
     )
     with patch("fitcv_cp.app.get_run", return_value=run):
-        resp = TestClient(_app()).get("/admin/runs/run-agentic-trace-2/agentic-live-trace.json")
+        resp = TestClient(_app()).get("/admin/runs/run-agentic-trace-2/cv-generation-trace.json")
     assert resp.status_code == 404
 
 
@@ -8778,7 +8784,7 @@ def test_download_run_artifact_bundle_zip_endpoint_for_partial_run() -> None:
     assert manifest["bundle_schema_version"] == "run_artifact_bundle_v6"
     assert manifest["run_mode"] == "manual_staged"
     assert manifest["run_mode_label"] == "Stage by Stage"
-    assert manifest["late_stage_mode"]["late_stage_mode"] == "non_agentic"
+    assert "late_stage_mode" not in manifest
     assert "normalize.json" in manifest["included_files"]
     assert "mapping-suggestions.json" not in manifest["missing_files"]
     assert manifest["artifact_states"]["mapping-suggestions.json"] == "not_applicable"
@@ -8849,7 +8855,7 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
         assert "hitl-review-audit.json" in names
         assert "cv-debug.json" in names
         assert "cv-analysis-trace.json" in names
-        assert "agentic-live-trace.json" in names
+        assert "cv-generation-trace.json" in names
         assert "settings-used.json" in names
         assert "stage-artifacts.json" in names
         assert "normalize.json" in names
@@ -8865,17 +8871,17 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
         assert "cv_v-1.md" in names
         manifest = json.loads(archive.read("manifest.json"))
         analysis_trace_payload = json.loads(archive.read("cv-analysis-trace.json"))
-        trace_payload = json.loads(archive.read("agentic-live-trace.json"))
+        trace_payload = json.loads(archive.read("cv-generation-trace.json"))
         synonym_trace_payload = json.loads(archive.read("synonym-proposals-trace.json"))
     assert manifest["run_id"] == "run-bundle-success-1"
     assert manifest["bundle_schema_version"] == "run_artifact_bundle_v6"
     assert manifest["run_mode"] == "run_all"
     assert manifest["run_mode_label"] == "Run All"
-    assert manifest["late_stage_mode"]["late_stage_mode"] == "agentic"
+    assert "late_stage_mode" not in manifest
     assert "results.json" in manifest["included_files"]
     assert "hitl-review-audit.json" in manifest["included_files"]
     assert manifest["artifact_states"]["cv-analysis-trace.json"] == "present"
-    assert manifest["artifact_states"]["agentic-live-trace.json"] == "present"
+    assert manifest["artifact_states"]["cv-generation-trace.json"] == "present"
     assert manifest["artifact_states"]["synonym-proposals.json"] == "present"
     assert manifest["artifact_states"]["synonym-proposals-trace.json"] == "present"
     assert manifest["missing_files"] == []
@@ -9954,13 +9960,9 @@ def _retrieval_advanced_section_form(
 
 def _agentic_core_section_form(
     *,
-    agentic_late_stage_enabled: str = "true",
     semantic_alignment_enabled: str = "true",
 ) -> dict[str, str]:
-    return {
-        "cv.agentic_late_stage.enabled": agentic_late_stage_enabled,
-        "cv_analysis.semantic_alignment.enabled": semantic_alignment_enabled,
-    }
+    return {"cv_analysis.semantic_alignment.enabled": semantic_alignment_enabled}
 
 
 def _agentic_advanced_section_form(
@@ -10141,7 +10143,7 @@ def test_post_settings_section_agentic_enablement_valid_redirects() -> None:
         )
 
     assert resp.status_code == 303
-    assert captured["values"]["cv.agentic_late_stage.enabled"] is True
+    assert "cv.agentic_late_stage.enabled" not in captured["values"]
     assert captured["values"]["cv_analysis.semantic_alignment.enabled"] is True
 
 
@@ -10185,7 +10187,7 @@ def test_post_settings_section_agentic_advanced_omits_metadata_only_input() -> N
 
 
 def test_post_settings_section_agentic_enablement_preserves_current_vs_draft_feedback() -> None:
-    active = {"cv.agentic_late_stage.enabled": False}
+    active = {"cv_analysis.semantic_alignment.enabled": False}
 
     with patch("fitcv_cp.app.load_active_settings", return_value=active):
         resp = TestClient(_app(), follow_redirects=False).post(
@@ -14150,7 +14152,7 @@ def test_settings_page_agentic_controls_hide_setup_only_and_metadata_only_inputs
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert 'name="cv.agentic_late_stage.enabled"' in html
+    assert 'name="cv.agentic_late_stage.enabled"' not in html
     assert 'name="cv_analysis.semantic_alignment.enabled"' in html
     assert 'name="cv_analysis.semantic_alignment.model"' not in html
     assert 'name="cv_prompt_version"' not in html
@@ -14235,7 +14237,7 @@ def test_settings_page_shows_mode_summary_strip_for_agentic_runtime() -> None:
 
 
 def test_settings_page_mode_summary_marks_drift_when_env_set_but_agentic_disabled() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={"cv.agentic_late_stage.enabled": False}), \
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch.dict(
              "fitcv_cp.app.os.environ",
              {"FITCV_LANGGRAPH_PROVIDER": "9router", "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.2"},

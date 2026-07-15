@@ -2,7 +2,7 @@ feature_id: inspection_debugging
 name: Inspection & Debugging
 status: active
 type: add
-summary: Admins can see what the pipeline did for a run, including shared stage progress for both `Run All` and `Stage by Stage`, paused staged checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, richer shortlist candidate-query components, explicit shortlist candidate-query reuse provenance, ranking contribution visibility and calibration surfaces, late-stage reuse diagnostics for `ranking` and `cv_analysis`, slimmer job-ledger exports, compact per-job `results.json` rows, stage-local artifacts, compact severity-based run health with explicit `Pending` vs `N/A`, stage-gated export availability, a job-ledger `results.json` split from bundled stage diagnostics, outcome-first artifact samples, stable normalize timeline ownership, aggregate-first timeline summaries, explicit separation between reranker-blocked rows and true analyzed-and-skipped `cv_analysis` outcomes, truthful reranker-blocked propagation into compact `results.json` decision chains and `cv-debug` omission accounting, multi-channel evidence-selection provenance, lexical-vs-semantic alignment detail, inputs used, generated CVs, explicit decision detail, hybrid validation provenance from deterministic and soft-claim grounding checks, canonicalized settings-used exports, clearer `cv-debug` coverage accounting, and prompt-id-based provenance for both ranking and the active structured-only `cv_generation` path.
+summary: Admins can inspect run, stage, and per-job truth through compact ledgers, stage-owned artifacts, canonical runtime evidence, stage-neutral CV traces, reuse diagnostics, prompt provenance, validation outcomes, and bounded compatibility reads for historical artifacts.
 invariants: []
 domains:
   - admin_ui
@@ -20,7 +20,7 @@ capabilities:
     statement: Surface active and default synonym-overlay state and snapshots during staged inspection flows.
     state: active
   - capability_id: inspection_debugging.run-owned-artifact-exports
-    statement: Provide run-scoped downloads such as CVs, artifact bundles, and CV debug exports when owned outputs exist.
+    statement: Provide run-scoped downloads such as CVs, artifact bundles, CV debug, and canonical CV-generation trace exports when owned outputs exist.
     state: active
   - capability_id: inspection_debugging.stage-artifact-downloads
     statement: Expose stage-owned downloads only after the owning stage has been reached and the artifact exists.
@@ -47,7 +47,7 @@ capabilities:
     statement: Expose analysis outcomes, selected evidence, hybrid alignment details, and analysis reuse visibility.
     state: active
   - capability_id: inspection_debugging.cv-generation-diagnostics
-    statement: Expose CV-writing outcomes, grounding and support validation detail, and authoritative fit context.
+    statement: Expose CV-writing outcomes, canonical runtime evidence, stage-neutral generation traces, validation detail, and authoritative fit context.
     state: active
   - capability_id: inspection_debugging.reuse-diagnostics
     statement: Surface late-stage reuse snapshots and exact-match reuse counters across ranking and analysis flows.

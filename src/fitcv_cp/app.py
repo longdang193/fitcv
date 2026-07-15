@@ -188,6 +188,7 @@ from fitcv_cp.app_run_support import (
     _operator_prompt_for_review_required,
     _review_target_for_reason_code,
     _run_status_allows_export,
+    load_cv_generation_trace_payload,
 )
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 ORCHESTRATION_ADAPTER = get_orchestration_adapter()
@@ -800,8 +801,7 @@ def _apply_trigger_runtime_envelope(
         runtime_inputs["jobs_input_manifest_json"] = jobs_input_manifest_json
     if candidate_profile_json:
         runtime_inputs["candidate_profile_json"] = candidate_profile_json
-    # Capture trigger-time agentic runtime expectation to avoid later interpretation drift.
-    runtime_inputs["agentic_runtime_expectation"] = _resolve_live_langgraph_runtime_expectation()
+    runtime_inputs["cv_generation_runtime_expectation"] = _resolve_live_langgraph_runtime_expectation()
     effective_config["trigger_runtime_envelope"] = {
         "jobs_input_source": jobs_input_source,
         "candidate_profile_source": candidate_profile_source,
@@ -1028,7 +1028,7 @@ def _control_plane_bundle_artifact_specs() -> tuple[ControlPlaneArtifactSpec, ..
         ControlPlaneArtifactSpec("cv-debug.json", "CV Debug JSON", "/admin/runs/{run_id}/cv-debug.json", "cv_debug"),
         ControlPlaneArtifactSpec("cv-generation-review-required.json", "CV Generation Review-Required JSON", "/admin/runs/{run_id}/cv-generation-review-required.json", "review_required"),
         ControlPlaneArtifactSpec("cv-analysis-trace.json", "CV Analysis Trace JSON", "/admin/runs/{run_id}/cv-analysis-trace.json", "trace", stage_id="cv_analysis"),
-        ControlPlaneArtifactSpec("agentic-live-trace.json", "Agentic Live Trace JSON", "/admin/runs/{run_id}/agentic-live-trace.json", "trace", stage_id="cv_generation"),
+        ControlPlaneArtifactSpec("cv-generation-trace.json", "CV Generation Trace JSON", "/admin/runs/{run_id}/cv-generation-trace.json", "trace", stage_id="cv_generation"),
         ControlPlaneArtifactSpec("mapping-suggestions.json", "Mapping Suggestions JSON", "/admin/runs/{run_id}/mapping-suggestions.json", "mapping_suggestions"),
         ControlPlaneArtifactSpec("synonym-proposals.json", "Synonym Proposals JSON", "/admin/runs/{run_id}/synonym-proposals.json", "synonym_proposals"),
         ControlPlaneArtifactSpec("synonym-proposals-trace.json", "Synonym Proposals Trace JSON", "/admin/runs/{run_id}/synonym-proposals-trace.json", "synonym_trace"),
@@ -1532,18 +1532,18 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 _json.dumps(cv_analysis_trace_payload, ensure_ascii=False, indent=2),
             )
         )
-    agentic_live_trace_payload = _load_run_agentic_live_trace_payload(run)
+    cv_generation_trace_payload = _load_run_cv_generation_trace_payload(run)
     if run.status == RunStatus.SUCCEEDED:
-        if not isinstance(agentic_live_trace_payload, dict):
-            agentic_live_trace_payload = _default_not_applicable_trace_payload(
+        if not isinstance(cv_generation_trace_payload, dict):
+            cv_generation_trace_payload = _default_not_applicable_trace_payload(
                 run=run,
-                trace_name="agentic_live_trace",
+                trace_name="cv_generation_trace",
             )
         files.append(
             _build_run_artifact_file(
                 run.run_id,
-                "agentic-live-trace.json",
-                _json.dumps(agentic_live_trace_payload, ensure_ascii=False, indent=2),
+                "cv-generation-trace.json",
+                _json.dumps(cv_generation_trace_payload, ensure_ascii=False, indent=2),
             )
         )
     if run.status == RunStatus.SUCCEEDED and run.settings_used_json:
@@ -1631,33 +1631,12 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
     return files
 
 
-def _default_late_stage_mode_payload() -> dict[str, Any]:
-    return {
-        "late_stage_mode": "non_agentic",
-        "agentic_late_stage_enabled": False,
-        "mode_source": "artifact_bundle_default",
-        "agentic_status": "not_applicable",
-    }
 
 
-def _load_run_late_stage_mode_payload(run: PipelineRun) -> dict[str, Any]:
-    for raw_payload in (run.settings_used_json, run.results_export_json):
-        payload = _load_json_object(raw_payload)
-        if isinstance(payload, dict) and isinstance(payload.get("late_stage_mode"), dict):
-            return dict(payload["late_stage_mode"])
-    for stage_id in _control_plane_stage_ids_with_reuse_metrics():
-        stage_payload = dict(_stage_artifacts_by_id(run).get(stage_id) or {})
-        if isinstance(stage_payload.get("late_stage_mode"), dict):
-            return dict(stage_payload["late_stage_mode"])
-    return _default_late_stage_mode_payload()
-
-
-def _load_run_agentic_live_trace_payload(run: PipelineRun) -> dict[str, Any] | None:
+def _load_run_cv_generation_trace_payload(run: PipelineRun) -> dict[str, Any] | None:
     payload = _load_json_object(run.cv_generation_debug_json)
-    trace_payload = payload.get("agentic_live_trace") if isinstance(payload, dict) else None
-    if isinstance(trace_payload, dict):
-        return dict(trace_payload)
-    return None
+    return load_cv_generation_trace_payload(payload)
+
 
 def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
     payload = _load_run_cv_generation_debug_payload(run)
@@ -2497,13 +2476,18 @@ def _artifact_applicability_state(run: PipelineRun, filename: str, included_file
             return "not_applicable"
         return "present" if isinstance(_build_cv_generation_review_required_payload(run), dict) else "not_applicable"
     if spec.state_kind == "trace":
-        late_stage_mode = _load_run_late_stage_mode_payload(run)
-        if str(late_stage_mode.get("late_stage_mode") or "").strip() != "agentic":
-            return "not_applicable"
-        trace_payload = _load_run_cv_analysis_trace_payload(run) if spec.stage_id == "cv_analysis" else _load_run_agentic_live_trace_payload(run)
+        stage_id = str(spec.stage_id or "").strip()
+        trace_payload = (
+            _load_run_cv_analysis_trace_payload(run)
+            if stage_id == "cv_analysis"
+            else _load_run_cv_generation_trace_payload(run)
+        )
         if isinstance(trace_payload, dict) and str(trace_payload.get("trace_status") or "").strip():
-            return "degraded" if str(trace_payload.get("trace_status") or "").strip() == "degraded" else "present"
-        return "missing"
+            trace_status = str(trace_payload.get("trace_status") or "").strip()
+            if trace_status == "not_applicable":
+                return "not_applicable"
+            return "degraded" if trace_status == "degraded" else "present"
+        return "missing" if _run_has_reached_stage(run, stage_id) else "not_applicable"
     if spec.state_kind == "stage_artifacts":
         return "missing" if run.status != RunStatus.QUEUED else "not_applicable"
     return "missing"
@@ -2525,7 +2509,6 @@ def _build_run_artifact_bundle_manifest(run: PipelineRun, files: list[RunArtifac
         "created_at": run.created_at.isoformat() if run.created_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
         "bundle_schema_version": "run_artifact_bundle_v6",
-        "late_stage_mode": _load_run_late_stage_mode_payload(run),
         "included_files": included_files,
         "missing_files": missing_files,
         "artifact_states": artifact_states,
@@ -3152,7 +3135,11 @@ def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
     effective_settings = _load_json_object(run.effective_settings_json)
     if isinstance(effective_settings, dict):
         runtime_inputs = dict(effective_settings.get("runtime_inputs") or {})
-        expected = dict(runtime_inputs.get("agentic_runtime_expectation") or {})
+        expected = dict(
+            runtime_inputs.get("cv_generation_runtime_expectation")
+            or runtime_inputs.get("agentic_runtime_expectation")
+            or {}
+        )
         if expected:
             snapshot = {
                 **snapshot,
@@ -5989,7 +5976,6 @@ def create_app(
             )
             visible_keys = [key for key in card_spec["keys"] if key not in hidden_deprecated_keys]
             entries: list[dict[str, Any]] = []
-            agentic_enabled = bool(effective.get("cv.agentic_late_stage.enabled"))
             for key in visible_keys:
                 entry = schema_by_key[key]
                 ia_contract = settings_ia_contract_for_key(key)
@@ -6049,13 +6035,7 @@ def create_app(
                 active_label = "Yes"
                 compatibility_alias_for = str(entry.get("compatibility_alias_for") or "").strip()
                 compatibility_aliases = list(canonical_compatibility_aliases.get(key) or [])
-                if key == "cv_generation_model":
-                    owner_label = "Settings (non-agentic path)"
-                    active_label = "No (agentic mode ON)" if agentic_enabled else "Yes (agentic mode OFF)"
-                elif key == "cv.agentic_late_stage.enabled":
-                    owner_label = "Settings"
-                    active_label = "Yes"
-                elif key == "cv_analysis.semantic_alignment.model":
+                if key == "cv_analysis.semantic_alignment.model":
                     owner_label = "Runtime Contract"
                     active_label = "Yes"
                 elif key.startswith("cv_analysis.semantic_alignment.") and key.endswith("_semantic_weight"):
@@ -10114,29 +10094,36 @@ def create_app(
             headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-cv-generation-review-required.json"'},
         )
 
-    @app.get("/admin/runs/{run_id}/agentic-live-trace.json")
-    def download_run_agentic_live_trace_json(run_id: str) -> Response:
+    def _download_run_cv_generation_trace_response(run_id: str) -> Response:
         run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if run.status != RunStatus.SUCCEEDED:
             raise HTTPException(
                 status_code=409,
-                detail="Agentic live trace export is only available for succeeded runs",
+                detail="CV generation trace export is only available for succeeded runs",
             )
-        trace_payload = _load_run_agentic_live_trace_payload(run)
+        trace_payload = _load_run_cv_generation_trace_payload(run)
         if not isinstance(trace_payload, dict):
             trace_payload = _default_not_applicable_trace_payload(
                 run=run,
-                trace_name="agentic_live_trace",
+                trace_name="cv_generation_trace",
             )
         if str(trace_payload.get("trace_status") or "").strip() == "not_applicable":
-            raise HTTPException(status_code=404, detail="Agentic live trace export is not available for this run")
+            raise HTTPException(status_code=404, detail="CV generation trace export is not available for this run")
         return Response(
             content=_json.dumps(trace_payload, ensure_ascii=False, indent=2),
             media_type="application/json",
-            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-agentic-live-trace.json"'},
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-cv-generation-trace.json"'},
         )
+
+    @app.get("/admin/runs/{run_id}/cv-generation-trace.json")
+    def download_run_cv_generation_trace_json(run_id: str) -> Response:
+        return _download_run_cv_generation_trace_response(run_id)
+
+    @app.get("/admin/runs/{run_id}/agentic-live-trace.json")
+    def download_run_agentic_live_trace_json(run_id: str) -> Response:
+        return _download_run_cv_generation_trace_response(run_id)
 
     @app.get("/admin/runs/{run_id}/cv-analysis-trace.json")
     def download_run_cv_analysis_trace_json(run_id: str) -> Response:

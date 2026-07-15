@@ -45,16 +45,24 @@ def _warn_or_fail_langgraph_override_drift() -> None:
 
 
 def _ensure_safe_local_execution_mode() -> None:
-    """Default to queue execution on Windows when execution mode is unset."""
+    """Default to inline execution for bare local web starts on Windows."""
     if os.name != "nt":
         return
     raw = str(os.environ.get("FITCV_CP_INLINE_EXECUTION", "") or "").strip().lower()
-    if raw:
+    redis_url = str(os.environ.get("REDIS_URL", "") or "").strip()
+    if not redis_url:
+        if raw in {"1", "true", "yes", "on"}:
+            return
+        os.environ["FITCV_CP_INLINE_EXECUTION"] = "1"
+        logger.warning(
+            "FITCV_CP_INLINE_EXECUTION was disabled on Windows without REDIS_URL; defaulted to inline mode."
+        )
         return
-    os.environ["FITCV_CP_INLINE_EXECUTION"] = "0"
-    logger.warning(
-        "FITCV_CP_INLINE_EXECUTION was unset on Windows; defaulted to queue mode (inline disabled)."
-    )
+    if not raw:
+        os.environ["FITCV_CP_INLINE_EXECUTION"] = "0"
+        logger.warning(
+            "FITCV_CP_INLINE_EXECUTION was unset on Windows; defaulted to queue mode (inline disabled)."
+        )
 
 
 def build_app() -> Any:

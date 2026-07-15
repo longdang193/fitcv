@@ -17,7 +17,6 @@ lifecycle:
 
 from collections.abc import Mapping
 from copy import deepcopy
-from dataclasses import asdict
 from contextlib import contextmanager
 import datetime
 import hashlib
@@ -50,9 +49,13 @@ from fitcv.runtime_routing import (
     LlmRouting,
     build_langgraph_env_overrides,
     resolve_cv_generation_routing_snapshot,
-    resolve_cv_generation_runtime_provenance,
 )
-from fitcv.llm_runtime import LlmAdapterError, LlmAdapterResponse, LlmTaskRequest
+from fitcv.llm_runtime import (
+    LlmAdapterError,
+    LlmAdapterResponse,
+    LlmTaskRequest,
+    project_llm_runtime_evidence,
+)
 from fitcv.cv_generator import (
     _execute_cv_generation_runtime,
     _get_enabled_section_names,
@@ -71,6 +74,7 @@ from fitcv.late_stage_contract import (
     GenerationStatus,
 )
 from fitcv.pipeline_contracts import ReviewRequiredReasonCode
+from fitcv.pipeline_stages.common import job_identity_keys
 from fitcv.reuse import build_reuse_decision
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
 DEFAULT_MAX_SUMMARY_LINES = 3
@@ -133,13 +137,13 @@ class CvGenerationResult(TypedDict, total=False):
     error: ErrorPayload | None
     review_required_reason_code: str | None
     validation_evidence_fingerprint: str
-    runtime_provenance: dict[str, Any]
-    agentic_live_trace: dict[str, Any]
+    llm_runtime_observations: list[dict[str, Any]]
+    cv_generation_trace: dict[str, Any]
 
-_LIVE_TRACE_SCHEMA_VERSION = "agentic_step_trace_record_v1"
+_LIVE_TRACE_SCHEMA_VERSION = "stage_execution_trace_record_v1"
 _LIVE_TRACE_SCHEMA_NAME = "fitcv_structured_cv_document"
 _LIVE_TRACE_PROMPT_CONTRACT = "fitcv_structured_generation_prompt"
-_LIVE_TRACE_FAMILY = "agentic_step_trace"
+_LIVE_TRACE_FAMILY = "stage_execution_trace"
 _LIVE_TRACE_STEP_ID = "cv_generation"
 _LIVE_TRACE_DEBUG_ENV_KEYS = (
     "FITCV_LANGGRAPH_DEBUG_LIVE",
@@ -295,18 +299,6 @@ def _augmented_gap_summary_from_analysis(analysis_record: dict[str, Any]) -> dic
 
 
 
-def _build_runtime_provenance(env_values: dict[str, str]) -> dict[str, Any]:
-    provider = str(env_values.get("FITCV_LANGGRAPH_PROVIDER", "openai") or "openai").strip().lower()
-    model = str(env_values.get("FITCV_LANGGRAPH_MODEL", "") or "").strip() or None
-    base_url = str(env_values.get("FITCV_LANGGRAPH_OPENAI_BASE_URL", "") or "").strip() or None
-    return {
-        "runtime_path": "fitcv_langgraph_live",
-        "provider": provider,
-        "model": model,
-        "base_url": base_url,
-    }
-
-
 def _live_runtime_provenance_or_none() -> dict[str, Any] | None:
     repo_root = _discover_fitcv_langgraph_repo_root()
     env_values = _build_fitcv_langgraph_env_values(repo_root)
@@ -324,7 +316,7 @@ def _live_runtime_provenance_or_none() -> dict[str, Any] | None:
         runtime_loader(env_values)
     except Exception:
         return None
-    return _build_runtime_provenance(env_values)
+    return {}
 
 
 def _build_live_structured_cv_response_schema() -> dict[str, Any]:
@@ -483,12 +475,13 @@ def _generate_cv_with_live_provider(
                 "provider_status": "accepted" if result.status == "succeeded" else "error",
                 "accepted_output_present": result.status == "succeeded",
                 "response_id": result.provenance.response_id,
+                "llm_runtime_evidence": project_llm_runtime_evidence(result),
             }
         )
         if result.failure is not None:
             trace_attempt.update(
                 {
-                    "error_stage": "agentic_live_provider",
+                    "error_stage": result.failure.stage,
                     "error_message": result.failure.message,
                     "error_code": result.failure.code,
                 }
@@ -496,23 +489,10 @@ def _generate_cv_with_live_provider(
     if result.status != "succeeded" or not isinstance(result.parsed_value, dict):
         raise RuntimeError(result.failure.message if result.failure else "LangGraph runtime failed.")
     generated = dict(result.parsed_value)
-    generated["runtime_provenance"] = asdict(result.provenance)
+    generated["llm_runtime_evidence"] = project_llm_runtime_evidence(result)
     return generated
 
-def _build_live_trace_runtime_provenance(
-    runtime_provenance: dict[str, Any],
-    *,
-    template_path: str | None,
-) -> dict[str, Any]:
-    payload = dict(runtime_provenance)
-    payload["prompt_contract"] = _LIVE_TRACE_PROMPT_CONTRACT
-    payload["template_path"] = str(template_path or "")
-    payload["response_schema_name"] = _LIVE_TRACE_SCHEMA_NAME
-    return payload
-
-
-def _empty_agentic_live_trace(
-    runtime_provenance: dict[str, Any],
+def _empty_cv_generation_trace(
     *,
     template_path: str | None,
 ) -> dict[str, Any]:
@@ -521,10 +501,11 @@ def _empty_agentic_live_trace(
         "trace_family": _LIVE_TRACE_FAMILY,
         "step_id": _LIVE_TRACE_STEP_ID,
         "trace_status": "completed",
-        "runtime_provenance": _build_live_trace_runtime_provenance(
-            runtime_provenance,
-            template_path=template_path,
-        ),
+        "trace_metadata": {
+            "prompt_contract": _LIVE_TRACE_PROMPT_CONTRACT,
+            "template_path": str(template_path or ""),
+            "response_schema_name": _LIVE_TRACE_SCHEMA_NAME,
+        },
         "attempts": [],
         "input_summary": {
             "attempt_count": 0,
@@ -535,21 +516,23 @@ def _empty_agentic_live_trace(
             "final_status": "",
         },
         "validation_summary": {
-            "initial_valid": False,
-            "final_valid": False,
+            "initial_valid": None,
+            "final_valid": None,
             "initial_missing_fields": [],
             "final_missing_fields": [],
-            "violation_count": 0,
-            "warning_count": 0,
+            "initial_grounding_violation_count": 0,
+            "final_grounding_violation_count": 0,
+            "initial_skill_violation_count": 0,
+            "final_skill_violation_count": 0,
         },
         "repair_summary": {
             "repair_attempted": False,
             "repair_attempt_count": 0,
             "repair_targets": [],
+            "repair_reason": "",
         },
         "error_summary": None,
     }
-
 
 def _error_code_from_message(message: str) -> str | None:
     normalized = str(message or "")
@@ -1073,11 +1056,11 @@ def _unwrap_generated_cv(
     if isinstance(generated_cv, dict):
         markdown = str(generated_cv.get("markdown") or "")
         structured_cv = generated_cv.get("structured_cv")
-        provenance = generated_cv.get("runtime_provenance")
+        runtime_evidence = generated_cv.get("llm_runtime_evidence")
         return (
             dict(structured_cv) if isinstance(structured_cv, dict) else None,
             markdown,
-            dict(provenance) if isinstance(provenance, dict) else None,
+            dict(runtime_evidence) if isinstance(runtime_evidence, dict) else None,
         )
     return None, str(generated_cv), None
 
@@ -1349,32 +1332,6 @@ def _review_required_reason(
     return None
 
 
-def _normalize_runtime_provenance(
-    provenance: dict[str, Any] | None,
-    config: dict[str, Any],
-) -> dict[str, Any] | None:
-    if not isinstance(provenance, dict):
-        return None
-    routing = resolve_cv_generation_routing_snapshot(
-        config,
-        default_model=get_cv_generation_model(config),
-    )
-    runtime_path = str(provenance.get("runtime_path") or routing.get("runtime_path") or "")
-    normalized = dict(provenance)
-    normalized.update({
-        "route_part": "cv_generation",
-        "runtime_path": runtime_path,
-        "adapter": "langgraph" if "langgraph" in runtime_path else "direct",
-        "provider": str(provenance.get("provider") or routing.get("provider") or ""),
-        "model": str(provenance.get("model") or routing.get("model") or "") or None,
-        "wire_api": str(provenance.get("wire_api") or routing.get("wire_api") or "responses"),
-    })
-    for key in tuple(normalized):
-        if "key" in key.lower() or "secret" in key.lower() or "credential" in key.lower():
-            normalized.pop(key, None)
-    return normalized
-
-
 def _finalize_generation_result(
     result: CvGenerationResult,
     *,
@@ -1399,9 +1356,6 @@ def _finalize_generation_result(
         source_artifact_type="cv_generation",
     )
     finalized["reused_cv_version_id"] = reused_cv_version_id
-    normalized_provenance = _normalize_runtime_provenance(finalized.get("runtime_provenance"), config)
-    if normalized_provenance is not None:
-        finalized["runtime_provenance"] = normalized_provenance
     status = str(finalized.get("status") or "")
     if status == ACCEPTED_STATUS:
         review_reason = _review_required_reason(analysis_record, finalized, config)
@@ -1480,8 +1434,7 @@ def _reusable_result_or_none(
         markdown_final=markdown,
         validation=validation,
         error=None,
-        runtime_provenance=cast(dict[str, Any] | None, reusable_record.get("runtime_provenance"))
-        or resolve_cv_generation_runtime_provenance(config, default_model=get_cv_generation_model(config)),
+        llm_runtime_evidence=[],
     )
 
 
@@ -1517,8 +1470,8 @@ def _build_result(
     markdown_final: str | None,
     validation: dict[str, Any] | None,
     error: ErrorPayload | None,
-    runtime_provenance: dict[str, Any] | None = None,
-    agentic_live_trace: dict[str, Any] | None = None,
+    llm_runtime_evidence: list[dict[str, Any]] | None = None,
+    cv_generation_trace: dict[str, Any] | None = None,
 ) -> CvGenerationResult:
     evidence_payload = list(analysis_record.get("evidence_payload") or [])
     evidence_used = list(analysis_record.get("evidence_used") or [])
@@ -1557,10 +1510,25 @@ def _build_result(
         "outcome_reason": error if status in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
         "error": error if status not in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
     }
-    if runtime_provenance:
-        result["runtime_provenance"] = dict(runtime_provenance)
-    if agentic_live_trace:
-        result["agentic_live_trace"] = dict(agentic_live_trace)
+    runtime_evidence = [dict(item) for item in (llm_runtime_evidence or []) if isinstance(item, dict)]
+    if runtime_evidence:
+        identity_keys = job_identity_keys(job)
+        scope_key = str(
+            analysis_record.get("raw_job_fingerprint")
+            or (identity_keys[0] if identity_keys else extract_job_url(job))
+        )
+        result["llm_runtime_observations"] = [
+            {
+                "contract_version": "llm_runtime_observation_v1",
+                "scope_key": scope_key,
+                "input_index": 0,
+                "invocation_index": index,
+                "evidence": evidence,
+            }
+            for index, evidence in enumerate(runtime_evidence, start=1)
+        ]
+    if cv_generation_trace:
+        result["cv_generation_trace"] = dict(cv_generation_trace)
     return result
 
 
@@ -1592,7 +1560,7 @@ def _generate_fresh_from_analysis(
             markdown_final=None,
             validation=None,
             error=_coerce_error_payload(passthrough_error),
-            runtime_provenance=None,
+            llm_runtime_evidence=[],
         )
 
     evidence_payload = list(analysis_record.get("evidence_payload") or [])
@@ -1608,15 +1576,13 @@ def _generate_fresh_from_analysis(
     gap_summary = _augmented_gap_summary_from_analysis(analysis_record)
     fit = str(fit_classification or "skip")
     evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
-    live_runtime_provenance = _live_runtime_provenance_or_none()
-    trace_payload: dict[str, Any] | None = None
+    live_runtime_available = _live_runtime_provenance_or_none() is not None
+    runtime_evidence: list[dict[str, Any]] = []
+    trace_payload = _empty_cv_generation_trace(
+        template_path=str(_resolve_template_path(config)),
+    )
 
-    if live_runtime_provenance is not None:
-        runtime_provenance = live_runtime_provenance
-        trace_payload = _empty_agentic_live_trace(
-            live_runtime_provenance,
-            template_path=str(_resolve_template_path(config)),
-        )
+    if live_runtime_available:
         live_provider_generator = _build_live_provider_generator(
             job=job,
             evidence_payload=evidence_payload,
@@ -1628,37 +1594,15 @@ def _generate_fresh_from_analysis(
             env_values=_build_fitcv_langgraph_env_values(_discover_fitcv_langgraph_repo_root()),
         )
 
-        def _writer_attempt(
+        def _call_provider(
             repair_targets: list[str] | None,
-        ) -> tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]:
-            attempt_index = len(trace_payload["attempts"]) + 1
-            attempt_trace = {
-                "attempt_index": attempt_index,
-                "attempt_type": "initial_generation" if attempt_index == 1 else "repair_retry",
-                "retry_reason": None if attempt_index == 1 else "missing_or_shallow_sections",
-            }
-            trace_payload["attempts"].append(attempt_trace)
-            if attempt_index > 1:
-                sleep_secs = _cv_generation_sleep_secs(config)
-                if sleep_secs > 0.0:
-                    time.sleep(sleep_secs)
-            result = _execute_generation_attempt(
-                lambda missing: live_provider_generator(missing, attempt_trace, attempt_index),
-                profile=profile,
-                config=config,
-                analysis_grounding=analysis_grounding,
-                repair_missing_sections=repair_targets,
-            )
-            attempt_trace.setdefault("provider_status", "accepted")
-            attempt_trace.setdefault("accepted_output_present", True)
-            return result
+            attempt_trace: dict[str, Any],
+            attempt_index: int,
+        ) -> Any:
+            return live_provider_generator(repair_targets, attempt_trace, attempt_index)
 
         failure_stage = "agentic_live_provider"
     else:
-        runtime_provenance = resolve_cv_generation_runtime_provenance(
-            config,
-            default_model=get_cv_generation_model(config),
-        )
         fallback_provider_generator = _build_fallback_provider_generator(
             job=job,
             evidence_payload=evidence_payload,
@@ -1669,33 +1613,62 @@ def _generate_fresh_from_analysis(
             evidence_selection_summary=evidence_selection_summary,
         )
 
-        def _writer_attempt(
+        def _call_provider(
             repair_targets: list[str] | None,
-        ) -> tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]:
-            if repair_targets:
-                sleep_secs = _cv_generation_sleep_secs(config)
-                if sleep_secs > 0.0:
-                    time.sleep(sleep_secs)
-            return _execute_generation_attempt(
-                fallback_provider_generator,
-                profile=profile,
-                config=config,
-                analysis_grounding=analysis_grounding,
-                repair_missing_sections=repair_targets,
-            )
+            attempt_trace: dict[str, Any],
+            attempt_index: int,
+        ) -> Any:
+            return fallback_provider_generator(repair_targets)
 
         failure_stage = "generation"
+
+    def _writer_attempt(
+        repair_targets: list[str] | None,
+    ) -> tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]:
+        attempt_index = len(trace_payload["attempts"]) + 1
+        attempt_trace = {
+            "attempt_index": attempt_index,
+            "attempt_type": "initial_generation" if attempt_index == 1 else "repair_retry",
+            "input_item_count": len(evidence_payload),
+            "retry_reason": "missing_or_shallow_sections" if repair_targets else None,
+            "debug_flags_active": {
+                key: bool(str(os.environ.get(key) or "").strip())
+                for key in _LIVE_TRACE_DEBUG_ENV_KEYS
+            },
+            "prompt_contract": _LIVE_TRACE_PROMPT_CONTRACT,
+            "template_path": str(_resolve_template_path(config)),
+            "response_schema_name": _LIVE_TRACE_SCHEMA_NAME,
+        }
+        trace_payload["attempts"].append(attempt_trace)
+        if attempt_index > 1:
+            sleep_secs = _cv_generation_sleep_secs(config)
+            if sleep_secs > 0.0:
+                time.sleep(sleep_secs)
+        result = _execute_generation_attempt(
+            lambda missing: _call_provider(missing, attempt_trace, attempt_index),
+            profile=profile,
+            config=config,
+            analysis_grounding=analysis_grounding,
+            repair_missing_sections=repair_targets,
+        )
+        if result[3] is not None:
+            evidence = dict(result[3])
+            runtime_evidence.append(evidence)
+            attempt_trace.setdefault("llm_runtime_evidence", evidence)
+            provenance = dict(evidence.get("provenance") or {})
+            attempt_trace.setdefault("response_id", provenance.get("response_id"))
+        attempt_trace.setdefault("provider_status", "accepted")
+        attempt_trace.setdefault("accepted_output_present", True)
+        return result
 
     structured_cv_initial: dict[str, Any] | None = None
     validation_initial: ValidationSnapshot | None = None
     repair_attempt = _empty_repair_attempt()
     try:
-        structured_cv, markdown, validation, attempt_provenance = _writer_attempt(None)
-        if attempt_provenance is not None:
-            runtime_provenance = attempt_provenance
+        structured_cv, markdown, validation, _initial_runtime_evidence = _writer_attempt(None)
         structured_cv_initial = structured_cv
         validation_initial = _build_validation_snapshot(validation)
-        structured_cv, markdown, validation, repair_attempt, latest_provenance = _run_repair_cycle(
+        structured_cv, markdown, validation, repair_attempt, _latest_runtime_evidence = _run_repair_cycle(
             structured_cv=structured_cv,
             markdown=markdown,
             validation=validation,
@@ -1703,10 +1676,8 @@ def _generate_fresh_from_analysis(
             config=config,
             analysis_grounding=analysis_grounding,
             retry_executor=lambda targets: _writer_attempt(targets),
-            runtime_provenance=runtime_provenance,
+            runtime_provenance=_initial_runtime_evidence,
         )
-        if latest_provenance is not None:
-            runtime_provenance = latest_provenance
         result_status: GenerationStatus = ACCEPTED_STATUS if validation.get("valid") else VALIDATION_FAILED_STATUS
         error: ErrorPayload | None = None
         structured_cv_final = structured_cv if result_status == ACCEPTED_STATUS else None
@@ -1749,8 +1720,8 @@ def _generate_fresh_from_analysis(
             markdown_final=markdown_final,
             validation=validation,
             error=error,
-            runtime_provenance=runtime_provenance,
-            agentic_live_trace=trace_payload,
+            llm_runtime_evidence=runtime_evidence,
+            cv_generation_trace=trace_payload,
         )
     except Exception as exc:
         if trace_payload is not None:
@@ -1799,8 +1770,8 @@ def _generate_fresh_from_analysis(
             markdown_final=None,
             validation=None,
             error={"stage": failure_stage, "message": str(exc)},
-            runtime_provenance=runtime_provenance,
-            agentic_live_trace=trace_payload,
+            llm_runtime_evidence=runtime_evidence,
+            cv_generation_trace=trace_payload,
         )
 
 def generate_from_analysis(

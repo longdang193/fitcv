@@ -333,7 +333,6 @@ def test_settings_sections_exclude_legacy_retrieval_advanced_slug() -> None:
 
 def test_agentic_settings_section_ownership_is_explicit() -> None:
     assert AGENTIC_SETTINGS_SECTIONS["agentic-enablement"] == [
-        "cv.agentic_late_stage.enabled",
         "cv_analysis.semantic_alignment.enabled",
         "synonym_management.propose_enabled",
         "synonym_management.apply_to_run_enabled",
@@ -377,7 +376,6 @@ def test_agentic_settings_mutability_distinguishes_editable_metadata_only_and_ex
         "cv_analysis.semantic_alignment.model",
     }
     assert editable_agentic_settings_keys() == {
-        "cv.agentic_late_stage.enabled",
         "synonym_management.propose_enabled",
         "synonym_management.apply_to_run_enabled",
         "synonym_management.promote_global_enabled",

@@ -13,13 +13,12 @@ explains:
 # Observability
 
 FitCV’s observability model is centered on **run truth**, **stage-owned
-artifacts**, and **persisted event timelines**. There is no separate agent
-console; the agentic parts are observed through the same run-detail, export,
-and event surfaces that operators already use to inspect the rest of the
+artifacts**, and **persisted event timelines**. There is no separate agent console; LLM-backed stages use the same run-detail,
+export, and event surfaces that operators already use for the rest of the
 pipeline.
 
 This page is the front-door guide for operators and developers who want to
-understand what the system did, why it did it, and where the agentic behavior
+understand what the system did, why it did it, and where LLM runtime behavior
 is visible.
 
 ## Setup Observability (Quick Start)
@@ -110,6 +109,13 @@ This is the main observability surface. It combines:
 - synonym overlay and review-adjacent surfaces
 
 For most debugging, start here before opening raw JSON exports.
+
+Long-running provider work emits stage-owned liveness events without creating new
+LLM calls: `enrich_heartbeat` during fresh enrichment and
+`cv_generation_heartbeat` while CV-generation futures remain pending.
+Both report bounded counts, elapsed time, heartbeat interval, configured concurrency,
+and effective concurrency at roughly 15-second cadence. Effective concurrency is
+bounded by runnable work: enrich batches or generation-ready CV rows.
 
 ## Two-Layer Langfuse Observability Model
 
@@ -226,108 +232,51 @@ Use this when you want the machine-facing event stream rather than the rendered
 HTML timeline. This is especially helpful for tooling, incident review, or
 cross-run comparisons.
 
-## Agentic Observation By Area## Agentic Observation By Area
+## LLM Observation By Area
 
 ### CV analysis and generation
 
-The main surfaces are:
+Main surfaces:
 
 - `/admin/runs/{run_id}/cv-analysis-trace.json`
-- `/admin/runs/{run_id}/agentic-live-trace.json`
+- `/admin/runs/{run_id}/cv-generation-trace.json`
 - `/admin/runs/{run_id}/cv-debug.json`
 - `/admin/runs/{run_id}/hitl-review-audit.json`
 - `/admin/runs/{run_id}/stage-artifacts.json`
 - `/admin/runs/{run_id}/stage-artifacts/cv_analysis.json`
 - `/admin/runs/{run_id}/stage-artifacts/cv_generation.json`
 
-Use these to inspect:
-
-- analysis-time agentic decisions before generation starts
-- live-provider request and response attempts
-- provider, model, template, and schema provenance for the agentic path
-- validation retry and repair behavior
-- evidence retrieval
-- bounded evidence summaries
-- gap analysis outcomes
-- readiness and skip decisions
-- generation validation
-- repair behavior
-- final generation acceptance or failure
-- review-required outcomes, operator actions, and pending review queue state
-- markdown-quality review and blocking outcomes
+`llm_runtime.py` owns one safe `llm_runtime_evidence_v1` projection. Only an
+actual shared-runtime call emits evidence. Reuse, replay, resume, reranker block,
+and fit-gate skip paths emit zero new evidence. Evidence excludes prompts, raw
+responses, headers, credentials, and provider payloads.
 
 ### CV analysis trace
 
 `/admin/runs/{run_id}/cv-analysis-trace.json`
 
-Use this when the question starts in `cv_analysis` rather than in the live
-generation provider path.
+Use this for reranker gates, evidence selection, gap computation, readiness, and
+analysis failures. It uses `stage_execution_trace` and records stage facts such
+as attempts, bounded inputs/outputs, validation, repair, and errors. Current
+analysis mechanics do not call `execute_llm_task`, so this trace does not
+fabricate LLM provenance or runtime evidence.
 
-This artifact follows the same shared agentic trace standard as
-`agentic-live-trace.json`, but its `step_id` is `cv_analysis` and its records
-capture the pre-generation analysis step for each ranked job.
+### CV generation trace
 
-This artifact is the persisted run-scoped trace surface for:
+`/admin/runs/{run_id}/cv-generation-trace.json`
 
-- reranker-blocked versus analysis-attempted rows
-- analysis runtime provenance
-- evidence-selection outcomes and fallback usage
-- bounded analysis failures without depending on transient worker logs
+Use this for direct or LangGraph generation calls, retries, bounded runtime
+failures, validation, repair, and final generation status. Both adapters feed the
+same repo-native result contract and the same `stage_execution_trace` family.
+The canonical artifact filename is `cv-generation-trace.json`.
 
-Shared contract families you should expect in this trace:
+`/admin/runs/{run_id}/agentic-live-trace.json` remains a read-only historical
+alias. It uses the same response builder and must not become a second current
+writer or semantic contract. Historical nested schema/family values remain
+unchanged when old payloads are read.
 
-- top-level run-scoped trace state such as `trace_family`, `step_id`,
-  `trace_status`, `trace_summary`, `records`, and `degradation`
-- per-record stage facts such as `runtime_provenance`, `attempts`,
-  `input_summary`, `output_summary`, `validation_summary`, `repair_summary`,
-  and `error_summary`
-
-Current `cv_analysis`-specific details still visible inside that shared
-contract:
-
-- the step id is `cv_analysis`
-- records are job-scoped
-- attempts correspond to bounded analysis attempts
-- output summaries carry evidence-selection counts rather than generation or
-  repair facts
-
-### Agentic live trace
-
-`/admin/runs/{run_id}/agentic-live-trace.json`
-
-Use this when the question is specifically about the live agentic provider path
-rather than the broader CV-generation ledger.
-
-This artifact is the first persisted trace surface that follows the repo's
-shared agentic trace standard. Today it is specific to `cv_generation`, but the
-top-level vocabulary is intended to be reused by future agentic traces too.
-
-This artifact is the persisted run-scoped trace surface for:
-
-- actual runtime path used
-- provider attempt timing and status
-- bounded provider error payloads
-- repair retries triggered by missing sections
-- final validation-cycle summary
-
-Shared contract families you should expect in this trace:
-
-- top-level run-scoped trace state such as `trace_family`, `step_id`,
-  `trace_status`, `trace_summary`, `records`, and `degradation`
-- per-record agentic facts such as `runtime_provenance`, `attempts`,
-  `input_summary`, `output_summary`, `validation_summary`, `repair_summary`,
-  and `error_summary`
-
-Current `cv_generation`-specific details still visible inside that shared
-contract:
-
-- the step id is `cv_generation`
-- records are job-scoped
-- runtime provenance includes the CV template and structured CV schema contract
-- attempts correspond to generation and repair-retry calls
-
-The trace is intentionally bounded. It does not store raw chain-of-thought,
-full prompt bodies, or full raw provider response bodies.
+The trace is bounded. It stores no chain-of-thought, full prompt body, raw
+provider response, headers, credentials, or secrets.
 
 ### Timeline and event reasoning
 
@@ -420,10 +369,10 @@ Triage refresh emits run events for timeline/debug usage:
 Use this when debugging proposal-generation flow quality rather than reviewing
 proposal payload content itself.
 
-This artifact follows the same shared agentic trace contract as:
+This artifact follows the same shared stage-execution trace contract as:
 
 - `cv-analysis-trace.json`
-- `agentic-live-trace.json`
+- `cv-generation-trace.json`
 
 Its `step_id` is `synonym_proposals`, and it captures:
 
@@ -456,8 +405,7 @@ When debugging a surprising run:
 3. read the timeline around the first suspicious transition
 4. open `stage-artifacts.json` for stage-owned truth
 5. open `cv-analysis-trace.json` if the issue starts before generation
-6. open `agentic-live-trace.json` if the issue is specifically in the live
-   agentic generation path
+6. open `cv-generation-trace.json` for direct or LangGraph generation runtime, retry, or validation issues
 7. open `synonym-proposals-trace.json` when proposal persistence or proposal
    generation status looks degraded
 8. open `cv-debug.json` for the broader CV-generation ledger
@@ -476,9 +424,9 @@ When debugging a surprising run:
   - sequence reconstruction and tooling
 - CV analysis trace export:
   - analysis-stage attempt, evidence-selection, and pre-generation debugging
-- agentic live trace export:
-  - live-provider attempt, retry, bounded failure debugging, and shared
-    agentic trace-contract inspection
+- CV generation trace export:
+  - direct or LangGraph attempt, retry, bounded failure debugging, and shared
+    stage-execution trace inspection
 - synonym proposals trace export:
   - proposal-generation attempt and persistence-degradation debugging
 - stage artifacts:

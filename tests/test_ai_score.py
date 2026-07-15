@@ -597,3 +597,71 @@ def test_execute_ranking_runtime_keeps_empty_output_stage_owned() -> None:
     assert request.response_mode == "json_object"
     assert result.status == "succeeded"
     assert result.parsed_value["parser_status"] == "malformed_json"
+
+
+def test_run_ai_scoring_emits_stable_runtime_observation(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fitcv.ai_score import run_ai_scoring
+    from fitcv.llm_runtime import LlmRuntimeProvenance, LlmRuntimeResult, LlmValidationResult
+
+    runtime_result = LlmRuntimeResult(
+        status="succeeded",
+        parsed_value={
+            "ai_score": 0.9,
+            "fit_label": "strong",
+            "score_reasoning": "match",
+            "matched_strengths": [],
+            "key_risks": [],
+            "parser_status": "ok",
+        },
+        validation=LlmValidationResult(valid=True, errors=[], details={}),
+        failure=None,
+        provenance=LlmRuntimeProvenance(
+            routing_part="ranking_ai_score",
+            runtime_path="test",
+            adapter="fake",
+            provider="test",
+            model="test",
+            wire_api="responses",
+            attempt_count=1,
+            response_id=None,
+            trace_id=None,
+            latency_ms=1,
+        ),
+        adapter_response=None,
+    )
+    monkeypatch.setattr("fitcv.ai_score._execute_ranking_runtime", lambda *args, **kwargs: runtime_result)
+    observations: list[dict[str, Any]] = []
+
+    rows = run_ai_scoring(
+        [{"job_url": "https://example.com/jobs/1", "raw_job_fingerprint": "raw-1"}],
+        "candidate",
+        {"stage_runtime": {"ranking": {"sleep_secs": 0}}},
+        runtime_observation_callback=observations.append,
+    )
+
+    assert rows[0]["job_url"] == "https://example.com/jobs/1"
+    assert observations == [
+        {
+            "contract_version": "llm_runtime_observation_v1",
+            "scope_key": "raw-1",
+            "input_index": 0,
+            "invocation_index": 1,
+            "evidence": {
+                "contract_version": "llm_runtime_evidence_v1",
+                "status": "succeeded",
+                "provenance": {
+                    "routing_part": "ranking_ai_score",
+                    "runtime_path": "test",
+                    "adapter": "fake",
+                    "provider": "test",
+                    "model": "test",
+                    "wire_api": "responses",
+                    "attempt_count": 1,
+                    "response_id": None,
+                    "trace_id": None,
+                    "latency_ms": 1,
+                },
+                "failure": None,
+            },
+        }
+    ]

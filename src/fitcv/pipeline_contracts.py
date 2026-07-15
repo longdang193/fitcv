@@ -121,7 +121,7 @@ PIPELINE_BUNDLE_ARTIFACT_FILENAMES: Final[tuple[str, ...]] = (
     "cv-debug.json",
     "cv-generation-review-required.json",
     "cv-analysis-trace.json",
-    "agentic-live-trace.json",
+    "cv-generation-trace.json",
     "mapping-suggestions.json",
     "synonym-proposals.json",
     "synonym-proposals-trace.json",

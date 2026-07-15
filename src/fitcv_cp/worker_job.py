@@ -97,14 +97,12 @@ from fitcv_cp.run_artifact_contracts import (
 
 from fitcv_cp.worker_run_support import (
     _auto_accept_ai_action_enabled_from_run_record,
-    _build_late_stage_mode_payload,
     _build_mapping_suggestions_payload,
     _build_manual_checkpoint_payload,
     _build_settings_used_payload,
     _build_settings_used_payload_dict,
     _build_stage_transition_artifacts_payload,
     _build_stage_transition_artifacts_payload_dict,
-    _config_agentic_late_stage_enabled,
     _effective_settings_payload_from_run_record,
     _effective_skill_synonyms_from_run_record,
     _synonym_management_mode_from_run_record,
@@ -472,7 +470,6 @@ def _build_results_export_payload(
             "ranked": int(summary.get("ranked", 0)),
             "cvs_generated": int(summary.get("cvs_generated", 0)),
         },
-        "late_stage_mode": _build_late_stage_mode_payload(summary=summary),
         "stage_result_summary": stage_result_summary,
         "data_plane": data_plane_contract_payload(effective_config),
         "replay_context": replay_context_payload(replay_context=replay_context, run_id=run_id),
@@ -689,8 +686,8 @@ def _build_cv_generation_debug_payload(
         "snapshot_complete": len(debug_records) == ranked_jobs_total,
         "debug_records": debug_records,
     }
-    if isinstance(summary.get("agentic_live_trace"), dict):
-        payload["agentic_live_trace"] = dict(summary["agentic_live_trace"])
+    if isinstance(summary.get("cv_generation_trace"), dict):
+        payload["cv_generation_trace"] = dict(summary["cv_generation_trace"])
     if isinstance(summary.get("cv_analysis_trace"), dict):
         payload["cv_analysis_trace"] = dict(summary["cv_analysis_trace"])
     require_payload_keys(

@@ -28,6 +28,7 @@ from fitcv.llm_runtime import (
     LlmTaskRequest,
     LlmValidationResult,
     execute_llm_task,
+    project_llm_runtime_evidence,
 )
 from fitcv.runtime_routing import LlmRouting
 
@@ -347,3 +348,34 @@ def test_default_adapter_passes_empty_json_object_text_to_parser() -> None:
     assert seen == [""]
     assert result.status == "succeeded"
     assert calls[0]["json"]["text"]["format"] == {"type": "json_object"}
+
+
+def test_project_llm_runtime_evidence_serializes_only_canonical_safe_fields() -> None:
+    success = _run(adapter=lambda request, route, api_key: _response())
+    evidence = project_llm_runtime_evidence(success)
+
+    assert evidence["contract_version"] == "llm_runtime_evidence_v1"
+    assert evidence["status"] == "succeeded"
+    assert evidence["failure"] is None
+    assert evidence["provenance"]["routing_part"] == "cv_generation_structured_write"
+    assert evidence["provenance"]["response_id"] == "resp-1"
+    assert "route_part" not in evidence["provenance"]
+    serialized = json.dumps(evidence, sort_keys=True)
+    assert "secret" not in serialized
+    assert "provider_payload" not in serialized
+    assert "raw_text" not in serialized
+
+    failure = _run(
+        adapter=lambda request, route, api_key: (_ for _ in ()).throw(
+            LlmAdapterError("adapter_http_error", "rate limited", True, 429)
+        )
+    )
+    failed_evidence = project_llm_runtime_evidence(failure)
+    assert failed_evidence["status"] == "failed"
+    assert failed_evidence["failure"] == {
+        "stage": "adapter",
+        "code": "adapter_http_error",
+        "message": "rate limited",
+        "retryable": True,
+        "http_status": 429,
+    }

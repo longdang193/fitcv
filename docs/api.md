@@ -24,8 +24,8 @@ The repo exposes two broad classes of HTTP surface:
 - JSON-oriented API routes for runs, events, and settings
 - HTML admin routes for operators
 
-Most agentic observation and operator actions happen through the admin routes,
-while automation and programmatic inspection usually start with the JSON routes.
+Most LLM-runtime observation and operator actions happen through admin routes,
+while automation and programmatic inspection usually start with JSON routes.
 
 ## Health
 
@@ -164,9 +164,13 @@ These routes expose persisted run-scoped evidence files, such as:
 - `GET /admin/runs/{run_id}/hitl-review-audit.json`
 - `GET /admin/runs/{run_id}/cv-debug.json`
 - `GET /admin/runs/{run_id}/cv-analysis-trace.json`
+- `GET /admin/runs/{run_id}/cv-generation-trace.json`
 
 Route registration stays in `src/fitcv_cp/app.py`. Export payload shaping for
-review/debug surfaces lives in `src/fitcv_cp/app_run_support.py`.
+review/debug surfaces lives in `src/fitcv_cp/app_run_support.py`. The historical
+`/admin/runs/{run_id}/agentic-live-trace.json` route is a read-only alias backed
+by the same CV-generation trace loader; current writers use only the canonical
+key and filename.
 
 These are useful for cross-run review workflows and higher-level operator
 inspection.

@@ -5,7 +5,7 @@ boundaries:
   - normalized jobs enter and enriched job rows leave
   - pre-enrichment global filter ownership belongs to this stage in the current runtime flow
   - extraction prompt text and metadata are centrally managed via the prompt registry, while enrich keeps ownership of schemas, parsing, and post-processing
-  - shared `llm_runtime` owns route resolution, credentials, provider transport, wire compatibility, normalized operational failures, and runtime provenance; enrich owns extraction meaning, parsing, normalization, merge, retry, batching, and row shape
+  - shared `llm_runtime` owns route resolution, credentials, provider transport, wire compatibility, normalized operational failures, runtime provenance, and the only persistable per-call evidence projection; enrich owns extraction meaning, parsing, normalization, merge, retry, batching, and row shape
   - canonical downstream skill fields are limited to `required_skills` and `preferred_skills`, and are represented as canonical skill entities plus flattened canonical skill labels
   - manual staged runs may attach a run-scoped synonym overlay after this stage and before continuing into `rule_filter`
   - enrich reuse is decided before LLM invocation from normalized raw-job fingerprints plus the effective enrich-contract fingerprint
@@ -15,7 +15,7 @@ inputs:
   - pre-enrichment global filter settings from runtime config
 outputs:
   - bounded `stage_transition_artifacts.enrich` runtime block with input, output, and changed-state samples
-  - enrich prompt provenance and fresh-vs-reused enrich counts in stage decision summaries when available
+  - enrich prompt provenance, fresh-vs-reused counts, and a stage-neutral `llm_runtime_summary`; only fresh runtime calls emit ordered `llm_runtime_observations`
   - enrich-stage mapping suggestions for review/debug export
   - enriched job rows
   - optional enrich-checkpoint upload of a run-scoped synonym overlay for downstream matching
@@ -37,10 +37,12 @@ refs:
     - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
     - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
     - docs/superpowers/archive/specs/2026-04-02-23-55-enrich-reuse-via-raw-job-fingerprint-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
   plan:
     - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
     - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
   history: []
 keywords:
   - enrich

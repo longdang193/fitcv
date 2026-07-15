@@ -102,6 +102,8 @@ def test_render_prompt_cv_generation_structured_write_includes_schema() -> None:
             "title": "Data Analyst",
             "required_skills": "SQL, Python",
             "selected_evidence": "- Experience",
+            "allowed_skills": "SQL, Python",
+            "allowed_certifications": "(none)",
             "evidence_usage_guidance": "- Use evidence",
             "analysis_summary": "Selected evidence count: 2",
             "constraints": "Do not invent claims.",

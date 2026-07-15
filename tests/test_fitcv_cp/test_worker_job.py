@@ -194,7 +194,7 @@ def test_worker_persists_terminal_artifact_mirror_for_succeeded_run(tmp_path: Pa
         started_at=now,
         finished_at=now,
         results_export_json=json.dumps({"results": [{"job_url": "https://example.com/1"}]}, ensure_ascii=False),
-        cv_generation_debug_json=json.dumps({"debug_records": [], "agentic_live_trace": {"trace_status": "completed"}}, ensure_ascii=False),
+        cv_generation_debug_json=json.dumps({"debug_records": [], "cv_generation_trace": {"trace_status": "completed"}}, ensure_ascii=False),
         stage_transition_artifacts_json=json.dumps({"status": "succeeded", "artifacts": {}}, ensure_ascii=False),
         settings_used_json=json.dumps({"effective_settings": {}}, ensure_ascii=False),
         mapping_suggestions_json=json.dumps({"suggestions": []}, ensure_ascii=False),
@@ -297,13 +297,13 @@ def test_worker_results_export_keeps_ai_plane_payload_equivalent_across_backends
             }
         ],
         "cv_analysis_trace": {
-            "trace_schema_version": "agentic_step_trace_run_v1",
-            "late_stage_mode": {"late_stage_mode": "agentic"},
+            "trace_schema_version": "stage_execution_trace_run_v1",
+            "trace_family": "stage_execution_trace",
             "records": [{"record_id": "https://example.com/1", "status": "ready_for_generation"}],
         },
-        "agentic_live_trace": {
-            "trace_schema_version": "agentic_step_trace_run_v1",
-            "late_stage_mode": {"late_stage_mode": "agentic"},
+        "cv_generation_trace": {
+            "trace_schema_version": "stage_execution_trace_run_v1",
+            "trace_family": "stage_execution_trace",
             "records": [{"record_id": "https://example.com/1", "status": "accepted"}],
         },
     }
@@ -391,9 +391,7 @@ def test_worker_persists_results_export_json_on_success():
     assert payload["replay_context"]["replay_source_run_id"] == "r1"
     assert payload["replay_context"]["policy_registry_version"] == "policy_registry.v1"
     assert payload["summary"]["ranked"] == 2
-    assert payload["late_stage_mode"]["late_stage_mode"] == "agentic"
-    assert payload["late_stage_mode"]["agentic_late_stage_enabled"] is True
-    assert payload["late_stage_mode"]["agentic_status"] == "completed"
+    assert "late_stage_mode" not in payload
     assert "stage_quality_metrics" not in payload
     assert "late_stage_reuse_metrics" not in payload
     assert "shortlist_debug" not in payload
@@ -738,15 +736,9 @@ def test_worker_persists_cv_generation_debug_json_on_success():
         "cvs_generated": 1,
         "cv_analysis_trace": {
             "run_id": "r1",
-            "trace_schema_version": "agentic_step_trace_run_v1",
-            "trace_family": "agentic_step_trace",
+            "trace_schema_version": "stage_execution_trace_run_v1",
+            "trace_family": "stage_execution_trace",
             "step_id": "cv_analysis",
-            "late_stage_mode": {
-                "late_stage_mode": "agentic",
-                "agentic_late_stage_enabled": True,
-                "mode_source": "cv.agentic_late_stage.unified_runtime",
-                "agentic_status": "completed",
-            },
             "trace_status": "completed",
             "trace_summary": {
                 "records_total": 1,
@@ -764,17 +756,11 @@ def test_worker_persists_cv_generation_debug_json_on_success():
             ],
             "degradation": {},
         },
-        "agentic_live_trace": {
+        "cv_generation_trace": {
             "run_id": "r1",
-            "trace_schema_version": "agentic_step_trace_run_v1",
-            "trace_family": "agentic_step_trace",
+            "trace_schema_version": "stage_execution_trace_run_v1",
+            "trace_family": "stage_execution_trace",
             "step_id": "cv_generation",
-            "late_stage_mode": {
-                "late_stage_mode": "agentic",
-                "agentic_late_stage_enabled": True,
-                "mode_source": "cv.agentic_late_stage.unified_runtime",
-                "agentic_status": "completed",
-            },
             "trace_status": "completed",
             "trace_summary": {
                 "records_total": 1,
@@ -830,13 +816,13 @@ def test_worker_persists_cv_generation_debug_json_on_success():
     assert payload["ranked_jobs_total"] == 2
     assert payload["debug_records_captured"] == 1
     assert payload["snapshot_complete"] is False
-    assert payload["cv_analysis_trace"]["trace_family"] == "agentic_step_trace"
+    assert payload["cv_analysis_trace"]["trace_family"] == "stage_execution_trace"
     assert payload["cv_analysis_trace"]["step_id"] == "cv_analysis"
     assert payload["cv_analysis_trace"]["records"][0]["status"] == "ready_for_generation"
-    assert payload["agentic_live_trace"]["trace_status"] == "completed"
-    assert payload["agentic_live_trace"]["trace_family"] == "agentic_step_trace"
-    assert payload["agentic_live_trace"]["step_id"] == "cv_generation"
-    assert payload["agentic_live_trace"]["records"][0]["attempts"][0]["provider_status"] == "accepted"
+    assert payload["cv_generation_trace"]["trace_status"] == "completed"
+    assert payload["cv_generation_trace"]["trace_family"] == "stage_execution_trace"
+    assert payload["cv_generation_trace"]["step_id"] == "cv_generation"
+    assert payload["cv_generation_trace"]["records"][0]["attempts"][0]["provider_status"] == "accepted"
     assert payload["debug_records"][0]["job_url"] == "https://example.com/1"
     assert payload["debug_records"][0]["ranking_fit_label"] == "strong"
     assert payload["debug_records"][0]["reranker_fit_label"] == "strong"
@@ -1252,9 +1238,7 @@ def test_worker_persists_settings_used_json_on_success():
     assert payload["replay_context"]["replay_mode"] == "strict"
     assert payload["replay_context"]["replay_source_run_id"] == "r1"
     assert payload["replay_context"]["policy_registry_version"] == "policy_registry.v1"
-    assert payload["late_stage_mode"]["late_stage_mode"] == "agentic"
-    assert payload["late_stage_mode"]["agentic_late_stage_enabled"] is True
-    assert payload["late_stage_mode"]["agentic_status"] == "completed"
+    assert "late_stage_mode" not in payload
     assert payload["effective_settings"]["pipeline"]["final_top_n"] == 10
     assert payload["sources"]["config_path"] == ".env.yaml"
     assert payload["sources"]["effective_settings_snapshot_present"] is True

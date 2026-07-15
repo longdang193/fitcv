@@ -24,7 +24,7 @@ import sqlite3
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from fitcv.config import (
     get_ranking_ai_score_model,
@@ -41,8 +41,10 @@ from fitcv.llm_runtime import (
     LlmTaskRequest,
     LlmValidationResult,
     execute_llm_task,
+    project_llm_runtime_evidence,
 )
 from fitcv.persistence import get_local_sqlite_path
+from fitcv.pipeline_stages.common import job_identity_keys
 from fitcv.prompts import render_prompt
 from fitcv.ranking_contract import (
     DEFAULT_FIT_LABEL_STRONG_THRESHOLD,
@@ -271,14 +273,7 @@ def _execute_ranking_runtime(
     )
 
 
-def score_job(
-    job: dict[str, Any],
-    candidate_summary: str,
-    top_evidence: list[str],
-    config: dict[str, Any],
-) -> dict[str, Any]:
-    """Score one job through shared LLM runtime."""
-    result = _execute_ranking_runtime(job, candidate_summary, top_evidence, config)
+def _ranking_result_to_row(job: dict[str, Any], result: LlmRuntimeResult) -> dict[str, Any]:
     if result.status != "succeeded" or not isinstance(result.parsed_value, dict):
         failure = result.failure or LlmRuntimeFailure(
             stage="validate",
@@ -291,6 +286,20 @@ def score_job(
     value["job_url"] = str(job.get("job_url", ""))
     return value
 
+
+def score_job(
+    job: dict[str, Any],
+    candidate_summary: str,
+    top_evidence: list[str],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    """Score one job through shared LLM runtime."""
+    return _ranking_result_to_row(
+        job,
+        _execute_ranking_runtime(job, candidate_summary, top_evidence, config),
+    )
+
+
 # ── integration: batch score shortlist ───────────────────────────────────────
 
 def run_ai_scoring(
@@ -298,6 +307,8 @@ def run_ai_scoring(
     candidate_summary: str,
     config: dict[str, Any],
     top_n: int | None = None,
+    *,
+    runtime_observation_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[dict[str, Any]]:
     """Score at most top_n shortlisted jobs.
 
@@ -331,15 +342,31 @@ def run_ai_scoring(
     )
     selected_jobs = shortlist[:effective_top_n]
 
-    def _score_single(job: dict[str, Any]) -> dict[str, Any]:
+    def _score_single(input_index: int, job: dict[str, Any]) -> dict[str, Any]:
         top_evidence = list(job.get("top_evidence", []) or [])[:2]
         try:
-            return score_job(
-                job=job,
-                candidate_summary=candidate_summary,
-                top_evidence=top_evidence,
-                config=config,
+            if runtime_observation_callback is None:
+                return score_job(
+                    job=job,
+                    candidate_summary=candidate_summary,
+                    top_evidence=top_evidence,
+                    config=config,
+                )
+            result = _execute_ranking_runtime(job, candidate_summary, top_evidence, config)
+            identity_keys = job_identity_keys(job)
+            runtime_observation_callback(
+                {
+                    "contract_version": "llm_runtime_observation_v1",
+                    "scope_key": str(
+                        job.get("raw_job_fingerprint")
+                        or (identity_keys[0] if identity_keys else "")
+                    ),
+                    "input_index": input_index,
+                    "invocation_index": 1,
+                    "evidence": project_llm_runtime_evidence(result),
+                }
             )
+            return _ranking_result_to_row(job, result)
         except Exception as exc:  # noqa: BLE001
             return {
                 "job_url": str(job.get("job_url", "")),
@@ -352,14 +379,14 @@ def run_ai_scoring(
     scored_by_index: dict[int, dict[str, Any]] = {}
     if ranking_concurrency <= 1:
         for i, job in enumerate(selected_jobs):
-            scored_by_index[i] = _score_single(job)
+            scored_by_index[i] = _score_single(i, job)
             if i < len(selected_jobs) - 1:
                 time.sleep(sleep_secs)
     else:
         with ThreadPoolExecutor(max_workers=ranking_concurrency) as executor:
             futures: dict[Any, int] = {}
             for i, job in enumerate(selected_jobs):
-                futures[executor.submit(_score_single, job)] = i
+                futures[executor.submit(_score_single, i, job)] = i
                 if i < len(selected_jobs) - 1:
                     time.sleep(sleep_secs)
             for future in as_completed(futures):

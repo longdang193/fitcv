@@ -1,0 +1,6 @@
+Captured: 2026-07-15T11:19:36+02:00
+Command: python -m pytest -q
+Result: passed
+Summary: 1931 passed, 3 skipped in 183.02s
+Focused startup regression: tests/test_fitcv_cp/test_main.py — 4 passed
+Fix: Windows startup now forces inline execution when REDIS_URL is absent, including when dotenv supplies a false-like FITCV_CP_INLINE_EXECUTION value.
