@@ -17,7 +17,6 @@ lifecycle:
 
 from collections.abc import Mapping
 from copy import deepcopy
-from contextlib import contextmanager
 import datetime
 import hashlib
 import json
@@ -27,7 +26,7 @@ import os
 import socket
 import sys
 import time
-from typing import Any, Callable, Iterator, Literal, TypedDict, cast
+from typing import Any, Callable, Literal, TypedDict, cast
 from urllib.error import HTTPError, URLError
 
 from fitcv.agentic_cv_analysis import (
@@ -47,8 +46,9 @@ from fitcv.config import (
 )
 from fitcv.runtime_routing import (
     LlmRouting,
-    build_langgraph_env_overrides,
+    resolve_cv_generation_routing,
     resolve_cv_generation_routing_snapshot,
+    resolve_openai_compatible_api_key,
 )
 from fitcv.llm_runtime import (
     LlmAdapterError,
@@ -146,8 +146,8 @@ _LIVE_TRACE_PROMPT_CONTRACT = "fitcv_structured_generation_prompt"
 _LIVE_TRACE_FAMILY = "stage_execution_trace"
 _LIVE_TRACE_STEP_ID = "cv_generation"
 _LIVE_TRACE_DEBUG_ENV_KEYS = (
-    "FITCV_LANGGRAPH_DEBUG_LIVE",
-    "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH",
+    "FITCV_LLM_DEBUG_LIVE",
+    "FITCV_LLM_DEBUG_LIVE_DUMP_PATH",
 )
 
 
@@ -176,28 +176,21 @@ def _discover_fitcv_langgraph_repo_root() -> Path | None:
     return None
 
 
-def _build_fitcv_langgraph_env_values(repo_root: Path | None) -> dict[str, str]:
-    del repo_root
-    env_values = dict(os.environ)
-    env_values.update(build_langgraph_env_overrides())
-    return env_values
-
-@contextmanager
-def _temporary_environ(values: dict[str, str]) -> Iterator[None]:
-    previous: dict[str, str | None] = {
-        key: os.environ.get(key)
-        for key in values
+def _langgraph_adapter_env(route: LlmRouting, api_key: str) -> dict[str, str]:
+    return {
+        "FITCV_LLM_PROVIDER": route.provider,
+        "FITCV_LLM_API_KEY": api_key,
+        "FITCV_LLM_MODEL": route.model,
+        "FITCV_LLM_BASE_URL": route.base_url,
+        "FITCV_LLM_WIRE_API": route.wire_api,
+        "FITCV_LLM_TIMEOUT_SECONDS": str(route.timeout_seconds),
     }
-    os.environ.update(values)
-    try:
-        yield
-    finally:
-        for key, old_value in previous.items():
-            if old_value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = old_value
 
+def _build_fitcv_langgraph_env_values() -> dict[str, str]:
+    return _langgraph_adapter_env(
+        resolve_cv_generation_routing({}),
+        resolve_openai_compatible_api_key(),
+    )
 
 def _build_requirement_priorities(job: dict[str, Any]) -> list[dict[str, Any]]:
     priorities: list[dict[str, Any]] = []
@@ -301,7 +294,7 @@ def _augmented_gap_summary_from_analysis(analysis_record: dict[str, Any]) -> dic
 
 def _live_runtime_provenance_or_none() -> dict[str, Any] | None:
     repo_root = _discover_fitcv_langgraph_repo_root()
-    env_values = _build_fitcv_langgraph_env_values(repo_root)
+    env_values = _build_fitcv_langgraph_env_values()
     try:
         runtime_loader = globals().get("load_live_provider_config_from_env")
         if runtime_loader is None:
@@ -335,18 +328,8 @@ def _langgraph_runtime_adapter(
             sys.path.insert(0, str(src_root))
     live_module = importlib.import_module("fitcv_langgraph.providers.live")
     runtime_loader = getattr(live_module, "load_live_provider_config_from_env")
-    client_cls = getattr(live_module, "OpenAIResponsesClient")
-    env_values = dict(os.environ)
-    env_values.update(
-        {
-            "FITCV_LANGGRAPH_PROVIDER": route.provider,
-            "FITCV_LANGGRAPH_MODEL": route.model,
-            "FITCV_LANGGRAPH_OPENAI_BASE_URL": route.base_url,
-            "FITCV_LANGGRAPH_WIRE_API": route.wire_api,
-            "FITCV_LANGGRAPH_TIMEOUT_SECONDS": str(route.timeout_seconds),
-            "OPENAI_API_KEY": api_key,
-        }
-    )
+    client_cls = getattr(live_module, "OpenAICompatibleJsonClient")
+    env_values = _langgraph_adapter_env(route, api_key)
     try:
         provider_config = runtime_loader(env_values)
         response_payload = client_cls(provider_config).generate_json(
@@ -422,15 +405,10 @@ def _generate_cv_with_live_provider(
     fit_classification: str,
     evidence_selection_summary: dict[str, Any] | None,
     repair_missing_sections: list[str] | None,
-    env_values: dict[str, str],
     trace_attempt: dict[str, Any] | None = None,
     attempt_index: int = 1,
 ) -> dict[str, Any]:
-    credential_values = {
-        key: value
-        for key in ("FITCV_LLM_API_KEY", "OPENAI_API_KEY", "OPENAI_COMPATIBLE_API_KEY")
-        if (value := str(env_values.get(key) or "").strip())
-    }
+    started_at = datetime.datetime.now(datetime.timezone.utc)
     started_at = datetime.datetime.now(datetime.timezone.utc)
     started_monotonic = time.monotonic()
 
@@ -455,18 +433,17 @@ def _generate_cv_with_live_provider(
             )
         return _langgraph_runtime_adapter(request, route, api_key)
 
-    with _temporary_environ(credential_values):
-        result = _execute_cv_generation_runtime(
-            job,
-            evidence,
-            gap,
-            profile,
-            config,
-            fit_classification=fit_classification,
-            evidence_selection_summary=evidence_selection_summary,
-            repair_missing_sections=repair_missing_sections,
-            adapter=_adapter,
-        )
+    result = _execute_cv_generation_runtime(
+        job,
+        evidence,
+        gap,
+        profile,
+        config,
+        fit_classification=fit_classification,
+        evidence_selection_summary=evidence_selection_summary,
+        repair_missing_sections=repair_missing_sections,
+        adapter=_adapter,
+    )
     if trace_attempt is not None:
         trace_attempt.update(
             {
@@ -951,7 +928,6 @@ def _build_live_provider_generator(
     config: dict[str, Any],
     fit: str,
     evidence_selection_summary: dict[str, Any],
-    env_values: dict[str, str],
 ) -> Callable[[list[str] | None, dict[str, Any], int], Any]:
     def _call(
         repair_missing_sections: list[str] | None,
@@ -967,7 +943,6 @@ def _build_live_provider_generator(
             fit_classification=fit,
             evidence_selection_summary=evidence_selection_summary,
             repair_missing_sections=repair_missing_sections,
-            env_values=env_values,
             trace_attempt=trace_attempt,
             attempt_index=attempt_index,
         )
@@ -1591,7 +1566,6 @@ def _generate_fresh_from_analysis(
             config=config,
             fit=fit,
             evidence_selection_summary=evidence_selection_summary,
-            env_values=_build_fitcv_langgraph_env_values(_discover_fitcv_langgraph_repo_root()),
         )
 
         def _call_provider(

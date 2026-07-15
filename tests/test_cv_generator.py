@@ -886,9 +886,7 @@ def test_generate_cv_uses_openai_compatible_routed_client(
 
     fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient(), HTTPStatusError=Exception)
     monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    monkeypatch.setenv("FITCV_LANGGRAPH_WIRE_API", "responses")
-    monkeypatch.setenv("FITCV_LANGGRAPH_MODEL", "cx/gpt-5.2")
+    monkeypatch.setenv("FITCV_LLM_API_KEY", "test-key")
 
     result = generate_cv(
         jd={"title": "Data Engineer", "required_skills": ["SQL"]},
@@ -961,7 +959,7 @@ def test_generate_cv_parses_chat_completions_json_with_trailing_sse_done(
 
     fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient(), HTTPStatusError=Exception)
     monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("FITCV_LLM_API_KEY", "test-key")
 
     result = generate_cv(
         jd={"title": "Data Engineer", "required_skills": ["SQL"]},
@@ -1035,9 +1033,7 @@ def test_generate_cv_reads_model_from_nested_cv_config(
 
     fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient(), HTTPStatusError=Exception)
     monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    monkeypatch.setenv("FITCV_LANGGRAPH_WIRE_API", "responses")
-    monkeypatch.setenv("FITCV_LANGGRAPH_MODEL", "cx/gpt-5.2")
+    monkeypatch.setenv("FITCV_LLM_API_KEY", "test-key")
 
     nested_config = {
         "gcp_project": "fitcv-491123",

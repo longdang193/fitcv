@@ -19,29 +19,11 @@ import logging
 import os
 from typing import Any
 
-from fitcv.runtime_routing import langgraph_override_drift_fields
 from fitcv_cp.app import create_app
 from fitcv_cp.backend_runtime import resolve_backend_runtime, set_backend_runtime
 from fitcv_cp.env_defaults import load_dotenv_defaults
 
 logger = logging.getLogger(__name__)
-
-
-def _warn_or_fail_langgraph_override_drift() -> None:
-    """Detect env override drift against control-plane SSOT routing."""
-    drift_fields = langgraph_override_drift_fields()
-    if not drift_fields:
-        return
-
-    message = (
-        "LangGraph env override conflicts with control-plane routing SSOT "
-        f"(fields={','.join(drift_fields)}). "
-        "Clear FITCV_LANGGRAPH_* env vars or align them with config/runtime/control_plane.yaml."
-    )
-    strict = str(os.environ.get("FITCV_LANGGRAPH_OVERRIDE_STRICT") or "").strip().lower() in {"1", "true", "yes", "on"}
-    if strict:
-        raise RuntimeError(message)
-    logger.warning(message)
 
 
 def _ensure_safe_local_execution_mode() -> None:
@@ -68,7 +50,6 @@ def _ensure_safe_local_execution_mode() -> None:
 def build_app() -> Any:
     load_dotenv_defaults()
     _ensure_safe_local_execution_mode()
-    _warn_or_fail_langgraph_override_drift()
     runtime = resolve_backend_runtime()
     set_backend_runtime(runtime)
     redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/0")

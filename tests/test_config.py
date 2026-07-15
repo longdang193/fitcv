@@ -85,7 +85,7 @@ def test_load_config_allows_missing_legacy_cloud_keys(tmp_path: Path, monkeypatc
 """
     )
     monkeypatch.delenv("GCP_PROJECT", raising=False)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("FITCV_LLM_API_KEY", raising=False)
 
     cfg = load_config(env_yaml)
 
@@ -114,7 +114,7 @@ def test_load_config_sqlite_backend_allows_missing_cloud_keys(
         "    max_pages: 2\n"
     )
     monkeypatch.delenv("GCP_PROJECT", raising=False)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("FITCV_LLM_API_KEY", raising=False)
 
     cfg = load_config(env_yaml)
 

@@ -16,64 +16,36 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from fitcv.runtime_routing import build_langgraph_env_overrides, build_runtime_routing_snapshot, langgraph_override_drift_fields, resolve_cv_generation_routing, resolve_cv_generation_routing_snapshot, resolve_cv_generation_runtime_provenance
-from fitcv.runtime_routing import resolve_langgraph_openai_compatible_api_key, resolve_llm_api_key, resolve_llm_routing, resolve_openai_compatible_api_key, validate_cv_generation_routing_ready, validate_llm_routing_ready
+from fitcv.runtime_routing import build_runtime_routing_snapshot, resolve_cv_generation_routing, resolve_cv_generation_routing_snapshot, resolve_cv_generation_runtime_provenance
+from fitcv.runtime_routing import resolve_llm_api_key, resolve_llm_routing, resolve_openai_compatible_api_key, validate_cv_generation_routing_ready, validate_llm_routing_ready
 
 
-def test_resolve_openai_compatible_api_key_prefers_fitcv_llm_key() -> None:
+def test_resolve_openai_compatible_api_key_uses_fitcv_llm_key_only() -> None:
     with patch.dict(
         "os.environ",
         {
             "FITCV_LLM_API_KEY": "llm-key",
             "OPENAI_API_KEY": "openai-key",
             "OPENAI_COMPATIBLE_API_KEY": "compat-key",
+            "FITCV_LANGGRAPH_OPENAI_API_KEY": "langgraph-key",
         },
         clear=False,
     ):
         assert resolve_openai_compatible_api_key() == "llm-key"
 
 
-def test_resolve_langgraph_openai_compatible_api_key_prefers_langgraph_key() -> None:
+def test_resolve_openai_compatible_api_key_ignores_deprecated_aliases() -> None:
     with patch.dict(
         "os.environ",
         {
-            "FITCV_LANGGRAPH_OPENAI_API_KEY": "langgraph-key",
+            "FITCV_LLM_API_KEY": "",
             "OPENAI_API_KEY": "openai-key",
             "OPENAI_COMPATIBLE_API_KEY": "compat-key",
+            "FITCV_LANGGRAPH_OPENAI_API_KEY": "langgraph-key",
         },
         clear=False,
     ):
-        assert resolve_langgraph_openai_compatible_api_key() == "langgraph-key"
-
-
-def test_build_langgraph_env_overrides_uses_cv_generation_route_consistently() -> None:
-    def _route(part: str, model_fallback: str | None = None) -> dict[str, str]:
-        del model_fallback
-        if part == "enrich_extraction":
-            return {
-                "provider": "vertexai_gemini",
-                "model": "cx/gpt-5.4-mini",
-                "base_url": "",
-                "wire_api": "",
-            }
-        if part == "cv_generation_structured_write":
-            return {
-                "provider": "openai_compatible",
-                "model": "cx/gpt-5.2",
-                "base_url": "http://localhost:1234/v1",
-                "wire_api": "responses",
-            }
-        raise AssertionError(f"unexpected routing part: {part}")
-
-    with patch("fitcv.runtime_routing.resolve_model_routing_part", side_effect=_route):
-        overrides = build_langgraph_env_overrides()
-
-    assert overrides == {
-        "FITCV_LANGGRAPH_PROVIDER": "openai_compatible",
-        "FITCV_LANGGRAPH_OPENAI_BASE_URL": "http://localhost:1234/v1",
-        "FITCV_LANGGRAPH_WIRE_API": "responses",
-        "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.2",
-    }
+        assert resolve_openai_compatible_api_key() == ""
 
 def test_build_runtime_routing_snapshot_normalizes_and_marks_api_key_presence() -> None:
     snapshot = build_runtime_routing_snapshot(
@@ -171,7 +143,7 @@ def test_validate_cv_generation_routing_ready_openai_compatible_requires_api_key
             validate_cv_generation_routing_ready({})
             assert False, "expected RuntimeError"
         except RuntimeError as exc:
-            assert "API key" in str(exc)
+            assert "FITCV_LLM_API_KEY" in str(exc)
 
 
 def test_validate_cv_generation_routing_ready_builtin_provider_no_api_key_needed() -> None:
@@ -185,49 +157,6 @@ def test_validate_cv_generation_routing_ready_builtin_provider_no_api_key_needed
         },
     ):
         validate_cv_generation_routing_ready({})
-
-def test_langgraph_override_drift_fields_reports_only_conflicting_override_fields() -> None:
-    with patch(
-        "fitcv.runtime_routing.resolve_model_routing_part",
-        return_value={
-            "provider": "openai_compatible",
-            "model": "cx/gpt-5.2",
-            "base_url": "http://router.local/v1",
-            "wire_api": "responses",
-        },
-    ), patch.dict(
-        "os.environ",
-        {
-            "FITCV_LANGGRAPH_PROVIDER": "9router",
-            "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.2",
-            "FITCV_LANGGRAPH_OPENAI_BASE_URL": "http://override.local/v1",
-            "FITCV_LANGGRAPH_WIRE_API": "responses",
-        },
-        clear=False,
-    ):
-        assert langgraph_override_drift_fields() == ["provider", "base_url"]
-
-def test_langgraph_override_drift_fields_ignores_empty_override_env() -> None:
-    with patch(
-        "fitcv.runtime_routing.resolve_model_routing_part",
-        return_value={
-            "provider": "openai_compatible",
-            "model": "cx/gpt-5.2",
-            "base_url": "http://router.local/v1",
-            "wire_api": "responses",
-        },
-    ), patch.dict(
-        "os.environ",
-        {
-            "FITCV_LANGGRAPH_PROVIDER": "",
-            "FITCV_LANGGRAPH_MODEL": "",
-            "FITCV_LANGGRAPH_OPENAI_BASE_URL": "",
-            "FITCV_LANGGRAPH_WIRE_API": "",
-        },
-        clear=False,
-    ):
-        assert langgraph_override_drift_fields() == []
-
 
 def test_resolve_llm_routing_matches_cv_wrapper() -> None:
     route_payload = {

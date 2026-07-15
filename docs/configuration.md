@@ -168,16 +168,9 @@ Examples:
   - `control_plane.providers.*.wire_api`
   - `control_plane.model_routing.parts.*.provider`
   - `control_plane.model_routing.parts.*.model`
-- env overrides for LangGraph runtime expectation are optional and override-only:
-  - `FITCV_LANGGRAPH_PROVIDER`
-  - `FITCV_LANGGRAPH_MODEL`
-  - `FITCV_LANGGRAPH_OPENAI_BASE_URL`
-  - `FITCV_LANGGRAPH_WIRE_API`
-- precedence for routing expectation:
-  1. non-empty `FITCV_LANGGRAPH_*` env values (override-only path)
-  2. control-plane defaults from `config/runtime/control_plane.yaml`
-  3. fail fast if required fields remain unresolved
-- provider credentials: read from process env
+- LangGraph receives a bounded `FITCV_LLM_*` mapping derived from canonical routing; JOB operator route overrides are not accepted
+- routing expectation resolves only from `config/runtime/control_plane.yaml` and fails fast when required fields are missing
+- provider credential input: `FITCV_LLM_API_KEY` only
 
 ## AI-Plane Contract (Migration Freeze)
 
@@ -199,8 +192,8 @@ Prohibited coupling:
 
 Canonical AI auth contract:
 
-- primary key: `FITCV_LLM_API_KEY`
-- temporary compatibility aliases (deprecation window only): `OPENAI_API_KEY`, `OPENAI_COMPATIBLE_API_KEY`
+- sole repo-native input: `FITCV_LLM_API_KEY`
+- LangGraph receives the same bounded `FITCV_LLM_*` adapter mapping; no credential alias projection is used
 
 Fail-fast runtime contract:
 

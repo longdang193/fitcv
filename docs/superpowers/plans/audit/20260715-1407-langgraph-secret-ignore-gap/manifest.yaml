@@ -1,0 +1,30 @@
+audit_id: 20260715-1407-langgraph-secret-ignore-gap
+status: resolved
+created_at: '2026-07-15T14:07:02.8013303+02:00'
+updated_at: '2026-07-15T14:07:02.8013303+02:00'
+report: report.md
+artifacts:
+  - path: report.md
+    type: report
+  - path: manifest.yaml
+    type: manifest
+  - path: evidence/results/containment.txt
+    type: evidence
+  - path: repro/repro_steps.md
+    type: repro
+evidence:
+  - path: report.md
+    kind: report
+    captured_at: '2026-07-15T14:07:02.8013303+02:00'
+    producer: codex-local-terminal
+    sha256: 454d87bb312f1175fc7c4efa1c1116b6c2edf98f587771c64bcd0f11fd39b0d8
+  - path: evidence/results/containment.txt
+    kind: result
+    captured_at: '2026-07-15T14:07:02.8013303+02:00'
+    producer: codex-local-terminal
+    sha256: 08b2f17a9b99a9850b8202b77a6c3c1be05caf7e4f0cf4f41ff24352d4e7eb67
+  - path: repro/repro_steps.md
+    kind: repro
+    captured_at: '2026-07-15T14:07:02.8013303+02:00'
+    producer: codex-local-terminal
+    sha256: 61d41533de16f4db8f58bcfd1df28f001a7314990574b122ff2422fb037121f4

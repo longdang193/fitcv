@@ -309,11 +309,11 @@ LangGraph response boundary mapping is fixed:
 - serialize the remaining business payload into `raw_text`
 - run the same CV parser against `raw_text` for direct and LangGraph adapters
 
-LangGraph compatibility environment projection is also fixed. Start with the
-process environment for adapter-local retry/debug settings, then overwrite
-provider, model, base URL, wire API, timeout, and `OPENAI_API_KEY` from the
-resolved route and runtime-supplied credential. Existing `FITCV_LANGGRAPH_*`
-route values are observation inputs only and cannot override canonical routing.
+LangGraph receives a bounded adapter mapping using the same `FITCV_LLM_*`
+vocabulary as the repo-native runtime. Build that mapping only from the resolved
+route and runtime-supplied credential; do not copy process route values and do
+not translate the credential to `OPENAI_API_KEY`. `FITCV_LANGGRAPH_*` remains
+reserved for adapter-specific debug or repository-location mechanics.
 
 Phase 3 must not move `enrich.py` or `ai_score.py` onto the runtime. Their
 current local client builders remain explicit Phase 4 deletion targets.

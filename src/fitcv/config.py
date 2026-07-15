@@ -81,11 +81,6 @@ _DEFAULT_CV_REQUIRED_MATCH_POLICY = {
     },
     "force_review_when_any_required_missing_for_fits": ["stretch"],
 }
-_CONTROL_PLANE_ENV_OVERRIDES = {
-    # Portability override: local Windows host often needs localhost, while containers may use host.docker.internal.
-    "FITCV_CP_OPENAI_COMPATIBLE_BASE_URL": ("providers", "openai_compatible", "base_url"),
-    "FITCV_CP_OPENAI_COMPATIBLE_WIRE_API": ("providers", "openai_compatible", "wire_api"),
-}
 _SUPPORTED_PROVIDER_IDS = {"openai", "openai_compatible", "9router"}
 _RETIRED_PROVIDER_IDS = {"gemini", "vertex", "vertex_ai", "google", "google_genai", "google_vertex"}
 _DEFAULT_ACTIVE_MODEL = "cx/gpt-5.4-mini"
@@ -196,22 +191,6 @@ def _validate_control_plane_secret_hygiene(control_plane: dict[str, Any]) -> Non
             f"{sample}"
         )
 
-def _apply_control_plane_env_overrides(control_plane: dict[str, Any]) -> dict[str, Any]:
-    updated = dict(control_plane)
-    for env_var, key_path in _CONTROL_PLANE_ENV_OVERRIDES.items():
-        env_value = str(os.environ.get(env_var, "")).strip()
-        if not env_value:
-            continue
-        cursor: dict[str, Any] = updated
-        for key in key_path[:-1]:
-            nested = cursor.get(key)
-            if not isinstance(nested, dict):
-                nested = {}
-                cursor[key] = nested
-            cursor = nested
-        cursor[key_path[-1]] = env_value
-    return updated
-
 def resolve_data_backend(config: dict[str, Any] | None = None) -> str:
     """Return sole supported persistence backend."""
     return "sqlite"
@@ -223,13 +202,12 @@ def sqlite_mode_enabled(config: dict[str, Any] | None = None) -> bool:
 
 
 def load_control_plane_config(path: str | Path | None = None) -> dict[str, Any]:
-    """Load control-plane runtime config with env overrides and hygiene checks."""
+    """Load control-plane runtime config with secret-hygiene checks."""
     config_path = Path(path) if path is not None else _DEFAULT_CONTROL_PLANE_CONFIG_PATH
     if not config_path.exists():
         raise FileNotFoundError(f"Control-plane config file not found: {config_path}")
     payload = _load_yaml_file(config_path)
     control_plane = dict(payload.get("control_plane") or {})
-    control_plane = _apply_control_plane_env_overrides(control_plane)
     _validate_control_plane_secret_hygiene(control_plane)
 
     data_backend = dict(control_plane.get("data_backend") or {})
@@ -283,58 +261,40 @@ def resolve_model_routing_part(
         "timeout_seconds": timeout_seconds,
     }
 
-def resolve_langgraph_runtime_expectation(
+def resolve_cv_generation_runtime_expectation(
     *,
     part_name: str = "cv_generation_structured_write",
 ) -> dict[str, str]:
-    """Resolve provider/model/base_url/wire_api with env-override then control-plane fallback."""
+    """Resolve CV-generation runtime routing from control-plane SSOT."""
     routed = resolve_model_routing_part(part_name)
     provider = str(routed.get("provider") or "").strip().lower()
     model = str(routed.get("model") or "").strip()
     base_url = str(routed.get("base_url") or "").strip()
     wire_api = str(routed.get("wire_api") or "").strip()
-    source = "control_plane"
-
-    env_provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER") or "").strip().lower()
-    env_model = str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
-    env_base_url = str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL") or "").strip()
-    env_wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API") or "").strip()
-    if any((env_provider, env_model, env_base_url, env_wire_api)):
-        if env_provider:
-            provider = env_provider
-        if env_model:
-            model = env_model
-        if env_base_url:
-            base_url = env_base_url
-        if env_wire_api:
-            wire_api = env_wire_api
-        source = "env_override"
 
     if provider:
-        provider_lower = provider.lower()
-        if provider_lower in _RETIRED_PROVIDER_IDS:
+        if provider in _RETIRED_PROVIDER_IDS:
             raise ValueError(
-                f"Unsupported retired provider id '{provider_lower}' for LangGraph runtime expectation"
+                f"Unsupported retired provider id '{provider}' for CV-generation runtime expectation"
             )
-        if provider_lower not in _SUPPORTED_PROVIDER_IDS:
+        if provider not in _SUPPORTED_PROVIDER_IDS:
             raise ValueError(
-                f"Unsupported provider id '{provider_lower}' for LangGraph runtime expectation"
+                f"Unsupported provider id '{provider}' for CV-generation runtime expectation"
             )
-        provider = provider_lower
 
-    missing: list[str] = []
-    if not provider:
-        missing.append("provider")
-    if not model:
-        missing.append("model")
-    if not base_url:
-        missing.append("base_url")
-    if not wire_api:
-        missing.append("wire_api")
+    missing = [
+        field_name
+        for field_name, value in (
+            ("provider", provider),
+            ("model", model),
+            ("base_url", base_url),
+            ("wire_api", wire_api),
+        )
+        if not value
+    ]
     if missing:
         raise ValueError(
-            "Missing resolved LangGraph runtime routing fields: "
-            + ", ".join(missing)
+            "Missing resolved CV-generation runtime routing fields: " + ", ".join(missing)
         )
 
     return {
@@ -342,9 +302,8 @@ def resolve_langgraph_runtime_expectation(
         "model": model,
         "base_url": base_url,
         "wire_api": wire_api,
-        "source": source,
+        "source": "control_plane",
     }
-
 
 def _load_policy_file(config_dir: Path, rel_paths: tuple[str, ...]) -> tuple[dict[str, Any], Path]:
     return config_loader.load_policy_file(

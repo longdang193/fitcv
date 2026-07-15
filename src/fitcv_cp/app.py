@@ -46,7 +46,7 @@ from fitcv.config import (
     load_control_plane_config,
     parse_runtime_synonym_overlay_yaml,
     parse_skill_synonym_overlay_yaml,
-    resolve_langgraph_runtime_expectation,
+    resolve_cv_generation_runtime_expectation,
 )
 from fitcv.contracts import (
     MAPPING_SUGGESTIONS_AGGREGATE_SCHEMA_VERSION,
@@ -109,7 +109,7 @@ from fitcv_cp.run_artifact_contracts import (
     pretty_json_string_or_fallback,
     run_mode_label,
 )
-from fitcv.runtime_routing import build_runtime_routing_snapshot, resolve_langgraph_openai_compatible_api_key
+from fitcv.runtime_routing import build_runtime_routing_snapshot, resolve_openai_compatible_api_key
 from fitcv_cp.run_artifact_mirror import build_terminal_run_artifact_payloads
 from fitcv_cp.settings_schema import (
     ALL_GROUP_REGISTRIES,
@@ -801,7 +801,7 @@ def _apply_trigger_runtime_envelope(
         runtime_inputs["jobs_input_manifest_json"] = jobs_input_manifest_json
     if candidate_profile_json:
         runtime_inputs["candidate_profile_json"] = candidate_profile_json
-    runtime_inputs["cv_generation_runtime_expectation"] = _resolve_live_langgraph_runtime_expectation()
+    runtime_inputs["cv_generation_runtime_expectation"] = _resolve_live_cv_generation_runtime_expectation()
     effective_config["trigger_runtime_envelope"] = {
         "jobs_input_source": jobs_input_source,
         "candidate_profile_source": candidate_profile_source,
@@ -3086,9 +3086,9 @@ def _synonym_triage_fingerprint(
     )
 
 
-def _resolve_live_langgraph_runtime_expectation() -> dict[str, Any]:
+def _resolve_live_cv_generation_runtime_expectation() -> dict[str, Any]:
     try:
-        expected = dict(resolve_langgraph_runtime_expectation())
+        expected = dict(resolve_cv_generation_runtime_expectation())
     except Exception:
         return {}
     snapshot = build_runtime_routing_snapshot(
@@ -3096,7 +3096,7 @@ def _resolve_live_langgraph_runtime_expectation() -> dict[str, Any]:
         model=str(expected.get("model") or "").strip(),
         base_url=str(expected.get("base_url") or "").strip(),
         wire_api=str(expected.get("wire_api") or "").strip(),
-        api_key=resolve_langgraph_openai_compatible_api_key(),
+        api_key=resolve_openai_compatible_api_key(),
         default_provider="fitcv_builtin",
         default_model="synonym_triage_v1",
         default_wire_api="builtin",
@@ -3104,7 +3104,7 @@ def _resolve_live_langgraph_runtime_expectation() -> dict[str, Any]:
     return {**expected, **snapshot}
 
 def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
-    api_key = resolve_langgraph_openai_compatible_api_key()
+    api_key = resolve_openai_compatible_api_key()
     snapshot = build_runtime_routing_snapshot(
         provider=None,
         model=None,
@@ -3115,7 +3115,7 @@ def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
         default_model="synonym_triage_v1",
         default_wire_api="builtin",
     )
-    live_expected = _resolve_live_langgraph_runtime_expectation()
+    live_expected = _resolve_live_cv_generation_runtime_expectation()
     if isinstance(live_expected, dict) and live_expected:
         snapshot = {
             **snapshot,

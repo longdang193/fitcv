@@ -271,7 +271,7 @@ def test_load_raw_jobs_writes_sqlite_rows(monkeypatch: pytest.MonkeyPatch, tmp_p
 
 @pytest.mark.integration
 def test_load_raw_jobs_inserts_rows(sample_jobs_path: Path, config: dict) -> None:
-    """Integration test — requires OPENAI_API_KEY."""
+    """Integration test — requires FITCV_LLM_API_KEY."""
     jobs = parse_jobs_file(sample_jobs_path)
     rows = prepare_raw_rows(jobs)
     inserted = load_raw_jobs(rows, config)

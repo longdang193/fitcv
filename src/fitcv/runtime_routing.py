@@ -21,17 +21,6 @@ from typing import Any
 from fitcv.config import get_cv_generation_model, resolve_model_routing_part
 
 _OPENAI_COMPATIBLE_PROVIDERS = {"openai", "openai_compatible", "9router"}
-_OPENAI_COMPATIBLE_API_KEY_ENV_NAMES = (
-    "FITCV_LLM_API_KEY",
-    "OPENAI_API_KEY",
-    "OPENAI_COMPATIBLE_API_KEY",
-)
-_LANGGRAPH_OPENAI_COMPATIBLE_API_KEY_ENV_NAMES = (
-    "FITCV_LANGGRAPH_OPENAI_API_KEY",
-    "OPENAI_API_KEY",
-    "OPENAI_COMPATIBLE_API_KEY",
-)
-
 @dataclass(frozen=True)
 class LlmRouting:
     provider: str
@@ -106,7 +95,7 @@ def validate_llm_routing_ready(route: LlmRouting, *, api_key: str | None = None)
     if not route.base_url:
         raise RuntimeError("OpenAI-compatible LLM routing requires provider base_url in control-plane config.")
     if not str(api_key if api_key is not None else resolve_llm_api_key(route)).strip():
-        raise RuntimeError("OpenAI-compatible LLM routing requires API key in env.")
+        raise RuntimeError("OpenAI-compatible LLM routing requires FITCV_LLM_API_KEY in env.")
 
 
 def resolve_cv_generation_routing(config: dict[str, Any]) -> CvGenerationRouting:
@@ -123,74 +112,8 @@ def resolve_cv_generation_routing(config: dict[str, Any]) -> CvGenerationRouting
     )
 
 
-def build_langgraph_env_overrides() -> dict[str, str]:
-    try:
-        cv_route = resolve_model_routing_part("cv_generation_structured_write")
-    except Exception:
-        return {}
-
-    snapshot = build_runtime_routing_snapshot(
-        provider=str(cv_route.get("provider") or "").strip(),
-        model=str(cv_route.get("model") or "").strip(),
-        base_url=str(cv_route.get("base_url") or "").strip(),
-        wire_api=str(cv_route.get("wire_api") or "").strip(),
-        api_key="",
-        default_provider="",
-        default_model="",
-        default_wire_api="",
-    )
-    overrides: dict[str, str] = {}
-    if snapshot["provider"]:
-        overrides["FITCV_LANGGRAPH_PROVIDER"] = str(snapshot["provider"])
-    if snapshot["base_url"]:
-        overrides["FITCV_LANGGRAPH_OPENAI_BASE_URL"] = str(snapshot["base_url"])
-    if snapshot["wire_api"]:
-        overrides["FITCV_LANGGRAPH_WIRE_API"] = str(snapshot["wire_api"])
-    if snapshot["model"]:
-        overrides["FITCV_LANGGRAPH_MODEL"] = str(snapshot["model"])
-    return overrides
-
-
-def langgraph_override_drift_fields(*, part_name: str = "cv_generation_structured_write") -> list[str]:
-    routed = resolve_model_routing_part(part_name)
-    env_provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER") or "").strip().lower()
-    env_model = str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
-    env_base_url = str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL") or "").strip()
-    env_wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API") or "").strip()
-    if not any((env_provider, env_model, env_base_url, env_wire_api)):
-        return []
-
-    routed_provider = str(routed.get("provider") or "").strip().lower()
-    routed_model = str(routed.get("model") or "").strip()
-    routed_base_url = str(routed.get("base_url") or "").strip()
-    routed_wire_api = str(routed.get("wire_api") or "").strip()
-    drift_fields: list[str] = []
-    if env_provider and env_provider != routed_provider:
-        drift_fields.append("provider")
-    if env_model and env_model != routed_model:
-        drift_fields.append("model")
-    if env_base_url and env_base_url != routed_base_url:
-        drift_fields.append("base_url")
-    if env_wire_api and env_wire_api != routed_wire_api:
-        drift_fields.append("wire_api")
-    return drift_fields
-
-
-def _resolve_first_present_env(env_names: tuple[str, ...]) -> str:
-    for env_name in env_names:
-        candidate = str(os.environ.get(env_name) or "").strip()
-        if candidate:
-            return candidate
-    return ""
-
-
 def resolve_openai_compatible_api_key() -> str:
-    return _resolve_first_present_env(_OPENAI_COMPATIBLE_API_KEY_ENV_NAMES)
-
-
-def resolve_langgraph_openai_compatible_api_key() -> str:
-    return _resolve_first_present_env(_LANGGRAPH_OPENAI_COMPATIBLE_API_KEY_ENV_NAMES)
-
+    return str(os.environ.get("FITCV_LLM_API_KEY") or "").strip()
 
 def resolve_cv_generation_routing_snapshot(
     config: dict[str, Any],
@@ -262,5 +185,5 @@ def validate_cv_generation_routing_ready(config: dict[str, Any]) -> None:
                 "cv_generation_structured_write model must be configured in control-plane model_routing.parts."
             ) from exc
         if "API key" in message:
-            raise RuntimeError("OpenAI-compatible CV generation routing requires API key in env.") from exc
+            raise RuntimeError("OpenAI-compatible CV generation routing requires FITCV_LLM_API_KEY in env.") from exc
         raise

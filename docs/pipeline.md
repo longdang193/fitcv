@@ -80,8 +80,8 @@ Ownership rule:
 
 ## AI Credential and Error Contract
 
-- Canonical AI credential key: `FITCV_LLM_API_KEY`.
-- Temporary aliases may be accepted only during bounded deprecation windows: `OPENAI_API_KEY`, `OPENAI_COMPATIBLE_API_KEY`.
+- Sole repo-native AI credential input: `FITCV_LLM_API_KEY`.
+- Direct and LangGraph adapters receive the same bounded `FITCV_LLM_*` mapping; no credential alias projection is used.
 
 Fail-fast guarantees:
 

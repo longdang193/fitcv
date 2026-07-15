@@ -10,10 +10,8 @@ services:
     env_file:
       - .env
     environment:
-      - GCP_PROJECT=${GCP_PROJECT:-local}
       - FITCV_CP_SQLITE_PATH=/app/runtime/fitcv_cp.sqlite3
       - REDIS_URL=redis://redis:6379/0
-      - FITCV_LANGGRAPH_ENV_FILE=/app/.env
       - FITCV_LANGGRAPH_REPO_ROOT=/opt/fitcv-langgraph
       - FITCV_CP_SETTINGS_SQLITE_PATH=/app/runtime/fitcv_cp.sqlite3
     volumes:
@@ -32,10 +30,8 @@ services:
     env_file:
       - .env
     environment:
-      - GCP_PROJECT=${GCP_PROJECT:-local}
       - FITCV_CP_SQLITE_PATH=/app/runtime/fitcv_cp.sqlite3
       - REDIS_URL=redis://redis:6379/0
-      - FITCV_LANGGRAPH_ENV_FILE=/app/.env
       - FITCV_LANGGRAPH_REPO_ROOT=/opt/fitcv-langgraph
       - FITCV_CP_SETTINGS_SQLITE_PATH=/app/runtime/fitcv_cp.sqlite3
       - FITCV_ENRICH_EMIT_JOB_EVENTS=true

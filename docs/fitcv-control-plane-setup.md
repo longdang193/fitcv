@@ -19,14 +19,13 @@ Use one mode at a time. Do not mix a local web or worker process with the Docker
 
 Agentic late-stage runs in Docker mode also depend on two local inputs:
 
-- repo `.env` with `FITCV_LLM_API_KEY` (temporary aliases: `OPENAI_API_KEY`, `OPENAI_COMPATIBLE_API_KEY`) and any `FITCV_LANGGRAPH_*` overrides
+- repo `.env` with `FITCV_LLM_API_KEY`
 - a sibling `fitcv-langgraph` checkout, or an explicit `FITCV_LANGGRAPH_REPO_PATH`
 
 The Compose services now load `.env` into both `web` and `worker`, mount that
 same file as `/app/.env`, and mount `${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}`
-into the containers as `/opt/fitcv-langgraph`. That keeps the current repo `.env`
-authoritative when both repos define `FITCV_LANGGRAPH_*` values. If your fork
-lives elsewhere, set `FITCV_LANGGRAPH_REPO_PATH` before `docker compose up`.
+into the containers as `/opt/fitcv-langgraph`. That keeps the current repo `.env` authoritative for the canonical LLM credential.
+If your adapter checkout lives elsewhere, set `FITCV_LANGGRAPH_REPO_PATH` before `docker compose up`.
 
 If the Docker worker is already running and you want local mode:
 
@@ -34,26 +33,15 @@ If the Docker worker is already running and you want local mode:
 docker compose stop worker
 ```
 
-## Credentials
+## LLM Credential
 
-Recommended: keep your Google service-account JSON outside the repo and pass its absolute path explicitly.
+Set the sole repo-native LLM credential in the ignored local `.env` file:
 
-Example:
-
-```powershell
-.\start_web.ps1 -CredentialPath "C:\secure\your-service-account.json"
-.\start_worker.ps1 -CredentialPath "C:\secure\your-service-account.json"
+```dotenv
+FITCV_LLM_API_KEY=your_llm_api_key_here
 ```
 
-Optional local-only convenience: keep an untracked `sa_key.json` in the repo root.
-
-```powershell
-Copy-Item -LiteralPath "C:\secure\your-service-account.json" -Destination ".\sa_key.json" -Force
-```
-
-If you use `.\sa_key.json`, the helper scripts can be started without `-CredentialPath`.
-
-Do not commit real service-account keys into the repository.
+Provider, model, base URL, wire API, and timeout remain owned by `config/runtime/control_plane.yaml`.
 
 ## Local Mode
 
@@ -65,14 +53,6 @@ docker compose up -d redis
 
 ### 2. Start the Web Server
 
-If you are using an external credential file:
-
-```powershell
-.\start_web.ps1 -CredentialPath "C:\secure\your-service-account.json"
-```
-
-If you are using `.\sa_key.json`:
-
 ```powershell
 .\start_web.ps1
 ```
@@ -82,14 +62,6 @@ The admin UI is available at `http://localhost:8000/admin/runs`.
 ### 3. Start the Worker
 
 Open a second PowerShell window.
-
-If you are using an external credential file:
-
-```powershell
-.\start_worker.ps1 -CredentialPath "C:\secure\your-service-account.json"
-```
-
-If you are using `.\sa_key.json`:
 
 ```powershell
 .\start_worker.ps1
@@ -120,13 +92,7 @@ Examples:
 
 Docker uses the current build context directory. If you run `docker compose up -d --build redis web worker` from a feature worktree, the containers are built from that worktree's files, not from another branch or checkout.
 
-If your service-account key is outside the repo, point Docker at it first:
-
-```powershell
-$env:GCP_SA_KEY_PATH="C:\secure\your-service-account.json"
-```
-
-Then change into the checkout or worktree you want to run and start everything:
+Change into the checkout or worktree you want to run and start everything:
 
 ```powershell
 $repoRoot = "<repo-root>"
@@ -146,7 +112,7 @@ The admin UI is available at `http://localhost:8000/admin/runs`.
 
 Notes:
 
-- Compose mounts repo `.env` into both containers at `/app/.env` and sets `FITCV_LANGGRAPH_ENV_FILE=/app/.env`
+- Compose mounts repo `.env` into both containers at `/app/.env`
 - Compose mounts `./.env.yaml` -> `/app/.env.yaml` as base runtime config entrypoint
 - `config/runtime/pipeline.yaml` remains canonical owner for pipeline/ranking/retrieval knobs loaded by `load_config(...)`
 - Optional local override files can also be mounted when explicitly used via `config_path`
@@ -210,14 +176,9 @@ Use:
 
 This repo uses a Windows-safe `SimpleWorker`.
 
-### Docker run fails with missing credential file
+### Run fails with missing LLM credential
 
-Docker containers cannot use Windows host paths like `C:\...\service-account.json` inside the container.
-
-Use one of these:
-
-- set `$env:GCP_SA_KEY_PATH` before `docker compose up`
-- or place an untracked `.\sa_key.json` in the repo root
+Set `FITCV_LLM_API_KEY` in the ignored repo `.env`, then restart web and worker so both processes load the same value.
 
 ### Docker run fails with missing config file
 

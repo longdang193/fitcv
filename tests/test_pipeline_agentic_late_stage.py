@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 
 from fitcv.pipeline import run_pipeline
 from fitcv.agentic_cv_generation import (
+    _LIVE_TRACE_DEBUG_ENV_KEYS,
     _backfill_required_sections_from_profile,
     _build_fitcv_langgraph_env_values,
     _generate_cv_with_live_provider,
@@ -1235,26 +1236,44 @@ def test_persistence_failure_transition_preserves_accepted_artifacts() -> None:
 
 
 def test_build_fitcv_langgraph_env_values_overwrites_stale_route_env() -> None:
+    from fitcv.runtime_routing import LlmRouting
+
+    route = LlmRouting(
+        provider="openai_compatible",
+        base_url="http://localhost:20128/v1",
+        wire_api="responses",
+        model="cx/gpt-5.2",
+        timeout_seconds=17.0,
+    )
     with patch.dict(
         "fitcv.agentic_cv_generation.os.environ",
         {
-            "OPENAI_API_KEY": "process-key",
+            "FITCV_LLM_API_KEY": "process-key",
+            "FITCV_LLM_DEBUG_LIVE": "1",
+            "FITCV_LLM_DEBUG_LIVE_DUMP_PATH": "debug-request.json",
+            "OPENAI_API_KEY": "stale-key",
+            "FITCV_LANGGRAPH_DEBUG_LIVE": "stale-debug",
             "FITCV_LANGGRAPH_MODEL": "stale-model",
-            "FITCV_LANGGRAPH_OPENAI_BASE_URL": "http://stale.example/v1",
         },
         clear=True,
-    ), patch(
-        "fitcv.agentic_cv_generation.build_langgraph_env_overrides",
-        return_value={
-            "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.2",
-            "FITCV_LANGGRAPH_OPENAI_BASE_URL": "http://localhost:20128/v1",
-        },
-    ):
-        env_values = _build_fitcv_langgraph_env_values(None)
+    ), patch("fitcv.agentic_cv_generation.resolve_cv_generation_routing", return_value=route):
+        env_values = _build_fitcv_langgraph_env_values()
 
-    assert env_values["OPENAI_API_KEY"] == "process-key"
-    assert env_values["FITCV_LANGGRAPH_MODEL"] == "cx/gpt-5.2"
-    assert env_values["FITCV_LANGGRAPH_OPENAI_BASE_URL"] == "http://localhost:20128/v1"
+    assert env_values == {
+        "FITCV_LLM_PROVIDER": "openai_compatible",
+        "FITCV_LLM_API_KEY": "process-key",
+        "FITCV_LLM_MODEL": "cx/gpt-5.2",
+        "FITCV_LLM_BASE_URL": "http://localhost:20128/v1",
+        "FITCV_LLM_WIRE_API": "responses",
+        "FITCV_LLM_TIMEOUT_SECONDS": "17.0",
+    }
+
+
+def test_live_trace_debug_env_keys_use_repo_native_vocabulary() -> None:
+    assert _LIVE_TRACE_DEBUG_ENV_KEYS == (
+        "FITCV_LLM_DEBUG_LIVE",
+        "FITCV_LLM_DEBUG_LIVE_DUMP_PATH",
+    )
 
 def test_generate_from_analysis_live_provider_uses_template_rendering_and_full_validation(tmp_path: Path) -> None:
     analysis_record = _minimal_analysis_record()
@@ -1450,9 +1469,12 @@ def test_generate_cv_with_live_provider_renders_repo_template_markdown(tmp_path:
         def load_live_provider_config_from_env(_environ: dict[str, str]) -> object:
             return object()
 
-        OpenAIResponsesClient = _FakeClient
+        OpenAICompatibleJsonClient = _FakeClient
 
-    with patch("fitcv.agentic_cv_generation.importlib.import_module", return_value=_FakeLiveModule()):
+    with (
+        patch.dict("os.environ", {"FITCV_LLM_API_KEY": "test-key"}, clear=False),
+        patch("fitcv.agentic_cv_generation.importlib.import_module", return_value=_FakeLiveModule()),
+    ):
         generated_cv = _generate_cv_with_live_provider(
             job=_minimal_job(),
             evidence=[{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
@@ -1462,7 +1484,6 @@ def test_generate_cv_with_live_provider_renders_repo_template_markdown(tmp_path:
             fit_classification="strong",
             evidence_selection_summary={"selected_evidence_count": 1},
             repair_missing_sections=None,
-            env_values={"OPENAI_API_KEY": "test-key", "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.4"},
         )
 
     markdown = generated_cv["markdown"]
@@ -1496,7 +1517,7 @@ def test_langgraph_runtime_adapter_uses_route_and_separates_transport_metadata()
             captured_env.update(environ)
             return object()
 
-        OpenAIResponsesClient = _FakeClient
+        OpenAICompatibleJsonClient = _FakeClient
 
     from fitcv.llm_runtime import LlmTaskRequest
     from fitcv.runtime_routing import LlmRouting
@@ -1528,12 +1549,13 @@ def test_langgraph_runtime_adapter_uses_route_and_separates_transport_metadata()
     ), patch("fitcv.agentic_cv_generation.importlib.import_module", return_value=_FakeLiveModule()):
         response = _langgraph_runtime_adapter(request, route, "canonical-key")
 
-    assert captured_env["FITCV_LANGGRAPH_PROVIDER"] == "openai_compatible"
-    assert captured_env["FITCV_LANGGRAPH_MODEL"] == "canonical-model"
-    assert captured_env["FITCV_LANGGRAPH_OPENAI_BASE_URL"] == "https://canonical.example/v1"
-    assert captured_env["FITCV_LANGGRAPH_WIRE_API"] == "responses"
-    assert captured_env["FITCV_LANGGRAPH_TIMEOUT_SECONDS"] == "17.0"
-    assert captured_env["OPENAI_API_KEY"] == "canonical-key"
+    assert captured_env["FITCV_LLM_PROVIDER"] == "openai_compatible"
+    assert captured_env["FITCV_LLM_MODEL"] == "canonical-model"
+    assert captured_env["FITCV_LLM_BASE_URL"] == "https://canonical.example/v1"
+    assert captured_env["FITCV_LLM_WIRE_API"] == "responses"
+    assert captured_env["FITCV_LLM_TIMEOUT_SECONDS"] == "17.0"
+    assert captured_env["FITCV_LLM_API_KEY"] == "canonical-key"
+    assert "OPENAI_API_KEY" not in captured_env
     assert response.adapter == "langgraph"
     assert response.runtime_path == "fitcv_llm_langgraph"
     assert response.response_id == "resp-langgraph"

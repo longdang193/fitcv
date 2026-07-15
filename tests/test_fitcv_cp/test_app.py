@@ -841,16 +841,17 @@ def test_post_runs_path_trigger_captures_cv_generation_runtime_expectation(tmp_p
     def _capture_insert(run, *args, **kwargs):
         captured["run"] = run
 
-    with patch.dict(
-        "os.environ",
-        {
-            "FITCV_LANGGRAPH_PROVIDER": "9router",
-            "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.2",
-            "FITCV_LANGGRAPH_OPENAI_BASE_URL": "http://localhost:20128/v1",
-            "FITCV_LANGGRAPH_WIRE_API": "responses",
+    with patch(
+        "fitcv_cp.app.resolve_cv_generation_runtime_expectation",
+        return_value={
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "base_url": "http://router.local/v1",
+            "wire_api": "chat_completions",
+            "source": "control_plane",
         },
-        clear=False,
-    ), patch("fitcv_cp.app.load_active_settings", return_value={}), \
+    ), patch("fitcv_cp.app.resolve_openai_compatible_api_key", return_value=""), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
          patch("fitcv_cp.app.submit_run", return_value=RunSubmission(run_id="run-123", queue_job_id="rq-job-abc", backend_run_id="rq-job-abc", backend="default_queue")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
@@ -864,10 +865,10 @@ def test_post_runs_path_trigger_captures_cv_generation_runtime_expectation(tmp_p
     assert resp.status_code == 201, resp.text
     effective = json.loads(captured["run"].effective_settings_json)
     expectation = effective["runtime_inputs"]["cv_generation_runtime_expectation"]
-    assert expectation["provider"] == "9router"
+    assert expectation["provider"] == "openai_compatible"
     assert expectation["model"] == "cx/gpt-5.2"
-    assert expectation["base_url"] == "http://localhost:20128/v1"
-    assert expectation["wire_api"] == "responses"
+    assert expectation["base_url"] == "http://router.local/v1"
+    assert expectation["wire_api"] == "chat_completions"
     assert expectation["api_key_available"] is False
 
 
@@ -6252,11 +6253,6 @@ def test_resolve_synonym_triage_runtime_falls_back_to_shared_langgraph_expectati
         "        model: cx/gpt-5.2\n",
         encoding="utf-8",
     )
-    monkeypatch.delenv("FITCV_LANGGRAPH_PROVIDER", raising=False)
-    monkeypatch.delenv("FITCV_LANGGRAPH_MODEL", raising=False)
-    monkeypatch.delenv("FITCV_LANGGRAPH_OPENAI_BASE_URL", raising=False)
-    monkeypatch.delenv("FITCV_LANGGRAPH_WIRE_API", raising=False)
-
     run = PipelineRun(
         run_id="run-triage-runtime-fallback",
         status=RunStatus.SUCCEEDED,
@@ -6285,11 +6281,7 @@ def test_resolve_synonym_triage_runtime_prefers_persisted_agentic_runtime_expect
     from fitcv_cp.app import _resolve_synonym_triage_runtime
     from fitcv_cp.models import PipelineRun, RunStatus
 
-    monkeypatch.setenv("FITCV_LANGGRAPH_PROVIDER", "openai")
-    monkeypatch.setenv("FITCV_LANGGRAPH_MODEL", "gpt-live")
-    monkeypatch.setenv("FITCV_LANGGRAPH_OPENAI_BASE_URL", "http://live.local/v1")
-    monkeypatch.setenv("FITCV_LANGGRAPH_WIRE_API", "responses")
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("FITCV_LLM_API_KEY", "test-key")
 
     run = PipelineRun(
         run_id="run-triage-runtime-persisted",
@@ -6943,11 +6935,7 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
-    monkeypatch.setenv("FITCV_LANGGRAPH_PROVIDER", "openai")
-    monkeypatch.delenv("FITCV_LANGGRAPH_MODEL", raising=False)
-    monkeypatch.delenv("FITCV_LANGGRAPH_OPENAI_BASE_URL", raising=False)
-    monkeypatch.delenv("FITCV_LANGGRAPH_WIRE_API", raising=False)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("FITCV_LLM_API_KEY", raising=False)
 
     run = PipelineRun(
         run_id="run-triage-provider-fail",
@@ -7022,9 +7010,7 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_success_persists_re
              "recommendation_risk_flags": [],
          }), \
          patch.dict("os.environ", {
-             "FITCV_LANGGRAPH_PROVIDER": "openai",
-             "OPENAI_API_KEY": "test-key",
-             "FITCV_LANGGRAPH_MODEL": "gpt-4.1-mini",
+             "FITCV_LLM_API_KEY": "test-key",
          }, clear=False):
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/runs/run-triage-provider-success/synonym-proposals/triage-refresh",

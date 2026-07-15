@@ -338,7 +338,7 @@ def test_prepare_profile_rows_achievements_has_text(sample_profile_path: Path) -
 
 @pytest.mark.integration
 def test_load_candidate_profile(sample_profile_path: Path, config: dict) -> None:
-    """Integration test — requires OPENAI_API_KEY."""
+    """Integration test — requires FITCV_LLM_API_KEY."""
     from fitcv.candidate import load_candidate_profile
     profile = load_profile_yaml(sample_profile_path)
     load_candidate_profile(profile, config)  # should not raise

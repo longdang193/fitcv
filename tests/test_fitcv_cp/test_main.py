@@ -92,14 +92,13 @@ def test_build_app_defaults_to_inline_when_no_redis_url_is_set(monkeypatch: pyte
     assert captured["backend_runtime"].backend_type == "sqlite"
     assert module.os.environ["FITCV_CP_INLINE_EXECUTION"] == "1"
 
-def test_warn_or_fail_langgraph_override_drift_uses_shared_runtime_routing_helper(
+def test_build_app_ignores_deprecated_langgraph_route_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _reload_main_module(monkeypatch)
-
-    monkeypatch.setattr(module, "langgraph_override_drift_fields", lambda: ["provider", "model"])
+    monkeypatch.setenv("FITCV_LANGGRAPH_PROVIDER", "stale-provider")
+    monkeypatch.setenv("FITCV_LANGGRAPH_MODEL", "stale-model")
     monkeypatch.setenv("FITCV_LANGGRAPH_OVERRIDE_STRICT", "true")
 
-    with pytest.raises(RuntimeError, match="fields=provider,model"):
-        module._warn_or_fail_langgraph_override_drift()
+    module = _reload_main_module(monkeypatch)
 
+    assert module.app is not None

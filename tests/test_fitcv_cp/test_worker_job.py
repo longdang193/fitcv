@@ -1071,14 +1071,14 @@ def test_worker_persists_stage_transition_artifacts_json_on_success():
 
 def test_execute_pipeline_run_loads_dotenv_defaults_before_pipeline(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
-    (tmp_path / ".env").write_text("OPENAI_API_KEY=test-dotenv-key\n", encoding="utf-8")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    (tmp_path / ".env").write_text("FITCV_LLM_API_KEY=test-dotenv-key\n", encoding="utf-8")
+    monkeypatch.delenv("FITCV_LLM_API_KEY", raising=False)
 
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
 
     def _assert_env(*args, **kwargs):
-        assert os.environ.get("OPENAI_API_KEY") == "test-dotenv-key"
+        assert os.environ.get("FITCV_LLM_API_KEY") == "test-dotenv-key"
         return {"run_id": "r1", "total_jobs": 0, "passed_filter": 0, "ranked": 0, "cvs_generated": 0}
 
     from fitcv_cp.env_defaults import load_dotenv_defaults as _real_load_dotenv_defaults
@@ -1112,8 +1112,8 @@ def test_execute_cv_regenerate_once_loads_dotenv_defaults_before_work(monkeypatc
     from fitcv_cp.env_defaults import load_dotenv_defaults as _real_load_dotenv_defaults
 
     monkeypatch.chdir(tmp_path)
-    (tmp_path / ".env").write_text("OPENAI_API_KEY=test-dotenv-key\n", encoding="utf-8")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    (tmp_path / ".env").write_text("FITCV_LLM_API_KEY=test-dotenv-key\n", encoding="utf-8")
+    monkeypatch.delenv("FITCV_LLM_API_KEY", raising=False)
 
     now = datetime.datetime.now(datetime.timezone.utc)
     run = PipelineRun(
@@ -1139,7 +1139,7 @@ def test_execute_cv_regenerate_once_loads_dotenv_defaults_before_work(monkeypatc
     )
 
     def _capture_update(*args, **kwargs):
-        assert os.environ.get("OPENAI_API_KEY") == "test-dotenv-key"
+        assert os.environ.get("FITCV_LLM_API_KEY") == "test-dotenv-key"
         return None
 
     with patch("fitcv_cp.worker_job.get_run", return_value=run), \

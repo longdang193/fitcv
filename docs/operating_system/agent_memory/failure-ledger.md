@@ -147,3 +147,16 @@ Use this file for repeated or important failures, not every small mistake.
   - `tests/test_pipeline_agentic_late_stage.py`
   - `docs/configuration.md`
   - `docs/observability.md`
+
+## Cross-repo adapters need symmetric secret containment
+
+- Title: Cross-repo adapters need symmetric secret containment
+- Date: 2026-07-15
+- Trigger / Context: LLM vocabulary audit found a credential-shaped JSON ignored in JOB-PROJECT but still visible as untracked in fitcv-langgraph.
+- What went wrong: Runtime credential vocabulary was unified, but local secret-file containment remained asymmetric across the adapter boundary.
+- Correct behavior: Repos participating in one runtime contract must apply equivalent secret ignore controls without reading, copying, staging, or deleting local credential files.
+- Prevention added or required: Keep filename-scoped ignore checks in cross-repo credential audits and record security-control drift in an evidence bundle.
+- Related artifacts:
+  - `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.gitignore`
+  - `C:\Users\HOANG PHI LONG DANG\repos\fitcv-langgraph\.gitignore`
+  - `docs/superpowers/plans/audit/20260715-1407-langgraph-secret-ignore-gap/`
