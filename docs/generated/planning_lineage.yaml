@@ -301,6 +301,7 @@ workstreams:
     path: docs/intent/workstreams/threads/workstream-fitcv-semantic-spine/02-semantic-spine-stage-authority-contract.md
     specs:
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
     plans:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
     - docs/superpowers/plans/2026-05-28-12-03-ranking-fit-label-authority-ssot-symmetry-invariance-plan.md
