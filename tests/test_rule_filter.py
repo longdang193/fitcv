@@ -765,3 +765,174 @@ tags:
   - ci-safe
 """
 
+
+
+def _eligibility_config(
+    *,
+    location_mode: str = "ranking_only",
+    language_mode: str = "ranking_only",
+) -> dict:
+    return {
+        "valid_location_types": ["remote", "hybrid", "onsite"],
+        "eligibility_policy": {
+            "policy_version": "eligibility-v1",
+            "factors": {
+                "location_fit": {
+                    "mode": location_mode,
+                    "normalization": {
+                        "exact_city": 1.0,
+                        "exact_region": 0.8,
+                        "exact_country": 0.6,
+                        "remote_unrestricted": 1.0,
+                        "no_match": 0.0,
+                        "unknown_value": 0.5,
+                        "not_applicable_value": 0.5,
+                    },
+                },
+                "language_fit": {
+                    "mode": language_mode,
+                    "normalization": {
+                        "met": 1.0,
+                        "unmet": 0.0,
+                        "unknown_value": 0.5,
+                        "not_applicable_value": 0.5,
+                        "requirement_weights": {
+                            "required": 1.0,
+                            "preferred": 0.5,
+                            "unspecified": 0.5,
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+
+def _candidate_context(*, include_languages: bool = True) -> dict:
+    from fitcv.fit_factors import build_candidate_fit_context
+
+    profile = {
+        "preferences": {
+            "locations": ["Berlin"],
+            "location_types": ["remote"],
+        }
+    }
+    if include_languages:
+        profile["languages"] = [{"name": "English", "level": "B2"}]
+    return build_candidate_fit_context(
+        profile,
+        valid_work_modes=["remote", "hybrid", "onsite"],
+    )
+
+
+def test_rule_filter_hard_gate_rejects_only_confirmed_language_failure() -> None:
+    job = _job(
+        actual_location={"city": "Berlin", "extraction_status": "complete"},
+        language_requirements=[
+            {
+                "language": "English",
+                "expected_level": "C1",
+                "requirement_type": "required",
+                "extraction_status": "complete",
+            }
+        ],
+    )
+
+    result = apply_rule_filters(
+        [job],
+        _prefs(),
+        _eligibility_config(language_mode="gate_required"),
+        candidate_fit_context=_candidate_context(),
+    )
+
+    assert result["passed"] == []
+    rejected = result["rejected"][0]
+    assert "eligibility_language_fit_failed" in rejected["reasons"]
+    assert rejected["eligibility_decision"] == "reject"
+    assert rejected["fit_factor_results"]["language_fit"]["evaluation"]["status"] == "fail"
+    assert rejected["marks"] == []
+
+
+def test_rule_filter_hard_gate_retains_unknown_language_with_diagnostics() -> None:
+    job = _job(
+        actual_location={"city": "Berlin", "extraction_status": "complete"},
+        language_requirements=[
+            {
+                "language": "German",
+                "expected_level": "B2",
+                "requirement_type": "required",
+                "extraction_status": "complete",
+            }
+        ],
+    )
+
+    result = apply_rule_filters(
+        [job],
+        _prefs(),
+        _eligibility_config(language_mode="gate_required"),
+        candidate_fit_context=_candidate_context(include_languages=False),
+    )
+
+    assert result["passed"] == [job["job_url"]]
+    record = result["passed_records"][0]
+    assert record["eligibility_decision"] == "retain"
+    assert record["fit_factor_results"]["language_fit"]["evaluation"]["status"] == "unknown"
+    assert record["eligibility_reason_codes"] == ["language_required_unknown"]
+
+
+def test_rule_filter_ranking_only_failure_stays_eligible_and_disabled_has_no_value() -> None:
+    job = _job(
+        actual_location={"city": "Hamburg", "extraction_status": "complete"},
+        language_requirements=[],
+    )
+    config = _eligibility_config(location_mode="ranking_only", language_mode="disabled")
+
+    result = apply_rule_filters(
+        [job],
+        _prefs(),
+        config,
+        candidate_fit_context=_candidate_context(),
+    )
+
+    record = result["passed_records"][0]
+    assert record["fit_factor_results"]["location_fit"]["evaluation"]["status"] == "fail"
+    assert record["fit_factor_results"]["location_fit"]["ranking_enabled"] is True
+    assert record["fit_factor_results"]["location_fit"]["ranking_value"] == 0.0
+    assert record["fit_factor_results"]["language_fit"]["ranking_enabled"] is False
+    assert record["fit_factor_results"]["language_fit"]["ranking_value"] is None
+
+
+def test_rule_filter_keeps_work_mode_rejection_separate_from_location_fit() -> None:
+    job = _job(
+        location_type="onsite",
+        actual_location={"city": "Berlin", "extraction_status": "complete"},
+        language_requirements=[],
+    )
+
+    result = apply_rule_filters(
+        [job],
+        _prefs(location_types=["remote"]),
+        _eligibility_config(),
+        candidate_fit_context=_candidate_context(),
+    )
+
+    rejected = result["rejected"][0]
+    assert "location_type_excluded" in rejected["reasons"]
+    assert rejected["fit_factor_results"]["location_fit"]["evaluation"]["status"] == "pass"
+
+
+@pytest.mark.parametrize(
+    "jobs",
+    [
+        [_job(job_url="" )],
+        [_job(job_url="http://duplicate"), _job(job_url="http://duplicate")],
+    ],
+)
+def test_rule_filter_requires_unique_nonempty_job_urls(jobs: list[dict]) -> None:
+    with pytest.raises(ValueError, match="job_url"):
+        apply_rule_filters(
+            jobs,
+            _prefs(),
+            _eligibility_config(),
+            candidate_fit_context=_candidate_context(),
+        )

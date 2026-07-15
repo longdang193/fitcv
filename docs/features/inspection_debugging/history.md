@@ -74,6 +74,27 @@ Verification:
 Outcome:
 Completed the phase 6 lineage evidence hydration.
 
+
+## 2026-07-15
+
+### FitCV inverse optimization Phase 1 location, language, and eligibility implementation plan
+
+Source plan: `docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md`
+
+Verification:
+- `python -m pytest tests/test_config.py tests/test_ingest.py tests/test_normalize.py`
+- `python -m pytest tests/test_enrich.py tests/test_fit_factors.py tests/test_rule_filter.py`
+- `python -m pytest tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py`
+- `python -m pytest tests/test_fitcv_cp/test_sqlite_store.py tests/test_ranking.py`
+- `python scripts/hooks/run_validator.py --fast`
+- `python scripts/validate_planning_lifecycle.py`
+- `python tools/docs/generate_architecture_metadata.py --check`
+- `python scripts/validate_repo_contracts.py --fast`
+- `git diff --check`
+
+Outcome:
+Phase 1 now preserves canonical location and language facts, evaluates both through one symmetric policy algebra, gates only confirmed failures, and leaves ranking composition and fit labels unchanged.
+
 <!-- GENERATED HISTORY END -->
 
 ## Human Notes

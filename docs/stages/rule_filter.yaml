@@ -2,11 +2,13 @@
 stage_id: rule_filter
 name: Rule Filter
 status: active
-purpose: Apply deterministic eligibility checks to enriched jobs and split them into passed and rejected sets before retrieval and ranking begin.
+purpose: Apply deterministic checks plus symmetric location/language eligibility policy, then split enriched jobs into passed and rejected sets before retrieval and ranking begin.
 feature_refs:
+- cv_system
 - inspection_debugging
 - trigger_run_management
 capability_refs:
+- cv_system.location-language-eligibility
 - inspection_debugging.cv-analysis-diagnostics
 - inspection_debugging.cv-generation-diagnostics
 - inspection_debugging.enriched-job-debug-export
@@ -58,16 +60,21 @@ doc_refs:
 - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
 - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
 - docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
+- docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
+- docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
 config_refs: []
 component_refs: []
 depends_on:
 - enrich
 inputs:
+- candidate fit context built from profile preferences and language inventory
+- canonical `eligibility_policy` from `config/policy/eligibility.yaml`
 - deterministic filter and policy settings
 - effective skill synonym map, which may include a run-scoped overlay uploaded after `enrich` in manual staged mode
 - enriched job rows
 outputs:
 - bounded `stage_transition_artifacts.rule_filter` runtime block with input, output, and changed-state samples
+- full `fit_factor_results`, `eligibility_decision`, and policy fingerprint on passed and rejected rows
 - non-blocking marks for failed but unselected deterministic checks
 - optional manual checkpoint payloads that can resume shortlist/ranking from the passed-job set
 - passed jobs
@@ -77,6 +84,8 @@ invariants:
 - deterministic pass/reject ownership belongs to this stage
 - reject reasons should be finalized here
 - canonical enrich outputs should be consumed here instead of reinterpreting raw extracted phrases when available
+- location and language use one evaluator-result envelope and one `disabled | ranking_only | gate_required` projection table
+- only confirmed `gate_required` failures reject; unknown and not-applicable factor states remain eligible with diagnostics
 - later stages should only consider the passed set as retrieval-eligible
 human_notes:
 - rule filter
@@ -85,3 +94,6 @@ human_notes:
 - marks
 - selected filters
 - deterministic gate
+- location fit
+- language fit
+- policy fingerprint

@@ -4,6 +4,7 @@ type: module
 domain: runtime
 ownership: feature
 capabilities:
+  - cv_system.location-language-eligibility
   - cv_system.stage-artifact-diagnostics
 responsibility:
   - Module metadata placeholder for src.fitcv.rule_filter.
@@ -17,9 +18,14 @@ lifecycle:
 
 
 import logging
-import json
 from datetime import datetime, timezone
 from typing import Any
+
+from fitcv.fit_factors import (
+    CandidateFitContext,
+    build_candidate_fit_context,
+    evaluate_fit_factors,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -443,34 +449,34 @@ def apply_rule_filters(
     prefs: dict[str, Any],
     config: dict[str, Any] | None = None,
     global_settings: dict[str, Any] | None = None,
+    *,
+    candidate_fit_context: CandidateFitContext | None = None,
 ) -> dict[str, list]:
-    """Apply all policy checks and return {passed, rejected}.
+    """Apply deterministic policy checks and optional eligibility factors."""
+    job_urls = [str(job.get("job_url") or "").strip() for job in jobs]
+    if any(not job_url for job_url in job_urls):
+        raise ValueError("rule-filter input requires a non-empty canonical job_url")
+    if len(set(job_urls)) != len(job_urls):
+        raise ValueError("rule-filter input requires unique canonical job_url values")
 
-    Return contract:
-        {
-            "passed": ["url1", "url3", ...],
-            "rejected": [
-                {"job_url": "url2", "reasons": ["seniority_mismatch", "contract_type_excluded"]}
-            ]
-        }
+    eligibility_policy = (config or {}).get("eligibility_policy")
+    if eligibility_policy is not None and candidate_fit_context is None:
+        candidate_fit_context = build_candidate_fit_context(
+            {"preferences": prefs},
+            valid_work_modes=list((config or {}).get("valid_location_types") or []),
+        )
 
-    config: merged config dict (from load_config). When None, built-in fallbacks apply.
-    global_settings: retained for backward compatibility with direct callers; no longer
-        used by the pipeline (global checks now run pre-enrichment via
-        apply_pre_enrichment_global_filters). Freshness and applicant-count checks
-        are not applied here regardless of this value.
-
-    Note: experience_level is used for exclusion only. seniority is the primary signal.
-    Conflicts (e.g. experience_level=Entry + seniority=mid) are logged but not auto-rejected.
-    """
     checks: list[tuple[str, Any]] = [
-        ("seniority_mismatch",        lambda j, p: check_seniority(j, p, config)),
-        ("missing_fit_context",       check_fit_context),
-        ("location_type_excluded",    check_location_type),
-        ("contract_type_excluded",    check_contract_type),
+        ("seniority_mismatch", lambda job, preferences: check_seniority(job, preferences, config)),
+        ("missing_fit_context", check_fit_context),
+        ("location_type_excluded", check_location_type),
+        ("contract_type_excluded", check_contract_type),
         ("experience_level_excluded", check_experience_level),
-        ("must_have_skill_missing",   lambda j, p: check_must_have_skills(j, p, config)),
-        ("domain_not_preferred",      check_domain_preference),
+        (
+            "must_have_skill_missing",
+            lambda job, preferences: check_must_have_skills(job, preferences, config),
+        ),
+        ("domain_not_preferred", check_domain_preference),
     ]
 
     selected_filter_codes = _get_selected_rule_filter_codes(config)
@@ -481,6 +487,23 @@ def apply_rule_filters(
     for job in jobs:
         reasons: list[str] = []
         marks: list[dict[str, Any]] = []
+        eligibility_fields: dict[str, Any] = {}
+        if eligibility_policy is not None and candidate_fit_context is not None:
+            eligibility = evaluate_fit_factors(
+                actual_location=job.get("actual_location"),
+                language_requirements=job.get("language_requirements"),
+                candidate_context=candidate_fit_context,
+                eligibility_policy=eligibility_policy,
+            )
+            eligibility_fields = dict(eligibility)
+            reasons.extend(
+                sorted(
+                    f"eligibility_{factor_id}_failed"
+                    for factor_id, factor_result in eligibility["fit_factor_results"].items()
+                    if factor_result["eligibility_decision"] == "reject"
+                )
+            )
+
         for reason_code, check_fn in checks:
             if not check_fn(job, prefs):
                 if reason_code in selected_filter_codes:
@@ -488,37 +511,35 @@ def apply_rule_filters(
                 else:
                     marks.append(_build_rule_filter_mark(reason_code, job, prefs, config))
 
-        # Log seniority / experience_level conflicts (do not auto-reject)
-        exp_level = (job.get("experience_level") or "").lower()
+        exp_level = str(job.get("experience_level") or "").lower()
         seniority = _normalise_seniority(job.get("seniority"), config)
-        if exp_level in ("entry level", "internship") and seniority not in (None, "entry", "intern"):
+        if exp_level in ("entry level", "internship") and seniority not in (
+            None,
+            "entry",
+            "intern",
+        ):
             logger.info(
                 "Conflict: experience_level='%s', seniority='%s' for job '%s'",
-                job.get("experience_level"), job.get("seniority"), job.get("job_url"),
+                job.get("experience_level"),
+                job.get("seniority"),
+                job.get("job_url"),
             )
 
+        job_url = str(job.get("job_url") or "")
+        record = {
+            "job_url": job_url,
+            "raw_job_fingerprint": job.get("raw_job_fingerprint"),
+            "source_job_url": job.get("source_job_url") or job_url,
+            "marks": marks,
+            **eligibility_fields,
+        }
         if reasons:
-            rejected.append({
-                "job_url": str(job.get("job_url", "")),
-                "raw_job_fingerprint": job.get("raw_job_fingerprint"),
-                "source_job_url": job.get("source_job_url") or job.get("job_url"),
-                "reasons": reasons,
-                "marks": marks,
-            })
+            rejected.append({**record, "reasons": reasons})
         else:
-            job_url = str(job.get("job_url", ""))
             passed.append(job_url)
-            passed_records.append(
-                {
-                    "job_url": job_url,
-                    "raw_job_fingerprint": job.get("raw_job_fingerprint"),
-                    "source_job_url": job.get("source_job_url") or job_url,
-                    "marks": marks,
-                }
-            )
+            passed_records.append(record)
 
     return {"passed": passed, "passed_records": passed_records, "rejected": rejected}
-
 
 # ── integration: persist local filter results ────────────────────────────────
 
@@ -527,7 +548,8 @@ def store_filter_results(
     run_id: str,
     config: dict[str, Any],
 ) -> None:
-    """Insert rule filter results into local sqlite store."""
+    """Build domain rows and delegate SQLite ownership."""
+    del config
     now = datetime.now(tz=timezone.utc).isoformat()
     rows: list[dict[str, Any]] = []
     passed_records_by_url = {
@@ -535,66 +557,52 @@ def store_filter_results(
         for item in result.get("passed_records", [])
         if str(item.get("job_url") or "")
     }
-    for job_url in result.get("passed", []):
-        passed_record = passed_records_by_url.get(str(job_url)) or {}
-        rows.append({
-            "job_url": job_url,
-            "source_job_url": passed_record.get("source_job_url") or job_url,
-            "raw_job_fingerprint": passed_record.get("raw_job_fingerprint"),
-            "passed": True,
-            "reasons": [],
-            "marks_json": json.dumps(list(passed_record.get("marks") or []), ensure_ascii=False),
-            "filtered_at": now,
-            "run_id": run_id,
-        })
+    for raw_job_url in result.get("passed", []):
+        job_url = str(raw_job_url or "")
+        record = passed_records_by_url.get(job_url) or {}
+        rows.append(
+            {
+                "job_url": job_url,
+                "source_job_url": record.get("source_job_url") or job_url,
+                "raw_job_fingerprint": record.get("raw_job_fingerprint"),
+                "passed": True,
+                "reasons": [],
+                "marks": list(record.get("marks") or []),
+                "filtered_at": now,
+                "fit_factor_results": dict(record.get("fit_factor_results") or {}),
+                "eligibility_policy_fingerprint": record.get(
+                    "eligibility_policy_fingerprint"
+                ),
+                "eligibility_decision": record.get("eligibility_decision"),
+                "eligibility_reason_codes": list(
+                    record.get("eligibility_reason_codes") or []
+                ),
+            }
+        )
     for item in result.get("rejected", []):
-        rows.append({
-            "job_url": item["job_url"],
-            "source_job_url": item.get("source_job_url") or item["job_url"],
-            "raw_job_fingerprint": item.get("raw_job_fingerprint"),
-            "passed": False,
-            "reasons": item["reasons"],
-            "marks_json": json.dumps(list(item.get("marks") or []), ensure_ascii=False),
-            "filtered_at": now,
-            "run_id": run_id,
-        })
+        rows.append(
+            {
+                "job_url": str(item.get("job_url") or ""),
+                "source_job_url": item.get("source_job_url") or item.get("job_url"),
+                "raw_job_fingerprint": item.get("raw_job_fingerprint"),
+                "passed": False,
+                "reasons": list(item.get("reasons") or []),
+                "marks": list(item.get("marks") or []),
+                "filtered_at": now,
+                "fit_factor_results": dict(item.get("fit_factor_results") or {}),
+                "eligibility_policy_fingerprint": item.get(
+                    "eligibility_policy_fingerprint"
+                ),
+                "eligibility_decision": item.get("eligibility_decision"),
+                "eligibility_reason_codes": list(
+                    item.get("eligibility_reason_codes") or []
+                ),
+            }
+        )
 
     from fitcv_cp import sqlite_store as cp_sqlite_store
-    from pathlib import Path
 
-    db_path = Path(cp_sqlite_store._local_sqlite_path())
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    with cp_sqlite_store._sqlite_connection(db_path) as conn:
-        cp_sqlite_store._ensure_local_rule_filter_results_table(conn)
-        conn.execute("DELETE FROM rule_filter_results WHERE run_id = ?", (run_id,))
-        for row in rows:
-            conn.execute(
-                """
-                INSERT INTO rule_filter_results (
-                    run_id,
-                    job_url,
-                    passed,
-                    reasons,
-                    marks_json,
-                    filtered_at,
-                    raw_job_fingerprint,
-                    source_job_url
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    row["run_id"],
-                    row["job_url"],
-                    1 if row["passed"] else 0,
-                    json.dumps(list(row.get("reasons") or []), ensure_ascii=False),
-                    row["marks_json"],
-                    row["filtered_at"],
-                    row.get("raw_job_fingerprint"),
-                    row.get("source_job_url"),
-                ),
-            )
-        conn.commit()
-
+    cp_sqlite_store.replace_filter_results(run_id, rows)
 
 def _get_skill_synonyms(config: dict[str, Any] | None) -> dict[str, str]:
     """Backward-compatible private alias for legacy imports."""

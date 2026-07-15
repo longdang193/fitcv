@@ -4,6 +4,7 @@ type: module
 domain: runtime
 ownership: feature
 capabilities:
+  - cv_system.location-language-eligibility
   - cv_system.stage-artifact-diagnostics
 responsibility:
   - Execute isolated pipeline stage runner helpers used by orchestrator.
@@ -20,6 +21,8 @@ from __future__ import annotations
 import time
 from copy import deepcopy
 from typing import Any, Callable
+
+from fitcv.fit_factors import build_candidate_fit_context
 
 def _reuse_stage_enabled(config: dict[str, Any], stage: str) -> bool:
     reuse_block = dict(config.get("reuse") or {})
@@ -143,6 +146,30 @@ def execute_enrich_stage(
         )
 
 
+def merge_passed_filter_records(
+    enriched_jobs: list[dict[str, Any]],
+    filter_result: dict[str, Any],
+) -> list[dict[str, Any]]:
+    passed_records_by_url = {
+        str(item.get("job_url") or ""): item
+        for item in filter_result.get("passed_records", [])
+        if str(item.get("job_url") or "")
+    }
+    enriched_by_url = {
+        str(job.get("job_url") or ""): job
+        for job in enriched_jobs
+        if str(job.get("job_url") or "")
+    }
+    return [
+        {
+            **enriched_by_url[job_url],
+            "marks": [],
+            **passed_records_by_url.get(job_url, {}),
+        }
+        for raw_job_url in filter_result.get("passed", [])
+        if (job_url := str(raw_job_url or "")) in enriched_by_url
+    ]
+
 def execute_rule_filter_stage(
     *,
     run_id: str,
@@ -155,7 +182,7 @@ def execute_rule_filter_stage(
     load_profile_json_text: Callable[[str], dict[str, Any]],
     load_profile_yaml: Callable[[str], dict[str, Any]],
     flatten_skills: Callable[[dict[str, Any]], list[str]],
-    apply_rule_filters: Callable[[list[dict[str, Any]], dict[str, Any], dict[str, Any]], dict[str, Any]],
+    apply_rule_filters: Callable[..., dict[str, Any]],
 ) -> tuple[dict[str, Any], list[str]]:
     pre_filter_rejected_jobs = list(state["pre_filter_rejected_jobs"])
     enriched = list(state["enriched"])
@@ -173,30 +200,22 @@ def execute_rule_filter_stage(
         if reporter is not None:
             reporter.emit("layer2_candidate", "info", "Candidate profile loaded")  # type: ignore[union-attr]
 
-        filter_result = apply_rule_filters(enriched, profile["preferences"], config)
+        candidate_fit_context = build_candidate_fit_context(
+            profile,
+            valid_work_modes=list(config.get("valid_location_types") or []),
+        )
+        filter_result = apply_rule_filters(
+            enriched,
+            profile["preferences"],
+            config,
+            candidate_fit_context=candidate_fit_context,
+        )
         combined_filter_result = {
             "passed": filter_result["passed"],
             "passed_records": filter_result.get("passed_records", []),
             "rejected": pre_filter_rejected_jobs + filter_result["rejected"],
         }
-        passed_job_urls = [str(url) for url in filter_result["passed"]]
-        passed_records_by_url = {
-            str(item.get("job_url") or ""): item
-            for item in filter_result.get("passed_records", [])
-            if str(item.get("job_url") or "")
-        }
-        enriched_by_url = {
-            str(job.get("job_url") or ""): job
-            for job in enriched
-        }
-        passed_jobs = [
-            {
-                **enriched_by_url[url],
-                "marks": list((passed_records_by_url.get(url) or {}).get("marks") or []),
-            }
-            for url in passed_job_urls
-            if url in enriched_by_url
-        ]
+        passed_jobs = merge_passed_filter_records(enriched, filter_result)
         candidate_filter_rejected_jobs = list(filter_result["rejected"])
         pipeline_store.store_filter_results(combined_filter_result, run_id, config)
         if reporter is not None:

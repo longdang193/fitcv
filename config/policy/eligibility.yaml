@@ -1,0 +1,35 @@
+# @architecture
+# owner: cv_system
+# features:
+#   - cv_system
+# stages:
+#   - rule_filter
+# capabilities:
+#   - cv_system.location-language-eligibility
+# role: config
+# canonical: true
+
+eligibility_policy:
+  policy_version: eligibility-v1
+  factors:
+    location_fit:
+      mode: ranking_only
+      normalization:
+        exact_city: 1.0
+        exact_region: 0.8
+        exact_country: 0.6
+        remote_unrestricted: 1.0
+        no_match: 0.0
+        unknown_value: 0.5
+        not_applicable_value: 0.5
+    language_fit:
+      mode: ranking_only
+      normalization:
+        met: 1.0
+        unmet: 0.0
+        unknown_value: 0.5
+        not_applicable_value: 0.5
+        requirement_weights:
+          required: 1.0
+          preferred: 0.5
+          unspecified: 0.5

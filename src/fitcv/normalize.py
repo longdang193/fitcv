@@ -4,6 +4,7 @@ type: module
 domain: runtime
 ownership: feature
 capabilities:
+  - cv_system.location-language-eligibility
   - cv_system.stage-artifact-diagnostics
 responsibility:
   - Module metadata placeholder for src.fitcv.normalize.
@@ -19,7 +20,7 @@ import hashlib
 import re
 from typing import Any
 
-from fitcv.ingest import snake_case_keys
+from fitcv.ingest import build_source_location, snake_case_keys
 
 # ── whitespace ────────────────────────────────────────────────────────────────
 
@@ -221,6 +222,26 @@ def parse_salary(raw: str) -> dict[str, Any] | None:
 
 # ── per-job normalisation ─────────────────────────────────────────────────────
 
+def _normalize_source_location(value: Any) -> dict[str, str | None]:
+    if not isinstance(value, dict):
+        return {
+            "raw_text": "",
+            "city_raw": None,
+            "region_raw": None,
+            "country_raw": None,
+            "provider": None,
+        }
+    normalized: dict[str, str | None] = {}
+    for key in ("raw_text", "city_raw", "region_raw", "country_raw", "provider"):
+        raw_value = value.get(key)
+        normalized[key] = (
+            normalize_whitespace(raw_value)
+            if isinstance(raw_value, str)
+            else None
+        )
+    normalized["raw_text"] = normalized["raw_text"] or ""
+    return normalized
+
 def normalize_job(job: dict[str, Any]) -> dict[str, Any]:
     """Apply all normalization steps to a single job dict.
 
@@ -231,6 +252,9 @@ def normalize_job(job: dict[str, Any]) -> dict[str, Any]:
     Mutates a copy, does not modify the input.
     """
     result = snake_case_keys(job)
+    result["source_location"] = _normalize_source_location(
+        result.get("source_location") or build_source_location(job)
+    )
 
     # Whitespace-clean the description (main text field)
     if "description" in result:

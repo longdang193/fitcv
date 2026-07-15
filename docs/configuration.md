@@ -3,10 +3,12 @@ doc_id: configuration
 doc_type: operator-guide
 explains:
   features:
+    - cv_system
     - settings_system
     - trigger_run_management
   configs:
     - .env
+    - config/policy/eligibility.yaml
     - config/runtime/control_plane.yaml
     - config/runtime/pipeline.yaml
 ---
@@ -31,6 +33,7 @@ This matrix defines current SSOT ownership for migration execution.
 | `config/runtime/control_plane.yaml` | control-plane backend/provider/model routing defaults | Includes `control_plane.data_backend.*`, `control_plane.providers.*`, `control_plane.model_routing.*`, feature flags, observability toggles. |
 | `config/runtime/pipeline.yaml` | pipeline execution knobs | Owns enrichment/rerank timing, top-N controls, lifecycle limits, replay health thresholds, model defaults used by runtime pipeline stages. |
 | `config/policy/cv.yaml` | CV generation and validation policy | Owns nested `cv.*` contract (`preset`, composition, validation, generation defaults). |
+| `config/policy/eligibility.yaml` | location/language eligibility policy | Sole mutable owner of factor modes and absolute normalization values; ranking/runtime/env config may not shadow `eligibility_policy`. |
 | `config/taxonomy/taxonomy.yaml` | shared business taxonomy and enum families | Owns seniority taxonomy, location/contract/experience enums, role taxonomy maps. |
 | `.env.yaml` | bootstrap trigger input | Current default `config_path`; now limited to small bootstrap-only values. |
 | `config/env.private.yaml` | no active canonical owner in this worktree | File not present in tracked worktree; treat as deprecated/removed unless explicitly reintroduced as local-only untracked override. |
@@ -69,6 +72,19 @@ Policy meaning:
 - generation/validation output can exist
 - auto-accept is blocked by policy and requires operator decision (accept/reject/edit)
 - hard-failure statuses remain reserved for `validation_failed`, `generation_failed`, `persistence_failed`
+
+### Location And Language Eligibility Policy
+
+Canonical policy owner: `config/policy/eligibility.yaml` key `eligibility_policy`.
+
+- `policy_version` versions the validated policy contract.
+- each factor uses the same `disabled | ranking_only | gate_required` mode set.
+- normalization values are globally stable absolute values, not run-cohort statistics.
+- environment variables, trigger overrides, ranking config, and other policy files may not define a second `eligibility_policy` owner.
+- runtime validates the exact shape and fingerprints the validated mapping with deterministic canonical JSON.
+- `gate_required` rejects only confirmed factor failures; unknown and not-applicable states remain eligible.
+- Phase 1 does not add these values to ranking composition. Later ranking phases consume the emitted `ranking_value` without redefining normalization.
+
 ### Planned Deprecation Boundaries
 
 1. `.env.yaml` remains accepted as trigger default during transition, but ownership must stay bootstrap-only.

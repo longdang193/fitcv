@@ -47,6 +47,15 @@ LLM runtime spine ownership:
 - stage modules own prompt meaning, parsing, structural validation, semantic fallback, output/failure policy, and ordered observation scope. Only actual runtime calls emit evidence; reuse, replay, resume, blocked, and skipped paths do not.
 - `src/fitcv/runtime_routing.py` plus `config/runtime/control_plane.yaml` remain provider/model/credential routing SSOT; stage modules do not own HTTP clients or route tables.
 
+Location/language eligibility ownership:
+
+- `config/policy/eligibility.yaml` is the sole mutable policy owner for location and language factor modes and absolute normalization values.
+- `src/fitcv/ingest.py` preserves provider-native geography as `source_location`; `src/fitcv/normalize.py` carries that evidence without geocoding or confusing it with `location_type` work mode.
+- `src/fitcv/enrich.py` owns versioned canonical `actual_location` and `language_requirements` facts. Language requirements remain separate from canonical skills.
+- `src/fitcv/fit_factors.py` owns one symmetric factor algebra: candidate adaptation, evaluation truth, absolute normalization, policy projection, and policy fingerprinting.
+- `src/fitcv/rule_filter.py` owns eligibility projection. Only confirmed failures under `gate_required` reject; unknown and not-applicable facts remain eligible with diagnostics.
+- Phase 1 emits ranking-ready values only. Ranking weights, final score, ordering, and `strong | stretch | skip` labels remain unchanged.
+
 ## Portability and Routing
 
 - backend portability: sqlite execution path is selected through control-plane backend runtime resolution

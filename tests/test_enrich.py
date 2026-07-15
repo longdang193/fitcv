@@ -1968,3 +1968,260 @@ def test_enrich_runtime_observations_record_each_outer_retry(monkeypatch: pytest
     assert [item["evidence"]["status"] for item in observations] == ["failed", "succeeded"]
     assert observations[0]["scope_key"] == observations[1]["scope_key"]
     assert observations[0]["input_index"] == 0
+
+
+def test_structured_normalization_emits_actual_location_and_language_requirements() -> None:
+    output = EnrichmentOutput(
+        required_skills=["Python", "English", "German B2", "Communication skills"],
+        required_skill_entities=[
+            {"raw_text": "Python", "canonical": "python", "confidence": 1.0},
+            {"raw_text": "English", "canonical": "english", "confidence": 1.0},
+            {"raw_text": "German B2", "canonical": "german", "confidence": 1.0},
+            {
+                "raw_text": "Communication skills",
+                "canonical": "communication skills",
+                "confidence": 1.0,
+            },
+        ],
+        location_type="hybrid",
+        actual_location={
+            "raw_text": "Berlin, Germany",
+            "city": "Berlin",
+            "region": None,
+            "country": "Germany",
+            "remote_scope": "not_applicable",
+            "remote_scope_value": None,
+            "evidence": [{"source_field": "description", "text": "Office in Berlin"}],
+        },
+        language_requirements=[
+            {
+                "language": "German",
+                "expected_level": "B2",
+                "requirement_type": "required",
+                "evidence": [{"source_field": "description", "text": "German B2 required"}],
+            },
+            {
+                "language": "English",
+                "expected_level": "unspecified",
+                "requirement_type": "preferred",
+                "evidence": [{"source_field": "description", "text": "English preferred"}],
+            },
+        ],
+    )
+
+    result = _apply_structured_normalization(output, {})
+
+    assert result["actual_location"] == {
+        "raw_text": "Berlin, Germany",
+        "city": "Berlin",
+        "region": None,
+        "country": "Germany",
+        "remote_scope": "not_applicable",
+        "remote_scope_value": None,
+        "extraction_status": "complete",
+        "evidence": [{"source_field": "description", "text": "Office in Berlin"}],
+        "extraction_version": "actual-location-extraction-v1",
+    }
+    assert result["language_requirements"] == [
+        {
+            "language": "English",
+            "expected_level": "unspecified",
+            "requirement_type": "preferred",
+            "extraction_status": "complete",
+            "evidence": [{"source_field": "description", "text": "English preferred"}],
+            "extraction_version": "language-requirement-extraction-v1",
+        },
+        {
+            "language": "German",
+            "expected_level": "b2",
+            "requirement_type": "required",
+            "extraction_status": "complete",
+            "evidence": [{"source_field": "description", "text": "German B2 required"}],
+            "extraction_version": "language-requirement-extraction-v1",
+        },
+    ]
+    assert "python" in result["required_skills_canonical"]
+    assert all("english" not in skill for skill in result["required_skills_canonical"])
+    assert all("german" not in skill for skill in result["required_skills_canonical"])
+
+
+def test_structured_normalization_reduces_duplicate_languages_deterministically() -> None:
+    result = _apply_structured_normalization(
+        {
+            "language_requirements": [
+                {
+                    "language": " German ",
+                    "expected_level": "B2",
+                    "requirement_type": "preferred",
+                    "evidence": [{"source_field": "description", "text": "German preferred"}],
+                },
+                {
+                    "language": "German",
+                    "expected_level": "C1",
+                    "requirement_type": "required",
+                    "evidence": [{"source_field": "title", "text": "German C1"}],
+                },
+                {
+                    "language": "german",
+                    "expected_level": "B9",
+                    "requirement_type": "required",
+                    "evidence": [],
+                },
+            ]
+        },
+        {},
+    )
+
+    assert result["language_requirements"] == [
+        {
+            "language": "German",
+            "expected_level": "c1",
+            "requirement_type": "required",
+            "extraction_status": "partial",
+            "evidence": [
+                {"source_field": "description", "text": "German preferred"},
+                {"source_field": "title", "text": "German C1"},
+            ],
+            "extraction_version": "language-requirement-extraction-v1",
+        }
+    ]
+
+
+def test_structured_normalization_degrades_malformed_facts_without_model_status_input() -> None:
+    result = _apply_structured_normalization(
+        {
+            "actual_location": {
+                "raw_text": "Berlin",
+                "remote_scope": "planet",
+                "extraction_status": "complete",
+            },
+            "language_requirements": [
+                {
+                    "language": "German",
+                    "expected_level": "B9",
+                    "requirement_type": "required",
+                    "extraction_status": "complete",
+                },
+                {"expected_level": "B2", "requirement_type": "required"},
+            ],
+        },
+        {},
+    )
+
+    assert result["actual_location"]["extraction_status"] == "partial"
+    assert result["actual_location"]["remote_scope"] == "unknown"
+    assert result["language_requirements"][0]["extraction_status"] == "partial"
+    assert result["language_requirements"][0]["expected_level"] == "unspecified"
+    assert all("extraction_status" in item for item in result["language_requirements"])
+
+
+def test_raw_job_fingerprint_changes_with_source_location_evidence() -> None:
+    base = {
+        "job_url": "https://example.com/jobs/1",
+        "title": "Data Analyst",
+        "company_name": "Acme",
+        "location": "Berlin, Germany",
+        "description": "Build dashboards",
+        "source_location": {
+            "raw_text": "Berlin, Germany",
+            "city_raw": "Berlin",
+            "region_raw": None,
+            "country_raw": "Germany",
+            "provider": "linkedin",
+        },
+    }
+    changed = {
+        **base,
+        "source_location": {
+            **base["source_location"],
+            "city_raw": "Hamburg",
+        },
+    }
+
+    baseline = build_raw_job_fingerprint(base)
+    different = build_raw_job_fingerprint(changed)
+
+    assert baseline["payload"]["source_location"]["city_raw"] == "berlin"
+    assert baseline["fingerprint"] != different["fingerprint"]
+
+
+def test_enrich_contract_fingerprint_includes_location_and_language_versions() -> None:
+    result = build_enrich_contract_fingerprint(
+        {
+            "ai_score_model": "cx/gpt-5.4-mini",
+            "prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}},
+        }
+    )
+
+    assert result["payload"]["actual_location_extraction_version"] == (
+        "actual-location-extraction-v1"
+    )
+    assert result["payload"]["language_requirement_extraction_version"] == (
+        "language-requirement-extraction-v1"
+    )
+
+
+def test_merge_scraped_and_enriched_projects_source_and_canonical_location() -> None:
+    scraped = {
+        "job_url": "url1",
+        "title": "Data Engineer",
+        "location": "Parkstein, Deutschland",
+        "source_location": {
+            "raw_text": "Parkstein, Deutschland",
+            "city_raw": "Parkstein",
+            "region_raw": "BY",
+            "country_raw": "Deutschland",
+            "provider": "indeed",
+        },
+    }
+
+    result = merge_scraped_and_enriched(
+        scraped,
+        {"actual_location": None, "language_requirements": []},
+        {},
+    )
+
+    assert result["source_location"] == scraped["source_location"]
+    assert result["actual_location"]["city"] == "Parkstein"
+    assert result["actual_location"]["region"] == "BY"
+    assert result["actual_location"]["country"] == "Deutschland"
+    assert result["actual_location"]["extraction_status"] == "complete"
+    assert result["language_requirements"] == []
+
+def test_build_extraction_prompt_requests_location_and_language_without_status() -> None:
+    prompt = build_extraction_prompt(
+        description="German B2 required for the Berlin office.",
+        scraped_metadata={"location": "Berlin"},
+    )
+
+    assert '"actual_location"' in prompt
+    assert '"language_requirements"' in prompt
+    assert '"extraction_status"' not in prompt
+
+
+def test_parse_extraction_response_canonicalizes_location_and_languages() -> None:
+    response = json.dumps(
+        {
+            "actual_location": {
+                "raw_text": "Berlin, Germany",
+                "city": "Berlin",
+                "country": "Germany",
+                "remote_scope": "not_applicable",
+                "evidence": [{"source_field": "description", "text": "Berlin office"}],
+            },
+            "language_requirements": [
+                {
+                    "language": "German",
+                    "expected_level": "B2",
+                    "requirement_type": "required",
+                    "evidence": [{"source_field": "description", "text": "German B2"}],
+                }
+            ],
+        }
+    )
+
+    result = parse_extraction_response(response, {})
+
+    assert result["parsed"]["actual_location"]["extraction_status"] == "complete"
+    assert result["parsed"]["language_requirements"][0]["expected_level"] == "b2"
+    assert result["parsed"]["language_requirements"][0]["extraction_status"] == "complete"

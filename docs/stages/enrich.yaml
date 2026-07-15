@@ -2,7 +2,7 @@
 stage_id: enrich
 name: Enrich
 status: active
-purpose: Filter normalized jobs through pre-enrichment global checks, then enrich surviving jobs into a shared downstream contract where required/preferred skills keep raw phrases, canonical skill entities, and reuse provenance when unchanged jobs can safely skip a fresh LLM call.
+purpose: Filter normalized jobs through pre-enrichment global checks, then enrich surviving jobs into a shared downstream contract with canonical skills, actual geography, language requirements, and reuse provenance.
 feature_refs:
 - cv_system
 - inspection_debugging
@@ -15,6 +15,7 @@ capability_refs:
 - bounded_parallel_enrichment.per-job-failure-isolation
 - bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
 - cv_system.analysis-evidence-selection
+- cv_system.location-language-eligibility
 - inspection_debugging.cv-analysis-diagnostics
 - inspection_debugging.cv-generation-diagnostics
 - inspection_debugging.enriched-job-debug-export
@@ -79,7 +80,9 @@ doc_refs:
 - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
 - docs/superpowers/archive/specs/2026-04-02-23-55-enrich-reuse-via-raw-job-fingerprint-spec.md
 - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
+- docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
 - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
+- docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
 config_refs: []
 component_refs: []
 depends_on:
@@ -97,12 +100,16 @@ outputs:
 - pre-enrichment rejects with reasons
 - raw job fields plus canonical skill outputs for `required_skills` and `preferred_skills`
 - raw-job and enrich-contract fingerprint fields plus `enrich_reuse_status` provenance on enriched rows
+- versioned `actual_location` and `language_requirements` canonical facts with extraction status
 invariants:
 - normalized jobs enter and enriched job rows leave
 - pre-enrichment global filter ownership belongs to this stage in the current runtime flow
 - extraction prompt text and metadata are centrally managed via the prompt registry, while enrich keeps ownership of schemas, parsing, and post-processing
 - shared `llm_runtime` owns route resolution, credentials, provider transport, wire compatibility, normalized operational failures, runtime provenance, and the only persistable per-call evidence projection; enrich owns extraction meaning, parsing, normalization, merge, retry, batching, and row shape
 - canonical downstream skill fields are limited to `required_skills` and `preferred_skills`, and are represented as canonical skill entities plus flattened canonical skill labels
+- Canonical `actual_location` is geography and remains distinct from `location_type` work mode
+- Canonical `language_requirements` is a first-class requirement contract, and language phrases are excluded from canonical skill entities
+- extraction versions participate in enrich-contract fingerprinting so incompatible location/language facts are not reused
 - manual staged runs may attach a run-scoped synonym overlay after this stage and before continuing into `rule_filter`
 - enrich reuse is decided before LLM invocation from normalized raw-job fingerprints plus the effective enrich-contract fingerprint
 - downstream scoring and CV work should rely on the enriched contract rather than raw input shape
@@ -113,3 +120,5 @@ human_notes:
 - years experience
 - reuse
 - fingerprint
+- actual location
+- language requirements

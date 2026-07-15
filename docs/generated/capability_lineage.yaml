@@ -28,11 +28,11 @@ features:
     - bounded_parallel_enrichment.per-job-failure-isolation
     - bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
   cv_system:
-    summary: Own the grounded CV-writing path from post-ranking analysis through one canonical CV-generation meaning owner, with LangGraph and direct runtimes behind the same adapter contract, canonical per-call evidence, and stage-neutral traces.
+    summary: Own canonical candidate-job fit facts and eligibility through grounded post-ranking analysis and CV generation, with symmetric policy projection, shared runtime adapters, canonical evidence, and stage-neutral traces.
     status: active
     type: add
     lineage_file: docs/features/cv_system/lineage.generated.yaml
-    capability_count: 8
+    capability_count: 9
     capabilities:
     - cv_system.analysis-evidence-selection
     - cv_system.analysis-grounded-validation
@@ -40,6 +40,7 @@ features:
     - cv_system.exact-match-late-stage-reuse
     - cv_system.fit-gate-resolution
     - cv_system.header-placeholder-repair
+    - cv_system.location-language-eligibility
     - cv_system.stage-artifact-diagnostics
     - cv_system.structured-cv-generation
   inspection_debugging:

@@ -2,14 +2,18 @@ feature_id: cv_system
 name: CV System
 status: active
 type: add
-summary: Own the grounded CV-writing path from post-ranking analysis through one canonical CV-generation meaning owner, with LangGraph and direct runtimes behind the same adapter contract, canonical per-call evidence, and stage-neutral traces.
+summary: Own canonical candidate-job fit facts and eligibility through grounded post-ranking analysis and CV generation, with symmetric policy projection, shared runtime adapters, canonical evidence, and stage-neutral traces.
 invariants: []
 domains:
   - cv_generation
+  - eligibility
   - pipeline
 depends_on:
   - admin_control_plane_core
 capabilities:
+  - capability_id: cv_system.location-language-eligibility
+    statement: Preserve canonical location and language facts, evaluate both through one symmetric factor algebra, and apply one versioned eligibility policy before shortlist and ranking.
+    state: active
   - capability_id: cv_system.analysis-evidence-selection
     statement: 'Retrieve, score, and select one bounded evidence bundle for grounded downstream CV writing.
 
@@ -51,10 +55,19 @@ capabilities:
       '
     state: active
 stage_participation:
+  - stage_id: normalize
+    role: supporting
+    capability_ids:
+      - cv_system.location-language-eligibility
   - stage_id: enrich
     role: supporting
     capability_ids:
       - cv_system.analysis-evidence-selection
+      - cv_system.location-language-eligibility
+  - stage_id: rule_filter
+    role: primary
+    capability_ids:
+      - cv_system.location-language-eligibility
   - stage_id: ranking
     role: supporting
     capability_ids:

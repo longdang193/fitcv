@@ -4,6 +4,7 @@ type: module
 domain: runtime
 ownership: feature
 capabilities:
+  - cv_system.location-language-eligibility
   - cv_system.stage-artifact-diagnostics
 responsibility:
   - Module metadata placeholder for src.fitcv.enrich.
@@ -29,6 +30,12 @@ from typing import Any, Callable, TypedDict
 
 from pydantic import BaseModel as _BaseModel, Field as _Field, ValidationError as _ValidationError
 from fitcv.config import get_enrich_extraction_model, sqlite_mode_enabled
+from fitcv.fit_factors import (
+    ACTUAL_LOCATION_EXTRACTION_VERSION,
+    LANGUAGE_REQUIREMENT_EXTRACTION_VERSION,
+    comparison_key,
+    normalize_display_text,
+)
 from fitcv.candidate import infer_role_family
 from fitcv.llm_runtime import (
     LlmAdapter,
@@ -262,6 +269,7 @@ class RawJobFingerprintPayload(TypedDict):
     contract_type: str | None
     experience_level: str | None
     source: str | None
+    source_location: dict[str, str | None] | None
 
 
 class RawJobFingerprintResult(TypedDict):
@@ -277,6 +285,8 @@ class EnrichContractFingerprintPayload(TypedDict):
     model: str
     response_schema_version: str
     skill_postprocessing_version: str
+    actual_location_extraction_version: str
+    language_requirement_extraction_version: str
 
 
 class EnrichContractFingerprintResult(TypedDict):
@@ -284,10 +294,10 @@ class EnrichContractFingerprintResult(TypedDict):
     fingerprint: str
 
 
-RAW_JOB_FINGERPRINT_VERSION = "raw_job_fingerprint_v1"
-ENRICH_RESPONSE_SCHEMA_VERSION = "enrichment_output_v1"
+RAW_JOB_FINGERPRINT_VERSION = "raw_job_fingerprint_v2"
+ENRICH_RESPONSE_SCHEMA_VERSION = "enrichment_output_v2"
 ENRICH_SKILL_POSTPROCESSING_VERSION = "canonical_skill_entities_v1"
-ENRICH_CONTRACT_VERSION = "enrich_contract_v1"
+ENRICH_CONTRACT_VERSION = "enrich_contract_v2"
 FRESH_ENRICHMENT_STATUS = "fresh_enrichment"
 REUSED_CACHED_ENRICHMENT_STATUS = "reused_cached_enrichment"
 _SPARSE_REQUIRED_SKILLS_THRESHOLD = 3
@@ -914,6 +924,217 @@ def _coerce_field(key: str, value: Any, config: dict | None = None) -> Any:
 
 # ── Pydantic model for structured output ─────────────────────────────────────
 
+class ExtractionEvidenceOutput(_BaseModel):
+    source_field: str
+    text: str
+
+
+class ActualLocationOutput(_BaseModel):
+    raw_text: str | None = None
+    city: str | None = None
+    region: str | None = None
+    country: str | None = None
+    remote_scope: str | None = None
+    remote_scope_value: str | None = None
+    evidence: list[ExtractionEvidenceOutput] = _Field(default_factory=list)
+
+
+class LanguageRequirementOutput(_BaseModel):
+    language: str | None = None
+    expected_level: str | None = None
+    requirement_type: str | None = None
+    evidence: list[ExtractionEvidenceOutput] = _Field(default_factory=list)
+
+
+_REMOTE_SCOPES = frozenset(
+    {"unrestricted", "city", "region", "country", "unknown", "not_applicable"}
+)
+_LANGUAGE_LEVEL_RANK = {
+    "unspecified": -1,
+    "a1": 0,
+    "a2": 1,
+    "b1": 2,
+    "b2": 3,
+    "c1": 4,
+    "c2": 5,
+    "native": 6,
+}
+_LANGUAGE_REQUIREMENT_RANK = {"unspecified": 0, "preferred": 1, "required": 2}
+_EVIDENCE_SOURCE_FIELDS = frozenset(
+    {"location", "description", "title", "provider_component"}
+)
+
+
+def _fact_mapping(value: Any) -> dict[str, Any] | None:
+    if isinstance(value, _BaseModel):
+        return value.model_dump(mode="python")
+    if isinstance(value, dict):
+        return value
+    return None
+
+
+def _fact_text(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = normalize_display_text(value)
+    return normalized or None
+
+
+def _canonical_evidence(value: Any) -> list[dict[str, str]]:
+    if not isinstance(value, list):
+        return []
+    evidence_by_key: dict[tuple[str, str], dict[str, str]] = {}
+    for raw_item in value[:8]:
+        item = _fact_mapping(raw_item)
+        if item is None:
+            continue
+        source_field = comparison_key(item.get("source_field", ""))
+        text_value = _fact_text(item.get("text"))
+        if source_field not in _EVIDENCE_SOURCE_FIELDS or text_value is None:
+            continue
+        evidence_by_key[(source_field, text_value)] = {
+            "source_field": source_field,
+            "text": text_value[:500],
+        }
+    return [evidence_by_key[key] for key in sorted(evidence_by_key)]
+
+
+def _canonical_actual_location(
+    value: Any,
+    source_location: Any = None,
+) -> dict[str, Any]:
+    raw = _fact_mapping(value) or {}
+    source = source_location if isinstance(source_location, dict) else {}
+    invalid = value is not None and _fact_mapping(value) is None
+
+    normalized: dict[str, str | None] = {}
+    for field_name, source_name in (
+        ("city", "city_raw"),
+        ("region", "region_raw"),
+        ("country", "country_raw"),
+    ):
+        if field_name in raw and raw[field_name] is not None and not isinstance(raw[field_name], str):
+            invalid = True
+        normalized[field_name] = _fact_text(raw.get(field_name)) or _fact_text(source.get(source_name))
+
+    raw_text = _fact_text(raw.get("raw_text")) or _fact_text(source.get("raw_text")) or ""
+    remote_scope_raw = comparison_key(raw.get("remote_scope", ""))
+    if remote_scope_raw and remote_scope_raw not in _REMOTE_SCOPES:
+        invalid = True
+        remote_scope = "unknown"
+    else:
+        remote_scope = remote_scope_raw or "unknown"
+    remote_scope_value = _fact_text(raw.get("remote_scope_value"))
+    evidence = _canonical_evidence(raw.get("evidence"))
+    source_text = _fact_text(source.get("raw_text"))
+    if source_text:
+        source_evidence = {
+            "source_field": "provider_component",
+            "text": source_text[:500],
+        }
+        if source_evidence not in evidence:
+            evidence.append(source_evidence)
+            evidence.sort(key=lambda item: (item["source_field"], item["text"]))
+
+    has_components = any(normalized.values())
+    has_remote_truth = remote_scope in {"unrestricted", "city", "region", "country"}
+    has_any = bool(raw_text or has_components or has_remote_truth or evidence)
+    if not has_any:
+        extraction_status = "unknown"
+    elif invalid or not (has_components or has_remote_truth):
+        extraction_status = "partial"
+    else:
+        extraction_status = "complete"
+    return {
+        "raw_text": raw_text,
+        "city": normalized["city"],
+        "region": normalized["region"],
+        "country": normalized["country"],
+        "remote_scope": remote_scope,
+        "remote_scope_value": remote_scope_value,
+        "extraction_status": extraction_status,
+        "evidence": evidence,
+        "extraction_version": ACTUAL_LOCATION_EXTRACTION_VERSION,
+    }
+
+
+def _canonical_language_requirements(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    grouped: dict[str, dict[str, Any]] = {}
+    for raw_item in value:
+        item = _fact_mapping(raw_item)
+        if item is None:
+            continue
+        language = _fact_text(item.get("language"))
+        if language is None:
+            continue
+        language_key = comparison_key(language)
+        requirement_type_raw = comparison_key(item.get("requirement_type", "unspecified"))
+        expected_level_raw = comparison_key(item.get("expected_level", "unspecified"))
+        is_valid_type = requirement_type_raw in _LANGUAGE_REQUIREMENT_RANK
+        is_valid_level = expected_level_raw in _LANGUAGE_LEVEL_RANK
+        requirement_type = requirement_type_raw if is_valid_type else "unspecified"
+        expected_level = expected_level_raw if is_valid_level else "unspecified"
+        group = grouped.setdefault(
+            language_key,
+            {
+                "language": language,
+                "requirement_type": requirement_type,
+                "expected_level": expected_level,
+                "invalid": False,
+                "evidence": [],
+            },
+        )
+        if language < group["language"]:
+            group["language"] = language
+        if _LANGUAGE_REQUIREMENT_RANK[requirement_type] > _LANGUAGE_REQUIREMENT_RANK[group["requirement_type"]]:
+            group["requirement_type"] = requirement_type
+        if _LANGUAGE_LEVEL_RANK[expected_level] > _LANGUAGE_LEVEL_RANK[group["expected_level"]]:
+            group["expected_level"] = expected_level
+        group["invalid"] = bool(group["invalid"] or not is_valid_type or not is_valid_level)
+        group["evidence"].extend(_canonical_evidence(item.get("evidence")))
+
+    canonical: list[dict[str, Any]] = []
+    for language_key in sorted(grouped):
+        group = grouped[language_key]
+        evidence_by_key = {
+            (item["source_field"], item["text"]): item
+            for item in group["evidence"]
+        }
+        canonical.append(
+            {
+                "language": group["language"],
+                "expected_level": group["expected_level"],
+                "requirement_type": group["requirement_type"],
+                "extraction_status": "partial" if group["invalid"] else "complete",
+                "evidence": [evidence_by_key[key] for key in sorted(evidence_by_key)],
+                "extraction_version": LANGUAGE_REQUIREMENT_EXTRACTION_VERSION,
+            }
+        )
+    return canonical
+
+
+def _remove_language_requirements_from_skills(
+    values: list[str],
+    language_requirements: list[dict[str, Any]],
+) -> list[str]:
+    language_keys = {
+        comparison_key(requirement.get("language", ""))
+        for requirement in language_requirements
+        if comparison_key(requirement.get("language", ""))
+    }
+    filtered: list[str] = []
+    for value in values:
+        value_key = comparison_key(value)
+        if any(
+            value_key == language_key or value_key.startswith(f"{language_key} ")
+            for language_key in language_keys
+        ):
+            continue
+        filtered.append(value)
+    return filtered
+
 class EnrichmentOutput(_BaseModel):
     """Structured extraction output normalized into stage-owned field semantics."""
     required_skills: list[str] = _Field(default_factory=list)
@@ -929,6 +1150,8 @@ class EnrichmentOutput(_BaseModel):
     job_family: str | None = None
     years_experience_min: int | None = None
     years_experience_max: int | None = None
+    actual_location: ActualLocationOutput | None = None
+    language_requirements: list[LanguageRequirementOutput] = _Field(default_factory=list)
 
 
 def _apply_structured_normalization(
@@ -950,8 +1173,16 @@ def _apply_structured_normalization(
         }
         output = EnrichmentOutput.model_validate(coerced_output)
 
-    required_skills = _normalize_array_values(output.required_skills)
-    preferred_skills = _normalize_array_values(output.preferred_skills)
+    actual_location = _canonical_actual_location(output.actual_location)
+    language_requirements = _canonical_language_requirements(output.language_requirements)
+    required_skills = _remove_language_requirements_from_skills(
+        _normalize_array_values(output.required_skills),
+        language_requirements,
+    )
+    preferred_skills = _remove_language_requirements_from_skills(
+        _normalize_array_values(output.preferred_skills),
+        language_requirements,
+    )
     responsibilities = _normalize_array_values(output.responsibilities)
     tech_stack = _normalize_array_values(output.tech_stack)
     keywords = _normalize_array_values(output.keywords)
@@ -985,6 +1216,8 @@ def _apply_structured_normalization(
     )
 
     return {
+        "actual_location": actual_location,
+        "language_requirements": language_requirements,
         "location_type_raw": _normalize_text_item(output.location_type),
         "location_type": _normalize_enum(
             output.location_type, _get_valid_location_types(config)
@@ -1034,6 +1267,23 @@ _EXTRACTION_SCHEMA = """\
   "responsibilities":     ["key responsibilities"],
   "tech_stack":           ["specific tools and technologies"],
   "keywords":             ["searchable keywords"],
+  "actual_location": {
+    "raw_text": "display location text or null",
+    "city": "city or null",
+    "region": "region or null",
+    "country": "country or null",
+    "remote_scope": "unrestricted | city | region | country | unknown | not_applicable",
+    "remote_scope_value": "scope value or null",
+    "evidence": [{"source_field": "location | description | provider_component", "text": "short quote"}]
+  },
+  "language_requirements": [
+    {
+      "language": "language name",
+      "expected_level": "a1 | a2 | b1 | b2 | c1 | c2 | native | unspecified",
+      "requirement_type": "required | preferred | unspecified",
+      "evidence": [{"source_field": "description | title | provider_component", "text": "short quote"}]
+    }
+  ],
   "location_type":        "remote | hybrid | onsite",
   "seniority":            "junior | mid | senior | lead",
   "domain":               "business/industry domain, e.g. banking, fintech, healthcare",
@@ -1102,6 +1352,14 @@ def _fingerprint_hash(payload: dict[str, Any]) -> str:
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
+def _normalize_source_location_fingerprint(value: Any) -> dict[str, str | None] | None:
+    if not isinstance(value, dict):
+        return None
+    return {
+        key: _normalize_fingerprint_text(value.get(key))
+        for key in ("raw_text", "city_raw", "region_raw", "country_raw", "provider")
+    }
+
 def build_raw_job_fingerprint(job: dict[str, Any]) -> RawJobFingerprintResult:
     payload: RawJobFingerprintPayload = {
         "fingerprint_version": RAW_JOB_FINGERPRINT_VERSION,
@@ -1115,6 +1373,9 @@ def build_raw_job_fingerprint(job: dict[str, Any]) -> RawJobFingerprintResult:
         "contract_type": _normalize_fingerprint_text(job.get("contract_type")),
         "experience_level": _normalize_fingerprint_text(job.get("experience_level")),
         "source": _normalize_fingerprint_text(job.get("source")),
+        "source_location": _normalize_source_location_fingerprint(
+            job.get("source_location")
+        ),
     }
     return {
         "payload": payload,
@@ -1134,6 +1395,10 @@ def build_enrich_contract_fingerprint(
         "model": prompt_provenance["model"],
         "response_schema_version": ENRICH_RESPONSE_SCHEMA_VERSION,
         "skill_postprocessing_version": ENRICH_SKILL_POSTPROCESSING_VERSION,
+        "actual_location_extraction_version": ACTUAL_LOCATION_EXTRACTION_VERSION,
+        "language_requirement_extraction_version": (
+            LANGUAGE_REQUIREMENT_EXTRACTION_VERSION
+        ),
     }
     return {
         "payload": payload,
@@ -1250,6 +1515,10 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
     parsed["mapping_suggestions"] = mapping_suggestions
     parsed["domain_mapping_suggestions"] = domain_mapping_suggestions
     parsed["role_family_mapping_suggestions"] = role_family_mapping_suggestions
+    parsed["actual_location"] = _canonical_actual_location(raw.get("actual_location"))
+    parsed["language_requirements"] = _canonical_language_requirements(
+        raw.get("language_requirements")
+    )
 
     return {
         "parsed": parsed,
@@ -1278,6 +1547,21 @@ def merge_scraped_and_enriched(
     cfg = config or {}
     model = str(enriched.get("enrichment_model") or get_enrich_extraction_model(cfg) or cfg.get("ai_score_model") or "")
     version = str(enriched.get("enrichment_version") or cfg.get("enrichment_version", "v1"))
+    source_location = (
+        scraped.get("source_location")
+        if isinstance(scraped.get("source_location"), dict)
+        else None
+    )
+    actual_location = _canonical_actual_location(
+        enriched.get("actual_location"),
+        source_location,
+    )
+    raw_language_requirements = enriched.get("language_requirements")
+    language_requirements = (
+        raw_language_requirements
+        if isinstance(raw_language_requirements, list)
+        else []
+    )
 
     merged: dict[str, Any] = {
         # ── scraped fields ────────────────────────────────────────────
@@ -1286,6 +1570,7 @@ def merge_scraped_and_enriched(
         "company_name":       scraped.get("company_name", ""),
         "company_id":         scraped.get("company_id", ""),
         "location":           scraped.get("location", ""),
+        "source_location":    source_location,
         "contract_type":      scraped.get("contract_type", ""),
         "experience_level":   scraped.get("experience_level", ""),
         "sector":             scraped.get("sector", ""),
@@ -1296,6 +1581,8 @@ def merge_scraped_and_enriched(
         "published_at":       scraped.get("published_at"),
         "description_cleaned": scraped.get("description", ""),
         # ── LLM-enriched fields ───────────────────────────────────────
+        "actual_location":     actual_location,
+        "language_requirements": language_requirements,
         "location_type_raw":    enriched.get("location_type_raw"),
         "location_type":        enriched.get("location_type"),
         "seniority_raw":        enriched.get("seniority_raw"),

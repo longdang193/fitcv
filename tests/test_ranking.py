@@ -540,3 +540,47 @@ def test_compute_ranking_runtime_diagnostics_counts_fallback_and_taxonomy_drift(
     # alert threshold is added at pipeline aggregation level, not ranking helper level
 
 
+
+
+def test_eligibility_artifacts_do_not_change_ranking_order_or_fit_labels() -> None:
+    baseline_jobs = [
+        {
+            "job_url": "u1",
+            "final_score": 0.8,
+            "ai_score": 0.7,
+            "vector_similarity": 0.6,
+            "fit_label": "strong",
+        },
+        {
+            "job_url": "u2",
+            "final_score": 0.6,
+            "ai_score": 0.9,
+            "vector_similarity": 0.9,
+            "fit_label": "stretch",
+        },
+    ]
+    artifact = {
+        "fit_factor_results": {
+            "location_fit": {"ranking_enabled": True, "ranking_value": 0.0},
+            "language_fit": {"ranking_enabled": True, "ranking_value": 1.0},
+        },
+        "eligibility_policy_fingerprint": "policy-fingerprint",
+        "eligibility_decision": "retain",
+        "eligibility_reason_codes": ["location_no_match"],
+    }
+
+    baseline = rank_jobs(baseline_jobs, top_n=2)
+    with_artifacts = rank_jobs(
+        [{**job, **artifact} for job in baseline_jobs],
+        top_n=2,
+    )
+
+    assert [job["job_url"] for job in with_artifacts] == [
+        job["job_url"] for job in baseline
+    ]
+    assert [job["final_score"] for job in with_artifacts] == [
+        job["final_score"] for job in baseline
+    ]
+    assert [job["fit_label"] for job in with_artifacts] == [
+        job["fit_label"] for job in baseline
+    ]

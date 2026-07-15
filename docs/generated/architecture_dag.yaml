@@ -114,6 +114,12 @@ nodes:
   feature_id: cv_system
   state: active
   path: docs/features/cv_system/lineage.generated.yaml
+- id: cv_system.location-language-eligibility
+  type: capability
+  kind: capability
+  feature_id: cv_system
+  state: active
+  path: docs/features/cv_system/lineage.generated.yaml
 - id: cv_system.stage-artifact-diagnostics
   type: capability
   kind: capability
@@ -900,6 +906,9 @@ edges:
   to: cv_system.header-placeholder-repair
   type: owns_capability
 - from: cv_system
+  to: cv_system.location-language-eligibility
+  type: owns_capability
+- from: cv_system
   to: cv_system.stage-artifact-diagnostics
   type: owns_capability
 - from: cv_system
@@ -930,6 +939,13 @@ edges:
   role: supporting
   capability_ids:
   - cv_system.analysis-evidence-selection
+  - cv_system.location-language-eligibility
+- from: cv_system
+  to: normalize
+  type: participates_in
+  role: supporting
+  capability_ids:
+  - cv_system.location-language-eligibility
 - from: cv_system
   to: ranking
   type: participates_in
@@ -937,6 +953,12 @@ edges:
   capability_ids:
   - cv_system.exact-match-late-stage-reuse
   - cv_system.fit-gate-resolution
+- from: cv_system
+  to: rule_filter
+  type: participates_in
+  role: primary
+  capability_ids:
+  - cv_system.location-language-eligibility
 - from: enrich
   to: normalize
   type: depends_on
@@ -1167,6 +1189,9 @@ edges:
   to: trigger_run_management
   type: primary_feature
 - from: normalize
+  to: cv_system
+  type: related_feature
+- from: normalize
   to: inspection_debugging
   type: related_feature
 - from: pipeline_performance
@@ -1282,6 +1307,9 @@ edges:
 - from: rule_filter
   to: enrich
   type: depends_on
+- from: rule_filter
+  to: cv_system
+  type: primary_feature
 - from: rule_filter
   to: trigger_run_management
   type: primary_feature

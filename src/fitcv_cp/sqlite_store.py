@@ -194,7 +194,11 @@ def _ensure_local_rule_filter_results_table(conn: sqlite3.Connection) -> None:
             marks_json TEXT,
             filtered_at TEXT NOT NULL,
             raw_job_fingerprint TEXT,
-            source_job_url TEXT
+            source_job_url TEXT,
+            fit_factor_results_json TEXT,
+            eligibility_policy_fingerprint TEXT,
+            eligibility_decision TEXT,
+            eligibility_reason_codes_json TEXT
         )
         """
     )
@@ -206,6 +210,67 @@ def _ensure_local_rule_filter_results_table(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE rule_filter_results ADD COLUMN raw_job_fingerprint TEXT")
     if "source_job_url" not in existing_columns:
         conn.execute("ALTER TABLE rule_filter_results ADD COLUMN source_job_url TEXT")
+    for column_name in (
+        "fit_factor_results_json",
+        "eligibility_policy_fingerprint",
+        "eligibility_decision",
+        "eligibility_reason_codes_json",
+    ):
+        if column_name not in existing_columns:
+            conn.execute(
+                f"ALTER TABLE rule_filter_results ADD COLUMN {column_name} TEXT"
+            )
+
+def _encode_filter_json(value: Any) -> str:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def replace_filter_results(run_id: str, rows: list[dict[str, Any]]) -> None:
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        _ensure_local_rule_filter_results_table(conn)
+        conn.execute("DELETE FROM rule_filter_results WHERE run_id = ?", (run_id,))
+        conn.executemany(
+            """
+            INSERT INTO rule_filter_results (
+                run_id,
+                job_url,
+                passed,
+                reasons,
+                marks_json,
+                filtered_at,
+                raw_job_fingerprint,
+                source_job_url,
+                fit_factor_results_json,
+                eligibility_policy_fingerprint,
+                eligibility_decision,
+                eligibility_reason_codes_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    run_id,
+                    str(row.get("job_url") or ""),
+                    1 if bool(row.get("passed")) else 0,
+                    _encode_filter_json(list(row.get("reasons") or [])),
+                    _encode_filter_json(list(row.get("marks") or [])),
+                    str(row.get("filtered_at") or ""),
+                    row.get("raw_job_fingerprint"),
+                    row.get("source_job_url"),
+                    _encode_filter_json(dict(row.get("fit_factor_results") or {})),
+                    row.get("eligibility_policy_fingerprint"),
+                    row.get("eligibility_decision"),
+                    _encode_filter_json(list(row.get("eligibility_reason_codes") or [])),
+                )
+                for row in rows
+            ],
+        )
+        conn.commit()
 
 def _pipeline_run_to_json(run: PipelineRun) -> str:
     payload = dataclasses.asdict(run)
@@ -1277,6 +1342,13 @@ def list_filter_results_for_run(
         row_dict["passed"] = bool(row_dict.get("passed"))
         row_dict["reasons"] = _decode_reason_list(row_dict.get("reasons"))
         row_dict["marks"] = _decode_json_list(row_dict.get("marks_json"))
+        factor_results = _decode_json_or_none(row_dict.get("fit_factor_results_json"))
+        row_dict["fit_factor_results"] = (
+            factor_results if isinstance(factor_results, dict) else {}
+        )
+        row_dict["eligibility_reason_codes"] = _decode_reason_list(
+            row_dict.get("eligibility_reason_codes_json")
+        )
         results.append(row_dict)
     return results
 

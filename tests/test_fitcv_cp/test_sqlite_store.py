@@ -204,3 +204,113 @@ def test_delete_archived_runs_prunes_old_rows_only() -> None:
 
 
 
+
+
+def test_rule_filter_schema_upgrade_adds_eligibility_columns() -> None:
+    db_path = Path(sqlite_store._local_sqlite_path())
+    with sqlite_store._sqlite_connection(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE rule_filter_results (
+                run_id TEXT NOT NULL,
+                job_url TEXT NOT NULL,
+                passed INTEGER NOT NULL,
+                reasons TEXT NOT NULL,
+                marks_json TEXT,
+                filtered_at TEXT NOT NULL
+            )
+            """
+        )
+        sqlite_store._ensure_local_rule_filter_results_table(conn)
+        columns = {
+            str(row[1])
+            for row in conn.execute("PRAGMA table_info(rule_filter_results)").fetchall()
+        }
+
+    assert {
+        "raw_job_fingerprint",
+        "source_job_url",
+        "fit_factor_results_json",
+        "eligibility_policy_fingerprint",
+        "eligibility_decision",
+        "eligibility_reason_codes_json",
+    }.issubset(columns)
+
+
+def test_replace_filter_results_round_trips_explicit_eligibility_columns() -> None:
+    factor_results = {
+        "language_fit": {
+            "factor_id": "language_fit",
+            "policy_version": "eligibility-v1",
+            "mode": "gate_required",
+            "eligibility_decision": "reject",
+            "ranking_enabled": False,
+            "ranking_value": None,
+            "diagnostic_code": "language_required_unmet",
+            "evaluation": {
+                "factor_id": "language_fit",
+                "status": "fail",
+                "score": 0.0,
+                "confidence": 1.0,
+                "reason_code": "language_required_unmet",
+                "evidence": {},
+                "evaluator_version": "language-fit-evaluator-v1",
+                "normalizer_version": "language-fit-normalizer-v1",
+            },
+        }
+    }
+    sqlite_store.replace_filter_results(
+        "run-eligibility",
+        [
+            {
+                "job_url": "https://example.com/job-1",
+                "source_job_url": "https://example.com/job-1",
+                "raw_job_fingerprint": "raw-1",
+                "passed": False,
+                "reasons": ["eligibility_language_fit_failed"],
+                "marks": [{"code": "legacy_mark"}],
+                "filtered_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "fit_factor_results": factor_results,
+                "eligibility_policy_fingerprint": "policy-fingerprint",
+                "eligibility_decision": "reject",
+                "eligibility_reason_codes": ["language_required_unmet"],
+            }
+        ],
+    )
+
+    rows = sqlite_store.list_filter_results_for_run("run-eligibility")
+
+    assert rows[0]["fit_factor_results"] == factor_results
+    assert rows[0]["eligibility_policy_fingerprint"] == "policy-fingerprint"
+    assert rows[0]["eligibility_decision"] == "reject"
+    assert rows[0]["eligibility_reason_codes"] == ["language_required_unmet"]
+    assert rows[0]["marks"] == [{"code": "legacy_mark"}]
+    assert "fit_factor_results" not in rows[0]["marks"][0]
+
+
+def test_list_filter_results_for_run_defaults_legacy_eligibility_columns() -> None:
+    db_path = Path(sqlite_store._local_sqlite_path())
+    with sqlite_store._sqlite_connection(db_path) as conn:
+        sqlite_store._ensure_local_rule_filter_results_table(conn)
+        conn.execute(
+            """
+            INSERT INTO rule_filter_results (
+                run_id, job_url, passed, reasons, filtered_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                "run-legacy-filter",
+                "https://example.com/legacy",
+                1,
+                "[]",
+                datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            ),
+        )
+        conn.commit()
+
+    rows = sqlite_store.list_filter_results_for_run("run-legacy-filter")
+
+    assert rows[0]["fit_factor_results"] == {}
+    assert rows[0]["eligibility_reason_codes"] == []
+    assert rows[0]["eligibility_policy_fingerprint"] is None
+    assert rows[0]["eligibility_decision"] is None

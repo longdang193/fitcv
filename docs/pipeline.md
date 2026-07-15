@@ -24,15 +24,30 @@ Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
 
 ## Stage Responsibilities
 
-- `normalize`: canonicalize incoming jobs
-- `enrich`: derive structured job fields and reuse-aware metadata
-- `rule_filter`: deterministic gating before expensive steps
+- `normalize`: canonicalize incoming jobs and preserve provider-native `source_location` evidence
+- `enrich`: derive structured job fields, canonical `actual_location`, canonical `language_requirements`, and reuse-aware metadata
+- `rule_filter`: evaluate symmetric location/language factors, project policy modes, and apply deterministic gating before expensive steps
 - `shortlist`: vector/retrieval candidate narrowing
 - `ranking`: authoritative fit scoring and decision labels
 - `cv_analysis`: one canonical per-job analyzer owns evidence selection, gap, fit-gate, reuse validity, and generation readiness; pipeline owns batch invocation, persistence, and observations
 - `cv_generation`: one canonical `generate_from_analysis` contract for fingerprints, reuse validity, structured generation, validation, repair, acceptance/review meaning, and result shape; direct and LangGraph writers are transport adapters, while pipeline persists canonical `accepted` results only
 
 Shared LLM runtime rule: `enrich`, `ranking`, and `cv_generation` build stage-owned prompts and parse stage-owned outputs through `src/fitcv/llm_runtime.py`. Shared runtime owns routing, credentials, transport, wire fallback, normalized operational failures, provenance, and the only persistable per-call evidence projection. LangGraph remains adapter/orchestrator only.
+
+## Location And Language Eligibility
+
+Phase 1 uses one path for both factors:
+
+`raw evidence -> canonical fact -> evaluator truth -> absolute normalizer -> policy projection`
+
+- provider adapters preserve source geography at ingest boundaries
+- `location_type` remains work mode; `actual_location` remains geography
+- job-language requirements remain distinct from skill entities
+- candidate profile adaptation occurs once before factor evaluation
+- every passed or rejected enriched row carries the same eligibility payload and policy fingerprint
+- hard gates run before shortlist and ranking inputs are built
+- only confirmed `gate_required` failures reject; unknown evidence stays eligible
+- final ranking score, order, and `strong | stretch | skip` labels remain unchanged in Phase 1
 
 ## Execution Modes
 
@@ -77,6 +92,9 @@ Ownership rule:
 - Fresh calls emit ordered `llm_runtime_observations`; reuse, replay, resume, blocked, and skipped cases emit zero new evidence.
 - The runtime must treat `control_plane.model_routing.parts.*` as authoritative for AI stage provider/model selection.
 - Historical late-stage mode fields are read-only compatibility data and never override unified routing or stage meaning.
+- Location and language use the same factor result envelope and policy projection table for all admissible statuses and modes.
+- Eligibility normalization is policy-versioned and run-cohort independent; filtered jobs cannot change surviving jobs' normalized values.
+- Full-run and stage-resume paths build candidate fit context once and preserve identical eligibility payloads.
 
 ## AI Credential and Error Contract
 

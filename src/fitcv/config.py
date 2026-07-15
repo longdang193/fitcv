@@ -4,6 +4,7 @@ type: module
 domain: runtime
 ownership: feature
 capabilities:
+  - cv_system.location-language-eligibility
   - cv_system.stage-artifact-diagnostics
 responsibility:
   - Module metadata placeholder for src.fitcv.config.
@@ -23,6 +24,7 @@ from typing import Any
 
 import yaml
 from fitcv import config_compat, config_loader, config_validators
+from fitcv.fit_factors import fingerprint_eligibility_policy, validate_eligibility_policy
 from fitcv.cv_presets import SUPPORTED_PRESETS
 from fitcv.prompts import get_prompt_definition
 
@@ -55,6 +57,7 @@ _POLICY_FILE_CANDIDATES = [
     ("shortlist_lexical", ("shortlist_lexical.yaml",)),
     ("pipeline", ("runtime/pipeline.yaml", "pipeline.yaml")),
     ("ranking", ("policy/ranking.yaml", "ranking.yaml")),
+    ("eligibility", ("policy/eligibility.yaml",)),
     ("cv_analysis", ("policy/cv_analysis.yaml", "cv_analysis.yaml")),
     ("prompts", ("runtime/prompts.yaml", "prompts.yaml")),
     ("cv", ("policy/cv.yaml", "cv.yaml")),
@@ -101,6 +104,7 @@ _CANONICAL_PIPELINE_TOP_LEVEL_KEYS = {
 }
 _CANONICAL_POLICY_TOP_LEVEL_KEYS = {
     "cv",
+    "eligibility_policy",
 }
 _CANONICAL_TAXONOMY_TOP_LEVEL_KEYS = {
     "seniority",
@@ -854,6 +858,10 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
             )
     cfg = _normalize_config_keys(cfg)
     env_cfg_snapshot = dict(cfg)
+    if "eligibility_policy" in env_cfg_snapshot:
+        raise ValueError(
+            "eligibility_policy must be owned only by canonical config/policy/eligibility.yaml"
+        )
     ssot_mode = _resolve_ssot_enforcement_mode(cfg)
     env_ownership_overlaps = _detect_env_canonical_ownership_overlaps(env_cfg_snapshot)
     _handle_ssot_overlaps(
@@ -874,6 +882,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
 
     loaded_policy_paths: dict[str, Path] = {}
     pipeline_policy_snapshot: dict[str, Any] = {}
+    eligibility_policy_missing = False
 
     # Precedence for merge stage:
     # env cfg remains highest compatibility source; policy/runtime/taxonomy files
@@ -881,6 +890,13 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     # Merge policy YAML files — later files add keys; .env.yaml keys take priority
     for policy_name, rel_paths in _POLICY_FILE_CANDIDATES:
         policy, resolved_policy_path = _load_policy_file(config_dir, rel_paths)
+        if policy_name == "eligibility" and not resolved_policy_path.exists():
+            eligibility_policy_missing = True
+            continue
+        if policy_name != "eligibility" and "eligibility_policy" in policy:
+            raise ValueError(
+                "eligibility_policy must be owned only by canonical config/policy/eligibility.yaml"
+            )
         if policy_name == "pipeline":
             pipeline_policy_snapshot = dict(policy)
         loaded_policy_paths[policy_name] = resolved_policy_path
@@ -888,12 +904,22 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
             if key not in cfg:  # never overwrite .env.yaml values
                 cfg[key] = value
 
+    if "eligibility_policy" in cfg:
+        cfg["eligibility_policy"] = validate_eligibility_policy(cfg["eligibility_policy"])
+        cfg["eligibility_policy_fingerprint"] = fingerprint_eligibility_policy(
+            cfg["eligibility_policy"]
+        )
+
     overlaps = _detect_pipeline_ssot_overlap(env_cfg_snapshot, pipeline_policy_snapshot)
     _handle_ssot_overlaps(
         mode=ssot_mode,
         overlap_label="Config SSOT overlap detected between env config and runtime/pipeline policy",
         overlaps=overlaps,
     )
+    if eligibility_policy_missing and ssot_mode == "strict":
+        raise FileNotFoundError(
+            f"Canonical eligibility policy file not found: {config_dir / 'policy' / 'eligibility.yaml'}"
+        )
     cfg = _apply_prompt_defaults(cfg)
 
     base_skill_synonyms = _normalize_skill_synonyms(cfg.get("skill_synonyms"))

@@ -1484,3 +1484,101 @@ def test_resolve_data_backend_supports_legacy_sqlite_mode_flag(
 
 
 
+
+
+def _write_minimal_eligibility_config(root: Path, *, include_eligibility: bool = True) -> Path:
+    env_yaml = root / ".env.yaml"
+    env_yaml.write_text("gcp_project: test\n", encoding="utf-8")
+    policy_dir = root / "config" / "policy"
+    policy_dir.mkdir(parents=True)
+    (policy_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: cx/gpt-5.4-mini\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "    experience:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n",
+        encoding="utf-8",
+    )
+    if include_eligibility:
+        (policy_dir / "eligibility.yaml").write_text(
+            "eligibility_policy:\n"
+            "  policy_version: eligibility-v1\n"
+            "  factors:\n"
+            "    location_fit:\n"
+            "      mode: ranking_only\n"
+            "      normalization:\n"
+            "        exact_city: 1.0\n"
+            "        exact_region: 0.8\n"
+            "        exact_country: 0.6\n"
+            "        remote_unrestricted: 1.0\n"
+            "        no_match: 0.0\n"
+            "        unknown_value: 0.5\n"
+            "        not_applicable_value: 0.5\n"
+            "    language_fit:\n"
+            "      mode: ranking_only\n"
+            "      normalization:\n"
+            "        met: 1.0\n"
+            "        unmet: 0.0\n"
+            "        unknown_value: 0.5\n"
+            "        not_applicable_value: 0.5\n"
+            "        requirement_weights:\n"
+            "          required: 1.0\n"
+            "          preferred: 0.5\n"
+            "          unspecified: 0.5\n",
+            encoding="utf-8",
+        )
+    return env_yaml
+
+
+def test_load_config_loads_canonical_eligibility_policy_and_fingerprint(tmp_path: Path) -> None:
+    env_yaml = _write_minimal_eligibility_config(tmp_path)
+
+    cfg = load_config(env_yaml)
+
+    assert cfg["eligibility_policy"]["policy_version"] == "eligibility-v1"
+    assert cfg["eligibility_policy_fingerprint"] == (
+        "3f26909a8b2e0eb492c3b9026b1326b5424026a0a65cf561a59b073ff5a7d953"
+    )
+
+
+def test_load_config_requires_canonical_eligibility_policy_in_strict_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_yaml = _write_minimal_eligibility_config(tmp_path, include_eligibility=False)
+    monkeypatch.setenv("FITCV_CONFIG_SSOT_MODE", "strict")
+
+    with pytest.raises(FileNotFoundError, match="eligibility.yaml"):
+        load_config(env_yaml)
+
+
+@pytest.mark.parametrize("shadow_owner", ["environment", "ranking"])
+def test_load_config_rejects_eligibility_policy_shadow(
+    tmp_path: Path,
+    shadow_owner: str,
+) -> None:
+    env_yaml = _write_minimal_eligibility_config(tmp_path)
+    if shadow_owner == "environment":
+        env_yaml.write_text(
+            "gcp_project: test\n"
+            "eligibility_policy:\n"
+            "  policy_version: shadow\n",
+            encoding="utf-8",
+        )
+    else:
+        ranking_path = tmp_path / "config" / "policy" / "ranking.yaml"
+        ranking_path.write_text(
+            "eligibility_policy:\n"
+            "  policy_version: shadow\n",
+            encoding="utf-8",
+        )
+
+    with pytest.raises(ValueError, match="eligibility_policy.*canonical"):
+        load_config(env_yaml)

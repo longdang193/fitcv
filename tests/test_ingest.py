@@ -329,3 +329,78 @@ tags:
   - fast
   - ci-safe
 """
+
+
+def test_prepare_raw_rows_preserves_linkedin_source_location_and_raw_json() -> None:
+    job = {
+        "jobUrl": "https://example.com/jobs/1",
+        "title": "Data Engineer",
+        "location": "  Berlin,   Germany  ",
+        "companyName": "Acme",
+        "companyId": "acme",
+        "description": "Build pipelines",
+    }
+
+    row = prepare_raw_rows([job])[0]
+
+    assert row["location"] == "  Berlin,   Germany  "
+    assert row["source_location"] == {
+        "raw_text": "  Berlin,   Germany  ",
+        "city_raw": None,
+        "region_raw": None,
+        "country_raw": None,
+        "provider": "linkedin",
+    }
+    assert json.loads(row["raw_json"]) == job
+
+
+def test_prepare_raw_rows_adapts_indeed_nested_source_location() -> None:
+    job = {
+        "url": "https://de.indeed.com/viewjob?jk=abc",
+        "title": "Data Engineer",
+        "description": {"text": "Build pipelines"},
+        "employer": {"name": "Acme"},
+        "location": {
+            "city": "  Parkstein ",
+            "admin1Code": " BY ",
+            "countryName": " Deutschland ",
+        },
+        "jobTypes": {},
+    }
+
+    row = prepare_raw_rows([job])[0]
+
+    assert row["location"] == "Parkstein, Deutschland"
+    assert row["source_location"] == {
+        "raw_text": "Parkstein, Deutschland",
+        "city_raw": "  Parkstein ",
+        "region_raw": " BY ",
+        "country_raw": " Deutschland ",
+        "provider": "indeed",
+    }
+    assert json.loads(row["raw_json"])["location"] == job["location"]
+
+
+@pytest.mark.parametrize("location", [None, {"city": ["bad"]}, 42])
+def test_prepare_raw_rows_tolerates_missing_or_malformed_source_location(
+    location: object,
+) -> None:
+    job = {
+        "jobUrl": "https://example.com/jobs/1",
+        "title": "Data Engineer",
+        "location": location,
+        "companyName": "Acme",
+        "companyId": "acme",
+        "description": "Build pipelines",
+    }
+
+    row = prepare_raw_rows([job])[0]
+
+    assert set(row["source_location"]) == {
+        "raw_text",
+        "city_raw",
+        "region_raw",
+        "country_raw",
+        "provider",
+    }
+    assert json.loads(row["raw_json"])["location"] == location

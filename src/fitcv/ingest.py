@@ -4,6 +4,7 @@ type: module
 domain: runtime
 ownership: feature
 capabilities:
+  - cv_system.location-language-eligibility
   - cv_system.stage-artifact-diagnostics
 responsibility:
   - Module metadata placeholder for src.fitcv.ingest.
@@ -162,12 +163,43 @@ def _is_indeed_job(job: dict[str, Any]) -> bool:
     )
 
 
+def _source_location_scalar(value: Any) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def build_source_location(job: dict[str, Any]) -> dict[str, str | None]:
+    location = job.get("location")
+    if _is_indeed_job(job):
+        location_mapping = location if isinstance(location, dict) else {}
+        return {
+            "raw_text": _indeed_location_text(job),
+            "city_raw": _source_location_scalar(location_mapping.get("city")),
+            "region_raw": _source_location_scalar(
+                location_mapping.get("admin1Name") or location_mapping.get("admin1Code")
+            ),
+            "country_raw": _source_location_scalar(
+                location_mapping.get("countryName") or location_mapping.get("country")
+            ),
+            "provider": "indeed",
+        }
+    raw_text = location if isinstance(location, str) else ""
+    provider_raw = job.get("source")
+    provider = str(provider_raw).strip().lower() if isinstance(provider_raw, str) else "linkedin"
+    return {
+        "raw_text": raw_text,
+        "city_raw": None,
+        "region_raw": None,
+        "country_raw": None,
+        "provider": provider or "linkedin",
+    }
+
 def _normalize_indeed_job(job: dict[str, Any]) -> dict[str, Any]:
     apply_url = _indeed_apply_url(job)
     return {
         "job_url": _indeed_job_url(job),
         "title": str(job.get("title") or ""),
         "location": _indeed_location_text(job),
+        "source_location": build_source_location(job),
         "posted_time": _indeed_posted_time(job),
         "published_at": _indeed_published_at(job),
         "company_name": _indeed_company_name(job),
@@ -212,6 +244,7 @@ def prepare_raw_rows(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "job_url":            snaked.get("job_url", ""),
             "title":              snaked.get("title", ""),
             "location":           snaked.get("location", ""),
+            "source_location":    snaked.get("source_location") or build_source_location(job),
             "posted_time":        snaked.get("posted_time", ""),
             "published_at":       snaked.get("published_at", None),
             "company_name":       snaked.get("company_name", ""),

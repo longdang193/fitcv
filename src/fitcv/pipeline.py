@@ -4,6 +4,7 @@ type: module
 domain: runtime
 ownership: feature
 capabilities:
+  - cv_system.location-language-eligibility
   - cv_system.stage-artifact-diagnostics
 responsibility:
   - Module metadata placeholder for src.fitcv.pipeline.
@@ -122,7 +123,9 @@ from fitcv.enrich import (
     load_structured_jobs,
     lookup_reusable_structured_jobs,
 )
+from fitcv.fit_factors import build_candidate_fit_context
 from fitcv.ingest import load_raw_jobs, parse_jobs_file, prepare_raw_rows
+from fitcv.pipeline_stage_runner import merge_passed_filter_records
 from fitcv.normalize import normalize_batch, normalize_batch_with_exclusions
 from fitcv.ranking import (
     compute_feature_contributions,
@@ -3276,30 +3279,22 @@ def run_pipeline(
                 if reporter is not None:
                     reporter.emit("layer2_candidate", "info", "Candidate profile loaded")  # type: ignore[union-attr]
 
-                filter_result = apply_rule_filters(enriched, profile["preferences"], config)
+                candidate_fit_context = build_candidate_fit_context(
+                    profile,
+                    valid_work_modes=list(config.get("valid_location_types") or []),
+                )
+                filter_result = apply_rule_filters(
+                    enriched,
+                    profile["preferences"],
+                    config,
+                    candidate_fit_context=candidate_fit_context,
+                )
                 combined_filter_result = {
                     "passed": filter_result["passed"],
                     "passed_records": filter_result.get("passed_records", []),
                     "rejected": pre_filter_rejected_jobs + filter_result["rejected"],
                 }
-                passed_job_urls = [str(url) for url in filter_result["passed"]]
-                passed_records_by_url = {
-                    str(item.get("job_url") or ""): item
-                    for item in filter_result.get("passed_records", [])
-                    if str(item.get("job_url") or "")
-                }
-                enriched_by_url = {
-                    str(job.get("job_url") or ""): job
-                    for job in enriched
-                }
-                passed_jobs = [
-                    {
-                        **enriched_by_url[url],
-                        "marks": list((passed_records_by_url.get(url) or {}).get("marks") or []),
-                    }
-                    for url in passed_job_urls
-                    if url in enriched_by_url
-                ]
+                passed_jobs = merge_passed_filter_records(enriched, filter_result)
                 candidate_filter_rejected_jobs = list(filter_result["rejected"])
                 pipeline_store.store_filter_results(combined_filter_result, run_id, config)
                 if reporter is not None:

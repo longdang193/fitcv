@@ -55,6 +55,7 @@ refs:
   - docs/superpowers/specs/2026-05-19-22-45-synonym-workspace-action-model-simplification-spec.md
   - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
   - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
+  - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
   - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md

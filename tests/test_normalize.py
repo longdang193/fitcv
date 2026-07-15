@@ -344,3 +344,56 @@ tags:
   - fast
   - ci-safe
 """
+
+
+def test_normalize_job_cleans_source_location_strings_without_inference() -> None:
+    job = {
+        "job_url": "url1",
+        "title": "Data Engineer",
+        "company_id": "acme",
+        "description": "Build pipelines",
+        "applications_count": "",
+        "salary": "",
+        "work_type": "Remote",
+        "source_location": {
+            "raw_text": "  Berlin,   Germany ",
+            "city_raw": " Berlin ",
+            "region_raw": None,
+            "country_raw": " Germany ",
+            "provider": " LinkedIn ",
+        },
+    }
+
+    result = normalize_job(job)
+
+    assert result["source_location"] == {
+        "raw_text": "Berlin, Germany",
+        "city_raw": "Berlin",
+        "region_raw": None,
+        "country_raw": "Germany",
+        "provider": "LinkedIn",
+    }
+    assert "remote_scope" not in result["source_location"]
+    assert result["source_location"]["region_raw"] is None
+
+
+def test_normalize_job_replaces_malformed_source_location_with_unknown_shape() -> None:
+    result = normalize_job(
+        {
+            "job_url": "url1",
+            "title": "Data Engineer",
+            "company_id": "acme",
+            "description": "Build pipelines",
+            "applications_count": "",
+            "salary": "",
+            "source_location": "Berlin",
+        }
+    )
+
+    assert result["source_location"] == {
+        "raw_text": "",
+        "city_raw": None,
+        "region_raw": None,
+        "country_raw": None,
+        "provider": None,
+    }

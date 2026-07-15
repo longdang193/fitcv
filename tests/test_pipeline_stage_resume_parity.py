@@ -100,3 +100,89 @@ def test_pipeline_state_round_trips_llm_runtime_observations() -> None:
 
     assert restored.enrich_llm_runtime_observations == [observation]
     assert restored.ranking_llm_runtime_observations == [observation]
+
+
+def test_rule_filter_stage_builds_context_once_and_preserves_full_payload() -> None:
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+
+    from fitcv.pipeline_stage_runner import execute_rule_filter_stage
+
+    enriched_job = {
+        "job_url": "https://example.com/job-1",
+        "title": "Data Engineer",
+        "actual_location": {"city": "Berlin", "extraction_status": "complete"},
+        "language_requirements": [],
+    }
+    profile = {
+        "preferences": {"locations": ["Berlin"], "location_types": ["remote"]},
+        "languages": [{"name": "English", "level": "C1"}],
+    }
+    eligibility_payload = {
+        "fit_factor_results": {"location_fit": {"diagnostic_code": "location_exact_city"}},
+        "eligibility_policy_fingerprint": "policy-fingerprint",
+        "eligibility_decision": "retain",
+        "eligibility_reason_codes": [],
+    }
+    captured_contexts: list[dict] = []
+
+    def fake_apply_rule_filters(
+        jobs: list[dict],
+        preferences: dict,
+        config: dict,
+        *,
+        candidate_fit_context: dict,
+    ) -> dict:
+        captured_contexts.append(candidate_fit_context)
+        return {
+            "passed": [jobs[0]["job_url"]],
+            "passed_records": [
+                {
+                    "job_url": jobs[0]["job_url"],
+                    "source_job_url": jobs[0]["job_url"],
+                    "raw_job_fingerprint": "raw-1",
+                    "marks": [{"code": "legacy"}],
+                    **eligibility_payload,
+                }
+            ],
+            "rejected": [],
+        }
+
+    stored: list[dict] = []
+    pipeline_store = SimpleNamespace(
+        load_candidate_profile=lambda *_args: None,
+        store_filter_results=lambda result, *_args: stored.append(result),
+    )
+    state = {"pre_filter_rejected_jobs": [], "enriched": [enriched_job]}
+
+    execute_rule_filter_stage(
+        run_id="run-1",
+        state=state,
+        config={
+            "paths": {"candidate_profile": "unused"},
+            "valid_location_types": ["remote", "hybrid", "onsite"],
+        },
+        reporter=None,
+        pipeline_store=pipeline_store,
+        observe_span=lambda *_args, **_kwargs: nullcontext(),
+        set_span_attributes=lambda _attrs: None,
+        load_profile_json_text=lambda _text: profile,
+        load_profile_yaml=lambda _path: profile,
+        flatten_skills=lambda _profile: ["SQL"],
+        apply_rule_filters=fake_apply_rule_filters,
+    )
+
+    assert len(captured_contexts) == 1
+    assert captured_contexts[0]["language_inventory_status"] == "complete"
+    assert state["passed_jobs"] == [
+        {
+            **enriched_job,
+            "source_job_url": enriched_job["job_url"],
+            "raw_job_fingerprint": "raw-1",
+            "marks": [{"code": "legacy"}],
+            **eligibility_payload,
+        }
+    ]
+    assert stored[0]["passed_records"][0]["eligibility_policy_fingerprint"] == (
+        "policy-fingerprint"
+    )
