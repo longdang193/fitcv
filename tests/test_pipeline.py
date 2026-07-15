@@ -59,6 +59,34 @@ from fitcv.pipeline import (
 from fitcv.rule_filter import DEFAULT_SELECTED_RULE_FILTERS
 
 
+def _vector_search_envelope(
+    rows: list[dict[str, Any]],
+    *,
+    audit_rows: list[dict[str, Any]] | None = None,
+    diagnostics: dict[str, Any] | None = None,
+    candidate_query: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return {
+        "production_rows": rows,
+        "audit_rows": list(audit_rows or []),
+        "diagnostics": diagnostics
+        or {
+            "eligible_jobs_total": len(rows),
+            "scored_jobs_total": len(rows),
+            "production_shortlist_total": len(rows),
+            "embedding_coverage_rate": 1.0 if rows else 0.0,
+        },
+        "candidate_query": candidate_query
+        or {
+            "components": {},
+            "text": "candidate",
+            "candidate_query_reuse_status": "fresh_compute",
+            "candidate_query_signature": "test-signature",
+            "candidate_query_contract_fingerprint": "test-contract",
+        },
+    }
+
+
 def test_reuse_anomaly_ignores_fresh_run_without_reused_rows() -> None:
     payload = _reuse_anomaly_payload(
         reuse_metrics={
@@ -820,7 +848,7 @@ def test_materialize_scoring_shortlist_excludes_raw_hits_absent_from_passed_jobs
         {"job_url": "https://example.com/999", "vector_similarity": 0.89, "vector_rank": 2},
     ]
 
-    shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_search_top_n=5)
+    shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs)
 
     assert shortlist == [
         {
@@ -833,7 +861,7 @@ def test_materialize_scoring_shortlist_excludes_raw_hits_absent_from_passed_jobs
     ]
 
 
-def test_materialize_scoring_shortlist_renumbers_sparse_raw_ranks_to_job_level_order() -> None:
+def test_materialize_scoring_shortlist_preserves_global_vector_ranks() -> None:
     passed_jobs = [
         {"job_url": "https://example.com/1", "title": "Data Engineer"},
         {"job_url": "https://example.com/2", "title": "Analytics Engineer"},
@@ -843,7 +871,7 @@ def test_materialize_scoring_shortlist_renumbers_sparse_raw_ranks_to_job_level_o
         {"job_url": "https://example.com/2", "vector_similarity": 0.87, "vector_rank": 33},
     ]
 
-    shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_search_top_n=5)
+    shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs)
 
     assert shortlist == [
         {
@@ -857,10 +885,24 @@ def test_materialize_scoring_shortlist_renumbers_sparse_raw_ranks_to_job_level_o
             "job_url": "https://example.com/2",
             "title": "Analytics Engineer",
             "vector_similarity": 0.87,
-            "vector_rank": 2,
+            "vector_rank": 33,
             "shortlist_origin": "vector_search",
         },
     ]
+
+
+def test_materialize_scoring_shortlist_preserves_only_retrieved_rows() -> None:
+    passed_jobs = [
+        {"job_url": "https://example.com/1", "title": "Data Engineer"},
+        {"job_url": "https://example.com/2", "title": "Analytics Engineer"},
+    ]
+
+    shortlist = _materialize_scoring_shortlist(
+        [{"job_url": "https://example.com/1", "vector_similarity": 0.91, "vector_rank": 1}],
+        passed_jobs,
+    )
+
+    assert [row["job_url"] for row in shortlist] == ["https://example.com/1"]
 
 
 def test_build_ranking_features_uses_all_supported_weighted_features() -> None:
@@ -1086,7 +1128,8 @@ def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_pro
         candidate_filter_rejected_jobs=[],
         raw_shortlist=[{"job_url": raw_job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
         shortlist=[{"job_url": raw_job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "shortlist_origin": "vector_search"}],
-        backfilled_job_urls=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
         vector_top_n=10,
         candidate_summary="Candidate summary",
         candidate_query_components={},
@@ -1312,7 +1355,7 @@ def test_run_pipeline_resume_from_ranking_uses_checkpoint_payload(
         "candidate_filter_rejected_jobs": [],
         "raw_shortlist": shortlist,
         "shortlist": shortlist,
-        "backfilled_job_urls": [],
+        "shortlist_diagnostics": {},
         "ai_scores": [],
         "ranking_inputs": [],
         "ranked": [],
@@ -1378,7 +1421,7 @@ def test_run_pipeline_resume_from_checkpoint_uses_canonical_next_stage_only(
         "candidate_filter_rejected_jobs": [],
         "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
         "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
-        "backfilled_job_urls": [],
+        "shortlist_diagnostics": {},
         "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "stretch"}],
         "ranking_inputs": ranked,
         "ranked": ranked,
@@ -1448,7 +1491,7 @@ def test_run_pipeline_resume_from_cv_generation_recomputes_shortlist_debug_state
         "candidate_filter_rejected_jobs": [],
         "raw_shortlist": shortlist,
         "shortlist": shortlist,
-        "backfilled_job_urls": [],
+        "shortlist_diagnostics": {},
         "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "stretch"}],
         "ranking_inputs": ranked,
         "ranked": ranked,
@@ -1536,7 +1579,7 @@ def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
         "candidate_filter_rejected_jobs": [],
         "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
         "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
-        "backfilled_job_urls": [],
+        "shortlist_diagnostics": {},
         "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "stretch"}],
         "ranking_inputs": ranked,
         "ranked": ranked,
@@ -1605,7 +1648,7 @@ def test_run_pipeline_manual_pause_after_cv_analysis_preserves_reranker_blocked_
         "candidate_filter_rejected_jobs": [],
         "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
         "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "shortlist_origin": "vector_search"}],
-        "backfilled_job_urls": [],
+        "shortlist_diagnostics": {},
         "ai_scores": [job],
         "ranking_inputs": [job],
         "ranked": [job],
@@ -1671,7 +1714,7 @@ def test_run_pipeline_resume_from_cv_generation_preserves_reranker_blocked_final
         "candidate_filter_rejected_jobs": [],
         "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
         "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "shortlist_origin": "vector_search"}],
-        "backfilled_job_urls": [],
+        "shortlist_diagnostics": {},
         "ai_scores": [job],
         "ranking_inputs": [job],
         "ranked": [job],
@@ -1812,7 +1855,7 @@ def test_run_pipeline_logs_full_validation_reasons(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -1912,7 +1955,7 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -2047,7 +2090,7 @@ def test_run_pipeline_repairs_candidate_name_placeholder_without_llm_retry(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -2580,7 +2623,13 @@ def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
          patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
          patch("fitcv.pipeline.store_filter_results"), \
          patch("fitcv.pipeline.embed_and_store_jobs"), \
-         patch("fitcv.pipeline.run_vector_search", return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]), \
+         patch(
+             "fitcv.pipeline.run_vector_search",
+             return_value=_vector_search_envelope(
+                 [{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+                 candidate_query={"components": {}, "text": candidate_summary},
+             ),
+         ), \
          patch("fitcv.pipeline.run_ai_scoring") as mock_ai_scoring, \
          patch("fitcv.pipeline.store_final_ranking"):
         result = run_pipeline(
@@ -2648,7 +2697,7 @@ def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
          patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
          patch("fitcv.pipeline.store_filter_results"), \
          patch("fitcv.pipeline.embed_and_store_jobs"), \
-         patch("fitcv.pipeline.run_vector_search", return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]), \
+         patch("fitcv.pipeline.run_vector_search", return_value=_vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}])), \
          patch("fitcv.pipeline.run_ai_scoring", return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}]), \
          patch("fitcv.pipeline.store_final_ranking"), \
          patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle") as mock_retrieve_bundle, \
@@ -2730,7 +2779,7 @@ def test_run_pipeline_emits_cv_analysis_item_observation_for_reused_analysis() -
          patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
          patch("fitcv.pipeline.store_filter_results"), \
          patch("fitcv.pipeline.embed_and_store_jobs"), \
-         patch("fitcv.pipeline.run_vector_search", return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]), \
+         patch("fitcv.pipeline.run_vector_search", return_value=_vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}])), \
          patch("fitcv.pipeline.run_ai_scoring", return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}]), \
          patch("fitcv.pipeline.store_final_ranking"), \
          patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle") as mock_retrieve_bundle, \
@@ -2826,7 +2875,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_accepted_generati
         stack.enter_context(
             patch(
                 "fitcv.pipeline.run_vector_search",
-                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+                return_value=_vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]),
             )
         )
         stack.enter_context(
@@ -2993,7 +3042,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_validation_failed
         stack.enter_context(
             patch(
                 "fitcv.pipeline.run_vector_search",
-                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+                return_value=_vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]),
             )
         )
         stack.enter_context(
@@ -3168,7 +3217,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_review_required()
         stack.enter_context(
             patch(
                 "fitcv.pipeline.run_vector_search",
-                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+                return_value=_vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]),
             )
         )
         stack.enter_context(
@@ -3351,7 +3400,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_persistence_faile
         stack.enter_context(
             patch(
                 "fitcv.pipeline.run_vector_search",
-                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+                return_value=_vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]),
             )
         )
         stack.enter_context(
@@ -3474,7 +3523,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
         stack.enter_context(
             patch(
                 "fitcv.pipeline.run_vector_search",
-                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+                return_value=_vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]),
             )
         )
         stack.enter_context(
@@ -3611,7 +3660,7 @@ def test_run_pipeline_emits_cv_generation_item_retry_metadata_for_agentic_genera
         stack.enter_context(
             patch(
                 "fitcv.pipeline.run_vector_search",
-                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+                return_value=_vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]),
             )
         )
         stack.enter_context(
@@ -3734,7 +3783,7 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
         stack.enter_context(
             patch(
                 "fitcv.pipeline.run_vector_search",
-                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+                return_value=_vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]),
             )
         )
         stack.enter_context(
@@ -3861,7 +3910,7 @@ def test_run_pipeline_uses_supplied_run_id_for_summary_and_cv_records(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -3952,7 +4001,7 @@ def test_run_pipeline_uses_runtime_profile_json_without_touching_profile_path(
     mock_profile_json.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
     mock_pre_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -4052,7 +4101,10 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
     mock_profile_yaml.return_value = profile
     mock_profile_json.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": [], "passed_records": [{"job_url": job["job_url"], "marks": []}]}
-    mock_vec.return_value = {"rows": [{"job_url": job["job_url"], "vector_similarity": 0.95, "vector_rank": 1}], "candidate_query": {"components": {}, "text": "candidate"}}
+    mock_vec.return_value = _vector_search_envelope(
+        [{"job_url": job["job_url"], "vector_similarity": 0.95, "vector_rank": 1}],
+        candidate_query={"components": {}, "text": "candidate"},
+    )
     mock_ai.return_value = [{"job_url": job["job_url"], "ai_score": 0.91, "fit_label": "strong"}]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -4167,7 +4219,7 @@ def test_run_pipeline_persists_structured_cv_and_includes_it_in_export(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -4286,7 +4338,7 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -4433,10 +4485,10 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
     mock_enrich.return_value = [job_a, job_b]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job_a["job_url"], job_b["job_url"]], "rejected": []}
-    mock_vec.return_value = [
+    mock_vec.return_value = _vector_search_envelope([
         {"job_url": job_a["job_url"], "similarity_score": 0.91, "rank": 1},
         {"job_url": job_b["job_url"], "similarity_score": 0.90, "rank": 2},
-    ]
+    ])
     mock_ai.return_value = [job_a, job_b]
     mock_build_feat.return_value = [job_a, job_b]
     mock_rank.return_value = [job_a, job_b]
@@ -4579,7 +4631,7 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -4699,7 +4751,7 @@ def test_run_pipeline_returns_debug_record_for_persistence_failed_cv(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -4802,7 +4854,7 @@ def test_run_pipeline_returns_correct_schema(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -4827,7 +4879,7 @@ def test_run_pipeline_returns_correct_schema(
     assert result["total_jobs"] == 1
     assert result["cvs_generated"] == 1
     stage_artifacts = result["stage_transition_artifacts"]
-    assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v6"
+    assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v7"
     assert set(stage_artifacts["stages"]) == {
         "normalize",
         "enrich",
@@ -4918,7 +4970,7 @@ def test_run_pipeline_prepares_raw_rows_before_bigquery_insert(
     mock_enrich.return_value = [normalized_job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [normalized_job], "rejected": []}
-    mock_vec.return_value = [{"job_url": normalized_job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": normalized_job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [normalized_job]
     mock_build_feat.return_value = [normalized_job]
     mock_rank.return_value = [normalized_job]
@@ -4997,7 +5049,7 @@ def test_run_pipeline_passes_job_dicts_to_embeddings_and_urls_to_vector_search(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
@@ -5047,7 +5099,6 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
     ]
     shortlist = [
         {"job_url": "https://example.com/1", "title": "Data Analyst", "vector_similarity": 0.91, "vector_rank": 1, "shortlist_origin": "vector_search"},
-        {"job_url": "https://example.com/2", "title": "ML Analyst", "vector_similarity": 0.0, "vector_rank": 2, "shortlist_origin": "backfill"},
     ]
     ranking_inputs = [
         {
@@ -5062,20 +5113,8 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
             "fit_label": "strong",
             "final_score": 0.905,
         },
-        {
-            "job_url": "https://example.com/2",
-            "title": "ML Analyst",
-            "ai_score": 0.5,
-            "must_have_match": 0.5,
-            "vector_similarity": 0.0,
-            "title_relevance": 0.5,
-            "seniority_fit": 0.5,
-            "preference_fit": 0.5,
-            "fit_label": "stretch",
-            "final_score": 0.25,
-        },
     ]
-    ranked = [ranking_inputs[0]]
+    ranked: list[dict[str, Any]] = []
     artifacts = _build_stage_transition_artifacts(
         raw_jobs=passed_jobs,
         normalized=passed_jobs,
@@ -5086,7 +5125,17 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
         candidate_filter_rejected_jobs=[],
         raw_shortlist=raw_shortlist,
         shortlist=shortlist,
-        backfilled_job_urls=["https://example.com/2"],
+        shortlist_audit_rows=[
+            {
+                "job_url": "https://example.com/2",
+                "vector_similarity": 0.8,
+                "vector_rank": 2,
+                "shortlist_origin": "audit",
+                "retrieval_strategy": "vector_cosine_v1",
+                "audit_selection_hash": "audit-hash",
+            }
+        ],
+        shortlist_diagnostics={"raw_hit_anomaly_total": 0, "raw_hit_anomaly_sample": []},
         vector_top_n=50,
         candidate_summary="Candidate: Analyst",
         candidate_query_components={},
@@ -5102,13 +5151,13 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
     shortlist_block = artifacts["stages"]["shortlist"]
     ranking_block = artifacts["stages"]["ranking"]
 
-    assert shortlist_block["dropped_or_changed_sample"][0]["change_type"] == "backfilled_for_scoring"
-    assert shortlist_block["dropped_or_changed_sample"][0]["shortlist_outcome"] == "backfilled_for_scoring"
+    assert shortlist_block["dropped_or_changed_sample"][0]["change_type"] == "not_returned_in_raw_hits"
+    assert shortlist_block["dropped_or_changed_sample"][0]["shortlist_outcome"] == "not_returned_in_raw_hits"
     assert shortlist_block["dropped_or_changed_sample"][0]["raw_hit_present"] is False
+    assert shortlist_block["audit_sample"][0]["job_url"] == "https://example.com/2"
+    assert shortlist_block["production_retrieval_rows"] == raw_shortlist
     assert ranking_block["dropped_or_changed_sample"][0]["change_type"] == "scored_not_ranked"
-    assert ranking_block["outputs_sample"][0]["job_url"] == "https://example.com/1"
-    assert ranking_block["outputs_sample"][0]["must_have_match"] == pytest.approx(1.0)
-    assert ranking_block["dropped_or_changed_sample"][0]["title_relevance"] == pytest.approx(0.5)
+    assert ranking_block["dropped_or_changed_sample"][0]["title_relevance"] == pytest.approx(1.0)
 
 
 def test_build_stage_transition_artifacts_enrich_sample_includes_canonical_fields() -> None:
@@ -5147,7 +5196,8 @@ def test_build_stage_transition_artifacts_enrich_sample_includes_canonical_field
         candidate_filter_rejected_jobs=[],
         raw_shortlist=[],
         shortlist=[],
-        backfilled_job_urls=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
         vector_top_n=10,
         candidate_summary="Candidate: Data Scientist",
         candidate_query_components={},
@@ -5186,7 +5236,8 @@ def test_build_stage_transition_artifacts_enrich_sample_keeps_full_list_fields()
         candidate_filter_rejected_jobs=[],
         raw_shortlist=[],
         shortlist=[],
-        backfilled_job_urls=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
         vector_top_n=10,
         candidate_summary="Candidate: Analytics Engineer",
         candidate_query_components={},
@@ -5239,7 +5290,8 @@ def test_build_stage_transition_artifacts_enrich_summary_reports_reuse_counts() 
         candidate_filter_rejected_jobs=[],
         raw_shortlist=[],
         shortlist=[],
-        backfilled_job_urls=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
         vector_top_n=10,
         candidate_summary="Candidate: Data Scientist",
         candidate_query_components={},
@@ -5435,7 +5487,8 @@ def test_build_stage_transition_artifacts_enrich_decision_summary_includes_promp
         candidate_filter_rejected_jobs=[],
         raw_shortlist=[],
         shortlist=[],
-        backfilled_job_urls=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
         vector_top_n=10,
         candidate_summary="candidate summary",
         candidate_query_components={},
@@ -5500,7 +5553,8 @@ def test_build_stage_transition_artifacts_rule_filter_includes_marks_and_selecte
         candidate_filter_rejected_jobs=rejected_jobs,
         raw_shortlist=[],
         shortlist=[],
-        backfilled_job_urls=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
         vector_top_n=10,
         candidate_summary="candidate summary",
         candidate_query_components={},
@@ -5562,7 +5616,8 @@ def test_build_stage_transition_artifacts_rule_filter_default_selected_filters_m
         candidate_filter_rejected_jobs=[],
         raw_shortlist=[],
         shortlist=[],
-        backfilled_job_urls=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
         vector_top_n=10,
         candidate_summary="candidate summary",
         candidate_query_components={},
@@ -5634,7 +5689,8 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
         candidate_filter_rejected_jobs=[],
         raw_shortlist=raw_shortlist,
         shortlist=shortlist,
-        backfilled_job_urls=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
         vector_top_n=50,
         candidate_summary="Candidate: Analyst",
         candidate_query_components={
@@ -5651,10 +5707,6 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
             "candidate_query_contract_fingerprint": "candidate-query-contract-1",
             "components_hash": "components-hash-1",
             "canonical_text_hash": "canonical-text-hash-1",
-            "bm25_terms_hash": "bm25-terms-hash-1",
-            "protected_terms_hash": "protected-terms-hash-1",
-            "protected_terms_count": 6,
-            "shortlist_lexical_scoring_mode": "weighted_sum_fallback",
         },
         ai_scores=[],
         ranking_inputs=[],
@@ -5678,10 +5730,6 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
     assert shortlist_block["decision_summary"]["candidate_query_contract_fingerprint"] == "candidate-query-contract-1"
     assert shortlist_block["decision_summary"]["components_hash"] == "components-hash-1"
     assert shortlist_block["decision_summary"]["canonical_text_hash"] == "canonical-text-hash-1"
-    assert shortlist_block["decision_summary"]["bm25_terms_hash"] == "bm25-terms-hash-1"
-    assert shortlist_block["decision_summary"]["protected_terms_hash"] == "protected-terms-hash-1"
-    assert shortlist_block["decision_summary"]["protected_terms_count"] == 6
-    assert shortlist_block["decision_summary"]["shortlist_lexical_scoring_mode"] == "weighted_sum_fallback"
     assert shortlist_block["outputs_sample"][1]["vector_rank"] == 2
     assert shortlist_block["outputs_sample"][1]["shortlist_outcome"] == "returned_by_vector_search"
     assert shortlist_block["outputs_sample"][1]["raw_hit_present"] is True
@@ -5716,7 +5764,8 @@ def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract()
         candidate_filter_rejected_jobs=[],
         raw_shortlist=ranking_inputs,
         shortlist=ranking_inputs,
-        backfilled_job_urls=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
         vector_top_n=10,
         candidate_summary="Candidate: Data Engineer",
         candidate_query_components={},
@@ -5836,7 +5885,20 @@ def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
         candidate_filter_rejected_jobs=[],
         raw_shortlist=raw_shortlist,
         shortlist=shortlist,
-        backfilled_job_urls=["https://example.com/3"],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={
+            "eligible_jobs_total": 3,
+            "scored_jobs_total": 2,
+            "production_shortlist_total": 2,
+            "production_cutoff_rank": 2,
+            "production_cutoff_similarity": 0.7,
+            "missing_job_embedding_total": 1,
+            "invalid_job_embedding_total": 0,
+            "embedding_coverage_rate": 2 / 3,
+            "audit_candidate_total": 0,
+            "audit_sample_total": 0,
+            "audit_sample_fingerprint": "",
+        },
         vector_top_n=10,
         candidate_summary="Candidate: Data Analyst",
         candidate_query_components={"skills": ["sql", "python"]},
@@ -5852,9 +5914,17 @@ def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
 
     shortlist_metrics = artifacts["stages"]["shortlist"]["decision_summary"]["quality_metrics"]
     assert shortlist_metrics == {
-        "backfill_rate": pytest.approx(1 / 3),
-        "backfilled_jobs_total": 1,
-        "scoring_shortlisted_jobs_total": 3,
+        "eligible_jobs_total": 3,
+        "scored_jobs_total": 2,
+        "production_shortlist_total": 2,
+        "production_cutoff_rank": 2,
+        "production_cutoff_similarity": 0.7,
+        "missing_job_embedding_total": 1,
+        "invalid_job_embedding_total": 0,
+        "embedding_coverage_rate": pytest.approx(2 / 3),
+        "audit_candidate_total": 0,
+        "audit_sample_total": 0,
+        "audit_sample_fingerprint": "",
     }
 
     ranking_metrics = artifacts["stages"]["ranking"]["decision_summary"]["quality_metrics"]
@@ -5943,7 +6013,8 @@ def test_build_stage_transition_artifacts_does_not_sum_cumulative_cv_analysis_em
         candidate_filter_rejected_jobs=[],
         raw_shortlist=[],
         shortlist=[],
-        backfilled_job_urls=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
         vector_top_n=10,
         candidate_summary="Candidate: Data Analyst",
         candidate_query_components={},
@@ -6015,7 +6086,8 @@ def test_build_stage_transition_artifacts_caps_samples_at_20_and_truncates_text(
         candidate_filter_rejected_jobs=[],
         raw_shortlist=[],
         shortlist=[],
-        backfilled_job_urls=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
         vector_top_n=50,
         candidate_summary="Candidate: Analyst",
         candidate_query_components={},
@@ -6182,7 +6254,7 @@ def test_run_pipeline_passes_enriched_shortlist_rows_to_ai_scoring(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
@@ -6223,7 +6295,7 @@ def test_run_pipeline_passes_enriched_shortlist_rows_to_ai_scoring(
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
-def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity_allows(
+def test_run_pipeline_does_not_score_missing_vector_rows(
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_norm: MagicMock,
@@ -6270,9 +6342,9 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
     mock_enrich.return_value = [first_job, second_job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [first_job["job_url"], second_job["job_url"]], "rejected": []}
-    mock_vec.return_value = {
-        "rows": [{"job_url": first_job["job_url"], "similarity_score": 0.9, "rank": 1}],
-        "candidate_query": {
+    mock_vec.return_value = _vector_search_envelope(
+        [{"job_url": first_job["job_url"], "similarity_score": 0.9, "rank": 1}],
+        candidate_query={
             "text": "Candidate: Data Engineer\nTarget role: Data Engineer\nRecent roles: DE\nRole families: data_engineering\nSkills: SQL, Python",
             "components": {
                 "headline": "Data Engineer",
@@ -6284,14 +6356,8 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
             "candidate_query_reuse_status": "reused_cached_query_embedding",
             "candidate_query_signature": "candidate-query-sig-1",
             "candidate_query_contract_fingerprint": "candidate-query-contract-1",
-            "components_hash": "components-hash-1",
-            "canonical_text_hash": "canonical-text-hash-1",
-            "bm25_terms_hash": "bm25-terms-hash-1",
-            "protected_terms_hash": "protected-terms-hash-1",
-            "protected_terms_count": 6,
-            "shortlist_lexical_scoring_mode": "weighted_sum_fallback",
         },
-    }
+    )
     mock_ai.return_value = [first_job, second_job]
     mock_build_feat.return_value = [first_job, second_job]
     mock_rank.return_value = []
@@ -6316,20 +6382,13 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
             "vector_similarity": 0.9,
             "vector_rank": 1,
             "shortlist_origin": "vector_search",
-        },
-        {
-            **second_job,
-            "marks": [],
-            "vector_similarity": 0.0,
-            "vector_rank": 2,
-            "shortlist_origin": "backfill",
-        },
+        }
     ]
     second_export_row = next(
         row for row in result["export_results"]
         if row["job_url"] == second_job["job_url"]
     )
-    assert second_export_row["pipeline_status"] != "not_shortlisted"
+    assert second_export_row["pipeline_status"] != "scored_not_ranked"
     assert "shortlist_debug" not in result
     mock_embed_cand.assert_not_called()
 
@@ -6401,7 +6460,7 @@ def test_run_pipeline_uses_ranked_fit_label_as_floor_for_layer4_fit_gate(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = []
+    mock_vec.return_value = _vector_search_envelope([])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -6515,7 +6574,7 @@ def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = []
+    mock_vec.return_value = _vector_search_envelope([])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -6604,7 +6663,7 @@ def test_run_pipeline_skips_reranker_skip_fit_jobs(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.4, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.4, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -6675,7 +6734,7 @@ def test_run_pipeline_skips_invalid_cv(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -6764,7 +6823,7 @@ def test_run_pipeline_per_job_failure_skips_not_crashes(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -6852,7 +6911,7 @@ def test_run_pipeline_emits_layer4_cv_error_for_analysis_failed_record(
     mock_profile_yaml.return_value = profile
     mock_pre_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -6971,10 +7030,10 @@ def test_run_pipeline_emits_shortlist_and_ai_score_counts(
     mock_profile_yaml.return_value = profile
     mock_pre_filter.return_value = {"passed": [job["job_url"] for job in jobs], "rejected": []}
     mock_filter.return_value = {"passed": [job["job_url"] for job in jobs], "rejected": []}
-    mock_vec.return_value = [
+    mock_vec.return_value = _vector_search_envelope([
         {"job_url": jobs[0]["job_url"], "similarity_score": 0.95, "rank": 1},
         {"job_url": jobs[1]["job_url"], "similarity_score": 0.80, "rank": 2},
-    ]
+    ])
     mock_ai.return_value = [jobs[0]]
     mock_build_feat.return_value = [jobs[0]]
     mock_rank.return_value = [jobs[0]]
@@ -7074,7 +7133,7 @@ def test_run_pipeline_emits_normalization_dedupe_event(
     mock_profile_yaml.return_value = _minimal_profile()
     mock_pre_filter.return_value = {"passed": ["https://example.com/1"], "rejected": []}
     mock_filter.return_value = {"passed": ["https://example.com/1"], "rejected": []}
-    mock_vec.return_value = [{"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1}])
     mock_ai.return_value = [_minimal_job("https://example.com/1")]
     mock_build_feat.return_value = [_minimal_job("https://example.com/1")]
     mock_rank.return_value = []
@@ -7170,7 +7229,7 @@ def test_run_pipeline_emits_normalize_event_even_when_no_duplicates_removed(
     mock_profile_yaml.return_value = _minimal_profile()
     mock_pre_filter.return_value = {"passed": ["https://example.com/1"], "rejected": []}
     mock_filter.return_value = {"passed": ["https://example.com/1"], "rejected": []}
-    mock_vec.return_value = [{"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1}])
     mock_ai.return_value = [_minimal_job("https://example.com/1")]
     mock_build_feat.return_value = [_minimal_job("https://example.com/1")]
     mock_rank.return_value = []
@@ -7270,7 +7329,7 @@ def test_run_pipeline_pipeline_complete_event_omits_export_rows(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -7367,7 +7426,7 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [{**job, "fit_label": "skip", "fit_label_source": "reranker"}]
     mock_build_feat.return_value = [{**job, "fit_label": "skip", "fit_label_source": "reranker"}]
     mock_rank.return_value = [{**job, "fit_label": "skip", "fit_label_source": "reranker"}]
@@ -7451,10 +7510,10 @@ def test_run_pipeline_cv_analysis_concurrency_preserves_result_order(
     mock_enrich.return_value = [job_a, job_b]
     mock_profile_yaml.return_value = _minimal_profile()
     mock_filter.return_value = {"passed": [job_a["job_url"], job_b["job_url"]], "rejected": []}
-    mock_vec.return_value = [
+    mock_vec.return_value = _vector_search_envelope([
         {"job_url": job_a["job_url"], "similarity_score": 0.9, "rank": 1},
         {"job_url": job_b["job_url"], "similarity_score": 0.89, "rank": 2},
-    ]
+    ])
     mock_ai.return_value = [
         {**job_a, "fit_label": "strong", "fit_label_source": "reranker"},
         {**job_b, "fit_label": "strong", "fit_label_source": "reranker"},
@@ -7606,7 +7665,7 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
@@ -7809,12 +7868,12 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         ],
         "rejected": [],
     }
-    mock_vec.return_value = [
+    mock_vec.return_value = _vector_search_envelope([
         {"job_url": ranked_with_cv["job_url"], "vector_similarity": 0.88, "vector_rank": 1},
         {"job_url": ranked_no_cv["job_url"], "vector_similarity": 0.70, "vector_rank": 2},
         {"job_url": shortlisted_not_scored["job_url"], "vector_similarity": 0.55, "vector_rank": 3},
         {"job_url": scored_not_ranked["job_url"], "vector_similarity": 0.52, "vector_rank": 4},
-    ]
+    ])
     mock_ai.return_value = [ranked_with_cv, ranked_no_cv, scored_not_ranked]
     mock_build_feat.return_value = [ranked_with_cv, ranked_no_cv, scored_not_ranked]
     mock_rank.return_value = [ranked_with_cv, ranked_no_cv]
@@ -8042,7 +8101,7 @@ def test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependenci
         "candidate_filter_rejected_jobs": [],
         "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
         "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "shortlist_origin": "vector_search"}],
-        "backfilled_job_urls": [],
+        "shortlist_diagnostics": {},
         "ai_scores": [job],
         "ranking_inputs": [job],
         "ranked": [job],
@@ -8162,7 +8221,7 @@ def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
     mock_enrich.return_value = [enriched_job]
     mock_profile_yaml.return_value = _minimal_profile()
     mock_filter.return_value = {"passed": ["https://example.com/1"], "rejected": []}
-    mock_vec.return_value = [{"job_url": "https://example.com/1", "vector_similarity": 0.88, "vector_rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": "https://example.com/1", "vector_similarity": 0.88, "vector_rank": 1}])
     mock_ai.return_value = [{"job_url": "https://example.com/1", "ai_score": 0.91, "fit_label": "strong"}]
     mock_build_feat.return_value = [ranked_feature]
     mock_rank.return_value = [dict(ranked_feature)]
@@ -8277,7 +8336,7 @@ def test_run_pipeline_shortlist_does_not_write_candidate_chunk_embeddings(
     mock_enrich.return_value = [enriched_job]
     mock_profile_yaml.return_value = _minimal_profile()
     mock_filter.return_value = {"passed": [job_url], "rejected": []}
-    mock_vec.return_value = [{"job_url": job_url, "vector_similarity": 0.88, "vector_rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job_url, "vector_similarity": 0.88, "vector_rank": 1}])
     mock_ai.return_value = [{"job_url": job_url, "ai_score": 0.91, "fit_label": "strong"}]
     mock_build_feat.return_value = [ranked_feature]
     mock_rank.return_value = []
@@ -8354,7 +8413,7 @@ def test_run_pipeline_export_marks_deduplicated_rows_explicitly(
     mock_profile_yaml.return_value = _minimal_profile()
     mock_pre_filter.return_value = {"passed": ["https://example.com/1"], "rejected": []}
     mock_filter.return_value = {"passed": ["https://example.com/1"], "rejected": []}
-    mock_vec.return_value = [{"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1}])
     mock_ai.return_value = [enriched_job]
     mock_build_feat.return_value = [enriched_job]
     mock_rank.return_value = []
@@ -8409,7 +8468,7 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
         "candidate_filter_rejected_jobs": [],
         "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
         "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
-        "backfilled_job_urls": [],
+        "shortlist_diagnostics": {},
         "ai_scores": [],
         "ranking_inputs": [],
         "ranked": [job],
@@ -8669,7 +8728,7 @@ def test_run_pipeline_calls_load_run_structured_jobs(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
@@ -8755,7 +8814,7 @@ def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
     mock_load_struct.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}])
     mock_ai.return_value = [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "strong"}]
     mock_build_feat.return_value = [{
         **job,
@@ -8887,7 +8946,7 @@ def test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
@@ -8953,7 +9012,7 @@ def test_run_pipeline_projects_canonical_enrich_runtime_to_legacy_keys(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
@@ -9018,7 +9077,7 @@ def test_run_pipeline_canonical_enrich_runtime_overrides_legacy_throughput_keys(
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
@@ -9107,7 +9166,7 @@ def test_run_pipeline_blocks_pre_filtered_jobs_before_enrichment(
     mock_enrich.return_value = [kept_job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [kept_job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": kept_job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": kept_job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [kept_job]
     mock_build_feat.return_value = [kept_job]
     mock_rank.return_value = []
@@ -9185,7 +9244,7 @@ def test_run_pipeline_preserves_agentic_evidence_selection_summary_contract(
     mock_load_struct.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}])
     mock_ai.return_value = [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "strong"}]
     mock_build_feat.return_value = [{**job, "fit_label": "strong", "fit_label_source": "reranker"}]
     mock_rank.return_value = [{**job, "fit_label": "strong", "fit_label_source": "reranker"}]
@@ -9327,7 +9386,7 @@ def test_run_pipeline_incremental_enrich_persists_each_store_exactly_once(
     mock_norm.return_value = [job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []

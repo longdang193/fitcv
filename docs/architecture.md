@@ -56,6 +56,13 @@ Location/language eligibility ownership:
 - `src/fitcv/rule_filter.py` owns eligibility projection. Only confirmed failures under `gate_required` reject; unknown and not-applicable facts remain eligible with diagnostics.
 - Phase 1 emits ranking-ready values only. Ranking weights, final score, ordering, and `strong | stretch | skip` labels remain unchanged.
 
+Shortlist ownership:
+
+- `src/fitcv/vector_search.py` owns one deterministic `vector_cosine_v1` retrieval order over eligible jobs with valid candidate/job embeddings.
+- production shortlist rows contain real cosine evidence only; missing or invalid embeddings reduce coverage instead of creating synthetic rows.
+- below-cutoff audit rows exist only in the versioned shortlist stage artifact. They never enter checkpoints, shortlist persistence, AI scoring, ranking, exports, or fit labels.
+- full-run and continuation paths share the same production row contract; continuation preserves prior completed stage artifacts without persisting audit rows in checkpoint state.
+
 ## Portability and Routing
 
 - backend portability: sqlite execution path is selected through control-plane backend runtime resolution

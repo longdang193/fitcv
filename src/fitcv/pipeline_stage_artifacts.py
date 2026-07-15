@@ -337,10 +337,10 @@ def build_shortlist_stage_block(
     shortlist_reached: bool,
     passed_jobs: list[dict[str, Any]],
     raw_shortlist_urls: set[str],
-    raw_shortlist_anomaly_urls: list[str],
     raw_shortlist: list[dict[str, Any]],
     shortlist: list[dict[str, Any]],
-    backfilled_job_urls: list[str],
+    audit_rows: list[dict[str, Any]],
+    shortlist_diagnostics: dict[str, Any],
     shortlist_embedding_reuse_counts: dict[str, Any],
     shortlist_candidate_query_components: dict[str, Any],
     shortlist_candidate_query_debug: dict[str, Any],
@@ -369,35 +369,9 @@ def build_shortlist_stage_block(
             }
             for job in passed_jobs
             if extract_job_url(job) not in raw_shortlist_urls
-            and extract_job_url(job) not in backfilled_job_urls
-        ],
-        *[
-            {
-                "job_url": job_url,
-                **next(
-                    (job for job in shortlist if extract_job_url(job) == job_url),
-                    {"title": next((extract_job_title(job) for job in passed_jobs if extract_job_url(job) == job_url), "")},
-                ),
-                "change_type": "backfilled_for_scoring",
-                "shortlist_outcome": "backfilled_for_scoring",
-                "raw_hit_present": False,
-                "retrieval_anomaly_present": False,
-            }
-            for job_url in backfilled_job_urls
-        ],
-        *[
-            {
-                "job_url": job_url,
-                "title": "",
-                "change_type": "raw_hit_excluded_from_scoring",
-                "shortlist_outcome": "raw_hit_excluded_from_scoring",
-                "raw_hit_present": True,
-                "retrieval_anomaly_present": True,
-            }
-            for job_url in raw_shortlist_anomaly_urls
         ],
     ]
-    return stage_block_builder(
+    block = stage_block_builder(
         stage_id="shortlist",
         status="completed",
         input_counts={"passed_jobs": len(passed_jobs)},
@@ -406,8 +380,8 @@ def build_shortlist_stage_block(
             "raw_vector_unique_jobs": len(raw_shortlist_urls),
             "raw_vector_hits": len(raw_shortlist_urls),
             "scoring_shortlist_jobs": len(shortlist),
-            "backfilled_jobs": len(backfilled_job_urls),
-            "retrieval_anomalies": len(raw_shortlist_anomaly_urls),
+            "audit_rows": len(audit_rows),
+            "retrieval_anomalies": int(shortlist_diagnostics.get("raw_hit_anomaly_total") or 0),
             **shortlist_embedding_reuse_counts,
         },
         decision_summary={
@@ -418,8 +392,9 @@ def build_shortlist_stage_block(
             "vector_search_top_n": vector_top_n,
             "jobs_not_returned_in_raw_hits": len([job for job in passed_jobs if extract_job_url(job) not in raw_shortlist_urls]),
             **shortlist_embedding_reuse_counts,
-            "raw_shortlist_anomaly_urls": sample_strings_builder(raw_shortlist_anomaly_urls),
-            "backfilled_job_urls": sample_strings_builder(backfilled_job_urls),
+            "raw_shortlist_anomaly_urls": sample_strings_builder(
+                list(shortlist_diagnostics.get("raw_hit_anomaly_sample") or [])
+            ),
         },
         inputs_sample=sample_rows_builder(passed_jobs, job_sample_builder),
         outputs_sample=sample_rows_builder(shortlist, shortlist_row_sample_builder),
@@ -457,6 +432,15 @@ def build_shortlist_stage_block(
         ),
         settings_refs=["pipeline.vector_search_top_n"],
     )
+    block["production_retrieval_rows"] = [dict(row) for row in raw_shortlist]
+    block["production_shortlist"] = [
+        sample
+        for row in shortlist
+        if (sample := shortlist_row_sample_builder(row)) is not None
+    ]
+    block["audit_sample"] = [dict(row) for row in audit_rows]
+    block["candidate_query_debug"] = dict(shortlist_candidate_query_debug)
+    return block
 
 
 def build_ranking_stage_block(

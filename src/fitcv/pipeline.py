@@ -263,19 +263,8 @@ def _prompt_runtime_metadata(
 def _materialize_scoring_shortlist(
     raw_shortlist: list[dict[str, Any]],
     passed_jobs: list[dict[str, Any]],
-    vector_search_top_n: int,
 ) -> list[dict[str, Any]]:
-    """Build the shortlist used for AI scoring from raw vector-search rows.
-
-    VECTOR_SEARCH returns only `job_url` + similarity/rank, but downstream
-    scoring needs the full structured JD fields. We therefore merge raw vector
-    rows back onto the corresponding passed jobs.
-
-    We also backfill any passed jobs missing from the raw shortlist while
-    capacity remains. This protects against transient read-after-write gaps in
-    local job embeddings visibility without losing the fact that retrieval
-    itself missed the job URL.
-    """
+    """Merge production retrieval evidence onto matching passed jobs."""
     passed_by_url = {
         extract_job_url(job): job
         for job in passed_jobs
@@ -297,29 +286,9 @@ def _materialize_scoring_shortlist(
                 **passed_job,
                 "job_url": job_url,
                 **normalize_shortlist_row(row),
-                "vector_rank": len(scoring_shortlist) + 1,
                 "shortlist_origin": "vector_search",
             }
         )
-
-    next_rank = len(scoring_shortlist) + 1
-    for job in passed_jobs:
-        if len(scoring_shortlist) >= vector_search_top_n:
-            break
-        job_url = extract_job_url(job)
-        if not job_url or job_url in seen_urls:
-            continue
-        seen_urls.add(job_url)
-        scoring_shortlist.append(
-            {
-                **job,
-                "job_url": job_url,
-                "vector_similarity": 0.0,
-                "vector_rank": next_rank,
-                "shortlist_origin": "backfill",
-            }
-        )
-        next_rank += 1
 
     return scoring_shortlist
 
@@ -1430,7 +1399,8 @@ def _build_stage_progress_summary(
     candidate_filter_rejected_jobs = list(state.get("candidate_filter_rejected_jobs") or [])
     raw_shortlist = list(state.get("raw_shortlist") or [])
     shortlist = list(state.get("shortlist") or [])
-    backfilled_job_urls = list(state.get("backfilled_job_urls") or [])
+    shortlist_audit_rows = list(state.get("_shortlist_audit_rows") or [])
+    shortlist_diagnostics = dict(state.get("shortlist_diagnostics") or {})
     ai_scores = list(state.get("ai_scores") or [])
     enrich_llm_runtime_observations = list(state.get("enrich_llm_runtime_observations") or [])
     ranking_llm_runtime_observations = list(state.get("ranking_llm_runtime_observations") or [])
@@ -1459,7 +1429,8 @@ def _build_stage_progress_summary(
         candidate_filter_rejected_jobs=candidate_filter_rejected_jobs,
         raw_shortlist=raw_shortlist,
         shortlist=shortlist,
-        backfilled_job_urls=backfilled_job_urls,
+        shortlist_audit_rows=shortlist_audit_rows,
+        shortlist_diagnostics=shortlist_diagnostics,
         vector_top_n=vector_top_n_value,
         candidate_summary=candidate_summary_value,
         candidate_query_components=candidate_query_components_value,
@@ -1657,8 +1628,6 @@ def _shortlist_status_for_export_row(
         return "not_applicable"
     if raw_shortlist_row is not None:
         return "returned_by_vector_search"
-    if scoring_shortlist_row is not None and str(scoring_shortlist_row.get("shortlist_origin") or "") == "backfill":
-        return "backfilled_for_scoring"
     if scoring_shortlist_row is not None:
         return "advanced_to_scoring"
     return "not_returned_in_raw_hits"
@@ -2260,14 +2229,22 @@ def _safe_rate(numerator: int, denominator: int) -> float:
 
 def _build_shortlist_quality_metrics(
     *,
-    backfilled_jobs_total: int,
-    scoring_shortlisted_jobs_total: int,
+    diagnostics: dict[str, Any],
 ) -> dict[str, Any]:
-    return {
-        "backfill_rate": _safe_rate(backfilled_jobs_total, scoring_shortlisted_jobs_total),
-        "backfilled_jobs_total": backfilled_jobs_total,
-        "scoring_shortlisted_jobs_total": scoring_shortlisted_jobs_total,
-    }
+    metric_keys = (
+        "eligible_jobs_total",
+        "scored_jobs_total",
+        "production_shortlist_total",
+        "production_cutoff_rank",
+        "production_cutoff_similarity",
+        "missing_job_embedding_total",
+        "invalid_job_embedding_total",
+        "embedding_coverage_rate",
+        "audit_candidate_total",
+        "audit_sample_total",
+        "audit_sample_fingerprint",
+    )
+    return {key: diagnostics.get(key) for key in metric_keys}
 
 
 def _build_ranking_quality_metrics(ranking_inputs: list[dict[str, Any]], config: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -2546,7 +2523,8 @@ def _build_stage_transition_artifacts(
     candidate_filter_rejected_jobs: list[dict[str, Any]],
     raw_shortlist: list[dict[str, Any]],
     shortlist: list[dict[str, Any]],
-    backfilled_job_urls: list[str],
+    shortlist_audit_rows: list[dict[str, Any]],
+    shortlist_diagnostics: dict[str, Any],
     vector_top_n: int,
     candidate_summary: str,
     candidate_query_components: dict[str, Any],
@@ -2576,7 +2554,6 @@ def _build_stage_transition_artifacts(
     ]
     cv_generation_reached = len(generation_execution_records) > 0
     raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
-    raw_shortlist_anomaly_urls = compute_raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
     shortlist_candidate_query_components = {
         "headline": str(candidate_query_components.get("headline") or ""),
         "target_role": str(candidate_query_components.get("target_role") or ""),
@@ -2598,10 +2575,6 @@ def _build_stage_transition_artifacts(
         ),
         "components_hash": str(candidate_query_debug.get("components_hash") or ""),
         "canonical_text_hash": str(candidate_query_debug.get("canonical_text_hash") or ""),
-        "bm25_terms_hash": str(candidate_query_debug.get("bm25_terms_hash") or ""),
-        "protected_terms_hash": str(candidate_query_debug.get("protected_terms_hash") or ""),
-        "protected_terms_count": int(candidate_query_debug.get("protected_terms_count") or 0),
-        "shortlist_lexical_scoring_mode": str(candidate_query_debug.get("shortlist_lexical_scoring_mode") or ""),
     }
 
     shortlist_candidate_query_debug = {
@@ -2727,8 +2700,7 @@ def _build_stage_transition_artifacts(
         "embedding_total_jobs": len(passed_jobs),
     }
     shortlist_quality_metrics = _build_shortlist_quality_metrics(
-        backfilled_jobs_total=len(backfilled_job_urls),
-        scoring_shortlisted_jobs_total=len(shortlist),
+        diagnostics=shortlist_diagnostics,
     )
     ranking_quality_metrics = _build_ranking_quality_metrics(ranking_inputs, config=config)
     ranking_reuse_metrics = {
@@ -2833,10 +2805,10 @@ def _build_stage_transition_artifacts(
                 shortlist_reached=shortlist_reached,
                 passed_jobs=passed_jobs,
                 raw_shortlist_urls=raw_shortlist_urls,
-                raw_shortlist_anomaly_urls=raw_shortlist_anomaly_urls,
                 raw_shortlist=raw_shortlist,
                 shortlist=shortlist,
-                backfilled_job_urls=backfilled_job_urls,
+                audit_rows=shortlist_audit_rows,
+                shortlist_diagnostics=shortlist_diagnostics,
                 shortlist_embedding_reuse_counts=shortlist_embedding_reuse_counts,
                 shortlist_candidate_query_components=shortlist_candidate_query_components,
                 shortlist_candidate_query_debug=shortlist_candidate_query_debug,
@@ -3100,7 +3072,8 @@ def run_pipeline(
         candidate_filter_rejected_jobs = list(state["candidate_filter_rejected_jobs"])
         raw_shortlist = list(state["raw_shortlist"])
         shortlist = list(state["shortlist"])
-        backfilled_job_urls = list(state["backfilled_job_urls"])
+        shortlist_audit_rows = list(state.get("_shortlist_audit_rows") or [])
+        shortlist_diagnostics = dict(state.get("shortlist_diagnostics") or {})
         ai_scores = list(state["ai_scores"])
         ranking_llm_runtime_observations = list(state["ranking_llm_runtime_observations"])
         ranking_inputs = list(state["ranking_inputs"])
@@ -3348,20 +3321,16 @@ def run_pipeline(
                     [str(job.get("job_url") or "") for job in passed_jobs],
                     config,
                     top_n=vector_top_n,
-                    include_debug=True,
                 )
-                candidate_query_record: dict[str, Any] = {}
-                if isinstance(raw_shortlist_result, dict):
-                    raw_shortlist = list(raw_shortlist_result.get("rows") or [])
-                    candidate_query_record = dict(raw_shortlist_result.get("candidate_query") or {})
-                else:
-                    raw_shortlist = list(raw_shortlist_result)
+                raw_shortlist = list(raw_shortlist_result.get("production_rows") or [])
+                shortlist_audit_rows = list(raw_shortlist_result.get("audit_rows") or [])
+                shortlist_diagnostics = dict(raw_shortlist_result.get("diagnostics") or {})
+                candidate_query_record = dict(raw_shortlist_result.get("candidate_query") or {})
                 from fitcv.vector_search import (
                     build_candidate_query_components,
                     build_candidate_query_embedding_contract_fingerprint,
                     build_candidate_query_signature_record,
                     build_candidate_query_text,
-                    build_weighted_bm25_query_terms,
                 )
 
                 candidate_query_components = dict(
@@ -3372,7 +3341,6 @@ def run_pipeline(
                 )
                 signature_record = build_candidate_query_signature_record(candidate_query_components)
                 contract_record = build_candidate_query_embedding_contract_fingerprint(config)
-                bm25_term_record = build_weighted_bm25_query_terms(candidate_query_components, config)
                 components_hash = hashlib.sha256(
                     json.dumps(candidate_query_components, sort_keys=True, ensure_ascii=False).encode("utf-8")
                 ).hexdigest()
@@ -3390,42 +3358,29 @@ def run_pipeline(
                     ),
                     "components_hash": components_hash,
                     "canonical_text_hash": canonical_text_hash,
-                    "bm25_terms_hash": str(bm25_term_record.get("bm25_terms_hash") or ""),
-                    "protected_terms_hash": str(bm25_term_record.get("protected_terms_hash") or ""),
-                    "protected_terms_count": int(bm25_term_record.get("protected_terms_count") or 0),
-                    "shortlist_lexical_scoring_mode": str((bm25_term_record.get("payload") or {}).get("scoring_mode") or ""),
                 }
                 shortlist_fail_fast = bool((config.get("pipeline", {}) or {}).get("shortlist_fail_fast_empty_raw_hits", False))
                 if shortlist_fail_fast and passed_jobs and not raw_shortlist:
                     raise RuntimeError(
                         "Vector shortlist returned zero raw hits for non-empty passed jobs; fail-fast guard active"
                     )
-                shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_top_n)
+                shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs)
                 pipeline_store.store_shortlist(shortlist, config)
                 raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
-                raw_shortlist_anomaly_urls = compute_raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
-                backfilled_job_urls = [
-                    str(job.get("job_url") or "")
-                    for job in shortlist
-                    if str(job.get("job_url") or "") not in raw_shortlist_urls
-                ]
                 if reporter is not None:
                     shortlist_message = f"Vector shortlist: {len(raw_shortlist_urls)} raw hits"
-                    if backfilled_job_urls:
-                        shortlist_message += f", {len(shortlist)} scoring jobs ({len(backfilled_job_urls)} backfilled)"
-                    if raw_shortlist_anomaly_urls:
-                        shortlist_message += f", {len(raw_shortlist_anomaly_urls)} raw-hit anomalies"
                     reporter.emit("layer3_shortlist", "info", shortlist_message)  # type: ignore[union-attr]
                 state["raw_shortlist"] = raw_shortlist
                 state["shortlist"] = shortlist
-                state["backfilled_job_urls"] = backfilled_job_urls
+                state["shortlist_diagnostics"] = shortlist_diagnostics
+                state["_shortlist_audit_rows"] = shortlist_audit_rows
                 state["candidate_query_debug"] = candidate_query_debug
                 set_span_attributes(
                     {
                         "passed_jobs": len(passed_jobs),
                         "raw_shortlist_hits": len(raw_shortlist_urls),
                         "shortlist_jobs": len(shortlist),
-                        "backfilled_jobs": len(backfilled_job_urls),
+                        "shortlist_audit_rows": len(shortlist_audit_rows),
                     }
                 )
             stage_boundary_result = _handle_stage_boundary(
@@ -3447,10 +3402,9 @@ def run_pipeline(
 
         raw_shortlist = list(state["raw_shortlist"])
         shortlist = list(state["shortlist"])
-        backfilled_job_urls = list(state["backfilled_job_urls"])
+        shortlist_audit_rows = list(state.get("_shortlist_audit_rows") or [])
+        shortlist_diagnostics = dict(state.get("shortlist_diagnostics") or {})
         candidate_query_debug = dict(state.get("candidate_query_debug") or candidate_query_debug)
-        raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
-        raw_shortlist_anomaly_urls = compute_raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
 
         if not candidate_query_components or not candidate_summary:
             from fitcv.vector_search import build_candidate_query_components, build_candidate_query_text
@@ -4865,7 +4819,8 @@ def run_pipeline(
             candidate_filter_rejected_jobs=candidate_filter_rejected_jobs,
             raw_shortlist=raw_shortlist,
             shortlist=shortlist,
-            backfilled_job_urls=backfilled_job_urls,
+            shortlist_audit_rows=shortlist_audit_rows,
+            shortlist_diagnostics=shortlist_diagnostics,
             vector_top_n=vector_top_n,
             candidate_summary=candidate_summary,
             candidate_query_components=candidate_query_components,

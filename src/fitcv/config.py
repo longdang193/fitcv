@@ -54,7 +54,6 @@ _POLICY_FILE_CANDIDATES = [
         ("taxonomy/role_family_synonyms.yaml", "role_family_synonyms.yaml"),
     ),
     ("taxonomy", ("taxonomy/taxonomy.yaml", "taxonomy.yaml")),
-    ("shortlist_lexical", ("shortlist_lexical.yaml",)),
     ("pipeline", ("runtime/pipeline.yaml", "pipeline.yaml")),
     ("ranking", ("policy/ranking.yaml", "ranking.yaml")),
     ("eligibility", ("policy/eligibility.yaml",)),
@@ -97,7 +96,6 @@ _CANONICAL_PIPELINE_TOP_LEVEL_KEYS = {
     "run_lifecycle",
     "vector_top_n",
     "vector_max_candidate_skills",
-    "retrieval_strategy",
     "rerank_top_n",
     "rerank_sleep_secs",
     "pipeline",
@@ -848,6 +846,9 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
 
     resolved_env_path = env_path.resolve()
     config_dir = _find_config_dir(resolved_env_path)
+    retired_shortlist_path = config_dir / "shortlist_lexical.yaml"
+    if retired_shortlist_path.exists():
+        raise ValueError(f"Retired shortlist config file is not supported: {retired_shortlist_path}")
     for retired_name in _RETIRED_CONFIG_SURFACES:
         retired_path = config_dir / retired_name
         if retired_path.exists():
@@ -903,6 +904,24 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         for key, value in policy.items():
             if key not in cfg:  # never overwrite .env.yaml values
                 cfg[key] = value
+
+    retired_shortlist_keys = sorted(
+        key for key in ("shortlist_lexical", "retrieval_strategy") if key in cfg
+    )
+    if retired_shortlist_keys:
+        raise ValueError(
+            "Retired shortlist config keys are not supported: "
+            + ", ".join(retired_shortlist_keys)
+        )
+    pipeline_cfg = cfg.get("pipeline")
+    if pipeline_cfg is not None and not isinstance(pipeline_cfg, dict):
+        raise ValueError("pipeline must be a mapping")
+    if isinstance(pipeline_cfg, dict):
+        shortlist_audit_sample_n = pipeline_cfg.setdefault("shortlist_audit_sample_n", 5)
+        if isinstance(shortlist_audit_sample_n, bool) or not isinstance(shortlist_audit_sample_n, int):
+            raise ValueError("pipeline.shortlist_audit_sample_n must be an integer")
+        if not 0 <= shortlist_audit_sample_n <= 100:
+            raise ValueError("pipeline.shortlist_audit_sample_n must be between 0 and 100")
 
     if "eligibility_policy" in cfg:
         cfg["eligibility_policy"] = validate_eligibility_policy(cfg["eligibility_policy"])

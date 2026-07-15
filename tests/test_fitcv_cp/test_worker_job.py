@@ -3026,6 +3026,43 @@ def test_build_stage_transition_artifacts_payload_dict_has_required_shape() -> N
     assert isinstance(payload["artifacts"], dict)
 
 
+def test_stage_transition_payload_preserves_prior_shortlist_audit_outside_execution_segment() -> None:
+    from fitcv_cp.worker_job import _build_stage_transition_artifacts_payload_dict
+
+    finished_at = datetime.datetime(2026, 7, 15, tzinfo=datetime.timezone.utc)
+    prior_payload = {
+        "artifacts": {
+            "schema_version": "stage_transition_artifacts_v7",
+            "stages": {
+                "shortlist": {
+                    "status": "completed",
+                    "audit_sample": [{"job_url": "https://example.com/audit"}],
+                },
+                "ranking": {"status": "not_reached"},
+            },
+        }
+    }
+    payload = _build_stage_transition_artifacts_payload_dict(
+        run_id="run-stage-resume-1",
+        summary={
+            "stage_transition_artifacts": {
+                "schema_version": "stage_transition_artifacts_v7",
+                "stages": {
+                    "shortlist": {"status": "completed", "audit_sample": []},
+                    "ranking": {"status": "completed", "output_counts": {"ranked_jobs": 1}},
+                },
+            }
+        },
+        finished_at=finished_at,
+        prior_stage_transition_artifacts=prior_payload,
+        stages_completed_before_segment=["normalize", "enrich", "rule_filter", "shortlist"],
+    )
+
+    stages = payload["artifacts"]["stages"]
+    assert stages["shortlist"] == prior_payload["artifacts"]["stages"]["shortlist"]
+    assert stages["ranking"]["output_counts"] == {"ranked_jobs": 1}
+
+
 
 
 

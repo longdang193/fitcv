@@ -98,6 +98,26 @@ Verification:
 Outcome:
 Phase 1 now preserves canonical location and language facts, evaluates both through one symmetric policy algebra, gates only confirmed failures, and leaves ranking composition and fit labels unchanged.
 
+### FitCV inverse optimization Phase 2 vector-only shortlist implementation plan
+
+Source plan: `docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md`
+
+Verification:
+- `python -m pytest tests/test_config.py tests/test_vector_search.py`
+- `python -m pytest tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py`
+- `python -m pytest tests/test_agentic_cv_analysis.py`
+- `python -m pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py`
+- `python -m pytest tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_structural_contract_guardrails.py`
+- `python -m pytest tests/test_pipeline_status_registry.py`
+- `python scripts/hooks/run_validator.py --fast`
+- `python scripts/validate_planning_lifecycle.py`
+- `python tools/docs/generate_architecture_metadata.py --check`
+- `python scripts/validate_repo_contracts.py --fast`
+- `git diff --check`
+
+Outcome:
+Phase 2 now uses one vector-only shortlist contract with real valid cosine evidence for production rows, bounded deterministic artifact-only audit evidence, strict no-backfill materialization, checkpoint-v1 parity, artifact schema v7, and unchanged downstream ranking labels.
+
 <!-- GENERATED HISTORY END -->
 
 ## Human Notes

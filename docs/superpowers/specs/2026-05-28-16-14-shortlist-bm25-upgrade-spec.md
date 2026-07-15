@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: spec
-status: completed
+status: superseded
 template_id: detailed-specification
 name: shortlist-bm25-upgrade-path
 parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
@@ -18,6 +18,8 @@ related_features:
 related_stages:
   - shortlist
 ---
+
+> Superseded on July 15, 2026 by `docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md` and its implementation plan.
 
 ## Goal
 Define MVP-v1 shortlist lexical retrieval that includes protected terms, weighted component-derived BM25 terms, and phrase boosts, while preserving SSOT, symmetry, and invariance.

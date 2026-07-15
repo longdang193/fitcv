@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: completed
+status: superseded
 template_id: implementation-plan
 name: shortlist-bm25-upgrade-implementation
 parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
@@ -19,6 +19,8 @@ related_features:
 related_stages:
   - shortlist
 ---
+
+> Superseded on July 15, 2026 by `docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md` and `docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md`.
 
 ## Goal
 Implement MVP-v1 shortlist lexical behavior: canonical SSOT component builder shared by vector + lexical channels, weighted component-derived BM25 terms, protected exact terms, phrase boosts, and invariance/symmetry verification.

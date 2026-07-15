@@ -269,6 +269,27 @@ def test_load_config_defaults_to_repo_config_shape() -> None:
     assert cfg["pipeline"]["evidence_top_k"] == 5
     assert cfg["vector_top_n"] == cfg["pipeline"]["vector_search_top_n"]
     assert cfg["rerank_top_n"] == cfg["pipeline"]["ai_score_top_n"]
+    assert cfg["pipeline"]["shortlist_audit_sample_n"] == 5
+
+
+@pytest.mark.parametrize("key", ["shortlist_lexical", "retrieval_strategy"])
+def test_load_config_rejects_retired_shortlist_keys(tmp_path: Path, key: str) -> None:
+    env_yaml = _write_minimal_eligibility_config(tmp_path)
+    env_yaml.write_text(f"gcp_project: test\n{key}: legacy\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match=key):
+        load_config(env_yaml)
+
+
+def test_load_config_rejects_stale_shortlist_lexical_file(tmp_path: Path) -> None:
+    env_yaml = _write_minimal_eligibility_config(tmp_path)
+    (tmp_path / "config" / "shortlist_lexical.yaml").write_text(
+        "shortlist_lexical:\n  version: legacy\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="shortlist_lexical.yaml"):
+        load_config(env_yaml)
 
 
 def test_load_config_accepts_repo_root_env_yaml() -> None:
@@ -1491,6 +1512,14 @@ def _write_minimal_eligibility_config(root: Path, *, include_eligibility: bool =
     env_yaml.write_text("gcp_project: test\n", encoding="utf-8")
     policy_dir = root / "config" / "policy"
     policy_dir.mkdir(parents=True)
+    runtime_dir = root / "config" / "runtime"
+    runtime_dir.mkdir()
+    (runtime_dir / "pipeline.yaml").write_text(
+        "pipeline:\n"
+        "  vector_search_top_n: 50\n"
+        "  shortlist_audit_sample_n: 5\n",
+        encoding="utf-8",
+    )
     (policy_dir / "cv.yaml").write_text(
         "cv:\n"
         "  preset: europass\n"

@@ -18,7 +18,7 @@ lifecycle:
 import hashlib
 import json
 import logging
-import re
+import math
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any, TypedDict
@@ -41,6 +41,8 @@ DEFAULT_LOCATION_TYPE_HINT_COUNT = 3
 CANDIDATE_QUERY_SCHEMA_VERSION = "shortlist_candidate_query_v1"
 REUSED_CACHED_QUERY_EMBEDDING_STATUS = "reused_cached_query_embedding"
 FRESH_QUERY_EMBEDDING_STATUS = "fresh_query_embedding"
+VECTOR_RETRIEVAL_STRATEGY = "vector_cosine_v1"
+VECTOR_DIAGNOSTIC_SAMPLE_LIMIT = 20
 
 logger = logging.getLogger(__name__)
 
@@ -116,23 +118,56 @@ def _ensure_sqlite_vector_tables(conn: sqlite3.Connection) -> None:
 
 
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    if not a or not b:
-        return 0.0
-    dim = min(len(a), len(b))
-    if dim <= 0:
-        return 0.0
-    dot = 0.0
-    na = 0.0
-    nb = 0.0
-    for i in range(dim):
-        av = float(a[i])
-        bv = float(b[i])
-        dot += av * bv
-        na += av * av
-        nb += bv * bv
-    if na <= 0.0 or nb <= 0.0:
-        return 0.0
-    return dot / ((na ** 0.5) * (nb ** 0.5))
+    dot = sum(av * bv for av, bv in zip(a, b, strict=True))
+    norm_a = math.sqrt(sum(value * value for value in a))
+    norm_b = math.sqrt(sum(value * value for value in b))
+    return max(-1.0, min(1.0, dot / (norm_a * norm_b)))
+
+
+def _validated_vector(value: Any, *, expected_dimension: int | None = None) -> list[float] | None:
+    if not isinstance(value, list) or not value:
+        return None
+    vector: list[float] = []
+    for item in value:
+        if isinstance(item, bool) or not isinstance(item, (int, float)):
+            return None
+        number = float(item)
+        if not math.isfinite(number):
+            return None
+        vector.append(number)
+    if expected_dimension is not None and len(vector) != expected_dimension:
+        return None
+    if not any(number != 0.0 for number in vector):
+        return None
+    return vector
+
+
+def _empty_vector_search_result() -> dict[str, Any]:
+    return {
+        "production_rows": [],
+        "audit_rows": [],
+        "diagnostics": {
+            "eligible_jobs_total": 0,
+            "scored_jobs_total": 0,
+            "missing_job_embedding_total": 0,
+            "invalid_job_embedding_total": 0,
+            "candidate_embedding_available": False,
+            "embedding_coverage_rate": 0.0,
+            "production_shortlist_total": 0,
+            "production_cutoff_rank": None,
+            "production_cutoff_similarity": None,
+            "audit_candidate_total": 0,
+            "audit_sample_total": 0,
+            "audit_sample_fingerprint": "",
+            "missing_job_embedding_sample": [],
+            "invalid_job_embedding_sample": [],
+            "duplicate_job_embedding_total": 0,
+            "duplicate_job_embedding_sample": [],
+            "raw_hit_anomaly_total": 0,
+            "raw_hit_anomaly_sample": [],
+        },
+        "candidate_query": {},
+    }
 
 
 def _dedupe_shortlist_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -164,164 +199,6 @@ def _append_unique_text(values: list[str], candidate: str, seen: set[str]) -> No
 def _normalize_query_scalar(value: Any) -> str:
     return normalize_text_scalar(value)
 
-
-def _shortlist_lexical_policy(config: dict[str, Any] | None) -> dict[str, Any]:
-    policy = dict(((config or {}).get("shortlist_lexical") or {}))
-    protected = dict(policy.get("protected_terms") or {})
-    policy["protected_terms"] = protected
-    return policy
-
-def _iter_taxonomy_candidate_terms(config: dict[str, Any] | None) -> list[str]:
-    cfg = config or {}
-    candidates: list[str] = []
-    for key in ("skill_synonyms", "domain_alias_map", "role_family_alias_map"):
-        payload = cfg.get(key) or {}
-        if not isinstance(payload, dict):
-            continue
-        for alias, canonical in payload.items():
-            candidates.append(str(alias))
-            candidates.append(str(canonical))
-    return candidates
-
-def build_protected_terms(config: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Build deterministic protected-term set from config + taxonomy-derived candidates."""
-    policy = _shortlist_lexical_policy(config)
-    protected_cfg = dict(policy.get("protected_terms") or {})
-    manual_seed_raw = list(protected_cfg.get("manual_seed") or [])
-    manual_seed = {str(term).strip().lower() for term in manual_seed_raw if str(term).strip()}
-    max_len = int(protected_cfg.get("max_len_auto_protect", 5) or 5)
-    punctuation_markers = [str(marker) for marker in list(protected_cfg.get("punctuation_markers") or ["+", "#", "."])]
-    stopword_exclusions = {
-        str(term).strip().lower()
-        for term in list(protected_cfg.get("stopword_exclusions") or [])
-        if str(term).strip()
-    }
-    derive_from_taxonomy = bool(protected_cfg.get("derive_from_taxonomy", True))
-
-    derived: set[str] = set()
-    if derive_from_taxonomy:
-        for raw_candidate in _iter_taxonomy_candidate_terms(config):
-            candidate = str(raw_candidate or "").strip().lower()
-            if not candidate:
-                continue
-            if " " in candidate:
-                continue
-            has_marker = any(marker and marker in candidate for marker in punctuation_markers)
-            has_digit = any(ch.isdigit() for ch in candidate)
-            include_candidate = (candidate in manual_seed) or (len(candidate) <= max_len) or has_marker or has_digit
-            if not include_candidate:
-                continue
-            if candidate not in manual_seed and candidate in stopword_exclusions:
-                continue
-            derived.add(candidate)
-
-    protected_terms = sorted(manual_seed.union(derived))
-    payload_json, protected_terms_hash = hash_payload({"protected_terms": protected_terms})
-    return {
-        "protected_terms": protected_terms,
-        "protected_terms_hash": protected_terms_hash,
-        "protected_terms_count": len(protected_terms),
-        "protected_terms_payload_json": payload_json,
-    }
-
-
-def _tokenize_lexical_text(text: str) -> list[str]:
-    return [token for token in re.findall(r"[a-z0-9+#.]+", str(text).lower()) if token]
-
-def _build_role_phrases(components: dict[str, Any]) -> list[str]:
-    phrases: list[str] = []
-    seen: set[str] = set()
-    for field in ("headline", "target_role"):
-        value = str(components.get(field) or "").strip().lower()
-        tokens = _tokenize_lexical_text(value)
-        for size in (2, 3):
-            for idx in range(0, max(0, len(tokens) - size + 1)):
-                phrase = " ".join(tokens[idx : idx + size]).strip()
-                if phrase and phrase not in seen:
-                    seen.add(phrase)
-                    phrases.append(phrase)
-    for role in list(components.get("recent_roles") or []):
-        tokens = _tokenize_lexical_text(str(role or "").strip().lower())
-        for size in (2, 3):
-            for idx in range(0, max(0, len(tokens) - size + 1)):
-                phrase = " ".join(tokens[idx : idx + size]).strip()
-                if phrase and phrase not in seen:
-                    seen.add(phrase)
-                    phrases.append(phrase)
-    return phrases
-
-def build_weighted_bm25_query_terms(
-    components: dict[str, Any],
-    config: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Build deterministic lexical term payload from canonical shortlist components."""
-    lexical_cfg = _shortlist_lexical_policy(config)
-    field_weights = dict(lexical_cfg.get("field_weights") or {})
-    scoring_mode = str(lexical_cfg.get("scoring_mode") or "weighted_sum_fallback").strip().lower()
-    if scoring_mode not in {"bm25f", "weighted_sum_fallback"}:
-        scoring_mode = "weighted_sum_fallback"
-
-    phrase_cfg = dict(lexical_cfg.get("phrase_boost") or {})
-    phrase_boost_per_phrase = float(phrase_cfg.get("per_phrase", 0.2) or 0.2)
-    phrase_boost_cap_ratio = float(phrase_cfg.get("cap_ratio_of_max_base", 0.2) or 0.2)
-
-    protected = build_protected_terms(config)
-    protected_set = set(list(protected.get("protected_terms") or []))
-
-    field_values: dict[str, list[str]] = {
-        "headline": [str(components.get("headline") or "")],
-        "target_role": [str(components.get("target_role") or "")],
-        "recent_roles": [str(item) for item in list(components.get("recent_roles") or [])],
-        "skills": [str(item) for item in list(components.get("skills") or components.get("flattened_skills") or [])],
-        "role_families": [str(item) for item in list(components.get("role_families") or components.get("role_family_hints") or [])],
-        "domains": [str(item) for item in list(components.get("domains") or components.get("domain_hints") or [])],
-        "location_types": [str(item) for item in list(components.get("location_types") or components.get("location_type_hints") or [])],
-    }
-
-    terms_by_field: dict[str, list[str]] = {}
-    for field, values in field_values.items():
-        tokens: list[str] = []
-        for value in values:
-            for token in _tokenize_lexical_text(value):
-                if token in protected_set or len(token) > 1:
-                    tokens.append(token)
-        seen_tokens: set[str] = set()
-        deduped_tokens: list[str] = []
-        for token in tokens:
-            if token in seen_tokens:
-                continue
-            seen_tokens.add(token)
-            deduped_tokens.append(token)
-        terms_by_field[field] = deduped_tokens
-
-    role_phrases = _build_role_phrases(components)
-    tie_break_order = ["lexical_base_score_desc", "phrase_hit_count_desc", "job_url_asc"]
-
-    payload = {
-        "terms_by_field": terms_by_field,
-        "field_weights": field_weights,
-        "role_phrases": role_phrases,
-        "protected_terms": list(protected.get("protected_terms") or []),
-        "scoring_mode": scoring_mode,
-        "scoring_formula": (
-            "bm25f_weighted" if scoring_mode == "bm25f"
-            else "sum_f(weight_f * bm25_f(doc, query_terms_f))"
-        ),
-        "phrase_boost": {
-            "per_phrase": phrase_boost_per_phrase,
-            "cap_ratio_of_max_base": phrase_boost_cap_ratio,
-            "accumulation": "sum_then_cap",
-        },
-        "tie_break_order": tie_break_order,
-    }
-    payload_json, bm25_terms_hash = hash_payload(payload)
-    return {
-        "payload": payload,
-        "payload_json": payload_json,
-        "bm25_terms_hash": bm25_terms_hash,
-        "protected_terms_hash": str(protected.get("protected_terms_hash") or ""),
-        "protected_terms_count": int(protected.get("protected_terms_count") or 0),
-    }
 
 def build_candidate_query_components(
     profile: dict[str, Any],
@@ -577,64 +454,143 @@ def run_vector_search(
     passed_job_urls: list[str],
     config: dict[str, Any],
     top_n: int | None = None,
-    *,
-    include_debug: bool = False,
-) -> list[dict[str, Any]] | dict[str, Any]:
+) -> dict[str, Any]:
     """Score passed jobs against cached local job embeddings."""
-    if not passed_job_urls:
-        return []
+    eligible_job_urls = sorted({str(job_url).strip() for job_url in passed_job_urls if str(job_url).strip()})
+    if not eligible_job_urls:
+        return _empty_vector_search_result()
     effective_top_n = (
         top_n
         if top_n is not None
         else int((config.get("pipeline") or {}).get("vector_search_top_n") or config.get("vector_top_n", 50))
     )
+    audit_sample_n = int((config.get("pipeline") or {}).get("shortlist_audit_sample_n", 0))
     candidate_query_record = resolve_candidate_query_embedding(profile, config)
-    candidate_embedding = list(candidate_query_record.get("embedding") or [])
-    placeholders = ",".join(["?"] * len(passed_job_urls))
+    candidate_embedding = _validated_vector(candidate_query_record.get("embedding"))
+    candidate_query = {
+        key: value
+        for key, value in candidate_query_record.items()
+        if key != "embedding"
+    }
+    placeholders = ",".join(["?"] * len(eligible_job_urls))
     with sqlite3.connect(sqlite_path(), timeout=30) as conn:
         configure_sqlite_connection(conn)
         query = f"""
-        SELECT je.job_url, je.embedding_json
-        FROM job_embeddings je
-        JOIN (
-          SELECT job_url, MAX(created_at) AS max_created
+        WITH ranked_embeddings AS (
+          SELECT
+            id,
+            job_url,
+            embedding_json,
+            ROW_NUMBER() OVER (
+              PARTITION BY job_url
+              ORDER BY created_at DESC, id DESC
+            ) AS row_number,
+            COUNT(*) OVER (PARTITION BY job_url) AS embedding_row_count
           FROM job_embeddings
           WHERE chunk_type = 'job_summary' AND job_url IN ({placeholders})
-          GROUP BY job_url
-        ) latest
-          ON latest.job_url = je.job_url AND latest.max_created = je.created_at
-        WHERE je.chunk_type = 'job_summary'
+        )
+        SELECT job_url, embedding_json, embedding_row_count
+        FROM ranked_embeddings
+        WHERE row_number = 1
         """
-        rows = list(conn.execute(query, tuple(passed_job_urls)).fetchall())
-    scored = []
-    for job_url, embedding_json in rows:
+        rows = list(conn.execute(query, tuple(eligible_job_urls)).fetchall())
+
+    latest_by_url = {str(job_url): (embedding_json, int(row_count)) for job_url, embedding_json, row_count in rows}
+    missing_urls = sorted(set(eligible_job_urls) - set(latest_by_url))
+    invalid_urls: list[str] = []
+    duplicate_urls = sorted(job_url for job_url, (_, count) in latest_by_url.items() if count > 1)
+    scored: list[dict[str, Any]] = []
+    for job_url in eligible_job_urls:
+        latest = latest_by_url.get(job_url)
+        if latest is None:
+            continue
+        embedding_json, _ = latest
         try:
-            job_embedding = list(json.loads(str(embedding_json)) or [])
-        except Exception:
-            job_embedding = []
+            raw_job_embedding = json.loads(str(embedding_json))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            raw_job_embedding = None
+        job_embedding = _validated_vector(
+            raw_job_embedding,
+            expected_dimension=len(candidate_embedding) if candidate_embedding is not None else None,
+        )
+        if job_embedding is None:
+            invalid_urls.append(job_url)
+            continue
+        if candidate_embedding is None:
+            continue
         scored.append(
             {
-                "job_url": str(job_url),
+                "job_url": job_url,
                 "vector_similarity": _cosine_similarity(candidate_embedding, job_embedding),
             }
         )
-    scored.sort(key=lambda item: float(item.get("vector_similarity") or 0.0), reverse=True)
-    deduped = _dedupe_shortlist_rows(
-        [
-            {"job_url": row["job_url"], "vector_similarity": row["vector_similarity"], "vector_rank": idx + 1}
-            for idx, row in enumerate(scored[:effective_top_n])
-        ]
-    )
-    if include_debug:
-        return {
-            "rows": deduped,
-            "candidate_query": {
-                key: value
-                for key, value in candidate_query_record.items()
-                if key != "embedding"
-            },
+    scored.sort(key=lambda item: (-float(item["vector_similarity"]), str(item["job_url"])))
+    ranked_rows = [
+        {
+            **row,
+            "vector_rank": index + 1,
+            "shortlist_origin": "vector_search",
+            "retrieval_strategy": VECTOR_RETRIEVAL_STRATEGY,
         }
-    return deduped
+        for index, row in enumerate(scored)
+    ]
+    production_rows = ranked_rows[:effective_top_n]
+    audit_candidates = ranked_rows[effective_top_n:]
+    candidate_query_signature = str(candidate_query.get("candidate_query_signature") or "")
+    audit_ranked = [
+        {
+            **row,
+            "shortlist_origin": "audit",
+            "audit_selection_hash": hashlib.sha256(
+                f"{candidate_query_signature}\0{row['job_url']}".encode("utf-8")
+            ).hexdigest(),
+        }
+        for row in audit_candidates
+    ]
+    audit_rows = sorted(
+        sorted(audit_ranked, key=lambda row: (str(row["audit_selection_hash"]), str(row["job_url"])))[:audit_sample_n],
+        key=lambda row: int(row["vector_rank"]),
+    )
+    audit_sample_fingerprint = ""
+    if audit_rows:
+        _, audit_sample_fingerprint = hash_payload(
+            {
+                "candidate_query_signature": candidate_query_signature,
+                "candidate_query_contract_fingerprint": str(
+                    candidate_query.get("candidate_query_contract_fingerprint") or ""
+                ),
+                "vector_search_top_n": effective_top_n,
+                "shortlist_audit_sample_n": audit_sample_n,
+                "audit_rows": audit_rows,
+            }
+        )
+    production_cutoff = production_rows[-1] if production_rows else None
+    eligible_total = len(eligible_job_urls)
+    return {
+        "production_rows": production_rows,
+        "audit_rows": audit_rows,
+        "diagnostics": {
+            "eligible_jobs_total": eligible_total,
+            "scored_jobs_total": len(ranked_rows),
+            "missing_job_embedding_total": len(missing_urls),
+            "invalid_job_embedding_total": len(invalid_urls),
+            "candidate_embedding_available": candidate_embedding is not None,
+            "embedding_coverage_rate": len(ranked_rows) / eligible_total if eligible_total else 0.0,
+            "production_shortlist_total": len(production_rows),
+            "production_cutoff_rank": production_cutoff.get("vector_rank") if production_cutoff else None,
+            "production_cutoff_similarity": production_cutoff.get("vector_similarity") if production_cutoff else None,
+            "audit_candidate_total": len(audit_candidates),
+            "audit_sample_total": len(audit_rows),
+            "audit_sample_fingerprint": audit_sample_fingerprint,
+            "missing_job_embedding_sample": missing_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
+            "invalid_job_embedding_sample": invalid_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
+            "duplicate_job_embedding_total": len(duplicate_urls),
+            "duplicate_job_embedding_sample": duplicate_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
+            "raw_hit_anomaly_total": 0,
+            "raw_hit_anomaly_sample": [],
+        },
+        "candidate_query": candidate_query,
+    }
 
 
 # ── integration: store shortlist ──────────────────────────────────────────────
@@ -642,12 +598,10 @@ def run_vector_search(
 def store_shortlist(
     shortlist: list[dict[str, Any]],
     config: dict[str, Any],
-    retrieval_strategy: str | None = None,
 ) -> None:
     """Insert vector shortlist rows into local sqlite store."""
     if not shortlist:
         return
-    effective_strategy = retrieval_strategy or str(config.get("retrieval_strategy", "job_summary_v1"))
     now = datetime.now(tz=timezone.utc).isoformat()
 
     def _write_shortlist() -> None:
@@ -664,7 +618,7 @@ def store_shortlist(
                         str(item["job_url"]),
                         int(item["vector_rank"]),
                         float(item["vector_similarity"]),
-                        effective_strategy,
+                        VECTOR_RETRIEVAL_STRATEGY,
                         now,
                     )
                     for item in shortlist

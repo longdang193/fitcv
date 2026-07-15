@@ -11,8 +11,6 @@ from fitcv.vector_search import (
     build_candidate_query_embedding_contract_fingerprint,
     build_candidate_query_signature_record,
     build_candidate_query_text,
-    build_protected_terms,
-    build_weighted_bm25_query_terms,
     resolve_candidate_query_embedding,
     run_vector_search,
 )
@@ -347,270 +345,167 @@ def test_run_vector_search_returns_shortlist(config: dict, sample_profile_path) 
     profile = load_profile_yaml(sample_profile_path)
     # Use empty passed_job_urls to test graceful short-circuit
     result = run_vector_search(profile, passed_job_urls=[], config=config, top_n=10)
-    assert isinstance(result, list)
-
-
-
-
-def test_build_protected_terms_includes_manual_seed_even_without_taxonomy() -> None:
-    config = {
-        "shortlist_lexical": {
-            "protected_terms": {
-                "manual_seed": ["ml", "etl", "dbt", "gcp", "sql", "nlp"],
-                "derive_from_taxonomy": False,
-            }
-        }
-    }
-
-    result = build_protected_terms(config)
-
-    assert result["protected_terms"] == ["dbt", "etl", "gcp", "ml", "nlp", "sql"]
-    assert result["protected_terms_count"] == 6
-    assert isinstance(result["protected_terms_hash"], str)
-
-
-def test_build_protected_terms_filters_taxonomy_candidates_deterministically() -> None:
-    config = {
-        "skill_synonyms": {
-            "dbt": "dbt",
-            "gcp": "google cloud platform",
-            "machine learning": "machine learning",
-            "etl": "extract transform load",
-            "python": "python",
-            "nlp": "natural language processing",
+    assert result == {
+        "production_rows": [],
+        "audit_rows": [],
+        "diagnostics": {
+            "eligible_jobs_total": 0,
+            "scored_jobs_total": 0,
+            "missing_job_embedding_total": 0,
+            "invalid_job_embedding_total": 0,
+            "candidate_embedding_available": False,
+            "embedding_coverage_rate": 0.0,
+            "production_shortlist_total": 0,
+            "production_cutoff_rank": None,
+            "production_cutoff_similarity": None,
+            "audit_candidate_total": 0,
+            "audit_sample_total": 0,
+            "audit_sample_fingerprint": "",
+            "missing_job_embedding_sample": [],
+            "invalid_job_embedding_sample": [],
+            "duplicate_job_embedding_total": 0,
+            "duplicate_job_embedding_sample": [],
+            "raw_hit_anomaly_total": 0,
+            "raw_hit_anomaly_sample": [],
         },
-        "shortlist_lexical": {
-            "protected_terms": {
-                "manual_seed": ["sql"],
-                "derive_from_taxonomy": True,
-                "max_len_auto_protect": 4,
-                "punctuation_markers": ["+", "#", "."],
-                "stopword_exclusions": ["and", "or", "the"],
-            }
-        },
+        "candidate_query": {},
     }
 
-    result = build_protected_terms(config)
 
-    # Includes short/acronym candidates; excludes whitespace phrases.
-    assert "dbt" in result["protected_terms"]
-    assert "gcp" in result["protected_terms"]
-    assert "etl" in result["protected_terms"]
-    assert "nlp" in result["protected_terms"]
-    assert "sql" in result["protected_terms"]
-    assert "machine learning" not in result["protected_terms"]
-    assert result["protected_terms"] == sorted(result["protected_terms"])
+def _create_job_embedding_table(path: Path) -> None:
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE job_embeddings (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              job_url TEXT NOT NULL,
+              chunk_type TEXT NOT NULL,
+              chunk_text TEXT NOT NULL,
+              embedding_json TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            )
+            """
+        )
 
 
-
-def test_build_weighted_bm25_query_terms_is_deterministic() -> None:
-    profile = {
-        "headline": "Senior Data Engineer",
-        "preferences": {
-            "target_role": "Lead Data Engineer",
-            "role_families": ["data engineering"],
-            "domains": ["fintech", "payments"],
-            "location_types": ["remote", "hybrid"],
-        },
-        "experiences": [
-            {"role": "Senior Data Engineer"},
-            {"role": "Data Engineer"},
-            {"role": "Analytics Engineer"},
-        ],
-        "skills": {"languages": ["Python", "SQL"], "tools": ["Airflow", "dbt", "BigQuery", "Kafka"]},
+def _candidate_query_record(embedding: list[float]) -> dict:
+    return {
+        "text": "candidate",
+        "components": {},
+        "embedding": embedding,
+        "candidate_query_signature": "query-signature",
+        "candidate_query_contract_fingerprint": "embedding-contract",
+        "candidate_query_reuse_status": "fresh_compute",
     }
-    config = {
-        "shortlist_lexical": {
-            "field_weights": {
-                "target_role": 3.0,
-                "headline": 3.0,
-                "skills": 2.5,
-                "recent_roles": 1.5,
-                "role_families": 1.0,
-                "domains": 0.75,
-                "location_types": 0.5,
-            },
-            "protected_terms": {
-                "manual_seed": ["ml", "etl", "dbt", "gcp", "sql", "nlp"],
-                "derive_from_taxonomy": False,
-            },
+
+
+def test_run_vector_search_uses_total_order_and_bounded_audit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    _create_job_embedding_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            [
+                ("https://example.com/b", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z"),
+                ("https://example.com/a", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z"),
+                ("https://example.com/c", json.dumps([0.8, 0.6]), "2026-01-01T00:00:00Z"),
+            ],
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+    config = {"pipeline": {"vector_search_top_n": 1, "shortlist_audit_sample_n": 2}}
+
+    result = run_vector_search(
+        {},
+        ["https://example.com/c", "https://example.com/b", "https://example.com/a"],
+        config,
+    )
+
+    assert result["production_rows"] == [
+        {
+            "job_url": "https://example.com/a",
+            "vector_similarity": 1.0,
+            "vector_rank": 1,
+            "shortlist_origin": "vector_search",
+            "retrieval_strategy": "vector_cosine_v1",
         }
-    }
-
-    components = build_candidate_query_components(profile, config)
-    first = build_weighted_bm25_query_terms(components, config)
-    second = build_weighted_bm25_query_terms(components, config)
-
-    assert first["bm25_terms_hash"] == second["bm25_terms_hash"]
-    assert first["payload"] == second["payload"]
-
-
-def test_build_weighted_bm25_query_terms_includes_role_phrases_and_weights() -> None:
-    components = {
-        "headline": "Senior Data Engineer",
-        "target_role": "Lead Data Engineer",
-        "recent_roles": ["Senior Data Engineer", "Data Engineer", "Analytics Engineer"],
-        "skills": ["Python", "SQL", "Airflow", "dbt", "BigQuery", "Kafka"],
-        "role_families": ["data engineering"],
-        "domains": ["fintech", "payments"],
-        "location_types": ["remote", "hybrid"],
-    }
-    config = {
-        "shortlist_lexical": {
-            "field_weights": {
-                "target_role": 3.0,
-                "headline": 3.0,
-                "skills": 2.5,
-                "recent_roles": 1.5,
-                "domains": 0.75,
-                "location_types": 0.5,
-            },
-            "protected_terms": {"manual_seed": ["dbt", "sql"], "derive_from_taxonomy": False},
-        }
-    }
-
-    result = build_weighted_bm25_query_terms(components, config)
-
-    phrases = result["payload"]["role_phrases"]
-    assert "data engineer" in phrases
-    assert "senior data engineer" in phrases
-    assert "lead data engineer" in phrases
-    assert result["payload"]["field_weights"]["skills"] == 2.5
-    assert "dbt" in result["payload"]["terms_by_field"]["skills"]
-
-
-def test_build_weighted_bm25_query_terms_normalizes_invalid_scoring_mode() -> None:
-    components = {
-        "headline": "Senior Data Engineer",
-        "target_role": "Lead Data Engineer",
-        "recent_roles": ["Senior Data Engineer"],
-        "skills": ["SQL", "dbt"],
-        "role_families": ["data engineering"],
-        "domains": ["fintech"],
-        "location_types": ["remote"],
-    }
-    config = {
-        "shortlist_lexical": {
-            "scoring_mode": "invalid_mode",
-            "protected_terms": {"manual_seed": ["sql", "dbt"], "derive_from_taxonomy": False},
-        }
-    }
-
-    result = build_weighted_bm25_query_terms(components, config)
-
-    assert result["payload"]["scoring_mode"] == "weighted_sum_fallback"
-    assert result["payload"]["scoring_formula"] == "sum_f(weight_f * bm25_f(doc, query_terms_f))"
-
-
-def test_build_weighted_bm25_query_terms_includes_phrase_boost_and_tie_break_contract() -> None:
-    components = {
-        "headline": "Senior Data Engineer",
-        "target_role": "Lead Data Engineer",
-        "recent_roles": ["Data Engineer"],
-        "skills": ["SQL"],
-        "role_families": ["data engineering"],
-        "domains": ["fintech"],
-        "location_types": ["remote"],
-    }
-    config = {
-        "shortlist_lexical": {
-            "scoring_mode": "bm25f",
-            "phrase_boost": {"per_phrase": 0.3, "cap_ratio_of_max_base": 0.2},
-            "protected_terms": {"manual_seed": ["sql"], "derive_from_taxonomy": False},
-        }
-    }
-
-    result = build_weighted_bm25_query_terms(components, config)
-
-    assert result["payload"]["scoring_mode"] == "bm25f"
-    assert result["payload"]["scoring_formula"] == "bm25f_weighted"
-    assert result["payload"]["phrase_boost"]["per_phrase"] == 0.3
-    assert result["payload"]["phrase_boost"]["cap_ratio_of_max_base"] == 0.2
-    assert result["payload"]["tie_break_order"] == [
-        "lexical_base_score_desc",
-        "phrase_hit_count_desc",
-        "job_url_asc",
     ]
+    assert [row["vector_rank"] for row in result["audit_rows"]] == [2, 3]
+    assert result["diagnostics"]["audit_candidate_total"] == 2
+    assert result["diagnostics"]["audit_sample_total"] == 2
+    assert result["diagnostics"]["audit_sample_fingerprint"]
 
-def test_shortlist_intent_invariance_hashes_are_stable_for_same_profile_and_config() -> None:
-    profile = {
-        "headline": "Senior Data Engineer",
-        "preferences": {
-            "target_role": "Lead Data Engineer",
-            "role_families": ["data engineering"],
-            "domains": ["fintech", "payments"],
-            "location_types": ["remote", "hybrid"],
-        },
-        "experiences": [
-            {"role": "Senior Data Engineer"},
-            {"role": "Data Engineer"},
-            {"role": "Analytics Engineer"},
+
+def test_run_vector_search_uses_latest_id_for_same_timestamp_duplicate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    _create_job_embedding_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            ("https://example.com/a", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            ("https://example.com/a", json.dumps([0.0, 1.0]), "2026-01-01T00:00:00Z"),
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+
+    result = run_vector_search(
+        {},
+        ["https://example.com/a"],
+        {"pipeline": {"vector_search_top_n": 1, "shortlist_audit_sample_n": 0}},
+    )
+
+    assert result["production_rows"][0]["vector_similarity"] == 0.0
+    assert result["diagnostics"]["duplicate_job_embedding_total"] == 1
+
+
+def test_run_vector_search_reports_missing_and_invalid_embedding_coverage(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    _create_job_embedding_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            [
+                ("https://example.com/valid", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z"),
+                ("https://example.com/invalid", "not-json", "2026-01-01T00:00:00Z"),
+            ],
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+
+    result = run_vector_search(
+        {},
+        [
+            "https://example.com/valid",
+            "https://example.com/invalid",
+            "https://example.com/missing",
         ],
-        "skills": {
-            "languages": ["Python", "SQL"],
-            "tools": ["Airflow", "dbt", "BigQuery", "Kafka"],
-        },
-    }
-    config = {
-        "shortlist_lexical": {
-            "protected_terms": {
-                "manual_seed": ["ml", "etl", "dbt", "gcp", "sql", "nlp"],
-                "derive_from_taxonomy": False,
-            }
-        }
-    }
+        {"pipeline": {"vector_search_top_n": 3, "shortlist_audit_sample_n": 0}},
+    )
 
-    components_first = build_candidate_query_components(profile, config)
-    components_second = build_candidate_query_components(profile, config)
-    signature_first = build_candidate_query_signature_record(components_first)
-    signature_second = build_candidate_query_signature_record(components_second)
-    text_first = build_candidate_query_text(profile, config)
-    text_second = build_candidate_query_text(profile, config)
-    weighted_first = build_weighted_bm25_query_terms(components_first, config)
-    weighted_second = build_weighted_bm25_query_terms(components_second, config)
-
-    assert components_first == components_second
-    assert signature_first["signature"] == signature_second["signature"]
-    assert text_first == text_second
-    assert weighted_first["bm25_terms_hash"] == weighted_second["bm25_terms_hash"]
-    assert weighted_first["protected_terms_hash"] == weighted_second["protected_terms_hash"]
-
-
-def test_shortlist_vector_and_lexical_channels_share_same_canonical_component_values() -> None:
-    profile = {
-        "headline": "Senior Data Engineer",
-        "preferences": {
-            "target_role": "Lead Data Engineer",
-            "role_families": ["data engineering"],
-            "domains": ["fintech", "payments"],
-            "location_types": ["remote", "hybrid"],
-        },
-        "experiences": [
-            {"role": "Senior Data Engineer"},
-            {"role": "Data Engineer"},
-            {"role": "Analytics Engineer"},
-        ],
-        "skills": {
-            "languages": ["Python", "SQL"],
-            "tools": ["Airflow", "dbt", "BigQuery", "Kafka"],
-        },
-    }
-    config = {
-        "shortlist_lexical": {
-            "protected_terms": {
-                "manual_seed": ["ml", "etl", "dbt", "gcp", "sql", "nlp"],
-                "derive_from_taxonomy": False,
-            }
-        }
-    }
-
-    components = build_candidate_query_components(profile, config)
-    text = build_candidate_query_text(profile, config)
-    weighted = build_weighted_bm25_query_terms(components, config)
-
-    assert f"Headline: {components['headline']}" in text
-    assert f"Target Role: {components['target_role']}" in text
-    assert " | ".join(components["recent_roles"]) in text
-    assert " | ".join(components["skills"]) in text
-    assert weighted["payload"]["terms_by_field"]["headline"] == ["senior", "data", "engineer"]
-    assert weighted["payload"]["terms_by_field"]["target_role"] == ["lead", "data", "engineer"]
+    assert [row["job_url"] for row in result["production_rows"]] == ["https://example.com/valid"]
+    assert result["diagnostics"]["eligible_jobs_total"] == 3
+    assert result["diagnostics"]["scored_jobs_total"] == 1
+    assert result["diagnostics"]["missing_job_embedding_sample"] == ["https://example.com/missing"]
+    assert result["diagnostics"]["invalid_job_embedding_sample"] == ["https://example.com/invalid"]
+    assert result["diagnostics"]["embedding_coverage_rate"] == pytest.approx(1 / 3)

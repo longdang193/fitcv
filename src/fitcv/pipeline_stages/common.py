@@ -121,11 +121,8 @@ def shortlist_outcome_for_row(
     shortlist_origin: str,
     retrieval_anomaly_present: bool = False,
 ) -> str:
-    normalized_origin = shortlist_origin.strip().lower()
     if retrieval_anomaly_present:
         return "raw_hit_excluded_from_scoring"
-    if normalized_origin == "backfill":
-        return "backfilled_for_scoring"
     if raw_hit_present:
         return "returned_by_vector_search"
     return "not_returned_in_raw_hits"
@@ -199,7 +196,7 @@ def shortlist_row_sample(row: Mapping[str, Any]) -> dict[str, Any] | None:
     if not job_url:
         return None
     shortlist_origin = str(row.get("shortlist_origin") or "vector_search")
-    raw_hit_present = bool(row.get("raw_hit_present", shortlist_origin != "backfill"))
+    raw_hit_present = bool(row.get("raw_hit_present", True))
     retrieval_anomaly_present = bool(row.get("retrieval_anomaly_present", False))
     sample = {
         "job_url": job_url,

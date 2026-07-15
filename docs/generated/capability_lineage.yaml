@@ -32,7 +32,7 @@ features:
     status: active
     type: add
     lineage_file: docs/features/cv_system/lineage.generated.yaml
-    capability_count: 9
+    capability_count: 10
     capabilities:
     - cv_system.analysis-evidence-selection
     - cv_system.analysis-grounded-validation
@@ -43,6 +43,7 @@ features:
     - cv_system.location-language-eligibility
     - cv_system.stage-artifact-diagnostics
     - cv_system.structured-cv-generation
+    - cv_system.vector-only-shortlist
   inspection_debugging:
     summary: Admins can inspect run, stage, and per-job truth through compact ledgers, stage-owned artifacts, canonical runtime evidence, stage-neutral CV traces, reuse diagnostics, prompt provenance, validation outcomes, and bounded compatibility reads for historical artifacts.
     status: active

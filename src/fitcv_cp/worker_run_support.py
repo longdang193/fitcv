@@ -55,8 +55,26 @@ def _build_stage_transition_artifacts_payload_dict(
     finished_at: datetime.datetime,
     run_status: RunStatus = RunStatus.SUCCEEDED,
     degradation_reason: str | None = None,
+    prior_stage_transition_artifacts: dict[str, Any] | str | None = None,
+    stages_completed_before_segment: list[str] | None = None,
 ) -> dict[str, Any]:
     stage_artifacts = dict(summary.get("stage_transition_artifacts") or {})
+    prior_payload = (
+        decode_json_object_or_none(prior_stage_transition_artifacts)
+        if isinstance(prior_stage_transition_artifacts, str)
+        else prior_stage_transition_artifacts
+    )
+    prior_root = dict(prior_payload or {})
+    if isinstance(prior_root.get("artifacts"), dict):
+        prior_root = dict(prior_root["artifacts"])
+    prior_stages = prior_root.get("stages")
+    current_stages = stage_artifacts.get("stages")
+    if isinstance(prior_stages, dict) and isinstance(current_stages, dict):
+        merged_stages = dict(current_stages)
+        for stage_id in list(stages_completed_before_segment or []):
+            if stage_id in prior_stages:
+                merged_stages[stage_id] = prior_stages[stage_id]
+        stage_artifacts["stages"] = merged_stages
     snapshot_complete = bool(stage_artifacts) and run_status == RunStatus.SUCCEEDED
     resolved_reason = (
         str(degradation_reason or "").strip()
@@ -80,6 +98,8 @@ def _build_stage_transition_artifacts_payload(
     finished_at: datetime.datetime,
     run_status: RunStatus = RunStatus.SUCCEEDED,
     degradation_reason: str | None = None,
+    prior_stage_transition_artifacts: dict[str, Any] | str | None = None,
+    stages_completed_before_segment: list[str] | None = None,
 ) -> str:
     return encode_json_object(
         _build_stage_transition_artifacts_payload_dict(
@@ -88,6 +108,8 @@ def _build_stage_transition_artifacts_payload(
             finished_at=finished_at,
             run_status=run_status,
             degradation_reason=degradation_reason,
+            prior_stage_transition_artifacts=prior_stage_transition_artifacts,
+            stages_completed_before_segment=stages_completed_before_segment,
         )
     )
 

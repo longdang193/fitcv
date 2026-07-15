@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: superseded
 template_id: detailed-specification
 name: shortlist-hybrid-retrieval-spec
 parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
@@ -19,6 +19,8 @@ related_stages:
   - shortlist
   - ranking
 ---
+
+> Superseded on July 15, 2026 by `docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md` and its implementation plan.
 
 ## Goal
 

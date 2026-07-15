@@ -77,7 +77,7 @@ def test_cv_generation_status_for_analysis_status_parity(analysis_status: str, e
 
 
 def test_pipeline_helpers_match_shared_late_stage_contract() -> None:
-    job = {"shortlist_origin": "backfill"}
+    job = {"shortlist_origin": "vector_search"}
 
     assert validation_status_for_cv_status("validation_failed") == "failed"
     assert validation_status_for_cv_status("persistence_failed") == "accepted"
@@ -89,5 +89,5 @@ def test_pipeline_helpers_match_shared_late_stage_contract() -> None:
     assert deterministic_truth_fields(CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS)["deterministic_outcome"] == "blocked"
     assert cv_generation_status_for_analysis_status(CV_ANALYSIS_READY_FOR_GENERATION_STATUS) == "not_attempted"
     assert cv_generation_status_for_analysis_status("unexpected_status") == "failed"
-    assert shortlist_status_for_ranked_job(job) == "backfilled_for_scoring"
+    assert shortlist_status_for_ranked_job(job) == "returned_by_vector_search"
 

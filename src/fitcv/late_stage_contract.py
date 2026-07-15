@@ -83,9 +83,6 @@ CV_DEBUG_ANALYSIS_OMISSION_STATUSES: Final[frozenset[str]] = frozenset(
 
 
 def shortlist_status_for_ranked_job(job: dict[str, Any]) -> str:
-    shortlist_origin = str(job.get("shortlist_origin") or "").strip().lower()
-    if shortlist_origin == "backfill":
-        return "backfilled_for_scoring"
     return "returned_by_vector_search"
 
 

@@ -35,7 +35,7 @@ class PipelineState:
     candidate_filter_rejected_jobs: list[dict[str, Any]] = field(default_factory=list)
     raw_shortlist: list[dict[str, Any]] = field(default_factory=list)
     shortlist: list[dict[str, Any]] = field(default_factory=list)
-    backfilled_job_urls: list[str] = field(default_factory=list)
+    shortlist_diagnostics: dict[str, Any] = field(default_factory=dict)
     candidate_query_debug: dict[str, Any] = field(default_factory=dict)
     ai_scores: list[dict[str, Any]] = field(default_factory=list)
     ranking_llm_runtime_observations: list[dict[str, Any]] = field(default_factory=list)
@@ -72,7 +72,7 @@ class PipelineState:
         state = cls(run_id=run_id)
         for key in cls.payload_keys():
             value = payload.get(key, root_payload.get(key))
-            if key == "candidate_query_debug":
+            if key in {"candidate_query_debug", "shortlist_diagnostics"}:
                 if isinstance(value, dict):
                     setattr(state, key, dict(value))
                 continue
@@ -97,7 +97,7 @@ class PipelineState:
             "candidate_filter_rejected_jobs",
             "raw_shortlist",
             "shortlist",
-            "backfilled_job_urls",
+            "shortlist_diagnostics",
             "candidate_query_debug",
             "ai_scores",
             "ranking_llm_runtime_observations",
@@ -122,7 +122,7 @@ class PipelineState:
             "candidate_filter_rejected_jobs": list(self.candidate_filter_rejected_jobs),
             "raw_shortlist": list(self.raw_shortlist),
             "shortlist": list(self.shortlist),
-            "backfilled_job_urls": list(self.backfilled_job_urls),
+            "shortlist_diagnostics": dict(self.shortlist_diagnostics),
             "candidate_query_debug": dict(self.candidate_query_debug),
             "ai_scores": list(self.ai_scores),
             "ranking_llm_runtime_observations": list(self.ranking_llm_runtime_observations),
@@ -144,7 +144,7 @@ def infer_last_completed_stage_from_state(state: dict[str, Any]) -> str | None:
         ("cv_generation", ("cv_results", "cv_generation_debug_records")),
         ("cv_analysis", ("cv_analysis_results",)),
         ("ranking", ("ranked", "ranking_inputs", "ai_scores")),
-        ("shortlist", ("shortlist", "raw_shortlist", "backfilled_job_urls", "candidate_query_debug")),
+        ("shortlist", ("shortlist", "raw_shortlist", "shortlist_diagnostics", "candidate_query_debug")),
         ("rule_filter", ("passed_jobs", "candidate_filter_rejected_jobs")),
         ("enrich", ("enriched", "pre_filter_rejected_jobs")),
         ("normalize", ("normalized", "deduplicated_jobs", "raw_jobs")),

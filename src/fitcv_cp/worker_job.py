@@ -1361,6 +1361,8 @@ def _persist_shared_progress_snapshot(
             finished_at=snapshot_at,
             run_status=run_status,
             degradation_reason="partial_snapshot",
+            prior_stage_transition_artifacts=getattr(run_record, "stage_transition_artifacts_json", None),
+            stages_completed_before_segment=list(getattr(run_record, "completed_stages", None) or []),
         ),
         client=client,
     )
@@ -1844,6 +1846,14 @@ def execute_pipeline_run(
                             finished_at=checkpoint_time,
                             run_status=RunStatus.AWAITING_CONTINUE,
                             degradation_reason="checkpoint_partial_snapshot",
+                            prior_stage_transition_artifacts=getattr(
+                                run_record,
+                                "stage_transition_artifacts_json",
+                                None,
+                            ),
+                            stages_completed_before_segment=list(
+                                getattr(run_record, "completed_stages", None) or []
+                            ),
                         ),
                         client=client,
                     )
@@ -2204,6 +2214,14 @@ def execute_pipeline_run(
                             summary=summary,
                             finished_at=artifact_snapshot_at,
                             run_status=terminal_status,
+                            prior_stage_transition_artifacts=getattr(
+                                run_record,
+                                "stage_transition_artifacts_json",
+                                None,
+                            ),
+                            stages_completed_before_segment=list(
+                                getattr(run_record, "completed_stages", None) or []
+                            ),
                         ),
                         client=client,
                     )
@@ -2323,6 +2341,14 @@ def execute_pipeline_run(
                                 summary=summary,
                                 finished_at=artifact_snapshot_at,
                                 run_status=terminal_status,
+                                prior_stage_transition_artifacts=getattr(
+                                    run_record,
+                                    "stage_transition_artifacts_json",
+                                    None,
+                                ),
+                                stages_completed_before_segment=list(
+                                    getattr(run_record, "completed_stages", None) or []
+                                ),
                             ),
                             client=client,
                         )

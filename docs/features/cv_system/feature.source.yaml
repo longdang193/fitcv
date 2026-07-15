@@ -44,6 +44,9 @@ capabilities:
 
       '
     state: active
+  - capability_id: cv_system.vector-only-shortlist
+    statement: Produce one deterministic cosine-ranked production shortlist from real embedding evidence and keep bounded below-cutoff audit rows artifact-only across full-run and continuation paths.
+    state: active
   - capability_id: cv_system.exact-match-late-stage-reuse
     statement: 'Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
 
@@ -73,6 +76,11 @@ stage_participation:
     capability_ids:
       - cv_system.exact-match-late-stage-reuse
       - cv_system.fit-gate-resolution
+  - stage_id: shortlist
+    role: primary
+    capability_ids:
+      - cv_system.stage-artifact-diagnostics
+      - cv_system.vector-only-shortlist
   - stage_id: cv_analysis
     role: primary
     capability_ids:

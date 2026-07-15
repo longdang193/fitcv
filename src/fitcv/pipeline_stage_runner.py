@@ -245,7 +245,7 @@ def execute_shortlist_stage(
     observe_span: Callable[..., Any],
     set_span_attributes: Callable[[dict[str, Any]], None],
     run_vector_search: Callable[..., Any],
-    materialize_scoring_shortlist: Callable[[list[dict[str, Any]], list[dict[str, Any]], int], list[dict[str, Any]]],
+    materialize_scoring_shortlist: Callable[[list[dict[str, Any]], list[dict[str, Any]]], list[dict[str, Any]]],
     unique_job_urls: Callable[[list[dict[str, Any]]], list[str]],
     raw_shortlist_anomaly_urls: Callable[[list[dict[str, Any]], list[dict[str, Any]]], list[str]],
 ) -> tuple[list[dict[str, Any]], str, dict[str, Any], dict[str, Any]]:
@@ -256,14 +256,11 @@ def execute_shortlist_stage(
             [str(job.get("job_url") or "") for job in passed_jobs],
             config,
             top_n=vector_top_n,
-            include_debug=True,
         )
-        candidate_query_record: dict[str, Any] = {}
-        if isinstance(raw_shortlist_result, dict):
-            raw_shortlist = list(raw_shortlist_result.get("rows") or [])
-            candidate_query_record = dict(raw_shortlist_result.get("candidate_query") or {})
-        else:
-            raw_shortlist = list(raw_shortlist_result)
+        raw_shortlist = list(raw_shortlist_result.get("production_rows") or [])
+        audit_rows = list(raw_shortlist_result.get("audit_rows") or [])
+        shortlist_diagnostics = dict(raw_shortlist_result.get("diagnostics") or {})
+        candidate_query_record = dict(raw_shortlist_result.get("candidate_query") or {})
 
         from fitcv.vector_search import (
             build_candidate_query_components,
@@ -297,32 +294,26 @@ def execute_shortlist_stage(
             raise RuntimeError(
                 "Vector shortlist returned zero raw hits for non-empty passed jobs; fail-fast guard active"
             )
-        shortlist = materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_top_n)
+        shortlist = materialize_scoring_shortlist(raw_shortlist, passed_jobs)
         pipeline_store.store_shortlist(shortlist, config)
         raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
         raw_shortlist_anomaly_rows = raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
-        backfilled_job_urls = [
-            str(job.get("job_url") or "")
-            for job in shortlist
-            if str(job.get("job_url") or "") not in raw_shortlist_urls
-        ]
         if reporter is not None:
             shortlist_message = f"Vector shortlist: {len(raw_shortlist_urls)} raw hits"
-            if backfilled_job_urls:
-                shortlist_message += f", {len(shortlist)} scoring jobs ({len(backfilled_job_urls)} backfilled)"
             if raw_shortlist_anomaly_rows:
                 shortlist_message += f", {len(raw_shortlist_anomaly_rows)} raw-hit anomalies"
             reporter.emit("layer3_shortlist", "info", shortlist_message)  # type: ignore[union-attr]
         state["raw_shortlist"] = raw_shortlist
         state["shortlist"] = shortlist
-        state["backfilled_job_urls"] = backfilled_job_urls
+        state["shortlist_diagnostics"] = shortlist_diagnostics
+        state["_shortlist_audit_rows"] = audit_rows
         state["candidate_query_debug"] = candidate_query_debug
         set_span_attributes(
             {
                 "passed_jobs": len(passed_jobs),
                 "raw_shortlist_hits": len(raw_shortlist_urls),
                 "shortlist_jobs": len(shortlist),
-                "backfilled_jobs": len(backfilled_job_urls),
+                "shortlist_audit_rows": len(audit_rows),
             }
         )
     return raw_shortlist, candidate_summary, candidate_query_components, candidate_query_debug

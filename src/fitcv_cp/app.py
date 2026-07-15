@@ -700,7 +700,6 @@ DEFAULT_ENRICHED_PIPELINE_OUTCOMES: tuple[str, ...] = (
 )
 DECISION_CHAIN_LABELS: dict[str, str] = {
     "returned_by_vector_search": "returned by vector search",
-    "backfilled_for_scoring": "backfilled for scoring",
     "advanced_to_scoring": "advanced to scoring",
     "not_returned_by_vector_search": "not returned by vector search",
     "accepted": "accepted",
@@ -953,7 +952,6 @@ def _canonical_continue_next_stage(run: PipelineRun) -> str | None:
 
     return None
 NEGATIVE_METRIC_LABEL_MARKERS = (
-    "Backfill Rate",
     "Skip Rate",
     "Failure Rate",
     "Validation-Fail Rate",
@@ -1230,11 +1228,11 @@ def _build_stage_quality_metric_rows(stage_quality_metrics: dict[str, Any]) -> l
     shortlist = dict(stage_quality_metrics.get("shortlist") or {})
     shortlist_row = _stage_quality_metric_row(
         stage_id="shortlist",
-        label="Shortlist Backfill Rate",
-        rate=shortlist.get("backfill_rate"),
-        numerator=shortlist.get("backfilled_jobs_total"),
-        denominator=shortlist.get("scoring_shortlisted_jobs_total"),
-        hint="High values usually mean shortlist recall is relying on backfill.",
+        label="Shortlist Embedding Coverage",
+        rate=shortlist.get("embedding_coverage_rate"),
+        numerator=shortlist.get("scored_jobs_total"),
+        denominator=shortlist.get("eligible_jobs_total"),
+        hint="Share of eligible jobs with valid vector evidence.",
     )
     if shortlist_row:
         rows.append(shortlist_row)
@@ -5138,18 +5136,18 @@ def _timeline_stage_summary_message(
             return f"Rule filter complete: {passed} passed, {rejected} rejected"
     if event.stage == "layer3_shortlist":
         shortlisted = outputs.get("shortlisted_jobs") or outputs.get("scoring_shortlist_jobs")
-        backfilled = outputs.get("backfilled_jobs") or decision.get("backfilled_jobs")
+        audit_rows = outputs.get("audit_rows")
         details = []
         if shortlisted is not None:
             details.append(f"{shortlisted} shortlisted")
-        if backfilled is not None:
-            details.append(f"{backfilled} backfilled")
+        if audit_rows is not None:
+            details.append(f"{audit_rows} audit rows")
         if details:
             return _format_message(
                 "Shortlist complete",
                 [
                     ("shortlisted", shortlisted),
-                    ("backfilled", backfilled),
+                    ("audit rows", audit_rows),
                 ],
             )
     if event.stage == "layer3_ranking":

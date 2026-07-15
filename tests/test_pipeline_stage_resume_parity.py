@@ -16,7 +16,9 @@ tags:
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from pathlib import Path
+from types import SimpleNamespace
 
 from fitcv.pipeline_contracts import (
     PIPELINE_STAGE_SEQUENCE,
@@ -42,7 +44,7 @@ def test_full_run_snapshot_contract_parity() -> None:
     assert payload["next_stage"] is None
     assert payload["last_completed_stage"] == "cv_generation"
     assert payload["completed_stages"] == list(PIPELINE_STAGE_SEQUENCE)
-    assert payload["stage_artifacts_schema_version"] == "stage_transition_artifacts_v6"
+    assert payload["stage_artifacts_schema_version"] == "stage_transition_artifacts_v7"
     assert payload["event_count"] >= 1
     assert "pipeline_start" in payload["event_stages_head"]
 
@@ -55,7 +57,7 @@ def test_checkpointed_run_snapshot_contract_parity() -> None:
     assert payload["next_stage"] == "enrich"
     assert payload["last_completed_stage"] == "normalize"
     assert payload["completed_stages"] == ["normalize"]
-    assert payload["stage_artifacts_schema_version"] == "stage_transition_artifacts_v6"
+    assert payload["stage_artifacts_schema_version"] == "stage_transition_artifacts_v7"
     assert payload["event_count"] >= 1
     assert "pipeline_failed" in payload["event_stages_tail"]
 
@@ -100,6 +102,101 @@ def test_pipeline_state_round_trips_llm_runtime_observations() -> None:
 
     assert restored.enrich_llm_runtime_observations == [observation]
     assert restored.ranking_llm_runtime_observations == [observation]
+
+
+def test_pipeline_state_persists_shortlist_diagnostics_without_audit_or_backfill() -> None:
+    state = PipelineState(
+        run_id="run-1",
+        raw_shortlist=[{"job_url": "https://example.com/production"}],
+        shortlist_diagnostics={"embedding_coverage_rate": 0.5},
+    )
+
+    payload = state.as_state_dict()
+    restored = PipelineState.from_checkpoint_payload(
+        run_id="run-1",
+        checkpoint_payload={
+            **payload,
+            "backfilled_job_urls": ["https://example.com/legacy"],
+            "_shortlist_audit_rows": [{"job_url": "https://example.com/audit"}],
+        },
+    )
+
+    assert payload["raw_shortlist"] == [{"job_url": "https://example.com/production"}]
+    assert payload["shortlist_diagnostics"] == {"embedding_coverage_rate": 0.5}
+    assert "backfilled_job_urls" not in payload
+    assert "_shortlist_audit_rows" not in payload
+    assert restored.shortlist_diagnostics == {"embedding_coverage_rate": 0.5}
+    assert not hasattr(restored, "backfilled_job_urls")
+
+
+def test_shortlist_stage_consumes_vector_envelope_without_persisting_audit() -> None:
+    from fitcv.pipeline_stage_runner import execute_shortlist_stage
+
+    production_row = {
+        "job_url": "https://example.com/production",
+        "vector_rank": 1,
+        "vector_similarity": 0.9,
+        "shortlist_origin": "vector_search",
+        "retrieval_strategy": "vector_cosine_v1",
+    }
+    audit_row = {
+        "job_url": "https://example.com/audit",
+        "vector_rank": 2,
+        "vector_similarity": 0.8,
+        "shortlist_origin": "audit",
+        "retrieval_strategy": "vector_cosine_v1",
+        "audit_selection_hash": "hash",
+    }
+    diagnostics = {
+        "eligible_jobs_total": 2,
+        "scored_jobs_total": 2,
+        "embedding_coverage_rate": 1.0,
+    }
+    candidate_query = {
+        "text": "candidate query",
+        "components": {"headline": "Data Engineer"},
+        "candidate_query_reuse_status": "fresh_compute",
+        "candidate_query_signature": "signature",
+        "candidate_query_contract_fingerprint": "contract",
+    }
+    stored: list[list[dict]] = []
+    state: dict = {}
+
+    execute_shortlist_stage(
+        run_id="run-1",
+        state=state,
+        profile={"preferences": {}},
+        passed_jobs=[
+            {"job_url": production_row["job_url"], "title": "Production"},
+            {"job_url": audit_row["job_url"], "title": "Audit"},
+        ],
+        config={"pipeline": {}},
+        vector_top_n=1,
+        reporter=None,
+        pipeline_store=SimpleNamespace(
+            embed_and_store_jobs=lambda jobs, config: None,
+            store_shortlist=lambda rows, config: stored.append(rows),
+        ),
+        observe_span=lambda *args, **kwargs: nullcontext(),
+        set_span_attributes=lambda attributes: None,
+        run_vector_search=lambda profile, urls, config, *, top_n: {
+            "production_rows": [production_row],
+            "audit_rows": [audit_row],
+            "diagnostics": diagnostics,
+            "candidate_query": candidate_query,
+        },
+        materialize_scoring_shortlist=lambda rows, jobs: [
+            {**jobs[0], **rows[0]}
+        ],
+        unique_job_urls=lambda rows: [str(row["job_url"]) for row in rows],
+        raw_shortlist_anomaly_urls=lambda rows, jobs: [],
+    )
+
+    assert stored == [[{**state["shortlist"][0]}]]
+    assert state["raw_shortlist"] == [production_row]
+    assert state["shortlist_diagnostics"] == diagnostics
+    assert state["_shortlist_audit_rows"] == [audit_row]
+    assert all(row["job_url"] != audit_row["job_url"] for row in stored[0])
 
 
 def test_rule_filter_stage_builds_context_once_and_preserves_full_payload() -> None:

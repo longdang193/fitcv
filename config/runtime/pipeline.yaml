@@ -32,6 +32,7 @@ embedding_batch_size: 100
 # ── Semantic retrieval (Task 8) ────────────────────────────────────────────────
 pipeline:
   vector_search_top_n: 50              # canonical shortlist top-N for vector search
+  shortlist_audit_sample_n: 5          # deterministic below-cutoff retrieval audit sample
   ai_score_top_n: 50                   # canonical ranking top-N for AI scoring
   final_top_n: 15                      # canonical final ranked list size
   evidence_top_k: 5                    # canonical cv_analysis evidence bundle size
@@ -44,8 +45,6 @@ outbox_replay_health:
 
 vector_top_n: 50                       # top-N returned by VECTOR_SEARCH
 vector_max_candidate_skills: 15        # max skills included in candidate query text
-retrieval_strategy: job_summary_v1     # stored in vector_shortlist.retrieval_strategy
-
 # ── AI reranking (Task 9) ──────────────────────────────────────────────────────
 rerank_top_n: 50                       # max shortlisted jobs sent to AI reranking
 rerank_sleep_secs: 0.0                 # default: no enforced delay between ranking calls

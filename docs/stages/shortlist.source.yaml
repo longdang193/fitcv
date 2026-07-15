@@ -1,24 +1,24 @@
 stage_id: shortlist
 name: Shortlist
-summary: Turn passed jobs into a retrieval-aware scoring shortlist by building a richer bounded candidate query from the full profile evidence surface, reusing the single shortlist candidate-query embedding and unchanged job-summary embeddings when safe, searching only the latest active embedding row per canonical job URL with the deterministic candidate query vector actually used for retrieval, then capturing raw hits, shortlist transitions, any backfill needed before scoring, and the stage-owned shortlist backfill-rate quality metric.
+summary: Turn passed jobs with valid embeddings into one deterministic cosine-ranked production shortlist, while keeping bounded below-cutoff audit evidence artifact-only and exposing retrieval coverage, cutoff, and anomaly diagnostics.
 boundaries:
-  - raw retrieval output enters here and the scoring shortlist leaves here
-  - this stage owns the distinction between raw vector hits and the later scoring shortlist
-  - shortlist transition reasons should be explainable here rather than inferred later
+  - eligible passed jobs enter here and production shortlist rows with real cosine evidence leave here
+  - audit rows remain inside the shortlist stage artifact and never enter checkpoint, persistence, AI scoring, ranking, exports, or labels
+  - full-run and continuation paths use the same production row and diagnostics contracts
 inputs:
   - candidate query text, bounded candidate-query components, and one reusable candidate query embedding derived from the profile evidence surface
   - passed jobs
   - vector search results
 outputs:
-  - '`stage_transition_artifacts.shortlist.decision_summary.quality_metrics` with shortlist backfill-rate counts and rate'
-  - bounded `stage_transition_artifacts.shortlist` runtime block with input, output, and changed-state samples
+  - '`stage_transition_artifacts.stages.shortlist.decision_summary.quality_metrics` copied from retrieval diagnostics'
   - bounded candidate-query context for the single retrieval vector used in this stage
   - bounded shortlist candidate-query components and candidate-query reuse provenance for debugging
   - fresh-versus-reused embedding provenance for passed jobs
+  - missing, invalid, duplicate, coverage, cutoff, and audit diagnostics
   - raw row versus raw unique-job retrieval counts
   - raw vector hits
   - scoring shortlist
-  - shortlist transition reasons including any backfill
+  - versioned `stage_transition_artifacts.stages.shortlist` runtime block with production retrieval rows, production shortlist, and bounded deterministic audit sample
 depends_on:
   - rule_filter
 primary_features:
@@ -36,6 +36,7 @@ refs:
     - docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
     - docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
     - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
   plan:
     - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
     - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
@@ -44,13 +45,14 @@ refs:
     - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
     - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
     - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
   history: []
 keywords:
   - shortlist
   - vector search
   - retrieval
-  - backfill
+  - audit
   - embeddings
   - reuse
 status: active
-purpose: Turn passed jobs into a retrieval-aware scoring shortlist by building a richer bounded candidate query from the full profile evidence surface, reusing the single shortlist candidate-query embedding and unchanged job-summary embeddings when safe, searching only the latest active embedding row per canonical job URL with the deterministic candidate query vector actually used for retrieval, then capturing raw hits, shortlist transitions, any backfill needed before scoring, and the stage-owned shortlist backfill-rate quality metric.
+purpose: Produce one truthful vector-only shortlist from real cosine evidence and preserve bounded recall-inspection evidence without contaminating downstream production state.

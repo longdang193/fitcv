@@ -27,7 +27,7 @@ Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
 - `normalize`: canonicalize incoming jobs and preserve provider-native `source_location` evidence
 - `enrich`: derive structured job fields, canonical `actual_location`, canonical `language_requirements`, and reuse-aware metadata
 - `rule_filter`: evaluate symmetric location/language factors, project policy modes, and apply deterministic gating before expensive steps
-- `shortlist`: vector/retrieval candidate narrowing
+- `shortlist`: deterministic cosine retrieval over eligible jobs with valid embeddings; production rows use real vector evidence only
 - `ranking`: authoritative fit scoring and decision labels
 - `cv_analysis`: one canonical per-job analyzer owns evidence selection, gap, fit-gate, reuse validity, and generation readiness; pipeline owns batch invocation, persistence, and observations
 - `cv_generation`: one canonical `generate_from_analysis` contract for fingerprints, reuse validity, structured generation, validation, repair, acceptance/review meaning, and result shape; direct and LangGraph writers are transport adapters, while pipeline persists canonical `accepted` results only
@@ -48,6 +48,21 @@ Phase 1 uses one path for both factors:
 - hard gates run before shortlist and ranking inputs are built
 - only confirmed `gate_required` failures reject; unknown evidence stays eligible
 - final ranking score, order, and `strong | stretch | skip` labels remain unchanged in Phase 1
+
+## Vector-Only Shortlist
+
+Phase 2 uses one path:
+
+`eligible jobs -> valid cosine evidence -> total vector order -> production Top N`
+
+- ordering is `vector_similarity` descending, then `job_url` ascending
+- one latest embedding row per job URL is selected by `created_at DESC, id DESC`
+- no synthetic shortlist backfill exists; production can contain fewer than configured Top N
+- `raw_shortlist` remains checkpoint compatibility name for production retrieval rows
+- `shortlist_diagnostics` preserves coverage and cutoff metrics in checkpoint state
+- deterministic below-cutoff audit rows exist only in `stage_transition_artifacts.stages.shortlist.audit_sample`
+- audit rows never reach shortlist persistence, AI scoring, ranking, exports, or `strong | stretch | skip` labels
+- continuation preserves prior completed shortlist artifact block, including audit evidence, while current execution updates only stages in its execution segment
 
 ## Execution Modes
 

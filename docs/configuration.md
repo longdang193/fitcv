@@ -31,7 +31,7 @@ This matrix defines current SSOT ownership for migration execution.
 | Config surface | Canonical ownership | Notes |
 | --- | --- | --- |
 | `config/runtime/control_plane.yaml` | control-plane backend/provider/model routing defaults | Includes `control_plane.data_backend.*`, `control_plane.providers.*`, `control_plane.model_routing.*`, feature flags, observability toggles. |
-| `config/runtime/pipeline.yaml` | pipeline execution knobs | Owns enrichment/rerank timing, top-N controls, lifecycle limits, replay health thresholds, model defaults used by runtime pipeline stages. |
+| `config/runtime/pipeline.yaml` | pipeline execution knobs | Owns enrichment/rerank timing, Top-N controls, `pipeline.shortlist_audit_sample_n`, lifecycle limits, replay health thresholds, and model defaults used by runtime pipeline stages. |
 | `config/policy/cv.yaml` | CV generation and validation policy | Owns nested `cv.*` contract (`preset`, composition, validation, generation defaults). |
 | `config/policy/eligibility.yaml` | location/language eligibility policy | Sole mutable owner of factor modes and absolute normalization values; ranking/runtime/env config may not shadow `eligibility_policy`. |
 | `config/taxonomy/taxonomy.yaml` | shared business taxonomy and enum families | Owns seniority taxonomy, location/contract/experience enums, role taxonomy maps. |
@@ -43,6 +43,7 @@ This matrix defines current SSOT ownership for migration execution.
 - compatibility-only (to be drained from `.env.yaml`): `seniority_ladder`, `application_statuses`, `cv_analysis_min_score`, overlap with runtime knobs that already live in `config/runtime/pipeline.yaml`
 - removable private surface: `config/env.private.yaml` (no active tracked consumer in this worktree baseline)
 - removable smoke surface: `config/live_smoke.yaml` (duplicates infra/model ownership outside canonical runtime files)
+- retired shortlist surfaces: `config/shortlist_lexical.yaml`, top-level `shortlist_lexical`, and top-level `retrieval_strategy`; config loading rejects them rather than silently preserving dormant BM25/BM25F behavior
 
 ### Task 1 Ownership And Disposition Decisions
 

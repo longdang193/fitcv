@@ -33,6 +33,32 @@ def _app():
     return create_app(redis_url="redis://localhost:6379/0")
 
 
+def test_shortlist_quality_row_reports_embedding_coverage() -> None:
+    from fitcv_cp.app import _build_stage_quality_metric_rows
+
+    rows = _build_stage_quality_metric_rows(
+        {
+            "shortlist": {
+                "embedding_coverage_rate": 0.75,
+                "scored_jobs_total": 3,
+                "eligible_jobs_total": 4,
+            }
+        }
+    )
+
+    assert rows == [
+        {
+            "stage_id": "shortlist",
+            "label": "Shortlist Embedding Coverage",
+            "rate": 0.75,
+            "rate_percent": 75,
+            "numerator": 3,
+            "denominator": 4,
+            "hint": "Share of eligible jobs with valid vector evidence.",
+        }
+    ]
+
+
 def test_admin_route_manifest_matches_native_fastapi_contract() -> None:
     app = _app()
 
@@ -9388,9 +9414,9 @@ def test_run_detail_renders_run_health_when_quality_metrics_available():
                         "shortlist": {
                             "decision_summary": {
                                 "quality_metrics": {
-                                    "backfill_rate": 0.33,
-                                    "backfilled_jobs_total": 1,
-                                    "scoring_shortlisted_jobs_total": 3,
+                                        "embedding_coverage_rate": 0.67,
+                                        "scored_jobs_total": 2,
+                                        "eligible_jobs_total": 3,
                                 }
                             }
                         },
@@ -9427,9 +9453,9 @@ def test_run_detail_renders_run_health_when_quality_metrics_available():
     html = resp.text
     assert "Run Health" in html
     assert "Stage Quality Metrics" not in html
-    assert "Shortlist Backfill Rate" in html
-    assert "33%" in html
-    assert "1 / 3" in html
+    assert "Shortlist Embedding Coverage" in html
+    assert "67%" in html
+    assert "2 / 3" in html
 
 
 def test_run_detail_hides_run_health_when_quality_metrics_absent():
