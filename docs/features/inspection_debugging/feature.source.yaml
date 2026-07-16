@@ -40,6 +40,9 @@ capabilities:
   - capability_id: inspection_debugging.ranking-diagnostics
     statement: Expose ranking-v2 policy and contract fingerprints, configured/effective weights, absolute normalizers, missing-value use, factor contributions, baseline labels, migration summary, and AI-score reuse state.
     state: active
+  - capability_id: inspection_debugging.decision-feedback-review
+    statement: Show accessible no-JavaScript 1–5 application-interest controls only for immutable v4 alternatives and derive current state from the shared append-only event reducer.
+    state: active
   - capability_id: inspection_debugging.shortlist-diagnostics
     statement: Show shortlist retrieval facts, raw-hit visibility, candidate-query inputs, and embedding reuse provenance.
     state: active
@@ -67,6 +70,7 @@ stage_participation:
     capability_ids:
       - inspection_debugging.cv-analysis-diagnostics
       - inspection_debugging.cv-generation-diagnostics
+      - inspection_debugging.decision-feedback-review
       - inspection_debugging.enriched-job-debug-export
       - inspection_debugging.prompt-provenance-diagnostics
       - inspection_debugging.quality-metrics-diagnostics
@@ -87,6 +91,7 @@ stage_participation:
     capability_ids:
       - inspection_debugging.cv-analysis-diagnostics
       - inspection_debugging.cv-generation-diagnostics
+      - inspection_debugging.decision-feedback-review
       - inspection_debugging.enriched-job-debug-export
       - inspection_debugging.prompt-provenance-diagnostics
       - inspection_debugging.quality-metrics-diagnostics
@@ -107,6 +112,7 @@ stage_participation:
     capability_ids:
       - inspection_debugging.cv-analysis-diagnostics
       - inspection_debugging.cv-generation-diagnostics
+      - inspection_debugging.decision-feedback-review
       - inspection_debugging.enriched-job-debug-export
       - inspection_debugging.prompt-provenance-diagnostics
       - inspection_debugging.quality-metrics-diagnostics
@@ -127,6 +133,7 @@ stage_participation:
     capability_ids:
       - inspection_debugging.cv-analysis-diagnostics
       - inspection_debugging.cv-generation-diagnostics
+      - inspection_debugging.decision-feedback-review
       - inspection_debugging.enriched-job-debug-export
       - inspection_debugging.prompt-provenance-diagnostics
       - inspection_debugging.quality-metrics-diagnostics
@@ -147,6 +154,7 @@ stage_participation:
     capability_ids:
       - inspection_debugging.cv-analysis-diagnostics
       - inspection_debugging.cv-generation-diagnostics
+      - inspection_debugging.decision-feedback-review
       - inspection_debugging.enriched-job-debug-export
       - inspection_debugging.prompt-provenance-diagnostics
       - inspection_debugging.quality-metrics-diagnostics
@@ -167,6 +175,7 @@ stage_participation:
     capability_ids:
       - inspection_debugging.cv-analysis-diagnostics
       - inspection_debugging.cv-generation-diagnostics
+      - inspection_debugging.decision-feedback-review
       - inspection_debugging.enriched-job-debug-export
       - inspection_debugging.prompt-provenance-diagnostics
       - inspection_debugging.quality-metrics-diagnostics

@@ -124,6 +124,10 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
     return max(-1.0, min(1.0, dot / (norm_a * norm_b)))
 
 
+def _normalized_vector(vector: list[float]) -> list[float]:
+    norm = math.sqrt(sum(value * value for value in vector))
+    return [value / norm for value in vector]
+
 def _validated_vector(value: Any, *, expected_dimension: int | None = None) -> list[float] | None:
     if not isinstance(value, list) or not value:
         return None
@@ -475,12 +479,20 @@ def run_vector_search(
     placeholders = ",".join(["?"] * len(eligible_job_urls))
     with sqlite3.connect(sqlite_path(), timeout=30) as conn:
         configure_sqlite_connection(conn)
-        query = f"""
-        WITH ranked_embeddings AS (
+        embedding_columns = {
+            str(row[1]) for row in conn.execute("PRAGMA table_info(job_embeddings)").fetchall()
+        }
+        contract_select = (
+            "embedding_contract_fingerprint"
+            if "embedding_contract_fingerprint" in embedding_columns
+            else "'' AS embedding_contract_fingerprint"
+        )
+        query = f"""        WITH ranked_embeddings AS (
           SELECT
             id,
             job_url,
             embedding_json,
+            {contract_select},
             ROW_NUMBER() OVER (
               PARTITION BY job_url
               ORDER BY created_at DESC, id DESC
@@ -489,22 +501,25 @@ def run_vector_search(
           FROM job_embeddings
           WHERE chunk_type = 'job_summary' AND job_url IN ({placeholders})
         )
-        SELECT job_url, embedding_json, embedding_row_count
+        SELECT job_url, embedding_json, embedding_contract_fingerprint, embedding_row_count
         FROM ranked_embeddings
         WHERE row_number = 1
         """
         rows = list(conn.execute(query, tuple(eligible_job_urls)).fetchall())
 
-    latest_by_url = {str(job_url): (embedding_json, int(row_count)) for job_url, embedding_json, row_count in rows}
+    latest_by_url = {
+        str(job_url): (embedding_json, str(contract_fingerprint or ""), int(row_count))
+        for job_url, embedding_json, contract_fingerprint, row_count in rows
+    }
     missing_urls = sorted(set(eligible_job_urls) - set(latest_by_url))
     invalid_urls: list[str] = []
-    duplicate_urls = sorted(job_url for job_url, (_, count) in latest_by_url.items() if count > 1)
+    duplicate_urls = sorted(job_url for job_url, (_, _, count) in latest_by_url.items() if count > 1)
     scored: list[dict[str, Any]] = []
     for job_url in eligible_job_urls:
         latest = latest_by_url.get(job_url)
         if latest is None:
             continue
-        embedding_json, _ = latest
+        embedding_json, embedding_contract_fingerprint, _ = latest
         try:
             raw_job_embedding = json.loads(str(embedding_json))
         except (TypeError, ValueError, json.JSONDecodeError):
@@ -518,10 +533,16 @@ def run_vector_search(
             continue
         if candidate_embedding is None:
             continue
+        normalized_embedding = _normalized_vector(job_embedding)
         scored.append(
             {
                 "job_url": job_url,
                 "vector_similarity": _cosine_similarity(candidate_embedding, job_embedding),
+                "normalized_embedding": normalized_embedding,
+                "embedding_vector_fingerprint": build_contract_fingerprint(
+                    {"normalized_embedding": normalized_embedding}
+                ),
+                "embedding_contract_fingerprint": embedding_contract_fingerprint,
             }
         )
     scored.sort(key=lambda item: (-float(item["vector_similarity"]), str(item["job_url"])))

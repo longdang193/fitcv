@@ -1,4 +1,9 @@
 {% if enriched_total_count %}
+{% if decision_feedback_available %}
+<p class="meta" style="padding:0.75rem 1.25rem;margin:0;border-bottom:1px solid var(--accent)">Application-interest ratings capture personal interest after eligibility. They do not record an application.</p>
+{% else %}
+<p class="meta" style="padding:0.75rem 1.25rem;margin:0;border-bottom:1px solid var(--accent)">Application-interest ratings unavailable: this run lacks immutable results_job_ledger_v4 feedback evidence.</p>
+{% endif %}
 <div style="display:flex;gap:1rem;padding:0.75rem 1.25rem;border-bottom:1px solid var(--accent);flex-wrap:wrap;align-items:center">
   <span class="meta">Post-dedupe enriched jobs: <strong>{{ enriched_total_count }}</strong></span>
   <span class="badge badge-success" style="padding:0.2rem 0.6rem;font-size:0.8rem">Passed: {{ enriched_passed_count }}</span>
@@ -91,6 +96,7 @@
         <th>Required Skills (top 5)</th>
         <th>Filter</th>
         <th>Pipeline Outcome</th>
+        <th>Application Interest</th>
       </tr>
     </thead>
     <tbody>
@@ -151,10 +157,30 @@
             <span class="empty-value">—</span>
           {% endif %}
         </td>
+        <td>
+          {% if job.decision_feedback_alternative %}
+          <form method="post" action="/admin/runs/{{ run.run_id }}/decision-feedback/{{ job.decision_feedback_alternative.alternative_id }}">
+            <input type="hidden" name="rating_scale_version" value="{{ decision_feedback_scale_version }}">
+            <input type="hidden" name="source_stage_artifact_fingerprint" value="{{ decision_feedback_source_fingerprint }}">
+            <input type="hidden" name="return_to" value="{{ decision_feedback_return_to }}">
+            <fieldset style="border:0;padding:0;margin:0">
+              <legend class="meta">Personal application interest after eligibility</legend>
+              <div style="display:flex;gap:0.25rem;flex-wrap:wrap">
+                {% for rating in (1, 2, 3, 4, 5) %}
+                <button type="submit" name="rating" value="{{ rating }}" class="btn-secondary" aria-label="Set application interest to {{ rating }} stars" aria-pressed="{{ 'true' if job.decision_rating == rating else 'false' }}">{{ '★' if job.decision_rating == rating else '☆' }} {{ rating }}</button>
+                {% endfor %}
+                <button type="submit" name="action" value="clear_rating" class="btn-secondary">Clear</button>
+              </div>
+            </fieldset>
+          </form>
+          {% else %}
+            <span class="meta">Unrated</span>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
       {% if not enriched_jobs %}
-      <tr class="empty-row"><td colspan="5">No jobs match the current controls.</td></tr>
+      <tr class="empty-row"><td colspan="6">No jobs match the current controls.</td></tr>
       {% endif %}
     </tbody>
   </table>

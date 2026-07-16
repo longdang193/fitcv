@@ -41,6 +41,9 @@ capabilities:
 - capability_id: inspection_debugging.ranking-diagnostics
   statement: Expose ranking-v2 policy and contract fingerprints, configured/effective weights, absolute normalizers, missing-value use, factor contributions, baseline labels, migration summary, and AI-score reuse state.
   state: active
+- capability_id: inspection_debugging.decision-feedback-review
+  statement: "Show accessible no-JavaScript 1\u20135 application-interest controls only for immutable v4 alternatives and derive current state from the shared append-only event reducer."
+  state: active
 - capability_id: inspection_debugging.shortlist-diagnostics
   statement: Show shortlist retrieval facts, raw-hit visibility, candidate-query inputs, and embedding reuse provenance.
   state: active
@@ -68,6 +71,7 @@ stage_participation:
   capability_ids:
   - inspection_debugging.cv-analysis-diagnostics
   - inspection_debugging.cv-generation-diagnostics
+  - inspection_debugging.decision-feedback-review
   - inspection_debugging.enriched-job-debug-export
   - inspection_debugging.prompt-provenance-diagnostics
   - inspection_debugging.quality-metrics-diagnostics
@@ -88,6 +92,7 @@ stage_participation:
   capability_ids:
   - inspection_debugging.cv-analysis-diagnostics
   - inspection_debugging.cv-generation-diagnostics
+  - inspection_debugging.decision-feedback-review
   - inspection_debugging.enriched-job-debug-export
   - inspection_debugging.prompt-provenance-diagnostics
   - inspection_debugging.quality-metrics-diagnostics
@@ -108,6 +113,7 @@ stage_participation:
   capability_ids:
   - inspection_debugging.cv-analysis-diagnostics
   - inspection_debugging.cv-generation-diagnostics
+  - inspection_debugging.decision-feedback-review
   - inspection_debugging.enriched-job-debug-export
   - inspection_debugging.prompt-provenance-diagnostics
   - inspection_debugging.quality-metrics-diagnostics
@@ -128,6 +134,7 @@ stage_participation:
   capability_ids:
   - inspection_debugging.cv-analysis-diagnostics
   - inspection_debugging.cv-generation-diagnostics
+  - inspection_debugging.decision-feedback-review
   - inspection_debugging.enriched-job-debug-export
   - inspection_debugging.prompt-provenance-diagnostics
   - inspection_debugging.quality-metrics-diagnostics
@@ -148,6 +155,7 @@ stage_participation:
   capability_ids:
   - inspection_debugging.cv-analysis-diagnostics
   - inspection_debugging.cv-generation-diagnostics
+  - inspection_debugging.decision-feedback-review
   - inspection_debugging.enriched-job-debug-export
   - inspection_debugging.prompt-provenance-diagnostics
   - inspection_debugging.quality-metrics-diagnostics
@@ -168,6 +176,7 @@ stage_participation:
   capability_ids:
   - inspection_debugging.cv-analysis-diagnostics
   - inspection_debugging.cv-generation-diagnostics
+  - inspection_debugging.decision-feedback-review
   - inspection_debugging.enriched-job-debug-export
   - inspection_debugging.prompt-provenance-diagnostics
   - inspection_debugging.quality-metrics-diagnostics
@@ -287,6 +296,7 @@ refs:
   - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
   - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
   - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+  - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
   - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -390,11 +400,12 @@ refs:
   - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
   - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
   - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+  - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
   docs:
   - docs/features/inspection_debugging/history.md
   configs:
   - config/runtime/prompts.yaml
   components: []
-revision: 10
-latest_change_id: 2026-07-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline
-last_updated_at: '2026-07-16T00:02:20+02:00'
+revision: 11
+latest_change_id: 2026-07-16-fitcv-inverse-optimization-phase-4-decision-feedback
+last_updated_at: '2026-07-16T02:09:27+02:00'

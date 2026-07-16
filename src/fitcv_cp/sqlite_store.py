@@ -26,6 +26,13 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from fitcv.decision_feedback import (
+    DecisionAlternative,
+    DecisionEpisode,
+    DecisionRatingEvent,
+    RatingEventType,
+    RatingValue,
+)
 from fitcv.persistence import get_local_sqlite_path
 from fitcv_cp.backend_runtime import get_backend_runtime
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
@@ -67,6 +74,7 @@ def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:
     _safe_pragma("PRAGMA journal_mode=WAL;", "journal_mode")
     _safe_pragma("PRAGMA synchronous=NORMAL;", "synchronous")
     _safe_pragma("PRAGMA busy_timeout=30000;", "busy_timeout")
+    _safe_pragma("PRAGMA foreign_keys=ON;", "foreign_keys")
 
 
 def _is_sqlite_malformed_error(exc: BaseException) -> bool:
@@ -117,6 +125,256 @@ def _sqlite_connection(db_path: Path):
     finally:
         conn.close()
 
+
+def _ensure_local_decision_feedback_tables(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS decision_episodes (
+            episode_id TEXT PRIMARY KEY,
+            domain_id TEXT NOT NULL,
+            run_id TEXT NOT NULL,
+            preference_context_fingerprint TEXT NOT NULL,
+            qualification_context_fingerprint TEXT NOT NULL,
+            ranking_contract_fingerprint TEXT NOT NULL,
+            embedding_contract_fingerprint TEXT NOT NULL,
+            baseline_policy_fingerprint TEXT NOT NULL,
+            embedding_model TEXT NOT NULL,
+            embedding_dimension INTEGER NOT NULL CHECK (embedding_dimension > 0),
+            rating_scale_version TEXT NOT NULL,
+            candidate_set_fingerprint TEXT NOT NULL,
+            source_stage_artifact_fingerprint TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE (episode_id, rating_scale_version)
+        );
+        CREATE TABLE IF NOT EXISTS decision_episode_alternatives (
+            episode_id TEXT NOT NULL,
+            alternative_id TEXT NOT NULL,
+            displayed_rank INTEGER NOT NULL CHECK (displayed_rank > 0),
+            baseline_fit REAL NOT NULL CHECK (baseline_fit >= 0 AND baseline_fit <= 1),
+            baseline_fit_label TEXT NOT NULL CHECK (baseline_fit_label IN ('strong', 'stretch', 'skip')),
+            normalized_embedding_json TEXT NOT NULL,
+            embedding_vector_fingerprint TEXT NOT NULL,
+            source_job_url TEXT NOT NULL,
+            shortlist_origin TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (episode_id, alternative_id),
+            UNIQUE (episode_id, displayed_rank),
+            FOREIGN KEY (episode_id) REFERENCES decision_episodes(episode_id)
+        );
+        CREATE TABLE IF NOT EXISTS decision_rating_events (
+            event_sequence INTEGER PRIMARY KEY,
+            event_id TEXT NOT NULL UNIQUE,
+            episode_id TEXT NOT NULL,
+            alternative_id TEXT NOT NULL,
+            event_type TEXT NOT NULL CHECK (event_type IN ('set_rating', 'clear_rating')),
+            rating INTEGER,
+            rating_scale_version TEXT NOT NULL,
+            acted_by TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            CHECK (
+                (event_type = 'set_rating' AND rating BETWEEN 1 AND 5)
+                OR (event_type = 'clear_rating' AND rating IS NULL)
+            ),
+            FOREIGN KEY (episode_id, alternative_id)
+                REFERENCES decision_episode_alternatives(episode_id, alternative_id),
+            FOREIGN KEY (episode_id, rating_scale_version)
+                REFERENCES decision_episodes(episode_id, rating_scale_version)
+        );
+        CREATE INDEX IF NOT EXISTS idx_decision_episodes_run_created
+            ON decision_episodes(run_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_decision_rating_events_episode_alternative_sequence
+            ON decision_rating_events(episode_id, alternative_id, event_sequence);
+        """
+    )
+    for table_name in (
+        "decision_episodes",
+        "decision_episode_alternatives",
+        "decision_rating_events",
+    ):
+        conn.execute(
+            f"""
+            CREATE TRIGGER IF NOT EXISTS {table_name}_append_only_update
+            BEFORE UPDATE ON {table_name}
+            BEGIN
+                SELECT RAISE(ABORT, 'decision feedback ledger is append-only');
+            END
+            """
+        )
+        conn.execute(
+            f"""
+            CREATE TRIGGER IF NOT EXISTS {table_name}_append_only_delete
+            BEFORE DELETE ON {table_name}
+            BEGIN
+                SELECT RAISE(ABORT, 'decision feedback ledger is append-only');
+            END
+            """
+        )
+
+
+def _episode_values(episode: DecisionEpisode) -> tuple[Any, ...]:
+    return (
+        episode.episode_id,
+        episode.domain_id,
+        episode.run_id,
+        episode.preference_context_fingerprint,
+        episode.qualification_context_fingerprint,
+        episode.ranking_contract_fingerprint,
+        episode.embedding_contract_fingerprint,
+        episode.baseline_policy_fingerprint,
+        episode.embedding_model,
+        episode.embedding_dimension,
+        episode.rating_scale_version,
+        episode.candidate_set_fingerprint,
+        episode.source_stage_artifact_fingerprint,
+        episode.created_at.isoformat(),
+    )
+
+
+def _alternative_values(alternative: DecisionAlternative) -> tuple[Any, ...]:
+    return (
+        alternative.episode_id,
+        alternative.alternative_id,
+        alternative.displayed_rank,
+        alternative.baseline_fit,
+        alternative.baseline_fit_label,
+        alternative.normalized_embedding_json,
+        alternative.embedding_vector_fingerprint,
+        alternative.source_job_url,
+        alternative.shortlist_origin,
+        alternative.created_at.isoformat(),
+    )
+
+
+def materialize_episode_and_append_rating(
+    episode: DecisionEpisode,
+    alternatives: tuple[DecisionAlternative, ...] | list[DecisionAlternative],
+    event: DecisionRatingEvent,
+) -> dict[str, str]:
+    db_path = Path(_local_sqlite_path())
+    alternative_rows = tuple(alternatives)
+    if not alternative_rows:
+        raise ValueError("decision episode requires alternatives")
+    if event.episode_id != episode.episode_id:
+        raise ValueError("rating event episode mismatch")
+    if event.rating_scale_version != episode.rating_scale_version:
+        raise ValueError("rating scale conflicts with episode")
+    with _sqlite_connection(db_path) as conn:
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            _ensure_local_decision_feedback_tables(conn)
+            existing_episode = conn.execute(
+                """
+                SELECT episode_id, domain_id, run_id, preference_context_fingerprint,
+                       qualification_context_fingerprint, ranking_contract_fingerprint,
+                       embedding_contract_fingerprint, baseline_policy_fingerprint,
+                       embedding_model, embedding_dimension, rating_scale_version,
+                       candidate_set_fingerprint, source_stage_artifact_fingerprint, created_at
+                FROM decision_episodes WHERE episode_id = ?
+                """,
+                (episode.episode_id,),
+            ).fetchone()
+            expected_episode = _episode_values(episode)
+            if existing_episode is None:
+                conn.execute(
+                    """
+                    INSERT INTO decision_episodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    expected_episode,
+                )
+                conn.executemany(
+                    """
+                    INSERT INTO decision_episode_alternatives VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    [_alternative_values(alternative) for alternative in alternative_rows],
+                )
+            elif tuple(existing_episode[:-1]) != expected_episode[:-1]:
+                raise ValueError("existing decision episode conflicts with source")
+            else:
+                existing_alternatives = conn.execute(
+                    """
+                    SELECT episode_id, alternative_id, displayed_rank, baseline_fit,
+                           baseline_fit_label, normalized_embedding_json,
+                           embedding_vector_fingerprint, source_job_url, shortlist_origin, created_at
+                    FROM decision_episode_alternatives
+                    WHERE episode_id = ? ORDER BY displayed_rank, alternative_id
+                    """,
+                    (episode.episode_id,),
+                ).fetchall()
+                expected_alternatives = sorted(
+                    (_alternative_values(alternative) for alternative in alternative_rows),
+                    key=lambda row: (int(row[2]), str(row[1])),
+                )
+                if [tuple(row[:-1]) for row in existing_alternatives] != [row[:-1] for row in expected_alternatives]:
+                    raise ValueError("existing decision alternatives conflict with source")
+            target_exists = conn.execute(
+                """
+                SELECT 1 FROM decision_episode_alternatives
+                WHERE episode_id = ? AND alternative_id = ?
+                """,
+                (episode.episode_id, event.alternative_id),
+            ).fetchone()
+            if target_exists is None:
+                raise ValueError("unknown decision alternative")
+            conn.execute(
+                """
+                INSERT INTO decision_rating_events (
+                    event_id, episode_id, alternative_id, event_type, rating,
+                    rating_scale_version, acted_by, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event.event_id,
+                    event.episode_id,
+                    event.alternative_id,
+                    event.event_type.value,
+                    int(event.rating) if event.rating is not None else None,
+                    event.rating_scale_version,
+                    event.acted_by,
+                    event.created_at.isoformat(),
+                ),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return {"persistence_status": "persisted", "degradation_reason": "none"}
+
+
+def list_decision_rating_events_for_run(run_id: str) -> list[DecisionRatingEvent]:
+    db_path = Path(_local_sqlite_path())
+    if not db_path.exists():
+        return []
+    with _sqlite_connection(db_path) as conn:
+        table_exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'decision_rating_events'"
+        ).fetchone()
+        if table_exists is None:
+            return []
+        rows = conn.execute(
+            """
+            SELECT event_sequence, event_id, e.episode_id, alternative_id, event_type,
+                   rating, e.rating_scale_version, acted_by, e.created_at
+            FROM decision_rating_events e
+            JOIN decision_episodes p ON p.episode_id = e.episode_id
+            WHERE p.run_id = ?
+            ORDER BY event_sequence
+            """,
+            (run_id,),
+        ).fetchall()
+    return [
+        DecisionRatingEvent(
+            event_sequence=int(row[0]),
+            event_id=str(row[1]),
+            episode_id=str(row[2]),
+            alternative_id=str(row[3]),
+            event_type=RatingEventType(str(row[4])),
+            rating=RatingValue(int(row[5])) if row[5] is not None else None,
+            rating_scale_version=str(row[6]),
+            acted_by=str(row[7]),
+            created_at=datetime.datetime.fromisoformat(str(row[8])),
+        )
+        for row in rows
+    ]
 def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
     conn.execute(
         """

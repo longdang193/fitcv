@@ -50,6 +50,9 @@ capabilities:
   - capability_id: cv_system.ranking-v2-baseline
     statement: Apply one exact ranking-v2 policy to every admissible scored job, preserve six absolute structured factors, derive authoritative baseline labels and deterministic order, and expose one contract fingerprint across full-run and resume paths.
     state: active
+  - capability_id: cv_system.decision-feedback
+    statement: Freeze every evidence-complete production scoring row into one immutable feedback source, preserve ordinal 1–5 application-interest evidence, and keep ratings inactive for Phase 4 ranking and CV decisions.
+    state: active
   - capability_id: cv_system.exact-match-late-stage-reuse
     statement: 'Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
 
@@ -77,6 +80,7 @@ stage_participation:
   - stage_id: ranking
     role: primary
     capability_ids:
+      - cv_system.decision-feedback
       - cv_system.exact-match-late-stage-reuse
       - cv_system.fit-gate-resolution
       - cv_system.ranking-v2-baseline

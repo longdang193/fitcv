@@ -27,6 +27,9 @@ capabilities:
   - capability_id: admin_control_plane_core.pipeline-run-events-sqlite-store
     statement: pipeline_run_events SQLite store
     state: active
+  - capability_id: admin_control_plane_core.decision-feedback-ledger
+    statement: Persist canonical decision episodes, complete alternatives, and append-only ordinal rating events atomically in SQLite with native constraints, foreign keys, and mutation-blocking triggers.
+    state: active
   - capability_id: admin_control_plane_core.insert-before-enqueue-invariant
     statement: insert-before-enqueue invariant
     state: active

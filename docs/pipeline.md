@@ -149,3 +149,11 @@ Fail-fast guarantees:
 - [usage.md](usage.md)
 - [FitCV-pipeline.md](FitCV-pipeline.md)
 
+
+## Phase 4 Decision Feedback
+
+1. Vector search emits each production row with normalized job embedding, vector fingerprint, and embedding-contract fingerprint.
+2. Scoring requires a one-to-one URL match, then propagates evidence with the job raw fingerprint.
+3. Completed-run export builds `decision_feedback_source_v1` from every evidence-complete production scoring row, including scored-not-ranked rows.
+4. Native 1–5 forms append `set_rating` or `clear_rating` events without changing ranking, fit labels, CV eligibility, or application history.
+5. Effective ratings use SQLite `event_sequence`; timestamps and UUIDs remain audit metadata only.

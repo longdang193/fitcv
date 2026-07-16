@@ -381,8 +381,8 @@ def test_worker_persists_results_export_json_on_success():
     stored_json = mock_store_export.call_args.args[1]
     payload = json.loads(stored_json)
     assert payload["run_id"] == "r1"
-    assert payload["results_schema_version"] == "results_job_ledger_v3"
-    assert payload["schema_version"] == "results_job_ledger_v3"
+    assert payload["results_schema_version"] == "results_job_ledger_v4"
+    assert payload["schema_version"] == "results_job_ledger_v4"
     assert payload["run_mode"] == "run_all"
     assert payload["run_mode_label"] == "Run All"
     assert payload["data_plane"]["runtime_mode"] == "full"
@@ -3069,3 +3069,68 @@ def test_stage_transition_payload_preserves_prior_shortlist_audit_outside_execut
 
 
 
+
+
+def test_results_export_v4_freezes_decision_feedback_source() -> None:
+    from fitcv_cp.worker_job import _build_results_export_payload
+
+    run_record = MagicMock(
+        triggered_by="admin",
+        run_mode="run_all",
+        created_at=None,
+        started_at=None,
+        jobs_path="data/jobs.json",
+        jobs_input_source="upload",
+        candidate_profile_source="snapshot",
+        candidate_profile_json=json.dumps(
+            {"preferences": {"target_role": "Data Engineer", "preferred_locations": ["Berlin"]}}
+        ),
+    )
+    config = {
+        "decision_learning_policy": {
+            "policy_version": "decision-learning-v1",
+            "domain_id": "ranking_v1",
+            "rating_scale": {
+                "version": "application-interest-v1",
+                "unrated_label": "unrated",
+                "labels": {
+                    "1": "definitely not interested",
+                    "2": "low application interest",
+                    "3": "might consider applying",
+                    "4": "strong application interest",
+                    "5": "would prioritize applying",
+                },
+            },
+        },
+        "ranking_policy": {"policy_version": "ranking-v2"},
+        "ranking_contract": {"ranking_contract_fingerprint": "ranking-contract"},
+        "embedding_model": "test-model",
+    }
+    export_results = [
+        {
+            "job_url": "https://example.test/1",
+            "source_job_url": "https://example.test/1",
+            "raw_job_fingerprint": "raw-1",
+            "pipeline_status": "scored_not_ranked",
+            "shortlist_origin": "vector_search",
+            "scores": {"baseline_fit": 0.8, "baseline_fit_label": "stretch"},
+            "normalized_embedding": [1.0, 0.0],
+            "embedding_contract_fingerprint": "embedding-contract",
+        }
+    ]
+
+    payload = json.loads(
+        _build_results_export_payload(
+            run_id="run-1",
+            run_record=run_record,
+            effective_config=config,
+            summary={"total_jobs": 1, "passed_filter": 1, "ranked": 0, "cvs_generated": 0},
+            export_results=export_results,
+            finished_at=datetime.datetime(2026, 7, 16, tzinfo=datetime.timezone.utc),
+            replay_context={"replay_mode": "strict", "replay_source_run_id": "run-1", "policy_registry_version": "v1"},
+        )
+    )
+
+    assert payload["schema_version"] == "results_job_ledger_v4"
+    assert payload["decision_feedback_source"]["schema_version"] == "decision_feedback_source_v1"
+    assert payload["decision_feedback_source"]["alternatives"][0]["alternative_id"] == "raw-1"

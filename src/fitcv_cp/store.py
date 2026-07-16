@@ -68,6 +68,8 @@ class RunStore(Protocol):
     ) -> dict[str, str]: ...
     def update_run_cv_generation_debug(self, run_id: str, cv_generation_debug_json: str) -> dict[str, str]: ...
     def update_run_stage_transition_artifacts(self, run_id: str, stage_transition_artifacts_json: str) -> dict[str, str]: ...
+    def materialize_episode_and_append_rating(self, episode: Any, alternatives: Any, event: Any) -> dict[str, str]: ...
+    def list_decision_rating_events_for_run(self, run_id: str) -> list[Any]: ...
     def insert_cv_version_row(self, row: dict[str, Any]) -> list[Any]: ...
 
 
@@ -96,6 +98,8 @@ class ControlPlaneStore:
     update_run_synonym_proposals_fn: Any | None = None
     update_run_cv_generation_debug_fn: Any | None = None
     update_run_stage_transition_artifacts_fn: Any | None = None
+    materialize_episode_and_append_rating_fn: Any | None = None
+    list_decision_rating_events_for_run_fn: Any | None = None
     insert_cv_version_row_fn: Any | None = None
 
     def __post_init__(self) -> None:
@@ -330,6 +334,26 @@ class ControlPlaneStore:
             stage_transition_artifacts_json,
         )
 
+    def materialize_episode_and_append_rating(
+        self,
+        episode: Any,
+        alternatives: Any,
+        event: Any,
+    ) -> dict[str, str]:
+        return self._call_dict(
+            self.materialize_episode_and_append_rating_fn,
+            sqlite_store.materialize_episode_and_append_rating,
+            episode,
+            alternatives,
+            event,
+        )
+
+    def list_decision_rating_events_for_run(self, run_id: str) -> list[Any]:
+        return self._call_list(
+            self.list_decision_rating_events_for_run_fn,
+            sqlite_store.list_decision_rating_events_for_run,
+            run_id,
+        )
     def insert_cv_version_row(self, row: dict[str, Any]) -> list[Any]:
         return self._call_list(
             self.insert_cv_version_row_fn,

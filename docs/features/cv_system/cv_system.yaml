@@ -39,6 +39,9 @@ capabilities:
 - capability_id: cv_system.ranking-v2-baseline
   statement: Apply one exact ranking-v2 policy to every admissible scored job, preserve six absolute structured factors, derive authoritative baseline labels and deterministic order, and expose one contract fingerprint across full-run and resume paths.
   state: active
+- capability_id: cv_system.decision-feedback
+  statement: "Freeze every evidence-complete production scoring row into one immutable feedback source, preserve ordinal 1\u20135 application-interest evidence, and keep ratings inactive for Phase 4 ranking and CV decisions."
+  state: active
 - capability_id: cv_system.exact-match-late-stage-reuse
   statement: Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
   state: active
@@ -62,6 +65,7 @@ stage_participation:
 - stage_id: ranking
   role: primary
   capability_ids:
+  - cv_system.decision-feedback
   - cv_system.exact-match-late-stage-reuse
   - cv_system.fit-gate-resolution
   - cv_system.ranking-v2-baseline
@@ -197,6 +201,7 @@ refs:
   - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
   - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
   - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+  - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
   - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -295,6 +300,7 @@ refs:
   - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
   - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
   - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+  - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
   docs:
   - docs/features/cv_system/history.md
   configs:
@@ -306,6 +312,6 @@ refs:
   - config/runtime/prompts.yaml
   - config/taxonomy/taxonomy.yaml
   components: []
-revision: 10
-latest_change_id: 2026-07-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline
-last_updated_at: '2026-07-16T00:02:20+02:00'
+revision: 11
+latest_change_id: 2026-07-16-fitcv-inverse-optimization-phase-4-decision-feedback
+last_updated_at: '2026-07-16T02:09:27+02:00'

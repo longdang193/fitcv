@@ -314,3 +314,93 @@ def test_list_filter_results_for_run_defaults_legacy_eligibility_columns() -> No
     assert rows[0]["eligibility_reason_codes"] == []
     assert rows[0]["eligibility_policy_fingerprint"] is None
     assert rows[0]["eligibility_decision"] is None
+
+def _decision_records(*, target_alternative: str = "job-1"):
+    from fitcv.decision_feedback import (
+        DecisionAlternative,
+        DecisionEpisode,
+        DecisionRatingEvent,
+        RatingEventType,
+        RatingValue,
+    )
+
+    now = datetime.datetime(2026, 7, 16, tzinfo=datetime.timezone.utc)
+    episode = DecisionEpisode(
+        episode_id="episode-1",
+        domain_id="ranking_v1",
+        run_id="run-feedback",
+        preference_context_fingerprint="preference",
+        qualification_context_fingerprint="qualification",
+        ranking_contract_fingerprint="ranking",
+        embedding_contract_fingerprint="embedding",
+        baseline_policy_fingerprint="baseline",
+        embedding_model="model",
+        embedding_dimension=2,
+        rating_scale_version="application-interest-v1",
+        candidate_set_fingerprint="candidates",
+        source_stage_artifact_fingerprint="source",
+        created_at=now,
+    )
+    alternatives = (
+        DecisionAlternative(
+            episode_id=episode.episode_id,
+            alternative_id="job-1",
+            displayed_rank=1,
+            baseline_fit=0.9,
+            baseline_fit_label="strong",
+            normalized_embedding_json="[1.0,0.0]",
+            embedding_vector_fingerprint="vector",
+            source_job_url="https://example.test/1",
+            shortlist_origin="vector_search",
+            created_at=now,
+        ),
+    )
+    event = DecisionRatingEvent(
+        event_sequence=None,
+        event_id=str(uuid.uuid4()),
+        episode_id=episode.episode_id,
+        alternative_id=target_alternative,
+        event_type=RatingEventType.SET_RATING,
+        rating=RatingValue.FOUR,
+        rating_scale_version=episode.rating_scale_version,
+        acted_by="local_operator",
+        created_at=now,
+    )
+    return episode, alternatives, event
+
+
+def test_decision_feedback_ledger_is_atomic_ordered_and_append_only() -> None:
+    from dataclasses import replace
+    from fitcv.decision_feedback import RatingValue
+
+    episode, alternatives, event = _decision_records()
+    sqlite_store.materialize_episode_and_append_rating(episode, alternatives, event)
+    _, _, second = _decision_records()
+    later = episode.created_at + datetime.timedelta(minutes=1)
+    repeated_episode = replace(episode, created_at=later)
+    repeated_alternatives = tuple(replace(item, created_at=later) for item in alternatives)
+    second = replace(second, event_id=str(uuid.uuid4()), rating=RatingValue.FIVE, created_at=later)
+    sqlite_store.materialize_episode_and_append_rating(repeated_episode, repeated_alternatives, second)
+
+    events = sqlite_store.list_decision_rating_events_for_run("run-feedback")
+    assert [item.event_sequence for item in events] == [1, 2]
+    assert [int(item.rating) for item in events if item.rating is not None] == [4, 5]
+
+    db_path = Path(sqlite_store._local_sqlite_path())
+    with sqlite_store._sqlite_connection(db_path) as conn:
+        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+        with pytest.raises(sqlite3.IntegrityError, match="append-only"):
+            conn.execute("UPDATE decision_rating_events SET acted_by = 'other'")
+
+
+def test_decision_feedback_first_write_rolls_back_on_unknown_alternative() -> None:
+    episode, alternatives, event = _decision_records(target_alternative="missing")
+    with pytest.raises(ValueError, match="unknown decision alternative"):
+        sqlite_store.materialize_episode_and_append_rating(episode, alternatives, event)
+
+    db_path = Path(sqlite_store._local_sqlite_path())
+    with sqlite_store._sqlite_connection(db_path) as conn:
+        sqlite_store._ensure_local_decision_feedback_tables(conn)
+        assert conn.execute("SELECT COUNT(*) FROM decision_episodes").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM decision_episode_alternatives").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM decision_rating_events").fetchone()[0] == 0

@@ -208,3 +208,27 @@ def test_control_plane_store_lists_run_attempt_payloads_from_events() -> None:
     payloads = store.list_run_attempt_payloads("rid-1")
     assert len(payloads) == 1
     assert payloads[0]["attempt"]["attempt_id"] == "a1"
+
+
+def test_control_plane_store_delegates_decision_feedback() -> None:
+    captured: dict[str, object] = {}
+
+    def _write(episode, alternatives, event):
+        captured["episode"] = episode
+        captured["alternatives"] = alternatives
+        captured["event"] = event
+        return {"persistence_status": "persisted", "degradation_reason": "none"}
+
+    store = ControlPlaneStore(
+        materialize_episode_and_append_rating_fn=_write,
+        list_decision_rating_events_for_run_fn=lambda run_id: [run_id],
+    )
+    result = store.materialize_episode_and_append_rating("episode", ["alternative"], "event")
+
+    assert result["persistence_status"] == "persisted"
+    assert captured == {
+        "episode": "episode",
+        "alternatives": ["alternative"],
+        "event": "event",
+    }
+    assert store.list_decision_rating_events_for_run("run-1") == ["run-1"]

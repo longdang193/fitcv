@@ -125,6 +125,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -228,6 +229,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -363,6 +365,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -466,6 +469,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -595,6 +599,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -698,6 +703,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -833,6 +839,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -936,6 +943,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1065,6 +1073,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1168,6 +1177,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1309,6 +1319,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1412,6 +1423,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1553,6 +1565,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1656,6 +1669,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1791,6 +1805,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1894,6 +1909,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2028,6 +2044,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2131,6 +2148,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2260,6 +2278,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2363,10 +2382,241 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
     - missing_code_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: incomplete
+  inspection_debugging.decision-feedback-review:
+    state: active
+    statement: "Show accessible no-JavaScript 1\u20135 application-interest controls only for immutable v4 alternatives and derive current state from the shared append-only event reducer."
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/inspection_debugging/history.md
+    docs_evidence:
+    - path: docs/features/inspection_debugging/history.md
+      confidence: high
+      source:
+      - docs_frontmatter
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-aware-project-operating-system-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+    - docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-02-14-35-staged-manual-pipeline-mode-spec.md
+    - docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
+    - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+    - docs/superpowers/archive/specs/2026-04-02-23-55-enrich-reuse-via-raw-job-fingerprint-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-11-39-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-17-05-cv-generation-structured-prompt-centralization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-23-59-pipeline-log-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-01-15-run-detail-stage-gating-and-pending-health-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-01-55-large-run-detail-lazy-loading-and-status-polling-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-02-35-pipeline-dead-weight-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-13-05-run-artifact-bundle-zip-export-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-15-50-results-ledger-and-stage-diagnostics-boundary-tightening-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-23-35-staged-final-artifact-reranker-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-02-phase-7-direct-evidence-backfill-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
+    - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-observability-event-contract-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-run-mode-and-synonym-proposal-observability-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-deterministic-truth-outcome-contract-spec.md
+    - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-input-mode-parity-spec.md
+    - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-cv-quality-drift-and-depth-patch-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
+    - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
+    - docs/superpowers/specs/2026-04-29-settings-agentic-vs-cv-generation-clarity-spec.md
+    - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
+    - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
+    - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
+    - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
+    - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
+    - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
+    - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
+    - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
+    - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-observability-otel-trace-context-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
+    - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
+    - docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-event-timeline-semantic-outcome-dedup-spec.md
+    - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md
+    - docs/superpowers/specs/2026-05-19-20-28-template-symmetry-action-gating-ssot-spec.md
+    - docs/superpowers/specs/2026-06-25-11-41-delete-archived-runs-spec.md
+    - docs/superpowers/specs/2026-06-25-15-10-template-ssot-patch-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
+    - docs/superpowers/specs/2026-07-12-15-41-fitcv-ssot-symmetry-phase-5-control-plane-monolith-reduction-and-storage-normalization-spec.md
+    - docs/superpowers/specs/2026-07-12-20-20-fitcv-ssot-symmetry-phase-4-routing-runtime-envelope-persistence-truth-spec.md
+    - docs/superpowers/specs/2026-07-12-23-58-fitcv-ssot-symmetry-closeout-remaining-agreed-points-spec.md
+    - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
+    - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
+    - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
+    - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
+    - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
+    - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-contract-docs-adoption-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-02-14-50-staged-manual-pipeline-mode-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-21-20-run-scoped-synonym-overlay-upload-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-22-05-rule-filter-selectable-screening-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-21-cv-generation-structured-prompt-centralization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-40-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-05-run-detail-artifact-gating-and-diagnostics-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-01-25-run-detail-stage-gating-and-pending-health-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-02-10-large-run-detail-lazy-loading-and-status-polling-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-02-50-pipeline-dead-weight-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/archive/plans/2026-04-07-13-20-run-artifact-bundle-zip-export-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-16-05-results-ledger-and-stage-diagnostics-boundary-tightening-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-23-45-staged-final-artifact-reranker-truth-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
+    - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
+    - docs/superpowers/plans/2026-04-28-agentic-run-mode-and-synonym-proposal-observability-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
+    - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
+    - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
+    - docs/superpowers/plans/2026-05-17-00-23-event-timeline-semantic-outcome-dedup-plan.md
+    - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-05-19-16-58-runtime-throughput-ssot-symmetry-invariance-optimization-plan.md
+    - docs/superpowers/plans/2026-05-19-20-30-template-symmetry-action-gating-ssot-plan.md
+    - docs/superpowers/plans/2026-05-20-01-09-ranking-concurrency-ssot-symmetry-invariance-fix-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-06-25-12-19-delete-archived-runs-plan.md
+    - docs/superpowers/plans/2026-06-25-15-18-template-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
+    - docs/superpowers/plans/2026-07-12-13-42-fitcv-ssot-symmetry-phase-4-routing-runtime-envelope-persistence-truth-plan.md
+    - docs/superpowers/plans/2026-07-12-15-59-fitcv-ssot-symmetry-phase-5-control-plane-monolith-reduction-and-storage-normalization-plan.md
+    - docs/superpowers/plans/2026-07-12-20-40-fitcv-review-synonym-artifact-ssot-patch-plan.md
+    - docs/superpowers/plans/2026-07-12-23-55-fitcv-ssot-symmetry-phase-6-registry-closeout-and-legacy-arg-deletion-plan.md
+    - docs/superpowers/plans/2026-07-12-23-59-fitcv-ssot-symmetry-closeout-remaining-agreed-points-plan.md
+    - docs/superpowers/plans/2026-07-13-00-53-fitcv-ssot-symmetry-closeout-remaining-residue-plan.md
+    - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
+    - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
+    - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
+    - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
+    - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
+    - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: incomplete
@@ -2492,6 +2742,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2595,6 +2846,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2730,6 +2982,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2833,6 +3086,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2968,6 +3222,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -3071,6 +3326,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3212,6 +3468,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -3315,6 +3572,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3450,6 +3708,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -3553,6 +3812,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3682,6 +3942,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -3785,6 +4046,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3914,6 +4176,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -4017,6 +4280,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -4131,3 +4395,24 @@ timeline:
   - python scripts/validate_repo_contracts.py --fast
   - git diff --check
   outcome: Completed ranking-v2 fixed baseline with exact policy SSOT, canonical downstream baseline truth, artifact v8, settings cutover, source-first docs, and no optimizer or rating runtime.
+- completed_at: '2026-07-16T02:09:27+02:00'
+  source_plan: docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+  change_id: 2026-07-16-fitcv-inverse-optimization-phase-4-decision-feedback
+  summary: FitCV inverse optimization Phase 4 decision-feedback implementation plan
+  capabilities: []
+  verification:
+  - python -m pytest tests/test_config.py tests/test_decision_feedback.py -q
+  - python -m pytest tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py -q
+  - python -m pytest tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_sqlite_store.py -q
+  - python -m pytest tests/test_fitcv_cp/test_app.py -q
+  - python -m pytest tests/test_ranking.py tests/test_ranking_contract.py tests/test_ai_score.py -q
+  - python -m pytest tests/test_agentic_cv_analysis.py tests/test_pipeline_status_registry.py -q
+  - python -m pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_structural_contract_guardrails.py -q
+  - python -m ruff check src/fitcv/decision_feedback.py tests/test_decision_feedback.py
+  - uvx mypy src/fitcv/decision_feedback.py --show-error-codes --follow-imports=skip
+  - python tools/docs/generate_architecture_metadata.py --check
+  - python scripts/validate_planning_lifecycle.py
+  - python scripts/hooks/run_validator.py --fast
+  - python scripts/validate_repo_contracts.py --fast
+  - git diff --check
+  outcome: Completed Phase 4 immutable decision-feedback capture with policy-owned ordinal stars, v4 source evidence, append-only SQLite ledger, deterministic reducer, native POST/UI, old-run isolation, and no Phase 5 learning or ranking effect.

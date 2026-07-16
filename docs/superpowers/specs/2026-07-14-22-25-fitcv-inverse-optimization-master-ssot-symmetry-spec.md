@@ -384,7 +384,7 @@ baseline_policy_fingerprint
 
 The learned preference residual later changes ordering only. `baseline_fit_label` remains authoritative for downstream `strong|stretch|skip` in first implementation.
 
-Vector-retrieval recall is measured through bounded deterministic audit/exploration sample below production cutoff. Audit rows use explicit `shortlist_origin: audit`, appear in same review/rating surface, and remain excluded from production ranking unless normal shortlist rule selects them. Jobs never exposed to review cannot be counted as observed retrieval misses.
+Vector-retrieval recall is measured through bounded deterministic audit/exploration sample below production cutoff. Audit rows use explicit `shortlist_origin: audit`, appear in the review surface without rating controls, and remain excluded from production ranking unless the normal shortlist rule selects them. A later approved phase may make an audit row rateable only after producing the same baseline and embedding evidence required for production-scored alternatives. Jobs never exposed to review cannot be counted as observed retrieval misses.
 
 ### Layer 4: decision episode
 
@@ -450,6 +450,7 @@ source_stage_artifact_fingerprint
 ### Layer 5: append-only rating event
 
 ```text
+event_sequence
 event_id
 episode_id
 alternative_id
@@ -468,7 +469,7 @@ Database invariants:
 - alternative exists in episode
 - rating scale matches episode domain contract
 - rating scale version resolves exact personal-application-interest labels defined by decision-learning policy
-- event ordering uses `(created_at, event_id)`
+- SQLite assigns monotonic `event_sequence`; timestamp and UUID event ID remain audit metadata
 - no mutable `current_rating` column exists as competing truth
 
 ### Layer 6: effective rating reducer
@@ -826,7 +827,8 @@ NOT NULL embedding_dimension
 ### `decision_rating_events`
 
 ```text
-PRIMARY KEY event_id
+PRIMARY KEY event_sequence
+UNIQUE event_id
 FOREIGN KEY episode_id, alternative_id -> decision_episode_alternatives
 CHECK event_type in set_rating, clear_rating
 CHECK set_rating implies rating between 1 and 5
@@ -1122,7 +1124,7 @@ Later scopes may inspect earlier artifacts, but they may not create second owner
 6. render accessible native 1–5 controls with HTML and CSS; require no JavaScript
 7. validate form data and redirect targets at HTTP boundary
 8. keep GET routes read-only
-9. preserve unrated as unknown and show effective rating derived from ledger
+9. add one shared effective-rating reducer, preserve unrated as unknown, and show effective rating derived from ledger
 10. verify `ControlPlaneStore` delegation and SQLite persistence; future backend fails explicitly until same contract exists
 11. keep application-status history in separate ledger and never infer application from rating
 
@@ -1137,7 +1139,7 @@ Later scopes may inspect earlier artifacts, but they may not create second owner
 **Exit Criteria:**
 - user can rate any displayed admissible alternative repeatedly
 - raw rating evidence is durable, replayable, and independent of optimization availability
-### Phase 5: add effective reducer and symmetric preference compiler
+### Phase 5: add symmetric preference compiler
 
 **Purpose:**
 - translate low-friction ordinal evidence into one deterministic comparison algebra
@@ -1147,8 +1149,8 @@ Later scopes may inspect earlier artifacts, but they may not create second owner
 - `tests/test_decision_feedback.py`
 
 **Steps:**
-1. define immutable rating, effective-state, preference-edge, diagnostic, and compiler-result records
-2. reduce events by `(created_at, event_id)` through one shared query or reducer
+1. reuse Phase 4 immutable rating records and effective reducer; define preference-edge, diagnostic, and compiler-result records
+2. consume Phase 4 effective ratings without adding a second reducer or current-state owner
 3. validate episode, scale, ranking, embedding, baseline, profile, and compiler compatibility before pairing
 4. enumerate each unordered pair exactly once
 5. orient qualifying pairs from higher rating to lower rating

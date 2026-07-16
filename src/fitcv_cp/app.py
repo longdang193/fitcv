@@ -22,13 +22,14 @@ import json as _json
 import logging
 import os
 import re
+import sqlite3
 import time
 import uuid
 import zipfile
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Literal, TypedDict
-from urllib.parse import unquote, urlencode, urlparse
+from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -52,6 +53,13 @@ from fitcv.contracts import (
     MAPPING_SUGGESTIONS_AGGREGATE_SCHEMA_VERSION,
     STAGE_TRANSITION_ARTIFACTS_STAGE_SCHEMA_VERSION,
     SYNONYM_PROPOSALS_QUEUE_SCHEMA_VERSION,
+)
+from fitcv.decision_feedback import (
+    DecisionRatingEvent,
+    RatingEventType,
+    RatingValue,
+    build_episode_records,
+    reduce_rating_events,
 )
 from fitcv.enrich import derive_required_skills_display
 from fitcv.openai_compat import (
@@ -3873,6 +3881,15 @@ def _format_pipeline_outcome_detail(row: dict[str, Any]) -> str | None:
     return " | ".join(detail_parts)
 
 
+def _decision_feedback_source_from_run(run: PipelineRun) -> dict[str, Any] | None:
+    payload = decode_json_object_or_none(run.results_export_json)
+    if payload is None or payload.get("schema_version") != "results_job_ledger_v4":
+        return None
+    source = payload.get("decision_feedback_source")
+    if not isinstance(source, dict) or source.get("schema_version") != "decision_feedback_source_v1":
+        return None
+    return dict(source)
+
 def _results_export_rows(run: PipelineRun) -> list[dict[str, Any]]:
     if not run.results_export_json:
         return []
@@ -4464,6 +4481,20 @@ def _safe_admin_redirect_target(candidate: str | None, *, fallback: str) -> str:
     return fallback
 
 
+def _safe_decision_feedback_redirect_target(
+    candidate: str | None,
+    *,
+    run_id: str,
+) -> str:
+    fallback = f"/admin/runs/{run_id}/tabs/enriched"
+    safe_candidate = _safe_admin_redirect_target(candidate, fallback=fallback)
+    parsed = urlparse(safe_candidate)
+    if parsed.scheme or parsed.netloc or parsed.path != fallback:
+        return fallback
+    allowed = {"page", "page_size", "filter_name", "q", "pipeline_outcome"}
+    query_items = [(key, value) for key, value in parse_qsl(parsed.query, keep_blank_values=True) if key in allowed]
+    return f"{fallback}?{urlencode(query_items, doseq=True)}" if query_items else fallback
+
 def _coerce_positive_int(value: Any, *, default: int, minimum: int = 1, maximum: int = 200) -> int:
     try:
         parsed = int(value)
@@ -4584,6 +4615,20 @@ def _build_enriched_tab_context(
     page_size: int,
 ) -> dict[str, Any]:
     results_rows = _results_export_rows(run)
+    decision_feedback_source = _decision_feedback_source_from_run(run)
+    decision_feedback_alternatives = {
+        str(row.get("alternative_id") or ""): dict(row)
+        for row in (decision_feedback_source or {}).get("alternatives", [])
+        if isinstance(row, dict) and str(row.get("alternative_id") or "").strip()
+    }
+    effective_ratings: dict[tuple[str, str], RatingValue | str] = {}
+    decision_episode_id = ""
+    if decision_feedback_source is not None:
+        episode, _ = build_episode_records(decision_feedback_source)
+        decision_episode_id = episode.episode_id
+        effective_ratings = reduce_rating_events(
+            _resolve_run_store(client=client).list_decision_rating_events_for_run(run_id)
+        )
     enriched_jobs = list_run_structured_jobs(run_id, client=client)
     if not enriched_jobs:
         enriched_jobs = _fallback_enriched_rows_from_stage_artifacts(run)
@@ -4719,6 +4764,14 @@ def _build_enriched_tab_context(
     visible_rows = []
     for job in filtered_rows[pager["start"]:pager["end"]]:
         row = dict(job)
+        alternative_id = str(row.get("raw_job_fingerprint") or "").strip()
+        alternative = decision_feedback_alternatives.get(alternative_id)
+        row["decision_feedback_alternative"] = alternative
+        row["decision_rating"] = (
+            effective_ratings.get((decision_episode_id, alternative_id), "unrated")
+            if alternative is not None
+            else None
+        )
         row["filter_result_lookup_key"] = _best_lookup_key_for_row(
             row,
             filter_results_by_job_url,
@@ -4792,6 +4845,17 @@ def _build_enriched_tab_context(
         "enriched_prev_url": prev_url,
         "enriched_next_url": next_url,
         "enriched_download_url": download_url,
+        "decision_feedback_available": decision_feedback_source is not None,
+        "decision_feedback_scale_version": str((decision_feedback_source or {}).get("rating_scale_version") or ""),
+        "decision_feedback_source_fingerprint": str((decision_feedback_source or {}).get("source_stage_artifact_fingerprint") or ""),
+        "decision_feedback_return_to": _build_enriched_tab_url(
+            run_id=run_id,
+            page=nav_pager["current_page"],
+            page_size=page_size,
+            filter_name=normalized_filter,
+            query=query,
+            pipeline_outcomes=normalized_pipeline_outcomes,
+        ),
     }
 
 def _timeline_human_job_label(job_url: str) -> str:
@@ -9829,6 +9893,84 @@ def create_app(
             headers={"Content-Disposition": 'attachment; filename="fitcv-global-role-family-aliases.yaml"'},
         )
 
+    @app.post("/admin/runs/{run_id}/decision-feedback/{alternative_id}")
+    async def admin_run_decision_feedback(
+        request: Request,
+        run_id: str,
+        alternative_id: str,
+    ) -> Response:
+        run = get_run(run_id, client=client)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        source = _decision_feedback_source_from_run(run)
+        if source is None:
+            raise HTTPException(status_code=409, detail="Decision feedback source unavailable")
+        form = await request.form()
+        rating_raw = str(form.get("rating") or "").strip()
+        action = str(form.get("action") or "").strip()
+        submitted_scale = str(form.get("rating_scale_version") or "").strip()
+        submitted_source_fingerprint = str(form.get("source_stage_artifact_fingerprint") or "").strip()
+        if (bool(rating_raw) + bool(action)) != 1 or (action and action != "clear_rating"):
+            raise HTTPException(status_code=422, detail="Exactly one rating command is required")
+        try:
+            config = load_config(run.config_path)
+            policy_scale = str(config["decision_learning_policy"]["rating_scale"]["version"])
+        except (FileNotFoundError, KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail="Decision-learning policy unavailable") from exc
+        if not submitted_scale or submitted_scale != policy_scale:
+            raise HTTPException(status_code=422, detail="Unknown rating scale")
+        source_scale = str(source.get("rating_scale_version") or "")
+        if source_scale != submitted_scale:
+            raise HTTPException(status_code=409, detail="Rating scale conflicts with source")
+        source_fingerprint = str(source.get("source_stage_artifact_fingerprint") or "")
+        if not submitted_source_fingerprint or submitted_source_fingerprint != source_fingerprint:
+            raise HTTPException(status_code=409, detail="Decision feedback source is stale")
+        source_alternatives = {
+            str(row.get("alternative_id") or ""): row
+            for row in source.get("alternatives") or []
+            if isinstance(row, dict)
+        }
+        if alternative_id not in source_alternatives:
+            raise HTTPException(status_code=404, detail="Decision alternative not found")
+        if rating_raw:
+            try:
+                rating = RatingValue(int(rating_raw))
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(status_code=422, detail="Rating must be 1 through 5") from exc
+            event_type = RatingEventType.SET_RATING
+        else:
+            rating = None
+            event_type = RatingEventType.CLEAR_RATING
+        created_at = datetime.datetime.now(datetime.timezone.utc)
+        episode, alternatives = build_episode_records(source, created_at=created_at)
+        event = DecisionRatingEvent(
+            event_sequence=None,
+            event_id=str(uuid.uuid4()),
+            episode_id=episode.episode_id,
+            alternative_id=alternative_id,
+            event_type=event_type,
+            rating=rating,
+            rating_scale_version=submitted_scale,
+            acted_by="local_operator",
+            created_at=created_at,
+        )
+        try:
+            _resolve_run_store(client=client).materialize_episode_and_append_rating(
+                episode,
+                alternatives,
+                event,
+            )
+        except NotImplementedError as exc:
+            raise HTTPException(status_code=501, detail="Decision feedback persistence unsupported") from exc
+        except (ValueError, sqlite3.IntegrityError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return RedirectResponse(
+            url=_safe_decision_feedback_redirect_target(
+                str(form.get("return_to") or ""),
+                run_id=run_id,
+            ),
+            status_code=303,
+        )
     @app.get("/admin/runs/{run_id}/tabs/enriched", response_class=HTMLResponse)
     def admin_run_detail_tab_enriched(
         request: Request,

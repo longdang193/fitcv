@@ -27,6 +27,7 @@ from typing import Any
 
 import yaml
 
+from fitcv.decision_feedback import build_decision_feedback_source
 from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
     get_stage_runtime_concurrency,
@@ -451,8 +452,8 @@ def _build_results_export_payload(
         }
     payload = {
         "run_id": run_id,
-        "results_schema_version": "results_job_ledger_v3",
-        "schema_version": "results_job_ledger_v3",
+        "results_schema_version": "results_job_ledger_v4",
+        "schema_version": "results_job_ledger_v4",
         "status": RunStatus.SUCCEEDED.value,
         "triggered_by": string_or_none(getattr(run_record, "triggered_by", "")) or "",
         "run_mode": normalized_run_mode(getattr(run_record, "run_mode", None)),
@@ -474,6 +475,27 @@ def _build_results_export_payload(
         "replay_context": replay_context_payload(replay_context=replay_context, run_id=run_id),
         "results": json_safe(export_results),
     }
+    candidate_profile: dict[str, Any] = {}
+    candidate_profile_raw = getattr(run_record, "candidate_profile_json", None)
+    if isinstance(candidate_profile_raw, dict):
+        candidate_profile = candidate_profile_raw
+    elif str(candidate_profile_raw or "").strip():
+        try:
+            decoded_profile = json.loads(str(candidate_profile_raw))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            decoded_profile = None
+        if isinstance(decoded_profile, dict):
+            candidate_profile = decoded_profile
+    if effective_config and candidate_profile:
+        try:
+            payload["decision_feedback_source"] = build_decision_feedback_source(
+                run_id=run_id,
+                candidate_profile=candidate_profile,
+                config=effective_config,
+                scoring_rows=export_results,
+            )
+        except ValueError as exc:
+            logger.warning("[run_id=%s] Decision feedback unavailable: %s", run_id, exc)
     if diagnostic_support["late_stage_reuse_snapshots"]:
         payload["diagnostic_support"] = diagnostic_support
     require_payload_keys(

@@ -1,0 +1,12 @@
+decision_learning_policy:
+  policy_version: decision-learning-v1
+  domain_id: ranking_v1
+  rating_scale:
+    version: application-interest-v1
+    unrated_label: unrated
+    labels:
+      "1": definitely not interested
+      "2": low application interest
+      "3": might consider applying
+      "4": strong application interest
+      "5": would prioritize applying

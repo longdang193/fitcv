@@ -43,6 +43,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
     - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -62,6 +63,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-20-09-24-hitl-review-queue-identity-alignment-plan.md
     - docs/superpowers/plans/2026-05-20-13-20-timeline-concurrency-messaging-and-dedupe-plan.md
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -121,6 +123,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
     - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -140,6 +143,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-20-09-24-hitl-review-queue-identity-alignment-plan.md
     - docs/superpowers/plans/2026-05-20-13-20-timeline-concurrency-messaging-and-dedupe-plan.md
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -223,6 +227,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
     - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -242,6 +247,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-20-09-24-hitl-review-queue-identity-alignment-plan.md
     - docs/superpowers/plans/2026-05-20-13-20-timeline-concurrency-messaging-and-dedupe-plan.md
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -301,6 +307,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
     - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -320,6 +327,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-20-09-24-hitl-review-queue-identity-alignment-plan.md
     - docs/superpowers/plans/2026-05-20-13-20-timeline-concurrency-messaging-and-dedupe-plan.md
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -379,6 +387,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
     - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -398,6 +407,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-20-09-24-hitl-review-queue-identity-alignment-plan.md
     - docs/superpowers/plans/2026-05-20-13-20-timeline-concurrency-messaging-and-dedupe-plan.md
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -445,6 +455,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
     - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -464,10 +475,75 @@ capabilities:
     - docs/superpowers/plans/2026-05-20-09-24-hitl-review-queue-identity-alignment-plan.md
     - docs/superpowers/plans/2026-05-20-13-20-timeline-concurrency-messaging-and-dedupe-plan.md
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
     - missing_code_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: incomplete
+  admin_control_plane_core.decision-feedback-ledger:
+    state: active
+    statement: Persist canonical decision episodes, complete alternatives, and append-only ordinal rating events atomically in SQLite with native constraints, foreign keys, and mutation-blocking triggers.
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/admin_control_plane_core/history.md
+    docs_evidence:
+    - path: docs/features/admin_control_plane_core/history.md
+      confidence: high
+      source:
+      - docs_frontmatter
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
+    - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-05-15-13-04-run-detail-download-visibility-spec.md
+    - docs/superpowers/specs/2026-05-15-23-00-provider-baseurl-ssot-centralization-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-17-14-38-settings-page-deprecated-surface-removal-spec.md
+    - docs/superpowers/specs/2026-05-19-22-45-synonym-workspace-action-model-simplification-spec.md
+    - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
+    - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
+    - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-05-12-21-07-env-config-sot-plan.md
+    - docs/superpowers/plans/2026-05-15-14-10-run-detail-download-visibility-plan.md
+    - docs/superpowers/plans/2026-05-15-23-10-provider-baseurl-ssot-centralization-plan.md
+    - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
+    - docs/superpowers/plans/2026-05-19-23-10-synonym-workspace-action-model-simplification-plan.md
+    - docs/superpowers/plans/2026-05-20-09-24-hitl-review-queue-identity-alignment-plan.md
+    - docs/superpowers/plans/2026-05-20-13-20-timeline-concurrency-messaging-and-dedupe-plan.md
+    - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: incomplete
@@ -511,6 +587,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
     - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -530,6 +607,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-20-09-24-hitl-review-queue-identity-alignment-plan.md
     - docs/superpowers/plans/2026-05-20-13-20-timeline-concurrency-messaging-and-dedupe-plan.md
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -578,3 +656,24 @@ timeline:
   verification:
   - See plan body closeout verification notes.
   outcome: Completed the phase 6 lineage evidence hydration.
+- completed_at: '2026-07-16T02:09:27+02:00'
+  source_plan: docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+  change_id: 2026-07-16-fitcv-inverse-optimization-phase-4-decision-feedback
+  summary: FitCV inverse optimization Phase 4 decision-feedback implementation plan
+  capabilities: []
+  verification:
+  - python -m pytest tests/test_config.py tests/test_decision_feedback.py -q
+  - python -m pytest tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py -q
+  - python -m pytest tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_sqlite_store.py -q
+  - python -m pytest tests/test_fitcv_cp/test_app.py -q
+  - python -m pytest tests/test_ranking.py tests/test_ranking_contract.py tests/test_ai_score.py -q
+  - python -m pytest tests/test_agentic_cv_analysis.py tests/test_pipeline_status_registry.py -q
+  - python -m pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_structural_contract_guardrails.py -q
+  - python -m ruff check src/fitcv/decision_feedback.py tests/test_decision_feedback.py
+  - uvx mypy src/fitcv/decision_feedback.py --show-error-codes --follow-imports=skip
+  - python tools/docs/generate_architecture_metadata.py --check
+  - python scripts/validate_planning_lifecycle.py
+  - python scripts/hooks/run_validator.py --fast
+  - python scripts/validate_repo_contracts.py --fast
+  - git diff --check
+  outcome: Completed Phase 4 immutable decision-feedback capture with policy-owned ordinal stars, v4 source evidence, append-only SQLite ledger, deterministic reducer, native POST/UI, old-run isolation, and no Phase 5 learning or ranking effect.

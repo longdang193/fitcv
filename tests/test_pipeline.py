@@ -9448,3 +9448,13 @@ def test_llm_runtime_summary_is_deterministic_and_stage_neutral() -> None:
     assert summary["adapters"] == ["fake"]
     assert summary["runtime_paths"] == ["test"]
     assert [item["scope_key"] for item in summary["evidence_sample"]] == ["a"]
+
+def test_materialize_scoring_shortlist_rejects_ambiguous_passed_url_mapping() -> None:
+    with pytest.raises(ValueError, match="ambiguous passed-job URL mapping"):
+        _materialize_scoring_shortlist(
+            [{"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1}],
+            [
+                {"job_url": "https://example.com/1", "raw_job_fingerprint": "raw-1"},
+                {"job_url": "https://example.com/1", "raw_job_fingerprint": "raw-2"},
+            ],
+        )

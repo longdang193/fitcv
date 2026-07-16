@@ -105,3 +105,7 @@ Shortlist ownership:
 
 
 
+
+## Decision Feedback Spine
+
+Completed runs now emit `results_job_ledger_v4` with one immutable `decision_feedback_source_v1`. Production scoring rows carry normalized embedding evidence through one URL-boundary adapter, then use `raw_job_fingerprint` as alternative identity. The control plane materializes one canonical episode and complete alternative set on first rating, appends immutable rating events in SQLite sequence order, and derives effective `unrated | 1..5` state through one shared reducer. GET remains read-only; old v3 runs remain explicitly unrated.

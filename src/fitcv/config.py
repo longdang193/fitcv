@@ -25,6 +25,7 @@ from typing import Any
 import yaml
 from fitcv import config_compat, config_loader, config_validators
 from fitcv.fit_factors import fingerprint_eligibility_policy, validate_eligibility_policy
+from fitcv.decision_feedback import validate_decision_learning_policy
 from fitcv.ranking_contract import build_ranking_contract_context, validate_ranking_policy
 from fitcv.cv_presets import SUPPORTED_PRESETS
 from fitcv.prompts import get_prompt_definition
@@ -57,6 +58,7 @@ _POLICY_FILE_CANDIDATES = [
     ("taxonomy", ("taxonomy/taxonomy.yaml", "taxonomy.yaml")),
     ("pipeline", ("runtime/pipeline.yaml", "pipeline.yaml")),
     ("ranking", ("policy/ranking.yaml", "ranking.yaml")),
+    ("decision_learning", ("policy/decision_learning.yaml",)),
     ("eligibility", ("policy/eligibility.yaml",)),
     ("cv_analysis", ("policy/cv_analysis.yaml", "cv_analysis.yaml")),
     ("prompts", ("runtime/prompts.yaml", "prompts.yaml")),
@@ -105,6 +107,7 @@ _CANONICAL_POLICY_TOP_LEVEL_KEYS = {
     "cv",
     "eligibility_policy",
     "ranking_policy",
+    "decision_learning_policy",
 }
 _CANONICAL_TAXONOMY_TOP_LEVEL_KEYS = {
     "seniority",
@@ -865,6 +868,10 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         raise ValueError(
             "eligibility_policy must be owned only by canonical config/policy/eligibility.yaml"
         )
+    if "decision_learning_policy" in env_cfg_snapshot:
+        raise ValueError(
+            "decision_learning_policy must be owned only by canonical config/policy/decision_learning.yaml"
+        )
     ssot_mode = _resolve_ssot_enforcement_mode(cfg)
     env_ownership_overlaps = _detect_env_canonical_ownership_overlaps(env_cfg_snapshot)
     _handle_ssot_overlaps(
@@ -886,6 +893,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     loaded_policy_paths: dict[str, Path] = {}
     pipeline_policy_snapshot: dict[str, Any] = {}
     eligibility_policy_missing = False
+    decision_learning_policy_missing = False
 
     # Precedence for merge stage:
     # env cfg remains highest compatibility source; policy/runtime/taxonomy files
@@ -896,9 +904,16 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         if policy_name == "eligibility" and not resolved_policy_path.exists():
             eligibility_policy_missing = True
             continue
+        if policy_name == "decision_learning" and not resolved_policy_path.exists():
+            decision_learning_policy_missing = True
+            continue
         if policy_name != "eligibility" and "eligibility_policy" in policy:
             raise ValueError(
                 "eligibility_policy must be owned only by canonical config/policy/eligibility.yaml"
+            )
+        if policy_name != "decision_learning" and "decision_learning_policy" in policy:
+            raise ValueError(
+                "decision_learning_policy must be owned only by canonical config/policy/decision_learning.yaml"
             )
         if policy_name == "pipeline":
             pipeline_policy_snapshot = dict(policy)
@@ -931,6 +946,12 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
             cfg["eligibility_policy"]
         )
 
+
+    if "decision_learning_policy" in cfg:
+        (
+            cfg["decision_learning_policy"],
+            cfg["decision_learning_policy_fingerprint"],
+        ) = validate_decision_learning_policy(cfg["decision_learning_policy"])
     retired_ranking_keys = sorted(
         key
         for key in (
@@ -964,6 +985,10 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     if eligibility_policy_missing and ssot_mode == "strict":
         raise FileNotFoundError(
             f"Canonical eligibility policy file not found: {config_dir / 'policy' / 'eligibility.yaml'}"
+        )
+    if decision_learning_policy_missing and ssot_mode == "strict":
+        raise FileNotFoundError(
+            f"Canonical decision-learning policy file not found: {config_dir / 'policy' / 'decision_learning.yaml'}"
         )
     if "ranking_policy" not in cfg and ssot_mode == "strict":
         raise FileNotFoundError(loaded_policy_paths["ranking"])

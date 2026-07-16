@@ -97,13 +97,19 @@ def extract_job_title(job: Mapping[str, Any]) -> str:
 
 
 def normalize_shortlist_row(shortlist_row: Mapping[str, Any]) -> dict[str, Any]:
-    return {
+    normalized = {
         "vector_similarity": shortlist_row.get("vector_similarity", shortlist_row.get("similarity_score")),
         "vector_rank": shortlist_row.get("vector_rank", shortlist_row.get("rank")),
         "shortlist_origin": str(shortlist_row.get("shortlist_origin") or "vector_search"),
     }
-
-
+    for key in (
+        "normalized_embedding",
+        "embedding_vector_fingerprint",
+        "embedding_contract_fingerprint",
+    ):
+        if shortlist_row.get(key) is not None:
+            normalized[key] = shortlist_row[key]
+    return normalized
 def json_safe_value(value: Any) -> Any:
     if isinstance(value, dict):
         return {str(key): json_safe_value(item) for key, item in value.items()}

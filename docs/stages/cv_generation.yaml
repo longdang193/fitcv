@@ -15,6 +15,7 @@ capability_refs:
 - cv_system.structured-cv-generation
 - inspection_debugging.cv-analysis-diagnostics
 - inspection_debugging.cv-generation-diagnostics
+- inspection_debugging.decision-feedback-review
 - inspection_debugging.enriched-job-debug-export
 - inspection_debugging.prompt-provenance-diagnostics
 - inspection_debugging.quality-metrics-diagnostics

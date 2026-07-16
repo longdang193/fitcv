@@ -427,15 +427,14 @@ def test_run_vector_search_uses_total_order_and_bounded_audit(
         config,
     )
 
-    assert result["production_rows"] == [
-        {
-            "job_url": "https://example.com/a",
-            "vector_similarity": 1.0,
-            "vector_rank": 1,
-            "shortlist_origin": "vector_search",
-            "retrieval_strategy": "vector_cosine_v1",
-        }
-    ]
+    production_row = result["production_rows"][0]
+    assert production_row["job_url"] == "https://example.com/a"
+    assert production_row["vector_similarity"] == 1.0
+    assert production_row["vector_rank"] == 1
+    assert production_row["shortlist_origin"] == "vector_search"
+    assert production_row["retrieval_strategy"] == "vector_cosine_v1"
+    assert production_row["normalized_embedding"] == [1.0, 0.0]
+    assert len(production_row["embedding_vector_fingerprint"]) == 64
     assert [row["vector_rank"] for row in result["audit_rows"]] == [2, 3]
     assert result["diagnostics"]["audit_candidate_total"] == 2
     assert result["diagnostics"]["audit_sample_total"] == 2

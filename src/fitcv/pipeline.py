@@ -266,11 +266,14 @@ def _materialize_scoring_shortlist(
     passed_jobs: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Merge production retrieval evidence onto matching passed jobs."""
-    passed_by_url = {
-        extract_job_url(job): job
-        for job in passed_jobs
-        if extract_job_url(job)
-    }
+    passed_by_url: dict[str, dict[str, Any]] = {}
+    for job in passed_jobs:
+        job_url = extract_job_url(job)
+        if not job_url:
+            continue
+        if job_url in passed_by_url:
+            raise ValueError(f"ambiguous passed-job URL mapping: {job_url}")
+        passed_by_url[job_url] = job
     scoring_shortlist: list[dict[str, Any]] = []
     seen_urls: set[str] = set()
 
@@ -958,6 +961,10 @@ def _build_export_results(
                     ).strip()
                     or None
                 ),
+                "shortlist_origin": score_source.get("shortlist_origin"),
+                "normalized_embedding": score_source.get("normalized_embedding"),
+                "embedding_vector_fingerprint": score_source.get("embedding_vector_fingerprint"),
+                "embedding_contract_fingerprint": score_source.get("embedding_contract_fingerprint"),
                 "job_title": extract_job_title(enriched_job or raw_job or {}),
                 "company": (enriched_job or raw_job or {}).get("company_name")
                 or (enriched_job or raw_job or {}).get("companyName"),

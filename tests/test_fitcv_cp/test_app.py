@@ -106,6 +106,7 @@ def test_admin_route_manifest_matches_native_fastapi_contract() -> None:
         ("/admin/runs/{run_id}/cv-generation-trace.json", ("GET",), "download_run_cv_generation_trace_json", "DefaultPlaceholder"),
         ("/admin/runs/{run_id}/cv-review-action", ("POST",), "admin_run_cv_review_action", "DefaultPlaceholder"),
         ("/admin/runs/{run_id}/cv-review-batch-action", ("POST",), "admin_run_cv_review_batch_action", "DefaultPlaceholder"),
+        ("/admin/runs/{run_id}/decision-feedback/{alternative_id}", ("POST",), "admin_run_decision_feedback", "DefaultPlaceholder"),
         ("/admin/runs/{run_id}/enriched/export-filtered.zip", ("GET",), "download_run_enriched_filtered_zip", "DefaultPlaceholder"),
         ("/admin/runs/{run_id}/export.json", ("GET",), "download_run_results_json", "DefaultPlaceholder"),
         ("/admin/runs/{run_id}/hitl-review-audit.json", ("GET",), "download_run_hitl_review_audit_json", "DefaultPlaceholder"),
@@ -15008,3 +15009,126 @@ def test_normalize_hitl_resolution_status_uses_shared_review_identity_truth() ->
 
 
 
+
+
+def _decision_feedback_fixture():
+    from fitcv.decision_feedback import build_decision_feedback_source
+
+    config = {
+        "decision_learning_policy": {
+            "policy_version": "decision-learning-v1",
+            "domain_id": "ranking_v1",
+            "rating_scale": {
+                "version": "application-interest-v1",
+                "unrated_label": "unrated",
+                "labels": {
+                    "1": "definitely not interested",
+                    "2": "low application interest",
+                    "3": "might consider applying",
+                    "4": "strong application interest",
+                    "5": "would prioritize applying",
+                },
+            },
+        },
+        "ranking_policy": {"policy_version": "ranking-v2"},
+        "ranking_contract": {"ranking_contract_fingerprint": "ranking-contract"},
+        "embedding_model": "test-model",
+    }
+    source = build_decision_feedback_source(
+        run_id="run-detail-test",
+        candidate_profile={"preferences": {"preferred_locations": ["Berlin"]}},
+        config=config,
+        scoring_rows=[
+            {
+                "raw_job_fingerprint": "raw-job-1",
+                "source_job_url": "https://jobs.example.com/1",
+                "shortlist_origin": "vector_search",
+                "scores": {"baseline_fit": 0.9, "baseline_fit_label": "strong"},
+                "normalized_embedding": [1.0, 0.0],
+                "embedding_contract_fingerprint": "embedding-contract",
+            }
+        ],
+    )
+    payload = json.dumps(
+        {
+            "schema_version": "results_job_ledger_v4",
+            "decision_feedback_source": source,
+            "results": [
+                {
+                    "job_url": "https://jobs.example.com/1",
+                    "raw_job_fingerprint": "raw-job-1",
+                    "pipeline_status": "ranked_no_cv",
+                }
+            ],
+        }
+    )
+    return config, source, payload
+
+
+def test_decision_feedback_post_and_no_js_form() -> None:
+    config, source, payload = _decision_feedback_fixture()
+    patches = _run_detail_patches(
+        enriched_jobs=[
+            {
+                "job_url": "https://jobs.example.com/1",
+                "raw_job_fingerprint": "raw-job-1",
+                "title": "Data Engineer",
+                "required_skills": [],
+            }
+        ],
+        filter_results=[{"job_url": "https://jobs.example.com/1", "passed": True, "reasons": []}],
+        results_export_json=payload,
+    )
+    store = MagicMock()
+    store.list_decision_rating_events_for_run.return_value = []
+    store.materialize_episode_and_append_rating.return_value = {
+        "persistence_status": "persisted",
+        "degradation_reason": "none",
+    }
+    with patches[0], patches[1], patches[2], patches[3], patches[4], \
+         patch("fitcv_cp.app._resolve_run_store", return_value=store), \
+         patch("fitcv_cp.app.load_config", return_value=config):
+        client = TestClient(_app())
+        page = client.get("/admin/runs/run-detail-test/tabs/enriched")
+        response = client.post(
+            "/admin/runs/run-detail-test/decision-feedback/raw-job-1",
+            data={
+                "rating": "5",
+                "rating_scale_version": "application-interest-v1",
+                "source_stage_artifact_fingerprint": source["source_stage_artifact_fingerprint"],
+                "return_to": "/admin/runs/run-detail-test/tabs/enriched?page=2&q=python&unsafe=x",
+            },
+            follow_redirects=False,
+        )
+    assert page.status_code == 200
+    assert "<fieldset" in page.text
+    assert "Personal application interest after eligibility" in page.text
+    assert "decision-feedback/raw-job-1" in page.text
+    assert "onclick=" not in page.text
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin/runs/run-detail-test/tabs/enriched?page=2&q=python"
+    store.materialize_episode_and_append_rating.assert_called_once()
+
+
+def test_decision_feedback_rejects_old_run_and_unknown_scale() -> None:
+    config, source, payload = _decision_feedback_fixture()
+    old_patches = _run_detail_patches(results_export_json=json.dumps({"schema_version": "results_job_ledger_v3", "results": []}))
+    with old_patches[0], old_patches[1], old_patches[2], old_patches[3], old_patches[4]:
+        old_response = TestClient(_app()).post(
+            "/admin/runs/run-detail-test/decision-feedback/raw-job-1",
+            data={"rating": "4", "rating_scale_version": "application-interest-v1"},
+        )
+    assert old_response.status_code == 409
+
+    patches = _run_detail_patches(results_export_json=payload)
+    with patches[0], patches[1], patches[2], patches[3], patches[4], \
+         patch("fitcv_cp.app.load_config", return_value=config):
+        bad_scale = TestClient(_app()).post(
+            "/admin/runs/run-detail-test/decision-feedback/raw-job-1",
+            data={
+                "rating": "4",
+                "rating_scale_version": "unknown",
+                "source_stage_artifact_fingerprint": source["source_stage_artifact_fingerprint"],
+            },
+        )
+    assert bad_scale.status_code == 422

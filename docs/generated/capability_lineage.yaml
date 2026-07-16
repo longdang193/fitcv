@@ -5,8 +5,9 @@ features:
     status: active
     type: add
     lineage_file: docs/features/admin_control_plane_core/lineage.generated.yaml
-    capability_count: 7
+    capability_count: 8
     capabilities:
+    - admin_control_plane_core.decision-feedback-ledger
     - admin_control_plane_core.fastapi-web-server
     - admin_control_plane_core.insert-before-enqueue-invariant
     - admin_control_plane_core.jinja2-admin-pages
@@ -32,11 +33,12 @@ features:
     status: active
     type: add
     lineage_file: docs/features/cv_system/lineage.generated.yaml
-    capability_count: 11
+    capability_count: 12
     capabilities:
     - cv_system.analysis-evidence-selection
     - cv_system.analysis-grounded-validation
     - cv_system.config-owned-generation-contract
+    - cv_system.decision-feedback
     - cv_system.exact-match-late-stage-reuse
     - cv_system.fit-gate-resolution
     - cv_system.header-placeholder-repair
@@ -50,10 +52,11 @@ features:
     status: active
     type: add
     lineage_file: docs/features/inspection_debugging/lineage.generated.yaml
-    capability_count: 17
+    capability_count: 18
     capabilities:
     - inspection_debugging.cv-analysis-diagnostics
     - inspection_debugging.cv-generation-diagnostics
+    - inspection_debugging.decision-feedback-review
     - inspection_debugging.enriched-job-debug-export
     - inspection_debugging.prompt-provenance-diagnostics
     - inspection_debugging.quality-metrics-diagnostics

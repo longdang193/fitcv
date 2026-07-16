@@ -1672,3 +1672,55 @@ def test_load_config_rejects_unknown_ranking_v2_keys(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Unknown ranking_policy keys"):
         load_config(env_yaml)
+
+
+def _write_decision_learning_policy(root: Path) -> None:
+    (root / "config" / "policy" / "decision_learning.yaml").write_text(
+        "decision_learning_policy:\n"
+        "  policy_version: decision-learning-v1\n"
+        "  domain_id: ranking_v1\n"
+        "  rating_scale:\n"
+        "    version: application-interest-v1\n"
+        "    unrated_label: unrated\n"
+        "    labels:\n"
+        "      '1': definitely not interested\n"
+        "      '2': low application interest\n"
+        "      '3': might consider applying\n"
+        "      '4': strong application interest\n"
+        "      '5': would prioritize applying\n",
+        encoding="utf-8",
+    )
+
+
+def test_load_config_loads_decision_learning_policy_and_fingerprint(tmp_path: Path) -> None:
+    env_yaml = _write_minimal_eligibility_config(tmp_path)
+    _write_decision_learning_policy(tmp_path)
+
+    cfg = load_config(env_yaml)
+
+    assert cfg["decision_learning_policy"]["rating_scale"]["version"] == "application-interest-v1"
+    assert len(cfg["decision_learning_policy_fingerprint"]) == 64
+
+
+def test_load_config_requires_decision_learning_policy_in_strict_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_yaml = _write_minimal_eligibility_config(tmp_path)
+    monkeypatch.setenv("FITCV_CONFIG_SSOT_MODE", "strict")
+
+    with pytest.raises(FileNotFoundError, match="decision_learning.yaml"):
+        load_config(env_yaml)
+
+
+def test_load_config_rejects_decision_learning_policy_shadow(tmp_path: Path) -> None:
+    env_yaml = _write_minimal_eligibility_config(tmp_path)
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "decision_learning_policy:\n"
+        "  policy_version: shadow\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="decision_learning_policy.*canonical"):
+        load_config(env_yaml)
