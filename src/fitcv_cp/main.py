@@ -49,6 +49,10 @@ def _ensure_safe_local_execution_mode() -> None:
 
 def build_app() -> Any:
     load_dotenv_defaults()
+    from fitcv_cp.local_storage import activate_local_storage, is_local_mode
+
+    if is_local_mode():
+        activate_local_storage()
     _ensure_safe_local_execution_mode()
     runtime = resolve_backend_runtime()
     set_backend_runtime(runtime)

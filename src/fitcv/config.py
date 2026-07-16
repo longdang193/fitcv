@@ -215,6 +215,24 @@ def load_control_plane_config(path: str | Path | None = None) -> dict[str, Any]:
         raise FileNotFoundError(f"Control-plane config file not found: {config_path}")
     payload = _load_yaml_file(config_path)
     control_plane = dict(payload.get("control_plane") or {})
+    overlay_path = str(os.environ.get("FITCV_LOCAL_ROUTING_OVERLAY_PATH") or "").strip()
+    if overlay_path and Path(overlay_path).exists():
+        from fitcv_cp.local_storage import validate_routing_overlay
+
+        overlay_payload = validate_routing_overlay(_load_yaml_file(Path(overlay_path)))
+        providers = dict(control_plane.get("providers") or {})
+        for provider_id, provider_overlay in dict(
+            overlay_payload.get("providers") or {}
+        ).items():
+            provider = dict(providers.get(provider_id) or {})
+            provider.update(dict(provider_overlay or {}))
+            providers[provider_id] = provider
+        control_plane["providers"] = providers
+        model_routing = dict(control_plane.get("model_routing") or {})
+        parts = dict(model_routing.get("parts") or {})
+        parts.update(dict((overlay_payload.get("model_routing") or {}).get("parts") or {}))
+        model_routing["parts"] = parts
+        control_plane["model_routing"] = model_routing
     _validate_control_plane_secret_hygiene(control_plane)
 
     data_backend = dict(control_plane.get("data_backend") or {})

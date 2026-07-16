@@ -206,6 +206,24 @@ def test_get_local_sqlite_path_uses_control_plane_sqlite_path_when_env_missing(
     assert get_local_sqlite_path() == str(tmp_path / "from-config.sqlite3")
 
 
+def test_load_control_plane_config_merges_narrow_local_overlay(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    overlay_path = tmp_path / "local_routing_overlay.yaml"
+    overlay_path.write_text(
+        "version: 1\nproviders:\n  openai:\n    base_url: https://example.test/v1\n"
+        "model_routing:\n  parts:\n    ranking_ai_score:\n      provider: openai\n      model: test-model\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("FITCV_LOCAL_ROUTING_OVERLAY_PATH", str(overlay_path))
+
+    config = load_control_plane_config()
+
+    assert config["providers"]["openai"]["base_url"] == "https://example.test/v1"
+    assert config["providers"]["openai"]["wire_api"] == "chat_completions"
+    assert config["model_routing"]["parts"]["ranking_ai_score"]["model"] == "test-model"
+
+
 
 
 def test_get_stage_runtime_sleep_secs_prefers_canonical_stage_runtime() -> None:

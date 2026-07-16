@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: active
 template_id: implementation-plan
 name: fitcv-local-distribution-and-onboarding
 parent_thread: workstream-operator-control-plane.fitcv-local-distribution-and-onboarding
@@ -133,18 +133,18 @@ clean-machine checklist, focused tests, docs, and generated lineage prove releas
 - external `fitcv-langgraph` removal stays intact
 
 **Steps:**
-- [ ] Step 1: run GitNexus upstream impact for `build_app`, `create_app`, `load_control_plane_config`, `resolve_openai_compatible_api_key`, and `get_local_sqlite_path`; warn before HIGH/CRITICAL edits
-- [ ] Step 2: record current inline-run, config-path, routing, settings-store, active-run, and template behavior with focused tests
-- [ ] Step 3: add `keyring` as FitCV Local runtime dependency because safe Credential Manager access is not a few-line stdlib path
-- [ ] Step 4: add PyInstaller as build-only dependency; keep Inno Setup external to runtime dependencies
-- [ ] Step 5: freeze proposed local routes under `/local/*` and `/admin/system/*`; no duplicate public API family
-- [ ] Step 6: record baseline machine and lock spec budgets: installed <= 600 MiB,
+- [x] Step 1: run GitNexus upstream impact for `build_app`, `create_app`, `load_control_plane_config`, `resolve_openai_compatible_api_key`, and `get_local_sqlite_path`; warn before HIGH/CRITICAL edits
+- [x] Step 2: record current inline-run, config-path, routing, settings-store, active-run, and template behavior with focused tests
+- [x] Step 3: add `keyring` as FitCV Local runtime dependency because safe Credential Manager access is not a few-line stdlib path
+- [x] Step 4: add PyInstaller as build-only dependency; keep Inno Setup external to runtime dependencies
+- [x] Step 5: freeze proposed local routes under `/local/*` and `/admin/system/*`; no duplicate public API family
+- [x] Step 6: record baseline machine and lock spec budgets: installed <= 600 MiB,
   idle RSS <= 250 MiB, health <= 8 seconds, first page <= 10 seconds
 
 **Verification:**
-- [ ] `uv lock --check`
-- [ ] `.\.venv\Scripts\python.exe -m pytest tests/test_fitcv_cp/test_main.py tests/test_config.py tests/test_runtime_routing.py -q`
-- [ ] dependency review confirms `keyring` is runtime-only and PyInstaller is build-only
+- [x] `uv lock --check`
+- [x] `.\.venv\Scripts\python.exe -m pytest tests/test_fitcv_cp/test_main.py tests/test_config.py tests/test_runtime_routing.py -q`
+- [x] dependency review confirms `keyring` is runtime-only and PyInstaller is build-only
 
 **Exit Criteria:**
 - shared-symbol blast radius, dependency decisions, fixed performance budgets,
@@ -168,33 +168,33 @@ clean-machine checklist, focused tests, docs, and generated lineage prove releas
 - Task 1 dependency and shared-symbol checks complete
 
 **Steps:**
-- [ ] Step 1: define `%APPDATA%\FitCV\bootstrap.json` schema with version, data-root path, and last application version only
-- [ ] Step 2: implement UTF-8 JSON read plus same-directory temporary write, flush, `os.replace`, and malformed-file recovery
-- [ ] Step 3: define default `%LOCALAPPDATA%\FitCV\data` layout for `fitcv.sqlite3`, `candidate_profile.yaml`, `config/local_routing_overlay.yaml`, `artifacts`, `exports`, `logs`, and `backups`
-- [ ] Step 4: activate default root on first launch; allow change before first run
+- [x] Step 1: define `%APPDATA%\FitCV\bootstrap.json` schema with version, data-root path, and last application version only
+- [x] Step 2: implement UTF-8 JSON read plus same-directory temporary write, flush, `os.replace`, and malformed-file recovery
+- [x] Step 3: define default `%LOCALAPPDATA%\FitCV\data` layout for `fitcv.sqlite3`, `candidate_profile.yaml`, `config/local_routing_overlay.yaml`, `artifacts`, `exports`, `logs`, and `backups`
+- [x] Step 4: activate default root on first launch; allow change before first run
   and reject UNC, network, removable, relative, source-equal, non-writable, and
   insufficient-space destinations; require free space >= twice source size plus 512 MiB
-- [ ] Step 5: create public-safe candidate profile only when absent; never copy
+- [x] Step 5: create public-safe candidate profile only when absent; never copy
   full packaged control-plane config into user data
-- [ ] Step 6: define versioned local overlay schema limited to `providers` and
+- [x] Step 6: define versioned local overlay schema limited to `providers` and
   `model_routing.parts`; reject all other control-plane keys
-- [ ] Step 7: merge packaged control-plane defaults plus local overlay inside
+- [x] Step 7: merge packaged control-plane defaults plus local overlay inside
   `load_control_plane_config()` through one explicit precedence owner
 - [ ] Step 8: set every packaged mutable root before app construction: SQLite,
   settings, entry config, candidate profile, artifacts, exports, logs, backups,
   uploads, and temporary work
 - [ ] Step 9: add packaged write-boundary test proving no normal mutable write
   lands under bundle/install root
-- [ ] Step 10: keep source/server default resolution unchanged when packaged-local mode is absent
+- [x] Step 10: keep source/server default resolution unchanged when packaged-local mode is absent
 
 **Verification:**
-- [ ] bootstrap atomic-write failure leaves previous pointer readable
+- [x] bootstrap atomic-write failure leaves previous pointer readable
 - [ ] malformed bootstrap falls back to safe recovery screen, not silent data-root replacement
-- [ ] reinstall simulation reuses existing data root without overwriting user files
-- [ ] upgraded packaged defaults apply automatically when overlay omits new key
-- [ ] overlay rejects non-routing keys and full copied control-plane documents
+- [x] reinstall simulation reuses existing data root without overwriting user files
+- [x] upgraded packaged defaults apply automatically when overlay omits new key
+- [x] overlay rejects non-routing keys and full copied control-plane documents
 - [ ] bundle/install root remains unchanged after onboarding and representative run
-- [ ] existing config and persistence tests pass without packaged-local environment
+- [x] existing config and persistence tests pass without packaged-local environment
 
 **Exit Criteria:**
 - application resolves one writable user root before any mutable store opens
