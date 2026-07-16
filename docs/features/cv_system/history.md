@@ -162,6 +162,27 @@ Verification:
 Outcome:
 Completed Phase 4 immutable decision-feedback capture with policy-owned ordinal stars, v4 source evidence, append-only SQLite ledger, deterministic reducer, native POST/UI, old-run isolation, and no Phase 5 learning or ranking effect.
 
+### FitCV inverse optimization Phase 5 symmetric preference compiler implementation plan
+
+Source plan: `docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md`
+
+Verification:
+- `python -m pytest tests/test_decision_feedback.py -q`
+- `python -m pytest tests/test_config.py tests/test_decision_feedback.py -q`
+- `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_worker_job.py -q -k "decision_feedback or admin_route_manifest"`
+- `python -m pytest tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py -q`
+- `python -m pytest tests/test_ranking.py tests/test_ranking_contract.py tests/test_ai_score.py -q`
+- `python -m ruff check src/fitcv/decision_feedback.py tests/test_decision_feedback.py`
+- `uvx mypy src/fitcv/decision_feedback.py --show-error-codes --follow-imports=skip`
+- `python tools/docs/generate_architecture_metadata.py --check`
+- `python scripts/validate_planning_lifecycle.py`
+- `python scripts/hooks/run_validator.py --fast`
+- `python scripts/validate_repo_contracts.py --fast`
+- `git diff --check`
+
+Outcome:
+Completed Phase 5 deterministic ordinal preference compilation with one policy SSOT, provenance-preserving watermark replay, exhaustive symmetric pair compilation, episode-bounded evidence weights, canonical fingerprints, and no persistence, solver, activation, or ranking effect.
+
 <!-- GENERATED HISTORY END -->
 
 ## Human Notes

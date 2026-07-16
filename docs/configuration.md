@@ -35,7 +35,7 @@ This matrix defines current SSOT ownership for migration execution.
 | `config/policy/cv.yaml` | CV generation and validation policy | Owns nested `cv.*` contract (`preset`, composition, validation, generation defaults). |
 | `config/policy/eligibility.yaml` | location/language eligibility policy | Sole mutable owner of factor modes and absolute normalization values; ranking/runtime/env config may not shadow `eligibility_policy`. |
 | `config/policy/ranking.yaml` | ranking-v2 baseline policy | Sole mutable owner of exact ranking policy, absolute defaults, fixed weights, label thresholds, active baseline mode, and label-migration gate. |
-| `config/policy/decision_learning.yaml` | decision-feedback policy | Sole owner of Phase 4 ordinal 1–5 application-interest labels, scale version, domain ID, and unrated label. Not exposed as a runtime setting. |
+| `config/policy/decision_learning.yaml` | decision-learning policy | Sole owner of ordinal 1–5 application-interest labels, scale version, domain ID, unrated label, and Phase 5 compiler policy. Not exposed as a runtime setting. |
 | `config/taxonomy/taxonomy.yaml` | shared business taxonomy and enum families | Owns seniority taxonomy, location/contract/experience enums, role taxonomy maps. |
 | `.env.yaml` | bootstrap trigger input | Current default `config_path`; now limited to small bootstrap-only values. |
 | `config/env.private.yaml` | no active canonical owner in this worktree | File not present in tracked worktree; treat as deprecated/removed unless explicitly reintroduced as local-only untracked override. |
@@ -249,3 +249,4 @@ Fail-fast runtime contract:
 - Stars capture personal application interest after eligibility; they do not record applications or change ranking.
 - Strict SSOT mode requires `config/policy/decision_learning.yaml` and rejects environment or other-policy shadows.
 - Phase 4 exposes no optimizer, learned vector, pairwise compiler, or settings control.
+- Phase 5 compiler policy owns versioned minimum gaps, gap weights, and episode evidence budget; compiler output remains non-persistent and inactive.

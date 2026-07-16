@@ -10,6 +10,7 @@ capability_refs:
 - cv_system.decision-feedback
 - cv_system.exact-match-late-stage-reuse
 - cv_system.fit-gate-resolution
+- cv_system.preference-compilation
 - cv_system.ranking-v2-baseline
 - inspection_debugging.cv-analysis-diagnostics
 - inspection_debugging.cv-generation-diagnostics
@@ -111,6 +112,7 @@ invariants:
 - location and language consume Phase 1 absolute factor projections; hard-gated or disabled factors are excluded once from effective structured weights
 - vector evidence is shortlist provenance only and cannot affect baseline score, label, fingerprint, or tie order
 - completed-run export may freeze evidence-complete scored rows into `decision_feedback_source_v1`; ratings never feed Phase 4 ranking
+- Phase 5 consumes immutable rating evidence through a pure preference compiler; compiler edges remain outside ranking runtime and do not alter labels or order
 - canonical writes exclude legacy `final_*`, model-authored label, and ambiguous `preference_fit` authority
 human_notes:
 - ranking

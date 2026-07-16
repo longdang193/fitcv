@@ -53,6 +53,9 @@ capabilities:
   - capability_id: cv_system.decision-feedback
     statement: Freeze every evidence-complete production scoring row into one immutable feedback source, preserve ordinal 1–5 application-interest evidence, and keep ratings inactive for Phase 4 ranking and CV decisions.
     state: active
+  - capability_id: cv_system.preference-compilation
+    statement: Compile complete ordinal rating evidence into deterministic, versioned, provenance-preserving preference edges without persistence, solver activation, or ranking effects.
+    state: active
   - capability_id: cv_system.exact-match-late-stage-reuse
     statement: 'Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
 
@@ -83,6 +86,7 @@ stage_participation:
       - cv_system.decision-feedback
       - cv_system.exact-match-late-stage-reuse
       - cv_system.fit-gate-resolution
+      - cv_system.preference-compilation
       - cv_system.ranking-v2-baseline
   - stage_id: shortlist
     role: primary

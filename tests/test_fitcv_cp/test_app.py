@@ -15029,6 +15029,12 @@ def _decision_feedback_fixture():
                     "5": "would prioritize applying",
                 },
             },
+            "preference_compiler": {
+                "compiler_version": "preference-compiler-v1",
+                "minimum_rating_gap": 2,
+                "gap_evidence_weights": {"1": 1.0, "2": 2.0, "3": 3.0, "4": 4.0},
+                "max_episode_evidence_budget": 12.0,
+            },
         },
         "ranking_policy": {"policy_version": "ranking-v2"},
         "ranking_contract": {"ranking_contract_fingerprint": "ranking-contract"},

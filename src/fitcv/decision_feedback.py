@@ -5,6 +5,7 @@ domain: runtime
 ownership: feature
 capabilities:
   - cv_system.decision-feedback
+  - cv_system.preference-compilation
 responsibility:
   - Validate ordinal decision-learning policy and immutable feedback evidence.
   - Build canonical decision episodes and reduce append-only rating events.
@@ -21,6 +22,7 @@ from __future__ import annotations
 import datetime
 import json
 import math
+from itertools import combinations
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 from typing import Any, Iterable, cast
@@ -105,7 +107,58 @@ class DecisionRatingEvent:
             raise ValueError("created_at must be timezone-aware")
 
 
-_POLICY_KEYS = {"policy_version", "domain_id", "rating_scale"}
+@dataclass(frozen=True)
+class EffectiveRatingState:
+    episode_id: str
+    alternative_id: str
+    rating: RatingValue | str
+    source_event_id: str | None
+    event_sequence: int | None
+
+
+@dataclass(frozen=True)
+class PreferenceEdge:
+    preferred_alternative_id: str
+    other_alternative_id: str
+    rating_gap: int
+    evidence_weight: float
+    episode_bounded_weight: float
+    source_event_ids: tuple[str, str]
+    compiler_version: str
+
+
+@dataclass(frozen=True)
+class PreferenceCompilerDiagnostics:
+    alternative_count: int
+    rated_alternative_count: int
+    unordered_pair_count: int
+    omitted_unrated_pair_count: int
+    omitted_equal_pair_count: int
+    omitted_below_gap_pair_count: int
+    emitted_edge_count: int
+    raw_evidence_weight_sum: float
+    episode_scale: float
+    bounded_evidence_weight_sum: float
+
+
+@dataclass(frozen=True)
+class PreferenceCompilerResult:
+    schema_version: str
+    status: str
+    episode_id: str
+    event_watermark: int
+    compiler_version: str
+    compiler_policy_fingerprint: str
+    decision_learning_policy_fingerprint: str
+    compiler_input_fingerprint: str
+    edge_set_fingerprint: str
+    edges: tuple[PreferenceEdge, ...]
+    diagnostics: PreferenceCompilerDiagnostics
+
+_POLICY_KEYS = {"policy_version", "domain_id", "rating_scale", "preference_compiler"}
+_COMPILER_KEYS = {"compiler_version", "minimum_rating_gap", "gap_evidence_weights", "max_episode_evidence_budget"}
+_GAP_WEIGHT_KEYS = {str(value) for value in range(1, 5)}
+_EXPECTED_COMPILER_VERSION = "preference-compiler-v1"
 _SCALE_KEYS = {"version", "unrated_label", "labels"}
 _EXPECTED_LABEL_KEYS = {str(value.value) for value in RatingValue}
 _EXPECTED_POLICY_VERSION = "decision-learning-v1"
@@ -116,6 +169,9 @@ _FIT_LABELS = {"strong", "stretch", "skip"}
 _SOURCE_SCHEMA_VERSION = "decision_feedback_source_v1"
 _PREFERENCE_CONTEXT_VERSION = "preference_context_v1"
 _QUALIFICATION_CONTEXT_VERSION = "qualification_context_v1"
+_PREFERENCE_COMPILER_RESULT_SCHEMA_VERSION = "preference_compiler_result_v1"
+_PREFERENCE_EDGE_SET_SCHEMA_VERSION = "preference_edge_set_v1"
+_UNRATED_LABEL = "unrated"
 
 
 def _required_text(value: Any, field: str) -> str:
@@ -158,6 +214,44 @@ def validate_decision_learning_policy(policy: Any) -> tuple[dict[str, Any], str]
     normalized_labels = [_required_text(labels[key], f"rating_scale.labels.{key}").casefold() for key in sorted(labels)]
     if len(set(normalized_labels)) != len(normalized_labels):
         raise ValueError("rating_scale labels must be unique")
+    compiler = policy["preference_compiler"]
+    if not isinstance(compiler, dict):
+        raise ValueError("preference_compiler must be a mapping")
+    _exact_keys(compiler, _COMPILER_KEYS, "preference_compiler")
+    compiler_version = _required_text(compiler["compiler_version"], "preference_compiler.compiler_version")
+    if compiler_version != _EXPECTED_COMPILER_VERSION:
+        raise ValueError(f"compiler_version must be {_EXPECTED_COMPILER_VERSION}")
+    minimum_gap = compiler["minimum_rating_gap"]
+    if isinstance(minimum_gap, bool) or not isinstance(minimum_gap, int) or not 1 <= minimum_gap <= 4:
+        raise ValueError("minimum_rating_gap must be an integer from 1 through 4")
+    raw_weights = compiler["gap_evidence_weights"]
+    if not isinstance(raw_weights, dict):
+        raise ValueError("gap_evidence_weights must be a mapping")
+    if set(raw_weights) != _GAP_WEIGHT_KEYS:
+        raise ValueError("gap_evidence_weights must contain exactly 1 through 4")
+    weights: dict[str, float] = {}
+    for key in sorted(raw_weights):
+        value = raw_weights[key]
+        if isinstance(value, bool):
+            raise ValueError("gap_evidence_weights values must be finite positive numbers")
+        try:
+            number = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("gap_evidence_weights values must be finite positive numbers") from exc
+        if not math.isfinite(number) or number <= 0.0:
+            raise ValueError("gap_evidence_weights values must be finite positive numbers")
+        weights[key] = number
+    if any(weights[str(key)] >= weights[str(key + 1)] for key in range(1, 4)):
+        raise ValueError("gap_evidence_weights must be strictly increasing")
+    budget = compiler["max_episode_evidence_budget"]
+    if isinstance(budget, bool):
+        raise ValueError("max_episode_evidence_budget must be finite and positive")
+    try:
+        normalized_budget = float(budget)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("max_episode_evidence_budget must be finite and positive") from exc
+    if not math.isfinite(normalized_budget) or normalized_budget <= 0.0:
+        raise ValueError("max_episode_evidence_budget must be finite and positive")
     validated = {
         "policy_version": _EXPECTED_POLICY_VERSION,
         "domain_id": _EXPECTED_DOMAIN_ID,
@@ -165,6 +259,12 @@ def validate_decision_learning_policy(policy: Any) -> tuple[dict[str, Any], str]
             "version": _EXPECTED_SCALE_VERSION,
             "unrated_label": _EXPECTED_UNRATED_LABEL,
             "labels": {key: str(labels[key]).strip() for key in sorted(labels)},
+        },
+        "preference_compiler": {
+            "compiler_version": compiler_version,
+            "minimum_rating_gap": minimum_gap,
+            "gap_evidence_weights": weights,
+            "max_episode_evidence_budget": normalized_budget,
         },
     }
     return validated, build_contract_fingerprint(validated)
@@ -212,6 +312,25 @@ def _normalized_embedding(value: Any) -> list[float]:
     if not math.isclose(norm, 1.0, rel_tol=1e-9, abs_tol=1e-9):
         raise ValueError("normalized_embedding must have unit norm")
     return vector
+
+
+def _candidate_set_fingerprint(rows: Iterable[dict[str, Any]]) -> str:
+    payload = [
+        {
+            "alternative_id": str(row["alternative_id"]),
+            "displayed_rank": int(row["displayed_rank"]),
+            "baseline_fit": float(row["baseline_fit"]),
+            "baseline_fit_label": str(row["baseline_fit_label"]),
+            "embedding_vector_fingerprint": str(row["embedding_vector_fingerprint"]),
+            "shortlist_origin": str(row["shortlist_origin"]),
+        }
+        for row in sorted(rows, key=lambda item: int(item["displayed_rank"]))
+    ]
+    return str(build_contract_fingerprint({"alternatives": payload}))
+
+
+def _compiler_policy_fingerprint(policy: dict[str, Any]) -> str:
+    return str(build_contract_fingerprint(policy["preference_compiler"]))
 
 
 def build_decision_feedback_source(
@@ -297,18 +416,7 @@ def build_decision_feedback_source(
         raise ValueError("alternatives must share one embedding contract and dimension")
     eligible.sort(key=lambda row: (-float(row["baseline_fit"]), str(row["alternative_id"])))
     alternatives = [{**row, "displayed_rank": index + 1} for index, row in enumerate(eligible)]
-    candidate_set_payload = [
-        {
-            "alternative_id": row["alternative_id"],
-            "displayed_rank": row["displayed_rank"],
-            "baseline_fit": row["baseline_fit"],
-            "baseline_fit_label": row["baseline_fit_label"],
-            "embedding_vector_fingerprint": row["embedding_vector_fingerprint"],
-            "shortlist_origin": row["shortlist_origin"],
-        }
-        for row in alternatives
-    ]
-    candidate_set_fingerprint = build_contract_fingerprint({"alternatives": candidate_set_payload})
+    candidate_set_fingerprint = _candidate_set_fingerprint(alternatives)
     source_payload = {
         "schema_version": _SOURCE_SCHEMA_VERSION,
         "domain_id": policy["domain_id"],
@@ -384,18 +492,7 @@ def build_episode_records(
     validated_alternatives.sort(key=lambda row: (int(row["displayed_rank"]), str(row["alternative_id"])))
     if [int(row["displayed_rank"]) for row in validated_alternatives] != list(range(1, len(validated_alternatives) + 1)):
         raise ValueError("decision feedback displayed ranks must be contiguous")
-    candidate_set_payload = [
-        {
-            "alternative_id": row["alternative_id"],
-            "displayed_rank": row["displayed_rank"],
-            "baseline_fit": row["baseline_fit"],
-            "baseline_fit_label": row["baseline_fit_label"],
-            "embedding_vector_fingerprint": row["embedding_vector_fingerprint"],
-            "shortlist_origin": row["shortlist_origin"],
-        }
-        for row in validated_alternatives
-    ]
-    expected_candidate_fingerprint = build_contract_fingerprint({"alternatives": candidate_set_payload})
+    expected_candidate_fingerprint = _candidate_set_fingerprint(validated_alternatives)
     if str(source.get("candidate_set_fingerprint") or "") != expected_candidate_fingerprint:
         raise ValueError("candidate_set_fingerprint does not match alternatives")
     source_fingerprint_payload = {
@@ -469,18 +566,260 @@ def build_episode_records(
     return episode, alternatives
 
 
-def reduce_rating_events(
+def reduce_rating_event_states(
     events: Iterable[DecisionRatingEvent],
-) -> dict[tuple[str, str], RatingValue | str]:
+    *,
+    event_watermark: int | None = None,
+) -> dict[tuple[str, str], EffectiveRatingState]:
+    if event_watermark is not None and (isinstance(event_watermark, bool) or event_watermark < 0):
+        raise ValueError("event_watermark must be nonnegative")
     latest: dict[tuple[str, str], DecisionRatingEvent] = {}
+    seen_event_ids: set[str] = set()
+    seen_sequences: set[int] = set()
     for event in events:
         if event.event_sequence is None:
             raise ValueError("persisted event requires event_sequence")
+        sequence = int(event.event_sequence)
+        if event_watermark is not None and sequence > event_watermark:
+            continue
+        if event.event_id in seen_event_ids:
+            raise ValueError("duplicate event_id")
+        if sequence in seen_sequences:
+            raise ValueError("duplicate event_sequence")
+        seen_event_ids.add(event.event_id)
+        seen_sequences.add(sequence)
         key = (event.episode_id, event.alternative_id)
         current = latest.get(key)
-        if current is None or int(event.event_sequence) > int(current.event_sequence or 0):
+        if current is None or sequence > int(current.event_sequence or 0):
             latest[key] = event
     return {
-        key: cast(RatingValue, event.rating) if event.event_type is RatingEventType.SET_RATING else "unrated"
+        key: EffectiveRatingState(
+            episode_id=event.episode_id,
+            alternative_id=event.alternative_id,
+            rating=cast(RatingValue, event.rating) if event.event_type is RatingEventType.SET_RATING else "unrated",
+            source_event_id=event.event_id,
+            event_sequence=event.event_sequence,
+        )
         for key, event in latest.items()
     }
+
+
+def reduce_rating_events(
+    events: Iterable[DecisionRatingEvent],
+) -> dict[tuple[str, str], RatingValue | str]:
+    return {key: state.rating for key, state in reduce_rating_event_states(events).items()}
+
+def _validate_preference_compiler_inputs(
+    episode: DecisionEpisode,
+    alternatives: tuple[DecisionAlternative, ...],
+    events: tuple[DecisionRatingEvent, ...],
+    event_watermark: int,
+    decision_learning_policy: Any,
+) -> tuple[dict[str, Any], str, str]:
+    if isinstance(event_watermark, bool) or not isinstance(event_watermark, int) or event_watermark < 0:
+        raise ValueError("event_watermark must be a nonnegative integer")
+    policy, decision_learning_policy_fingerprint = validate_decision_learning_policy(
+        decision_learning_policy
+    )
+    if policy["domain_id"] != episode.domain_id:
+        raise ValueError("policy domain conflicts with episode")
+    if policy["rating_scale"]["version"] != episode.rating_scale_version:
+        raise ValueError("policy rating scale conflicts with episode")
+    if not alternatives:
+        raise ValueError("compiler requires alternatives")
+    seen_ids: set[str] = set()
+    seen_ranks: set[int] = set()
+    candidate_rows: list[dict[str, Any]] = []
+    for alternative in alternatives:
+        if alternative.episode_id != episode.episode_id:
+            raise ValueError("alternative belongs to another episode")
+        if not alternative.alternative_id or alternative.alternative_id in seen_ids:
+            raise ValueError("alternatives require unique IDs")
+        if alternative.displayed_rank <= 0 or alternative.displayed_rank in seen_ranks:
+            raise ValueError("alternatives require unique positive ranks")
+        seen_ids.add(alternative.alternative_id)
+        seen_ranks.add(alternative.displayed_rank)
+        candidate_rows.append(
+            {
+                "alternative_id": alternative.alternative_id,
+                "displayed_rank": alternative.displayed_rank,
+                "baseline_fit": alternative.baseline_fit,
+                "baseline_fit_label": alternative.baseline_fit_label,
+                "embedding_vector_fingerprint": alternative.embedding_vector_fingerprint,
+                "shortlist_origin": alternative.shortlist_origin,
+            }
+        )
+    if _candidate_set_fingerprint(candidate_rows) != episode.candidate_set_fingerprint:
+        raise ValueError("candidate_set_fingerprint does not match alternatives")
+    for event in events:
+        if event.episode_id != episode.episode_id:
+            raise ValueError("event belongs to another episode")
+        if event.alternative_id not in seen_ids:
+            raise ValueError("event references unknown alternative")
+        if event.rating_scale_version != episode.rating_scale_version:
+            raise ValueError("event rating scale conflicts with episode")
+    return policy, decision_learning_policy_fingerprint, _compiler_policy_fingerprint(policy)
+
+
+def _compile_rated_pairs(
+    rated_states: tuple[EffectiveRatingState, ...],
+    minimum_rating_gap: int,
+    gap_evidence_weights: dict[str, float],
+    compiler_version: str,
+) -> tuple[tuple[PreferenceEdge, ...], int, int, float]:
+    edges: list[PreferenceEdge] = []
+    omitted_equal_count = 0
+    omitted_below_gap_count = 0
+    raw_weight_sum = 0.0
+    for left_state, right_state in combinations(rated_states, 2):
+        left_rating = int(left_state.rating)
+        right_rating = int(right_state.rating)
+        rating_gap = abs(left_rating - right_rating)
+        if rating_gap == 0:
+            omitted_equal_count += 1
+            continue
+        if rating_gap < minimum_rating_gap:
+            omitted_below_gap_count += 1
+            continue
+        preferred, other = (left_state, right_state) if left_rating > right_rating else (right_state, left_state)
+        if not preferred.source_event_id or not other.source_event_id:
+            raise ValueError("rated edge endpoint lacks source event")
+        evidence_weight = gap_evidence_weights[str(rating_gap)]
+        raw_weight_sum += evidence_weight
+        edges.append(
+            PreferenceEdge(
+                preferred_alternative_id=preferred.alternative_id,
+                other_alternative_id=other.alternative_id,
+                rating_gap=rating_gap,
+                evidence_weight=evidence_weight,
+                episode_bounded_weight=0.0,
+                source_event_ids=(preferred.source_event_id, other.source_event_id),
+                compiler_version=compiler_version,
+            )
+        )
+    return tuple(sorted(edges, key=lambda edge: (edge.preferred_alternative_id, edge.other_alternative_id))), omitted_equal_count, omitted_below_gap_count, raw_weight_sum
+
+
+def _edge_payload(edges: tuple[PreferenceEdge, ...]) -> list[dict[str, Any]]:
+    return [
+        {
+            "preferred_alternative_id": edge.preferred_alternative_id,
+            "other_alternative_id": edge.other_alternative_id,
+            "rating_gap": edge.rating_gap,
+            "evidence_weight": edge.evidence_weight,
+            "episode_bounded_weight": edge.episode_bounded_weight,
+            "source_event_ids": list(edge.source_event_ids),
+            "compiler_version": edge.compiler_version,
+        }
+        for edge in edges
+    ]
+
+
+def compile_preference_edges(
+    episode: DecisionEpisode,
+    alternatives: Iterable[DecisionAlternative],
+    events: Iterable[DecisionRatingEvent],
+    *,
+    event_watermark: int,
+    decision_learning_policy: Any,
+) -> PreferenceCompilerResult:
+    """@capability cv_system.preference-compilation"""
+    alternative_tuple = tuple(alternatives)
+    event_tuple = tuple(events)
+    policy, decision_learning_policy_fingerprint, compiler_policy_fingerprint = (
+        _validate_preference_compiler_inputs(
+            episode, alternative_tuple, event_tuple, event_watermark, decision_learning_policy
+        )
+    )
+    compiler_policy = policy["preference_compiler"]
+    states_by_key = reduce_rating_event_states(event_tuple, event_watermark=event_watermark)
+    sorted_states = tuple(
+        states_by_key.get(
+            (episode.episode_id, alternative.alternative_id),
+            EffectiveRatingState(
+                episode_id=episode.episode_id,
+                alternative_id=alternative.alternative_id,
+                rating=_UNRATED_LABEL,
+                source_event_id=None,
+                event_sequence=None,
+            ),
+        )
+        for alternative in sorted(alternative_tuple, key=lambda item: item.alternative_id)
+    )
+    rated_states = tuple(state for state in sorted_states if isinstance(state.rating, RatingValue))
+    unordered_pair_count = len(sorted_states) * (len(sorted_states) - 1) // 2
+    rated_pair_count = len(rated_states) * (len(rated_states) - 1) // 2
+    edges, omitted_equal_count, omitted_below_gap_count, raw_weight_sum = _compile_rated_pairs(
+        rated_states,
+        int(compiler_policy["minimum_rating_gap"]),
+        dict(compiler_policy["gap_evidence_weights"]),
+        str(compiler_policy["compiler_version"]),
+    )
+    budget = float(compiler_policy["max_episode_evidence_budget"])
+    episode_scale = min(1.0, budget / raw_weight_sum) if raw_weight_sum else 1.0
+    bounded_edges = tuple(
+        PreferenceEdge(
+            **{**edge.__dict__, "episode_bounded_weight": edge.evidence_weight * episode_scale}
+        )
+        for edge in edges
+    )
+    effective_state_payload = [
+        {
+            "alternative_id": state.alternative_id,
+            "rating": int(state.rating) if isinstance(state.rating, RatingValue) else _UNRATED_LABEL,
+            "source_event_id": state.source_event_id,
+            "event_sequence": state.event_sequence,
+        }
+        for state in sorted_states
+    ]
+    compiler_input_fingerprint = build_contract_fingerprint(
+        {
+            "schema_version": "preference_compiler_input_v1",
+            "episode_id": episode.episode_id,
+            "candidate_set_fingerprint": episode.candidate_set_fingerprint,
+            "rating_scale_version": episode.rating_scale_version,
+            "event_watermark": event_watermark,
+            "compiler_version": compiler_policy["compiler_version"],
+            "compiler_policy_fingerprint": compiler_policy_fingerprint,
+            "decision_learning_policy_fingerprint": decision_learning_policy_fingerprint,
+            "effective_states": effective_state_payload,
+        }
+    )
+    edge_payload = _edge_payload(bounded_edges)
+    edge_set_fingerprint = build_contract_fingerprint(
+        {
+            "schema_version": _PREFERENCE_EDGE_SET_SCHEMA_VERSION,
+            "episode_id": episode.episode_id,
+            "event_watermark": event_watermark,
+            "compiler_version": compiler_policy["compiler_version"],
+            "compiler_policy_fingerprint": compiler_policy_fingerprint,
+            "decision_learning_policy_fingerprint": decision_learning_policy_fingerprint,
+            "compiler_input_fingerprint": compiler_input_fingerprint,
+            "edges": edge_payload,
+        }
+    )
+    diagnostics = PreferenceCompilerDiagnostics(
+        alternative_count=len(sorted_states),
+        rated_alternative_count=len(rated_states),
+        unordered_pair_count=unordered_pair_count,
+        omitted_unrated_pair_count=unordered_pair_count - rated_pair_count,
+        omitted_equal_pair_count=omitted_equal_count,
+        omitted_below_gap_pair_count=omitted_below_gap_count,
+        emitted_edge_count=len(bounded_edges),
+        raw_evidence_weight_sum=raw_weight_sum,
+        episode_scale=episode_scale,
+        bounded_evidence_weight_sum=sum(edge.episode_bounded_weight for edge in bounded_edges),
+    )
+    return PreferenceCompilerResult(
+        schema_version=_PREFERENCE_COMPILER_RESULT_SCHEMA_VERSION,
+        status="compiled" if bounded_edges else "insufficient_evidence",
+        episode_id=episode.episode_id,
+        event_watermark=event_watermark,
+        compiler_version=str(compiler_policy["compiler_version"]),
+        compiler_policy_fingerprint=compiler_policy_fingerprint,
+        decision_learning_policy_fingerprint=decision_learning_policy_fingerprint,
+        compiler_input_fingerprint=compiler_input_fingerprint,
+        edge_set_fingerprint=edge_set_fingerprint,
+        edges=bounded_edges,
+        diagnostics=diagnostics,
+    )

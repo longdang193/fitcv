@@ -1687,7 +1687,16 @@ def _write_decision_learning_policy(root: Path) -> None:
         "      '2': low application interest\n"
         "      '3': might consider applying\n"
         "      '4': strong application interest\n"
-        "      '5': would prioritize applying\n",
+        "      '5': would prioritize applying\n"
+        "  preference_compiler:\n"
+        "    compiler_version: preference-compiler-v1\n"
+        "    minimum_rating_gap: 2\n"
+        "    gap_evidence_weights:\n"
+        "      '1': 1.0\n"
+        "      '2': 2.0\n"
+        "      '3': 3.0\n"
+        "      '4': 4.0\n"
+        "    max_episode_evidence_budget: 12.0\n",
         encoding="utf-8",
     )
 
@@ -1699,6 +1708,7 @@ def test_load_config_loads_decision_learning_policy_and_fingerprint(tmp_path: Pa
     cfg = load_config(env_yaml)
 
     assert cfg["decision_learning_policy"]["rating_scale"]["version"] == "application-interest-v1"
+    assert cfg["decision_learning_policy"]["preference_compiler"]["minimum_rating_gap"] == 2
     assert len(cfg["decision_learning_policy_fingerprint"]) == 64
 
 

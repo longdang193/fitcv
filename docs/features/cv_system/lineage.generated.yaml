@@ -138,6 +138,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -237,6 +238,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -376,6 +378,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -475,6 +478,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -622,6 +626,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -721,6 +726,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -850,6 +856,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -949,6 +956,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1085,6 +1093,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1184,6 +1193,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1315,6 +1325,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1414,6 +1425,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1551,6 +1563,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1650,6 +1663,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1773,6 +1787,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1872,6 +1887,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -1999,6 +2015,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -2098,6 +2115,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -2225,6 +2243,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -2324,6 +2343,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -2333,6 +2353,242 @@ capabilities:
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: incomplete
+  cv_system.preference-compilation:
+    state: active
+    statement: Compile complete ordinal rating evidence into deterministic, versioned, provenance-preserving preference edges without persistence, solver activation, or ranking effects.
+    satisfies: []
+    code:
+    - path: src/fitcv/decision_feedback.py
+      confidence: high
+      source:
+      - python_capability
+      symbols:
+      - compile_preference_edges
+    tests:
+    - path: tests/test_decision_feedback.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_preference_compiler_emits_directed_edges_with_provenance
+    docs:
+    - docs/features/cv_system/history.md
+    docs_evidence:
+    - path: docs/features/cv_system/history.md
+      confidence: high
+      source:
+      - docs_frontmatter
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
+    - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-03-31-adaptive-experience-composition-design.md
+    - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+    - docs/superpowers/archive/specs/2026-03-31-project-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+    - docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
+    - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-11-39-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-17-05-cv-generation-structured-prompt-centralization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-23-35-staged-final-artifact-reranker-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-00-20-candidate-name-placeholder-validation-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-12-05-candidate-name-writer-and-repair-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-50-option-b-migration-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-54-option-b-phase-2-rollout-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-02-phase-7-direct-evidence-backfill-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-19-05-architecture-metadata-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
+    - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-observability-event-contract-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-run-mode-and-synonym-proposal-observability-spec.md
+    - docs/superpowers/specs/2026-04-28-deterministic-truth-outcome-contract-spec.md
+    - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-input-mode-parity-spec.md
+    - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-cv-quality-drift-and-depth-patch-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
+    - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
+    - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
+    - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
+    - docs/superpowers/specs/2026-05-05-education-section-visibility-and-grounding-guardrails-spec.md
+    - docs/superpowers/specs/2026-05-15-10-32-fitcv-section-policy-algebra-spec.md
+    - docs/superpowers/specs/2026-05-15-15-26-cv-generation-selected-evidence-grounding-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
+    - docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md
+    - docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md
+    - docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
+    - docs/superpowers/specs/2026-05-17-19-22-pipeline-settings-decision-focused-ia-v4-spec.md
+    - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
+    - docs/superpowers/specs/2026-05-18-14-36-evidence-refactor-ssot-spec.md
+    - docs/superpowers/specs/2026-05-18-15-03-fitcv-cv-generation-refactor-drift-spec.md
+    - docs/superpowers/specs/2026-05-20-00-05-candidate-profile-ssot-symmetry-refactor-spec.md
+    - docs/superpowers/specs/2026-05-20-09-21-hitl-review-queue-identity-alignment-spec.md
+    - docs/superpowers/specs/2026-05-20-17-11-rule-filter-refactor-spec.md
+    - docs/superpowers/specs/2026-05-20-17-15-telemetry-ssot-symmetry-refactor-spec.md
+    - docs/superpowers/specs/2026-05-20-17-35-ranking-ssot-symmetry-invariance-spec.md
+    - docs/superpowers/specs/2026-05-20-20-54-fitcv-ingest-tracker-normalize-ssot-refactor-spec.md
+    - docs/superpowers/specs/2026-05-28-16-14-shortlist-bm25-upgrade-spec.md
+    - docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
+    - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
+    - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
+    - docs/superpowers/specs/2026-07-14-17-39-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-spec.md
+    - docs/superpowers/specs/2026-07-14-19-22-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-spec.md
+    - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
+    - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
+    - docs/superpowers/specs/2026-07-15-16-40-fitcv-inverse-optimization-phase-1-location-language-eligibility-spec.md
+    - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
+    - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-project-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-contract-docs-adoption-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-21-cv-generation-structured-prompt-centralization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-40-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-23-45-staged-final-artifact-reranker-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-00-30-candidate-name-placeholder-validation-hardening-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-12-20-candidate-name-writer-and-repair-hardening-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-10-option-b-phase-1-pilot-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
+    - docs/superpowers/plans/2026-04-28-agentic-run-mode-and-synonym-proposal-observability-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-05-cross-section-placeholder-guardrails-implementation-plan.md
+    - docs/superpowers/plans/2026-05-15-11-01-fitcv-section-policy-algebra-plan.md
+    - docs/superpowers/plans/2026-05-15-15-43-cv-generation-selected-evidence-grounding-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
+    - docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md
+    - docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md
+    - docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md
+    - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
+    - docs/superpowers/plans/2026-05-18-14-40-evidence-refactor-ssot-implementation-plan.md
+    - docs/superpowers/plans/2026-05-18-15-06-fitcv-cv-generation-refactor-drift-plan.md
+    - docs/superpowers/plans/2026-05-20-00-15-candidate-profile-ssot-symmetry-refactor-implementation-plan.md
+    - docs/superpowers/plans/2026-05-20-09-24-hitl-review-queue-identity-alignment-plan.md
+    - docs/superpowers/plans/2026-05-20-17-16-rule-filter-refactor-implementation-plan.md
+    - docs/superpowers/plans/2026-05-20-17-45-ranking-ssot-symmetry-invariance-plan.md
+    - docs/superpowers/plans/2026-05-20-20-54-fitcv-ingest-tracker-normalize-ssot-refactor-plan.md
+    - docs/superpowers/plans/2026-05-22-16-57-cross-stage-reuse-symmetry-plan.md
+    - docs/superpowers/plans/2026-05-25-12-26-synonym-global-promotion-domain-role-family-symmetry-plan.md
+    - docs/superpowers/plans/2026-05-28-12-03-ranking-fit-label-authority-ssot-symmetry-invariance-plan.md
+    - docs/superpowers/plans/2026-05-28-12-30-path-1-reranker-diagnostic-fields-clarity-plan.md
+    - docs/superpowers/plans/2026-05-28-16-18-shortlist-bm25-upgrade-plan.md
+    - docs/superpowers/plans/2026-05-28-16-20-ranking-partial-coverage-detectors-plan.md
+    - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
+    - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
+    - docs/superpowers/plans/2026-07-14-17-58-fitcv-llm-runtime-spine-phase-3-shared-runtime-contract-plan.md
+    - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
+    - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
+    - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
+    - docs/superpowers/plans/2026-07-15-17-22-fitcv-inverse-optimization-phase-1-location-language-eligibility-plan.md
+    - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
+    - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: complete
   cv_system.exact-match-late-stage-reuse:
     state: active
     statement: Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
@@ -2469,6 +2725,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -2568,6 +2825,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2725,6 +2983,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -2824,6 +3083,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2960,3 +3220,22 @@ timeline:
   - python scripts/validate_repo_contracts.py --fast
   - git diff --check
   outcome: Completed Phase 4 immutable decision-feedback capture with policy-owned ordinal stars, v4 source evidence, append-only SQLite ledger, deterministic reducer, native POST/UI, old-run isolation, and no Phase 5 learning or ranking effect.
+- completed_at: '2026-07-16T03:18:34+02:00'
+  source_plan: docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
+  change_id: 2026-07-16-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler
+  summary: FitCV inverse optimization Phase 5 symmetric preference compiler implementation plan
+  capabilities: []
+  verification:
+  - python -m pytest tests/test_decision_feedback.py -q
+  - python -m pytest tests/test_config.py tests/test_decision_feedback.py -q
+  - python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_worker_job.py -q -k "decision_feedback or admin_route_manifest"
+  - python -m pytest tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py -q
+  - python -m pytest tests/test_ranking.py tests/test_ranking_contract.py tests/test_ai_score.py -q
+  - python -m ruff check src/fitcv/decision_feedback.py tests/test_decision_feedback.py
+  - uvx mypy src/fitcv/decision_feedback.py --show-error-codes --follow-imports=skip
+  - python tools/docs/generate_architecture_metadata.py --check
+  - python scripts/validate_planning_lifecycle.py
+  - python scripts/hooks/run_validator.py --fast
+  - python scripts/validate_repo_contracts.py --fast
+  - git diff --check
+  outcome: Completed Phase 5 deterministic ordinal preference compilation with one policy SSOT, provenance-preserving watermark replay, exhaustive symmetric pair compilation, episode-bounded evidence weights, canonical fingerprints, and no persistence, solver, activation, or ranking effect.

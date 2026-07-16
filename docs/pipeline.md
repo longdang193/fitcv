@@ -157,3 +157,4 @@ Fail-fast guarantees:
 3. Completed-run export builds `decision_feedback_source_v1` from every evidence-complete production scoring row, including scored-not-ranked rows.
 4. Native 1–5 forms append `set_rating` or `clear_rating` events without changing ranking, fit labels, CV eligibility, or application history.
 5. Effective ratings use SQLite `event_sequence`; timestamps and UUIDs remain audit metadata only.
+6. Phase 5 reduces complete event snapshots through the shared reducer and compiles rated pairs into deterministic weighted edges; no database edge table, solver, or ranking effect exists.
