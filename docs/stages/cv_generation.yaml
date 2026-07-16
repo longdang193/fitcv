@@ -2,7 +2,7 @@
 stage_id: cv_generation
 name: CV Generation
 status: active
-purpose: Convert generation-ready CV-analysis records through one canonical generation contract that owns fingerprints, reuse validity, structured writing, validation, repair, acceptance or review decisions, and result meaning while LangGraph and direct writers remain transport adapters and pipeline owns scheduling and persistence I/O.
+purpose: Convert generation-ready CV-analysis records through one canonical generation contract that owns fingerprints, reuse validity, structured writing, validation, repair, acceptance or review decisions, and result meaning while the internal LLM runtime owns provider transport and pipeline owns scheduling and persistence I/O.
 feature_refs:
 - cv_system
 - inspection_debugging
@@ -76,7 +76,6 @@ doc_refs:
 - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
 - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
 - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
-- docs/superpowers/specs/2026-07-14-11-47-langgraph-runtime-adapter-only-spec.md
 config_refs: []
 component_refs: []
 depends_on:
@@ -99,7 +98,7 @@ invariants:
 - cv-analysis-ready jobs enter and accepted or rejected CV artifacts leave
 - '`fitcv.agentic_cv_generation.generate_from_analysis` owns generation fingerprints, reuse validity, validation, repair, acceptance or review decisions, and canonical result meaning'
 - pipeline orchestration owns scheduling, candidate lookup, accepted-result persistence I/O, and observation projection
-- LangGraph and direct writers own transport and runtime telemetry only; both return through the same repo-native runtime result contract
+- the internal LLM runtime owns provider transport, normalized failures, provenance, and the safe per-call evidence projection
 - evidence retrieval, gap analysis, and fit-gate ownership do not belong to this stage
 human_notes:
 - cv generation

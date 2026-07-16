@@ -56,7 +56,7 @@ capabilities:
   statement: Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
   state: active
 - capability_id: cv_system.config-owned-generation-contract
-  statement: Keep generation meaning under one structured-write contract while direct and LangGraph adapters share central runtime routing.
+  statement: Keep generation meaning under one structured-write contract while the internal LLM runtime owns central provider routing and transport.
   state: active
 stage_participation:
 - stage_id: normalize
@@ -117,7 +117,6 @@ refs:
   - tests/test_inverse_optimization.py
   - tests/test_llm_runtime.py
   - tests/test_pipeline.py
-  - tests/test_pipeline_agentic_late_stage.py
   - tests/test_validator.py
   specs:
   - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
@@ -327,6 +326,7 @@ refs:
   - docs/superpowers/plans/2026-07-16-09-55-fitcv-inverse-optimization-phase-6-latent-residual-solver-evaluation-plan.md
   - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
   - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
+  - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
   docs:
   - docs/features/cv_system/history.md
   configs:

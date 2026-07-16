@@ -30,6 +30,9 @@ control_plane:
         provider: openai_compatible
         # model: ds/deepseek-v4-flash
         model: cx/gpt-5.4-mini
+      synonym_triage_recommendation:
+        provider: openai_compatible
+        model: cx/gpt-5.4-mini
     task_overrides: {}
 
   observability:

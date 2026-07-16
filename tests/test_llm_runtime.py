@@ -379,3 +379,33 @@ def test_project_llm_runtime_evidence_serializes_only_canonical_safe_fields() ->
         "retryable": True,
         "http_status": 429,
     }
+
+
+def test_execute_llm_task_uses_pre_resolved_route_without_reloading_config() -> None:
+    route = _route(wire_api="chat_completions")
+    seen: list[LlmRouting] = []
+
+    def adapter(request: LlmTaskRequest, resolved_route: LlmRouting, api_key: str) -> LlmAdapterResponse:
+        assert request == _request()
+        assert api_key == "secret"
+        seen.append(resolved_route)
+        return _response()
+
+    with (
+        patch("fitcv.llm_runtime.resolve_llm_routing") as mock_resolve,
+        patch("fitcv.llm_runtime.resolve_llm_api_key", return_value="secret"),
+    ):
+        result = execute_llm_task(
+            _request(),
+            parser=lambda response: json.loads(response.raw_text),
+            validator=lambda value: LlmValidationResult(valid=True, errors=[], details={}),
+            adapter=adapter,
+            resolved_route=route,
+        )
+
+    mock_resolve.assert_not_called()
+    assert seen == [route]
+    assert result.status == "succeeded"
+    assert result.provenance.provider == route.provider
+    assert result.provenance.model == route.model
+    assert result.provenance.wire_api == route.wire_api

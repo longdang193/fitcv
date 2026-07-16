@@ -32,7 +32,6 @@ from typing import Any, Literal, TypedDict
 from urllib.parse import unquote, urlencode, urlparse
 from zoneinfo import ZoneInfo
 
-import httpx
 import yaml
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -64,10 +63,12 @@ from fitcv.decision_feedback import (
 )
 from fitcv.enrich import derive_required_skills_display
 from fitcv.inverse_optimization import InverseOptimizationRequest
-from fitcv.openai_compat import (
-    decode_openai_compat_response_body,
-    extract_openai_chat_completions_text,
-    extract_openai_responses_text,
+from fitcv.llm_runtime import (
+    LlmAdapterResponse,
+    LlmTaskRequest,
+    LlmValidationResult,
+    execute_llm_task,
+    project_llm_runtime_evidence,
 )
 from fitcv.pipeline_contracts import (
     PIPELINE_BUNDLE_ARTIFACT_FILENAMES as BUNDLE_ARTIFACT_FILENAMES,
@@ -119,7 +120,7 @@ from fitcv_cp.run_artifact_contracts import (
     pretty_json_string_or_fallback,
     run_mode_label,
 )
-from fitcv.runtime_routing import build_runtime_routing_snapshot, resolve_openai_compatible_api_key
+from fitcv.runtime_routing import LlmRouting, build_runtime_routing_snapshot, resolve_openai_compatible_api_key
 from fitcv.shortlist_runtime import build_contract_fingerprint
 from fitcv_cp.run_artifact_mirror import build_terminal_run_artifact_payloads
 from fitcv_cp.settings_schema import (
@@ -814,7 +815,16 @@ def _apply_trigger_runtime_envelope(
         runtime_inputs["jobs_input_manifest_json"] = jobs_input_manifest_json
     if candidate_profile_json:
         runtime_inputs["candidate_profile_json"] = candidate_profile_json
-    runtime_inputs["cv_generation_runtime_expectation"] = _resolve_live_cv_generation_runtime_expectation()
+    runtime_inputs["cv_generation_runtime_expectation"] = _resolve_live_runtime_expectation(
+        "cv_generation_structured_write",
+        default_model="",
+        default_wire_api="responses",
+    )
+    runtime_inputs["synonym_triage_runtime_expectation"] = _resolve_live_runtime_expectation(
+        "synonym_triage_recommendation",
+        default_model="synonym_triage_v1",
+        default_wire_api="builtin",
+    )
     effective_config["trigger_runtime_envelope"] = {
         "jobs_input_source": jobs_input_source,
         "candidate_profile_source": candidate_profile_source,
@@ -2935,6 +2945,7 @@ def _triage_synonym_proposal_recommendation(
                 "wire_api": wire_api,
                 "triage_at": now_iso,
                 "triage_version": "synonym_triage_v1",
+                "llm_runtime_evidence": dict(provider_result.get("llm_runtime_evidence") or {}),
             },
         }
 
@@ -2994,17 +3005,6 @@ def _call_synonym_triage_provider(
     runtime: dict[str, Any],
     now_iso: str,
 ) -> dict[str, Any]:
-    provider = str(runtime.get("provider") or "openai").strip().lower()
-    if provider not in {"openai", "9router"}:
-        raise RuntimeError(f"unsupported_provider:{provider}")
-    base_url = str(runtime.get("base_url") or "").strip() or "https://api.openai.com/v1"
-    api_key = str(runtime.get("api_key") or "").strip()
-    if not api_key:
-        raise RuntimeError("missing_provider_api_key")
-    model = str(runtime.get("model") or "gpt-4.1-mini").strip() or "gpt-4.1-mini"
-    wire_api = str(runtime.get("wire_api") or "responses").strip().lower() or "responses"
-    timeout = float(runtime.get("timeout_secs") or 20.0)
-
     proposal_view = {
         "proposal_id": str(proposal.get("proposal_id") or "").strip(),
         "proposal_status": str(proposal.get("proposal_status") or "").strip(),
@@ -3024,87 +3024,68 @@ def _call_synonym_triage_provider(
             "now_iso": now_iso,
         },
     )
-    prompt = rendered.text
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    if wire_api == "responses":
-        url = base_url.rstrip("/") + "/responses"
-        payload = {
-            "model": model,
-            "input": prompt,
-        }
-        with httpx.Client(timeout=timeout) as client:
-            resp = client.post(url, headers=headers, json=payload)
-            resp.raise_for_status()
-            body = decode_openai_compat_response_body(resp)
-        output_text = extract_openai_responses_text(body)
-    else:
-        url = base_url.rstrip("/") + "/chat/completions"
-        payload = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0,
-        }
-        with httpx.Client(timeout=timeout) as client:
-            resp = client.post(url, headers=headers, json=payload)
-            resp.raise_for_status()
-            body = decode_openai_compat_response_body(resp)
-        output_text = extract_openai_chat_completions_text(body)
-    if not output_text:
-        raise RuntimeError("empty_provider_output")
-    parsed = _json.loads(output_text)
-    if not isinstance(parsed, dict):
-        raise RuntimeError("invalid_provider_json_shape")
-    action = str(parsed.get("recommended_action") or "").strip()
-    if action not in {"approve", "defer", "reject"}:
-        raise RuntimeError("invalid_provider_action")
-    confidence = float(parsed.get("recommendation_confidence") or 0.5)
-    confidence = min(1.0, max(0.0, confidence))
+    route = LlmRouting(
+        provider=str(runtime.get("provider") or "openai").strip().lower(),
+        base_url=str(runtime.get("base_url") or "").strip() or "https://api.openai.com/v1",
+        wire_api=str(runtime.get("wire_api") or "responses").strip().lower() or "responses",
+        model=str(runtime.get("model") or "gpt-4.1-mini").strip() or "gpt-4.1-mini",
+        timeout_seconds=float(runtime.get("timeout_seconds") or runtime.get("timeout_secs") or 20.0),
+    )
+
+    def _parse(response: LlmAdapterResponse) -> dict[str, Any]:
+        parsed = _json.loads(response.raw_text)
+        if not isinstance(parsed, dict):
+            raise ValueError("invalid_provider_json_shape")
+        return parsed
+
+    def _validate(parsed: dict[str, Any]) -> LlmValidationResult:
+        errors: list[str] = []
+        action = str(parsed.get("recommended_action") or "").strip()
+        if action not in {"approve", "defer", "reject"}:
+            errors.append("invalid_provider_action")
+        try:
+            confidence = float(parsed.get("recommendation_confidence"))
+        except (TypeError, ValueError):
+            errors.append("invalid_provider_confidence")
+        else:
+            if not 0.0 <= confidence <= 1.0:
+                errors.append("invalid_provider_confidence")
+        return LlmValidationResult(valid=not errors, errors=errors, details={})
+
+    result = execute_llm_task(
+        LlmTaskRequest(
+            routing_part="synonym_triage_recommendation",
+            prompt=rendered.text,
+            response_mode="json_object",
+        ),
+        parser=_parse,
+        validator=_validate,
+        resolved_route=route,
+    )
+    if result.status != "succeeded" or not isinstance(result.parsed_value, dict):
+        raise RuntimeError(result.failure.message if result.failure else "synonym_triage_runtime_failed")
+    parsed = result.parsed_value
     return {
-        "recommended_action": action,
-        "recommendation_confidence": confidence,
+        "recommended_action": str(parsed.get("recommended_action") or "").strip(),
+        "recommendation_confidence": float(parsed.get("recommendation_confidence")),
         "recommendation_rationale": str(parsed.get("recommendation_rationale") or "").strip() or "Provider recommendation",
         "recommendation_risk_flags": [
             str(flag).strip()
             for flag in list(parsed.get("recommendation_risk_flags") or [])
             if str(flag).strip()
         ],
+        "llm_runtime_evidence": project_llm_runtime_evidence(result),
     }
 
 
-def _extract_responses_text(payload: dict[str, Any]) -> str:
-    output = list(payload.get("output") or [])
-    for block in output:
-        if not isinstance(block, dict):
-            continue
-        content = list(block.get("content") or [])
-        for item in content:
-            if not isinstance(item, dict):
-                continue
-            text = str(item.get("text") or "").strip()
-            if text:
-                return text
-    return str(payload.get("output_text") or "").strip()
-
-
-def _synonym_triage_fingerprint(
-    proposal: dict[str, Any],
+def _resolve_live_runtime_expectation(
+    part_name: str,
     *,
-    runtime: dict[str, Any],
-    overlay_fingerprint: str | None = None,
-) -> str:
-    return build_synonym_triage_fingerprint(
-        proposal=proposal,
-        runtime=runtime,
-        overlay_fingerprint=overlay_fingerprint,
-    )
-
-
-def _resolve_live_cv_generation_runtime_expectation() -> dict[str, Any]:
+    default_model: str,
+    default_wire_api: str,
+) -> dict[str, Any]:
     try:
-        expected = dict(resolve_cv_generation_runtime_expectation())
+        expected = dict(resolve_cv_generation_runtime_expectation(part_name=part_name))
     except Exception:
         return {}
     snapshot = build_runtime_routing_snapshot(
@@ -3114,62 +3095,40 @@ def _resolve_live_cv_generation_runtime_expectation() -> dict[str, Any]:
         wire_api=str(expected.get("wire_api") or "").strip(),
         api_key=resolve_openai_compatible_api_key(),
         default_provider="fitcv_builtin",
-        default_model="synonym_triage_v1",
-        default_wire_api="builtin",
+        default_model=default_model,
+        default_wire_api=default_wire_api,
     )
     return {**expected, **snapshot}
 
 def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
     api_key = resolve_openai_compatible_api_key()
-    snapshot = build_runtime_routing_snapshot(
-        provider=None,
-        model=None,
-        base_url=None,
-        wire_api=None,
-        api_key=api_key,
-        default_provider="fitcv_builtin",
-        default_model="synonym_triage_v1",
-        default_wire_api="builtin",
-    )
-    live_expected = _resolve_live_cv_generation_runtime_expectation()
-    if isinstance(live_expected, dict) and live_expected:
-        snapshot = {
-            **snapshot,
-            **build_runtime_routing_snapshot(
-                provider=live_expected.get("provider"),
-                model=live_expected.get("model"),
-                base_url=live_expected.get("base_url"),
-                wire_api=live_expected.get("wire_api"),
-                api_key=api_key,
-                default_provider=str(snapshot.get("provider") or "fitcv_builtin"),
-                default_model=str(snapshot.get("model") or "synonym_triage_v1"),
-                default_wire_api=str(snapshot.get("wire_api") or "builtin"),
-            ),
-        }
-    sleep_secs = 0.0
-    concurrency = 1
+    expected: dict[str, Any] = {}
     effective_settings = _load_json_object(run.effective_settings_json)
     if isinstance(effective_settings, dict):
         runtime_inputs = dict(effective_settings.get("runtime_inputs") or {})
-        expected = dict(
-            runtime_inputs.get("cv_generation_runtime_expectation")
-            or runtime_inputs.get("agentic_runtime_expectation")
-            or {}
+        expected = dict(runtime_inputs.get("synonym_triage_runtime_expectation") or {})
+    if not expected:
+        expected = _resolve_live_runtime_expectation(
+            "synonym_triage_recommendation",
+            default_model="synonym_triage_v1",
+            default_wire_api="builtin",
         )
-        if expected:
-            snapshot = {
-                **snapshot,
-                **build_runtime_routing_snapshot(
-                    provider=expected.get("provider"),
-                    model=expected.get("model"),
-                    base_url=expected.get("base_url"),
-                    wire_api=expected.get("wire_api"),
-                    api_key=api_key,
-                    default_provider=str(snapshot.get("provider") or "fitcv_builtin"),
-                    default_model=str(snapshot.get("model") or "synonym_triage_v1"),
-                    default_wire_api=str(snapshot.get("wire_api") or "builtin"),
-                ),
-            }
+    snapshot = {
+        **expected,
+        **build_runtime_routing_snapshot(
+            provider=expected.get("provider"),
+            model=expected.get("model"),
+            base_url=expected.get("base_url"),
+            wire_api=expected.get("wire_api"),
+            api_key=api_key,
+            default_provider="fitcv_builtin",
+            default_model="synonym_triage_v1",
+            default_wire_api="builtin",
+        ),
+    }
+    sleep_secs = 0.0
+    concurrency = 1
+    if isinstance(effective_settings, dict):
         stage_runtime = dict(effective_settings.get("stage_runtime") or {})
         cv_analysis_runtime = dict(stage_runtime.get("cv_analysis") or {})
         try:

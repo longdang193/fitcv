@@ -85,7 +85,7 @@ Shortlist ownership:
 ## Portability and Routing
 
 - backend portability: sqlite execution path is selected through control-plane backend runtime resolution
-- provider portability: model routing is config/runtime controlled (with optional `FITCV_LANGGRAPH_*` env overrides) and resolved at runtime
+- provider portability: model routing is owned by `config/runtime/control_plane.yaml` and resolved by the internal LLM runtime
 - secrets: runtime credentials are supplied via environment variables
 
 ## Orchestration and Observability
@@ -94,7 +94,7 @@ Shortlist ownership:
 - structured run events and stage artifacts back operator inspection flows
 - stage-transition artifacts use pipeline schema `stage_transition_artifacts_v8`; checkpoint schema remains v1 with centralized legacy ranking adaptation
 - operator-facing exports are primary inspection evidence surfaces
-- CV analysis and generation share the `stage_execution_trace` family; `cv-generation-trace.json` is canonical, while the former agentic-live route remains read-only compatibility
+- CV analysis and generation share the `stage_execution_trace` family; `cv-generation-trace.json` is canonical, while the legacy trace route remains read-only compatibility
 
 ## Related Docs
 

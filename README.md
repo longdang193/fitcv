@@ -96,7 +96,7 @@ See deep stage behavior in [docs/FitCV-pipeline.md](docs/FitCV-pipeline.md) and 
   - structured JSON generation via OpenAI-compatible API (`responses` preferred, fallback `chat/completions`)
   - template variants by `job_family`, section composition from config
   - validation: required sections present, placeholder detection, grounding/consistency checks
-  - optional agentic late-stage mode (via `fitcv-langgraph`) when enabled via `FITCV_LANGGRAPH_*`
+  - one internal LLM runtime owns provider routing, transport fallback, normalized failures, and safe provenance
 
 ## Major Features and Engineering Highlights
 

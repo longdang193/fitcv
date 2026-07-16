@@ -233,12 +233,14 @@ def execute_llm_task(
     parser: LlmParser,
     validator: LlmValidator,
     adapter: LlmAdapter | None = None,
+    resolved_route: LlmRouting | None = None,
 ) -> LlmRuntimeResult:
     _validate_request(request)
     started = time.monotonic()
-    route: LlmRouting | None = None
+    route = resolved_route
     try:
-        route = resolve_llm_routing(request.routing_part)
+        if route is None:
+            route = resolve_llm_routing(request.routing_part)
         api_key = resolve_llm_api_key(route)
         validate_llm_routing_ready(route, api_key=api_key)
     except Exception as exc:

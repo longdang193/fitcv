@@ -10,7 +10,7 @@ responsibility:
 inputs:
   - routing-capable config dictionaries and process environment
 outputs:
-  - canonical routing object, langgraph env overrides, resolved API key
+  - canonical routing object, provider transport settings, resolved API key
 lifecycle:
   - status: active
 """

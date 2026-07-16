@@ -1,0 +1,23 @@
+Captured At: 2026-07-16T22:17:37.9818605+02:00
+
+Initial focused gate:
+- Command: .\.venv\Scripts\python.exe -m pytest tests/test_llm_runtime.py tests/test_pipeline_agentic_late_stage.py tests/test_deployment_config.py tests/test_runtime_routing.py tests/test_fitcv_cp/test_control_plane_config.py tests/test_fitcv_cp/test_main.py tests/test_fitcv_cp/test_app.py -q
+- Result: 5 failed, 567 passed
+- Shared error: AttributeError: 'list' object has no attribute 'get' at raw_shortlist_result.get('production_rows').
+
+After vector-search mock correction:
+- Command: five named failing tests
+- Result: 5 failed
+- Shared error: KeyError: 'decision_learning_policy' in resolve_run_preference_policy.
+
+After shared policy-fixture correction:
+- Command: five named failing tests
+- Result: 5 passed in 0.59s
+
+Final focused gate:
+- Command: .\.venv\Scripts\python.exe -m pytest tests/test_llm_runtime.py tests/test_pipeline_agentic_late_stage.py tests/test_deployment_config.py tests/test_runtime_routing.py tests/test_fitcv_cp/test_control_plane_config.py tests/test_fitcv_cp/test_main.py tests/test_fitcv_cp/test_app.py -q
+- Result: 572 passed in 195.67s
+
+Final repo-contract gate:
+- Command: .\.venv\Scripts\python.exe scripts\validate_repo_contracts.py
+- Result: 101 validator tests passed; repo contract validation passed.

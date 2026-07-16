@@ -86,6 +86,7 @@ refs:
   - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
   - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
   - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
+  - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
   docs:
   - docs/features/admin_control_plane_core/history.md
   configs: []

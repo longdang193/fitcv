@@ -176,12 +176,12 @@ Examples:
 - cv-analysis-pacing-contract: CV analysis runs ranked-job work concurrently up to `stage_runtime.cv_analysis.concurrency` while preserving input order
 - cv-generation-pacing-contract: CV generation runs generation-ready rows concurrently up to `stage_runtime.cv_generation.concurrency`, preserves input order, and applies `stage_runtime.cv_generation.sleep_secs` between provider-call submissions
 
-### LLM Runtime Adapter Contract
+### LLM Runtime Contract
 
 - no persisted mode toggle selects late-stage CV semantics
-- direct and LangGraph adapters feed one repo-native runtime contract
-- LangGraph remains transport/orchestration only; stage meaning, validation, repair, acceptance, and persistence stay repo-owned
-- live provider/model environment values configure adapter routing only and do not create a second semantic path
+- `src/fitcv/llm_runtime.py` is the sole generative provider transport and normalized failure owner
+- stage code owns prompts, parsers, validators, acceptance, and persistence meaning without alternate runtime paths
+- active routes are `enrich_extraction`, `ranking_ai_score`, `cv_generation_structured_write`, and `synonym_triage_recommendation`
 - `cv.agentic_late_stage.enabled` is retired from the active settings schema; stale persisted rows are pruned, not projected into current settings
 
 ## Backend and Provider Routing
@@ -202,7 +202,7 @@ Examples:
   - `control_plane.providers.*.wire_api`
   - `control_plane.model_routing.parts.*.provider`
   - `control_plane.model_routing.parts.*.model`
-- LangGraph receives a bounded `FITCV_LLM_*` mapping derived from canonical routing; JOB operator route overrides are not accepted
+- internal runtime resolves each routing part through one provider definition; JOB operator route overrides are not accepted
 - routing expectation resolves only from `config/runtime/control_plane.yaml` and fails fast when required fields are missing
 - provider credential input: `FITCV_LLM_API_KEY` only
 
@@ -227,7 +227,7 @@ Prohibited coupling:
 Canonical AI auth contract:
 
 - sole repo-native input: `FITCV_LLM_API_KEY`
-- LangGraph receives the same bounded `FITCV_LLM_*` adapter mapping; no credential alias projection is used
+- no credential alias projection or second provider-client path is used
 
 Fail-fast runtime contract:
 

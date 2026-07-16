@@ -162,6 +162,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -322,6 +323,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -476,6 +478,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -638,6 +641,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -798,6 +802,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -958,6 +963,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1118,6 +1124,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1278,6 +1285,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1438,6 +1446,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1610,6 +1619,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1776,6 +1786,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1942,6 +1953,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2102,6 +2114,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2262,6 +2275,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2422,6 +2436,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2588,6 +2603,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2754,6 +2770,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2920,6 +2937,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3074,6 +3092,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -3242,6 +3261,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3408,6 +3428,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

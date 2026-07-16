@@ -30,9 +30,9 @@ Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
 - `shortlist`: deterministic cosine retrieval over eligible jobs with valid embeddings; production rows use real vector evidence only
 - `ranking`: authoritative fit scoring and decision labels
 - `cv_analysis`: one canonical per-job analyzer owns evidence selection, gap, fit-gate, reuse validity, and generation readiness; pipeline owns batch invocation, persistence, and observations
-- `cv_generation`: one canonical `generate_from_analysis` contract for fingerprints, reuse validity, structured generation, validation, repair, acceptance/review meaning, and result shape; direct and LangGraph writers are transport adapters, while pipeline persists canonical `accepted` results only
+- `cv_generation`: one canonical `generate_from_analysis` contract owns fingerprints, reuse validity, structured generation, validation, repair, acceptance/review meaning, and result shape; pipeline persists canonical `accepted` results only
 
-Shared LLM runtime rule: `enrich`, `ranking`, and `cv_generation` build stage-owned prompts and parse stage-owned outputs through `src/fitcv/llm_runtime.py`. Shared runtime owns routing, credentials, transport, wire fallback, normalized operational failures, provenance, and the only persistable per-call evidence projection. LangGraph remains adapter/orchestrator only.
+Shared LLM runtime rule: `enrich`, `ranking`, `cv_generation`, and auxiliary synonym triage build owner-local prompts and parse owner-local outputs through `src/fitcv/llm_runtime.py`. Shared runtime owns routing, credentials, transport, wire fallback, normalized operational failures, provenance, and the only persistable per-call evidence projection. Embeddings and deterministic builtin synonym triage remain outside this generative spine.
 
 ## Location And Language Eligibility
 
@@ -136,7 +136,7 @@ Ownership rule:
 ## AI Credential and Error Contract
 
 - Sole repo-native AI credential input: `FITCV_LLM_API_KEY`.
-- Direct and LangGraph adapters receive the same bounded `FITCV_LLM_*` mapping; no credential alias projection is used.
+- Internal runtime uses `FITCV_LLM_API_KEY` without credential aliases or alternate provider clients.
 
 Fail-fast guarantees:
 

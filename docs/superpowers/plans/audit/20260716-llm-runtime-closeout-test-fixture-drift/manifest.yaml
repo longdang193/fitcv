@@ -1,0 +1,30 @@
+audit_id: 20260716-llm-runtime-closeout-test-fixture-drift
+status: resolved
+created_at: '2026-07-16T22:17:37.9818605+02:00'
+updated_at: '2026-07-16T22:17:37.9818605+02:00'
+report: report.md
+artifacts:
+  - path: report.md
+    type: report
+  - path: manifest.yaml
+    type: manifest
+  - path: evidence/results/verification.txt
+    type: evidence
+  - path: repro/repro_steps.md
+    type: repro
+evidence:
+  - path: report.md
+    kind: report
+    captured_at: '2026-07-16T22:17:37.9818605+02:00'
+    producer: codex-local-runtime
+    sha256: 83ce45c9cb8045709f7a5ee950a95addc84d66f0c436ea873df73b4d9dc38425
+  - path: evidence/results/verification.txt
+    kind: result
+    captured_at: '2026-07-16T22:17:37.9818605+02:00'
+    producer: codex-local-runtime
+    sha256: 7b79fa0d10348ee2ed5b2eb3ccd9345f8325adb5678bdfaa94f8c72982f5efc7
+  - path: repro/repro_steps.md
+    kind: repro
+    captured_at: '2026-07-16T22:17:37.9818605+02:00'
+    producer: codex-local-runtime
+    sha256: 4ec3bfccc3ca329adb67297150a4363857656fd420b95fca212456c5b68c273b

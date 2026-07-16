@@ -858,6 +858,7 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
     effective = json.loads(captured["run"].effective_settings_json)
     assert json.loads(effective["runtime_inputs"]["candidate_profile_json"]) == profile_snapshot
     assert "cv_generation_runtime_expectation" in effective["runtime_inputs"]
+    assert "synonym_triage_runtime_expectation" in effective["runtime_inputs"]
     synonym_settings = dict(effective.get("synonym_management") or {})
     assert synonym_settings.get("auto_apply_recommendation_enabled") is False
     assert synonym_settings.get("auto_promote_global_enabled") is False
@@ -6262,7 +6263,7 @@ def test_resolve_synonym_triage_runtime_includes_canonical_cv_analysis_runtime()
     assert runtime["concurrency"] == 5
 
 
-def test_resolve_synonym_triage_runtime_falls_back_to_shared_langgraph_expectation(
+def test_resolve_synonym_triage_runtime_uses_dedicated_control_plane_route(
     tmp_path, monkeypatch
 ) -> None:
     from datetime import datetime, timezone
@@ -6280,7 +6281,7 @@ def test_resolve_synonym_triage_runtime_falls_back_to_shared_langgraph_expectati
         "      wire_api: chat_completions\n"
         "  model_routing:\n"
         "    parts:\n"
-        "      cv_generation_structured_write:\n"
+        "      synonym_triage_recommendation:\n"
         "        provider: openai_compatible\n"
         "        model: cx/gpt-5.2\n",
         encoding="utf-8",
@@ -6305,7 +6306,7 @@ def test_resolve_synonym_triage_runtime_falls_back_to_shared_langgraph_expectati
     assert runtime["wire_api"] == "chat_completions"
 
 
-def test_resolve_synonym_triage_runtime_prefers_persisted_agentic_runtime_expectation(
+def test_resolve_synonym_triage_runtime_prefers_persisted_synonym_runtime_expectation(
     monkeypatch,
 ) -> None:
     from datetime import datetime, timezone
@@ -6325,7 +6326,7 @@ def test_resolve_synonym_triage_runtime_prefers_persisted_agentic_runtime_expect
         created_at=datetime.now(timezone.utc),
         run_mode="run_all",
         effective_settings_json=(
-            '{"runtime_inputs":{"agentic_runtime_expectation":'
+            '{"runtime_inputs":{"synonym_triage_runtime_expectation":'
             '{"provider":"9router","model":"cx/gpt-5.2","base_url":"http://persisted.local/v1","wire_api":"chat_completions","source":"env_override"}}}'
         ),
     )
@@ -6504,7 +6505,7 @@ def test_build_synonym_proposals_payload_reuses_existing_state_by_identity_acros
 def _effective_settings_with_builtin_synonym_runtime(extra: dict[str, object] | None = None) -> str:
     payload: dict[str, object] = {
         "runtime_inputs": {
-            "agentic_runtime_expectation": {
+            "synonym_triage_runtime_expectation": {
                 "provider": "fitcv_builtin",
                 "model": "synonym_triage_v1",
                 "base_url": "builtin",
@@ -9192,70 +9193,6 @@ def test_admin_run_detail_enriched_jobs_prefers_structured_entities_when_require
     assert "space hardware design, assembly, integration and testing" in resp.text
     assert "Fallback: required skill entities" in resp.text
     assert "Overview of core space domains and applications" not in resp.text
-
-
-def test_call_synonym_triage_provider_parses_chat_completions_json_with_trailing_sse_done(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from fitcv_cp import app as app_module
-
-    class _DummyResponse:
-        headers = {"content-type": "text/event-stream"}
-        text = (
-            'data: {"choices":[{"message":{"content":"{\\"recommended_action\\":\\"approve\\",'
-            '\\"recommendation_confidence\\":0.91,\\"recommendation_rationale\\":\\"High confidence\\",'
-            '\\"recommendation_risk_flags\\":[]}"}}]}\n\n'
-            "data: [DONE]\n\n"
-        )
-
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict[str, Any]:
-            raise json.JSONDecodeError("Extra data", self.text, 1)
-
-    class _DummyClient:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            pass
-
-        def __enter__(self) -> "_DummyClient":
-            return self
-
-        def __exit__(self, exc_type, exc, tb) -> None:
-            return None
-
-        def post(self, url: str, *, headers: dict[str, str], json: dict[str, Any]) -> _DummyResponse:
-            assert url.endswith("/chat/completions")
-            assert headers["Authorization"] == "Bearer test-key"
-            assert json["model"] == "gpt-4.1-mini"
-            return _DummyResponse()
-
-    monkeypatch.setattr("fitcv_cp.app.render_prompt", lambda name, payload: type("Rendered", (), {"text": "prompt"})())
-    monkeypatch.setattr("fitcv_cp.app.httpx.Client", _DummyClient)
-
-    result = app_module._call_synonym_triage_provider(
-        proposal={
-            "proposal_id": "proposal-1",
-            "proposal_status": "proposed_unreviewed",
-            "alias": "gcp",
-            "canonical": "google cloud",
-            "confidence": 0.9,
-        },
-        runtime={
-            "provider": "openai",
-            "base_url": "http://localhost:20128/v1",
-            "api_key": "test-key",
-            "model": "gpt-4.1-mini",
-            "wire_api": "chat_completions",
-        },
-        now_iso="2026-06-17T00:00:00Z",
-    )
-
-    assert result["recommended_action"] == "approve"
-    assert result["recommendation_confidence"] == 0.91
-    assert result["recommendation_rationale"] == "High confidence"
-
-
 
 
 
@@ -15197,3 +15134,84 @@ def test_decision_feedback_rejects_old_run_and_unknown_scale() -> None:
             },
         )
     assert bad_scale.status_code == 422
+
+
+def test_call_synonym_triage_provider_routes_through_llm_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv.llm_runtime import (
+        LlmAdapterResponse,
+        LlmRuntimeProvenance,
+        LlmRuntimeResult,
+        LlmValidationResult,
+    )
+    from fitcv_cp import app as app_module
+
+    captured: dict[str, Any] = {}
+
+    def fake_execute(request, *, parser, validator, resolved_route):
+        captured["request"] = request
+        captured["route"] = resolved_route
+        response = LlmAdapterResponse(
+            adapter="openai_compatible",
+            runtime_path="fitcv_llm_openai_compatible",
+            raw_text=json.dumps(
+                {
+                    "recommended_action": "approve",
+                    "recommendation_confidence": 0.91,
+                    "recommendation_rationale": "High confidence",
+                    "recommendation_risk_flags": [],
+                }
+            ),
+            response_id="resp-triage",
+        )
+        parsed = parser(response)
+        validation = validator(parsed)
+        assert validation.valid is True
+        return LlmRuntimeResult(
+            status="succeeded",
+            parsed_value=parsed,
+            validation=LlmValidationResult(valid=True, errors=[], details={}),
+            failure=None,
+            provenance=LlmRuntimeProvenance(
+                routing_part=request.routing_part,
+                runtime_path=response.runtime_path,
+                adapter=response.adapter,
+                provider=resolved_route.provider,
+                model=resolved_route.model,
+                wire_api=resolved_route.wire_api,
+                attempt_count=1,
+                response_id=response.response_id,
+                trace_id=None,
+                latency_ms=1,
+            ),
+            adapter_response=response,
+        )
+
+    monkeypatch.setattr("fitcv_cp.app.execute_llm_task", fake_execute, raising=False)
+    monkeypatch.setattr("fitcv_cp.app.render_prompt", lambda name, payload: type("Rendered", (), {"text": "prompt"})())
+
+    result = app_module._call_synonym_triage_provider(
+        proposal={
+            "proposal_id": "proposal-1",
+            "proposal_status": "proposed_unreviewed",
+            "alias": "gcp",
+            "canonical": "google cloud",
+            "confidence": 0.9,
+        },
+        runtime={
+            "provider": "openai_compatible",
+            "base_url": "http://localhost:20128/v1",
+            "api_key": "test-key",
+            "model": "cx/gpt-5.4-mini",
+            "wire_api": "chat_completions",
+            "timeout_seconds": 20.0,
+        },
+        now_iso="2026-07-16T00:00:00Z",
+    )
+
+    assert captured["request"].routing_part == "synonym_triage_recommendation"
+    assert captured["request"].response_mode == "json_object"
+    assert captured["route"].model == "cx/gpt-5.4-mini"
+    assert result["recommended_action"] == "approve"
+    assert result["llm_runtime_evidence"]["provenance"]["response_id"] == "resp-triage"

@@ -69,7 +69,7 @@ capabilities:
       '
     state: active
   - capability_id: cv_system.config-owned-generation-contract
-    statement: 'Keep generation meaning under one structured-write contract while direct and LangGraph adapters share central runtime routing.
+    statement: 'Keep generation meaning under one structured-write contract while the internal LLM runtime owns central provider routing and transport.
 
       '
     state: active

@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: spec
-status: completed
+status: superseded
 template_id: detailed-specification
 name: langgraph-runtime-adapter-only-late-stage-cv-generation
 parent_thread: workstream-operator-control-plane.fitcv-cp-app-ssot-symmetry-refactor

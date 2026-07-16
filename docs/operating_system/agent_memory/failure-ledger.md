@@ -188,3 +188,16 @@ Use this file for repeated or important failures, not every small mistake.
   - `src/fitcv_cp/app.py`
   - `src/fitcv_cp/templates/run_detail_tab_enriched.html`
   - `docs/superpowers/plans/audit/20260716-run-detail-feedback-fit-context/`
+
+## Patch helper availability must be verified before repeated retries
+
+- Title: Windows patch shim can exist but remain ACL-inaccessible
+- Date: 2026-07-16
+- Trigger / Context: LangGraph-removal closeout attempted the required `apply_patch` command after an earlier checkpoint had already reported `Access is denied` from the local WindowsApps shim.
+- What went wrong: Tool presence was mistaken for tool usability, causing a repeated failed edit attempt; a later PowerShell replacement also exposed newline-escaping risk before guards stopped further changes.
+- Correct behavior: After one confirmed ACL failure, stop retrying the shim. Use count-checked literal or normalized replacements, write UTF-8 without BOM, inspect the exact edited lines, and run `git diff --check` immediately.
+- Prevention added or required: Carry patch-helper availability in execution checkpoints and use one guarded shell end-to-end when the helper is unavailable.
+- Related artifacts:
+  - `src/fitcv_cp/app.py`
+  - `tests/test_fitcv_cp/test_app.py`
+  - `docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md`

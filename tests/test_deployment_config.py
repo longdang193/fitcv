@@ -29,8 +29,8 @@ def test_docker_compose_mounts_runtime_config_files() -> None:
         assert "./.env:/app/.env:ro" in volumes
         assert "./.env.yaml:/app/.env.yaml:ro" in volumes
         assert "./config/runtime/control_plane.yaml:/app/config/runtime/control_plane.yaml:ro" in volumes
-        assert "${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}:/opt/fitcv-langgraph:ro" in volumes
-        assert "FITCV_LANGGRAPH_ENV_FILE=/app/.env" not in services[service_name]["environment"]
+        assert not any("fitcv-langgraph" in volume for volume in volumes)
+        assert not any(item.startswith("FITCV_LANGGRAPH_") for item in services[service_name]["environment"])
         assert "./data:/app/data" in volumes
         assert "fitcv_runtime:/app/runtime" in volumes
 

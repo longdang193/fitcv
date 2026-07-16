@@ -62,7 +62,7 @@ Secrets and runtime env vars file:
 Provider routing ownership:
 
 - canonical default owner: `config/runtime/control_plane.yaml`
-- `.env` `FITCV_LANGGRAPH_*` values are override-only (optional)
+- `.env` supplies `FITCV_LLM_API_KEY`; provider, model, base URL, and wire API remain config-owned
 - do not treat `.env` as default owner for provider/model/base_url/wire_api
 
 Notes:
@@ -73,8 +73,8 @@ Notes:
 - Do not duplicate runtime/pipeline knobs in `.env.yaml` when they are
   already owned by `config/runtime/pipeline.yaml`.
 - For provider routing expectation, precedence is:
-  1. non-empty `FITCV_LANGGRAPH_*` env overrides
-  2. control-plane defaults in `config/runtime/control_plane.yaml`
+  1. route ownership in `control_plane.model_routing.parts.*`
+  2. provider transport defaults in `control_plane.providers.*`
   3. fail fast on unresolved required fields
 
 Optional SQLite path override:

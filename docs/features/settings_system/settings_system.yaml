@@ -249,6 +249,7 @@ refs:
   - docs/superpowers/plans/2026-07-15-12-18-fitcv-runtime-env-ssot-cleanup-plan.md
   - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
   - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+  - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
   docs:
   - docs/features/settings_system/history.md
   configs: []
