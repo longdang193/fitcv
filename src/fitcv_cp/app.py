@@ -29,7 +29,7 @@ import zipfile
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Literal, TypedDict
-from urllib.parse import parse_qsl, unquote, urlencode, urlparse
+from urllib.parse import unquote, urlencode, urlparse
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -4486,14 +4486,7 @@ def _safe_decision_feedback_redirect_target(
     *,
     run_id: str,
 ) -> str:
-    fallback = f"/admin/runs/{run_id}/tabs/enriched"
-    safe_candidate = _safe_admin_redirect_target(candidate, fallback=fallback)
-    parsed = urlparse(safe_candidate)
-    if parsed.scheme or parsed.netloc or parsed.path != fallback:
-        return fallback
-    allowed = {"page", "page_size", "filter_name", "q", "pipeline_outcome"}
-    query_items = [(key, value) for key, value in parse_qsl(parsed.query, keep_blank_values=True) if key in allowed]
-    return f"{fallback}?{urlencode(query_items, doseq=True)}" if query_items else fallback
+    return f"/admin/runs/{run_id}#pane-enriched"
 
 def _coerce_positive_int(value: Any, *, default: int, minimum: int = 1, maximum: int = 200) -> int:
     try:

@@ -1,0 +1,72 @@
+audit_id: 20260716-run-detail-feedback-fit-context
+status: resolved
+created_at: '2026-07-16T16:00:00+02:00'
+updated_at: '2026-07-16T16:54:20.8203594+02:00'
+report: report.md
+artifacts:
+  - path: report.md
+    type: report
+  - path: manifest.yaml
+    type: manifest
+  - path: evidence/images/post-rating-fragment.png
+    type: evidence
+  - path: evidence/images/run-detail-fit-context-before.png
+    type: evidence
+  - path: evidence/images/run-detail-fit-context-after.png
+    type: evidence
+  - path: evidence/results/focused-tests.txt
+    type: evidence
+  - path: evidence/results/verification.txt
+    type: evidence
+  - path: evidence/results/verification-raw.txt
+    type: evidence
+  - path: evidence/results/live-verification.txt
+    type: evidence
+  - path: repro/repro_steps.md
+    type: repro
+evidence:
+  - path: report.md
+    kind: report
+    captured_at: '2026-07-16T16:54:20.8203594+02:00'
+    producer: codex-local-runtime
+    sha256: 41284e9eb0c34423ff840257709b1e65dc8c3b5ebbf16907dec9bd8de9d00776
+  - path: evidence/images/post-rating-fragment.png
+    kind: image
+    captured_at: '2026-07-16T16:54:20.8203594+02:00'
+    producer: codex-local-runtime
+    sha256: 589f159ca6fc50f0960f0199d47227f7bea2d32ef3d28d56f69440ab0b93c6b6
+  - path: evidence/images/run-detail-fit-context-before.png
+    kind: image
+    captured_at: '2026-07-16T16:54:20.8203594+02:00'
+    producer: codex-local-runtime
+    sha256: ba78d492063f358b7221162deb91ef798bcfde1282f50981c961aea9c4a27743
+  - path: evidence/images/run-detail-fit-context-after.png
+    kind: image
+    captured_at: '2026-07-16T16:54:20.8203594+02:00'
+    producer: codex-local-runtime
+    sha256: cc8ea871441a5c2cf74717aa1b1f58ad753573e9b495ec1a3fe96491635d8c00
+  - path: evidence/results/focused-tests.txt
+    kind: result
+    captured_at: '2026-07-16T16:54:20.8203594+02:00'
+    producer: codex-local-runtime
+    sha256: ce5d2f11d2ff627a4ffcb3d9bed548f436e01efb541e8e1eea9be060d73ed552
+  - path: evidence/results/verification.txt
+    kind: result
+    captured_at: '2026-07-16T16:54:20.8203594+02:00'
+    producer: codex-local-runtime
+    sha256: 9b527dd5b07bdbeeb8a01b7fcc5e57fc264529289938b2418ecb124c085cf399
+  - path: evidence/results/verification-raw.txt
+    kind: result
+    captured_at: '2026-07-16T16:54:20.8203594+02:00'
+    producer: codex-local-runtime
+    sha256: 6bc44c3a4fb4d4c092800406ac3399e43f095167ca54e4ee8457a8e87d1ef10a
+  - path: evidence/results/live-verification.txt
+    kind: result
+    captured_at: '2026-07-16T16:54:20.8203594+02:00'
+    producer: codex-local-runtime
+    sha256: 6ec54f504c0cd81f737aff66e1b66e5dfd777dad6412df1d039e2e5ebea9fc0c
+  - path: repro/repro_steps.md
+    kind: repro
+    captured_at: '2026-07-16T16:54:20.8203594+02:00'
+    producer: codex-local-runtime
+    sha256: 81f1e0be761bb8394eb0ae9cb0c512f8eb39e667ff0a8b27d43fd9632b924cb2

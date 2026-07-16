@@ -175,3 +175,16 @@ Use this file for repeated or important failures, not every small mistake.
   - `src/fitcv_cp/sqlite_store.py`
   - `scripts/run_inverse_optimization.py`
   - `docs/superpowers/plans/audit/20260716-1413-phase7-live-run-master-spec/`
+## Run-detail adapters must preserve canonical facts and full-page navigation
+
+- Title: Fragment endpoints and snapshot allowlists are not source-of-truth boundaries
+- Date: 2026-07-16
+- Trigger / Context: Rating a job from the Enriched Jobs tab returned raw fragment HTML; Fit Context showed work mode as location and omitted language evidence.
+- What went wrong: Decision-feedback redirect used a tab-fragment endpoint as a browser destination, while the run-scoped enrichment projection omitted canonical `actual_location` and `language_requirements`. The template then mislabeled `location_type` as Location.
+- Correct behavior: Browser mutations return to the full run page and select the pane; run-scoped projections preserve canonical facts; UI reads canonical location/language first and uses existing factor evidence only as an honest legacy-run fallback.
+- Prevention added or required: Keep regressions for full-page redirects, canonical snapshot preservation, field-label symmetry, fallback display, and vertical Fit Context layout.
+- Related artifacts:
+  - `src/fitcv/enrich.py`
+  - `src/fitcv_cp/app.py`
+  - `src/fitcv_cp/templates/run_detail_tab_enriched.html`
+  - `docs/superpowers/plans/audit/20260716-run-detail-feedback-fit-context/`

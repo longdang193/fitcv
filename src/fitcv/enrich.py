@@ -2220,6 +2220,8 @@ _RUN_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("title",                "STRING",    "NULLABLE"),
     ("company_name",         "STRING",    "NULLABLE"),
     ("location",             "STRING",    "NULLABLE"),
+    ("actual_location",      "JSON",      "NULLABLE"),
+    ("language_requirements", "JSON",     "NULLABLE"),
     ("contract_type",        "STRING",    "NULLABLE"),
     ("experience_level",     "STRING",    "NULLABLE"),
     ("published_at",         "DATE",      "NULLABLE"),

@@ -15100,10 +15100,33 @@ def test_decision_feedback_post_and_no_js_form() -> None:
                 "job_url": "https://jobs.example.com/1",
                 "raw_job_fingerprint": "raw-job-1",
                 "title": "Data Engineer",
+                "location": "Munich, Bavaria, Germany",
+                "location_type": "hybrid",
                 "required_skills": [],
             }
         ],
-        filter_results=[{"job_url": "https://jobs.example.com/1", "passed": True, "reasons": []}],
+        filter_results=[
+            {
+                "job_url": "https://jobs.example.com/1",
+                "passed": True,
+                "reasons": [],
+                "fit_factor_results": {
+                    "language_fit": {
+                        "evaluation": {
+                            "evidence": {
+                                "requirements": [
+                                    {
+                                        "language": "English",
+                                        "requirement_type": "required",
+                                        "truth": "met",
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+            }
+        ],
         results_export_json=payload,
     )
     store = MagicMock()
@@ -15131,9 +15154,19 @@ def test_decision_feedback_post_and_no_js_form() -> None:
     assert "<fieldset" in page.text
     assert "Personal application interest after eligibility" in page.text
     assert "decision-feedback/raw-job-1" in page.text
+    assert 'class="application-interest-stars"' in page.text
+    assert page.text.count('class="btn-secondary application-interest-star"') == 5
+    assert ':has(.application-interest-star:nth-child(5):hover)' in page.text
+    assert 'aria-label="Set application interest to 5 of 5 stars"' in page.text
+    assert "flex-direction: column" in page.text
+    assert "Location:</strong> Munich, Bavaria, Germany" in page.text
+    assert "Work Mode:</strong> hybrid" in page.text
+    assert "Language:</strong>" in page.text
+    assert "English" in page.text
+    assert "level unspecified" in page.text
     assert "onclick=" not in page.text
     assert response.status_code == 303
-    assert response.headers["location"] == "/admin/runs/run-detail-test/tabs/enriched?page=2&q=python"
+    assert response.headers["location"] == "/admin/runs/run-detail-test#pane-enriched"
     store.materialize_episode_and_append_rating.assert_called_once()
 
 

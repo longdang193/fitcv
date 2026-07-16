@@ -570,6 +570,27 @@ def test_load_run_structured_jobs_writes_sqlite_rows(
             "job_url": "https://example.com/jobs/1",
             "title": "Data Engineer",
             "company_name": "Acme",
+            "actual_location": {
+                "raw_text": "Berlin, Germany",
+                "city": "Berlin",
+                "region": None,
+                "country": "Germany",
+                "remote_scope": "city",
+                "remote_scope_value": "Berlin",
+                "extraction_status": "complete",
+                "evidence": ["Berlin"],
+                "extraction_version": "actual-location-extraction-v1",
+            },
+            "language_requirements": [
+                {
+                    "language": "German",
+                    "requirement_type": "required",
+                    "expected_level": "b2",
+                    "extraction_status": "complete",
+                    "evidence": ["German B2"],
+                    "extraction_version": "language-requirement-extraction-v1",
+                }
+            ],
             "required_skills": ["SQL", "Python"],
             "required_skills_canonical": ["sql", "python"],
             "preferred_skills": ["dbt"],
@@ -604,6 +625,8 @@ def test_load_run_structured_jobs_writes_sqlite_rows(
     payload = __import__("json").loads(str(row[2]))
     assert payload["run_id"] == "run-123"
     assert payload["required_skills"] == ["SQL", "Python"]
+    assert payload["actual_location"]["city"] == "Berlin"
+    assert payload["language_requirements"][0]["expected_level"] == "b2"
     assert payload["required_skill_entities_json"] == '[{"raw_text": "SQL", "canonical": "sql"}]'
     assert payload["mapping_suggestions_json"] == '[{"canonical": "sql", "matches": true}]'
     assert payload["domain_mapping_suggestions_json"] == '[{"field": "domain", "alias": "fintech", "canonical": "finance"}]'

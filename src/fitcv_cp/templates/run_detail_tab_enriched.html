@@ -1,3 +1,49 @@
+<style>
+  .application-interest-stars {
+    display: inline-flex;
+    gap: 0.05rem;
+  }
+
+  .application-interest-star,
+  .application-interest-star[aria-pressed] {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.35rem;
+    line-height: 1;
+    padding: 0.15rem;
+  }
+
+  .application-interest-star.is-filled {
+    color: #f59e0b;
+  }
+
+  .application-interest-stars:hover .application-interest-star {
+    color: var(--text-muted);
+  }
+
+  .application-interest-stars:has(.application-interest-star:nth-child(1):hover) .application-interest-star:nth-child(-n+1),
+  .application-interest-stars:has(.application-interest-star:nth-child(2):hover) .application-interest-star:nth-child(-n+2),
+  .application-interest-stars:has(.application-interest-star:nth-child(3):hover) .application-interest-star:nth-child(-n+3),
+  .application-interest-stars:has(.application-interest-star:nth-child(4):hover) .application-interest-star:nth-child(-n+4),
+  .application-interest-stars:has(.application-interest-star:nth-child(5):hover) .application-interest-star:nth-child(-n+5) {
+    color: #f59e0b;
+  }
+
+  .application-interest-star:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .fit-context-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+</style>
+
 {% if enriched_total_count %}
 {% if decision_feedback_available %}
 <p class="meta" style="padding:0.75rem 1.25rem;margin:0;border-bottom:1px solid var(--accent)">Application-interest ratings capture personal interest after eligibility. They do not record an application.</p>
@@ -105,11 +151,29 @@
       {% set outcome_lookup_key = job.pipeline_outcome_lookup_key or job.job_url_lookup_key or job.job_url %}
       {% set fr = filter_results_by_job_url.get(filter_lookup_key) %}
       {% set outcome = pipeline_outcomes_by_job_url.get(outcome_lookup_key) %}
+      {% set actual_location = job.actual_location or {} %}
+      {% set language_requirements = job.language_requirements or [] %}
+      {% if not language_requirements and fr and fr.fit_factor_results %}
+        {% set language_fit = fr.fit_factor_results.get('language_fit') or {} %}
+        {% set language_evaluation = language_fit.get('evaluation') or {} %}
+        {% set language_evidence = language_evaluation.get('evidence') or {} %}
+        {% set language_requirements = language_evidence.get('requirements') or [] %}
+      {% endif %}
       <tr>
         <td><a href="{{ job.job_url }}" target="_blank" rel="noopener">{{ job.title or job.job_url }}</a></td>
         <td class="meta">
           <div class="fit-context-stack">
-            <span><strong>Location:</strong> {{ job.location_type or '—' }}</span>
+            <span><strong>Location:</strong> {{ actual_location.raw_text or job.location or '—' }}</span>
+            <span><strong>Work Mode:</strong> {{ job.location_type or '—' }}</span>
+            <span><strong>Language:</strong>
+              {% if language_requirements %}
+                {% for requirement in language_requirements %}
+                  {{ requirement.language or '—' }} ({% if requirement.expected_level and requirement.expected_level != 'unspecified' %}{{ requirement.expected_level | upper }}{% else %}level unspecified{% endif %}{% if requirement.requirement_type %}; {{ requirement.requirement_type }}{% endif %}){% if not loop.last %}, {% endif %}
+                {% endfor %}
+              {% else %}
+                —
+              {% endif %}
+            </span>
             <span><strong>Seniority:</strong> {{ job.seniority or '—' }}</span>
             <span><strong>Family:</strong> {{ job.job_family or '—' }}</span>
             <span><strong>Domain:</strong> {{ job.domain or '—' }}</span>
@@ -165,10 +229,12 @@
             <input type="hidden" name="return_to" value="{{ decision_feedback_return_to }}">
             <fieldset style="border:0;padding:0;margin:0">
               <legend class="meta">Personal application interest after eligibility</legend>
-              <div style="display:flex;gap:0.25rem;flex-wrap:wrap">
-                {% for rating in (1, 2, 3, 4, 5) %}
-                <button type="submit" name="rating" value="{{ rating }}" class="btn-secondary" aria-label="Set application interest to {{ rating }} stars" aria-pressed="{{ 'true' if job.decision_rating == rating else 'false' }}">{{ '★' if job.decision_rating == rating else '☆' }} {{ rating }}</button>
-                {% endfor %}
+              <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">
+                <div class="application-interest-stars">
+                  {% for rating in (1, 2, 3, 4, 5) %}
+                  <button type="submit" name="rating" value="{{ rating }}" class="btn-secondary application-interest-star{% if job.decision_rating in (1, 2, 3, 4, 5) and rating <= job.decision_rating %} is-filled{% endif %}" aria-label="Set application interest to {{ rating }} of 5 stars" aria-pressed="{{ 'true' if job.decision_rating == rating else 'false' }}" title="{{ rating }} stars">★</button>
+                  {% endfor %}
+                </div>
                 <button type="submit" name="action" value="clear_rating" class="btn-secondary">Clear</button>
               </div>
             </fieldset>

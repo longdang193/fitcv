@@ -1,0 +1,493 @@
+=== pytest relevant suites ===
+........................................................................ [ 12%]
+........................................................................ [ 24%]
+........................................................................ [ 36%]
+........................................................................ [ 48%]
+........................................................................ [ 60%]
+........................................................................ [ 72%]
+........................................................................ [ 84%]
+........................................................................ [ 96%]
+......................                                                   [100%]
+598 passed in 163.34s (0:02:43)
+exit_code=0
+
+=== ruff changed Python ===
+F401 [*] `fitcv.config.sqlite_mode_enabled` imported but unused
+  --> src\fitcv\enrich.py:32:55
+   |
+31 | from pydantic import BaseModel as _BaseModel, Field as _Field, ValidationError as _ValidationError
+32 | from fitcv.config import get_enrich_extraction_model, sqlite_mode_enabled
+   |                                                       ^^^^^^^^^^^^^^^^^^^
+33 | from fitcv.fit_factors import (
+34 |     ACTUAL_LOCATION_EXTRACTION_VERSION,
+   |
+help: Remove unused import: `fitcv.config.sqlite_mode_enabled`
+
+F841 Local variable `normalized_alias` is assigned to but never used
+   --> src\fitcv\enrich.py:515:9
+    |
+513 |     fallback_entities: list[SkillEntity] = []
+514 |     for raw_value in raw_values:
+515 |         normalized_alias = raw_value.strip().lower()
+    |         ^^^^^^^^^^^^^^^^
+516 |         canonical = _canonicalize_text_item(field_name, raw_value, config)
+517 |         if not _is_reusable_skill_alias(raw_value, canonical):
+    |
+help: Remove assignment to unused variable `normalized_alias`
+
+F401 [*] `fitcv.pipeline_contracts.STAGE_DOWNLOAD_LABELS` imported but unused
+  --> src\fitcv_cp\app.py:74:5
+   |
+72 |     PIPELINE_BUNDLE_STAGE_IDS as BUNDLE_STAGE_IDS,
+73 |     PIPELINE_STAGE_SEQUENCE as STAGE_SEQUENCE,
+74 |     STAGE_DOWNLOAD_LABELS,
+   |     ^^^^^^^^^^^^^^^^^^^^^
+75 |     stage_artifact_filename,
+76 |     stage_download_label,
+   |
+help: Remove unused import
+
+F401 [*] `fitcv.pipeline_contracts.TIMELINE_STAGE_DOWNLOADABLE_EVENTS` imported but unused
+  --> src\fitcv_cp\app.py:77:5
+   |
+75 |     stage_artifact_filename,
+76 |     stage_download_label,
+77 |     TIMELINE_STAGE_DOWNLOADABLE_EVENTS,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+78 |     TIMELINE_STAGE_DOWNLOADS,
+79 |     TIMELINE_STAGE_LABELS,
+   |
+help: Remove unused import
+
+F401 [*] `fitcv.pipeline_contracts.TIMELINE_STAGE_DOWNLOADS` imported but unused
+  --> src\fitcv_cp\app.py:78:5
+   |
+76 |     stage_download_label,
+77 |     TIMELINE_STAGE_DOWNLOADABLE_EVENTS,
+78 |     TIMELINE_STAGE_DOWNLOADS,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+79 |     TIMELINE_STAGE_LABELS,
+80 |     timeline_event_allows_stage_download,
+   |
+help: Remove unused import
+
+F401 [*] `fitcv.pipeline_contracts.TIMELINE_STAGE_LABELS` imported but unused
+  --> src\fitcv_cp\app.py:79:5
+   |
+77 |     TIMELINE_STAGE_DOWNLOADABLE_EVENTS,
+78 |     TIMELINE_STAGE_DOWNLOADS,
+79 |     TIMELINE_STAGE_LABELS,
+   |     ^^^^^^^^^^^^^^^^^^^^^
+80 |     timeline_event_allows_stage_download,
+81 |     timeline_stage_download_for_event,
+   |
+help: Remove unused import
+
+F401 [*] `fitcv_cp.run_lifecycle.can_retry_run` imported but unused
+   --> src\fitcv_cp\app.py:106:5
+    |
+104 |     can_archive_run,
+105 |     can_cancel_run,
+106 |     can_retry_run,
+    |     ^^^^^^^^^^^^^
+107 |     can_unarchive_run,
+108 |     cancel_request_target_status,
+    |
+help: Remove unused import: `fitcv_cp.run_lifecycle.can_retry_run`
+
+F401 [*] `fitcv_cp.settings_schema.SETTINGS_SCHEMA` imported but unused
+   --> src\fitcv_cp\app.py:131:5
+    |
+129 |     DECISION_STATUS_RECOMMENDED,
+130 |     RANKING_GROUPS,
+131 |     SETTINGS_SCHEMA,
+    |     ^^^^^^^^^^^^^^^
+132 |     ValidationError,
+133 |     apply_settings_to_config,
+    |
+help: Remove unused import: `fitcv_cp.settings_schema.SETTINGS_SCHEMA`
+
+E402 Module level import not at top of file
+   --> src\fitcv_cp\app.py:155:1
+    |
+153 |   update_run_queue_job_id = sqlite_store_module.update_run_queue_job_id
+154 |   update_run_orchestration_binding = sqlite_store_module.update_run_orchestration_binding
+155 | / from fitcv_cp.settings_store import (
+156 | |     bookmark_key_for_job,
+157 | |     delete_bookmarked_job,
+158 | |     is_job_bookmarked,
+159 | |     list_bookmarked_jobs,
+160 | |     load_active_settings,
+161 | |     set_bookmarked_job_status,
+162 | |     save_setting,
+163 | |     save_settings_group,
+164 | |     upsert_bookmarked_job,
+165 | | )
+    | |_^
+166 |   from fitcv_cp.synonym_proposals import (
+167 |       apply_synonym_management_defaults,
+    |
+
+E402 Module level import not at top of file
+   --> src\fitcv_cp\app.py:166:1
+    |
+164 |       upsert_bookmarked_job,
+165 |   )
+166 | / from fitcv_cp.synonym_proposals import (
+167 | |     apply_synonym_management_defaults,
+168 | |     build_synonym_proposals_payload,
+169 | |     build_synonym_triage_fingerprint,
+170 | |     evaluate_synonym_triage_reuse,
+171 | |     resolve_synonym_management_mode,
+172 | |     transition_synonym_proposal_status,
+173 | | )
+    | |_^
+174 |   from fitcv_cp.data_plane import data_plane_contract_payload
+175 |   from fitcv_cp.observability import emit_observability_event
+    |
+
+E402 Module level import not at top of file
+   --> src\fitcv_cp\app.py:174:1
+    |
+172 |     transition_synonym_proposal_status,
+173 | )
+174 | from fitcv_cp.data_plane import data_plane_contract_payload
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+175 | from fitcv_cp.observability import emit_observability_event
+176 | from fitcv_cp.store import ControlPlaneStore
+    |
+
+E402 Module level import not at top of file
+   --> src\fitcv_cp\app.py:175:1
+    |
+173 | )
+174 | from fitcv_cp.data_plane import data_plane_contract_payload
+175 | from fitcv_cp.observability import emit_observability_event
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+176 | from fitcv_cp.store import ControlPlaneStore
+177 | from fitcv_cp.review_identity import (
+    |
+
+E402 Module level import not at top of file
+   --> src\fitcv_cp\app.py:176:1
+    |
+174 | from fitcv_cp.data_plane import data_plane_contract_payload
+175 | from fitcv_cp.observability import emit_observability_event
+176 | from fitcv_cp.store import ControlPlaneStore
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+177 | from fitcv_cp.review_identity import (
+178 |     ensure_review_item_id,
+    |
+
+E402 Module level import not at top of file
+   --> src\fitcv_cp\app.py:177:1
+    |
+175 |   from fitcv_cp.observability import emit_observability_event
+176 |   from fitcv_cp.store import ControlPlaneStore
+177 | / from fitcv_cp.review_identity import (
+178 | |     ensure_review_item_id,
+179 | |     is_review_resolution_pending,
+180 | |     normalize_review_resolution_status,
+181 | | )
+    | |_^
+182 |   from fitcv_cp.app_run_support import (
+183 |       _TRUNCATED_MARKDOWN_SENTINELS,
+    |
+
+F401 [*] `fitcv_cp.review_identity.ensure_review_item_id` imported but unused
+   --> src\fitcv_cp\app.py:178:5
+    |
+176 | from fitcv_cp.store import ControlPlaneStore
+177 | from fitcv_cp.review_identity import (
+178 |     ensure_review_item_id,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+179 |     is_review_resolution_pending,
+180 |     normalize_review_resolution_status,
+    |
+help: Remove unused import
+
+F401 [*] `fitcv_cp.review_identity.is_review_resolution_pending` imported but unused
+   --> src\fitcv_cp\app.py:179:5
+    |
+177 | from fitcv_cp.review_identity import (
+178 |     ensure_review_item_id,
+179 |     is_review_resolution_pending,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+180 |     normalize_review_resolution_status,
+181 | )
+    |
+help: Remove unused import
+
+F401 [*] `fitcv_cp.review_identity.normalize_review_resolution_status` imported but unused
+   --> src\fitcv_cp\app.py:180:5
+    |
+178 |     ensure_review_item_id,
+179 |     is_review_resolution_pending,
+180 |     normalize_review_resolution_status,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+181 | )
+182 | from fitcv_cp.app_run_support import (
+    |
+help: Remove unused import
+
+E402 Module level import not at top of file
+   --> src\fitcv_cp\app.py:182:1
+    |
+180 |       normalize_review_resolution_status,
+181 |   )
+182 | / from fitcv_cp.app_run_support import (
+183 | |     _TRUNCATED_MARKDOWN_SENTINELS,
+184 | |     _build_cv_generation_failure_reason_summary,
+185 | |     _build_cv_generation_review_required_payload,
+186 | |     _build_ranked_cv_outcome_summary,
+187 | |     _extract_unsupported_requirements,
+188 | |     _fit_classification_badge_class,
+189 | |     _format_compact_utc_timestamp,
+190 | |     _is_hitl_resolution_pending,
+191 | |     _is_hitl_review_pending_state,
+192 | |     _load_run_cv_generation_debug_payload,
+193 | |     _map_review_required_reason_code,
+194 | |     _normalize_hitl_resolution_status,
+195 | |     _normalized_cv_debug_payload_for_export,
+196 | |     _operator_prompt_for_review_required,
+197 | |     _review_target_for_reason_code,
+198 | |     _run_status_allows_export,
+199 | |     load_cv_generation_trace_payload,
+200 | | )
+    | |_^
+201 |   TEMPLATES_DIR = Path(__file__).parent / "templates"
+202 |   ORCHESTRATION_ADAPTER = get_orchestration_adapter()
+    |
+
+F401 [*] `fitcv_cp.app_run_support._extract_unsupported_requirements` imported but unused
+   --> src\fitcv_cp\app.py:187:5
+    |
+185 |     _build_cv_generation_review_required_payload,
+186 |     _build_ranked_cv_outcome_summary,
+187 |     _extract_unsupported_requirements,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+188 |     _fit_classification_badge_class,
+189 |     _format_compact_utc_timestamp,
+    |
+help: Remove unused import
+
+F401 [*] `fitcv_cp.app_run_support._map_review_required_reason_code` imported but unused
+   --> src\fitcv_cp\app.py:193:5
+    |
+191 |     _is_hitl_review_pending_state,
+192 |     _load_run_cv_generation_debug_payload,
+193 |     _map_review_required_reason_code,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+194 |     _normalize_hitl_resolution_status,
+195 |     _normalized_cv_debug_payload_for_export,
+    |
+help: Remove unused import
+
+F401 [*] `fitcv_cp.app_run_support._operator_prompt_for_review_required` imported but unused
+   --> src\fitcv_cp\app.py:196:5
+    |
+194 |     _normalize_hitl_resolution_status,
+195 |     _normalized_cv_debug_payload_for_export,
+196 |     _operator_prompt_for_review_required,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+197 |     _review_target_for_reason_code,
+198 |     _run_status_allows_export,
+    |
+help: Remove unused import
+
+F401 [*] `fitcv_cp.app_run_support._review_target_for_reason_code` imported but unused
+   --> src\fitcv_cp\app.py:197:5
+    |
+195 |     _normalized_cv_debug_payload_for_export,
+196 |     _operator_prompt_for_review_required,
+197 |     _review_target_for_reason_code,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+198 |     _run_status_allows_export,
+199 |     load_cv_generation_trace_payload,
+    |
+help: Remove unused import
+
+F821 Undefined name `redis_url`
+   --> src\fitcv_cp\app.py:651:77
+    |
+649 |         status_checked = True
+650 |         try:
+651 |             status = str(orchestration_job_status(backend_run_id, redis_url=redis_url) or "unknown").strip() or "unknown"
+    |                                                                             ^^^^^^^^^
+652 |         except Exception:
+653 |             status = "unknown"
+    |
+
+F601 Dictionary key literal `"effective_value"` repeated
+    --> src\fitcv_cp\app.py:6122:25
+     |
+6120 |                         "is_dirty": is_dirty,
+6121 |                         "is_modified": is_dirty,
+6122 |                         "effective_value": effective_value,
+     |                         ^^^^^^^^^^^^^^^^^
+6123 |                         "source_label": "Persisted override" if key in active else "Baseline default",
+6124 |                         "override_state": "overridden" if key in active else "inherited",
+     |
+help: Remove repeated key literal `"effective_value"`
+
+F841 Local variable `result` is assigned to but never used
+    --> src\fitcv_cp\app.py:8976:9
+     |
+8974 |         if idx is None:
+8975 |             raise HTTPException(status_code=404, detail="Synonym proposal not found")
+8976 |         result = _apply_synonym_proposal_action_in_run(
+     |         ^^^^^^
+8977 |             run=run,
+8978 |             payload=payload,
+     |
+help: Remove assignment to unused variable `result`
+
+F401 [*] `fitcv.enrich` imported but unused
+  --> tests\test_enrich.py:20:24
+   |
+19 | import pytest
+20 | import fitcv.enrich as enrich_module
+   |                        ^^^^^^^^^^^^^
+21 |
+22 | from fitcv.enrich import (
+   |
+help: Remove unused import: `fitcv.enrich`
+
+F601 Dictionary key literal `"ai_score_model"` repeated
+    --> tests\test_enrich.py:1510:9
+     |
+1508 |         "gcp_project": "test-proj",
+1509 |         "ai_score_model": "cx/gpt-5.4-mini",
+1510 |         "ai_score_model": "cx/gpt-5.4-mini",
+     |         ^^^^^^^^^^^^^^^^
+1511 |         "location": "us-central1",
+1512 |         "enrichment_version": "v1",
+     |
+help: Remove repeated key literal `"ai_score_model"`
+
+F841 Local variable `original_chunk` is assigned to but never used
+    --> tests\test_enrich.py:1735:5
+     |
+1733 |         return {**job, "enriched": True}
+1734 |
+1735 |     original_chunk = None
+     |     ^^^^^^^^^^^^^^
+1736 |
+1737 |     def capture_chunk(chunk, config, *, job_event_callback=None):
+     |
+help: Remove assignment to unused variable `original_chunk`
+
+F821 Undefined name `Any`
+    --> tests\test_enrich.py:1981:34
+     |
+1979 |     monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
+1980 |     monkeypatch.setattr("time.sleep", lambda seconds: None)
+1981 |     observations: list[dict[str, Any]] = []
+     |                                  ^^^
+1982 |
+1983 |     rows = enrich_batch(
+     |
+
+F841 Local variable `client` is assigned to but never used
+  --> tests\test_fitcv_cp\test_app.py:32:5
+   |
+30 | def _app():
+31 |     os.environ["FITCV_CP_INLINE_EXECUTION"] = "1"
+32 |     client = MagicMock()
+   |     ^^^^^^
+33 |     return create_app(redis_url="redis://localhost:6379/0")
+   |
+help: Remove assignment to unused variable `client`
+
+F841 Local variable `mock_append` is assigned to but never used
+    --> tests\test_fitcv_cp\test_app.py:3244:48
+     |
+3242 |          patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+3243 |          patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint, \
+3244 |          patch("fitcv_cp.app.append_event") as mock_append:
+     |                                                ^^^^^^^^^^^
+3245 |         resp = TestClient(_app()).post(
+3246 |             "/admin/runs/run-review-batch-blocked/cv-review-batch-action",
+     |
+help: Remove assignment to unused variable `mock_append`
+
+F401 [*] `fitcv_cp.models.RunEvent` imported but unused
+    --> tests\test_fitcv_cp\test_app.py:6137:46
+     |
+6135 |     from datetime import datetime, timezone
+6136 |
+6137 |     from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
+     |                                              ^^^^^^^^
+6138 |
+6139 |     run = PipelineRun(
+     |
+help: Remove unused import: `fitcv_cp.models.RunEvent`
+
+F401 [*] `datetime` imported but unused
+     --> tests\test_fitcv_cp\test_app.py:11052:12
+      |
+11050 | def test_run_detail_queued_shows_stop_run():
+11051 |     """@proves trigger_run_management.run-detail-actions"""
+11052 |     import datetime
+      |            ^^^^^^^^
+11053 |     run = _make_full_run_mock(status="queued")
+11054 |     with patch("fitcv_cp.app.get_run", return_value=run), \
+      |
+help: Remove unused import: `datetime`
+
+F401 [*] `fitcv_cp.app._normalize_job_url_key` imported but unused
+     --> tests\test_fitcv_cp\test_app.py:12452:59
+      |
+12451 | def test_build_enriched_tab_context_matches_truth_by_raw_job_fingerprint_when_urls_drift() -> None:
+12452 |     from fitcv_cp.app import _build_enriched_tab_context, _normalize_job_url_key
+      |                                                           ^^^^^^^^^^^^^^^^^^^^^^
+12453 |     from fitcv_cp.models import PipelineRun, RunStatus
+      |
+help: Remove unused import: `fitcv_cp.app._normalize_job_url_key`
+
+Found 34 errors.
+[*] 18 fixable with the `--fix` option (7 hidden fixes can be enabled with the `--unsafe-fixes` option).
+exit_code=1
+
+=== fast repo validator ===
+Env gitignore contract validation passed.
+Python @meta header validation passed.
+SKIP:sync_agent_adapters:no mappings for consumer_derived default mode-policy selection (selection=codex, selector=mode-policy(adoption_mode=managed_architecture_metadata,repo_role=consumer_derived), adoption_mode=managed_architecture_metadata, repo_role=consumer_derived).
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_adoption_shape.py
+Adoption shape validation passed.
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_checkpoint_packs.py
+Checkpoint result-pack validation passed.
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_planning_lifecycle.py
+Planning lifecycle validation passed.
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_template_required_sections.py
+Template required-sections validation passed.
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_prompt_ladder.py
+Prompt ladder validation passed.
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_prompt_metadata_schema.py
+Prompt metadata schema validation passed.
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_execution_context_pack_references.py
+Execution context-pack reference validation passed.
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_agent_metadata_schema.py
+Agent metadata schema validation passed.
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_provider_settings_schema.py
+SKIP:validate_provider_settings_schema:provider_settings omitted for starter_method_only or consumer_derived mode
+Provider settings schema validation passed.
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_generated_header_format.py
+Generated header format validation passed.
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_env_gitignore_contract.py
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_python_meta_headers.py --enforce-capability-linkage --require-ownership --require-feature-capabilities
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_agent_runtime_drift.py --skip-deploy-check
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\sync_agent_adapters.py --check
+Agent runtime drift validation passed.
+> C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\validate_repo_config.py
+Repo config validation passed.
+Repo contract validation passed (hook subset).
+exit_code=0
+
+=== git diff check ===
+warning: in the working copy of 'src/fitcv_cp/app.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/fitcv_cp/templates/run_detail_tab_enriched.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_enrich.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_fitcv_cp/test_app.py', LF will be replaced by CRLF the next time Git touches it
+exit_code=0
+
