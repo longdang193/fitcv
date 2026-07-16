@@ -2,15 +2,17 @@
 layer: change
 artifact_type: plan
 status: completed
-completed_at: 2026-07-16T23:45:00+02:00
+completed_at: 2026-07-16T15:11:00.9810646+02:00
 change_id: 2026-07-16-fitcv-inverse-optimization-phase-7-closeout
 verification:
-  - 70 inverse-optimization, policy, and lifecycle tests passed with the inverse-optimization extra.
-  - 286 ranking, pipeline, resume, and worker tests passed with 1 optional skip.
-  - 41 focused solver-free policy and SQLite adapter tests passed.
+  - 143 config, inverse-optimization, policy, and CLI tests passed with the inverse-optimization extra.
+  - 66 ranking and AI-score tests passed with 1 optional skip; 143 pipeline and resume tests passed.
+  - 570 decision-feedback and control-plane app tests passed; 214 normalization, enrichment, rule-filter, and vector-search tests passed with 2 optional skips.
+  - 25 SQLite lifecycle tests passed, including current-provenance staleness, two-thread activation, injected failure, and exact rollback proofs.
+  - Mutation-safe preferred-city and language hard-gate scenario passed with baseline-label invariance and one effective-weight normalization.
   - Scoped Ruff, isolated mypy, runtime import isolation, architecture sync/check, planning lifecycle, hook, repo-contract, and diff checks passed.
 outcome:
-  summary: Completed Phase 7 immutable policy lifecycle, personalized runtime ordering, resolve-once resume behavior, CLI, observability, and documentation closeout.
+  summary: Completed Phase 7 immutable policy lifecycle, current-provenance activation CAS, personalized runtime ordering, resolve-once resume behavior, hard-gate evidence, CLI, observability, and documentation closeout.
 template_id: implementation-plan
 name: fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-implementation
 parent_thread: workstream-fitcv-semantic-spine.semantic-spine-stage-authority-contract
@@ -693,7 +695,8 @@ uv run --extra inverse-optimization python -c "import cvxpy as cp; assert 'CLARA
 Lifecycle/score proof:
 
 ```text
-python -m pytest tests/test_preference_policy.py tests/test_fitcv_cp/test_sqlite_store.py -q -k "concurrent or rollback or stale or no_op or fallback"
+python -m pytest tests/test_fitcv_cp/test_sqlite_store.py -q -k "concurrent_sibling_activation or activation_event_failure or current_provenance_changed or rollback_restores_exact or evidence_head_changed"
+python -m pytest tests/test_inverse_optimization.py -q -k "activation_provenance or rollback_cas_conflict or current_activation_provenance"
 python -m pytest tests/test_ranking.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py -q -k "personalized or baseline_label or resume or clipping"
 ```
 
@@ -794,9 +797,11 @@ Canonical source-of-truth:
 
 - Candidate solving/evaluation stays outside SQLite writer transactions; training plus candidate insertion is atomic and content-addressed.
 - SQLite enforces immutable payloads, append-only events, legal status values, and one active snapshot per compatible runtime contract.
+- Activation compares current runtime, compiler, activation, optimizer, decision-learning, evidence-head, and parent fingerprints in one transaction; mismatches become audited stale candidates.
 - Runtime resolves once through an injected boundary, freezes exact payload in checkpoint state, and replays without resolver calls.
 - Personalized order uses raw residual score; display clipping is diagnostic only. Baseline score, global baseline rank, `strong|stretch|skip`, CV eligibility, and generation gates remain baseline-derived.
 - `candidate`, `reject`, `activate`, `rollback`, and `inspect` extend existing `argparse` CLI; candidate has no actor argument.
+- Bounded preferred-city and language hard-gate evidence proves pre-ranking rejection, retained unknown diagnostics, one effective-weight renormalization, non-neutral location values, and baseline-derived labels.
 - Generated stage, feature, lineage, architecture, and planning outputs are synchronized from source docs.
 - GitNexus reports critical breadth expected for shared pipeline/store orchestration; affected flows remain ranking, pipeline, worker, store, and decision-feedback scope.
 - `.tmp-tests/` remains user-owned and untouched.

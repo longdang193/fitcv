@@ -13,7 +13,7 @@ capabilities:
     statement: CSS custom properties design tokens
     state: active
   - capability_id: ui_consistency_theming.shared-component-classes
-    statement: Shared component classes
+    statement: Shared component classes for cards, tables, badges, action hierarchy, and native accessible optimization forms.
     state: active
   - capability_id: ui_consistency_theming.dark-light-theme-toggle-with-localstorage-persistence
     statement: Dark/light theme toggle with localStorage persistence

@@ -58,7 +58,7 @@ capabilities:
     statement: Compile complete ordinal rating evidence into deterministic, versioned, provenance-preserving preference edges without persistence, solver activation, or ranking effects.
     state: active
   - capability_id: cv_system.preference-learning
-    statement: Learn and evaluate one bounded embedding-space preference residual from complete compatible episode evidence, persist every terminal attempt, and create immutable candidates only after one uniform promotion gate and no-op check.
+    statement: Learn and evaluate one bounded embedding-space preference residual from complete compatible episode evidence, persist every terminal attempt, and create immutable candidates through one shared CLI and HTTP operation only after one uniform promotion gate and no-op check.
     state: active
   - capability_id: cv_system.ranking-policy-lifecycle
     statement: Manage one immutable SQLite ranking-policy registry with manual candidate, reject, activate, rollback, and inspect operations; resolve and freeze one compatible policy per run while baseline labels and CV gates remain invariant.

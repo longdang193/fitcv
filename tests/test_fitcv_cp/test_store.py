@@ -277,3 +277,29 @@ def test_control_plane_store_candidate_attempt_and_evidence_head_adapters() -> N
     )
     assert result["snapshot"] == {"policy_snapshot_id": "snapshot"}
     assert store.get_decision_evidence_head("ranking_v1")["evidence_head_fingerprint"] == "head"
+
+def test_control_plane_store_delegates_inverse_optimization_request_and_lifecycle_limit() -> None:
+    request = object()
+    captured: dict[str, object] = {}
+
+    def load_request(domain_id: str):
+        captured["domain_id"] = domain_id
+        return request
+
+    def inspect(domain_id: str, *, limit: int | None = None):
+        captured["inspect_domain_id"] = domain_id
+        captured["limit"] = limit
+        return {"training_runs": [], "snapshots": [], "events": []}
+
+    store = ControlPlaneStore(
+        load_inverse_optimization_request_fn=load_request,
+        inspect_ranking_policy_lifecycle_fn=inspect,
+    )
+
+    assert store.load_inverse_optimization_request("ranking_v1") is request
+    assert store.inspect_ranking_policy_lifecycle("ranking_v1", limit=25)["events"] == []
+    assert captured == {
+        "domain_id": "ranking_v1",
+        "inspect_domain_id": "ranking_v1",
+        "limit": 25,
+    }

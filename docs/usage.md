@@ -3,6 +3,7 @@ doc_id: usage
 doc_type: operator-guide
 explains:
   features:
+    - cv_system
     - inspection_debugging
     - settings_system
     - trigger_run_management
@@ -75,6 +76,19 @@ Archive and delete stay separate on purpose:
 - delete uses `archived_at` age, defaults to `Older than 30 days`, submits threshold only, and relies on backend `deleted_count` for the final result.
 - delete does not clear shared caches, embeddings, bookmarks, or settings.
 
+## Preference Optimization
+
+Use `/admin/optimization` after rating jobs with 1-5-star application interest.
+
+1. Review evidence counts, active policy mode, and policy fingerprints.
+2. Review **Rating Evidence** for up to 50 newest effective saved ratings, including run, job, saved baseline rank, baseline fit/label, and ordinal stars.
+3. Select **Optimize Current Evidence** to create an inactive candidate.
+4. Inspect solver, evaluation, coverage, and blocking reasons.
+5. Activate or reject candidate manually with an operator label.
+6. Roll back compatible learned policy to prior eligible snapshot or `zero_residual`.
+
+All actions use redirect-after-POST. Page accepts no optimizer numeric parameters, and missing or stale evidence produces bounded notices rather than raw errors.
+
 ## Settings Workflow
 
 Use `/admin/settings` to tune future-run defaults.
@@ -107,6 +121,7 @@ Important:
 - `GET /admin/runs`
 - `GET /admin/runs/{run_id}`
 - `GET /admin/settings`
+- `GET /admin/optimization`
 
 ## Related Docs
 

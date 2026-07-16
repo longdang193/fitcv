@@ -1,0 +1,7 @@
+812 passed in 148.16s
+Docker images: job-project-web, job-project-worker built
+CVXPY 1.9.2 solvers: CLARABEL, SCS, SCIPY, HIGHS, OSQP
+Architecture docs up to date
+Planning lifecycle validation passed
+Repo contract validation passed
+Git diff check passed

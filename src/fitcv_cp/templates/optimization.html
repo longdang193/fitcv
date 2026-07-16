@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{# @architecture
+owner: admin_control_plane_core
+features:
+  - admin_control_plane_core
+  - cv_system
+  - inspection_debugging
+  - ui_consistency_theming
+capabilities:
+  - admin_control_plane_core.jinja2-admin-pages
+  - cv_system.preference-learning
+  - inspection_debugging.decision-feedback-review
+  - inspection_debugging.ranking-diagnostics
+  - ui_consistency_theming.shared-component-classes
+  - ui_consistency_theming.human-readable-section-headings
+role: template
+canonical: true
+#}
+{% block title %}Preference Optimization — FitCV Admin{% endblock %}
+{% block content %}
+<style>
+  .optimization-grid { display: grid; gap: 1rem; }
+  .optimization-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end; }
+  .optimization-form { display: grid; gap: 0.75rem; }
+  .optimization-form label { display: grid; gap: 0.3rem; color: var(--text-secondary); font-size: 0.85rem; }
+  .optimization-form input, .optimization-form select { min-width: 16rem; }
+  .optimization-code { display: inline-block; max-width: 34rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+  .optimization-history { overflow-x: auto; }
+  .optimization-notice { border-left: 4px solid var(--accent); }
+  .optimization-notice[data-level="success"] { border-left-color: var(--success-fg); }
+  .optimization-notice[data-level="warning"] { border-left-color: var(--badge-warning-fg); }
+  .optimization-notice[data-level="error"] { border-left-color: var(--badge-error-fg); }
+  fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+  legend { padding: 0 0.4rem; font-weight: 700; }
+</style>
+
+<div class="page-header">
+  <div>
+    <h1>Preference Optimization</h1>
+    <p class="muted">Train, inspect, and manually activate learned ranking preference.</p>
+  </div>
+</div>
+
+<div class="optimization-grid">
+  {% if notice %}
+  <section class="card optimization-notice" data-level="{{ notice.level }}" role="status">
+    <strong>{{ notice.message }}</strong>
+  </section>
+  {% endif %}
+
+  <section class="card">
+    <h2>Current Status</h2>
+    <div class="kv">
+      <span class="k">Domain</span><span class="v"><code>{{ domain_id }}</code></span>
+      <span class="k">Policy mode</span><span class="v">{{ current_mode }}</span>
+      <span class="k">Active snapshot</span><span class="v"><code class="optimization-code" title="{{ compatible_active.policy_snapshot_id if compatible_active else '' }}">{{ compatible_active.policy_snapshot_id if compatible_active else 'none' }}</code></span>
+      <span class="k">Evidence episodes</span><span class="v">{{ episode_count }}</span>
+      <span class="k">Rating events</span><span class="v">{{ rating_event_count }}</span>
+      <span class="k">Event watermark</span><span class="v">{{ evidence.event_watermark }}</span>
+      <span class="k">Decision policy</span><span class="v"><code class="optimization-code" title="{{ decision_learning_policy_fingerprint }}">{{ decision_learning_policy_fingerprint }}</code></span>
+      <span class="k">Optimizer policy</span><span class="v"><code class="optimization-code" title="{{ optimizer_policy_fingerprint }}">{{ optimizer_policy_fingerprint }}</code></span>
+      <span class="k">Runtime contract</span><span class="v"><code class="optimization-code" title="{{ provenance.current_runtime_contract_fingerprint }}">{{ provenance.current_runtime_contract_fingerprint }}</code></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Optimize Current Evidence</h2>
+    <p class="muted">Uses saved 1-5-star application-interest ratings. Creates a candidate only; it never activates automatically.</p>
+    {% if not evidence_ready %}<p><strong>No saved rating evidence yet.</strong> Rate jobs before optimizing.</p>{% endif %}
+    <form method="post" action="/admin/optimization/candidate" class="optimization-form">
+      <input type="hidden" name="domain_id" value="{{ domain_id }}">
+      <input type="hidden" name="evidence_head_fingerprint" value="{{ evidence.evidence_head_fingerprint }}">
+      <input type="hidden" name="expected_parent_ref" value="{{ current_parent_ref }}">
+      <div><button class="btn-primary" type="submit" {% if not evidence_ready %}disabled{% endif %}>Optimize Current Evidence</button></div>
+    </form>
+  </section>
+
+  <section class="card optimization-history">
+    <h2>Rating Evidence</h2>
+    <p class="muted">Read-only saved application-interest ratings currently available to optimization.</p>
+    <table>
+      <thead><tr><th>Rated</th><th>Run</th><th>Job</th><th>Saved rank</th><th>Baseline fit</th><th>User rating</th></tr></thead>
+      <tbody>
+        {% for row in rating_evidence %}
+        <tr>
+          <td>{{ row.rated_at }}</td>
+          <td><a href="/admin/runs/{{ row.run_id }}"><code>{{ row.run_id }}</code></a></td>
+          <td><a href="{{ row.source_job_url }}" title="{{ row.alternative_id }}">Open job</a></td>
+          <td>{{ row.displayed_rank }}</td>
+          <td>{{ row.baseline_fit_label }} ({{ '%.3f'|format(row.baseline_fit) }})</td>
+          <td>{{ row.rating }} stars</td>
+        </tr>
+        {% else %}
+        <tr class="empty-row"><td colspan="6">No effective saved ratings.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Latest Candidate</h2>
+    {% if latest_candidate %}
+    <div class="kv">
+      <span class="k">Status</span><span class="v"><span class="badge badge-{{ 'warning' if latest_candidate.status in ['stale', 'rejected'] else 'info' }}">{{ latest_candidate.status }}</span></span>
+      <span class="k">Snapshot ID</span><span class="v"><code class="optimization-code" title="{{ latest_candidate.policy_snapshot_id }}">{{ latest_candidate.policy_snapshot_id }}</code></span>
+      <span class="k">Parent</span><span class="v"><code class="optimization-code" title="{{ latest_candidate.parent_policy_ref }}">{{ latest_candidate.parent_policy_ref }}</code></span>
+      <span class="k">Evidence watermark</span><span class="v">{{ latest_candidate.event_watermark }}</span>
+      <span class="k">Evidence fingerprint</span><span class="v"><code class="optimization-code" title="{{ candidate_evidence_head }}">{{ candidate_evidence_head or 'unknown' }}</code></span>
+      <span class="k">Solver</span><span class="v">{{ candidate_result.solver_result.solver_name if candidate_result.solver_result else 'not available' }} / {{ candidate_result.solver_result.status if candidate_result.solver_result else 'unknown' }}</span>
+      <span class="k">Episodes</span><span class="v">{{ candidate_result.solver_result.episode_count if candidate_result.solver_result else 'unknown' }}</span>
+      <span class="k">Compiled edges</span><span class="v">{{ candidate_result.solver_result.compiled_edge_count if candidate_result.solver_result else 'unknown' }}</span>
+      <span class="k">Vector norm / bound</span><span class="v">{{ candidate_result.solver_result.preference_vector_norm if candidate_result.solver_result else 'unknown' }} / {{ latest_candidate.preference_vector_norm_bound }}</span>
+      <span class="k">Coverage</span><span class="v">{{ candidate_result.evaluation_result.aggregate_metrics.coverage if candidate_result.evaluation_result and candidate_result.evaluation_result.aggregate_metrics else 'unknown' }}</span>
+      <span class="k">Retrieval audit</span><span class="v">{{ 'available' if candidate_result.evaluation_result and candidate_result.evaluation_result.retrieval_audit_available else 'not available' }}</span>
+      <span class="k">Activation</span><span class="v">{{ 'eligible' if candidate_activation_eligible else 'blocked by current evidence, parent, state, or policy' }}</span>
+    </div>
+    {% if latest_candidate.status == 'candidate' %}
+    <div class="optimization-actions">
+      {% if candidate_activation_eligible %}
+      <form method="post" action="/admin/optimization/candidates/{{ latest_candidate.policy_snapshot_id }}/activate" class="optimization-form">
+        <input type="hidden" name="expected_parent_ref" value="{{ current_parent_ref }}">
+        <input type="hidden" name="evidence_head_fingerprint" value="{{ evidence.evidence_head_fingerprint }}">
+        <label>Operator <input name="actor" required maxlength="120" autocomplete="name"></label>
+        <button class="btn-primary" type="submit">Activate Candidate</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/admin/optimization/candidates/{{ latest_candidate.policy_snapshot_id }}/reject" class="optimization-form">
+        <input type="hidden" name="expected_parent_ref" value="{{ current_parent_ref }}">
+        <input type="hidden" name="evidence_head_fingerprint" value="{{ evidence.evidence_head_fingerprint }}">
+        <label>Operator <input name="actor" required maxlength="120" autocomplete="name"></label>
+        <label>Reason <input name="reason" required maxlength="200"></label>
+        <button class="btn-secondary" type="submit">Reject Candidate</button>
+      </form>
+    </div>
+    {% endif %}
+    {% else %}<p class="muted">No candidate snapshot exists.</p>{% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Active Policy and Rollback</h2>
+    <p>Current mode: <strong>{{ current_mode }}</strong></p>
+    {% if compatible_active %}
+    <form method="post" action="/admin/optimization/rollback" class="optimization-form">
+      <fieldset>
+        <legend>Rollback Policy</legend>
+        <input type="hidden" name="expected_active" value="{{ compatible_active.policy_snapshot_id }}">
+        <label>Operator <input name="actor" required maxlength="120" autocomplete="name"></label>
+        <label>Target
+          <select name="target" required>
+            <option value="zero_residual">zero_residual</option>
+            {% for snapshot in rollback_targets %}<option value="{{ snapshot.policy_snapshot_id }}">{{ snapshot.policy_snapshot_id }}</option>{% endfor %}
+          </select>
+        </label>
+        <label><span><input type="checkbox" name="confirm" required> Confirm rollback</span></label>
+        <button class="btn-secondary" type="submit">Rollback Policy</button>
+      </fieldset>
+    </form>
+    {% else %}<p class="muted">No compatible learned policy is active.</p>{% endif %}
+  </section>
+
+  <section class="card optimization-history">
+    <h2>History</h2>
+    <h3>Training Runs</h3>
+    <table><thead><tr><th>Created</th><th>Status</th><th>Training Run</th><th>Watermark</th></tr></thead><tbody>
+      {% for row in history.training_runs %}<tr><td>{{ row.created_at }}</td><td>{{ row.status }}</td><td><code>{{ row.training_run_id }}</code></td><td>{{ row.event_watermark }}</td></tr>{% else %}<tr class="empty-row"><td colspan="4">No training runs.</td></tr>{% endfor %}
+    </tbody></table>
+    <h3>Policy Snapshots</h3>
+    <table><thead><tr><th>Created</th><th>Status</th><th>Snapshot</th><th>Parent</th></tr></thead><tbody>
+      {% for row in history.snapshots %}<tr><td>{{ row.created_at }}</td><td>{{ row.status }}</td><td><code>{{ row.policy_snapshot_id }}</code></td><td><code>{{ row.parent_policy_ref }}</code></td></tr>{% else %}<tr class="empty-row"><td colspan="4">No policy snapshots.</td></tr>{% endfor %}
+    </tbody></table>
+    <h3>Activation Events</h3>
+    <table><thead><tr><th>Created</th><th>Action</th><th>Target</th><th>Operator</th></tr></thead><tbody>
+      {% for row in history.events %}<tr><td>{{ row.created_at }}</td><td>{{ row.action }}</td><td><code>{{ row.target_snapshot_id or 'zero_residual' }}</code></td><td>{{ row.acted_by }}</td></tr>{% else %}<tr class="empty-row"><td colspan="4">No activation events.</td></tr>{% endfor %}
+    </tbody></table>
+  </section>
+</div>
+{% endblock %}

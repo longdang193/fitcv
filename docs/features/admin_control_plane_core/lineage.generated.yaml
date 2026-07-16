@@ -45,6 +45,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
+    - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -66,6 +67,7 @@ capabilities:
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -127,6 +129,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
+    - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -148,6 +151,7 @@ capabilities:
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -157,9 +161,13 @@ capabilities:
     completeness_status: incomplete
   admin_control_plane_core.jinja2-admin-pages:
     state: active
-    statement: Jinja2 admin pages
+    statement: Jinja2 admin pages, including native preference-optimization inspection and lifecycle forms backed by canonical control-plane state.
     satisfies: []
-    code: []
+    code:
+    - path: src/fitcv_cp/templates/optimization.html
+      confidence: high
+      source:
+      - template_architecture
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -203,6 +211,12 @@ capabilities:
       - python_proves
       symbols:
       - test_runs_list_shows_active_all_archived_filter_tabs
+    - path: tests/test_fitcv_cp/test_optimization_page.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_optimization_page_renders_empty_native_state
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -233,6 +247,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
+    - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -254,13 +269,12 @@ capabilities:
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
+    - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: incomplete
+    completeness_status: complete
   admin_control_plane_core.pipelinereporter-integration:
     state: active
     statement: PipelineReporter integration
@@ -315,6 +329,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
+    - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -336,6 +351,7 @@ capabilities:
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -397,6 +413,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
+    - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -418,6 +435,7 @@ capabilities:
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -467,6 +485,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
+    - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -488,6 +507,7 @@ capabilities:
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -531,6 +551,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
+    - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -552,6 +573,7 @@ capabilities:
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -603,6 +625,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
+    - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -624,6 +647,7 @@ capabilities:
     - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+    - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -693,14 +717,29 @@ timeline:
   - python scripts/validate_repo_contracts.py --fast
   - git diff --check
   outcome: Completed Phase 4 immutable decision-feedback capture with policy-owned ordinal stars, v4 source evidence, append-only SQLite ledger, deterministic reducer, native POST/UI, old-run isolation, and no Phase 5 learning or ranking effect.
-- completed_at: '2026-07-16T23:45:00+02:00'
+- completed_at: '2026-07-16T15:11:00.981064+02:00'
   source_plan: docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
   change_id: 2026-07-16-fitcv-inverse-optimization-phase-7-closeout
   summary: FitCV inverse optimization Phase 7 policy lifecycle, runtime residual, observability, and closeout implementation plan
   capabilities: []
   verification:
-  - 70 inverse-optimization, policy, and lifecycle tests passed with the inverse-optimization extra.
-  - 286 ranking, pipeline, resume, and worker tests passed with 1 optional skip.
-  - 41 focused solver-free policy and SQLite adapter tests passed.
+  - 143 config, inverse-optimization, policy, and CLI tests passed with the inverse-optimization extra.
+  - 66 ranking and AI-score tests passed with 1 optional skip; 143 pipeline and resume tests passed.
+  - 570 decision-feedback and control-plane app tests passed; 214 normalization, enrichment, rule-filter, and vector-search tests passed with 2 optional skips.
+  - 25 SQLite lifecycle tests passed, including current-provenance staleness, two-thread activation, injected failure, and exact rollback proofs.
+  - Mutation-safe preferred-city and language hard-gate scenario passed with baseline-label invariance and one effective-weight normalization.
   - Scoped Ruff, isolated mypy, runtime import isolation, architecture sync/check, planning lifecycle, hook, repo-contract, and diff checks passed.
-  outcome: Completed Phase 7 immutable policy lifecycle, personalized runtime ordering, resolve-once resume behavior, CLI, observability, and documentation closeout.
+  outcome: Completed Phase 7 immutable policy lifecycle, current-provenance activation CAS, personalized runtime ordering, resolve-once resume behavior, hard-gate evidence, CLI, observability, and documentation closeout.
+- completed_at: '2026-07-16T18:45:38.047243+02:00'
+  source_plan: docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
+  change_id: 2026-07-16-fitcv-inverse-optimization-phase-8-admin-page
+  summary: FitCV inverse optimization Phase 8 admin page implementation plan
+  capabilities: []
+  verification:
+  - 812 inverse-optimization, feedback, ranking, pipeline, store, SQLite, app, service, and page tests passed.
+  - Docker web and worker images built from one Dockerfile with the inverse-optimization extra.
+  - Docker web image imported CVXPY 1.9.2 and exposed CLARABEL.
+  - Architecture generation/check, planning lifecycle, template, hook, repo-contract, and diff validation passed.
+  - Native HTML assertions cover labels, required fields, disabled empty state, compare tokens, navigation, and redirect-after-POST.
+  - Rating Evidence table derives effective ratings from the typed request and shared reducer, newest first, bounded to 50 rows.
+  outcome: Completed Phase 8 shared candidate orchestration, store-backed optimization page with canonical rating evidence, manual lifecycle controls, solver-ready packaging, and synchronized SSOT documentation.

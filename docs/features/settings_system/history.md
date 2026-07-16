@@ -100,13 +100,15 @@ Completed ranking-v2 fixed baseline with exact policy SSOT, canonical downstream
 Source plan: `docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md`
 
 Verification:
-- `70 inverse-optimization, policy, and lifecycle tests passed with the inverse-optimization extra.`
-- `286 ranking, pipeline, resume, and worker tests passed with 1 optional skip.`
-- `41 focused solver-free policy and SQLite adapter tests passed.`
+- `143 config, inverse-optimization, policy, and CLI tests passed with the inverse-optimization extra.`
+- `66 ranking and AI-score tests passed with 1 optional skip; 143 pipeline and resume tests passed.`
+- `570 decision-feedback and control-plane app tests passed; 214 normalization, enrichment, rule-filter, and vector-search tests passed with 2 optional skips.`
+- `25 SQLite lifecycle tests passed, including current-provenance staleness, two-thread activation, injected failure, and exact rollback proofs.`
+- `Mutation-safe preferred-city and language hard-gate scenario passed with baseline-label invariance and one effective-weight normalization.`
 - `Scoped Ruff, isolated mypy, runtime import isolation, architecture sync/check, planning lifecycle, hook, repo-contract, and diff checks passed.`
 
 Outcome:
-Completed Phase 7 immutable policy lifecycle, personalized runtime ordering, resolve-once resume behavior, CLI, observability, and documentation closeout.
+Completed Phase 7 immutable policy lifecycle, current-provenance activation CAS, personalized runtime ordering, resolve-once resume behavior, hard-gate evidence, CLI, observability, and documentation closeout.
 
 <!-- GENERATED HISTORY END -->
 

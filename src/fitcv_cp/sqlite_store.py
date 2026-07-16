@@ -35,6 +35,7 @@ from fitcv.decision_feedback import (
     RatingEventType,
     RatingValue,
 )
+from fitcv.inverse_optimization import InverseOptimizationRequest, InverseTrainingEpisode
 from fitcv.persistence import get_local_sqlite_path
 from fitcv.preference_policy import build_policy_snapshot_identity, build_training_run_identity
 from fitcv.shortlist_runtime import build_contract_fingerprint
@@ -511,86 +512,232 @@ def persist_candidate_attempt(
         }
 
 
+def _load_decision_training_rows(
+    conn: sqlite3.Connection,
+    domain_id: str,
+) -> tuple[list[dict[str, Any]], int]:
+    episode_cursor = conn.execute(
+        """
+        SELECT episode_id, domain_id, run_id, preference_context_fingerprint,
+               qualification_context_fingerprint, ranking_contract_fingerprint,
+               embedding_contract_fingerprint, baseline_policy_fingerprint,
+               embedding_model, embedding_dimension, rating_scale_version,
+               candidate_set_fingerprint, source_stage_artifact_fingerprint, created_at
+        FROM decision_episodes
+        WHERE domain_id = ?
+        ORDER BY episode_id
+        """,
+        (domain_id,),
+    )
+    episodes: list[dict[str, Any]] = []
+    for episode_row in episode_cursor.fetchall():
+        episode = {
+            description[0]: value
+            for description, value in zip(episode_cursor.description, episode_row, strict=True)
+        }
+        alternative_cursor = conn.execute(
+            """
+            SELECT alternative_id, displayed_rank, baseline_fit, baseline_fit_label,
+                   normalized_embedding_json, embedding_vector_fingerprint,
+                   source_job_url, shortlist_origin, created_at
+            FROM decision_episode_alternatives
+            WHERE episode_id = ?
+            ORDER BY displayed_rank, alternative_id
+            """,
+            (episode["episode_id"],),
+        )
+        alternatives = [
+            {
+                description[0]: value
+                for description, value in zip(
+                    alternative_cursor.description, alternative_row, strict=True
+                )
+            }
+            for alternative_row in alternative_cursor.fetchall()
+        ]
+        event_cursor = conn.execute(
+            """
+            SELECT event_sequence, event_id, episode_id, alternative_id, event_type,
+                   rating, rating_scale_version, acted_by, created_at
+            FROM decision_rating_events
+            WHERE episode_id = ?
+            ORDER BY event_sequence, event_id
+            """,
+            (episode["episode_id"],),
+        )
+        events = [
+            {
+                description[0]: value
+                for description, value in zip(event_cursor.description, event_row, strict=True)
+            }
+            for event_row in event_cursor.fetchall()
+        ]
+        episodes.append({**episode, "alternatives": alternatives, "events": events})
+    watermark_row = conn.execute(
+        """
+        SELECT COALESCE(MAX(e.event_sequence), 0)
+        FROM decision_rating_events e
+        JOIN decision_episodes p ON p.episode_id = e.episode_id
+        WHERE p.domain_id = ?
+        """,
+        (domain_id,),
+    ).fetchone()
+    return episodes, int(watermark_row[0]) if watermark_row else 0
+
+
+def _decision_evidence_head_from_rows(
+    domain_id: str,
+    episodes: list[dict[str, Any]],
+    event_watermark: int,
+) -> dict[str, Any]:
+    payload = {
+        "schema_version": "decision_evidence_head_v1",
+        "domain_id": domain_id,
+        "event_watermark": event_watermark,
+        "episodes": [
+            {
+                "episode_id": episode["episode_id"],
+                "domain_id": episode["domain_id"],
+                "preference_context_fingerprint": episode["preference_context_fingerprint"],
+                "qualification_context_fingerprint": episode["qualification_context_fingerprint"],
+                "ranking_contract_fingerprint": episode["ranking_contract_fingerprint"],
+                "embedding_contract_fingerprint": episode["embedding_contract_fingerprint"],
+                "baseline_policy_fingerprint": episode["baseline_policy_fingerprint"],
+                "embedding_model": episode["embedding_model"],
+                "embedding_dimension": episode["embedding_dimension"],
+                "rating_scale_version": episode["rating_scale_version"],
+                "candidate_set_fingerprint": episode["candidate_set_fingerprint"],
+                "source_stage_artifact_fingerprint": episode[
+                    "source_stage_artifact_fingerprint"
+                ],
+                "alternatives": [
+                    {
+                        "alternative_id": alternative["alternative_id"],
+                        "displayed_rank": alternative["displayed_rank"],
+                        "baseline_fit": alternative["baseline_fit"],
+                        "baseline_fit_label": alternative["baseline_fit_label"],
+                        "normalized_embedding": json.loads(
+                            alternative["normalized_embedding_json"]
+                        ),
+                        "embedding_vector_fingerprint": alternative[
+                            "embedding_vector_fingerprint"
+                        ],
+                        "shortlist_origin": alternative["shortlist_origin"],
+                    }
+                    for alternative in episode["alternatives"]
+                ],
+                "events": [
+                    {
+                        "event_sequence": event["event_sequence"],
+                        "event_id": event["event_id"],
+                        "episode_id": event["episode_id"],
+                        "alternative_id": event["alternative_id"],
+                        "event_type": event["event_type"],
+                        "rating": event["rating"],
+                        "rating_scale_version": event["rating_scale_version"],
+                    }
+                    for event in episode["events"]
+                ],
+            }
+            for episode in episodes
+        ],
+    }
+    return {**payload, "evidence_head_fingerprint": build_contract_fingerprint(payload)}
+
+
 def get_decision_evidence_head(domain_id: str) -> dict[str, Any]:
     db_path = Path(_local_sqlite_path())
     with _sqlite_connection(db_path) as conn:
         conn.execute("BEGIN")
         _ensure_local_decision_feedback_tables(conn)
-        episode_cursor = conn.execute(
-            """
-            SELECT episode_id, domain_id, preference_context_fingerprint,
-                   qualification_context_fingerprint, ranking_contract_fingerprint,
-                   embedding_contract_fingerprint, baseline_policy_fingerprint,
-                   embedding_model, embedding_dimension, rating_scale_version,
-                   candidate_set_fingerprint, source_stage_artifact_fingerprint
-            FROM decision_episodes
-            WHERE domain_id = ?
-            ORDER BY episode_id
-            """,
-            (domain_id,),
-        )
-        episodes: list[dict[str, Any]] = []
-        for episode_row in episode_cursor.fetchall():
-            episode = {description[0]: value for description, value in zip(episode_cursor.description, episode_row, strict=True)}
-            alternative_cursor = conn.execute(
-                """
-                SELECT alternative_id, displayed_rank, baseline_fit, baseline_fit_label,
-                       normalized_embedding_json, embedding_vector_fingerprint, shortlist_origin
-                FROM decision_episode_alternatives
-                WHERE episode_id = ?
-                ORDER BY displayed_rank, alternative_id
-                """,
-                (episode["episode_id"],),
-            )
-            alternatives = []
-            for alternative_row in alternative_cursor.fetchall():
-                alternative = {
-                    description[0]: value
-                    for description, value in zip(
-                        alternative_cursor.description, alternative_row, strict=True
-                    )
-                }
-                alternative["normalized_embedding"] = json.loads(
-                    alternative.pop("normalized_embedding_json")
-                )
-                alternatives.append(alternative)
-            event_cursor = conn.execute(
-                """
-                SELECT event_sequence, event_id, episode_id, alternative_id, event_type,
-                       rating, rating_scale_version
-                FROM decision_rating_events
-                WHERE episode_id = ?
-                ORDER BY event_sequence, event_id
-                """,
-                (episode["episode_id"],),
-            )
-            events = [
-                {
-                    description[0]: value
-                    for description, value in zip(event_cursor.description, event_row, strict=True)
-                }
-                for event_row in event_cursor.fetchall()
-            ]
-            episodes.append({**episode, "alternatives": alternatives, "events": events})
-        watermark_row = conn.execute(
-            """
-            SELECT COALESCE(MAX(e.event_sequence), 0)
-            FROM decision_rating_events e
-            JOIN decision_episodes p ON p.episode_id = e.episode_id
-            WHERE p.domain_id = ?
-            """,
-            (domain_id,),
-        ).fetchone()
-        event_watermark = int(watermark_row[0]) if watermark_row else 0
-        payload = {
-            "schema_version": "decision_evidence_head_v1",
-            "domain_id": domain_id,
-            "event_watermark": event_watermark,
-            "episodes": episodes,
-        }
+        episodes, event_watermark = _load_decision_training_rows(conn, domain_id)
+        result = _decision_evidence_head_from_rows(domain_id, episodes, event_watermark)
         conn.commit()
-        return {**payload, "evidence_head_fingerprint": build_contract_fingerprint(payload)}
+        return result
 
+
+def load_inverse_optimization_request(domain_id: str) -> InverseOptimizationRequest:
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        conn.execute("BEGIN")
+        _ensure_local_decision_feedback_tables(conn)
+        episode_rows, event_watermark = _load_decision_training_rows(conn, domain_id)
+        episodes = tuple(
+            InverseTrainingEpisode(
+                episode=DecisionEpisode(
+                    episode_id=str(row["episode_id"]),
+                    domain_id=str(row["domain_id"]),
+                    run_id=str(row["run_id"]),
+                    preference_context_fingerprint=str(row["preference_context_fingerprint"]),
+                    qualification_context_fingerprint=str(
+                        row["qualification_context_fingerprint"]
+                    ),
+                    ranking_contract_fingerprint=str(row["ranking_contract_fingerprint"]),
+                    embedding_contract_fingerprint=str(row["embedding_contract_fingerprint"]),
+                    baseline_policy_fingerprint=str(row["baseline_policy_fingerprint"]),
+                    embedding_model=str(row["embedding_model"]),
+                    embedding_dimension=int(row["embedding_dimension"]),
+                    rating_scale_version=str(row["rating_scale_version"]),
+                    candidate_set_fingerprint=str(row["candidate_set_fingerprint"]),
+                    source_stage_artifact_fingerprint=str(
+                        row["source_stage_artifact_fingerprint"]
+                    ),
+                    created_at=datetime.datetime.fromisoformat(str(row["created_at"])),
+                ),
+                alternatives=tuple(
+                    DecisionAlternative(
+                        episode_id=str(row["episode_id"]),
+                        alternative_id=str(alternative["alternative_id"]),
+                        displayed_rank=int(alternative["displayed_rank"]),
+                        baseline_fit=float(alternative["baseline_fit"]),
+                        baseline_fit_label=str(alternative["baseline_fit_label"]),
+                        normalized_embedding_json=str(
+                            alternative["normalized_embedding_json"]
+                        ),
+                        embedding_vector_fingerprint=str(
+                            alternative["embedding_vector_fingerprint"]
+                        ),
+                        source_job_url=str(alternative["source_job_url"]),
+                        shortlist_origin=str(alternative["shortlist_origin"]),
+                        created_at=datetime.datetime.fromisoformat(
+                            str(alternative["created_at"])
+                        ),
+                    )
+                    for alternative in row["alternatives"]
+                ),
+                events=tuple(
+                    DecisionRatingEvent(
+                        event_sequence=int(event["event_sequence"]),
+                        event_id=str(event["event_id"]),
+                        episode_id=str(event["episode_id"]),
+                        alternative_id=str(event["alternative_id"]),
+                        event_type=RatingEventType(str(event["event_type"])),
+                        rating=(
+                            None
+                            if event["rating"] is None
+                            else RatingValue(int(event["rating"]))
+                        ),
+                        rating_scale_version=str(event["rating_scale_version"]),
+                        acted_by=str(event["acted_by"]),
+                        created_at=datetime.datetime.fromisoformat(str(event["created_at"])),
+                    )
+                    for event in row["events"]
+                ),
+                events_loaded_through_sequence=max(
+                    (int(event["event_sequence"]) for event in row["events"]),
+                    default=0,
+                ),
+                evaluation_context=None,
+            )
+            for row in episode_rows
+        )
+        conn.commit()
+        return InverseOptimizationRequest(
+            schema_version="inverse_optimization_request_v1",
+            domain_id=domain_id,
+            event_watermark=event_watermark,
+            episodes=episodes,
+        )
 
 def _append_policy_event(
     conn: sqlite3.Connection,
@@ -636,6 +783,11 @@ def activate_ranking_policy_candidate(
     expected_parent_ref: str,
     acted_by: str,
     evidence_head_fingerprint: str | None = None,
+    current_runtime_contract_fingerprint: str,
+    current_compiler_policy_fingerprint: str,
+    current_decision_learning_policy_fingerprint: str,
+    current_optimizer_policy_fingerprint: str,
+    current_activation_policy_fingerprint: str,
 ) -> dict[str, Any]:
     db_path = Path(_local_sqlite_path())
     with _sqlite_connection(db_path) as conn:
@@ -679,6 +831,47 @@ def activate_ranking_policy_candidate(
             stale_reason = ("evidence_changed", "candidate evidence changed")
         elif expected_parent_ref != current_parent or candidate["parent_policy_ref"] != current_parent:
             stale_reason = ("parent_changed", "candidate parent changed")
+        else:
+            provenance_checks = (
+                (
+                    "runtime_contract_fingerprint",
+                    current_runtime_contract_fingerprint,
+                    "runtime_contract_changed",
+                    "candidate runtime contract changed",
+                ),
+                (
+                    "compiler_policy_fingerprint",
+                    current_compiler_policy_fingerprint,
+                    "compiler_policy_changed",
+                    "candidate compiler policy changed",
+                ),
+                (
+                    "activation_policy_fingerprint",
+                    current_activation_policy_fingerprint,
+                    "activation_policy_changed",
+                    "candidate activation policy changed",
+                ),
+                (
+                    "optimizer_policy_fingerprint",
+                    current_optimizer_policy_fingerprint,
+                    "optimizer_policy_changed",
+                    "candidate optimizer policy changed",
+                ),
+                (
+                    "decision_learning_policy_fingerprint",
+                    current_decision_learning_policy_fingerprint,
+                    "decision_learning_policy_changed",
+                    "candidate decision learning policy changed",
+                ),
+            )
+            stale_reason = next(
+                (
+                    (reason_code, message)
+                    for field, current_value, reason_code, message in provenance_checks
+                    if candidate[field] != current_value
+                ),
+                None,
+            )
         if stale_reason is not None:
             conn.execute(
                 "UPDATE ranking_policy_snapshots SET status = 'stale' WHERE policy_snapshot_id = ?",
@@ -844,27 +1037,55 @@ def resolve_active_ranking_policy(domain_id: str, runtime_contract_fingerprint: 
         return _row_dict(cursor, rows[0]) if rows else None
 
 
-def inspect_ranking_policy_lifecycle(domain_id: str) -> dict[str, Any]:
+def inspect_ranking_policy_lifecycle(
+    domain_id: str,
+    *,
+    limit: int | None = None,
+) -> dict[str, Any]:
+    if limit is not None and limit <= 0:
+        raise ValueError("limit must be positive")
+    order = "DESC" if limit is not None else "ASC"
+    limit_sql = " LIMIT ?" if limit is not None else ""
+    parameters: tuple[Any, ...] = (domain_id, limit) if limit is not None else (domain_id,)
     db_path = Path(_local_sqlite_path())
     with _sqlite_connection(db_path) as conn:
         _ensure_local_preference_policy_tables(conn)
         snapshots_cursor = conn.execute(
-            "SELECT * FROM ranking_policy_snapshots WHERE domain_id = ? ORDER BY created_at, policy_snapshot_id",
-            (domain_id,),
+            f"SELECT * FROM ranking_policy_snapshots WHERE domain_id = ? ORDER BY created_at {order}, policy_snapshot_id {order}{limit_sql}",
+            parameters,
         )
         snapshots = [_row_dict(snapshots_cursor, row) for row in snapshots_cursor.fetchall()]
         events_cursor = conn.execute(
-            "SELECT * FROM policy_activation_events WHERE domain_id = ? ORDER BY created_at, activation_event_id",
-            (domain_id,),
+            f"SELECT * FROM policy_activation_events WHERE domain_id = ? ORDER BY created_at {order}, activation_event_id {order}{limit_sql}",
+            parameters,
         )
         events = [_row_dict(events_cursor, row) for row in events_cursor.fetchall()]
         training_cursor = conn.execute(
-            "SELECT * FROM inverse_training_runs WHERE domain_id = ? ORDER BY created_at, training_run_id",
-            (domain_id,),
+            f"SELECT * FROM inverse_training_runs WHERE domain_id = ? ORDER BY created_at {order}, training_run_id {order}{limit_sql}",
+            parameters,
         )
         training_runs = [_row_dict(training_cursor, row) for row in training_cursor.fetchall()]
-        return {"snapshots": snapshots, "events": events, "training_runs": training_runs}
-
+        active = next((row for row in snapshots if row["status"] == "active"), None)
+        if active is None and limit is not None:
+            active_cursor = conn.execute(
+                "SELECT * FROM ranking_policy_snapshots WHERE domain_id = ? AND status = 'active'",
+                (domain_id,),
+            )
+            active_row = active_cursor.fetchone()
+            active = _row_dict(active_cursor, active_row) if active_row is not None else None
+        for snapshot in snapshots:
+            snapshot["rollback_eligible"] = bool(
+                active is not None
+                and snapshot["status"] == "retired"
+                and snapshot["runtime_contract_fingerprint"]
+                == active["runtime_contract_fingerprint"]
+            )
+        return {
+            "snapshots": snapshots,
+            "events": events,
+            "training_runs": training_runs,
+            "active_snapshot": active,
+        }
 
 def _episode_values(episode: DecisionEpisode) -> tuple[Any, ...]:
     return (

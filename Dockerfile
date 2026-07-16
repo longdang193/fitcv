@@ -8,5 +8,5 @@ COPY data/ ./data/
 COPY assets/ ./assets/
 COPY templates/ ./templates/
 COPY pyproject.toml .
-RUN pip install -e . --no-deps
+RUN pip install -e ".[inverse-optimization]"
 ENV PYTHONUNBUFFERED=1

@@ -3,17 +3,17 @@
 ## Metadata
 
 - Audit ID: `20260716-1413-phase7-live-run-master-spec`
-- Status: `open`
+- Status: `resolved`
 - Severity: `medium`
 - Owner: `Codex`
 - Created At: `2026-07-16T14:13:46.6930988+02:00`
-- Updated At: `2026-07-16T14:13:46.6930988+02:00`
+- Updated At: `2026-07-16T15:11:00.9810646+02:00`
 - Related Thread/Plan: `docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md`
 
 ## Scope
 
 - Environment: `Windows 11, PowerShell, Python 3.13.5 via uv, SQLite, CVXPY 1.9.2, CLARABEL 0.11.1`
-- Commit/Branch: `94793269ee7cb808b2f9ebec1defb5a78552c730 on codex/phase-6-inverse-optimization with uncommitted Phase 7 changes`
+- Commit/Branch: `98a921353fcf41166ec37e7cb44179cb5fee9978 on codex/phase-6-inverse-optimization with uncommitted Phase 7 blocker closeout`
 - Affected Surface: `inverse-optimization Phases 1-7, ranking artifacts/export, lifecycle CLI, SQLite policy state, live pipeline replay`
 
 ## Findings
@@ -47,24 +47,24 @@
 - Classification: `spec-mismatch`
 - Impact: candidate may become active for its old runtime contract after baseline, ranking, embedding, optimizer, activation, or decision-learning config changes. Current runtime resolver remains compatibility-safe, but lifecycle state does not satisfy master-spec staleness semantics.
 - Expected Behavior: activation transaction compares current config/runtime tokens and marks candidate stale on any bound provenance change.
-- Actual Behavior: activation checks parent and evidence head only.
-- Disposition: `open`; blocks claim that all master-spec deliverables are met.
+- Actual Behavior: activation checks parent, evidence head, current runtime contract, compiler, activation, optimizer, and decision-learning fingerprints inside one `BEGIN IMMEDIATE` transaction.
+- Disposition: `resolved`; every provenance mismatch marks the candidate stale, appends one typed event, commits, and returns typed CLI exit code `4`.
 
 ### Finding `F5`: live scenario did not exercise all admissible location/language cases
 
 - Classification: `other`
 - Impact: live evidence proves ranking-only location/language projection, but not city discrimination or hard-gate behavior.
 - Expected Behavior: live or bounded scenario evidence covers ranking-only and hard-gate normalization behavior.
-- Actual Behavior: candidate profile had no preferred city list, so location factor was neutral `0.5`; language varied, while generated training bundles had `evaluation_context=null` and evaluation coverage remained `unknown`.
-- Disposition: `open` coverage gap; unit/property suites cover contracts, but live evidence is incomplete.
+- Actual Behavior: bounded mutation-safe scenario now uses preferred cities Berlin and Magdeburg, rejects confirmed language failure before ranking, retains unknown with diagnostics, removes hard-gated language from effective ranking weights, renormalizes remaining weights to `1.0`, and preserves baseline-derived `strong|stretch|skip` labels.
+- Disposition: `resolved`; evidence is recorded in `evidence/results/hard-gate-summary.json` and reproduced by `repro/run_hard_gate_scenario.ps1`.
 
 ### Finding `F6`: completed Phase 7 plan overstated lifecycle proof
 
 - Classification: `spec-mismatch`
 - Impact: completion metadata claimed stale, concurrent activation, failed-transaction, and rollback proofs, but scoped source search found no dedicated concurrency/stale-config tests; one documented `-k` proof command selected zero tests.
 - Expected Behavior: each completion claim cites a runnable test that selects and executes intended cases.
-- Actual Behavior: full lifecycle files pass, but named proof coverage is incomplete or mislabeled.
-- Disposition: `open`; plan must be corrected after missing lifecycle tests land.
+- Actual Behavior: dedicated current-provenance, two-thread sibling activation, injected event failure, exact learned rollback, zero-residual rollback, and typed CLI tests now execute under named filters.
+- Disposition: `resolved`; plan verification commands and completion metadata now cite runnable proof.
 
 ## Evidence
 
@@ -105,6 +105,9 @@
   - preserve personalized row evidence in stage artifact and export
   - map lifecycle conflicts/staleness to typed CLI statuses
   - compare activation evidence head against persisted candidate provenance
+  - compare all current runtime/config provenance inside activation transaction
+  - prove one activation winner, atomic event rollback, and exact learned rollback
+  - exercise preferred-city ranking plus language hard-gate normalization
   - refresh stale decision-feedback test fixtures
   - correct one ranking typing defect found by isolated mypy
 - Verification commands:
@@ -116,6 +119,9 @@ uv run python -m pytest tests/test_pipeline.py tests/test_pipeline_stage_resume_
 uv run python -m pytest tests/test_decision_feedback.py -q
 uv run python -m pytest tests/test_fitcv_cp/test_app.py -q
 uv run python -m pytest tests/test_fitcv_cp/test_sqlite_store.py -q
+uv run python -m pytest tests/test_fitcv_cp/test_sqlite_store.py -q -k "concurrent_sibling_activation or activation_event_failure or current_provenance_changed or rollback_restores_exact or evidence_head_changed"
+uv run python -m pytest tests/test_inverse_optimization.py -q -k "activation_provenance or rollback_cas_conflict or current_activation_provenance"
+& repro/run_hard_gate_scenario.ps1 -OutputPath evidence/results/hard-gate-summary.json
 ruff check src/fitcv/preference_policy.py src/fitcv/decision_feedback.py src/fitcv/inverse_optimization.py src/fitcv/ranking.py src/fitcv_cp/store.py src/fitcv_cp/sqlite_store.py scripts/run_inverse_optimization.py tests/test_preference_policy.py tests/test_inverse_optimization.py tests/test_decision_feedback.py
 mypy src/fitcv/preference_policy.py src/fitcv/decision_feedback.py src/fitcv/inverse_optimization.py src/fitcv/ranking.py src/fitcv_cp/store.py src/fitcv_cp/sqlite_store.py scripts/run_inverse_optimization.py --show-error-codes --follow-imports=skip
 uv run python tools/docs/generate_architecture_metadata.py --check
@@ -127,16 +133,13 @@ git diff --check
 - Verification evidence links:
   - `evidence/results/verification.txt`
   - `evidence/results/live-run-summary.json`
+  - `evidence/results/hard-gate-summary.json`
 
 ## Risk And Disposition
 
-- Residual risk: activation lifecycle can represent an old-runtime candidate as active after current config/runtime drift. Runtime resolution remains fingerprint-compatible and falls back safely, but lifecycle truth and operator expectations can diverge. Hard-gate and city-sensitive behavior lacks live-run evidence.
-- Disposition decision: `open`
-- Follow-ups:
-  1. Add current config/runtime CAS tokens to activation and tests for each provenance change.
-  2. Add two-connection activation race and injected-failure rollback tests.
-  3. Add one mutation-safe live scenario with preferred cities plus language hard gate.
-  4. Correct Phase 7 plan completion claims and verification filters, then rerun audit.
+- Residual risk: none within Phase 7 scope; future policy schema versions must add their canonical fingerprint to the same activation comparison set.
+- Disposition decision: `resolved`
+- Follow-ups: none required for Phase 7 closure.
 
 ## Artifact Index
 

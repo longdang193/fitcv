@@ -39,10 +39,10 @@ capabilities:
   statement: Surface effective enrich, ranking, and CV-generation prompt identifiers, templates, and models in diagnostics.
   state: active
 - capability_id: inspection_debugging.ranking-diagnostics
-  statement: Expose ranking-v2 policy and contract fingerprints, configured/effective weights, absolute normalizers, missing-value use, factor contributions, baseline labels, migration summary, and AI-score reuse state.
+  statement: Expose ranking-v2 policy and contract fingerprints, configured/effective weights, absolute normalizers, missing-value use, factor contributions, baseline labels, migration summary, AI-score reuse state, and bounded preference-policy candidate and lifecycle history.
   state: active
 - capability_id: inspection_debugging.decision-feedback-review
-  statement: "Show accessible no-JavaScript 1\u20135 application-interest controls only for immutable v4 alternatives and derive current state from the shared append-only event reducer."
+  statement: "Show accessible no-JavaScript 1\u20135 application-interest controls only for immutable v4 alternatives, derive current state from the shared append-only event reducer, and reuse that canonical state for the read-only optimization-page evidence preview."
   state: active
 - capability_id: inspection_debugging.shortlist-diagnostics
   statement: Show shortlist retrieval facts, raw-hit visibility, candidate-query inputs, and embedding reuse provenance.
@@ -193,9 +193,11 @@ stage_participation:
   - inspection_debugging.stage-transition-diagnostics
   - inspection_debugging.synonym-overlay-inspection
 refs:
-  code: []
+  code:
+  - src/fitcv_cp/templates/optimization.html
   tests:
   - tests/test_fitcv_cp/test_app.py
+  - tests/test_fitcv_cp/test_optimization_page.py
   - tests/test_fitcv_cp/test_worker_job.py
   specs:
   - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
@@ -298,6 +300,7 @@ refs:
   - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
   - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
   - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
+  - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
   - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -403,11 +406,12 @@ refs:
   - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
   - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
   - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
+  - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
   docs:
   - docs/features/inspection_debugging/history.md
   configs:
   - config/runtime/prompts.yaml
   components: []
-revision: 12
-latest_change_id: 2026-07-16-fitcv-inverse-optimization-phase-7-closeout
-last_updated_at: '2026-07-16T23:45:00+02:00'
+revision: 13
+latest_change_id: 2026-07-16-fitcv-inverse-optimization-phase-8-admin-page
+last_updated_at: '2026-07-16T18:45:38.047243+02:00'

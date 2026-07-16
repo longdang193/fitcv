@@ -38,10 +38,10 @@ capabilities:
     statement: Surface effective enrich, ranking, and CV-generation prompt identifiers, templates, and models in diagnostics.
     state: active
   - capability_id: inspection_debugging.ranking-diagnostics
-    statement: Expose ranking-v2 policy and contract fingerprints, configured/effective weights, absolute normalizers, missing-value use, factor contributions, baseline labels, migration summary, and AI-score reuse state.
+    statement: Expose ranking-v2 policy and contract fingerprints, configured/effective weights, absolute normalizers, missing-value use, factor contributions, baseline labels, migration summary, AI-score reuse state, and bounded preference-policy candidate and lifecycle history.
     state: active
   - capability_id: inspection_debugging.decision-feedback-review
-    statement: Show accessible no-JavaScript 1–5 application-interest controls only for immutable v4 alternatives and derive current state from the shared append-only event reducer.
+    statement: Show accessible no-JavaScript 1–5 application-interest controls only for immutable v4 alternatives, derive current state from the shared append-only event reducer, and reuse that canonical state for the read-only optimization-page evidence preview.
     state: active
   - capability_id: inspection_debugging.shortlist-diagnostics
     statement: Show shortlist retrieval facts, raw-hit visibility, candidate-query inputs, and embedding reuse provenance.

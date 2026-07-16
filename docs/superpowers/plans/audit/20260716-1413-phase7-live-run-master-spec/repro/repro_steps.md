@@ -36,12 +36,29 @@ Expected JSON:
 ## Focused regressions
 
 ```powershell
-uv run python -m pytest tests/test_fitcv_cp/test_sqlite_store.py -q -k "activation_marks_candidate_stale_when_evidence_head_changed or preference_policy_lifecycle_is_atomic_and_auditable"
+uv run python -m pytest tests/test_fitcv_cp/test_sqlite_store.py -q -k "concurrent_sibling_activation or activation_event_failure or current_provenance_changed or rollback_restores_exact or evidence_head_changed"
 uv run --extra inverse-optimization python -m pytest tests/test_inverse_optimization.py -q
 uv run python -m pytest tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py -q
 uv run python -m pytest tests/test_decision_feedback.py -q
 uv run python -m pytest tests/test_fitcv_cp/test_app.py -q
 ```
+
+## Preferred-city and language hard-gate scenario
+
+```powershell
+& .\docs\superpowers\plans\audit\20260716-1413-phase7-live-run-master-spec\repro\run_hard_gate_scenario.ps1 `
+  -OutputPath docs/superpowers/plans/audit/20260716-1413-phase7-live-run-master-spec/evidence/results/hard-gate-summary.json
+```
+
+Expected proof:
+
+- Berlin and Magdeburg are preferred cities.
+- confirmed language failure is rejected before ranking.
+- unknown language remains retained with `language_required_unknown`.
+- `language_fit` is absent from effective ranking weights.
+- remaining effective weights sum to `1.0` exactly once.
+- location ranking values include `0.0` and `1.0`.
+- baseline labels remain `strong`, `stretch`, and `skip` from holistic AI fit.
 
 ## Artifact inspection
 

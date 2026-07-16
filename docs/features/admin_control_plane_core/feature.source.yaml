@@ -16,7 +16,7 @@ capabilities:
     statement: RQ background worker integration
     state: active
   - capability_id: admin_control_plane_core.jinja2-admin-pages
-    statement: Jinja2 admin pages
+    statement: Jinja2 admin pages, including native preference-optimization inspection and lifecycle forms backed by canonical control-plane state.
     state: active
   - capability_id: admin_control_plane_core.pipelinereporter-integration
     statement: PipelineReporter integration

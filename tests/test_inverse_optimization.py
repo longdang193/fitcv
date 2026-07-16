@@ -14,6 +14,7 @@ tags:
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import datetime
 import json
@@ -663,6 +664,100 @@ def test_cli_rollback_cas_conflict_returns_typed_exit_code(
         "status": "conflict",
         "error_code": "active_snapshot_changed",
     }
+
+
+@pytest.mark.parametrize(
+    ("message", "error_code"),
+    (
+        ("candidate runtime contract changed", "candidate_runtime_contract_changed"),
+        ("candidate compiler policy changed", "candidate_compiler_policy_changed"),
+        ("candidate activation policy changed", "candidate_activation_policy_changed"),
+        ("candidate optimizer policy changed", "candidate_optimizer_policy_changed"),
+        (
+            "candidate decision learning policy changed",
+            "candidate_decision_learning_policy_changed",
+        ),
+    ),
+)
+def test_cli_activation_provenance_conflict_returns_typed_exit_code(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    message: str,
+    error_code: str,
+) -> None:
+    monkeypatch.setattr(
+        inverse_cli.sqlite_store,
+        "inspect_ranking_policy_lifecycle",
+        lambda domain: {
+            "snapshots": [{"policy_snapshot_id": "snapshot", "domain_id": domain}]
+        },
+    )
+    monkeypatch.setattr(
+        inverse_cli.sqlite_store,
+        "get_decision_evidence_head",
+        lambda domain: {"evidence_head_fingerprint": f"head:{domain}"},
+    )
+    monkeypatch.setattr(
+        inverse_cli,
+        "_current_activation_provenance",
+        lambda snapshot, config: {},
+        raising=False,
+    )
+
+    def raise_stale(*args: object, **kwargs: object) -> dict[str, object]:
+        raise ValueError(message)
+
+    monkeypatch.setattr(
+        inverse_cli.sqlite_store,
+        "activate_ranking_policy_candidate",
+        raise_stale,
+    )
+
+    exit_code = inverse_cli.main(
+        [
+            "activate",
+            "--snapshot",
+            "snapshot",
+            "--expected-parent",
+            "zero_residual:baseline",
+            "--acted-by",
+            "operator",
+        ]
+    )
+
+    assert exit_code == 4
+    assert json.loads(capsys.readouterr().out) == {
+        "status": "stale",
+        "error_code": error_code,
+    }
+
+
+def test_current_activation_provenance_reuses_canonical_config_fingerprints() -> None:
+    config = inverse_cli.load_config()
+    policy = config["decision_learning_policy"]
+    snapshot = {"domain_id": policy["domain_id"]}
+
+    provenance = inverse_cli._current_activation_provenance(snapshot, config)
+
+    assert provenance["current_compiler_policy_fingerprint"] == build_contract_fingerprint(
+        policy["preference_compiler"]
+    )
+    assert provenance["current_decision_learning_policy_fingerprint"] == config[
+        "decision_learning_policy_fingerprint"
+    ]
+    assert provenance["current_optimizer_policy_fingerprint"] == (
+        inverse_cli.optimizer_policy_fingerprint(policy)
+    )
+    assert provenance["current_activation_policy_fingerprint"] == build_contract_fingerprint(
+        policy["inverse_optimization"]["activation"]
+    )
+
+    changed = copy.deepcopy(config)
+    changed["ranking_policy"]["missing_value_defaults"]["location_fit"] = 0.25
+    changed_provenance = inverse_cli._current_activation_provenance(snapshot, changed)
+    assert changed_provenance["current_runtime_contract_fingerprint"] != provenance[
+        "current_runtime_contract_fingerprint"
+    ]
 
 
 def test_cli_lifecycle_parser_has_phase_7_commands() -> None:

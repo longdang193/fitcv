@@ -59,9 +59,11 @@ from fitcv.decision_feedback import (
     RatingEventType,
     RatingValue,
     build_episode_records,
+    reduce_rating_event_states,
     reduce_rating_events,
 )
 from fitcv.enrich import derive_required_skills_display
+from fitcv.inverse_optimization import InverseOptimizationRequest
 from fitcv.openai_compat import (
     decode_openai_compat_response_body,
     extract_openai_chat_completions_text,
@@ -118,6 +120,7 @@ from fitcv_cp.run_artifact_contracts import (
     run_mode_label,
 )
 from fitcv.runtime_routing import build_runtime_routing_snapshot, resolve_openai_compatible_api_key
+from fitcv.shortlist_runtime import build_contract_fingerprint
 from fitcv_cp.run_artifact_mirror import build_terminal_run_artifact_payloads
 from fitcv_cp.settings_schema import (
     ALL_GROUP_REGISTRIES,
@@ -174,6 +177,10 @@ from fitcv_cp.synonym_proposals import (
 from fitcv_cp.data_plane import data_plane_contract_payload
 from fitcv_cp.observability import emit_observability_event
 from fitcv_cp.store import ControlPlaneStore
+from fitcv_cp.optimization_service import (
+    create_ranking_policy_candidate,
+    current_activation_provenance,
+)
 from fitcv_cp.review_identity import (
     ensure_review_item_id,
     is_review_resolution_pending,
@@ -5623,6 +5630,205 @@ class SynonymBatchActionRequest(BaseModel):
     note: str | None = None
 
 
+_OPTIMIZATION_DOMAIN_ID = "ranking_v1"
+_OPTIMIZATION_HISTORY_LIMIT = 25
+_OPTIMIZATION_EVIDENCE_LIMIT = 50
+_OPTIMIZATION_NOTICE_MESSAGES = {
+    "candidate_created": ("success", "Candidate created. Activation remains manual."),
+    "activation_completed": ("success", "Candidate activated."),
+    "rejection_completed": ("success", "Candidate rejected."),
+    "rollback_completed": ("success", "Policy rollback completed."),
+    "insufficient_evidence": ("warning", "More clearly different 1-5-star ratings are required."),
+    "no_op": ("info", "Current evidence produced no meaningful preference change."),
+    "evaluation_rejected": ("warning", "Candidate failed promotion checks and was not activated."),
+    "stale_evidence": ("warning", "Saved rating evidence changed. Review current state and retry."),
+    "candidate_parent_changed": ("warning", "Active policy changed. Review current state and retry."),
+    "candidate_evidence_changed": ("warning", "Candidate evidence changed. Create a new candidate."),
+    "candidate_runtime_contract_changed": ("warning", "Runtime contract changed. Create a new candidate."),
+    "candidate_compiler_policy_changed": ("warning", "Compiler policy changed. Create a new candidate."),
+    "candidate_activation_policy_changed": ("warning", "Activation policy changed. Create a new candidate."),
+    "candidate_optimizer_policy_changed": ("warning", "Optimizer policy changed. Create a new candidate."),
+    "candidate_decision_learning_policy_changed": ("warning", "Decision-learning policy changed. Create a new candidate."),
+    "active_snapshot_changed": ("warning", "Active policy changed. Review current state and retry."),
+    "rollback_target_incompatible": ("warning", "Selected rollback target is incompatible."),
+    "snapshot_not_found": ("error", "Policy snapshot was not found."),
+    "snapshot_not_candidate": ("warning", "Policy snapshot is no longer a candidate."),
+    "actor_required": ("error", "Operator label is required."),
+    "reason_required": ("error", "Rejection reason is required."),
+    "confirmation_required": ("error", "Rollback confirmation is required."),
+    "invalid_domain": ("error", "Optimization domain is invalid."),
+    "invalid_target": ("error", "Rollback target is invalid."),
+    "operation_failed": ("error", "Optimization action failed. Review current state and retry."),
+}
+
+
+def _optimization_notice_projection(code: str | None) -> dict[str, str] | None:
+    projected = _OPTIMIZATION_NOTICE_MESSAGES.get(str(code or ""))
+    if projected is None:
+        return None
+    level, message = projected
+    return {"code": str(code), "level": level, "message": message}
+
+
+def _optimization_error_notice(exc: BaseException) -> str:
+    return {
+        "active snapshot changed": "active_snapshot_changed",
+        "candidate parent changed": "candidate_parent_changed",
+        "candidate evidence changed": "candidate_evidence_changed",
+        "candidate runtime contract changed": "candidate_runtime_contract_changed",
+        "candidate compiler policy changed": "candidate_compiler_policy_changed",
+        "candidate activation policy changed": "candidate_activation_policy_changed",
+        "candidate optimizer policy changed": "candidate_optimizer_policy_changed",
+        "candidate decision learning policy changed": "candidate_decision_learning_policy_changed",
+        "rollback target is incompatible": "rollback_target_incompatible",
+        "snapshot is not candidate": "snapshot_not_candidate",
+    }.get(str(exc), "operation_failed")
+
+
+def _optimization_rating_evidence(
+    request: InverseOptimizationRequest,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for item in request.episodes:
+        states = reduce_rating_event_states(item.events)
+        events_by_id = {event.event_id: event for event in item.events}
+        for alternative in item.alternatives:
+            state = states.get((item.episode.episode_id, alternative.alternative_id))
+            if state is None or state.rating == "unrated" or state.source_event_id is None:
+                continue
+            source_event = events_by_id[state.source_event_id]
+            rows.append(
+                {
+                    "run_id": item.episode.run_id,
+                    "alternative_id": alternative.alternative_id,
+                    "source_job_url": alternative.source_job_url,
+                    "displayed_rank": alternative.displayed_rank,
+                    "baseline_fit": alternative.baseline_fit,
+                    "baseline_fit_label": alternative.baseline_fit_label,
+                    "rating": int(state.rating),
+                    "rated_at": source_event.created_at,
+                }
+            )
+    return sorted(
+        rows,
+        key=lambda row: (row["rated_at"], row["run_id"], row["displayed_rank"]),
+        reverse=True,
+    )[:_OPTIMIZATION_EVIDENCE_LIMIT]
+
+
+def _optimization_page_context(
+    store: ControlPlaneStore,
+    *,
+    notice_code: str | None = None,
+) -> dict[str, Any]:
+    config = load_config()
+    policy = config["decision_learning_policy"]
+    domain_id = str(policy["domain_id"])
+    if domain_id != _OPTIMIZATION_DOMAIN_ID:
+        raise ValueError("invalid optimization domain configuration")
+    evidence = store.get_decision_evidence_head(domain_id)
+    optimization_request = store.load_inverse_optimization_request(domain_id)
+    lifecycle = store.inspect_ranking_policy_lifecycle(
+        domain_id,
+        limit=_OPTIMIZATION_HISTORY_LIMIT,
+    )
+    provenance = current_activation_provenance({"domain_id": domain_id}, config)
+    compatible_active = store.resolve_active_ranking_policy(
+        domain_id,
+        provenance["current_runtime_contract_fingerprint"],
+    )
+    active_any = lifecycle.get("active_snapshot") or next(
+        (row for row in lifecycle["snapshots"] if row.get("status") == "active"),
+        None,
+    )
+    baseline_fingerprint = build_contract_fingerprint(config["ranking_policy"])
+    current_parent_ref = (
+        f"learned:{compatible_active['policy_snapshot_id']}"
+        if compatible_active is not None
+        else f"zero_residual:{baseline_fingerprint}"
+    )
+    current_mode = (
+        "learned active"
+        if compatible_active is not None
+        else "incompatible"
+        if active_any is not None
+        else "zero residual"
+    )
+    training_by_id = {
+        str(row.get("training_run_id")): row for row in lifecycle["training_runs"]
+    }
+    latest_candidate = next(iter(lifecycle["snapshots"]), None)
+    candidate_training = (
+        training_by_id.get(str(latest_candidate.get("training_run_id")))
+        if latest_candidate is not None
+        else None
+    )
+    candidate_result = (
+        dict(candidate_training.get("result_json") or {})
+        if candidate_training is not None
+        else {}
+    )
+    candidate_evidence_head = str(candidate_result.get("evidence_head_fingerprint") or "")
+    provenance_fields = {
+        "runtime_contract_fingerprint": "current_runtime_contract_fingerprint",
+        "compiler_policy_fingerprint": "current_compiler_policy_fingerprint",
+        "decision_learning_policy_fingerprint": "current_decision_learning_policy_fingerprint",
+        "optimizer_policy_fingerprint": "current_optimizer_policy_fingerprint",
+        "activation_policy_fingerprint": "current_activation_policy_fingerprint",
+    }
+    candidate_activation_eligible = bool(
+        latest_candidate is not None
+        and latest_candidate.get("status") == "candidate"
+        and latest_candidate.get("parent_policy_ref") == current_parent_ref
+        and candidate_evidence_head == evidence["evidence_head_fingerprint"]
+        and all(
+            latest_candidate.get(snapshot_field) == provenance[current_field]
+            for snapshot_field, current_field in provenance_fields.items()
+        )
+    )
+    episode_count = len(evidence["episodes"])
+    rating_event_count = sum(len(row.get("events") or []) for row in evidence["episodes"])
+    return {
+        "domain_id": domain_id,
+        "notice": _optimization_notice_projection(notice_code),
+        "evidence": evidence,
+        "rating_evidence": _optimization_rating_evidence(optimization_request),
+        "episode_count": episode_count,
+        "rating_event_count": rating_event_count,
+        "evidence_ready": episode_count > 0 and rating_event_count > 0,
+        "current_mode": current_mode,
+        "current_parent_ref": current_parent_ref,
+        "compatible_active": compatible_active,
+        "active_any": active_any,
+        "provenance": provenance,
+        "decision_learning_policy_fingerprint": config[
+            "decision_learning_policy_fingerprint"
+        ],
+        "optimizer_policy_fingerprint": provenance[
+            "current_optimizer_policy_fingerprint"
+        ],
+        "latest_candidate": latest_candidate,
+        "candidate_training": candidate_training,
+        "candidate_result": candidate_result,
+        "candidate_evidence_head": candidate_evidence_head,
+        "candidate_activation_eligible": candidate_activation_eligible,
+        "rollback_targets": [
+            row for row in lifecycle["snapshots"] if row.get("rollback_eligible")
+        ],
+        "history": lifecycle,
+    }
+
+
+def _optimization_redirect(notice_code: str) -> RedirectResponse:
+    bounded_code = (
+        notice_code if notice_code in _OPTIMIZATION_NOTICE_MESSAGES else "operation_failed"
+    )
+    return RedirectResponse(
+        url=f"/admin/optimization?{urlencode({'notice': bounded_code})}",
+        status_code=303,
+    )
+
+
 def create_app(
     *,
     redis_url: str,
@@ -5653,6 +5859,13 @@ def create_app(
         update_run_synonym_proposals_fn=sqlite_store_module.update_run_synonym_proposals,
         update_run_cv_generation_debug_fn=sqlite_store_module.update_run_cv_generation_debug,
         update_run_stage_transition_artifacts_fn=sqlite_store_module.update_run_stage_transition_artifacts,
+        get_decision_evidence_head_fn=sqlite_store_module.get_decision_evidence_head,
+        load_inverse_optimization_request_fn=sqlite_store_module.load_inverse_optimization_request,
+        activate_ranking_policy_candidate_fn=sqlite_store_module.activate_ranking_policy_candidate,
+        reject_ranking_policy_candidate_fn=sqlite_store_module.reject_ranking_policy_candidate,
+        rollback_ranking_policy_fn=sqlite_store_module.rollback_ranking_policy,
+        resolve_active_ranking_policy_fn=sqlite_store_module.resolve_active_ranking_policy,
+        inspect_ranking_policy_lifecycle_fn=sqlite_store_module.inspect_ranking_policy_lifecycle,
         insert_cv_version_row_fn=sqlite_store_module.insert_cv_version_row,
     )
     app = FastAPI(title="FitCV Admin Control Plane")
@@ -7347,6 +7560,152 @@ def create_app(
             return _section_error_response({keys[0]: f"Save failed: {exc}"})
 
         return _Redirect("/admin/settings", status_code=303)
+
+    @app.get("/admin/optimization", response_class=HTMLResponse)
+    def admin_optimization(request: Request) -> HTMLResponse:
+        context = _optimization_page_context(
+            _resolve_run_store(),
+            notice_code=request.query_params.get("notice"),
+        )
+        return templates.TemplateResponse(
+            request=request,
+            name="optimization.html",
+            context=context,
+        )
+
+    @app.post("/admin/optimization/candidate")
+    async def admin_optimization_candidate(request: Request) -> RedirectResponse:
+        form = await request.form()
+        domain_id = str(form.get("domain_id") or "").strip()
+        if domain_id != _OPTIMIZATION_DOMAIN_ID:
+            return _optimization_redirect("invalid_domain")
+        store = _resolve_run_store()
+        evidence = store.get_decision_evidence_head(domain_id)
+        if not evidence["episodes"] or not any(
+            row.get("events") for row in evidence["episodes"]
+        ):
+            return _optimization_redirect("insufficient_evidence")
+        try:
+            result = create_ranking_policy_candidate(
+                store.load_inverse_optimization_request(domain_id),
+                store=store,
+                config=load_config(),
+                expected_evidence_head_fingerprint=str(
+                    form.get("evidence_head_fingerprint") or ""
+                ),
+                expected_parent_ref=str(form.get("expected_parent_ref") or ""),
+            )
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
+            return _optimization_redirect(_optimization_error_notice(exc))
+        notice_code = str(result.get("error_code") or result.get("status") or "")
+        return _optimization_redirect(notice_code)
+
+    @app.post("/admin/optimization/candidates/{snapshot_id}/activate")
+    async def admin_optimization_activate(
+        request: Request,
+        snapshot_id: str,
+    ) -> RedirectResponse:
+        form = await request.form()
+        actor = str(form.get("actor") or "").strip()
+        if not actor:
+            return _optimization_redirect("actor_required")
+        store = _resolve_run_store()
+        lifecycle = store.inspect_ranking_policy_lifecycle(
+            _OPTIMIZATION_DOMAIN_ID,
+            limit=_OPTIMIZATION_HISTORY_LIMIT,
+        )
+        snapshot = next(
+            (
+                row
+                for row in lifecycle["snapshots"]
+                if row.get("policy_snapshot_id") == snapshot_id
+            ),
+            None,
+        )
+        if snapshot is None:
+            return _optimization_redirect("snapshot_not_found")
+        try:
+            store.activate_ranking_policy_candidate(
+                snapshot_id,
+                expected_parent_ref=str(form.get("expected_parent_ref") or ""),
+                evidence_head_fingerprint=str(
+                    form.get("evidence_head_fingerprint") or ""
+                ),
+                acted_by=actor,
+                **current_activation_provenance(snapshot, load_config()),
+            )
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
+            return _optimization_redirect(_optimization_error_notice(exc))
+        return _optimization_redirect("activation_completed")
+
+    @app.post("/admin/optimization/candidates/{snapshot_id}/reject")
+    async def admin_optimization_reject(
+        request: Request,
+        snapshot_id: str,
+    ) -> RedirectResponse:
+        form = await request.form()
+        actor = str(form.get("actor") or "").strip()
+        reason = str(form.get("reason") or "").strip()
+        if not actor:
+            return _optimization_redirect("actor_required")
+        if not reason or len(reason) > 200:
+            return _optimization_redirect("reason_required")
+        store = _resolve_run_store()
+        context = _optimization_page_context(store)
+        candidate = next(
+            (
+                row
+                for row in context["history"]["snapshots"]
+                if row.get("policy_snapshot_id") == snapshot_id
+            ),
+            None,
+        )
+        if candidate is None:
+            return _optimization_redirect("snapshot_not_found")
+        if str(form.get("expected_parent_ref") or "") != context["current_parent_ref"]:
+            return _optimization_redirect("candidate_parent_changed")
+        if (
+            str(form.get("evidence_head_fingerprint") or "")
+            != context["evidence"]["evidence_head_fingerprint"]
+        ):
+            return _optimization_redirect("stale_evidence")
+        try:
+            store.reject_ranking_policy_candidate(
+                snapshot_id,
+                acted_by=actor,
+                reason=reason,
+            )
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
+            return _optimization_redirect(_optimization_error_notice(exc))
+        return _optimization_redirect("rejection_completed")
+
+    @app.post("/admin/optimization/rollback")
+    async def admin_optimization_rollback(request: Request) -> RedirectResponse:
+        form = await request.form()
+        actor = str(form.get("actor") or "").strip()
+        if not actor:
+            return _optimization_redirect("actor_required")
+        if str(form.get("confirm") or "") != "on":
+            return _optimization_redirect("confirmation_required")
+        expected_active = str(form.get("expected_active") or "").strip()
+        target = str(form.get("target") or "").strip()
+        context = _optimization_page_context(_resolve_run_store())
+        allowed_targets = {
+            "zero_residual",
+            *(str(row["policy_snapshot_id"]) for row in context["rollback_targets"]),
+        }
+        if target not in allowed_targets:
+            return _optimization_redirect("invalid_target")
+        try:
+            _resolve_run_store().rollback_ranking_policy(
+                _OPTIMIZATION_DOMAIN_ID,
+                expected_active=expected_active,
+                target=target,
+                acted_by=actor,
+            )
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
+            return _optimization_redirect(_optimization_error_notice(exc))
+        return _optimization_redirect("rollback_completed")
 
     @app.get("/admin/runs", response_class=HTMLResponse)
     def admin_runs(request: Request) -> HTMLResponse:

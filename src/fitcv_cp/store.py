@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
+from fitcv.inverse_optimization import InverseOptimizationRequest
 from fitcv_cp.backend_runtime import BackendRuntime, set_backend_runtime
 from fitcv_cp import sqlite_store
 from fitcv_cp.models import PipelineRun, RunEvent
@@ -76,11 +77,14 @@ class RunStore(Protocol):
         self, training: dict[str, Any], snapshot: dict[str, Any] | None = None
     ) -> dict[str, Any]: ...
     def get_decision_evidence_head(self, domain_id: str) -> dict[str, Any]: ...
+    def load_inverse_optimization_request(self, domain_id: str) -> InverseOptimizationRequest: ...
     def activate_ranking_policy_candidate(self, snapshot_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def reject_ranking_policy_candidate(self, snapshot_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def rollback_ranking_policy(self, domain_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def resolve_active_ranking_policy(self, domain_id: str, runtime_fingerprint: str) -> dict[str, Any] | None: ...
-    def inspect_ranking_policy_lifecycle(self, domain_id: str) -> dict[str, Any]: ...
+    def inspect_ranking_policy_lifecycle(
+        self, domain_id: str, *, limit: int | None = None
+    ) -> dict[str, Any]: ...
     def insert_cv_version_row(self, row: dict[str, Any]) -> list[Any]: ...
 
 
@@ -115,6 +119,7 @@ class ControlPlaneStore:
     insert_ranking_policy_candidate_fn: Any | None = None
     persist_candidate_attempt_fn: Any | None = None
     get_decision_evidence_head_fn: Any | None = None
+    load_inverse_optimization_request_fn: Any | None = None
     activate_ranking_policy_candidate_fn: Any | None = None
     reject_ranking_policy_candidate_fn: Any | None = None
     rollback_ranking_policy_fn: Any | None = None
@@ -411,6 +416,18 @@ class ControlPlaneStore:
             domain_id,
         )
 
+    def load_inverse_optimization_request(
+        self, domain_id: str
+    ) -> InverseOptimizationRequest:
+        return cast(
+            InverseOptimizationRequest,
+            self._call(
+                self.load_inverse_optimization_request_fn,
+                sqlite_store.load_inverse_optimization_request,
+                domain_id,
+            ),
+        )
+
     def activate_ranking_policy_candidate(self, snapshot_id: str, **kwargs: Any) -> dict[str, Any]:
         return self._call_dict(
             self.activate_ranking_policy_candidate_fn,
@@ -450,11 +467,20 @@ class ControlPlaneStore:
             ),
         )
 
-    def inspect_ranking_policy_lifecycle(self, domain_id: str) -> dict[str, Any]:
+    def inspect_ranking_policy_lifecycle(
+        self, domain_id: str, *, limit: int | None = None
+    ) -> dict[str, Any]:
+        if limit is None:
+            return self._call_dict(
+                self.inspect_ranking_policy_lifecycle_fn,
+                sqlite_store.inspect_ranking_policy_lifecycle,
+                domain_id,
+            )
         return self._call_dict(
             self.inspect_ranking_policy_lifecycle_fn,
             sqlite_store.inspect_ranking_policy_lifecycle,
             domain_id,
+            limit=limit,
         )
 
     def insert_cv_version_row(self, row: dict[str, Any]) -> list[Any]:
