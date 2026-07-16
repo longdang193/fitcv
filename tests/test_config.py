@@ -50,6 +50,17 @@ def test_load_config_returns_dict() -> None:
     assert "pipeline" in cfg
 
 
+def test_load_config_uses_local_candidate_profile_override(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    candidate_path = tmp_path / "candidate_profile.yaml"
+    monkeypatch.setenv("FITCV_LOCAL_CANDIDATE_PROFILE_PATH", str(candidate_path))
+
+    cfg = load_config(Path(__file__).parent.parent / ".env.yaml")
+
+    assert cfg["paths"]["candidate_profile"] == str(candidate_path)
+
+
 def test_load_config_has_required_keys() -> None:
     cfg = load_config(Path(__file__).parent.parent / ".env.yaml")
     assert cfg["paths"]["candidate_profile"] == "data/candidate_profile.private.yaml"

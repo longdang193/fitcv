@@ -24,6 +24,7 @@ canonical: true
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="fitcv-csrf-token" content="{{ csrf_token|default('') }}">
   <title>{% block title %}FitCV Admin{% endblock %}</title>
   <style>
     /* ── CSS Custom Properties (tokens) ──────────────────────────────────── */
@@ -547,7 +548,21 @@ canonical: true
   }
   // Sync toggle label on every page load
   applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+  (function() {
+    var token = document.querySelector('meta[name="fitcv-csrf-token"]').content;
+    if (!token) return;
+    document.querySelectorAll('form').forEach(function(form) {
+      if ((form.method || 'get').toLowerCase() === 'get' || form.querySelector('input[name="csrf_token"]')) return;
+      var input = document.createElement('input');
+      input.type = 'hidden'; input.name = 'csrf_token'; input.value = token; form.appendChild(input);
+    });
+    var originalFetch = window.fetch;
+    window.fetch = function(input, init) {
+      init = init || {}; var headers = new Headers(init.headers || {});
+      headers.set('X-FitCV-CSRF', token); init.headers = headers;
+      return originalFetch(input, init);
+    };
+  })();
   </script>
 </body>
 </html>
-

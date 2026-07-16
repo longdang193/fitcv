@@ -159,6 +159,29 @@ def test_enqueue_cv_regenerate_once_with_job_id_inline_marks_queued() -> None:
     thread.start.assert_called_once()
 
 
+def test_packaged_inline_enqueue_uses_process_executor_not_thread() -> None:
+    from fitcv_cp.queue import enqueue_cv_regenerate_once_with_job_id
+
+    executor = MagicMock()
+    with patch("fitcv_cp.local_app.get_local_job_executor", return_value=executor), patch(
+        "fitcv_cp.queue.threading.Thread"
+    ) as thread_cls, patch("fitcv_cp.queue.get_queue") as get_queue, patch.dict(
+        "os.environ",
+        {"FITCV_CP_INLINE_EXECUTION": "1", "FITCV_LOCAL_MODE": "1"},
+        clear=False,
+    ):
+        queue_job_id = enqueue_cv_regenerate_once_with_job_id(
+            run_id="run-local",
+            job_url="https://example.com/job",
+            actor="admin",
+        )
+
+    assert queue_job_id.startswith("inline-")
+    executor.submit.assert_called_once()
+    thread_cls.assert_not_called()
+    get_queue.assert_not_called()
+
+
 # ── cancel_queued_run ────────────────────────────────────────────────────────
 
 def test_cancel_queued_run_returns_true_when_cancelable():

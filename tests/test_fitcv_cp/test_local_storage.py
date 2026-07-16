@@ -32,6 +32,26 @@ from fitcv_cp.local_storage import (
 )
 
 
+_LOCAL_ENV_KEYS = (
+    "FITCV_CP_SQLITE_PATH",
+    "FITCV_LOCAL_DATA_ROOT",
+    "FITCV_LOCAL_ROUTING_OVERLAY_PATH",
+    "FITCV_LOCAL_CANDIDATE_PROFILE_PATH",
+    "FITCV_LOCAL_ARTIFACTS_PATH",
+    "FITCV_LOCAL_EXPORTS_PATH",
+    "FITCV_LOCAL_LOGS_PATH",
+    "FITCV_LOCAL_BACKUPS_PATH",
+    "FITCV_LOCAL_UPLOADS_PATH",
+    "FITCV_LOCAL_TEMP_PATH",
+)
+
+
+@pytest.fixture(autouse=True)
+def _restore_local_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key in _LOCAL_ENV_KEYS:
+        monkeypatch.setenv(key, os.environ.get(key, ""))
+
+
 def test_activate_local_storage_creates_expected_layout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -115,3 +135,23 @@ def test_explicit_data_root_updates_bootstrap(
 
     assert paths.data_root == chosen
     assert load_bootstrap(paths.bootstrap_path)["data_root"] == str(chosen)
+
+
+def test_activation_does_not_write_under_bundle_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bundle_root = tmp_path / "bundle"
+    (bundle_root / "data").mkdir(parents=True)
+    (bundle_root / "data" / "candidate_profile.template.yaml").write_text(
+        "name: Candidate\n", encoding="utf-8"
+    )
+    marker = bundle_root / "read-only-marker.txt"
+    marker.write_text("unchanged", encoding="utf-8")
+    before = {path.relative_to(bundle_root): path.read_bytes() for path in bundle_root.rglob("*") if path.is_file()}
+    monkeypatch.setenv("APPDATA", str(tmp_path / "roaming"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+
+    activate_local_storage(app_version="1", bundle_root=bundle_root)
+
+    after = {path.relative_to(bundle_root): path.read_bytes() for path in bundle_root.rglob("*") if path.is_file()}
+    assert after == before

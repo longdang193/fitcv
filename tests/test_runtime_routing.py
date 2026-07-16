@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+
 from fitcv.runtime_routing import build_runtime_routing_snapshot, resolve_cv_generation_routing, resolve_cv_generation_routing_snapshot, resolve_cv_generation_runtime_provenance
 from fitcv.runtime_routing import resolve_llm_api_key, resolve_llm_routing, resolve_openai_compatible_api_key, validate_cv_generation_routing_ready, validate_llm_routing_ready
 
@@ -46,6 +48,15 @@ def test_resolve_openai_compatible_api_key_ignores_deprecated_aliases() -> None:
         clear=False,
     ):
         assert resolve_openai_compatible_api_key() == ""
+
+
+def test_local_mode_resolves_provider_credential_not_env() -> None:
+    with patch.dict(
+        "os.environ",
+        {"FITCV_LOCAL_MODE": "1", "FITCV_LLM_API_KEY": "env-secret"},
+        clear=False,
+    ), patch("fitcv_cp.local_credentials.get_credential", return_value="stored-secret"):
+        assert resolve_openai_compatible_api_key("openai") == "stored-secret"
 
 def test_build_runtime_routing_snapshot_normalizes_and_marks_api_key_presence() -> None:
     snapshot = build_runtime_routing_snapshot(
@@ -144,6 +155,21 @@ def test_validate_cv_generation_routing_ready_openai_compatible_requires_api_key
             assert False, "expected RuntimeError"
         except RuntimeError as exc:
             assert "FITCV_LLM_API_KEY" in str(exc)
+
+
+def test_local_cv_readiness_names_credential_store() -> None:
+    with patch.dict("os.environ", {"FITCV_LOCAL_MODE": "1"}, clear=False), patch(
+        "fitcv.runtime_routing.resolve_model_routing_part",
+        return_value={
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "base_url": "http://localhost:1234/v1",
+            "wire_api": "responses",
+            "auth_mode": "required",
+        },
+    ), patch("fitcv.runtime_routing.resolve_openai_compatible_api_key", return_value=""):
+        with pytest.raises(RuntimeError, match="Windows credential"):
+            validate_cv_generation_routing_ready({})
 
 
 def test_validate_cv_generation_routing_ready_builtin_provider_no_api_key_needed() -> None:

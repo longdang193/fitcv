@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}FitCV Local Setup{% endblock %}
+{% block content %}
+<h1>FitCV Local Setup</h1>
+<div data-current-step="{{ state.current_step }}"></div>
+{% if state.errors %}
+<div class="card" role="alert">
+  {% for section, error in state.errors.items() %}<p><strong>{{ section|title }}:</strong> {{ error }}</p>{% endfor %}
+</div>
+{% endif %}
+<div class="card">
+  <h2>Local data</h2>
+  <p>{{ data_root }}</p>
+  <p>Use Data &amp; Backup after setup to move this folder.</p>
+</div>
+<div class="card">
+  <h2>Candidate profile</h2>
+  <form method="post" action="/local/onboarding/profile">
+    <textarea name="profile" rows="14" required>{{ profile_draft }}</textarea>
+    <button type="submit">Save profile</button>
+  </form>
+</div>
+<div class="card">
+  <h2>LLM provider</h2>
+  <form id="provider-form" method="post" action="/local/onboarding/provider">
+    <label>Provider <select name="provider_id"><option value="openai_compatible">OpenAI-compatible</option><option value="openai">OpenAI</option><option value="9router">9router</option></select></label>
+    <label>API root <input name="base_url" type="url" required placeholder="https://api.openai.com/v1"></label>
+    <label>API key <input name="api_key" type="password" autocomplete="new-password"></label>
+    <label>Auth <select name="auth_mode"><option>required</option><option>optional</option><option>none</option></select></label>
+    <label>Wire API <select name="wire_api"><option value="responses">Responses</option><option value="chat_completions">Chat Completions</option></select></label>
+    <label>Default model <input name="default_model" required></label>
+    <input name="timeout_seconds" type="number" min="1" value="120">
+    <details>
+      <summary>Advanced task models</summary>
+      <label>Enrichment <input name="enrich_extraction"></label>
+      <label>Ranking <input name="ranking_ai_score"></label>
+      <label>CV generation <input name="cv_generation_structured_write"></label>
+      <label>Synonym triage <input name="synonym_triage_recommendation"></label>
+    </details>
+    <button type="button" id="discover-models">Discover models</button>
+    <button type="button" id="test-provider">Test provider</button>
+    <button type="submit">Save provider</button>
+  </form>
+  <pre id="provider-result" aria-live="polite"></pre>
+</div>
+<form method="post" action="/local/onboarding/complete">
+  <button type="submit">Finish setup</button>
+</form>
+<script>
+(function() {
+  var form = document.getElementById('provider-form');
+  var result = document.getElementById('provider-result');
+  async function submitTo(path) {
+    result.textContent = 'Working…';
+    var response = await fetch(path, {method: 'POST', body: new FormData(form)});
+    var payload = await response.json();
+    result.textContent = JSON.stringify(payload, null, 2);
+  }
+  document.getElementById('discover-models').addEventListener('click', function() {
+    submitTo('/local/onboarding/models/discover');
+  });
+  document.getElementById('test-provider').addEventListener('click', function() {
+    submitTo('/local/onboarding/provider/test');
+  });
+})();
+</script>
+{% endblock %}

@@ -90,6 +90,15 @@ def _inline_start_delay_seconds() -> float:
 def _enqueue_inline_after_delay(target: object, args: tuple[object, ...]) -> str:
     queue_job_id = f"inline-{uuid.uuid4()}"
     _INLINE_JOB_STATUS[queue_job_id] = "queued"
+    if is_truthy_env(os.environ.get("FITCV_LOCAL_MODE")):
+        from fitcv_cp.local_app import LocalAppBusyError, get_local_job_executor
+
+        try:
+            get_local_job_executor().submit(target, queue_job_id, *args)
+        except LocalAppBusyError:
+            _INLINE_JOB_STATUS[queue_job_id] = "rejected_busy"
+            raise
+        return queue_job_id
     thread = threading.Thread(
         target=target,
         args=(queue_job_id, *args),

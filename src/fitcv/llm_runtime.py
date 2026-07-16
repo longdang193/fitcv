@@ -395,7 +395,9 @@ def _openai_compatible_adapter(
 
     if route.provider not in {"openai", "openai_compatible", "9router"}:
         raise ValueError(f"Unsupported default-adapter provider: {route.provider}.")
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
     attempts = 0
     try:
         with httpx.Client(timeout=route.timeout_seconds) as client:

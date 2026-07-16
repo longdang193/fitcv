@@ -160,7 +160,10 @@ def _paths(bootstrap_path: Path, data_root: Path) -> LocalStoragePaths:
 
 
 def activate_local_storage(
-    *, app_version: str = "0.1.0", data_root: Path | None = None
+    *,
+    app_version: str = "0.1.0",
+    data_root: Path | None = None,
+    bundle_root: Path | None = None,
 ) -> LocalStoragePaths:
     appdata = Path(os.environ["APPDATA"])
     local_appdata = Path(os.environ["LOCALAPPDATA"])
@@ -174,6 +177,7 @@ def activate_local_storage(
         else local_appdata / "FitCV" / "data"
     )
     paths = _paths(bootstrap_path, selected_root.resolve())
+    resources_root = (bundle_root or Path.cwd()).resolve()
     for directory in (
         paths.data_root,
         paths.routing_overlay_path.parent,
@@ -186,7 +190,10 @@ def activate_local_storage(
     ):
         directory.mkdir(parents=True, exist_ok=True)
     if not paths.candidate_profile_path.exists():
-        shutil.copyfile("data/candidate_profile.template.yaml", paths.candidate_profile_path)
+        shutil.copyfile(
+            resources_root / "data" / "candidate_profile.template.yaml",
+            paths.candidate_profile_path,
+        )
     if not paths.routing_overlay_path.exists():
         paths.routing_overlay_path.write_text(
             "version: 1\nproviders: {}\nmodel_routing:\n  parts: {}\n",

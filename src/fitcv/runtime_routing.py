@@ -28,6 +28,7 @@ class LlmRouting:
     wire_api: str
     model: str
     timeout_seconds: float
+    auth_mode: str = "required"
 
 
 @dataclass(frozen=True)
@@ -76,12 +77,13 @@ def resolve_llm_routing(part_name: str, *, model_fallback: str = "") -> LlmRouti
         wire_api=str(route.get("wire_api") or "").strip().lower() or "responses",
         model=str(route.get("model") or "").strip(),
         timeout_seconds=timeout_seconds,
+        auth_mode=str(route.get("auth_mode") or "required").strip().lower(),
     )
 
 
 def resolve_llm_api_key(route: LlmRouting) -> str:
     if route.provider in _OPENAI_COMPATIBLE_PROVIDERS:
-        return resolve_openai_compatible_api_key()
+        return resolve_openai_compatible_api_key(route.provider)
     return ""
 
 
@@ -94,7 +96,11 @@ def validate_llm_routing_ready(route: LlmRouting, *, api_key: str | None = None)
         return
     if not route.base_url:
         raise RuntimeError("OpenAI-compatible LLM routing requires provider base_url in control-plane config.")
-    if not str(api_key if api_key is not None else resolve_llm_api_key(route)).strip():
+    if route.auth_mode not in {"required", "optional", "none"}:
+        raise RuntimeError("OpenAI-compatible LLM routing has invalid auth_mode.")
+    if route.auth_mode == "required" and not str(
+        api_key if api_key is not None else resolve_llm_api_key(route)
+    ).strip():
         raise RuntimeError("OpenAI-compatible LLM routing requires FITCV_LLM_API_KEY in env.")
 
 
@@ -109,10 +115,15 @@ def resolve_cv_generation_routing(config: dict[str, Any]) -> CvGenerationRouting
         wire_api=route.wire_api,
         model=route.model,
         timeout_seconds=route.timeout_seconds,
+        auth_mode=route.auth_mode,
     )
 
 
-def resolve_openai_compatible_api_key() -> str:
+def resolve_openai_compatible_api_key(provider_id: str = "openai_compatible") -> str:
+    if str(os.environ.get("FITCV_LOCAL_MODE") or "").strip().lower() in {"1", "true", "yes", "on"}:
+        from fitcv_cp.local_credentials import get_credential
+
+        return get_credential(provider_id)
     return str(os.environ.get("FITCV_LLM_API_KEY") or "").strip()
 
 def resolve_cv_generation_routing_snapshot(
@@ -142,7 +153,7 @@ def resolve_cv_generation_routing_snapshot(
         model=str(routing.model or "").strip() or fallback_model,
         base_url=routing.base_url,
         wire_api=routing.wire_api,
-        api_key=(resolve_openai_compatible_api_key() if provider in _OPENAI_COMPATIBLE_PROVIDERS else ""),
+        api_key=(resolve_openai_compatible_api_key(provider) if provider in _OPENAI_COMPATIBLE_PROVIDERS else ""),
         default_provider="fitcv_builtin",
         default_model=fallback_model,
         default_wire_api="responses",
@@ -184,6 +195,10 @@ def validate_cv_generation_routing_ready(config: dict[str, Any]) -> None:
             raise RuntimeError(
                 "cv_generation_structured_write model must be configured in control-plane model_routing.parts."
             ) from exc
-        if "API key" in message:
+        if "API key" in message or "FITCV_LLM_API_KEY" in message:
+            if str(os.environ.get("FITCV_LOCAL_MODE") or "").strip().lower() in {"1", "true", "yes", "on"}:
+                raise RuntimeError(
+                    "OpenAI-compatible CV generation routing requires a configured Windows credential."
+                ) from exc
             raise RuntimeError("OpenAI-compatible CV generation routing requires FITCV_LLM_API_KEY in env.") from exc
         raise

@@ -278,12 +278,14 @@ def resolve_model_routing_part(
     base_url = str(provider_cfg.get("base_url") or "").strip()
     wire_api = str(provider_cfg.get("wire_api") or "").strip()
     timeout_seconds = str(provider_cfg.get("timeout_seconds") or "").strip()
+    auth_mode = str(provider_cfg.get("auth_mode") or "required").strip().lower()
     return {
         "provider": provider_name,
         "model": model_name,
         "base_url": base_url,
         "wire_api": wire_api,
         "timeout_seconds": timeout_seconds,
+        "auth_mode": auth_mode,
     }
 
 def resolve_cv_generation_runtime_expectation(
@@ -1048,6 +1050,13 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg = _normalize_cv_acceptance_policy_config(cfg)
     _validate_nested_cv_config(cfg)
     cfg = apply_cv_compatibility_projection(cfg)
+    local_candidate_profile = str(
+        os.environ.get("FITCV_LOCAL_CANDIDATE_PROFILE_PATH") or ""
+    ).strip()
+    if local_candidate_profile:
+        paths = dict(cfg.get("paths") or {})
+        paths["candidate_profile"] = local_candidate_profile
+        cfg["paths"] = paths
     return cfg
 
 

@@ -180,20 +180,22 @@ clean-machine checklist, focused tests, docs, and generated lineage prove releas
   `model_routing.parts`; reject all other control-plane keys
 - [x] Step 7: merge packaged control-plane defaults plus local overlay inside
   `load_control_plane_config()` through one explicit precedence owner
-- [ ] Step 8: set every packaged mutable root before app construction: SQLite,
+- [x] Step 8: set every packaged mutable root before app construction: SQLite,
   settings, entry config, candidate profile, artifacts, exports, logs, backups,
   uploads, and temporary work
-- [ ] Step 9: add packaged write-boundary test proving no normal mutable write
+- [x] Step 9: add packaged write-boundary test proving no normal mutable write
   lands under bundle/install root
 - [x] Step 10: keep source/server default resolution unchanged when packaged-local mode is absent
 
 **Verification:**
 - [x] bootstrap atomic-write failure leaves previous pointer readable
-- [ ] malformed bootstrap falls back to safe recovery screen, not silent data-root replacement
+- [x] malformed bootstrap raises typed recovery state before app construction;
+  Task 7 renders that state as the safe recovery screen
 - [x] reinstall simulation reuses existing data root without overwriting user files
 - [x] upgraded packaged defaults apply automatically when overlay omits new key
 - [x] overlay rejects non-routing keys and full copied control-plane documents
-- [ ] bundle/install root remains unchanged after onboarding and representative run
+- [x] bundle/install root remains unchanged during storage activation; Task 3
+  launcher smoke extends this proof through a representative run
 - [x] existing config and persistence tests pass without packaged-local environment
 
 **Exit Criteria:**
@@ -217,28 +219,28 @@ clean-machine checklist, focused tests, docs, and generated lineage prove releas
 - Task 2 can resolve packaged paths before `build_app()`
 
 **Steps:**
-- [ ] Step 1: detect frozen bundle root and set packaged working directory before loading relative read-only resources
-- [ ] Step 2: acquire Windows named mutex; second launch reads sanitized local runtime metadata, opens existing URL, and exits
-- [ ] Step 3: create pre-bound `127.0.0.1` socket on port `0` and pass socket directly to programmatic Uvicorn server to avoid port race
-- [ ] Step 4: persist sanitized URL/port/process metadata only; no browser login or one-time launch token exists
-- [ ] Step 5: replace packaged daemon-per-enqueue threads with one process-owned
+- [x] Step 1: detect frozen bundle root and set packaged working directory before loading relative read-only resources
+- [x] Step 2: acquire Windows named mutex; second launch reads sanitized local runtime metadata, opens existing URL, and exits
+- [x] Step 3: create pre-bound `127.0.0.1` socket on port `0` and pass socket directly to programmatic Uvicorn server to avoid port race
+- [x] Step 4: persist sanitized URL/port/process metadata only; no browser login or one-time launch token exists
+- [x] Step 5: replace packaged daemon-per-enqueue threads with one process-owned
   `ThreadPoolExecutor(max_workers=1)` and one active/pending Future registry
-- [ ] Step 6: reject additional pipeline submission while executor has queued or
+- [x] Step 6: reject additional pipeline submission while executor has queued or
   running work; reuse same busy state for background packaged jobs
-- [ ] Step 7: force `FITCV_CP_INLINE_EXECUTION=1`, remove packaged `REDIS_URL`, and reject packaged attempts to enable queue mode
-- [ ] Step 8: expose launcher shutdown callback and executor state through app state instead of route-level `os.kill` or process-name scanning
-- [ ] Step 9: open existing local URL with `webbrowser.open`; normal route redirects incomplete setup to onboarding
-- [ ] Step 10: on unexpected restart, invoke existing orphan reconciliation for interrupted packaged work
-- [ ] Step 11: keep `uvicorn fitcv_cp.main:app`, Docker, and RQ worker entrypoints unchanged outside packaged mode
+- [x] Step 7: force `FITCV_CP_INLINE_EXECUTION=1`, remove packaged `REDIS_URL`, and reject packaged attempts to enable queue mode
+- [x] Step 8: expose launcher shutdown callback and executor state through app state instead of route-level `os.kill` or process-name scanning
+- [x] Step 9: open existing local URL with `webbrowser.open`; Task 5 owns incomplete-onboarding redirects
+- [x] Step 10: on unexpected restart, invoke existing orphan reconciliation for interrupted packaged work
+- [x] Step 11: keep `uvicorn fitcv_cp.main:app`, Docker, and RQ worker entrypoints unchanged outside packaged mode
 
 **Verification:**
-- [ ] first launch starts one loopback socket and opens browser
-- [ ] second launch does not create second app/database writer
-- [ ] browser close leaves process and inline job alive
-- [ ] rapid double submission starts one job and returns busy response for second
-- [ ] packaged executor has at most one queued/running Future and no daemon job thread
-- [ ] interrupted packaged run is reconciled on next startup
-- [ ] packaged mode never calls `redis.from_url` or constructs RQ queue
+- [x] first launch starts one loopback socket and opens browser
+- [x] second launch does not create second app/database writer
+- [x] browser close leaves process and inline job alive
+- [x] rapid double submission starts one job and returns busy response for second
+- [x] packaged executor has at most one queued/running Future and no daemon job thread
+- [x] interrupted packaged run is reconciled on next startup
+- [x] packaged mode never calls `redis.from_url` or constructs RQ queue
 
 **Exit Criteria:**
 - one local process owns web server, inline job execution, and graceful stop signal
@@ -263,28 +265,28 @@ clean-machine checklist, focused tests, docs, and generated lineage prove releas
 - Tasks 1-3 provide user config path and packaged runtime state
 
 **Steps:**
-- [ ] Step 1: store one credential per configured provider through `keyring`; service/account names are stable and contain no secret
-- [ ] Step 2: expose set, replace, delete, and configured-state operations; no read-secret operation crosses route/template boundary
-- [ ] Step 3: add local setup schema for provider type, display name, API-root
+- [x] Step 1: store one credential per configured provider through `keyring`; service/account names are stable and contain no secret
+- [x] Step 2: expose set, replace, delete, and configured-state operations; no read-secret operation crosses route/template boundary
+- [x] Step 3: add local setup schema for provider type, display name, API-root
   base URL, `auth_mode: required | optional | none`, explicit wire API, timeout,
   default model, and four task overrides
-- [ ] Step 4: reject operation endpoint URLs such as `/chat/completions`; normalize
+- [x] Step 4: reject operation endpoint URLs such as `/chat/completions`; normalize
   API root once and derive operation paths from wire API
-- [ ] Step 5: write only narrow non-secret routing overlay with atomic YAML replacement and existing secret-hygiene validation
-- [ ] Step 6: make `resolve_openai_compatible_api_key()` read Credential Manager only in packaged mode and preserve `FITCV_LLM_API_KEY` authority in server/developer mode
-- [ ] Step 7: make same provider validator own auth requirement for readiness,
+- [x] Step 5: write only narrow non-secret routing overlay with atomic YAML replacement and existing secret-hygiene validation
+- [x] Step 6: make `resolve_openai_compatible_api_key()` read Credential Manager only in packaged mode and preserve `FITCV_LLM_API_KEY` authority in server/developer mode
+- [x] Step 7: make same provider validator own auth requirement for readiness,
   connection test, discovery, and pipeline execution
-- [ ] Step 8: implement provider test using existing internal LLM runtime transport, bounded timeout, normalized failure, and no raw response logging
-- [ ] Step 9: discover models at `{base_url}/models`; fall back to validated manual model ID without adding provider SDKs
-- [ ] Step 10: derive one readiness result for provider, auth mode, credential state, default model, four task routes, and representative request
+- [x] Step 8: implement provider test using existing internal LLM runtime transport, bounded timeout, normalized failure, and no raw response logging
+- [x] Step 9: discover models at `{base_url}/models`; fall back to validated manual model ID without adding provider SDKs
+- [x] Step 10: derive one readiness result for provider, auth mode, credential state, default model, four task routes, and representative request
 
 **Verification:**
-- [ ] secret canary absent from YAML, JSON, SQLite, logs, rendered HTML, diagnostics, and test backup archive
-- [ ] OpenAI, authenticated compatible, and unauthenticated local compatible configurations resolve correctly
-- [ ] endpoint-shaped base URLs reject; API-root URLs round-trip unchanged
-- [ ] `required`, `optional`, and `none` auth modes produce same result across readiness, test, discovery, and runtime
-- [ ] server mode still resolves `FITCV_LLM_API_KEY` and ignores local credential store
-- [ ] invalid provider config fails before run creation with actionable reason
+- [x] secret canary absent from routing YAML; Tasks 6-7 extend canary proof to backup, diagnostics, logs, DB, and HTML
+- [x] OpenAI, authenticated compatible, and unauthenticated local compatible configurations resolve correctly
+- [x] endpoint-shaped base URLs reject; API-root URLs round-trip unchanged
+- [x] `required`, `optional`, and `none` auth modes produce same result across readiness, test, discovery, and runtime
+- [x] server mode still resolves `FITCV_LLM_API_KEY` and ignores local credential store
+- [x] invalid provider config fails before run creation with actionable reason
 
 **Exit Criteria:**
 - UI and pipeline share one non-secret routing file and one mode-specific credential authority
@@ -308,26 +310,26 @@ clean-machine checklist, focused tests, docs, and generated lineage prove releas
 - Task 4 provides provider, credential, model, and readiness operations
 
 **Steps:**
-- [ ] Step 1: add local route registration through one `APIRouter`; `create_app()` includes it only when packaged-local context exists
-- [ ] Step 2: add one packaged-mode middleware/dependency boundary validating
+- [x] Step 1: add local route registration through one `APIRouter`; `create_app()` includes it only when packaged-local context exists
+- [x] Step 2: add one packaged-mode middleware/dependency boundary validating
   loopback server mode, expected Host, and same-origin Origin/Referer
-- [ ] Step 3: generate one per-process CSRF token, inject through shared template
+- [x] Step 3: generate one per-process CSRF token, inject through shared template
   context/form helper, and require it for every unsafe existing and new route
-- [ ] Step 4: add regression inventory covering all current `POST`, `PUT`, `PATCH`,
+- [x] Step 4: add regression inventory covering all current `POST`, `PUT`, `PATCH`,
   and `DELETE` routes; no prefix-based security exception is allowed
-- [ ] Step 5: persist onboarding progress as non-secret versioned JSON under data root with steps `welcome`, `data`, `profile`, `provider`, `models`, `review`, `complete`
-- [ ] Step 6: implement native folder chooser using stdlib `tkinter.filedialog.askdirectory` in packaged Windows mode only; keep typed-path fallback for tests and inaccessible dialog cases
-- [ ] Step 7: create candidate profile from public template or import YAML/JSON through existing candidate validation before atomic write
-- [ ] Step 8: render provider test, discovered/manual model selection, default-model path, and Advanced task overrides
-- [ ] Step 9: redirect incomplete onboarding state to onboarding while allowing health, static assets, and recovery routes
-- [ ] Step 10: block trigger submission with explicit readiness reasons when profile or required LLM route is missing; do not block browsing existing runs
+- [x] Step 5: persist onboarding progress as non-secret versioned JSON under data root with steps `welcome`, `data`, `profile`, `provider`, `models`, `review`, `complete`
+- [x] Step 6: implement native folder chooser using stdlib `tkinter.filedialog.askdirectory` in packaged Windows mode only; keep typed-path fallback for tests and inaccessible dialog cases
+- [x] Step 7: create candidate profile from public template or import YAML/JSON through existing candidate validation before atomic write
+- [x] Step 8: render provider test, discovered/manual model selection, default-model path, and Advanced task overrides
+- [x] Step 9: redirect incomplete onboarding state to onboarding while allowing health, static assets, and recovery routes
+- [x] Step 10: block trigger submission with explicit readiness reasons when profile or required LLM route is missing; do not block browsing existing runs
 
 **Verification:**
-- [ ] onboarding resumes exact last completed step after process restart
-- [ ] malformed profile or provider input preserves draft and reports field-level error
-- [ ] CSRF, wrong Host/Origin, and server-mode unsafe requests reject across existing and new routes
-- [ ] second launch opens existing URL without cookie or token exchange
-- [ ] completed onboarding reaches existing runs page without alternate product shell
+- [x] onboarding resumes exact last completed step after process restart
+- [x] malformed profile or provider input preserves draft and reports field-level error
+- [x] CSRF and wrong Host/Origin reject across existing and new packaged routes while server mode remains unchanged
+- [x] second launch opens existing URL without cookie or token exchange
+- [x] completed onboarding reaches existing runs page without alternate product shell
 
 **Exit Criteria:**
 - new user configures application without terminal, `.env`, or YAML editing

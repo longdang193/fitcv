@@ -22,6 +22,7 @@ import json as _json
 import logging
 import os
 import re
+import secrets
 import sqlite3
 import time
 import uuid
@@ -524,13 +525,20 @@ def submit_run(
     redis_url: str = "redis://redis:6379/0",
     run_id: str | None = None,
 ) -> RunSubmission:
-    submission = ORCHESTRATION_ADAPTER.submit(
-        jobs_path=jobs_path,
-        config_path=config_path,
-        triggered_by=triggered_by,
-        redis_url=redis_url,
-        run_id=run_id,
-    )
+    try:
+        submission = ORCHESTRATION_ADAPTER.submit(
+            jobs_path=jobs_path,
+            config_path=config_path,
+            triggered_by=triggered_by,
+            redis_url=redis_url,
+            run_id=run_id,
+        )
+    except Exception as exc:
+        from fitcv_cp.local_app import LocalAppBusyError
+
+        if isinstance(exc, LocalAppBusyError):
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise
     emit_routing, emit_backend = _observability_toggles()
     if emit_backend:
         emit_observability_event(
@@ -5828,7 +5836,70 @@ def create_app(
         insert_cv_version_row_fn=sqlite_store_module.insert_cv_version_row,
     )
     app = FastAPI(title="FitCV Admin Control Plane")
+    app.state.run_store = _CP_STORE
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+    from fitcv_cp.local_storage import is_local_mode
+
+    local_mode = is_local_mode()
+    csrf_token = secrets.token_urlsafe(32) if local_mode else ""
+    app.state.local_mode = local_mode
+    app.state.csrf_token = csrf_token
+    app.state.templates = templates
+    templates.env.globals["csrf_token"] = csrf_token
+    if local_mode:
+        from fitcv_cp.local_routes import (
+            build_local_router,
+            local_readiness_status,
+            onboarding_is_complete,
+        )
+
+        @app.middleware("http")
+        async def local_request_guard(request: Request, call_next):
+            if request.url.hostname != "127.0.0.1":
+                return Response("Invalid Host", status_code=403)
+            unsafe = request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
+            if unsafe:
+                source = request.headers.get("origin") or request.headers.get("referer") or ""
+                source_url = urlparse(source)
+                if (
+                    source_url.hostname != request.url.hostname
+                    or source_url.port != request.url.port
+                    or source_url.scheme != request.url.scheme
+                ):
+                    return Response("Invalid Origin", status_code=403)
+                supplied_token = request.headers.get("x-fitcv-csrf") or request.cookies.get("fitcv_csrf") or ""
+                if not secrets.compare_digest(supplied_token, csrf_token):
+                    return Response("Invalid CSRF token", status_code=403)
+            allowed_before_setup = request.url.path.startswith("/local/") or request.url.path in {
+                "/healthz",
+                "/openapi.json",
+            }
+            if not allowed_before_setup and not onboarding_is_complete():
+                if unsafe:
+                    return Response("FitCV Local onboarding is incomplete", status_code=409)
+                response = RedirectResponse("/local/onboarding", status_code=307)
+            elif unsafe and request.url.path in {"/runs", "/admin/upload-trigger"}:
+                readiness_status = local_readiness_status()
+                if not readiness_status["ready"]:
+                    return Response(
+                        _json.dumps(readiness_status),
+                        status_code=409,
+                        media_type="application/json",
+                    )
+                response = await call_next(request)
+            else:
+                response = await call_next(request)
+            if request.cookies.get("fitcv_csrf") != csrf_token:
+                response.set_cookie(
+                    "fitcv_csrf",
+                    csrf_token,
+                    httponly=False,
+                    samesite="strict",
+                    secure=False,
+                )
+            return response
+
+        app.include_router(build_local_router(templates))
     runtime_settings_schema = settings_schema_with_runtime_defaults(load_config())
     schema_by_key = {entry["key"]: entry for entry in runtime_settings_schema}
     metadata_only_keys = metadata_only_settings_keys()
