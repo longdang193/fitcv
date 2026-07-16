@@ -628,6 +628,54 @@ def test_cli_exit_code_mapping() -> None:
     assert inverse_cli._exit_code("insufficient_evidence") == 0
     assert inverse_cli._exit_code("invalid_input") == 2
     assert inverse_cli._exit_code("solver_error") == 3
+    assert inverse_cli._exit_code("evaluation_rejected") == 4
+    assert inverse_cli._exit_code("conflict") == 4
+
+def test_cli_rollback_cas_conflict_returns_typed_exit_code(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def raise_conflict(*args: object, **kwargs: object) -> dict[str, object]:
+        raise ValueError("active snapshot changed")
+
+    monkeypatch.setattr(
+        inverse_cli.sqlite_store,
+        "rollback_ranking_policy",
+        raise_conflict,
+    )
+
+    exit_code = inverse_cli.main(
+        [
+            "rollback",
+            "--domain",
+            "ranking_v1",
+            "--expected-active",
+            "stale-snapshot",
+            "--target",
+            "zero_residual",
+            "--acted-by",
+            "operator",
+        ]
+    )
+
+    assert exit_code == 4
+    assert json.loads(capsys.readouterr().out) == {
+        "status": "conflict",
+        "error_code": "active_snapshot_changed",
+    }
+
+
+def test_cli_lifecycle_parser_has_phase_7_commands() -> None:
+    parser = inverse_cli._parser()
+    assert parser.parse_args(["inspect", "--domain", "ranking_v1"]).command == "inspect"
+    reject = parser.parse_args(
+        ["reject", "--snapshot", "snapshot", "--acted-by", "operator", "--reason", "reason"]
+    )
+    assert reject.snapshot == "snapshot"
+    candidate = parser.parse_args(
+        ["candidate", "--domain", "ranking_v1", "--input", "bundle.json"]
+    )
+    assert not hasattr(candidate, "acted_by")
 
 
 def test_atomic_output_failure_preserves_existing_file(

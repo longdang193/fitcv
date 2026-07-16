@@ -2,7 +2,7 @@
 stage_id: ranking
 name: Ranking
 status: active
-purpose: Score shortlist candidates through one exact ranking-v2 policy, preserve six absolute structured-factor diagnostics, derive the authoritative baseline fit label, and emit deterministic canonical ranking rows plus versioned artifacts for downstream consumers.
+purpose: Score every eligible candidate through one exact ranking-v2 baseline, resolve one compatible preference policy per run, apply a bounded latent residual for personalized order, preserve authoritative baseline labels, and emit deterministic versioned artifacts.
 feature_refs:
 - cv_system
 - inspection_debugging
@@ -12,6 +12,7 @@ capability_refs:
 - cv_system.fit-gate-resolution
 - cv_system.preference-compilation
 - cv_system.preference-learning
+- cv_system.ranking-policy-lifecycle
 - cv_system.ranking-v2-baseline
 - inspection_debugging.cv-analysis-diagnostics
 - inspection_debugging.cv-generation-diagnostics
@@ -84,10 +85,12 @@ doc_refs:
 - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
 - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
 - docs/superpowers/plans/2026-07-16-09-55-fitcv-inverse-optimization-phase-6-latent-residual-solver-evaluation-plan.md
+- docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
 - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
 - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
 - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
 - docs/superpowers/specs/2026-07-16-09-31-fitcv-inverse-optimization-phase-6-latent-residual-solver-evaluation-spec.md
+- docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
 config_refs: []
 component_refs: []
 depends_on:
@@ -101,16 +104,18 @@ outputs:
 - '`stage_transition_artifacts.ranking.decision_summary.reuse_metrics` with exact-match AI-score reuse counts and fresh counts over scored inputs'
 - authoritative `baseline_fit_label` values (`strong`, `stretch`, `skip`) that downstream stages preserve as upstream truth
 - bounded `stage_transition_artifacts_v8.ranking` runtime block with exact policy/fingerprint data, configured/effective weights, normalizers, missing/coverage/contribution summaries, label distribution, migration summary, reuse metrics, and canonical samples
+- 'canonical personalized fields: residual, raw/display personalized score, clipping flag, `personalized_rank`, snapshot identity, vector fingerprint, runtime fingerprint, and resolution status'
 - canonical ranked jobs with `baseline_fit`, `baseline_fit_label`, `baseline_rank`, factor records, policy versions, and `ranking_contract_fingerprint`
 - immutable normalized-vector and baseline evidence for `results_job_ledger_v4` decision-feedback alternatives
 - offline-compatible evidence contracts for Phase 6 preference learning without runtime score, label, or order mutation
+- one bounded `personalization` artifact summary with full vector exactly once per run artifact
 - optional manual checkpoint payloads that can resume `cv_analysis` from ranked jobs without recomputing earlier stages
 - ordered `llm_runtime_observations` for actual ranking calls plus a stage-neutral runtime summary; exact reuse emits no new runtime evidence
 - row-level `ai_score_reuse_status` and `ai_score_input_fingerprint` in ranking outputs and exports
 - scored ranking inputs
 invariants:
 - shortlist candidates enter and ranked jobs leave
-- ranking owns `baseline_fit`, `baseline_fit_label`, `baseline_rank`, total ordering, and the ranking contract fingerprint
+- ranking owns `baseline_fit`, `baseline_fit_label`, global `baseline_rank`, personalized raw ordering, `personalized_rank`, and the ranking contract fingerprint
 - shared `llm_runtime` owns route resolution, credentials, provider transport, wire compatibility, normalized operational failures, runtime provenance, and persistable call evidence; ranking owns prompt meaning, scalar parsing, factor algebra, label derivation, ordering, and row shape
 - '`config/policy/ranking.yaml` is the sole mutable ranking-policy owner; code does not own numeric fallbacks'
 - location and language consume Phase 1 absolute factor projections; hard-gated or disabled factors are excluded once from effective structured weights
@@ -118,6 +123,8 @@ invariants:
 - completed-run export may freeze evidence-complete scored rows into `decision_feedback_source_v1`; ratings never feed Phase 4 ranking
 - Phase 5 consumes immutable rating evidence through a pure preference compiler; compiler edges remain outside ranking runtime and do not alter labels or order
 - Phase 6 consumes frozen ranking evidence only through an offline latent-residual solver and episode-grouped evaluator; ranking remains evidence producer, never optimizer caller
+- Phase 7 resolves one compatible active snapshot before ranking, freezes that payload in checkpoint state, and falls back visibly to a zero residual for the whole run when no valid snapshot is available
+- personalized score and rank can reorder or truncate jobs but never change `baseline_fit`, `baseline_fit_label`, `strong|stretch|skip`, CV eligibility, or generation gates
 - canonical writes exclude legacy `final_*`, model-authored label, and ambiguous `preference_fit` authority
 human_notes:
 - ranking

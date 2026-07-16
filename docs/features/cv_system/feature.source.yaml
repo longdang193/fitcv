@@ -58,7 +58,10 @@ capabilities:
     statement: Compile complete ordinal rating evidence into deterministic, versioned, provenance-preserving preference edges without persistence, solver activation, or ranking effects.
     state: active
   - capability_id: cv_system.preference-learning
-    statement: Learn and evaluate one bounded offline embedding-space preference residual from complete compatible episode evidence without persistence, activation, or runtime ranking effects.
+    statement: Learn and evaluate one bounded embedding-space preference residual from complete compatible episode evidence, persist every terminal attempt, and create immutable candidates only after one uniform promotion gate and no-op check.
+    state: active
+  - capability_id: cv_system.ranking-policy-lifecycle
+    statement: Manage one immutable SQLite ranking-policy registry with manual candidate, reject, activate, rollback, and inspect operations; resolve and freeze one compatible policy per run while baseline labels and CV gates remain invariant.
     state: active
   - capability_id: cv_system.exact-match-late-stage-reuse
     statement: 'Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
@@ -92,6 +95,7 @@ stage_participation:
       - cv_system.fit-gate-resolution
       - cv_system.preference-compilation
       - cv_system.preference-learning
+      - cv_system.ranking-policy-lifecycle
       - cv_system.ranking-v2-baseline
   - stage_id: shortlist
     role: primary

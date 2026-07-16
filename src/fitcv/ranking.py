@@ -16,10 +16,10 @@ lifecycle:
 """
 
 import re
-from datetime import datetime, timezone
 from typing import Any
 
 from fitcv.candidate import canonicalize_role_title, infer_role_family
+from fitcv.preference_policy import ResolvedPreferencePolicy, project_personalized_score
 from fitcv.ranking_contract import STRUCTURED_FACTOR_IDS
 
 SUPPORTED_RANKING_FEATURES = STRUCTURED_FACTOR_IDS
@@ -103,7 +103,8 @@ def compute_must_have_match(
 
     def canonical(s: str) -> str:
         lower = s.strip().lower()
-        return synonyms.get(lower, lower)
+        value = synonyms.get(lower)
+        return value if isinstance(value, str) else lower
 
     reqs = {canonical(s) for s in job_skills}
     cands = {canonical(s) for s in candidate_skills}
@@ -331,8 +332,13 @@ def compute_declared_preference_fit_details(
 
 # ── sorting and ranking ───────────────────────────────────────────────────────
 
-def rank_jobs(jobs: list[dict[str, Any]], top_n: int) -> list[dict[str, Any]]:
-    """Sort canonical ranking-v2 rows and assign baseline_rank."""
+def rank_jobs(
+    jobs: list[dict[str, Any]],
+    top_n: int,
+    *,
+    resolved_preference_policy: ResolvedPreferencePolicy | None = None,
+) -> list[dict[str, Any]]:
+    """Assign global baseline rank, then optional personalized order."""
     for job in jobs:
         if not str(job.get("raw_job_fingerprint") or "").strip():
             raise ValueError("ranking row requires raw_job_fingerprint")
@@ -347,11 +353,62 @@ def rank_jobs(jobs: list[dict[str, Any]], top_n: int) -> list[dict[str, Any]]:
         ),
     )
 
-    ranked = sorted_jobs[:top_n]
-    for i, job in enumerate(ranked):
-        job["baseline_rank"] = i + 1
+    for index, job in enumerate(sorted_jobs, start=1):
+        job["baseline_rank"] = index
+        baseline_fit = float(job["baseline_fit"])
+        residual = 0.0
+        raw_score = baseline_fit
+        display_score = baseline_fit
+        clipped = False
+        if resolved_preference_policy is not None:
+            embedding = job.get("normalized_embedding")
+            if not isinstance(embedding, list) and any(resolved_preference_policy.preference_vector):
+                raise ValueError("ranking row requires normalized_embedding for personalization")
+            if isinstance(embedding, list):
+                projection = project_personalized_score(
+                    runtime_contract=resolved_preference_policy.runtime_contract,
+                    baseline_fit=baseline_fit,
+                    preference_vector=resolved_preference_policy.preference_vector,
+                    normalized_embedding=tuple(float(value) for value in embedding),
+                )
+                residual = projection.preference_residual
+                raw_score = projection.personalized_rank_score
+                display_score = projection.personalized_display_score
+                clipped = projection.score_was_clipped
+        job["preference_residual"] = residual
+        job["personalized_rank_score"] = raw_score
+        job["personalized_display_score"] = display_score
+        job["score_was_clipped"] = clipped
+        job["preference_policy_snapshot_id"] = (
+            resolved_preference_policy.policy_snapshot_id if resolved_preference_policy else None
+        )
+        job["preference_vector_fingerprint"] = (
+            resolved_preference_policy.preference_vector_fingerprint
+            if resolved_preference_policy
+            else None
+        )
+        job["preference_runtime_contract_fingerprint"] = (
+            resolved_preference_policy.runtime_contract.runtime_contract_fingerprint
+            if resolved_preference_policy
+            else None
+        )
+        job["preference_policy_resolution_status"] = (
+            resolved_preference_policy.resolution_status
+            if resolved_preference_policy
+            else "zero_residual_no_active"
+        )
 
-    return ranked
+    personalized = sorted(
+        sorted_jobs,
+        key=lambda job: (
+            -float(job["personalized_rank_score"]),
+            str(job["raw_job_fingerprint"]),
+            str(job.get("job_url") or ""),
+        ),
+    )
+    for index, job in enumerate(personalized, start=1):
+        job["personalized_rank"] = index
+    return personalized[:top_n]
 
 
 # ── integration: persist results ─────────────────────────────────────────────

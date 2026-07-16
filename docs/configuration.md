@@ -35,7 +35,7 @@ This matrix defines current SSOT ownership for migration execution.
 | `config/policy/cv.yaml` | CV generation and validation policy | Owns nested `cv.*` contract (`preset`, composition, validation, generation defaults). |
 | `config/policy/eligibility.yaml` | location/language eligibility policy | Sole mutable owner of factor modes and absolute normalization values; ranking/runtime/env config may not shadow `eligibility_policy`. |
 | `config/policy/ranking.yaml` | ranking-v2 baseline policy | Sole mutable owner of exact ranking policy, absolute defaults, fixed weights, label thresholds, active baseline mode, and label-migration gate. |
-| `config/policy/decision_learning.yaml` | decision-learning policy | Sole owner of ordinal 1–5 application-interest labels, scale version, domain ID, unrated label, Phase 5 compiler policy, and Phase 6 latent-residual optimizer/evaluation policy. Not exposed as a runtime setting. |
+| `config/policy/decision_learning.yaml` | decision-learning policy | Sole owner of ordinal 1–5 application-interest labels, compiler policy, latent-residual optimizer/evaluation policy, and Phase 7 activation threshold/version. Not exposed as a runtime setting. |
 | `config/taxonomy/taxonomy.yaml` | shared business taxonomy and enum families | Owns seniority taxonomy, location/contract/experience enums, role taxonomy maps. |
 | `.env.yaml` | bootstrap trigger input | Current default `config_path`; now limited to small bootstrap-only values. |
 | `config/env.private.yaml` | no active canonical owner in this worktree | File not present in tracked worktree; treat as deprecated/removed unless explicitly reintroduced as local-only untracked override. |
@@ -255,5 +255,6 @@ Fail-fast runtime contract:
 - `decision_learning_policy.policy_version` is `decision-learning-v2`; rating scale remains `application-interest-v1` and compiler remains `preference-compiler-v1`.
 - `inverse_optimization` owns fixed alpha, margin, regularization, norm bound, CLARABEL iteration limit, numeric tolerances, and episode-grouped evaluation settings. No CLI numeric override or admin setting exists.
 - Install solver support only for offline use with `uv run --extra inverse-optimization ...`; base runtime modules do not import CVXPY, NumPy, CLARABEL, or inverse optimization.
-- Run `python scripts/run_inverse_optimization.py train --domain ranking_v1 --input <bundle.json>` or `evaluate` with optional `--parent` and `--output`. Exit codes are `0` for valid results, `2` for invalid input, and `3` for solver/dependency failure.
-- Phase 6 emits non-persistent solver/evaluation artifacts. Phase 7 owns candidate-vector persistence, activation, rollback, runtime scoring, and observability.
+- Activation config is exact: `activation_version: ranking-policy-lifecycle-v1` and `minimum_fold_vector_stability: 0.0`. Existing `numeric_equivalence_absolute` owns metric tolerance and vector no-op equivalence; no CLI override exists.
+- Pure commands remain `train --domain <id> --input <bundle>` and `evaluate ... [--parent <path>]`. Lifecycle commands are `candidate`, `reject`, `activate`, `rollback`, and `inspect`; all emit canonical JSON and use atomic file replacement when `--output` is supplied.
+- Exit codes are `0` for valid terminal/action results, `2` for invalid input or unknown identity, `3` for solver/dependency/storage failure, and `4` for promotion rejection, stale/conflicting lifecycle state, or incompatibility.

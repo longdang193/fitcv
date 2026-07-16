@@ -46,6 +46,12 @@ from fitcv.contracts import (
     SETTINGS_USED_SCHEMA_VERSION,
 )
 from fitcv.pipeline import PipelineCancelled, run_pipeline
+from fitcv.preference_policy import (
+    PreferenceRuntimeContract,
+    ResolvedPreferencePolicy,
+    resolve_zero_residual_policy,
+    resolved_preference_policy_from_snapshot,
+)
 from fitcv.telemetry import (
     build_langfuse_trace_attributes,
     observe_span,
@@ -67,6 +73,7 @@ from fitcv_cp.sqlite_store import (
     update_run_settings_used,
     update_run_stage_transition_artifacts,
     update_run_status,
+    resolve_active_ranking_policy,
 )
 from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.data_plane import data_plane_contract_payload
@@ -123,6 +130,28 @@ _SETTINGS_COMPATIBILITY_KEYS = {
     "cv_max_pages",
     "required_cv_sections",
 }
+
+
+def _resolve_worker_preference_policy(
+    runtime_contract: PreferenceRuntimeContract,
+) -> ResolvedPreferencePolicy:
+    snapshot = resolve_active_ranking_policy(
+        runtime_contract.domain_id,
+        runtime_contract.runtime_contract_fingerprint,
+    )
+    if snapshot is None:
+        return resolve_zero_residual_policy(
+            runtime_contract,
+            status="zero_residual_no_active",
+        )
+    try:
+        return resolved_preference_policy_from_snapshot(runtime_contract, snapshot)
+    except (TypeError, ValueError):
+        return resolve_zero_residual_policy(
+            runtime_contract,
+            status="zero_residual_invalid",
+            diagnostic_code="invalid_active_snapshot",
+        )
 _NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL = 2
 _WINDOWS_ABSOLUTE_PATH_PATTERN = re.compile(r"^[A-Za-z]:[\\/]")
 LOW_RISK_AUTO_ACCEPT_REASON_CODES = {
@@ -1833,6 +1862,7 @@ def execute_pipeline_run(
                     checkpoint_payload=checkpoint_payload,
                     reuse_snapshots=late_stage_reuse_snapshots,
                     stage_progress_callback=_stage_progress_callback if run_mode == "run_all" else None,
+                    preference_policy_resolver=_resolve_worker_preference_policy,
                 )
 
             paused_after_stage = str(summary.get("paused_after_stage") or "").strip() or None

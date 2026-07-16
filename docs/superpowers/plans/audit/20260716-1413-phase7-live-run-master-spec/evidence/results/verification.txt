@@ -1,0 +1,34 @@
+Live run evidence
+- baseline run 3d6b0bdd-0958-4bcd-b3d1-473f10a7cc52: succeeded
+- personalized run ee9f783a-e606-482f-9a97-2172f2f9a81d: succeeded
+- active snapshot rps_25dda0400f9f2858ffeea2b3130159190ebf6e4fc0d457c5eac26fe61a406293
+- zero run errors; one expected HITL warning
+- five nonzero personalized residuals; zero baseline-label changes
+- rollback conflict after fix: status=conflict, error_code=active_snapshot_changed, exit=4
+
+Fresh verification
+- policy/config/inverse: 137 passed
+- ranking/contract/AI: 66 passed, 1 skipped
+- pipeline/resume: 143 passed
+- earlier-phase normalization/enrichment/filter/vector: 214 passed, 2 skipped
+- decision feedback: 56 passed
+- admin app: 514 passed
+- preference policy + SQLite lifecycle: 28 passed
+- inverse optimization: 30 passed
+- personalized/baseline/resume focused: 16 passed
+- activation evidence-head regressions: 2 passed
+- scoped Ruff: passed
+- isolated mypy: passed
+- runtime import isolation: passed
+- CVXPY 1.9.2 and CLARABEL available offline: passed
+- architecture metadata check: passed
+- planning lifecycle: passed
+- repo contracts: passed
+- uv lock check: passed
+- git diff check: passed with line-ending warnings only
+
+Known verification limits
+- broad Ruff reports pre-existing legacy debt outside Phase 7-owned core scope
+- documented lifecycle `-k` filter selected zero tests
+- no dedicated current config/runtime activation CAS proof
+- no mutation-safe live hard-gate/city-discrimination scenario

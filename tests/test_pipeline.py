@@ -380,7 +380,7 @@ def test_build_export_results_uses_raw_job_fingerprint_when_urls_drift() -> None
         "raw_job_fingerprint": "raw-fp-1",
         "baseline_fit": 0.82,
         "baseline_fit_label": "strong",
-        "baseline_rank": 1,
+        "baseline_rank": 2,
         "holistic_ai_fit": 0.71,
         "vector_similarity": 0.65,
     }
@@ -5778,6 +5778,16 @@ def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract()
             },
             "baseline_fit": 0.85,
             "baseline_fit_label": "strong",
+            "baseline_rank": 2,
+            "personalized_rank": 1,
+            "preference_residual": 0.01,
+            "personalized_rank_score": 0.86,
+            "personalized_display_score": 0.86,
+            "score_was_clipped": False,
+            "preference_policy_snapshot_id": "snapshot-1",
+            "preference_vector_fingerprint": "vector-fp",
+            "preference_runtime_contract_fingerprint": "runtime-fp",
+            "preference_policy_resolution_status": "active",
             "shortlist_origin": "vector_search",
         }
     ]
@@ -5803,6 +5813,20 @@ def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract()
         cv_generation_debug_records=[],
         profile={"preferences": {"target_role": "Data Engineer"}},
         config=_minimal_config(),
+        resolved_preference_policy={
+            "schema_version": "resolved_preference_policy_v1",
+            "resolution_status": "active",
+            "runtime_contract": {
+                "runtime_contract_fingerprint": "runtime-fp",
+                "learned_alpha": 0.05,
+                "preference_vector_norm_bound": 1.0,
+            },
+            "policy_snapshot_id": "snapshot-1",
+            "preference_vector": [0.1, -0.1],
+            "preference_vector_fingerprint": "vector-fp",
+            "payload_fingerprint": "payload-fp",
+            "diagnostic_code": None,
+        },
     )
 
     ranking_block = artifacts["stages"]["ranking"]
@@ -5816,6 +5840,20 @@ def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract()
     assert decision_summary["contributing_features"] == ["holistic_ai_fit"]
     assert ranking_block["inputs_sample"][0]["normalized_factors"]["must_have_match"]["value"] == pytest.approx(1.0)
     assert ranking_block["inputs_sample"][0]["normalized_factors"]["declared_preference_fit"]["value"] == pytest.approx(1.0)
+    assert ranking_block["outputs_sample"][0]["personalized_rank"] == 1
+    assert ranking_block["outputs_sample"][0]["personalized_rank_score"] == pytest.approx(0.86)
+    assert ranking_block["outputs_sample"][0]["personalized_display_score"] == pytest.approx(0.86)
+    assert ranking_block["outputs_sample"][0]["preference_residual"] == pytest.approx(0.01)
+    assert ranking_block["outputs_sample"][0]["score_was_clipped"] is False
+    assert ranking_block["outputs_sample"][0]["preference_policy_snapshot_id"] == "snapshot-1"
+    assert ranking_block["outputs_sample"][0]["preference_vector_fingerprint"] == "vector-fp"
+    assert ranking_block["outputs_sample"][0]["preference_runtime_contract_fingerprint"] == "runtime-fp"
+    assert ranking_block["outputs_sample"][0]["preference_policy_resolution_status"] == "active"
+    personalization = decision_summary["personalization"]
+    assert personalization["resolution_status"] == "active"
+    assert personalization["preference_vector"] == [0.1, -0.1]
+    assert personalization["residual_mean"] == pytest.approx(0.01)
+    assert json.dumps(ranking_block, sort_keys=True).count('"preference_vector"') == 1
 
 
 def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
@@ -7764,7 +7802,16 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "baseline_fit": 0.95,
         "vector_similarity": 0.88,
         "baseline_fit_label": "strong",
-        "baseline_rank": 1,
+        "baseline_rank": 2,
+        "personalized_rank": 1,
+        "preference_residual": 0.02,
+        "personalized_rank_score": 0.97,
+        "personalized_display_score": 0.97,
+        "score_was_clipped": False,
+        "preference_policy_snapshot_id": "snapshot-1",
+        "preference_vector_fingerprint": "vector-fp",
+        "preference_runtime_contract_fingerprint": "runtime-fp",
+        "preference_policy_resolution_status": "active",
     }
     ranked_no_cv = {
         **_minimal_job("https://example.com/2"),
@@ -7775,7 +7822,16 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "baseline_fit": 0.20,
         "vector_similarity": 0.70,
         "baseline_fit_label": "skip",
-        "baseline_rank": 2,
+        "baseline_rank": 1,
+        "personalized_rank": 2,
+        "preference_residual": -0.01,
+        "personalized_rank_score": 0.19,
+        "personalized_display_score": 0.19,
+        "score_was_clipped": False,
+        "preference_policy_snapshot_id": "snapshot-1",
+        "preference_vector_fingerprint": "vector-fp",
+        "preference_runtime_contract_fingerprint": "runtime-fp",
+        "preference_policy_resolution_status": "active",
     }
     not_shortlisted = {
         **_minimal_job("https://example.com/3"),
@@ -7933,6 +7989,17 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     assert export_results[0]["cv"]["version_id"] == "v1"
     assert export_results[0]["cv"]["ranking_fit_label"] == "strong"
     assert export_results[0]["location_type"] == "remote"
+    assert export_results[0]["rank"] == 1
+    assert export_results[0]["scores"]["baseline_rank"] == 2
+    assert export_results[0]["scores"]["personalized_rank"] == 1
+    assert export_results[0]["scores"]["preference_residual"] == pytest.approx(0.02)
+    assert export_results[0]["scores"]["personalized_rank_score"] == pytest.approx(0.97)
+    assert export_results[0]["scores"]["personalized_display_score"] == pytest.approx(0.97)
+    assert export_results[0]["scores"]["score_was_clipped"] is False
+    assert export_results[0]["scores"]["preference_policy_snapshot_id"] == "snapshot-1"
+    assert export_results[0]["scores"]["preference_vector_fingerprint"] == "vector-fp"
+    assert export_results[0]["scores"]["preference_runtime_contract_fingerprint"] == "runtime-fp"
+    assert export_results[0]["scores"]["preference_policy_resolution_status"] == "active"
     assert "job_family" in export_results[0]
     assert "seniority" in export_results[0]
     assert "original_job" not in export_results[0]

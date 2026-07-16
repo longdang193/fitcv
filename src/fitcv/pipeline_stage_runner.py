@@ -23,6 +23,12 @@ from copy import deepcopy
 from typing import Any, Callable
 
 from fitcv.fit_factors import build_candidate_fit_context
+from fitcv.preference_policy import (
+    PreferenceRuntimeContract,
+    ResolvedPreferencePolicy,
+    resolve_run_preference_policy,
+    resolved_preference_policy_to_dict,
+)
 
 def _reuse_stage_enabled(config: dict[str, Any], stage: str) -> bool:
     reuse_block = dict(config.get("reuse") or {})
@@ -340,6 +346,10 @@ def execute_ranking_stage(
     run_ai_scoring: Callable[..., list[dict[str, Any]]],
     build_ranking_features: Callable[..., list[dict[str, Any]]],
     rank_jobs: Callable[..., list[dict[str, Any]]],
+    preference_policy_resolver: Callable[
+        [PreferenceRuntimeContract], ResolvedPreferencePolicy
+    ]
+    | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     with observe_span("pipeline.ai_score", attributes={"run_id": run_id}):
         ai_top_n = int(config["pipeline"]["ai_score_top_n"])
@@ -418,7 +428,20 @@ def execute_ranking_stage(
 
     with observe_span("pipeline.ranking", attributes={"run_id": run_id, "final_top_n": final_top_n}):
         ranking_inputs = build_ranking_features(shortlist, ai_scores, profile, config)
-        ranked = rank_jobs(ranking_inputs, top_n=final_top_n)
+        resolved_preference_policy = resolve_run_preference_policy(
+            ranking_rows=ranking_inputs,
+            config=config,
+            existing_payload=dict(state.get("resolved_preference_policy") or {}),
+            resolver=preference_policy_resolver,
+        )
+        state["resolved_preference_policy"] = resolved_preference_policy_to_dict(
+            resolved_preference_policy
+        )
+        ranked = rank_jobs(
+            ranking_inputs,
+            top_n=final_top_n,
+            resolved_preference_policy=resolved_preference_policy,
+        )
         pipeline_store.store_final_ranking(ranked, config)
         if reporter is not None:
             reporter.emit("layer3_ranking", "info", f"Final ranking: top {len(ranked)} jobs")  # type: ignore[union-attr]

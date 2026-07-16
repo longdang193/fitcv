@@ -59,7 +59,7 @@ NORMALIZER_IDS = {
     "location_fit": "eligibility-location-projection-v1",
     "language_fit": "eligibility-language-projection-v1",
 }
-RANKING_ORDER_VERSION = "baseline-fingerprint-url-v1"
+RANKING_ORDER_VERSION = "baseline-all-eligible-personalized-fingerprint-url-v1"
 LEGACY_ADAPTER_VERSION = "ranking-row-legacy-v1"
 
 def _fit_label_from_thresholds(score: float, thresholds: Mapping[str, Any]) -> str:

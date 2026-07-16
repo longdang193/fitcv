@@ -6,6 +6,7 @@ boundaries:
   - evidence retrieval, final evidence selection, gap analysis, and fit-gate ownership belong to this stage
   - ranking owns baseline score and label; this stage consumes persisted `baseline_fit_label`, or derives it from persisted `baseline_fit` through the same ranking-policy thresholds when the label is absent
   - AI diagnostics, vector evidence, gap findings, and personalized-score placeholders cannot override baseline qualification
+  - '`personalized_rank_score`, personalized display score, residual, policy snapshot, and `personalized_rank` are ordering diagnostics only; this stage gates exclusively from baseline qualification evidence'
   - '`fitcv.agentic_cv_analysis.analyze_ranked_job` is the sole per-job business entrypoint and canonical record owner'
   - pipeline orchestration may locate reuse candidates, persist records, and emit stage observations, but it does not recreate analysis decisions or fabricate LLM provenance
   - this stage does not generate or persist final CV artifacts

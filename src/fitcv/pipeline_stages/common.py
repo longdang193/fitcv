@@ -252,6 +252,19 @@ def ranking_row_sample(row: Mapping[str, Any]) -> dict[str, Any] | None:
         "baseline_fit": row.get("baseline_fit"),
         "baseline_fit_label": row.get("baseline_fit_label"),
         "baseline_rank": row.get("baseline_rank"),
+        "personalized_rank": row.get("personalized_rank"),
+        "preference_residual": row.get("preference_residual"),
+        "personalized_rank_score": row.get("personalized_rank_score"),
+        "personalized_display_score": row.get("personalized_display_score"),
+        "score_was_clipped": row.get("score_was_clipped"),
+        "preference_policy_snapshot_id": row.get("preference_policy_snapshot_id"),
+        "preference_vector_fingerprint": row.get("preference_vector_fingerprint"),
+        "preference_runtime_contract_fingerprint": row.get(
+            "preference_runtime_contract_fingerprint"
+        ),
+        "preference_policy_resolution_status": row.get(
+            "preference_policy_resolution_status"
+        ),
         "ranking_contract_fingerprint": row.get("ranking_contract_fingerprint"),
         "shortlist_origin": row.get("shortlist_origin"),
     }

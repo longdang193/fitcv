@@ -60,6 +60,7 @@ refs:
   - docs/superpowers/specs/2026-06-26-16-40-fitcv-pipeline-identity-and-filter-truth-spec.md
   - docs/superpowers/specs/2026-07-14-22-25-fitcv-inverse-optimization-master-ssot-symmetry-spec.md
   - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+  - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
   - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -80,10 +81,11 @@ refs:
   - docs/superpowers/plans/2026-05-20-13-20-timeline-concurrency-messaging-and-dedupe-plan.md
   - docs/superpowers/plans/2026-06-26-16-45-fitcv-pipeline-identity-and-filter-truth-plan.md
   - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+  - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
   docs:
   - docs/features/admin_control_plane_core/history.md
   configs: []
   components: []
-revision: 6
-latest_change_id: 2026-07-16-fitcv-inverse-optimization-phase-4-decision-feedback
-last_updated_at: '2026-07-16T02:09:27+02:00'
+revision: 7
+latest_change_id: 2026-07-16-fitcv-inverse-optimization-phase-7-closeout
+last_updated_at: '2026-07-16T23:45:00+02:00'

@@ -470,10 +470,39 @@ def build_ranking_stage_block(
     ai_score_model_resolver: Callable[[dict[str, Any]], str],
     effective_preferences_resolver: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]],
     llm_runtime_observations: list[dict[str, Any]] | None = None,
+    resolved_preference_policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not ranking_reached:
         return stage_block_not_reached_builder("ranking")
-    return stage_block_builder(
+    policy = dict(resolved_preference_policy or {})
+    runtime_contract = dict(policy.get("runtime_contract") or {})
+    residuals = [float(row.get("preference_residual") or 0.0) for row in ranking_inputs]
+    personalization = {
+        "schema_version": "ranking_personalization_v1",
+        "resolution_status": policy.get("resolution_status", "zero_residual_no_active"),
+        "diagnostic_code": policy.get("diagnostic_code"),
+        "runtime_contract_fingerprint": runtime_contract.get("runtime_contract_fingerprint"),
+        "policy_snapshot_id": policy.get("policy_snapshot_id"),
+        "payload_fingerprint": policy.get("payload_fingerprint"),
+        "preference_vector": list(policy.get("preference_vector") or []),
+        "preference_vector_fingerprint": policy.get("preference_vector_fingerprint"),
+        "learned_alpha": runtime_contract.get("learned_alpha"),
+        "preference_vector_norm_bound": runtime_contract.get("preference_vector_norm_bound"),
+        "residual_min": min(residuals, default=0.0),
+        "residual_max": max(residuals, default=0.0),
+        "residual_mean": sum(residuals) / len(residuals) if residuals else 0.0,
+        "clipped_count": sum(bool(row.get("score_was_clipped")) for row in ranking_inputs),
+        "rank_change_count": sum(
+            row.get("baseline_rank") != row.get("personalized_rank") for row in ranking_inputs
+        ),
+    }
+    personalization["clipped_rate"] = (
+        personalization["clipped_count"] / len(ranking_inputs) if ranking_inputs else 0.0
+    )
+    personalization["rank_change_rate"] = (
+        personalization["rank_change_count"] / len(ranking_inputs) if ranking_inputs else 0.0
+    )
+    block = stage_block_builder(
         stage_id="ranking",
         status="completed",
         input_counts={
@@ -502,6 +531,7 @@ def build_ranking_stage_block(
             "zero_weight_features": zero_weight_features,
             "contributing_features": contributing_features,
             "candidate_preference_resolution": effective_preferences_resolver(profile, config),
+            "personalization": personalization,
         },
         inputs_sample=sample_rows_builder(ranking_inputs, ranking_row_sample_builder),
         outputs_sample=sample_rows_builder(ranked, ranking_row_sample_builder),
@@ -522,6 +552,15 @@ def build_ranking_stage_block(
         ],
         llm_runtime_observations=llm_runtime_observations,
     )
+    evidence_personalization = (
+        block.get("stage_result", {})
+        .get("evidence", {})
+        .get("decision_summary", {})
+        .get("personalization")
+    )
+    if isinstance(evidence_personalization, dict):
+        evidence_personalization.pop("preference_vector", None)
+    return block
 
 
 def build_cv_analysis_stage_block(

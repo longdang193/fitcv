@@ -232,3 +232,48 @@ def test_control_plane_store_delegates_decision_feedback() -> None:
         "event": "event",
     }
     assert store.list_decision_rating_events_for_run("run-1") == ["run-1"]
+
+
+def test_control_plane_store_preference_policy_adapters() -> None:
+    captured: dict[str, object] = {}
+    store = ControlPlaneStore(
+        persist_inverse_training_result_fn=lambda row: {**row, "stored": True},
+        insert_ranking_policy_candidate_fn=lambda row: {**row, "inserted": True},
+        resolve_active_ranking_policy_fn=lambda domain, runtime: {
+            "domain_id": domain,
+            "runtime_contract_fingerprint": runtime,
+        },
+        inspect_ranking_policy_lifecycle_fn=lambda domain: {"domain_id": domain},
+        activate_ranking_policy_candidate_fn=lambda snapshot, **kwargs: captured.update(
+            {"snapshot": snapshot, **kwargs}
+        )
+        or {"status": "active"},
+    )
+
+    assert store.persist_inverse_training_result({"id": "training"})["stored"] is True
+    assert store.insert_ranking_policy_candidate({"id": "snapshot"})["inserted"] is True
+    assert store.resolve_active_ranking_policy("ranking_v1", "runtime")["domain_id"] == "ranking_v1"
+    assert store.inspect_ranking_policy_lifecycle("ranking_v1") == {"domain_id": "ranking_v1"}
+    assert store.activate_ranking_policy_candidate(
+        "snapshot", expected_parent_ref="zero_residual:baseline", acted_by="operator"
+    )["status"] == "active"
+    assert captured["snapshot"] == "snapshot"
+
+
+def test_control_plane_store_candidate_attempt_and_evidence_head_adapters() -> None:
+    store = ControlPlaneStore(
+        persist_candidate_attempt_fn=lambda training, snapshot=None: {
+            "training_run": training,
+            "snapshot": snapshot,
+        },
+        get_decision_evidence_head_fn=lambda domain: {
+            "domain_id": domain,
+            "evidence_head_fingerprint": "head",
+        },
+    )
+
+    result = store.persist_candidate_attempt(
+        {"training_run_id": "training"}, {"policy_snapshot_id": "snapshot"}
+    )
+    assert result["snapshot"] == {"policy_snapshot_id": "snapshot"}
+    assert store.get_decision_evidence_head("ranking_v1")["evidence_head_fingerprint"] == "head"

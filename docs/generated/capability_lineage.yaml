@@ -33,7 +33,7 @@ features:
     status: active
     type: add
     lineage_file: docs/features/cv_system/lineage.generated.yaml
-    capability_count: 14
+    capability_count: 15
     capabilities:
     - cv_system.analysis-evidence-selection
     - cv_system.analysis-grounded-validation
@@ -45,6 +45,7 @@ features:
     - cv_system.location-language-eligibility
     - cv_system.preference-compilation
     - cv_system.preference-learning
+    - cv_system.ranking-policy-lifecycle
     - cv_system.ranking-v2-baseline
     - cv_system.stage-artifact-diagnostics
     - cv_system.structured-cv-generation

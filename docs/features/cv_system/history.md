@@ -205,6 +205,19 @@ Verification:
 Outcome:
 Completed Phase 6 offline latent-residual learning with one decision-learning policy SSOT, complete compatible episode replay through the Phase 5 compiler, bounded CVXPY and CLARABEL solve with independent post-checks, episode-grouped evaluation, strict atomic JSON CLI, and no persistence, activation, or runtime ranking effect.
 
+### FitCV inverse optimization Phase 7 policy lifecycle, runtime residual, observability, and closeout implementation plan
+
+Source plan: `docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md`
+
+Verification:
+- `70 inverse-optimization, policy, and lifecycle tests passed with the inverse-optimization extra.`
+- `286 ranking, pipeline, resume, and worker tests passed with 1 optional skip.`
+- `41 focused solver-free policy and SQLite adapter tests passed.`
+- `Scoped Ruff, isolated mypy, runtime import isolation, architecture sync/check, planning lifecycle, hook, repo-contract, and diff checks passed.`
+
+Outcome:
+Completed Phase 7 immutable policy lifecycle, personalized runtime ordering, resolve-once resume behavior, CLI, observability, and documentation closeout.
+
 <!-- GENERATED HISTORY END -->
 
 ## Human Notes

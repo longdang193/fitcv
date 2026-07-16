@@ -166,6 +166,7 @@ _INVERSE_OPTIMIZATION_KEYS = {
     "solver",
     "numeric_tolerances",
     "evaluation",
+    "activation",
 }
 _SOLVER_KEYS = {"name", "max_iter"}
 _NUMERIC_TOLERANCE_KEYS = {"feasibility_absolute", "numeric_equivalence_absolute"}
@@ -174,6 +175,8 @@ _EVALUATION_KEYS = {
     "leave_one_episode_out_max_episodes",
     "grouped_fold_count",
 }
+_ACTIVATION_KEYS = {"activation_version", "minimum_fold_vector_stability"}
+_EXPECTED_ACTIVATION_VERSION = "ranking-policy-lifecycle-v1"
 _GAP_WEIGHT_KEYS = {str(value) for value in range(1, 5)}
 _EXPECTED_COMPILER_VERSION = "preference-compiler-v1"
 _SCALE_KEYS = {"version", "unrated_label", "labels"}
@@ -271,6 +274,18 @@ def _validate_inverse_optimization_policy(payload: Any) -> dict[str, Any]:
         raise ValueError("leave_one_episode_out_max_episodes must be an integer of at least 2")
     if isinstance(grouped_fold_count, bool) or not isinstance(grouped_fold_count, int) or not 2 <= grouped_fold_count <= 10:
         raise ValueError("grouped_fold_count must be an integer from 2 through 10")
+    activation = payload["activation"]
+    if not isinstance(activation, dict):
+        raise ValueError("inverse_optimization.activation must be a mapping")
+    _exact_keys(activation, _ACTIVATION_KEYS, "activation")
+    activation_version = _required_text(activation["activation_version"], "activation_version")
+    if activation_version != _EXPECTED_ACTIVATION_VERSION:
+        raise ValueError(f"activation_version must be {_EXPECTED_ACTIVATION_VERSION}")
+    minimum_stability = _finite_float(
+        activation["minimum_fold_vector_stability"], "minimum_fold_vector_stability"
+    )
+    if not -1.0 <= minimum_stability <= 1.0:
+        raise ValueError("minimum_fold_vector_stability must be within [-1, 1]")
     return {
         "optimizer_version": optimizer_version,
         "learned_alpha": learned_alpha,
@@ -286,6 +301,10 @@ def _validate_inverse_optimization_policy(payload: Any) -> dict[str, Any]:
             "evaluation_version": evaluation_version,
             "leave_one_episode_out_max_episodes": leave_one_out_max,
             "grouped_fold_count": grouped_fold_count,
+        },
+        "activation": {
+            "activation_version": activation_version,
+            "minimum_fold_vector_stability": minimum_stability,
         },
     }
 

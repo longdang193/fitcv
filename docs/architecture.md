@@ -65,12 +65,15 @@ Ranking-v2 ownership:
 - canonical writes use `baseline_fit`, `baseline_fit_label`, and `baseline_rank`. `final_score`, `fit_label`, and `final_rank` exist only at explicit legacy read/export boundaries.
 - ranking owns baseline labels. CV analysis consumes persisted `baseline_fit_label`, or derives from persisted `baseline_fit` using the same policy thresholds when the label is absent.
 
-Offline preference-learning ownership:
+Preference-learning and runtime-policy ownership:
 
 - `config/policy/decision_learning.yaml` owns the exact `decision-learning-v2` optimizer block while preserving the Phase 5 rating-scale and compiler versions.
 - `src/fitcv/inverse_optimization.py` replays complete immutable episode evidence through the existing compiler, learns one bounded embedding-space residual with optional CVXPY + CLARABEL, independently validates plain numeric outputs, and evaluates by held-out episode.
-- `scripts/run_inverse_optimization.py` is the only JSON boundary for Phase 6 `train` and `evaluate`; it writes typed artifacts only and has no DB, HTTP, activation, rollback, settings, or runtime-ranking path.
-- Phase 6 leaves baseline scores, `strong | stretch | skip`, CV eligibility, and production ordering unchanged. Phase 7 owns persistence and activation.
+- `scripts/run_inverse_optimization.py` is the standard-library JSON boundary for pure `train`/`evaluate` plus store-backed `candidate`, `reject`, `activate`, `rollback`, and `inspect` commands.
+- SQLite tables `inverse_training_runs`, `ranking_policy_snapshots`, and `policy_activation_events` form one immutable lifecycle registry. Training and candidate insertion is atomic; lifecycle transitions use short `BEGIN IMMEDIATE` transactions and append audit events in the same commit.
+- Candidate solving and held-out evaluation run outside the writer transaction. Content-addressed IDs make exact retries idempotent; evidence, parent, config, and runtime identities are rechecked before persistence or activation.
+- Pipeline resolves one compatible active snapshot through an injected resolver, checkpoints the exact payload, and reuses it on resume. Missing, invalid, incompatible, or unavailable storage produces a visible zero-residual status for the entire run.
+- Runtime order uses `personalized_rank_score = baseline_fit + learned_alpha * dot(preference_vector, normalized_embedding)`. Display clipping never controls order. Baseline score, global baseline rank, `strong | stretch | skip`, CV eligibility, and generation gates remain baseline-derived.
 
 Shortlist ownership:
 

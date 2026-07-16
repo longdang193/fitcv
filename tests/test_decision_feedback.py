@@ -58,6 +58,10 @@ def _policy() -> dict:
                 "leave_one_episode_out_max_episodes": 8,
                 "grouped_fold_count": 5,
             },
+            "activation": {
+                "activation_version": "ranking-policy-lifecycle-v1",
+                "minimum_fold_vector_stability": 0.0,
+            },
         },
     }
 

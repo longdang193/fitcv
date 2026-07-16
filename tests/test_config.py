@@ -1712,7 +1712,10 @@ def _write_decision_learning_policy(root: Path) -> None:
         "    evaluation:\n"
         "      evaluation_version: episode-grouped-v1\n"
         "      leave_one_episode_out_max_episodes: 8\n"
-        "      grouped_fold_count: 5\n",
+        "      grouped_fold_count: 5\n"
+        "    activation:\n"
+        "      activation_version: ranking-policy-lifecycle-v1\n"
+        "      minimum_fold_vector_stability: 0.0\n",
         encoding="utf-8",
     )
 

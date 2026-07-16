@@ -3123,6 +3123,10 @@ def test_results_export_v4_freezes_decision_feedback_source() -> None:
                     "leave_one_episode_out_max_episodes": 8,
                     "grouped_fold_count": 5,
                 },
+                "activation": {
+                    "activation_version": "ranking-policy-lifecycle-v1",
+                    "minimum_fold_vector_stability": 0.0,
+                },
             },
         },
         "ranking_policy": {"policy_version": "ranking-v2"},

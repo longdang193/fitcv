@@ -20,10 +20,12 @@ import dataclasses
 import json
 import logging
 import os
+import shutil
 import sqlite3
 import time
 from contextlib import contextmanager
 from pathlib import Path
+from collections.abc import Iterator
 from typing import Any, Callable, Optional
 
 from fitcv.decision_feedback import (
@@ -34,6 +36,8 @@ from fitcv.decision_feedback import (
     RatingValue,
 )
 from fitcv.persistence import get_local_sqlite_path
+from fitcv.preference_policy import build_policy_snapshot_identity, build_training_run_identity
+from fitcv.shortlist_runtime import build_contract_fingerprint
 from fitcv_cp.backend_runtime import get_backend_runtime
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 
@@ -59,7 +63,7 @@ def _local_sqlite_path() -> str:
     runtime = get_backend_runtime()
     if runtime is not None and str(runtime.sqlite_path or "").strip():
         return str(runtime.sqlite_path).strip()
-    return get_local_sqlite_path()
+    return str(get_local_sqlite_path())
 
 def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:
     def _safe_pragma(sql: str, label: str) -> None:
@@ -99,7 +103,7 @@ def _rotate_corrupt_sqlite_artifacts(db_path: Path) -> None:
 
 
 @contextmanager
-def _sqlite_connection(db_path: Path):
+def _sqlite_connection(db_path: Path) -> Iterator[sqlite3.Connection]:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn: sqlite3.Connection | None = None
     for attempt in range(_SQLITE_OPEN_RETRY_ATTEMPTS):
@@ -209,6 +213,657 @@ def _ensure_local_decision_feedback_tables(conn: sqlite3.Connection) -> None:
             END
             """
         )
+
+
+_TRAINING_COLUMNS = (
+    "training_run_id", "schema_version", "domain_id", "status", "cohort_fingerprint",
+    "event_watermark", "edge_set_fingerprint", "rating_scale_version", "compiler_version",
+    "compiler_policy_fingerprint", "decision_learning_policy_fingerprint",
+    "optimizer_policy_fingerprint", "activation_policy_fingerprint",
+    "baseline_policy_fingerprint", "ranking_contract_fingerprint", "embedding_model",
+    "embedding_contract_fingerprint", "embedding_dimension", "learned_alpha",
+    "parent_policy_kind", "parent_policy_ref", "problem_fingerprint",
+    "evaluation_fingerprint", "result_json", "created_at",
+)
+_SNAPSHOT_COLUMNS = (
+    "policy_snapshot_id", "schema_version", "domain_id", "status",
+    "runtime_contract_fingerprint", "baseline_policy_fingerprint",
+    "ranking_contract_fingerprint", "embedding_model", "embedding_contract_fingerprint",
+    "embedding_dimension", "learned_alpha", "preference_vector_norm_bound",
+    "parent_policy_kind", "parent_policy_ref", "preference_vector_json",
+    "preference_vector_fingerprint", "payload_fingerprint", "training_run_id",
+    "event_watermark", "cohort_fingerprint", "edge_set_fingerprint",
+    "rating_scale_version", "compiler_version", "compiler_policy_fingerprint",
+    "decision_learning_policy_fingerprint", "optimizer_policy_fingerprint",
+    "activation_policy_fingerprint", "problem_fingerprint", "solver_metadata_json",
+    "evaluation_version", "evaluation_fingerprint", "evaluation_json", "created_at",
+    "activated_at",
+)
+_JSON_COLUMNS = frozenset(
+    {"result_json", "preference_vector_json", "solver_metadata_json", "evaluation_json"}
+)
+
+
+def _ensure_local_preference_policy_tables(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS inverse_training_runs (
+            training_run_id TEXT PRIMARY KEY,
+            schema_version TEXT NOT NULL,
+            domain_id TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN (
+                'candidate_created', 'no_op', 'evaluation_rejected', 'insufficient_evidence',
+                'invalid_input', 'infeasible_policy', 'solver_error'
+            )),
+            cohort_fingerprint TEXT NOT NULL,
+            event_watermark INTEGER NOT NULL CHECK (event_watermark >= 0),
+            edge_set_fingerprint TEXT NOT NULL,
+            rating_scale_version TEXT NOT NULL,
+            compiler_version TEXT NOT NULL,
+            compiler_policy_fingerprint TEXT NOT NULL,
+            decision_learning_policy_fingerprint TEXT NOT NULL,
+            optimizer_policy_fingerprint TEXT NOT NULL,
+            activation_policy_fingerprint TEXT NOT NULL,
+            baseline_policy_fingerprint TEXT NOT NULL,
+            ranking_contract_fingerprint TEXT NOT NULL,
+            embedding_model TEXT NOT NULL,
+            embedding_contract_fingerprint TEXT NOT NULL,
+            embedding_dimension INTEGER NOT NULL CHECK (embedding_dimension > 0),
+            learned_alpha REAL NOT NULL,
+            parent_policy_kind TEXT NOT NULL CHECK (parent_policy_kind IN ('zero_residual', 'learned')),
+            parent_policy_ref TEXT NOT NULL,
+            problem_fingerprint TEXT,
+            evaluation_fingerprint TEXT,
+            result_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS ranking_policy_snapshots (
+            policy_snapshot_id TEXT PRIMARY KEY,
+            schema_version TEXT NOT NULL,
+            domain_id TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('candidate', 'active', 'rejected', 'stale', 'retired')),
+            runtime_contract_fingerprint TEXT NOT NULL,
+            baseline_policy_fingerprint TEXT NOT NULL,
+            ranking_contract_fingerprint TEXT NOT NULL,
+            embedding_model TEXT NOT NULL,
+            embedding_contract_fingerprint TEXT NOT NULL,
+            embedding_dimension INTEGER NOT NULL CHECK (embedding_dimension > 0),
+            learned_alpha REAL NOT NULL,
+            preference_vector_norm_bound REAL NOT NULL,
+            parent_policy_kind TEXT NOT NULL CHECK (parent_policy_kind IN ('zero_residual', 'learned')),
+            parent_policy_ref TEXT NOT NULL,
+            preference_vector_json TEXT NOT NULL,
+            preference_vector_fingerprint TEXT NOT NULL,
+            payload_fingerprint TEXT NOT NULL UNIQUE,
+            training_run_id TEXT NOT NULL REFERENCES inverse_training_runs(training_run_id),
+            event_watermark INTEGER NOT NULL CHECK (event_watermark >= 0),
+            cohort_fingerprint TEXT NOT NULL,
+            edge_set_fingerprint TEXT NOT NULL,
+            rating_scale_version TEXT NOT NULL,
+            compiler_version TEXT NOT NULL,
+            compiler_policy_fingerprint TEXT NOT NULL,
+            decision_learning_policy_fingerprint TEXT NOT NULL,
+            optimizer_policy_fingerprint TEXT NOT NULL,
+            activation_policy_fingerprint TEXT NOT NULL,
+            problem_fingerprint TEXT NOT NULL,
+            solver_metadata_json TEXT NOT NULL,
+            evaluation_version TEXT NOT NULL,
+            evaluation_fingerprint TEXT NOT NULL,
+            evaluation_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            activated_at TEXT
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS one_active_ranking_policy
+            ON ranking_policy_snapshots (domain_id, runtime_contract_fingerprint)
+            WHERE status = 'active';
+        CREATE TABLE IF NOT EXISTS policy_activation_events (
+            activation_event_id TEXT PRIMARY KEY,
+            domain_id TEXT NOT NULL,
+            runtime_contract_fingerprint TEXT NOT NULL,
+            previous_snapshot_id TEXT,
+            target_snapshot_id TEXT,
+            action TEXT NOT NULL CHECK (action IN ('activate', 'reject', 'stale', 'retire', 'rollback')),
+            reason_code TEXT NOT NULL,
+            expected_parent_ref TEXT,
+            evidence_head_fingerprint TEXT,
+            acted_by TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE TRIGGER IF NOT EXISTS inverse_training_runs_immutable_update
+        BEFORE UPDATE ON inverse_training_runs BEGIN
+            SELECT RAISE(ABORT, 'immutable training run');
+        END;
+        CREATE TRIGGER IF NOT EXISTS inverse_training_runs_immutable_delete
+        BEFORE DELETE ON inverse_training_runs BEGIN
+            SELECT RAISE(ABORT, 'immutable training run');
+        END;
+        CREATE TRIGGER IF NOT EXISTS ranking_policy_snapshots_immutable_payload
+        BEFORE UPDATE OF schema_version, domain_id, runtime_contract_fingerprint,
+            baseline_policy_fingerprint, ranking_contract_fingerprint, embedding_model,
+            embedding_contract_fingerprint, embedding_dimension, learned_alpha,
+            preference_vector_norm_bound, parent_policy_kind, parent_policy_ref,
+            preference_vector_json, preference_vector_fingerprint, payload_fingerprint,
+            training_run_id, event_watermark, cohort_fingerprint, edge_set_fingerprint,
+            rating_scale_version, compiler_version, compiler_policy_fingerprint,
+            decision_learning_policy_fingerprint, optimizer_policy_fingerprint,
+            activation_policy_fingerprint, problem_fingerprint, solver_metadata_json,
+            evaluation_version, evaluation_fingerprint, evaluation_json, created_at
+        ON ranking_policy_snapshots BEGIN
+            SELECT RAISE(ABORT, 'immutable snapshot payload');
+        END;
+        CREATE TRIGGER IF NOT EXISTS ranking_policy_snapshots_no_delete
+        BEFORE DELETE ON ranking_policy_snapshots BEGIN
+            SELECT RAISE(ABORT, 'snapshot history is append-only');
+        END;
+        CREATE TRIGGER IF NOT EXISTS policy_activation_events_no_update
+        BEFORE UPDATE ON policy_activation_events BEGIN
+            SELECT RAISE(ABORT, 'activation history is append-only');
+        END;
+        CREATE TRIGGER IF NOT EXISTS policy_activation_events_no_delete
+        BEFORE DELETE ON policy_activation_events BEGIN
+            SELECT RAISE(ABORT, 'activation history is append-only');
+        END;
+        """
+    )
+
+
+def _policy_now() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
+def _policy_value(column: str, value: Any) -> Any:
+    if column in _JSON_COLUMNS:
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return value
+
+
+def _row_dict(cursor: sqlite3.Cursor, row: tuple[Any, ...] | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    payload = {description[0]: value for description, value in zip(cursor.description, row, strict=True)}
+    for column in _JSON_COLUMNS & payload.keys():
+        payload[column] = json.loads(payload[column])
+    return payload
+
+
+def _fetch_policy_row(conn: sqlite3.Connection, table: str, key: str, value: str) -> dict[str, Any] | None:
+    cursor = conn.execute(f"SELECT * FROM {table} WHERE {key} = ?", (value,))
+    return _row_dict(cursor, cursor.fetchone())
+
+
+def _insert_policy_row(
+    conn: sqlite3.Connection,
+    table: str,
+    columns: tuple[str, ...],
+    payload: dict[str, Any],
+) -> None:
+    placeholders = ", ".join("?" for _ in columns)
+    conn.execute(
+        f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})",
+        tuple(_policy_value(column, payload.get(column)) for column in columns),
+    )
+
+
+def persist_inverse_training_result(payload: dict[str, Any]) -> dict[str, Any]:
+    row = dict(payload)
+    row.setdefault("created_at", _policy_now())
+    expected_id = build_training_run_identity(row)
+    row.setdefault("training_run_id", expected_id)
+    if row["training_run_id"] != expected_id:
+        raise ValueError("training_run_id fingerprint mismatch")
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        _ensure_local_preference_policy_tables(conn)
+        existing = _fetch_policy_row(conn, "inverse_training_runs", "training_run_id", expected_id)
+        if existing is not None:
+            return existing
+        _insert_policy_row(conn, "inverse_training_runs", _TRAINING_COLUMNS, row)
+        conn.commit()
+        return _fetch_policy_row(conn, "inverse_training_runs", "training_run_id", expected_id) or row
+
+
+def insert_ranking_policy_candidate(payload: dict[str, Any]) -> dict[str, Any]:
+    row = dict(payload)
+    row.setdefault("status", "candidate")
+    row.setdefault("created_at", _policy_now())
+    row.setdefault("activated_at", None)
+    fingerprint, snapshot_id = build_policy_snapshot_identity(row)
+    row.setdefault("payload_fingerprint", fingerprint)
+    row.setdefault("policy_snapshot_id", snapshot_id)
+    if row["status"] != "candidate":
+        raise ValueError("new snapshot status must be candidate")
+    if row["payload_fingerprint"] != fingerprint or row["policy_snapshot_id"] != snapshot_id:
+        raise ValueError("snapshot fingerprint mismatch")
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        _ensure_local_preference_policy_tables(conn)
+        existing = _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", snapshot_id)
+        if existing is not None:
+            return existing
+        _insert_policy_row(conn, "ranking_policy_snapshots", _SNAPSHOT_COLUMNS, row)
+        conn.commit()
+        return _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", snapshot_id) or row
+
+
+def persist_candidate_attempt(
+    training_payload: dict[str, Any],
+    snapshot_payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    training = dict(training_payload)
+    training.setdefault("created_at", _policy_now())
+    expected_training_id = build_training_run_identity(training)
+    training.setdefault("training_run_id", expected_training_id)
+    if training["training_run_id"] != expected_training_id:
+        raise ValueError("training run fingerprint mismatch")
+    snapshot: dict[str, Any] | None = None
+    if snapshot_payload is not None:
+        snapshot = dict(snapshot_payload)
+        snapshot.setdefault("status", "candidate")
+        snapshot.setdefault("created_at", _policy_now())
+        snapshot.setdefault("activated_at", None)
+        fingerprint, snapshot_id = build_policy_snapshot_identity(snapshot)
+        snapshot.setdefault("payload_fingerprint", fingerprint)
+        snapshot.setdefault("policy_snapshot_id", snapshot_id)
+        if snapshot["training_run_id"] != expected_training_id:
+            raise ValueError("snapshot training reference mismatch")
+        if snapshot["status"] != "candidate":
+            raise ValueError("new snapshot status must be candidate")
+        if snapshot["payload_fingerprint"] != fingerprint or snapshot["policy_snapshot_id"] != snapshot_id:
+            raise ValueError("snapshot fingerprint mismatch")
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        _ensure_local_preference_policy_tables(conn)
+        existing_training = _fetch_policy_row(
+            conn, "inverse_training_runs", "training_run_id", expected_training_id
+        )
+        if existing_training is None:
+            _insert_policy_row(conn, "inverse_training_runs", _TRAINING_COLUMNS, training)
+        elif build_training_run_identity(existing_training) != expected_training_id:
+            raise ValueError("existing training run conflicts with payload")
+        existing_snapshot = None
+        if snapshot is not None:
+            existing_snapshot = _fetch_policy_row(
+                conn,
+                "ranking_policy_snapshots",
+                "policy_snapshot_id",
+                str(snapshot["policy_snapshot_id"]),
+            )
+            if existing_snapshot is None:
+                _insert_policy_row(conn, "ranking_policy_snapshots", _SNAPSHOT_COLUMNS, snapshot)
+            elif existing_snapshot["payload_fingerprint"] != snapshot["payload_fingerprint"]:
+                raise ValueError("existing snapshot conflicts with payload")
+        conn.commit()
+        return {
+            "training_run": _fetch_policy_row(
+                conn, "inverse_training_runs", "training_run_id", expected_training_id
+            ),
+            "snapshot": (
+                _fetch_policy_row(
+                    conn,
+                    "ranking_policy_snapshots",
+                    "policy_snapshot_id",
+                    str(snapshot["policy_snapshot_id"]),
+                )
+                if snapshot is not None
+                else None
+            ),
+        }
+
+
+def get_decision_evidence_head(domain_id: str) -> dict[str, Any]:
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        conn.execute("BEGIN")
+        _ensure_local_decision_feedback_tables(conn)
+        episode_cursor = conn.execute(
+            """
+            SELECT episode_id, domain_id, preference_context_fingerprint,
+                   qualification_context_fingerprint, ranking_contract_fingerprint,
+                   embedding_contract_fingerprint, baseline_policy_fingerprint,
+                   embedding_model, embedding_dimension, rating_scale_version,
+                   candidate_set_fingerprint, source_stage_artifact_fingerprint
+            FROM decision_episodes
+            WHERE domain_id = ?
+            ORDER BY episode_id
+            """,
+            (domain_id,),
+        )
+        episodes: list[dict[str, Any]] = []
+        for episode_row in episode_cursor.fetchall():
+            episode = {description[0]: value for description, value in zip(episode_cursor.description, episode_row, strict=True)}
+            alternative_cursor = conn.execute(
+                """
+                SELECT alternative_id, displayed_rank, baseline_fit, baseline_fit_label,
+                       normalized_embedding_json, embedding_vector_fingerprint, shortlist_origin
+                FROM decision_episode_alternatives
+                WHERE episode_id = ?
+                ORDER BY displayed_rank, alternative_id
+                """,
+                (episode["episode_id"],),
+            )
+            alternatives = []
+            for alternative_row in alternative_cursor.fetchall():
+                alternative = {
+                    description[0]: value
+                    for description, value in zip(
+                        alternative_cursor.description, alternative_row, strict=True
+                    )
+                }
+                alternative["normalized_embedding"] = json.loads(
+                    alternative.pop("normalized_embedding_json")
+                )
+                alternatives.append(alternative)
+            event_cursor = conn.execute(
+                """
+                SELECT event_sequence, event_id, episode_id, alternative_id, event_type,
+                       rating, rating_scale_version
+                FROM decision_rating_events
+                WHERE episode_id = ?
+                ORDER BY event_sequence, event_id
+                """,
+                (episode["episode_id"],),
+            )
+            events = [
+                {
+                    description[0]: value
+                    for description, value in zip(event_cursor.description, event_row, strict=True)
+                }
+                for event_row in event_cursor.fetchall()
+            ]
+            episodes.append({**episode, "alternatives": alternatives, "events": events})
+        watermark_row = conn.execute(
+            """
+            SELECT COALESCE(MAX(e.event_sequence), 0)
+            FROM decision_rating_events e
+            JOIN decision_episodes p ON p.episode_id = e.episode_id
+            WHERE p.domain_id = ?
+            """,
+            (domain_id,),
+        ).fetchone()
+        event_watermark = int(watermark_row[0]) if watermark_row else 0
+        payload = {
+            "schema_version": "decision_evidence_head_v1",
+            "domain_id": domain_id,
+            "event_watermark": event_watermark,
+            "episodes": episodes,
+        }
+        conn.commit()
+        return {**payload, "evidence_head_fingerprint": build_contract_fingerprint(payload)}
+
+
+def _append_policy_event(
+    conn: sqlite3.Connection,
+    *,
+    domain_id: str,
+    runtime_contract_fingerprint: str,
+    previous_snapshot_id: str | None,
+    target_snapshot_id: str | None,
+    action: str,
+    reason_code: str,
+    expected_parent_ref: str | None,
+    evidence_head_fingerprint: str | None,
+    acted_by: str,
+) -> dict[str, Any]:
+    created_at = _policy_now()
+    payload = {
+        "domain_id": domain_id,
+        "runtime_contract_fingerprint": runtime_contract_fingerprint,
+        "previous_snapshot_id": previous_snapshot_id,
+        "target_snapshot_id": target_snapshot_id,
+        "action": action,
+        "reason_code": reason_code,
+        "expected_parent_ref": expected_parent_ref,
+        "evidence_head_fingerprint": evidence_head_fingerprint,
+        "acted_by": str(acted_by).strip(),
+    }
+    if not payload["acted_by"]:
+        raise ValueError("acted_by must be nonempty")
+    payload["created_at"] = created_at
+    payload["activation_event_id"] = f"pae_{build_contract_fingerprint(payload)}"
+    columns = (
+        "activation_event_id", "domain_id", "runtime_contract_fingerprint",
+        "previous_snapshot_id", "target_snapshot_id", "action", "reason_code",
+        "expected_parent_ref", "evidence_head_fingerprint", "acted_by", "created_at",
+    )
+    _insert_policy_row(conn, "policy_activation_events", columns, payload)
+    return payload
+
+
+def activate_ranking_policy_candidate(
+    policy_snapshot_id: str,
+    *,
+    expected_parent_ref: str,
+    acted_by: str,
+    evidence_head_fingerprint: str | None = None,
+) -> dict[str, Any]:
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        _ensure_local_preference_policy_tables(conn)
+        candidate = _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", policy_snapshot_id)
+        if candidate is None:
+            raise KeyError(policy_snapshot_id)
+        if candidate["status"] == "active":
+            conn.commit()
+            return candidate
+        if candidate["status"] != "candidate":
+            raise ValueError("snapshot is not candidate")
+        training = _fetch_policy_row(
+            conn,
+            "inverse_training_runs",
+            "training_run_id",
+            str(candidate["training_run_id"]),
+        )
+        candidate_evidence_head = (
+            (training.get("result_json") or {}).get("evidence_head_fingerprint")
+            if training is not None
+            else None
+        )
+        cursor = conn.execute(
+            "SELECT * FROM ranking_policy_snapshots WHERE domain_id = ? AND runtime_contract_fingerprint = ? AND status = 'active'",
+            (candidate["domain_id"], candidate["runtime_contract_fingerprint"]),
+        )
+        active = _row_dict(cursor, cursor.fetchone())
+        current_parent = (
+            f"learned:{active['policy_snapshot_id']}"
+            if active is not None
+            else f"zero_residual:{candidate['baseline_policy_fingerprint']}"
+        )
+        stale_reason = None
+        if (
+            evidence_head_fingerprint is not None
+            and candidate_evidence_head is not None
+            and evidence_head_fingerprint != candidate_evidence_head
+        ):
+            stale_reason = ("evidence_changed", "candidate evidence changed")
+        elif expected_parent_ref != current_parent or candidate["parent_policy_ref"] != current_parent:
+            stale_reason = ("parent_changed", "candidate parent changed")
+        if stale_reason is not None:
+            conn.execute(
+                "UPDATE ranking_policy_snapshots SET status = 'stale' WHERE policy_snapshot_id = ?",
+                (policy_snapshot_id,),
+            )
+            _append_policy_event(
+                conn,
+                domain_id=candidate["domain_id"],
+                runtime_contract_fingerprint=candidate["runtime_contract_fingerprint"],
+                previous_snapshot_id=active["policy_snapshot_id"] if active else None,
+                target_snapshot_id=policy_snapshot_id,
+                action="stale",
+                reason_code=stale_reason[0],
+                expected_parent_ref=expected_parent_ref,
+                evidence_head_fingerprint=evidence_head_fingerprint,
+                acted_by=acted_by,
+            )
+            conn.commit()
+            raise ValueError(stale_reason[1])
+        if active is not None:
+            conn.execute(
+                "UPDATE ranking_policy_snapshots SET status = 'retired' WHERE policy_snapshot_id = ?",
+                (active["policy_snapshot_id"],),
+            )
+            _append_policy_event(
+                conn,
+                domain_id=candidate["domain_id"],
+                runtime_contract_fingerprint=candidate["runtime_contract_fingerprint"],
+                previous_snapshot_id=active["policy_snapshot_id"],
+                target_snapshot_id=policy_snapshot_id,
+                action="retire",
+                reason_code="superseded",
+                expected_parent_ref=expected_parent_ref,
+                evidence_head_fingerprint=evidence_head_fingerprint,
+                acted_by=acted_by,
+            )
+        conn.execute(
+            "UPDATE ranking_policy_snapshots SET status = 'active', activated_at = ? WHERE policy_snapshot_id = ?",
+            (_policy_now(), policy_snapshot_id),
+        )
+        _append_policy_event(
+            conn,
+            domain_id=candidate["domain_id"],
+            runtime_contract_fingerprint=candidate["runtime_contract_fingerprint"],
+            previous_snapshot_id=active["policy_snapshot_id"] if active else None,
+            target_snapshot_id=policy_snapshot_id,
+            action="activate",
+            reason_code="manual_activation",
+            expected_parent_ref=expected_parent_ref,
+            evidence_head_fingerprint=evidence_head_fingerprint,
+            acted_by=acted_by,
+        )
+        conn.commit()
+        return _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", policy_snapshot_id) or candidate
+
+
+def reject_ranking_policy_candidate(
+    policy_snapshot_id: str,
+    *,
+    acted_by: str,
+    reason: str,
+) -> dict[str, Any]:
+    if not str(reason).strip():
+        raise ValueError("reason must be nonempty")
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        _ensure_local_preference_policy_tables(conn)
+        candidate = _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", policy_snapshot_id)
+        if candidate is None:
+            raise KeyError(policy_snapshot_id)
+        if candidate["status"] == "rejected":
+            cursor = conn.execute(
+                "SELECT reason_code FROM policy_activation_events WHERE target_snapshot_id = ? AND action = 'reject'",
+                (policy_snapshot_id,),
+            )
+            event = cursor.fetchone()
+            if event is None or str(event[0]) != str(reason).strip():
+                raise ValueError("conflicting rejection reason")
+            conn.commit()
+            return candidate
+        if candidate["status"] != "candidate":
+            raise ValueError("snapshot is not candidate")
+        conn.execute(
+            "UPDATE ranking_policy_snapshots SET status = 'rejected' WHERE policy_snapshot_id = ?",
+            (policy_snapshot_id,),
+        )
+        _append_policy_event(
+            conn,
+            domain_id=candidate["domain_id"],
+            runtime_contract_fingerprint=candidate["runtime_contract_fingerprint"],
+            previous_snapshot_id=None,
+            target_snapshot_id=policy_snapshot_id,
+            action="reject",
+            reason_code=str(reason).strip(),
+            expected_parent_ref=candidate["parent_policy_ref"],
+            evidence_head_fingerprint=None,
+            acted_by=acted_by,
+        )
+        conn.commit()
+        return _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", policy_snapshot_id) or candidate
+
+
+def rollback_ranking_policy(
+    domain_id: str,
+    *,
+    expected_active: str,
+    target: str,
+    acted_by: str,
+) -> dict[str, Any]:
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        _ensure_local_preference_policy_tables(conn)
+        current = _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", expected_active)
+        if current is None or current["domain_id"] != domain_id or current["status"] != "active":
+            raise ValueError("active snapshot changed")
+        conn.execute(
+            "UPDATE ranking_policy_snapshots SET status = 'retired' WHERE policy_snapshot_id = ?",
+            (expected_active,),
+        )
+        target_id: str | None = None
+        status = "zero_residual"
+        if target != "zero_residual":
+            restored = _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", target)
+            if restored is None or restored["status"] != "retired":
+                raise ValueError("rollback target must be retired")
+            if restored["runtime_contract_fingerprint"] != current["runtime_contract_fingerprint"]:
+                raise ValueError("rollback target is incompatible")
+            conn.execute(
+                "UPDATE ranking_policy_snapshots SET status = 'active', activated_at = ? WHERE policy_snapshot_id = ?",
+                (_policy_now(), target),
+            )
+            target_id = target
+            status = "active"
+        _append_policy_event(
+            conn,
+            domain_id=domain_id,
+            runtime_contract_fingerprint=current["runtime_contract_fingerprint"],
+            previous_snapshot_id=expected_active,
+            target_snapshot_id=target_id,
+            action="rollback",
+            reason_code="manual_rollback",
+            expected_parent_ref=f"learned:{expected_active}",
+            evidence_head_fingerprint=None,
+            acted_by=acted_by,
+        )
+        conn.commit()
+        return {"status": status, "policy_snapshot_id": target_id}
+
+
+def resolve_active_ranking_policy(domain_id: str, runtime_contract_fingerprint: str) -> dict[str, Any] | None:
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        _ensure_local_preference_policy_tables(conn)
+        cursor = conn.execute(
+            "SELECT * FROM ranking_policy_snapshots WHERE domain_id = ? AND runtime_contract_fingerprint = ? AND status = 'active'",
+            (domain_id, runtime_contract_fingerprint),
+        )
+        rows = cursor.fetchall()
+        if len(rows) > 1:
+            raise ValueError("multiple active ranking policies")
+        return _row_dict(cursor, rows[0]) if rows else None
+
+
+def inspect_ranking_policy_lifecycle(domain_id: str) -> dict[str, Any]:
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        _ensure_local_preference_policy_tables(conn)
+        snapshots_cursor = conn.execute(
+            "SELECT * FROM ranking_policy_snapshots WHERE domain_id = ? ORDER BY created_at, policy_snapshot_id",
+            (domain_id,),
+        )
+        snapshots = [_row_dict(snapshots_cursor, row) for row in snapshots_cursor.fetchall()]
+        events_cursor = conn.execute(
+            "SELECT * FROM policy_activation_events WHERE domain_id = ? ORDER BY created_at, activation_event_id",
+            (domain_id,),
+        )
+        events = [_row_dict(events_cursor, row) for row in events_cursor.fetchall()]
+        training_cursor = conn.execute(
+            "SELECT * FROM inverse_training_runs WHERE domain_id = ? ORDER BY created_at, training_run_id",
+            (domain_id,),
+        )
+        training_runs = [_row_dict(training_cursor, row) for row in training_cursor.fetchall()]
+        return {"snapshots": snapshots, "events": events, "training_runs": training_runs}
 
 
 def _episode_values(episode: DecisionEpisode) -> tuple[Any, ...]:

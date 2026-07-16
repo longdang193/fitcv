@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from fitcv.preference_policy import build_policy_snapshot_identity, build_training_run_identity
 from fitcv_cp import sqlite_store
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 
@@ -151,6 +152,190 @@ def test_local_sqlite_path_uses_control_plane_config_when_env_missing(tmp_path, 
     )
 
     assert sqlite_store._local_sqlite_path() == str(tmp_path / "from-config.sqlite3")
+
+
+def _training_row() -> dict[str, object]:
+    result = {"status": "candidate_created", "preference_vector": [0.1, -0.1]}
+    row: dict[str, object] = {
+        "schema_version": "inverse_training_run_v1",
+        "domain_id": "ranking_v1",
+        "status": "candidate_created",
+        "cohort_fingerprint": "cohort",
+        "event_watermark": 2,
+        "edge_set_fingerprint": "edges",
+        "rating_scale_version": "application-interest-v1",
+        "compiler_version": "preference-compiler-v1",
+        "compiler_policy_fingerprint": "compiler",
+        "decision_learning_policy_fingerprint": "decision",
+        "optimizer_policy_fingerprint": "optimizer",
+        "activation_policy_fingerprint": "activation",
+        "baseline_policy_fingerprint": "baseline",
+        "ranking_contract_fingerprint": "ranking",
+        "embedding_model": "model",
+        "embedding_contract_fingerprint": "embedding",
+        "embedding_dimension": 2,
+        "learned_alpha": 0.05,
+        "parent_policy_kind": "zero_residual",
+        "parent_policy_ref": "zero_residual:baseline",
+        "problem_fingerprint": "problem",
+        "evaluation_fingerprint": "evaluation",
+        "result_json": result,
+    }
+    row["training_run_id"] = build_training_run_identity(row)
+    return row
+
+
+def _snapshot_row(training_run_id: str, *, vector: list[float], suffix: str = "") -> dict[str, object]:
+    row: dict[str, object] = {
+        "schema_version": "ranking_policy_snapshot_v1",
+        "domain_id": "ranking_v1",
+        "status": "candidate",
+        "runtime_contract_fingerprint": "runtime",
+        "baseline_policy_fingerprint": "baseline",
+        "ranking_contract_fingerprint": "ranking",
+        "embedding_model": "model",
+        "embedding_contract_fingerprint": "embedding",
+        "embedding_dimension": 2,
+        "learned_alpha": 0.05,
+        "preference_vector_norm_bound": 1.0,
+        "parent_policy_kind": "zero_residual",
+        "parent_policy_ref": "zero_residual:baseline",
+        "preference_vector_json": vector,
+        "preference_vector_fingerprint": f"vector{suffix}",
+        "training_run_id": training_run_id,
+        "event_watermark": 2,
+        "cohort_fingerprint": "cohort",
+        "edge_set_fingerprint": "edges",
+        "rating_scale_version": "application-interest-v1",
+        "compiler_version": "preference-compiler-v1",
+        "compiler_policy_fingerprint": "compiler",
+        "decision_learning_policy_fingerprint": "decision",
+        "optimizer_policy_fingerprint": "optimizer",
+        "activation_policy_fingerprint": "activation",
+        "problem_fingerprint": "problem",
+        "solver_metadata_json": {"solver": "CLARABEL"},
+        "evaluation_version": "episode-grouped-v1",
+        "evaluation_fingerprint": "evaluation",
+        "evaluation_json": {"passed": True},
+    }
+    fingerprint, snapshot_id = build_policy_snapshot_identity(row)
+    row["payload_fingerprint"] = fingerprint
+    row["policy_snapshot_id"] = snapshot_id
+    return row
+
+
+def test_preference_policy_schema_enforces_immutable_payload_and_one_active() -> None:
+    training = _training_row()
+    sqlite_store.persist_inverse_training_result(training)
+    first = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1], suffix="-a")
+    second = _snapshot_row(str(training["training_run_id"]), vector=[-0.1, 0.1], suffix="-b")
+    sqlite_store.insert_ranking_policy_candidate(first)
+    sqlite_store.insert_ranking_policy_candidate(second)
+
+    sqlite_store.activate_ranking_policy_candidate(
+        str(first["policy_snapshot_id"]),
+        expected_parent_ref="zero_residual:baseline",
+        acted_by="operator",
+    )
+
+    db_path = Path(sqlite_store._local_sqlite_path())
+    with sqlite_store._sqlite_connection(db_path) as conn:
+        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+            conn.execute(
+                "UPDATE ranking_policy_snapshots SET learned_alpha = 0.1 WHERE policy_snapshot_id = ?",
+                (first["policy_snapshot_id"],),
+            )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "UPDATE ranking_policy_snapshots SET status = 'active' WHERE policy_snapshot_id = ?",
+                (second["policy_snapshot_id"],),
+            )
+
+
+def test_preference_policy_lifecycle_is_atomic_and_auditable() -> None:
+    training = _training_row()
+    sqlite_store.persist_inverse_training_result(training)
+    snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
+    sqlite_store.insert_ranking_policy_candidate(snapshot)
+
+    activated = sqlite_store.activate_ranking_policy_candidate(
+        str(snapshot["policy_snapshot_id"]),
+        expected_parent_ref="zero_residual:baseline",
+        acted_by="operator",
+    )
+    resolved = sqlite_store.resolve_active_ranking_policy("ranking_v1", "runtime")
+    inspected = sqlite_store.inspect_ranking_policy_lifecycle("ranking_v1")
+
+    assert activated["status"] == "active"
+    assert resolved is not None
+    assert resolved["policy_snapshot_id"] == snapshot["policy_snapshot_id"]
+    assert [event["action"] for event in inspected["events"]] == ["activate"]
+
+    rolled_back = sqlite_store.rollback_ranking_policy(
+        "ranking_v1",
+        expected_active=str(snapshot["policy_snapshot_id"]),
+        target="zero_residual",
+        acted_by="operator",
+    )
+
+    assert rolled_back["status"] == "zero_residual"
+    assert sqlite_store.resolve_active_ranking_policy("ranking_v1", "runtime") is None
+
+
+def test_activation_marks_candidate_stale_when_evidence_head_changed() -> None:
+    training = _training_row()
+    training["result_json"] = {
+        **training["result_json"],
+        "evidence_head_fingerprint": "head-before",
+    }
+    training["training_run_id"] = build_training_run_identity(training)
+    snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
+    sqlite_store.persist_candidate_attempt(training, snapshot)
+
+    with pytest.raises(ValueError, match="candidate evidence changed"):
+        sqlite_store.activate_ranking_policy_candidate(
+            str(snapshot["policy_snapshot_id"]),
+            expected_parent_ref="zero_residual:baseline",
+            evidence_head_fingerprint="head-after",
+            acted_by="operator",
+        )
+
+    lifecycle = sqlite_store.inspect_ranking_policy_lifecycle("ranking_v1")
+    assert lifecycle["snapshots"][0]["status"] == "stale"
+    assert lifecycle["events"][0]["reason_code"] == "evidence_changed"
+    assert sqlite_store.resolve_active_ranking_policy("ranking_v1", "runtime") is None
+
+def test_training_and_candidate_insert_is_atomic_and_idempotent() -> None:
+    training = _training_row()
+    snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
+
+    first = sqlite_store.persist_candidate_attempt(training, snapshot)
+    second = sqlite_store.persist_candidate_attempt(training, snapshot)
+
+    assert first == second
+    lifecycle = sqlite_store.inspect_ranking_policy_lifecycle("ranking_v1")
+    assert len(lifecycle["training_runs"]) == 1
+    assert len(lifecycle["snapshots"]) == 1
+
+
+def test_reject_exact_retry_does_not_append_second_event_and_reason_conflicts() -> None:
+    training = _training_row()
+    snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
+    sqlite_store.persist_candidate_attempt(training, snapshot)
+
+    sqlite_store.reject_ranking_policy_candidate(
+        str(snapshot["policy_snapshot_id"]), acted_by="operator", reason="bad_metrics"
+    )
+    sqlite_store.reject_ranking_policy_candidate(
+        str(snapshot["policy_snapshot_id"]), acted_by="operator", reason="bad_metrics"
+    )
+    with pytest.raises(ValueError, match="conflicting rejection reason"):
+        sqlite_store.reject_ranking_policy_candidate(
+            str(snapshot["policy_snapshot_id"]), acted_by="operator", reason="other"
+        )
+
+    lifecycle = sqlite_store.inspect_ranking_policy_lifecycle("ranking_v1")
+    assert [event["action"] for event in lifecycle["events"]] == ["reject"]
 
 
 def test_cv_version_lookup_and_markdown_round_trip() -> None:

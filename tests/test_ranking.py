@@ -15,6 +15,7 @@ tags:
 import pytest
 import fitcv.ranking as ranking_module
 import fitcv.ranking_contract as ranking_contract
+from fitcv.preference_policy import PreferenceRuntimeContract, ResolvedPreferencePolicy, preference_vector_fingerprint
 
 from fitcv.ranking import (
     compute_declared_preference_fit_details,
@@ -224,6 +225,55 @@ def test_rank_jobs_assigns_baseline_rank():
     ranked = rank_jobs(jobs, top_n=2)
     assert ranked[0]["baseline_rank"] == 1
     assert ranked[1]["baseline_rank"] == 2
+
+
+def test_rank_jobs_personalizes_order_without_changing_baseline_facts() -> None:
+    runtime = PreferenceRuntimeContract.build(
+        domain_id="ranking_v1",
+        baseline_policy_fingerprint="baseline",
+        ranking_contract_fingerprint="ranking",
+        embedding_model="model",
+        embedding_dimension=2,
+        embedding_contract_fingerprint="embedding",
+        learned_alpha=0.05,
+        preference_vector_norm_bound=1.0,
+    )
+    vector = (-1.0, 0.0)
+    resolved = ResolvedPreferencePolicy(
+        schema_version="resolved_preference_policy_v1",
+        resolution_status="active",
+        runtime_contract=runtime,
+        policy_snapshot_id="snapshot",
+        preference_vector=vector,
+        preference_vector_fingerprint=preference_vector_fingerprint(vector),
+        payload_fingerprint="payload",
+        diagnostic_code=None,
+    )
+    jobs = [
+        {
+            "job_url": "u1",
+            "raw_job_fingerprint": "f1",
+            "baseline_fit": 0.51,
+            "baseline_fit_label": "stretch",
+            "normalized_embedding": [1.0, 0.0],
+        },
+        {
+            "job_url": "u2",
+            "raw_job_fingerprint": "f2",
+            "baseline_fit": 0.50,
+            "baseline_fit_label": "stretch",
+            "normalized_embedding": [-1.0, 0.0],
+        },
+    ]
+
+    ranked = rank_jobs(jobs, top_n=1, resolved_preference_policy=resolved)
+
+    assert ranked[0]["job_url"] == "u2"
+    assert ranked[0]["baseline_rank"] == 2
+    assert ranked[0]["baseline_fit"] == 0.50
+    assert ranked[0]["baseline_fit_label"] == "stretch"
+    assert ranked[0]["personalized_rank"] == 1
+    assert jobs[0]["baseline_rank"] == 1
 def test_compute_ranking_runtime_diagnostics_counts_fallback_and_taxonomy_drift() -> None:
     diagnostics = compute_ranking_runtime_diagnostics(
         [

@@ -16,7 +16,7 @@ lifecycle:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from fitcv_cp.backend_runtime import BackendRuntime, set_backend_runtime
 from fitcv_cp import sqlite_store
@@ -70,6 +70,17 @@ class RunStore(Protocol):
     def update_run_stage_transition_artifacts(self, run_id: str, stage_transition_artifacts_json: str) -> dict[str, str]: ...
     def materialize_episode_and_append_rating(self, episode: Any, alternatives: Any, event: Any) -> dict[str, str]: ...
     def list_decision_rating_events_for_run(self, run_id: str) -> list[Any]: ...
+    def persist_inverse_training_result(self, row: dict[str, Any]) -> dict[str, Any]: ...
+    def insert_ranking_policy_candidate(self, row: dict[str, Any]) -> dict[str, Any]: ...
+    def persist_candidate_attempt(
+        self, training: dict[str, Any], snapshot: dict[str, Any] | None = None
+    ) -> dict[str, Any]: ...
+    def get_decision_evidence_head(self, domain_id: str) -> dict[str, Any]: ...
+    def activate_ranking_policy_candidate(self, snapshot_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def reject_ranking_policy_candidate(self, snapshot_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def rollback_ranking_policy(self, domain_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def resolve_active_ranking_policy(self, domain_id: str, runtime_fingerprint: str) -> dict[str, Any] | None: ...
+    def inspect_ranking_policy_lifecycle(self, domain_id: str) -> dict[str, Any]: ...
     def insert_cv_version_row(self, row: dict[str, Any]) -> list[Any]: ...
 
 
@@ -100,6 +111,15 @@ class ControlPlaneStore:
     update_run_stage_transition_artifacts_fn: Any | None = None
     materialize_episode_and_append_rating_fn: Any | None = None
     list_decision_rating_events_for_run_fn: Any | None = None
+    persist_inverse_training_result_fn: Any | None = None
+    insert_ranking_policy_candidate_fn: Any | None = None
+    persist_candidate_attempt_fn: Any | None = None
+    get_decision_evidence_head_fn: Any | None = None
+    activate_ranking_policy_candidate_fn: Any | None = None
+    reject_ranking_policy_candidate_fn: Any | None = None
+    rollback_ranking_policy_fn: Any | None = None
+    resolve_active_ranking_policy_fn: Any | None = None
+    inspect_ranking_policy_lifecycle_fn: Any | None = None
     insert_cv_version_row_fn: Any | None = None
 
     def __post_init__(self) -> None:
@@ -250,10 +270,13 @@ class ControlPlaneStore:
         )
 
     def get_cv_markdown(self, version_id: str) -> str | None:
-        return self._call(
+        return cast(
+            str | None,
+            self._call(
             self.get_cv_markdown_fn,
             sqlite_store.get_cv_markdown,
             version_id,
+            ),
         )
 
     def list_run_structured_jobs(self, run_id: str) -> list[dict[str, Any]]:
@@ -354,6 +377,86 @@ class ControlPlaneStore:
             sqlite_store.list_decision_rating_events_for_run,
             run_id,
         )
+
+    def persist_inverse_training_result(self, row: dict[str, Any]) -> dict[str, Any]:
+        return self._call_dict(
+            self.persist_inverse_training_result_fn,
+            sqlite_store.persist_inverse_training_result,
+            row,
+        )
+
+    def insert_ranking_policy_candidate(self, row: dict[str, Any]) -> dict[str, Any]:
+        return self._call_dict(
+            self.insert_ranking_policy_candidate_fn,
+            sqlite_store.insert_ranking_policy_candidate,
+            row,
+        )
+
+    def persist_candidate_attempt(
+        self,
+        training: dict[str, Any],
+        snapshot: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return self._call_dict(
+            self.persist_candidate_attempt_fn,
+            sqlite_store.persist_candidate_attempt,
+            training,
+            snapshot,
+        )
+
+    def get_decision_evidence_head(self, domain_id: str) -> dict[str, Any]:
+        return self._call_dict(
+            self.get_decision_evidence_head_fn,
+            sqlite_store.get_decision_evidence_head,
+            domain_id,
+        )
+
+    def activate_ranking_policy_candidate(self, snapshot_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.activate_ranking_policy_candidate_fn,
+            sqlite_store.activate_ranking_policy_candidate,
+            snapshot_id,
+            **kwargs,
+        )
+
+    def reject_ranking_policy_candidate(self, snapshot_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.reject_ranking_policy_candidate_fn,
+            sqlite_store.reject_ranking_policy_candidate,
+            snapshot_id,
+            **kwargs,
+        )
+
+    def rollback_ranking_policy(self, domain_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.rollback_ranking_policy_fn,
+            sqlite_store.rollback_ranking_policy,
+            domain_id,
+            **kwargs,
+        )
+
+    def resolve_active_ranking_policy(
+        self,
+        domain_id: str,
+        runtime_fingerprint: str,
+    ) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(
+                self.resolve_active_ranking_policy_fn,
+                sqlite_store.resolve_active_ranking_policy,
+                domain_id,
+                runtime_fingerprint,
+            ),
+        )
+
+    def inspect_ranking_policy_lifecycle(self, domain_id: str) -> dict[str, Any]:
+        return self._call_dict(
+            self.inspect_ranking_policy_lifecycle_fn,
+            sqlite_store.inspect_ranking_policy_lifecycle,
+            domain_id,
+        )
+
     def insert_cv_version_row(self, row: dict[str, Any]) -> list[Any]:
         return self._call_list(
             self.insert_cv_version_row_fn,

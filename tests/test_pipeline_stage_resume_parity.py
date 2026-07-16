@@ -104,6 +104,24 @@ def test_pipeline_state_round_trips_llm_runtime_observations() -> None:
     assert restored.ranking_llm_runtime_observations == [observation]
 
 
+def test_pipeline_state_round_trips_resolved_preference_policy() -> None:
+    state = PipelineState(
+        run_id="run-policy",
+        resolved_preference_policy={
+            "schema_version": "resolved_preference_policy_v1",
+            "resolution_status": "zero_residual_no_active",
+            "preference_vector": [0.0, 0.0],
+        },
+    )
+
+    restored = PipelineState.from_checkpoint_payload(
+        run_id="run-policy",
+        checkpoint_payload=state.as_state_dict(),
+    )
+
+    assert restored.resolved_preference_policy == state.resolved_preference_policy
+
+
 def test_pipeline_state_persists_shortlist_diagnostics_without_audit_or_backfill() -> None:
     state = PipelineState(
         run_id="run-1",

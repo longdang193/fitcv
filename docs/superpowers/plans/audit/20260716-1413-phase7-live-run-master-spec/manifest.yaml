@@ -1,0 +1,49 @@
+audit_id: 20260716-1413-phase7-live-run-master-spec
+status: open
+created_at: '2026-07-16T14:13:46.6930988+02:00'
+updated_at: '2026-07-16T14:13:46.6930988+02:00'
+report: report.md
+artifacts:
+  - path: report.md
+    type: report
+  - path: manifest.yaml
+    type: manifest
+  - path: evidence/results/live-run-summary.json
+    type: evidence
+  - path: evidence/results/findings.json
+    type: evidence
+  - path: evidence/results/verification.txt
+    type: evidence
+  - path: repro/repro_steps.md
+    type: repro
+evidence:
+  - path: report.md
+    kind: report
+    captured_at: '2026-07-16T14:13:46.6930988+02:00'
+    producer: codex-local-terminal
+    sha256: 0b90d286767841db7b4ab66fc7b3b675560c395e0d69f4e24617307eaaf5ea60
+  - path: evidence/results/live-run-summary.json
+    kind: result
+    captured_at: '2026-07-16T14:13:46.6930988+02:00'
+    producer: codex-local-terminal
+    sha256: 2faaee434338af11d3e2d773cdb116beda285ceacf0492fac4d53568371a174d
+  - path: evidence/results/findings.json
+    kind: result
+    captured_at: '2026-07-16T14:13:46.6930988+02:00'
+    producer: codex-local-terminal
+    sha256: 0cb569889aadb1c20fc1850f4abea0c65f8d9657e0835140c3084eed3e5f841d
+  - path: evidence/results/verification.txt
+    kind: result
+    captured_at: '2026-07-16T14:13:46.6930988+02:00'
+    producer: codex-local-terminal
+    sha256: 0fff67b887f56331ec0c453d8ee9e665564d043e779f80b0c5ec73739d98f89d
+  - path: repro/repro_steps.md
+    kind: repro
+    captured_at: '2026-07-16T14:13:46.6930988+02:00'
+    producer: codex-local-terminal
+    sha256: 315bf695f765a4c3f321caf16a6c6d0ae1bb842a124e9e962cd9a3f4beeb208d
+external_evidence:
+  - path: artifacts/live_audit_inverse_optimization_20260716/postfix-personalization-summary.json
+    sha256: ecf797dfbd335ffe5a1fab2c46351f61baae226936022943803e5acbd542165e
+  - path: artifacts/live_audit_inverse_optimization_20260716/rollback-conflict-fixed.json
+    sha256: 83352e4e3d27ef1a83e0e4d2f14f857d1bcf865f70fc6c8e33424dd724c9a2a2

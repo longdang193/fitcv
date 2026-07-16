@@ -160,3 +160,18 @@ Use this file for repeated or important failures, not every small mistake.
   - `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.gitignore`
   - `C:\Users\HOANG PHI LONG DANG\repos\fitcv-langgraph\.gitignore`
   - `docs/superpowers/plans/audit/20260715-1407-langgraph-secret-ignore-gap/`
+
+## Completion checklists need executable evidence at every boundary
+
+- Title: Passing core logic tests does not prove artifact or lifecycle contracts
+- Date: 2026-07-16
+- Trigger / Context: Inverse-optimization Phase 7 live run and master-spec reconciliation after implementation plan was marked completed.
+- What went wrong: Ranking computed personalized fields correctly, but artifact/export adapters dropped them; activation accepted an evidence-head token without comparing it; completed plan named lifecycle proof commands that selected zero tests or had no dedicated test.
+- Correct behavior: Verify each owned boundary separately: computation, adapter projection, persisted artifact, CLI typing, transactional CAS, replay, and runnable acceptance-test selection. A checked plan item must cite a command that executes the intended case.
+- Prevention added or required: Keep row-level artifact/export regressions, evidence-head activation CAS test, typed CLI conflict test, and audit reconciliation against exact master acceptance criteria. Add current config/runtime CAS plus concurrency and injected-failure lifecycle tests before closure.
+- Related artifacts:
+  - `src/fitcv/pipeline.py`
+  - `src/fitcv/pipeline_stages/common.py`
+  - `src/fitcv_cp/sqlite_store.py`
+  - `scripts/run_inverse_optimization.py`
+  - `docs/superpowers/plans/audit/20260716-1413-phase7-live-run-master-spec/`

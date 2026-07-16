@@ -144,6 +144,12 @@ nodes:
   feature_id: cv_system
   state: active
   path: docs/features/cv_system/lineage.generated.yaml
+- id: cv_system.ranking-policy-lifecycle
+  type: capability
+  kind: capability
+  feature_id: cv_system
+  state: active
+  path: docs/features/cv_system/lineage.generated.yaml
 - id: cv_system.ranking-v2-baseline
   type: capability
   kind: capability
@@ -963,6 +969,9 @@ edges:
   to: cv_system.preference-learning
   type: owns_capability
 - from: cv_system
+  to: cv_system.ranking-policy-lifecycle
+  type: owns_capability
+- from: cv_system
   to: cv_system.ranking-v2-baseline
   type: owns_capability
 - from: cv_system
@@ -1016,6 +1025,7 @@ edges:
   - cv_system.fit-gate-resolution
   - cv_system.preference-compilation
   - cv_system.preference-learning
+  - cv_system.ranking-policy-lifecycle
   - cv_system.ranking-v2-baseline
 - from: cv_system
   to: rule_filter

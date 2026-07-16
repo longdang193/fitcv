@@ -206,6 +206,12 @@ from fitcv.pipeline_stage_artifacts import truncate_stage_value as _truncate_sta
 from fitcv.reuse import build_reuse_decision
 from fitcv.reuse import resolve_reuse_stage_policy
 from fitcv.pipeline_store import PipelineStore
+from fitcv.preference_policy import (
+    PreferenceRuntimeContract,
+    ResolvedPreferencePolicy,
+    resolve_run_preference_policy,
+    resolved_preference_policy_to_dict,
+)
 from fitcv.pipeline_stage_context import (
     PipelineState,
     infer_last_completed_stage_from_state,
@@ -978,6 +984,23 @@ def _build_export_results(
                 "rule_filter_marks": rule_filter_marks,
                 "scores": {
                     **score_projection,
+                    "personalized_rank": score_source.get("personalized_rank"),
+                    "preference_residual": score_source.get("preference_residual"),
+                    "personalized_rank_score": score_source.get("personalized_rank_score"),
+                    "personalized_display_score": score_source.get("personalized_display_score"),
+                    "score_was_clipped": score_source.get("score_was_clipped"),
+                    "preference_policy_snapshot_id": score_source.get(
+                        "preference_policy_snapshot_id"
+                    ),
+                    "preference_vector_fingerprint": score_source.get(
+                        "preference_vector_fingerprint"
+                    ),
+                    "preference_runtime_contract_fingerprint": score_source.get(
+                        "preference_runtime_contract_fingerprint"
+                    ),
+                    "preference_policy_resolution_status": score_source.get(
+                        "preference_policy_resolution_status"
+                    ),
                     "holistic_ai_fit": score_source.get("holistic_ai_fit"),
                     "structured_fit": score_source.get("structured_fit"),
                     "normalized_factors": score_source.get("normalized_factors"),
@@ -996,7 +1019,7 @@ def _build_export_results(
                     else None
                 ),
                 "decision_chain": decision_chain,
-                "rank": score_source.get("baseline_rank"),
+                "rank": score_source.get("personalized_rank") or score_source.get("baseline_rank"),
                 "cv": (
                     {
                         key: value
@@ -1466,6 +1489,7 @@ def _build_stage_progress_summary(
         cv_generation_debug_records=cv_generation_debug_records,
         profile=candidate_profile,
         config=config,
+        resolved_preference_policy=dict(state.get("resolved_preference_policy") or {}),
     )
     return {
         "run_id": run_id,
@@ -2553,6 +2577,7 @@ def _build_stage_transition_artifacts(
     candidate_query_debug: dict[str, Any] | None = None,
     enrich_llm_runtime_observations: list[dict[str, Any]] | None = None,
     ranking_llm_runtime_observations: list[dict[str, Any]] | None = None,
+    resolved_preference_policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """@capability cv_system.stage-artifact-diagnostics"""
     candidate_query_debug = dict(candidate_query_debug or {})
@@ -2868,6 +2893,7 @@ def _build_stage_transition_artifacts(
                 ai_score_model_resolver=get_ranking_ai_score_model,
                 effective_preferences_resolver=infer_effective_preferences,
                 llm_runtime_observations=ranking_llm_runtime_observations,
+                resolved_preference_policy=resolved_preference_policy,
             ),
             "cv_analysis": _build_cv_analysis_stage_block_artifacts(
                 cv_analysis_reached=cv_analysis_reached,
@@ -3015,6 +3041,10 @@ def run_pipeline(
     checkpoint_payload: dict[str, Any] | None = None,
     reuse_snapshots: dict[str, Any] | None = None,
     stage_progress_callback: Callable[[dict[str, Any]], None] | None = None,
+    preference_policy_resolver: Callable[
+        [PreferenceRuntimeContract], ResolvedPreferencePolicy
+    ]
+    | None = None,
 ) -> dict[str, Any]:
     """Run the full FitCV candidate pipeline end-to-end.
 
@@ -3547,7 +3577,20 @@ def run_pipeline(
 
             with observe_span("pipeline.ranking", attributes={"run_id": run_id, "final_top_n": final_top_n}):
                 ranking_inputs = build_ranking_features(shortlist, ai_scores, profile, config)
-                ranked = rank_jobs(ranking_inputs, top_n=final_top_n)
+                resolved_preference_policy = resolve_run_preference_policy(
+                    ranking_rows=ranking_inputs,
+                    config=config,
+                    existing_payload=dict(state.get("resolved_preference_policy") or {}),
+                    resolver=preference_policy_resolver,
+                )
+                state["resolved_preference_policy"] = resolved_preference_policy_to_dict(
+                    resolved_preference_policy
+                )
+                ranked = rank_jobs(
+                    ranking_inputs,
+                    top_n=final_top_n,
+                    resolved_preference_policy=resolved_preference_policy,
+                )
                 pipeline_store.store_final_ranking(ranked, config)
                 if reporter is not None:
                     reporter.emit(  # type: ignore[union-attr]
@@ -4861,6 +4904,7 @@ def run_pipeline(
             cv_generation_debug_records=cv_generation_debug_records,
             profile=profile,
             config=config,
+            resolved_preference_policy=dict(state.get("resolved_preference_policy") or {}),
         )
         late_stage_reuse_snapshots = _build_late_stage_reuse_snapshots(
             ai_scores=ai_scores,

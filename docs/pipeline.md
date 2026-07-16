@@ -68,7 +68,7 @@ Phase 2 uses one path:
 
 Phase 3 uses one path for every admissible scored job:
 
-`holistic AI scalar + six absolute structured factors -> structured_fit -> baseline_fit -> baseline_fit_label -> total order`
+`holistic AI scalar + six absolute structured factors -> structured_fit -> baseline_fit -> baseline_fit_label -> global baseline_rank -> bounded preference residual -> personalized_rank -> top-N`
 
 - `config/policy/ranking.yaml` owns one exact, versioned policy; production accepts only `holistic_ai_only`
 - AI scoring emits `ai_score` plus diagnostics; model-authored labels have no ranking authority
@@ -79,6 +79,7 @@ Phase 3 uses one path for every admissible scored job:
 - ordering is `baseline_fit DESC`, `raw_job_fingerprint ASC`, then `job_url ASC`
 - vector similarity/rank remain shortlist evidence and never affect baseline score, label, fingerprint, or tie order
 - canonical ranking rows use `baseline_fit`, `baseline_fit_label`, `baseline_rank`, factor records, policy versions, and `ranking_contract_fingerprint`
+- personalized fields add raw/display score, residual, clipping flag, `personalized_rank`, and policy fingerprints; they never replace baseline facts
 - checkpoint schema remains v1; centralized adapters read old ranking aliases and reject canonical/legacy conflicts
 - stage-transition artifacts use v8 and preserve full-run/resume parity
 - CV analysis consumes persisted baseline truth only; gap findings, vector evidence, and AI diagnostics do not override ranking qualification
@@ -159,3 +160,5 @@ Fail-fast guarantees:
 5. Effective ratings use SQLite `event_sequence`; timestamps and UUIDs remain audit metadata only.
 6. Phase 5 reduces complete event snapshots through the shared reducer and compiles rated pairs into deterministic weighted edges; no database edge table or ranking effect exists.
 7. Phase 6 replays one compatible episode cohort offline, solves one bounded latent residual from zero with optional CVXPY + CLARABEL, and evaluates by held-out episode. It emits typed artifacts only and cannot change runtime ranking, labels, CV eligibility, or application history.
+8. Phase 7 verifies current persisted evidence, applies one symmetric promotion gate against zero baseline and compatible parent, suppresses equivalent vectors, and stores immutable candidate/training records.
+9. Manual activation changes one SQLite active snapshot. Each new run resolves once before ranking and freezes that payload in checkpoint state; resume never re-resolves. Personalized order may move jobs across top-N, while baseline `strong|stretch|skip`, CV analysis eligibility, and generation gates remain unchanged.
