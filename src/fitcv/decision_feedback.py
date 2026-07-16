@@ -155,13 +155,33 @@ class PreferenceCompilerResult:
     edges: tuple[PreferenceEdge, ...]
     diagnostics: PreferenceCompilerDiagnostics
 
-_POLICY_KEYS = {"policy_version", "domain_id", "rating_scale", "preference_compiler"}
+_POLICY_KEYS = {"policy_version", "domain_id", "rating_scale", "preference_compiler", "inverse_optimization"}
 _COMPILER_KEYS = {"compiler_version", "minimum_rating_gap", "gap_evidence_weights", "max_episode_evidence_budget"}
+_INVERSE_OPTIMIZATION_KEYS = {
+    "optimizer_version",
+    "learned_alpha",
+    "preference_margin",
+    "preference_regularization",
+    "preference_vector_norm_bound",
+    "solver",
+    "numeric_tolerances",
+    "evaluation",
+}
+_SOLVER_KEYS = {"name", "max_iter"}
+_NUMERIC_TOLERANCE_KEYS = {"feasibility_absolute", "numeric_equivalence_absolute"}
+_EVALUATION_KEYS = {
+    "evaluation_version",
+    "leave_one_episode_out_max_episodes",
+    "grouped_fold_count",
+}
 _GAP_WEIGHT_KEYS = {str(value) for value in range(1, 5)}
 _EXPECTED_COMPILER_VERSION = "preference-compiler-v1"
 _SCALE_KEYS = {"version", "unrated_label", "labels"}
 _EXPECTED_LABEL_KEYS = {str(value.value) for value in RatingValue}
-_EXPECTED_POLICY_VERSION = "decision-learning-v1"
+_EXPECTED_POLICY_VERSION = "decision-learning-v2"
+_EXPECTED_OPTIMIZER_VERSION = "latent-residual-v1"
+_EXPECTED_EVALUATION_VERSION = "episode-grouped-v1"
+_EXPECTED_SOLVER_NAME = "CLARABEL"
 _EXPECTED_DOMAIN_ID = "ranking_v1"
 _EXPECTED_SCALE_VERSION = "application-interest-v1"
 _EXPECTED_UNRATED_LABEL = "unrated"
@@ -189,6 +209,85 @@ def _exact_keys(payload: dict[str, Any], expected: set[str], field: str) -> None
     if missing:
         raise ValueError(f"{field} missing keys: {', '.join(missing)}")
 
+
+def _finite_float(value: Any, field: str) -> float:
+    if isinstance(value, bool):
+        raise ValueError(f"{field} must be a finite number")
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field} must be a finite number") from exc
+    if not math.isfinite(number):
+        raise ValueError(f"{field} must be a finite number")
+    return number
+
+def _validate_inverse_optimization_policy(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("inverse_optimization must be a mapping")
+    _exact_keys(payload, _INVERSE_OPTIMIZATION_KEYS, "inverse_optimization")
+    optimizer_version = _required_text(payload["optimizer_version"], "optimizer_version")
+    if optimizer_version != _EXPECTED_OPTIMIZER_VERSION:
+        raise ValueError(f"optimizer_version must be {_EXPECTED_OPTIMIZER_VERSION}")
+    learned_alpha = _finite_float(payload["learned_alpha"], "learned_alpha")
+    preference_margin = _finite_float(payload["preference_margin"], "preference_margin")
+    regularization = _finite_float(payload["preference_regularization"], "preference_regularization")
+    norm_bound = _finite_float(payload["preference_vector_norm_bound"], "preference_vector_norm_bound")
+    if not 0.0 < learned_alpha <= 0.25:
+        raise ValueError("learned_alpha must be within (0, 0.25]")
+    if not 0.0 <= preference_margin <= 0.25:
+        raise ValueError("preference_margin must be within [0, 0.25]")
+    if regularization <= 0.0:
+        raise ValueError("preference_regularization must be positive")
+    if not 0.0 < norm_bound <= 1.0:
+        raise ValueError("preference_vector_norm_bound must be within (0, 1]")
+    solver = payload["solver"]
+    if not isinstance(solver, dict):
+        raise ValueError("inverse_optimization.solver must be a mapping")
+    _exact_keys(solver, _SOLVER_KEYS, "inverse_optimization.solver")
+    solver_name = _required_text(solver["name"], "solver.name")
+    max_iter = solver["max_iter"]
+    if solver_name != _EXPECTED_SOLVER_NAME:
+        raise ValueError(f"solver.name must be {_EXPECTED_SOLVER_NAME}")
+    if isinstance(max_iter, bool) or not isinstance(max_iter, int) or not 1 <= max_iter <= 10000:
+        raise ValueError("solver.max_iter must be an integer from 1 through 10000")
+    tolerances = payload["numeric_tolerances"]
+    if not isinstance(tolerances, dict):
+        raise ValueError("numeric_tolerances must be a mapping")
+    _exact_keys(tolerances, _NUMERIC_TOLERANCE_KEYS, "numeric_tolerances")
+    feasibility = _finite_float(tolerances["feasibility_absolute"], "feasibility_absolute")
+    equivalence = _finite_float(tolerances["numeric_equivalence_absolute"], "numeric_equivalence_absolute")
+    if feasibility <= 0.0 or equivalence <= 0.0:
+        raise ValueError("numeric tolerances must be positive")
+    evaluation = payload["evaluation"]
+    if not isinstance(evaluation, dict):
+        raise ValueError("inverse_optimization.evaluation must be a mapping")
+    _exact_keys(evaluation, _EVALUATION_KEYS, "inverse_optimization.evaluation")
+    evaluation_version = _required_text(evaluation["evaluation_version"], "evaluation_version")
+    leave_one_out_max = evaluation["leave_one_episode_out_max_episodes"]
+    grouped_fold_count = evaluation["grouped_fold_count"]
+    if evaluation_version != _EXPECTED_EVALUATION_VERSION:
+        raise ValueError(f"evaluation_version must be {_EXPECTED_EVALUATION_VERSION}")
+    if isinstance(leave_one_out_max, bool) or not isinstance(leave_one_out_max, int) or leave_one_out_max < 2:
+        raise ValueError("leave_one_episode_out_max_episodes must be an integer of at least 2")
+    if isinstance(grouped_fold_count, bool) or not isinstance(grouped_fold_count, int) or not 2 <= grouped_fold_count <= 10:
+        raise ValueError("grouped_fold_count must be an integer from 2 through 10")
+    return {
+        "optimizer_version": optimizer_version,
+        "learned_alpha": learned_alpha,
+        "preference_margin": preference_margin,
+        "preference_regularization": regularization,
+        "preference_vector_norm_bound": norm_bound,
+        "solver": {"name": solver_name, "max_iter": max_iter},
+        "numeric_tolerances": {
+            "feasibility_absolute": feasibility,
+            "numeric_equivalence_absolute": equivalence,
+        },
+        "evaluation": {
+            "evaluation_version": evaluation_version,
+            "leave_one_episode_out_max_episodes": leave_one_out_max,
+            "grouped_fold_count": grouped_fold_count,
+        },
+    }
 
 def validate_decision_learning_policy(policy: Any) -> tuple[dict[str, Any], str]:
     if not isinstance(policy, dict):
@@ -252,6 +351,7 @@ def validate_decision_learning_policy(policy: Any) -> tuple[dict[str, Any], str]
         raise ValueError("max_episode_evidence_budget must be finite and positive") from exc
     if not math.isfinite(normalized_budget) or normalized_budget <= 0.0:
         raise ValueError("max_episode_evidence_budget must be finite and positive")
+    inverse_optimization = _validate_inverse_optimization_policy(policy["inverse_optimization"])
     validated = {
         "policy_version": _EXPECTED_POLICY_VERSION,
         "domain_id": _EXPECTED_DOMAIN_ID,
@@ -266,6 +366,7 @@ def validate_decision_learning_policy(policy: Any) -> tuple[dict[str, Any], str]
             "gap_evidence_weights": weights,
             "max_episode_evidence_budget": normalized_budget,
         },
+        "inverse_optimization": inverse_optimization,
     }
     return validated, build_contract_fingerprint(validated)
 
@@ -331,6 +432,12 @@ def _candidate_set_fingerprint(rows: Iterable[dict[str, Any]]) -> str:
 
 def _compiler_policy_fingerprint(policy: dict[str, Any]) -> str:
     return str(build_contract_fingerprint(policy["preference_compiler"]))
+
+def optimizer_policy_fingerprint(policy: dict[str, Any]) -> str:
+    if not isinstance(policy, dict):
+        raise ValueError("decision_learning_policy must be a mapping")
+    normalized = _validate_inverse_optimization_policy(policy.get("inverse_optimization"))
+    return str(build_contract_fingerprint(normalized))
 
 
 def build_decision_feedback_source(

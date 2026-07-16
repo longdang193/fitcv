@@ -7,6 +7,7 @@ invariants: []
 domains:
   - cv_generation
   - eligibility
+  - inverse_optimization
   - pipeline
 depends_on:
   - admin_control_plane_core
@@ -56,6 +57,9 @@ capabilities:
   - capability_id: cv_system.preference-compilation
     statement: Compile complete ordinal rating evidence into deterministic, versioned, provenance-preserving preference edges without persistence, solver activation, or ranking effects.
     state: active
+  - capability_id: cv_system.preference-learning
+    statement: Learn and evaluate one bounded offline embedding-space preference residual from complete compatible episode evidence without persistence, activation, or runtime ranking effects.
+    state: active
   - capability_id: cv_system.exact-match-late-stage-reuse
     statement: 'Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
 
@@ -87,6 +91,7 @@ stage_participation:
       - cv_system.exact-match-late-stage-reuse
       - cv_system.fit-gate-resolution
       - cv_system.preference-compilation
+      - cv_system.preference-learning
       - cv_system.ranking-v2-baseline
   - stage_id: shortlist
     role: primary

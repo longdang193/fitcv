@@ -8,6 +8,7 @@ invariants: []
 domains:
 - cv_generation
 - eligibility
+- inverse_optimization
 - pipeline
 depends_on:
 - admin_control_plane_core
@@ -45,6 +46,9 @@ capabilities:
 - capability_id: cv_system.preference-compilation
   statement: Compile complete ordinal rating evidence into deterministic, versioned, provenance-preserving preference edges without persistence, solver activation, or ranking effects.
   state: active
+- capability_id: cv_system.preference-learning
+  statement: Learn and evaluate one bounded offline embedding-space preference residual from complete compatible episode evidence without persistence, activation, or runtime ranking effects.
+  state: active
 - capability_id: cv_system.exact-match-late-stage-reuse
   statement: Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
   state: active
@@ -72,6 +76,7 @@ stage_participation:
   - cv_system.exact-match-late-stage-reuse
   - cv_system.fit-gate-resolution
   - cv_system.preference-compilation
+  - cv_system.preference-learning
   - cv_system.ranking-v2-baseline
 - stage_id: shortlist
   role: primary
@@ -97,12 +102,14 @@ refs:
   code:
   - src/fitcv/decision_feedback.py
   - src/fitcv/fit_factors.py
+  - src/fitcv/inverse_optimization.py
   - src/fitcv/pipeline.py
   tests:
   - tests/test_config.py
   - tests/test_cv_generator.py
   - tests/test_decision_feedback.py
   - tests/test_fit_factors.py
+  - tests/test_inverse_optimization.py
   - tests/test_llm_runtime.py
   - tests/test_pipeline.py
   - tests/test_pipeline_agentic_late_stage.py
@@ -209,6 +216,7 @@ refs:
   - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
   - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
   - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
+  - docs/superpowers/specs/2026-07-16-09-31-fitcv-inverse-optimization-phase-6-latent-residual-solver-evaluation-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
   - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -309,6 +317,7 @@ refs:
   - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
   - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
   - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
+  - docs/superpowers/plans/2026-07-16-09-55-fitcv-inverse-optimization-phase-6-latent-residual-solver-evaluation-plan.md
   docs:
   - docs/features/cv_system/history.md
   configs:
@@ -320,6 +329,6 @@ refs:
   - config/runtime/prompts.yaml
   - config/taxonomy/taxonomy.yaml
   components: []
-revision: 12
-latest_change_id: 2026-07-16-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler
-last_updated_at: '2026-07-16T03:18:34+02:00'
+revision: 13
+latest_change_id: 2026-07-16-fitcv-inverse-optimization-phase-6-latent-residual-solver-evaluation
+last_updated_at: '2026-07-16T10:54:03+02:00'

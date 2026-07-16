@@ -183,6 +183,28 @@ Verification:
 Outcome:
 Completed Phase 5 deterministic ordinal preference compilation with one policy SSOT, provenance-preserving watermark replay, exhaustive symmetric pair compilation, episode-bounded evidence weights, canonical fingerprints, and no persistence, solver, activation, or ranking effect.
 
+### FitCV inverse optimization Phase 6 latent-residual solver and episode-grouped evaluation implementation plan
+
+Source plan: `docs/superpowers/plans/2026-07-16-09-55-fitcv-inverse-optimization-phase-6-latent-residual-solver-evaluation-plan.md`
+
+Verification:
+- `uv run --extra inverse-optimization python -m pytest tests/test_config.py tests/test_decision_feedback.py tests/test_inverse_optimization.py -q`
+- `uv run --extra inverse-optimization python -m pytest tests/test_ranking.py tests/test_ranking_contract.py tests/test_ai_score.py -q`
+- `uv run --extra inverse-optimization python -m pytest tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py -q`
+- `uv run --extra inverse-optimization python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_worker_job.py -q -k "decision_feedback or admin_route_manifest"`
+- `python -m ruff check src/fitcv/decision_feedback.py src/fitcv/inverse_optimization.py scripts/run_inverse_optimization.py tests/test_inverse_optimization.py`
+- `uvx mypy src/fitcv/decision_feedback.py src/fitcv/inverse_optimization.py scripts/run_inverse_optimization.py --show-error-codes --follow-imports=skip`
+- `uv run --extra inverse-optimization python -c "import cvxpy as cp; assert 'CLARABEL' in cp.installed_solvers()"`
+- `python tools/docs/generate_architecture_metadata.py --check`
+- `python scripts/validate_planning_lifecycle.py`
+- `python scripts/hooks/run_validator.py --fast`
+- `python scripts/validate_repo_contracts.py --fast`
+- `uv lock --check`
+- `git diff --check`
+
+Outcome:
+Completed Phase 6 offline latent-residual learning with one decision-learning policy SSOT, complete compatible episode replay through the Phase 5 compiler, bounded CVXPY and CLARABEL solve with independent post-checks, episode-grouped evaluation, strict atomic JSON CLI, and no persistence, activation, or runtime ranking effect.
+
 <!-- GENERATED HISTORY END -->
 
 ## Human Notes

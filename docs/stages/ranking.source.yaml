@@ -10,6 +10,7 @@ boundaries:
   - vector evidence is shortlist provenance only and cannot affect baseline score, label, fingerprint, or tie order
   - completed-run export may freeze evidence-complete scored rows into `decision_feedback_source_v1`; ratings never feed Phase 4 ranking
   - Phase 5 consumes immutable rating evidence through a pure preference compiler; compiler edges remain outside ranking runtime and do not alter labels or order
+  - Phase 6 consumes frozen ranking evidence only through an offline latent-residual solver and episode-grouped evaluator; ranking remains evidence producer, never optimizer caller
   - canonical writes exclude legacy `final_*`, model-authored label, and ambiguous `preference_fit` authority
 inputs:
   - holistic AI score and diagnostics
@@ -22,6 +23,7 @@ outputs:
   - bounded `stage_transition_artifacts_v8.ranking` runtime block with exact policy/fingerprint data, configured/effective weights, normalizers, missing/coverage/contribution summaries, label distribution, migration summary, reuse metrics, and canonical samples
   - canonical ranked jobs with `baseline_fit`, `baseline_fit_label`, `baseline_rank`, factor records, policy versions, and `ranking_contract_fingerprint`
   - immutable normalized-vector and baseline evidence for `results_job_ledger_v4` decision-feedback alternatives
+  - offline-compatible evidence contracts for Phase 6 preference learning without runtime score, label, or order mutation
   - optional manual checkpoint payloads that can resume `cv_analysis` from ranked jobs without recomputing earlier stages
   - ordered `llm_runtime_observations` for actual ranking calls plus a stage-neutral runtime summary; exact reuse emits no new runtime evidence
   - row-level `ai_score_reuse_status` and `ai_score_input_fingerprint` in ranking outputs and exports
@@ -48,6 +50,7 @@ refs:
     - docs/superpowers/specs/2026-07-14-20-40-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-spec.md
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
+    - docs/superpowers/specs/2026-07-16-09-31-fitcv-inverse-optimization-phase-6-latent-residual-solver-evaluation-spec.md
   plan:
     - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
     - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
@@ -61,6 +64,7 @@ refs:
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
+    - docs/superpowers/plans/2026-07-16-09-55-fitcv-inverse-optimization-phase-6-latent-residual-solver-evaluation-plan.md
   history: []
 keywords:
   - ranking

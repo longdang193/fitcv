@@ -1677,7 +1677,7 @@ def test_load_config_rejects_unknown_ranking_v2_keys(tmp_path: Path) -> None:
 def _write_decision_learning_policy(root: Path) -> None:
     (root / "config" / "policy" / "decision_learning.yaml").write_text(
         "decision_learning_policy:\n"
-        "  policy_version: decision-learning-v1\n"
+        "  policy_version: decision-learning-v2\n"
         "  domain_id: ranking_v1\n"
         "  rating_scale:\n"
         "    version: application-interest-v1\n"
@@ -1696,7 +1696,23 @@ def _write_decision_learning_policy(root: Path) -> None:
         "      '2': 2.0\n"
         "      '3': 3.0\n"
         "      '4': 4.0\n"
-        "    max_episode_evidence_budget: 12.0\n",
+        "    max_episode_evidence_budget: 12.0\n"
+        "  inverse_optimization:\n"
+        "    optimizer_version: latent-residual-v1\n"
+        "    learned_alpha: 0.05\n"
+        "    preference_margin: 0.02\n"
+        "    preference_regularization: 1.0\n"
+        "    preference_vector_norm_bound: 1.0\n"
+        "    solver:\n"
+        "      name: CLARABEL\n"
+        "      max_iter: 200\n"
+        "    numeric_tolerances:\n"
+        "      feasibility_absolute: 1.0e-7\n"
+        "      numeric_equivalence_absolute: 1.0e-6\n"
+        "    evaluation:\n"
+        "      evaluation_version: episode-grouped-v1\n"
+        "      leave_one_episode_out_max_episodes: 8\n"
+        "      grouped_fold_count: 5\n",
         encoding="utf-8",
     )
 
@@ -1709,6 +1725,7 @@ def test_load_config_loads_decision_learning_policy_and_fingerprint(tmp_path: Pa
 
     assert cfg["decision_learning_policy"]["rating_scale"]["version"] == "application-interest-v1"
     assert cfg["decision_learning_policy"]["preference_compiler"]["minimum_rating_gap"] == 2
+    assert cfg["decision_learning_policy"]["inverse_optimization"]["solver"]["name"] == "CLARABEL"
     assert len(cfg["decision_learning_policy_fingerprint"]) == 64
 
 

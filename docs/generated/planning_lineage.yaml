@@ -307,6 +307,7 @@ workstreams:
     - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
     - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
     - docs/superpowers/specs/2026-07-16-02-18-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-spec.md
+    - docs/superpowers/specs/2026-07-16-09-31-fitcv-inverse-optimization-phase-6-latent-residual-solver-evaluation-spec.md
     plans:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
     - docs/superpowers/plans/2026-05-28-12-03-ranking-fit-label-authority-ssot-symmetry-invariance-plan.md
@@ -317,6 +318,7 @@ workstreams:
     - docs/superpowers/plans/2026-07-15-21-26-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-plan.md
     - docs/superpowers/plans/2026-07-16-00-41-fitcv-inverse-optimization-phase-4-decision-feedback-plan.md
     - docs/superpowers/plans/2026-07-16-02-30-fitcv-inverse-optimization-phase-5-symmetric-preference-compiler-plan.md
+    - docs/superpowers/plans/2026-07-16-09-55-fitcv-inverse-optimization-phase-6-latent-residual-solver-evaluation-plan.md
     derived_completion: in_progress
   - thread_id: workstream-fitcv-semantic-spine.semantic-spine-checkpoint-and-continue-truth
     status: proposed

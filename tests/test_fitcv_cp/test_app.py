@@ -15016,7 +15016,7 @@ def _decision_feedback_fixture():
 
     config = {
         "decision_learning_policy": {
-            "policy_version": "decision-learning-v1",
+            "policy_version": "decision-learning-v2",
             "domain_id": "ranking_v1",
             "rating_scale": {
                 "version": "application-interest-v1",
@@ -15034,6 +15034,23 @@ def _decision_feedback_fixture():
                 "minimum_rating_gap": 2,
                 "gap_evidence_weights": {"1": 1.0, "2": 2.0, "3": 3.0, "4": 4.0},
                 "max_episode_evidence_budget": 12.0,
+            },
+            "inverse_optimization": {
+                "optimizer_version": "latent-residual-v1",
+                "learned_alpha": 0.05,
+                "preference_margin": 0.02,
+                "preference_regularization": 1.0,
+                "preference_vector_norm_bound": 1.0,
+                "solver": {"name": "CLARABEL", "max_iter": 200},
+                "numeric_tolerances": {
+                    "feasibility_absolute": 1.0e-7,
+                    "numeric_equivalence_absolute": 1.0e-6,
+                },
+                "evaluation": {
+                    "evaluation_version": "episode-grouped-v1",
+                    "leave_one_episode_out_max_episodes": 8,
+                    "grouped_fold_count": 5,
+                },
             },
         },
         "ranking_policy": {"policy_version": "ranking-v2"},

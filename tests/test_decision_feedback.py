@@ -16,13 +16,14 @@ from fitcv.decision_feedback import (
     build_episode_records,
     reduce_rating_event_states,
     reduce_rating_events,
+    optimizer_policy_fingerprint,
     validate_decision_learning_policy,
 )
 
 
 def _policy() -> dict:
     return {
-        "policy_version": "decision-learning-v1",
+        "policy_version": "decision-learning-v2",
         "domain_id": "ranking_v1",
         "rating_scale": {
             "version": "application-interest-v1",
@@ -40,6 +41,23 @@ def _policy() -> dict:
             "minimum_rating_gap": 2,
             "gap_evidence_weights": {"1": 1.0, "2": 2.0, "3": 3.0, "4": 4.0},
             "max_episode_evidence_budget": 12.0,
+        },
+        "inverse_optimization": {
+            "optimizer_version": "latent-residual-v1",
+            "learned_alpha": 0.05,
+            "preference_margin": 0.02,
+            "preference_regularization": 1.0,
+            "preference_vector_norm_bound": 1.0,
+            "solver": {"name": "CLARABEL", "max_iter": 200},
+            "numeric_tolerances": {
+                "feasibility_absolute": 1.0e-7,
+                "numeric_equivalence_absolute": 1.0e-6,
+            },
+            "evaluation": {
+                "evaluation_version": "episode-grouped-v1",
+                "leave_one_episode_out_max_episodes": 8,
+                "grouped_fold_count": 5,
+            },
         },
     }
 
@@ -141,6 +159,15 @@ def test_compiler_policy_validation_rejects_invalid_values(mutate, message: str)
     with pytest.raises(ValueError, match=message):
         validate_decision_learning_policy(policy)
 
+
+def test_optimizer_policy_fingerprint_tracks_only_optimizer_block() -> None:
+    policy = _policy()
+    changed_optimizer = copy.deepcopy(policy)
+    changed_optimizer["inverse_optimization"]["preference_margin"] = 0.03
+    changed_label = copy.deepcopy(policy)
+    changed_label["rating_scale"]["labels"]["4"] = "high application interest"
+    assert optimizer_policy_fingerprint(policy) != optimizer_policy_fingerprint(changed_optimizer)
+    assert optimizer_policy_fingerprint(policy) == optimizer_policy_fingerprint(changed_label)
 
 def test_full_policy_fingerprint_tracks_rating_labels() -> None:
     policy = _policy()
@@ -358,6 +385,16 @@ def test_preference_compiler_fingerprint_tracks_full_policy_and_input_order() ->
     assert first.compiler_policy_fingerprint == reordered.compiler_policy_fingerprint
     assert first.decision_learning_policy_fingerprint != changed.decision_learning_policy_fingerprint
     assert first.edge_set_fingerprint != changed.edge_set_fingerprint
+    optimizer_changed_policy = copy.deepcopy(_policy())
+    optimizer_changed_policy["inverse_optimization"]["preference_margin"] = 0.03
+    optimizer_changed = compile_preference_edges(
+        episode, alternatives, events, event_watermark=2, decision_learning_policy=optimizer_changed_policy
+    )
+    assert first.edges == optimizer_changed.edges
+    assert first.compiler_policy_fingerprint == optimizer_changed.compiler_policy_fingerprint
+    assert first.decision_learning_policy_fingerprint != optimizer_changed.decision_learning_policy_fingerprint
+    assert first.compiler_input_fingerprint != optimizer_changed.compiler_input_fingerprint
+    assert first.edge_set_fingerprint != optimizer_changed.edge_set_fingerprint
 
 
 @pytest.mark.parametrize("left_rating", [None, 1, 2, 3, 4, 5])

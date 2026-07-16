@@ -65,6 +65,13 @@ Ranking-v2 ownership:
 - canonical writes use `baseline_fit`, `baseline_fit_label`, and `baseline_rank`. `final_score`, `fit_label`, and `final_rank` exist only at explicit legacy read/export boundaries.
 - ranking owns baseline labels. CV analysis consumes persisted `baseline_fit_label`, or derives from persisted `baseline_fit` using the same policy thresholds when the label is absent.
 
+Offline preference-learning ownership:
+
+- `config/policy/decision_learning.yaml` owns the exact `decision-learning-v2` optimizer block while preserving the Phase 5 rating-scale and compiler versions.
+- `src/fitcv/inverse_optimization.py` replays complete immutable episode evidence through the existing compiler, learns one bounded embedding-space residual with optional CVXPY + CLARABEL, independently validates plain numeric outputs, and evaluates by held-out episode.
+- `scripts/run_inverse_optimization.py` is the only JSON boundary for Phase 6 `train` and `evaluate`; it writes typed artifacts only and has no DB, HTTP, activation, rollback, settings, or runtime-ranking path.
+- Phase 6 leaves baseline scores, `strong | stretch | skip`, CV eligibility, and production ordering unchanged. Phase 7 owns persistence and activation.
+
 Shortlist ownership:
 
 - `src/fitcv/vector_search.py` owns one deterministic `vector_cosine_v1` retrieval order over eligible jobs with valid candidate/job embeddings.
