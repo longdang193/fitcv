@@ -10,6 +10,11 @@ inputs:
   - Browser form data and local setup services
 outputs:
   - Resumable onboarding state and user configuration
+capabilities:
+  - admin_control_plane_core.jinja2-admin-pages
+  - settings_system.settings-schema-registry
+  - trigger_run_management.run-health-surface
+  - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
 lifecycle:
   - status: active
 """
@@ -17,14 +22,20 @@ lifecycle:
 from __future__ import annotations
 
 import json
+import io
 import os
+import platform
+import re
 import tempfile
+import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from fitcv.candidate import load_profile_text
@@ -36,6 +47,17 @@ from fitcv_cp.local_setup import (
     readiness,
     test_provider,
     write_routing_overlay,
+)
+from fitcv_cp.local_storage import (
+    MAX_BACKUP_ARCHIVE_BYTES,
+    LocalStoragePaths,
+    create_backup_archive,
+    default_pending_operation_path,
+    inspect_local_storage,
+    restore_backup_archive,
+    sqlite_schema_version,
+    validate_data_root_destination,
+    write_pending_operation,
 )
 
 
@@ -54,6 +76,15 @@ PROVIDER_DRAFT_FIELDS = (
     "cv_generation_structured_write",
     "synonym_triage_recommendation",
 )
+ACTIVE_RUN_STATUSES = {"queued", "running", "awaiting_continue", "cancelling"}
+SENSITIVE_LOG_PATTERN = re.compile(
+    r"authorization|bearer|api[_ -]?key|token|secret|password|prompt|candidate|profile|job description|cv text",
+    re.IGNORECASE,
+)
+SAFE_LOG_PATTERN = re.compile(
+    r"^(?:DEBUG|INFO|WARNING|ERROR) (?:startup|shutdown|health|backup|relocation|import|reconciliation)[A-Za-z0-9 .:_-]*$",
+    re.IGNORECASE,
+)
 
 
 def _data_root() -> Path:
@@ -65,6 +96,56 @@ def _data_root() -> Path:
 
 def _state_path() -> Path:
     return _data_root() / "onboarding.json"
+
+def _local_paths() -> LocalStoragePaths:
+    data_root = _data_root()
+    return LocalStoragePaths(
+        bootstrap_path=Path(os.environ["APPDATA"]) / "FitCV" / "bootstrap.json",
+        data_root=data_root,
+        sqlite_path=Path(os.environ["FITCV_CP_SQLITE_PATH"]),
+        candidate_profile_path=Path(os.environ["FITCV_LOCAL_CANDIDATE_PROFILE_PATH"]),
+        routing_overlay_path=Path(os.environ["FITCV_LOCAL_ROUTING_OVERLAY_PATH"]),
+        artifacts_path=Path(os.environ["FITCV_LOCAL_ARTIFACTS_PATH"]),
+        exports_path=Path(os.environ["FITCV_LOCAL_EXPORTS_PATH"]),
+        logs_path=Path(os.environ["FITCV_LOCAL_LOGS_PATH"]),
+        backups_path=Path(os.environ["FITCV_LOCAL_BACKUPS_PATH"]),
+        uploads_path=Path(os.environ["FITCV_LOCAL_UPLOADS_PATH"]),
+        temporary_path=Path(os.environ["FITCV_LOCAL_TEMP_PATH"]),
+    )
+
+def active_work_reasons(request: Request) -> list[str]:
+    reasons: list[str] = []
+    executor = getattr(request.app.state, "local_job_executor", None)
+    if executor is not None and executor.is_busy():
+        reasons.append("Local executor has active work")
+    store = getattr(request.app.state, "run_store", None)
+    if store is not None:
+        try:
+            active = [
+                run.run_id
+                for run in store.list_runs(limit=500, include_archived=True)
+                if str(getattr(run, "status", "")).strip().lower().removeprefix("runstatus.")
+                in ACTIVE_RUN_STATUSES
+            ]
+        except Exception:
+            reasons.append("Run state could not be verified")
+        else:
+            if active:
+                reasons.append(f"Active runs: {', '.join(active)}")
+    return reasons
+
+def _require_idle(request: Request) -> None:
+    reasons = active_work_reasons(request)
+    if reasons:
+        raise HTTPException(status_code=409, detail=reasons)
+
+def _signal_shutdown(request: Request) -> None:
+    if bool(getattr(request.app.state, "local_draining", False)):
+        return
+    request.app.state.local_draining = True
+    callback = getattr(request.app.state, "local_shutdown_callback", None)
+    if callback is not None:
+        callback()
 
 
 def load_onboarding_state() -> dict[str, Any]:
@@ -326,4 +407,154 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
             root.destroy()
         return JSONResponse({"path": selected or None})
 
+    @router.get("/data", response_class=HTMLResponse)
+    async def data_and_backup(request: Request):
+        return templates.TemplateResponse(
+            request=request,
+            name="local_data_backup.html",
+            context={"storage": inspect_local_storage(_local_paths())},
+        )
+
+    @router.post("/data/backup")
+    async def create_backup(request: Request) -> FileResponse:
+        _require_idle(request)
+        paths = _local_paths()
+        completed_ids = {
+            run.run_id
+            for run in request.app.state.run_store.list_runs(limit=500, include_archived=True)
+            if str(getattr(run, "status", "")).strip().lower().removeprefix("runstatus.") == "succeeded"
+        }
+        filename = f"fitcv-backup-{datetime.now(timezone.utc):%Y%m%d-%H%M%S}.fitcv.zip"
+        archive = create_backup_archive(
+            paths,
+            paths.backups_path / filename,
+            app_version=str(getattr(request.app.state, "app_version", "0.1.0")),
+            completed_run_ids=completed_ids,
+        )
+        return FileResponse(archive, filename=filename, media_type="application/zip")
+
+    @router.post("/data/relocate", status_code=202)
+    async def request_relocation(request: Request) -> JSONResponse:
+        _require_idle(request)
+        form = await request.form()
+        destination = Path(str(form.get("destination") or ""))
+        validate_data_root_destination(
+            destination,
+            source_root=_data_root(),
+            source_size_bytes=sum(
+                path.stat().st_size for path in _data_root().rglob("*") if path.is_file()
+            ),
+        )
+        write_pending_operation(
+            default_pending_operation_path(),
+            {"operation": "relocate", "destination": str(destination.resolve())},
+        )
+        _signal_shutdown(request)
+        return JSONResponse(
+            {"restart_required": True, "destination": str(destination.resolve())},
+            status_code=202,
+        )
+
+    @router.post("/data/import", status_code=202)
+    async def request_import(request: Request) -> JSONResponse:
+        _require_idle(request)
+        form = await request.form()
+        upload = form.get("archive")
+        destination = Path(str(form.get("destination") or ""))
+        if upload is None or not hasattr(upload, "read"):
+            raise HTTPException(status_code=422, detail="Backup archive is required")
+        paths = _local_paths()
+        staged_archive = paths.uploads_path / "pending-import.fitcv.zip"
+        size = 0
+        with staged_archive.open("wb") as handle:
+            while chunk := await upload.read(1024 * 1024):
+                size += len(chunk)
+                if size > MAX_BACKUP_ARCHIVE_BYTES:
+                    staged_archive.unlink(missing_ok=True)
+                    raise HTTPException(status_code=413, detail="Backup archive exceeds size limit")
+                handle.write(chunk)
+        try:
+            with tempfile.TemporaryDirectory(dir=paths.temporary_path) as raw:
+                restore_backup_archive(
+                    staged_archive,
+                    Path(raw) / "validation",
+                    current_db_schema_version=sqlite_schema_version(paths.sqlite_path),
+                )
+        except (OSError, ValueError, zipfile.BadZipFile) as exc:
+            staged_archive.unlink(missing_ok=True)
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        write_pending_operation(
+            default_pending_operation_path(),
+            {
+                "operation": "import",
+                "archive": str(staged_archive),
+                "destination": str(destination.resolve()),
+            },
+        )
+        _signal_shutdown(request)
+        return JSONResponse({"restart_required": True}, status_code=202)
+
+    @router.get("/system", response_class=HTMLResponse)
+    async def local_system(request: Request):
+        return templates.TemplateResponse(
+            request=request,
+            name="local_system.html",
+            context={"system": _system_metadata(request)},
+        )
+
+    @router.get("/system/diagnostics")
+    async def diagnostics(request: Request) -> Response:
+        paths = _local_paths()
+        safe_lines: list[str] = []
+        home = str(Path.home())
+        for log_path in sorted(paths.logs_path.glob("*.log")):
+            try:
+                lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-200:]
+            except OSError:
+                continue
+            for line in lines:
+                if SENSITIVE_LOG_PATTERN.search(line) or not SAFE_LOG_PATTERN.fullmatch(line):
+                    continue
+                safe_lines.append(
+                    re.sub(r"://[^/@\s]+@", "://[redacted]@", line)
+                    .replace(home, "%USERPROFILE%")
+                    .replace(str(paths.data_root), "%FITCV_DATA_ROOT%")
+                )
+        output = io.BytesIO()
+        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            bundle.writestr("system.json", json.dumps(_system_metadata(request), indent=2) + "\n")
+            bundle.writestr("log_tail.txt", "\n".join(safe_lines) + ("\n" if safe_lines else ""))
+        return Response(
+            output.getvalue(),
+            media_type="application/zip",
+            headers={"Content-Disposition": 'attachment; filename="fitcv-diagnostics.zip"'},
+        )
+
+    @router.post("/system/shutdown", response_class=HTMLResponse)
+    async def shutdown(request: Request):
+        if not bool(getattr(request.app.state, "local_draining", False)):
+            _require_idle(request)
+            _signal_shutdown(request)
+        return templates.TemplateResponse(request=request, name="local_stopped.html", context={})
+
     return router
+
+def _system_metadata(request: Request) -> dict[str, object]:
+    paths = _local_paths()
+    setup = _configured_provider_setup()
+    storage = inspect_local_storage(paths)
+    return {
+        "application_version": str(getattr(request.app.state, "app_version", "0.1.0")),
+        "build_id": str(getattr(request.app.state, "build_id", "development")),
+        "os": platform.platform(),
+        "data_path": {"drive": paths.data_root.drive, "name": paths.data_root.name},
+        "database_schema_version": storage["database_schema_version"],
+        "database_integrity": storage["database_integrity"],
+        "provider_host": urlsplit(setup.base_url).hostname if setup is not None else None,
+        "wire_api": setup.wire_api if setup is not None else None,
+        "models": sorted(set(setup.task_models.values())) if setup is not None else [],
+        "readiness": {
+            "ready": bool(local_readiness_status()["ready"]),
+            "reasons": list(local_readiness_status()["reasons"]),
+        },
+    }

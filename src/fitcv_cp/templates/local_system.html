@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}FitCV Local System{% endblock %}
+{% block content %}
+<h1>System</h1>
+<div class="card"><pre>{{ system | tojson(indent=2) }}</pre></div>
+<div class="card" id="change-log"><h2>Change Log</h2><p>Installed version: {{ system.application_version }}</p></div>
+<p><a class="btn-secondary" href="/local/system/diagnostics">Download diagnostics</a></p>
+<form method="post" action="/local/system/shutdown" onsubmit="return confirm('Shut down FitCV Local?');">
+  <button type="submit">Shutdown</button>
+</form>
+{% endblock %}

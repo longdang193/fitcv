@@ -5843,9 +5843,11 @@ def create_app(
     local_mode = is_local_mode()
     csrf_token = secrets.token_urlsafe(32) if local_mode else ""
     app.state.local_mode = local_mode
+    app.state.local_draining = False
     app.state.csrf_token = csrf_token
     app.state.templates = templates
     templates.env.globals["csrf_token"] = csrf_token
+    templates.env.globals["local_mode"] = local_mode
     if local_mode:
         from fitcv_cp.local_routes import (
             build_local_router,

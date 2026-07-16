@@ -2,8 +2,10 @@ feature_id: settings_system
 name: Settings System
 status: active
 type: add
-summary: Admins can edit task-first pipeline settings while provider routing stays centrally owned, retired late-stage mode toggles stay absent, persisted overrides live in SQLite, and settings-used exports remain canonical.
-invariants: []
+summary: Admins can edit task-first pipeline settings while provider routing stays centrally owned; FitCV Local adds a narrow non-secret provider/model overlay and stores API keys only in OS credential storage.
+invariants:
+  - FitCV Local routing overlay may change provider definitions and supported task model routes only; it never copies full packaged configuration.
+  - Provider API keys never persist in settings SQLite, routing overlay, diagnostics, or logs.
 domains:
   - admin_ui
   - pipeline_config
@@ -14,7 +16,7 @@ capabilities:
     statement: SQLite-backed pipeline settings store
     state: active
   - capability_id: settings_system.settings-schema-registry
-    statement: Settings schema registry
+    statement: Keep settings schema registry canonical while FitCV Local onboarding validates provider, API root, wire API, timeout, default model, and supported task models.
     state: active
   - capability_id: settings_system.operator-facing-agentic-settings
     statement: Expose bounded semantic-alignment, reuse, automation, and advanced controls while retired late-stage mode toggles remain excluded.
@@ -68,7 +70,7 @@ capabilities:
     statement: Trigger-time effective settings snapshot
     state: active
   - capability_id: settings_system.baseline-default-hydration
-    statement: Hydrate admin defaults from the baseline config layout while preserving migration-safe compatibility behavior.
+    statement: Hydrate admin defaults from baseline config, then apply FitCV Local narrow routing overlay through one merge owner while preserving migration-safe compatibility behavior.
     state: active
   - capability_id: settings_system.settings-used-exports
     statement: Emit canonical nested settings-used exports and isolate compatibility-era flat keys into an explicit compatibility block.

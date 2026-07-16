@@ -29,11 +29,25 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable, TypeVar
 
-from fitcv_cp.local_storage import LocalStoragePaths, activate_local_storage
+from fastapi import FastAPI, Request
+from fastapi.templating import Jinja2Templates
+
+from fitcv_cp.local_storage import (
+    LocalStoragePaths,
+    activate_local_storage,
+    default_pending_operation_path,
+    load_bootstrap,
+    load_pending_operation,
+    relocate_data_root,
+    restore_backup_archive,
+    sqlite_schema_version,
+    write_bootstrap,
+)
 
 
 _Result = TypeVar("_Result")
 logger = logging.getLogger(__name__)
+LOCAL_APP_VERSION = "0.1.0"
 
 
 class LocalAppBusyError(RuntimeError):
@@ -76,10 +90,43 @@ def prepare_local_environment() -> None:
     os.environ["FITCV_CP_INLINE_EXECUTION"] = "1"
     os.environ.pop("REDIS_URL", None)
 
+def process_pending_storage_operation(*, app_version: str) -> Path | None:
+    pending_path = default_pending_operation_path()
+    pending = load_pending_operation(pending_path)
+    if pending is None:
+        return None
+    bootstrap_path = Path(os.environ["APPDATA"]) / "FitCV" / "bootstrap.json"
+    bootstrap = load_bootstrap(bootstrap_path)
+    if bootstrap is None:
+        raise RuntimeError("FitCV Local cannot apply pending storage operation without bootstrap")
+    previous_root = Path(str(bootstrap["data_root"])).resolve()
+    destination = Path(str(pending.get("destination") or ""))
+    if pending["operation"] == "relocate":
+        new_root = relocate_data_root(previous_root, destination)
+    else:
+        archive = Path(str(pending.get("archive") or ""))
+        new_root = restore_backup_archive(
+            archive,
+            destination,
+            current_db_schema_version=sqlite_schema_version(previous_root / "fitcv.sqlite3"),
+        ).data_root
+    write_bootstrap(bootstrap_path, new_root, app_version)
+    pending_path.unlink()
+    return previous_root
+
 
 def _bundle_root() -> Path:
     frozen_root = getattr(sys, "_MEIPASS", None)
     return Path(str(frozen_root)).resolve() if frozen_root else Path.cwd().resolve()
+
+def _open_browser(url: str) -> None:
+    if str(os.environ.get("FITCV_NO_BROWSER") or "").strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        webbrowser.open(url)
 
 
 def _prebound_socket() -> socket.socket:
@@ -88,6 +135,36 @@ def _prebound_socket() -> socket.socket:
     listener.bind(("127.0.0.1", 0))
     listener.listen(socket.SOMAXCONN)
     return listener
+
+def build_recovery_app(error: Exception) -> FastAPI:
+    application = FastAPI(title="FitCV Local Recovery")
+    templates = Jinja2Templates(directory=str(Path(__file__).with_name("templates")))
+
+    async def recovery(request: Request):
+        return templates.TemplateResponse(
+            request=request,
+            name="local_recovery.html",
+            context={"error_type": type(error).__name__},
+        )
+
+    application.add_api_route("/", recovery, methods=["GET"])
+    application.add_api_route("/local/recovery", recovery, methods=["GET"])
+    return application
+
+def _run_recovery(error: Exception) -> int:
+    import uvicorn
+
+    listener = _prebound_socket()
+    port = int(listener.getsockname()[1])
+    server = uvicorn.Server(
+        uvicorn.Config(build_recovery_app(error), host="127.0.0.1", port=port)
+    )
+    _open_browser(f"http://127.0.0.1:{port}/local/recovery")
+    try:
+        server.run(sockets=[listener])
+    finally:
+        listener.close()
+    return 1
 
 
 def _runtime_metadata_path(paths: LocalStoragePaths) -> Path:
@@ -127,8 +204,20 @@ def main() -> int:
     prepare_local_environment()
     bundle_root = _bundle_root()
     os.chdir(bundle_root)
-    paths = activate_local_storage(bundle_root=bundle_root)
+    previous_root: Path | None = None
+    try:
+        previous_root = process_pending_storage_operation(app_version=LOCAL_APP_VERSION)
+        paths = activate_local_storage(app_version=LOCAL_APP_VERSION, bundle_root=bundle_root)
+    except Exception as exc:
+        if previous_root is not None:
+            write_bootstrap(
+                Path(os.environ["APPDATA"]) / "FitCV" / "bootstrap.json",
+                previous_root,
+                LOCAL_APP_VERSION,
+            )
+        return _run_recovery(exc)
     metadata_path = _runtime_metadata_path(paths)
+    launch_path = "/local/system#change-log" if "--change-log" in sys.argv[1:] else "/"
     mutex = _WindowsMutex("Local\\FitCV.Local")
     if mutex.already_exists:
         try:
@@ -136,7 +225,7 @@ def main() -> int:
         except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
             mutex.close()
             return 1
-        webbrowser.open(url)
+        _open_browser(url.rstrip("/") + launch_path)
         mutex.close()
         return 0
 
@@ -147,7 +236,14 @@ def main() -> int:
     port = int(listener.getsockname()[1])
     url = f"http://127.0.0.1:{port}/"
     _write_runtime_metadata(metadata_path, url=url)
-    application = build_app()
+    try:
+        application = build_app()
+    except Exception as exc:
+        listener.close()
+        mutex.close()
+        if previous_root is not None:
+            write_bootstrap(paths.bootstrap_path, previous_root, LOCAL_APP_VERSION)
+        return _run_recovery(exc)
     from fitcv_cp.reconciler import reconcile_abandoned_attempts
 
     try:
@@ -156,8 +252,17 @@ def main() -> int:
         logger.warning("FitCV Local startup reconciliation failed: %s", type(exc).__name__)
     server = uvicorn.Server(uvicorn.Config(application, host="127.0.0.1", port=port))
     application.state.local_job_executor = get_local_job_executor()
-    application.state.local_shutdown_callback = lambda: setattr(server, "should_exit", True)
-    webbrowser.open(url)
+    application.state.app_version = LOCAL_APP_VERSION
+    application.state.build_id = str(os.environ.get("FITCV_BUILD_ID") or "development")
+    shutdown_lock = threading.Lock()
+
+    def request_shutdown() -> None:
+        with shutdown_lock:
+            if not server.should_exit:
+                server.should_exit = True
+
+    application.state.local_shutdown_callback = request_shutdown
+    _open_browser(url.rstrip("/") + launch_path)
     try:
         server.run(sockets=[listener])
     finally:

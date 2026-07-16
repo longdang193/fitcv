@@ -6,6 +6,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 *.egg-info/
+build/
+dist/
 
 # Ignore MCP Logs and Database Files
 .neuralmemory/
@@ -37,8 +39,10 @@ data/fitcv_cp_runtime.sqlite3*
 data/fitcv_cp_settings.sqlite3*
 data/fitcv_cp.sqlite3*
 runtime/
+.tmp-tests/
 
 # Live run evidence bundles (local only)
 artifacts/live_run_*/
 artifacts/stash_overlap/
 artifacts/tmp_*
+tmp/fitcv-local-*/

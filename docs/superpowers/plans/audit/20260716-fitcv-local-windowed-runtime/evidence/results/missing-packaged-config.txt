@@ -1,0 +1,17 @@
+Captured: 2026-07-16T23:55:00+02:00
+Producer: tmp/fitcv-local-debug/stderr.txt
+
+Traceback (most recent call last):
+  File "local_app.py", line 277, in <module>
+  File "local_app.py", line 233, in main
+  File "fitcv_cp\main.py", line 22, in <module>
+  File "fitcv_cp\app.py", line 127, in <module>
+  File "fitcv_cp\settings_schema.py", line 87, in <module>
+  File "fitcv\config.py", line 868, in load_config
+FileNotFoundError: Config file not found: .env.yaml
+[PYI-7676:ERROR] Failed to execute script 'local_app' due to unhandled exception!
+
+Observed second failure after packaging .env.yaml:
+- windowed process created runtime metadata and listened on loopback
+- HTTP health request did not complete
+- temporary runtime hook restoring writable sys.stdout/sys.stderr made health request return 200

@@ -10,6 +10,9 @@ inputs:
   - Provider fields, model routes, credential configured state
 outputs:
   - Validated routing overlay and readiness result
+capabilities:
+  - settings_system.settings-schema-registry
+  - settings_system.baseline-default-hydration
 lifecycle:
   - status: active
 """
@@ -20,7 +23,7 @@ import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, TypedDict
 from urllib.parse import urlsplit, urlunsplit
 
 import yaml
@@ -50,6 +53,12 @@ class ProviderSetup:
     timeout_seconds: float
     default_model: str
     task_models: dict[str, str]
+
+
+class ReadinessResult(TypedDict):
+    ready: bool
+    reasons: list[str]
+    overlay: dict[str, Any]
 
 
 def normalize_api_root(value: str) -> str:
@@ -147,7 +156,7 @@ def test_provider(setup: ProviderSetup) -> dict[str, object]:
             prompt="Reply with OK.",
             response_mode="text",
         ),
-        parser=lambda text: text.strip(),
+        parser=lambda response: response.raw_text.strip(),
         validator=lambda value: LlmValidationResult(
             valid=bool(str(value or "").strip()), errors=[], details={}
         ),
@@ -169,7 +178,7 @@ def test_provider(setup: ProviderSetup) -> dict[str, object]:
 
 def readiness(
     setup: ProviderSetup, *, credential_configured: bool, provider_test_ok: bool
-) -> dict[str, object]:
+) -> ReadinessResult:
     overlay = build_routing_overlay(setup)
     reasons: list[str] = []
     if setup.auth_mode == "required" and not credential_configured:

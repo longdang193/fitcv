@@ -1,0 +1,18 @@
+Captured: 2026-07-16T23:59:30+02:00
+Producer: isolated Inno Setup lifecycle proof
+
+status: PASS
+installer_exit: 0
+installed_bundle_smoke_seconds: 3.202
+reinstall_exit: 0
+uninstall_exit: 0
+user_data_marker_preserved_after_reinstall: true
+user_data_marker_preserved_after_uninstall: true
+installed_files_removed: true
+empty_custom_install_directory_remained: true
+
+Isolation root:
+tmp/fitcv-local-final-installer-20260716
+
+Preserved marker:
+tmp/fitcv-local-final-installer-20260716/Local/FitCV/data/upgrade-preserve.marker

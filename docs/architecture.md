@@ -14,14 +14,34 @@ explains:
 
 # Architecture
 
-FitCV architecture has four cross-cutting layers:
+FitCV architecture has five cross-cutting layers:
 
-1. control plane (`src/fitcv_cp`)
-2. pipeline runtime (`src/fitcv`)
-3. backend/provider adapters and runtime routing
-4. managed architecture metadata + generated contract outputs
+1. FitCV Local packaged launcher and user-owned storage boundary
+2. control plane (`src/fitcv_cp`)
+3. pipeline runtime (`src/fitcv`)
+4. backend/provider adapters and runtime routing
+5. managed architecture metadata + generated contract outputs
 
 ## Runtime Surfaces
+
+### FitCV Local
+
+Windows-first `onedir` bundle starts one loopback-only process, opens browser,
+and reuses existing instance on second launch. Packaged mode runs FastAPI and one
+serialized `ThreadPoolExecutor(max_workers=1)` without starting Redis or RQ.
+
+Mutable ownership stays outside install directory:
+
+- `%APPDATA%\FitCV\bootstrap.json`: atomic data-root pointer
+- selected data root: SQLite, candidate profile, narrow routing overlay,
+  artifacts, exports, logs, backups, uploads, and temporary files
+- Windows Credential Manager: provider API keys
+- packaged resources: read-only templates, prompts, config defaults, timezone,
+  and runtime assets
+
+Global packaged middleware validates expected Host, same-origin Origin/Referer,
+and per-process CSRF on unsafe requests. Shutdown, backup, import, and relocation
+reject while executor or persisted run state is active.
 
 ### Control Plane
 
@@ -86,7 +106,8 @@ Shortlist ownership:
 
 - backend portability: sqlite execution path is selected through control-plane backend runtime resolution
 - provider portability: model routing is owned by `config/runtime/control_plane.yaml` and resolved by the internal LLM runtime
-- secrets: runtime credentials are supplied via environment variables
+- local provider portability: narrow user overlay changes provider/model routes without copying full config
+- secrets: FitCV Local uses Windows Credential Manager; developer/server mode uses environment variables
 
 ## Orchestration and Observability
 

@@ -1,7 +1,13 @@
 # GENERATED FILE - do not edit directly.
 feature_id: trigger_run_management
 source: docs/features/trigger_run_management/feature.source.yaml
-invariants: {}
+invariants:
+  invariant-1:
+    state: active
+    statement: FitCV Local rejects run submission until candidate profile, provider routing, required credential, and provider test are ready.
+  invariant-2:
+    state: active
+    statement: Packaged concurrent submissions return visible busy state instead of starting parallel work.
 capabilities:
   trigger_run_management.runs-list-management:
     state: active
@@ -119,6 +125,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -201,6 +208,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -330,6 +338,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -412,6 +421,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -523,6 +533,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -605,6 +616,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -728,6 +740,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -810,6 +823,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -819,7 +833,7 @@ capabilities:
     completeness_status: incomplete
   trigger_run_management.execution-mode-selection:
     state: active
-    statement: Support server-owned mode resolution for `Run All` and `Stage by Stage`.
+    statement: Support server-owned mode resolution for `Run All` and `Stage by Stage`, including serialized packaged execution.
     satisfies: []
     code: []
     tests:
@@ -921,6 +935,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1003,6 +1018,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1114,6 +1130,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1196,6 +1213,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1319,6 +1337,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1401,6 +1420,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1536,6 +1556,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1618,6 +1639,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1729,6 +1751,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1811,6 +1834,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1820,7 +1844,7 @@ capabilities:
     completeness_status: incomplete
   trigger_run_management.run-health-surface:
     state: active
-    statement: Show compact run-health diagnostics that combine stage quality and late-stage reuse visibility.
+    statement: Show compact run-health diagnostics and FitCV Local readiness/busy state before accepting new work.
     satisfies: []
     code: []
     tests:
@@ -1922,6 +1946,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2004,6 +2029,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2127,6 +2153,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2209,6 +2236,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2320,6 +2348,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2402,6 +2431,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2513,6 +2543,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2595,6 +2626,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2712,6 +2744,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2794,6 +2827,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2905,6 +2939,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2987,6 +3022,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3098,6 +3134,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -3180,6 +3217,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3297,6 +3335,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-13-fitcv-llm-runtime-spine-master-spec.md
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -3379,6 +3418,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-13-08-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-plan.md
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

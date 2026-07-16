@@ -19,10 +19,32 @@ FitCV uses layered configuration with clear ownership boundaries.
 
 ## Primary Runtime Inputs
 
+- FitCV Local packaged defaults plus user-owned local routing overlay
 - trigger base config file (`config_path` in `/runs` request; default `.env.yaml`)
 - persisted control-plane settings (`/admin/settings` and `/settings` surfaces)
 - per-run trigger overrides (`config_overrides` in `/runs`)
 - process environment variables for backend/provider credentials and runtime toggles
+
+## FitCV Local Configuration Ownership
+
+FitCV Local keeps application defaults read-only and user configuration narrow:
+
+| Surface | Owner | Secret |
+| --- | --- | --- |
+| `%APPDATA%\FitCV\bootstrap.json` | selected data-root pointer and minimal version metadata | no |
+| `<data-root>\candidate_profile.yaml` | user candidate profile | private user data, not credential |
+| `<data-root>\config\local_routing_overlay.yaml` | provider definition and `model_routing.parts` overrides | no |
+| Windows Credential Manager service `FitCV.Local` | provider API keys | yes |
+| packaged `config/runtime/control_plane.yaml` | immutable provider/model defaults | no |
+
+Local overlay may set provider type, display name, API root, auth mode, wire API,
+timeout, default model, and supported task model routes. It cannot replace full
+control-plane config or pipeline/policy files.
+
+Onboarding accepts `openai`, `openai_compatible`, and `9router` provider IDs.
+API root must be absolute HTTP(S), contain no embedded credential/query/fragment,
+and point to API root rather than `/responses`, `/chat/completions`, or `/models`.
+Supported wire APIs are `responses` and `chat_completions`.
 
 ## Canonical Ownership Matrix (Option B Baseline)
 
@@ -204,7 +226,9 @@ Examples:
   - `control_plane.model_routing.parts.*.model`
 - internal runtime resolves each routing part through one provider definition; JOB operator route overrides are not accepted
 - routing expectation resolves only from `config/runtime/control_plane.yaml` and fails fast when required fields are missing
-- provider credential input: `FITCV_LLM_API_KEY` only
+- provider credential input:
+  - FitCV Local: Windows Credential Manager, keyed by provider ID
+  - developer/server mode: `FITCV_LLM_API_KEY`
 
 ## AI-Plane Contract (Migration Freeze)
 
@@ -224,7 +248,7 @@ Prohibited coupling:
 - backend mode must not alter AI model selection
 - backend mode must not alter AI auth key resolution order
 
-Canonical AI auth contract:
+Canonical developer/server AI auth contract:
 
 - sole repo-native input: `FITCV_LLM_API_KEY`
 - no credential alias projection or second provider-client path is used
@@ -234,6 +258,10 @@ Fail-fast runtime contract:
 - if routed AI provider/model cannot be resolved, runtime must fail with explicit configuration error
 - if AI auth key is missing for routed HTTP provider, runtime must fail with explicit credential error
 - no implicit Gemini/default model fallback is allowed as runtime authority in unified mode
+
+FitCV Local keeps same internal LLM runtime and routing semantics. Its only auth
+difference is OS credential lookup at packaged boundary; API key never enters
+the non-secret routing overlay.
 
 ## Related Docs
 

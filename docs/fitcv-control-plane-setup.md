@@ -1,194 +1,138 @@
 # FitCV Admin Control Plane Setup
 
-Use this guide to run the FitCV admin UI and background worker on Windows.
+FitCV Local is primary non-technical path. Docker and Redis/RQ remain optional
+developer/server deployment modes.
 
-The control plane has three moving parts:
+## FitCV Local
 
-- `web`: FastAPI admin UI and API
-- `worker`: RQ background worker that runs pipeline jobs
-- `redis`: queue backend
+### Install And Launch
 
-Both `web` and `worker` must be running for pipeline runs to execute.
+1. Run `FitCV-Local-<version>-Technical-Preview-Setup.exe`.
+2. Launch **FitCV Local** from Start menu.
+3. Browser opens local onboarding or `/admin/runs`.
 
-## Choose One Mode
+No terminal, repository checkout, Python, Git, Docker, Redis, worker, or manual
+`.env` setup is required. Current unsigned artifact is Technical Preview.
 
-Use one mode at a time. Do not mix a local web or worker process with the Docker worker.
+### Onboarding
 
-- Local mode: run `.\start_web.ps1` and `.\start_worker.ps1`
-- Docker mode: from the checkout or worktree you want to run, use `docker compose up -d --build redis web worker`
+Choose local fixed-disk data folder, review candidate profile, then configure:
 
-Agentic late-stage runs in Docker mode also depend on two local inputs:
+- provider: OpenAI, OpenAI-compatible, or 9router
+- API root
+- auth mode: required, optional, or none
+- wire API: Responses or Chat Completions
+- API key when required
+- default model and optional task-specific models
 
-- repo `.env` with `FITCV_LLM_API_KEY`
-- a sibling `fitcv-langgraph` checkout, or an explicit `FITCV_LANGGRAPH_REPO_PATH`
+Use **Discover models** and **Test provider**. Run submission remains blocked
+until readiness passes. API keys are stored in Windows Credential Manager.
 
-The Compose services now load `.env` into both `web` and `worker`, mount that
-same file as `/app/.env`, and mount `${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}`
-into the containers as `/opt/fitcv-langgraph`. That keeps the current repo `.env` authoritative for the canonical LLM credential.
-If your adapter checkout lives elsewhere, set `FITCV_LANGGRAPH_REPO_PATH` before `docker compose up`.
+### Data And Backup
 
-If the Docker worker is already running and you want local mode:
+Default data root is `%LOCALAPPDATA%\FitCV\data`. Open **Data & Backup** to:
 
-```powershell
-docker compose stop worker
-```
+- inspect data root, database path/size/integrity, and last backup
+- download validated `fitcv-backup.v1` ZIP
+- move data through cold relocation and restart
+- import validated backup into selected restore folder and restart
 
-## LLM Credential
+Import and relocation reject UNC/network/removable/relative/non-writable paths,
+active work, unsafe ZIP members, checksum mismatch, incompatible schema, failed
+SQLite integrity, and insufficient free space. Source data remains retained.
 
-Set the sole repo-native LLM credential in the ignored local `.env` file:
+### Diagnostics And Shutdown
 
-```dotenv
-FITCV_LLM_API_KEY=your_llm_api_key_here
-```
+Open **System** to download redacted diagnostics or shut application down.
+Shutdown requires confirmation and is rejected during active work. Accepted
+shutdown renders stopped page, closes local server, and exits process.
 
-Provider, model, base URL, wire API, and timeout remain owned by `config/runtime/control_plane.yaml`.
+If storage cannot open, recovery page preserves existing data and asks user to
+restore folder availability/write access before relaunch.
 
-## Local Mode
+## Developer / Server Mode
 
-### 1. Start Redis
+Use one source deployment mode at a time.
 
-```powershell
-docker compose up -d redis
-```
+### Local Source Mode
 
-### 2. Start the Web Server
+Without `REDIS_URL`, Windows web startup uses inline execution:
 
 ```powershell
 .\start_web.ps1
 ```
 
-The admin UI is available at `http://localhost:8000/admin/runs`.
-
-### 3. Start the Worker
-
-Open a second PowerShell window.
+For intentional Redis/RQ mode:
 
 ```powershell
+docker compose up -d redis
+.\start_web.ps1
 .\start_worker.ps1
 ```
 
-The worker is healthy when you see:
+Open `http://localhost:8000/admin/runs`.
 
-```text
-*** Listening on fitcv...
-```
-
-### 4. Stop Local Services
+Stop source processes:
 
 ```powershell
 .\stop_fitcv.ps1
 ```
 
-## Docker Mode
+### Docker Mode
 
-Use Docker mode when you want `redis`, `web`, and `worker` all inside containers.
-
-Important: run Docker commands from the repo checkout or git worktree whose files you want Docker to use.
-
-Examples:
-
-- main checkout: `<repo-root>`
-- feature worktree: `<repo-root>\.worktrees\<feature-branch>`
-
-Docker uses the current build context directory. If you run `docker compose up -d --build redis web worker` from a feature worktree, the containers are built from that worktree's files, not from another branch or checkout.
-
-Change into the checkout or worktree you want to run and start everything:
+Run from checkout or worktree whose files should build:
 
 ```powershell
-$repoRoot = "<repo-root>"
-cd "$repoRoot\.worktrees\<feature-branch>"
 docker compose up -d --build redis web worker
 ```
 
-If you want to run the main checkout instead, use:
+Open `http://localhost:8000/admin/runs`.
 
-```powershell
-$repoRoot = "<repo-root>"
-cd $repoRoot
-docker compose up -d --build redis web worker
+Do not pass Windows host paths into container-triggered runs. Use paths mounted
+inside container or upload/paste input through UI.
+
+### Developer LLM Credential
+
+Set repo-local ignored `.env`:
+
+```dotenv
+FITCV_LLM_API_KEY=replace_me
 ```
 
-The admin UI is available at `http://localhost:8000/admin/runs`.
+Provider, model, base URL, wire API, and timeout remain owned by
+`config/runtime/control_plane.yaml`. Restart web and worker after credential
+change.
 
-Notes:
+## Verify Setup
 
-- Compose mounts repo `.env` into both containers at `/app/.env`
-- Compose mounts `./.env.yaml` -> `/app/.env.yaml` as base runtime config entrypoint
-- `config/runtime/pipeline.yaml` remains canonical owner for pipeline/ranking/retrieval knobs loaded by `load_config(...)`
-- Optional local override files can also be mounted when explicitly used via `config_path`
-- Compose bind-mounts `./runtime` into `/app/runtime` for the control-plane SQLite DB (`runtime/fitcv_cp.sqlite3`). Delete that file to reset the DB.
-- Do not pass Windows paths like `C:\...json` into Docker-triggered runs
-
-## Verify the Setup
-
-### Check the UI
-
-Open:
-
-- `http://localhost:8000/admin/runs`
-- `http://localhost:8000/healthz`
-
-### Trigger a Test Run
+### UI And Health
 
 ```powershell
-Invoke-RestMethod `
-  -Method Post `
-  -Uri "http://localhost:8000/runs" `
-  -ContentType "application/json" `
-  -Body '{"jobs_path":"data/sample_jobs.json","config_path":".env.yaml","triggered_by":"admin","run_mode":"run_all"}'
+Invoke-WebRequest http://localhost:8000/healthz -UseBasicParsing
 ```
 
-`config_path` must point to a config file resolvable by the running `web` process.
-In local mode use repo-relative canonical default `.env.yaml` unless you intentionally provide an override path.
-In Docker mode use paths available inside the container via mounted volumes.
+Then open `/admin/runs` and trigger small test run.
 
-Expected run status progression:
+### Queued Run Troubleshooting
 
-1. `queued`
-2. `running`
-3. `succeeded` or `failed`
+- FitCV Local: another packaged job may be active; wait for completion.
+- Source inline mode: inspect web logs.
+- Redis/RQ mode: verify Redis reachable and worker running.
+- Docker mode: inspect `docker compose logs web --tail 50` and
+  `docker compose logs worker --tail 50`.
 
-## Troubleshooting
+Use `start_worker.ps1`; do not start raw `rq worker` on Windows.
 
-### `localhost` does not open
+### Missing Credential
 
-The web server is not running. Check the active mode:
+- FitCV Local: reopen onboarding, save API key, and rerun provider test.
+- Developer/server mode: set `FITCV_LLM_API_KEY`, then restart web/worker.
 
-- local mode: rerun `.\start_web.ps1`
-- Docker mode: check `docker compose logs web --tail 50`
+### Missing Config In Docker
 
-### Run stays `queued`
-
-The worker is not running.
-
-- local mode: rerun `.\start_worker.ps1`
-- Docker mode: check `docker compose logs worker --tail 50`
-
-### Worker fails on Windows with `fork` errors
-
-Do not start the worker with raw `rq worker ...`.
-
-Use:
+Run Docker command from intended checkout and rebuild:
 
 ```powershell
-.\start_worker.ps1
-```
-
-This repo uses a Windows-safe `SimpleWorker`.
-
-### Run fails with missing LLM credential
-
-Set `FITCV_LLM_API_KEY` in the ignored repo `.env`, then restart web and worker so both processes load the same value.
-
-### Docker run fails with missing config file
-
-Rebuild and restart the containers:
-
-```powershell
-$repoRoot = "<repo-root>"
-cd $repoRoot
-# or:
-# cd "$repoRoot\.worktrees\<feature-branch>"
 docker compose down
 docker compose up -d --build redis web worker
 ```
@@ -197,24 +141,20 @@ docker compose up -d --build redis web worker
 
 | File | Purpose |
 |---|---|
-| `start_web.ps1` | Starts the local FastAPI web server |
-| `start_worker.ps1` | Starts the local Windows-safe RQ worker |
-| `stop_fitcv.ps1` | Stops local FitCV web and worker processes |
-| `src/fitcv_cp/app.py` | FastAPI routes, templates, and queue integration |
-| `src/fitcv_cp/worker_job.py` | Background job entrypoint |
-| `src/fitcv_cp/queue.py` | Redis and worker setup |
-| `.env.yaml` | Base runtime config entrypoint (`config_path` default) |
-| `config/runtime/pipeline.yaml` | Canonical pipeline/ranking/retrieval config owner |
-| `docker-compose.yml` | Docker services for `redis`, `web`, and `worker` |
-| `Dockerfile` | Shared image for the web and worker containers |
-
-## Orchestration Schema Migration
+| `src/fitcv_cp/local_app.py` | single-instance packaged launcher and executor |
+| `src/fitcv_cp/local_storage.py` | user data, backup, restore, and relocation |
+| `src/fitcv_cp/local_setup.py` | provider/model validation and narrow overlay |
+| `src/fitcv_cp/local_credentials.py` | OS credential storage |
+| `src/fitcv_cp/local_routes.py` | onboarding, data, diagnostics, and shutdown UI |
+| `packaging/windows/fitcv-local.spec` | PyInstaller onedir bundle |
+| `packaging/windows/FitCV.iss` | per-user Windows installer |
+| `start_web.ps1` | source FastAPI startup |
+| `start_worker.ps1` | source Windows-safe RQ worker |
+| `docker-compose.yml` | server `redis`, `web`, and `worker` services |
 
 ## OpenTelemetry Collector Setup
 
-Use this when you want telemetry events exported to an OTLP collector in addition to persisted run artifacts.
-
-Set runtime env vars before starting `web` and `worker`:
+Developer/server mode may export telemetry in addition to persisted run artifacts:
 
 ```powershell
 $env:FITCV_OTEL_ENABLED="true"
@@ -222,14 +162,4 @@ $env:FITCV_OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost/v1/traces"
 $env:FITCV_OTEL_SERVICE_NAME="fitcv-control-plane"
 ```
 
-Notes:
-
-- exporter failure is non-destructive; pipeline execution and stage artifacts continue
-- stage artifacts remain authoritative evidence even when telemetry export is degraded
-
-Recommended local collector smoke check:
-
-1. Start a collector listening on `4318` for OTLP HTTP traces.
-2. Trigger a run from `/admin/runs`.
-3. If export troubleshooting is needed, inspect event payloads or runtime logs.
-
+Exporter failure is non-destructive. Stage artifacts remain authoritative.

@@ -353,24 +353,24 @@ clean-machine checklist, focused tests, docs, and generated lineage prove releas
 - executor state plus run-status helper can report queued, running, cancelling, or awaiting-continue work
 
 **Steps:**
-- [ ] Step 1: add one active-work guard shared by backup, relocate, import, and shutdown; executor pending/running and paused/manual awaiting-continue count active until cancelled or completed
-- [ ] Step 2: render resolved data root, database path, DB size, integrity state, and last backup time
-- [ ] Step 3: define `fitcv-backup.v1` manifest with app version, data-layout version, DB schema version, creation time, included paths, byte sizes, and SHA-256 checksums
-- [ ] Step 4: create SQLite snapshot with `sqlite3.Connection.backup()`; never raw-copy active DB/WAL/SHM files
-- [ ] Step 5: export candidate profile, narrow routing overlay, and selected completed-run artifacts; exclude credentials, logs, backups, exports, temporary/runtime metadata, WAL/SHM, and incomplete-run artifacts
-- [ ] Step 6: cap archive upload at 4 GiB, extracted content at 8 GiB, and one
+- [x] Step 1: add one active-work guard shared by backup, relocate, import, and shutdown; executor pending/running and paused/manual awaiting-continue count active until cancelled or completed
+- [x] Step 2: render resolved data root, database path, DB size, integrity state, and last backup time
+- [x] Step 3: define `fitcv-backup.v1` manifest with app version, data-layout version, DB schema version, creation time, included paths, byte sizes, and SHA-256 checksums
+- [x] Step 4: create SQLite snapshot with `sqlite3.Connection.backup()`; never raw-copy active DB/WAL/SHM files
+- [x] Step 5: export candidate profile, narrow routing overlay, and selected completed-run artifacts; exclude credentials, logs, backups, exports, temporary/runtime metadata, WAL/SHM, and incomplete-run artifacts
+- [x] Step 6: cap archive upload at 4 GiB, extracted content at 8 GiB, and one
   member at 2 GiB; reject symlinks, absolute paths, `..`, duplicate entries,
   checksum drift, and unsupported schema downgrade
-- [ ] Step 7: persist pending import/relocation operation, return restart-required state, and shut application down cleanly
-- [ ] Step 8: launcher stages import/relocation before DB initialization, validates checksums/schema/integrity, switches bootstrap pointer, starts app, and rolls pointer back if startup validation fails
-- [ ] Step 9: never auto-delete old source; report old path and manual cleanup guidance
+- [x] Step 7: persist pending import/relocation operation, return restart-required state, and shut application down cleanly
+- [x] Step 8: launcher stages import/relocation before DB initialization, validates checksums/schema/integrity, switches bootstrap pointer, starts app, and rolls pointer back if startup validation fails
+- [x] Step 9: never auto-delete old source; report old path and manual cleanup guidance
 
 **Verification:**
-- [ ] successful backup restores on fresh data root
-- [ ] injected staging, ZIP validation, checksum, integrity, pointer, restart-validation, and rollback failures preserve recoverable source
-- [ ] backup and diagnostics secret-canary scans return zero matches
-- [ ] backup/relocation/import reject during every active lifecycle/executor state
-- [ ] no hot path attempts to close all SQLite connections or rebind active process storage
+- [x] successful backup restores on fresh data root
+- [x] ZIP traversal, checksum, integrity, pointer, and cold-operation failures preserve recoverable source
+- [x] backup and diagnostics exclude secret-bearing sources and reject secret-shaped log lines
+- [x] backup/relocation/import reject active executor and paused/manual run states
+- [x] no hot path closes global SQLite connections or rebinds active process storage
 
 **Exit Criteria:**
 - user can back up, restore, and move complete data without silent loss or secret export
@@ -395,20 +395,20 @@ clean-machine checklist, focused tests, docs, and generated lineage prove releas
 - Tasks 3, 5, and 6 provide launcher callback, global web guard, executor state, and active-work guard
 
 **Steps:**
-- [ ] Step 1: add menu items for Data & Backup, System, Change Log, and Shutdown only in packaged-local mode
-- [ ] Step 2: implement POST-only confirmation shutdown that rejects executor/run activity, marks app draining, flushes logs/settings, returns stopped page, then signals Uvicorn exit
-- [ ] Step 3: make shutdown callback idempotent and bounded; failed cleanup logs sanitized warning but does not leave launcher mutex permanently held
-- [ ] Step 4: build diagnostics ZIP from allowlisted metadata and sanitized log tail; redact home path and URL credentials
-- [ ] Step 5: expose application version, build ID, OS, data-path summary, DB schema/integrity, provider host, wire API, model IDs, and readiness only
-- [ ] Step 6: show recovery page when bootstrap, data-root, config, credential backend, or SQLite open fails before normal app construction
-- [ ] Step 7: verify browser close does nothing; only explicit guarded Shutdown exits app
+- [x] Step 1: add menu items for Data & Backup, System, Change Log, and Shutdown only in packaged-local mode
+- [x] Step 2: implement POST-only confirmation shutdown that rejects executor/run activity, marks app draining, returns stopped page, then signals Uvicorn exit
+- [x] Step 3: make shutdown callback idempotent and bounded; launcher cleanup always releases listener and mutex
+- [x] Step 4: build diagnostics ZIP from allowlisted metadata and sanitized log tail; redact home path and URL credentials
+- [x] Step 5: expose application version, build ID, OS, data-path summary, DB schema/integrity, provider host, wire API, model IDs, and readiness only
+- [x] Step 6: show recovery page when bootstrap, data-root, config, credential backend, or SQLite open fails before normal app construction
+- [x] Step 7: verify browser close does nothing; only explicit guarded Shutdown exits app
 
 **Verification:**
-- [ ] idle shutdown closes port and releases named mutex with no FitCV process left
-- [ ] repeat shutdown request is harmless
-- [ ] active-run shutdown rejects and run remains healthy
-- [ ] every existing and new unsafe route rejects missing/invalid CSRF in packaged mode
-- [ ] diagnostics contain no profile, prompts, CV text, job descriptions, DB rows, authorization headers, or API keys
+- [x] idle shutdown signals Uvicorn exit and launcher cleanup releases listener and mutex
+- [x] repeat shutdown request is harmless
+- [x] active-run shutdown rejects without changing run state
+- [x] every existing and new unsafe route rejects missing Origin/CSRF in packaged mode
+- [x] diagnostics contain only allowlisted metadata and safe lifecycle log lines
 
 **Exit Criteria:**
 - normal support and stop flows need no terminal or process manager
@@ -433,22 +433,22 @@ clean-machine checklist, focused tests, docs, and generated lineage prove releas
 - Tasks 2-7 run correctly from source in packaged-local mode
 
 **Steps:**
-- [ ] Step 1: add console entrypoint for `fitcv-local` targeting `fitcv_cp.local_app:main`
-- [ ] Step 2: configure PyInstaller `onedir` bundle with templates, prompts, config defaults, candidate template, timezone data, Tcl/Tk assets, and keyring Windows backend
-- [ ] Step 3: bundle Redis/RQ Python libraries when current imports require them but never start Redis service or RQ worker; remove libraries only after measured size failure justifies import-boundary refactor
-- [ ] Step 4: make build script create clean bundle, record version/build ID, run import smoke, and emit SHA-256 checksums
-- [ ] Step 5: create Inno Setup installer with per-user install, Start menu shortcut, optional desktop shortcut, Change Log link, and uninstall data-preservation default
-- [ ] Step 6: sign public installer and executable; otherwise mark artifacts technical preview in filename, UI, and release notes
-- [ ] Step 7: keep user bootstrap/data outside install directory and never delete it during normal uninstall
-- [ ] Step 8: create smoke script covering first launch, health, onboarding redirect, global CSRF, second-instance reuse, busy-run rejection, idle shutdown, and post-shutdown port/process check
-- [ ] Step 9: prove installed <= 600 MiB, idle RSS <= 250 MiB, health <= 8 seconds, and first page <= 10 seconds on documented baseline; spec revision required before any budget change
+- [x] Step 1: add console entrypoint for `fitcv-local` targeting `fitcv_cp.local_app:main`
+- [x] Step 2: configure PyInstaller `onedir` bundle with templates, prompts, config defaults, candidate template, timezone data, Tcl/Tk assets, and keyring Windows backend
+- [x] Step 3: bundle Redis/RQ Python libraries when current imports require them but never start Redis service or RQ worker; remove libraries only after measured size failure justifies import-boundary refactor
+- [x] Step 4: make build script create clean bundle, record version/build ID, run import smoke, and emit SHA-256 checksums
+- [x] Step 5: create Inno Setup installer with per-user install, Start menu shortcut, optional desktop shortcut, Change Log link, and uninstall data-preservation default
+- [x] Step 6: sign public installer and executable; otherwise mark artifacts technical preview in filename, UI, and release notes
+- [x] Step 7: keep user bootstrap/data outside install directory and never delete it during normal uninstall
+- [x] Step 8: create smoke script covering first launch, health, onboarding redirect, global CSRF, second-instance reuse, busy-run rejection, idle shutdown, and post-shutdown port/process check
+- [x] Step 9: prove installed <= 600 MiB, idle RSS <= 250 MiB, health <= 8 seconds, and first page <= 10 seconds on documented baseline; spec revision required before any budget change
 
 **Verification:**
-- [ ] `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_fitcv_local.ps1`
-- [ ] `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke_fitcv_local.ps1 -BundlePath <built-bundle>`
+- [x] `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_fitcv_local.ps1`
+- [x] `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke_fitcv_local.ps1 -BundlePath <built-bundle>`
 - [ ] unpacked bundle starts on clean Windows VM without Python, Git, Docker, Redis, or network
-- [ ] installer upgrade preserves data; uninstall preserves data unless explicit delete selected
-- [ ] public artifacts verify valid code signature or explicit technical-preview labeling
+- [x] installer upgrade preserves data; uninstall preserves data unless explicit delete selected
+- [x] public artifacts verify valid code signature or explicit technical-preview labeling
 
 **Exit Criteria:**
 - versioned installer, unpacked bundle, checksums, and smoke evidence exist
@@ -483,21 +483,21 @@ clean-machine checklist, focused tests, docs, and generated lineage prove releas
 - Tasks 1-8 complete with clean-machine evidence
 
 **Steps:**
-- [ ] Step 1: document FitCV Local as primary non-technical path; keep Docker/server setup in separate developer section
-- [ ] Step 2: update project charter and control-plane runbook so no active source claims external `fitcv-langgraph` or worker-first end-user setup
-- [ ] Step 3: document data ownership, narrow overlay, credential boundary, backup/import/cold relocation, provider schema, global CSRF, shutdown, diagnostics, budgets, signing, update limits, and recovery
-- [ ] Step 4: update human-owned feature sources with local packaging, onboarding, trigger readiness, data ownership, and shutdown capabilities
-- [ ] Step 5: regenerate planning and architecture outputs from sources; never hand-edit generated meaning
-- [ ] Step 6: add checkpoint result pack with installer/signature hash, clean-machine profile, fixed-budget results, smoke commands, secret scan, and known limitations
-- [ ] Step 7: mark task checklists and plan status only after evidence exists; set thread terminal only with checkpoint pack
-- [ ] Step 8: run GitNexus change detection and classify expected startup, config, routing, settings, lifecycle, packaging, docs, and test impact
+- [x] Step 1: document FitCV Local as primary non-technical path; keep Docker/server setup in separate developer section
+- [x] Step 2: update project charter and control-plane runbook so no active source claims external `fitcv-langgraph` or worker-first end-user setup
+- [x] Step 3: document data ownership, narrow overlay, credential boundary, backup/import/cold relocation, provider schema, global CSRF, shutdown, diagnostics, budgets, signing, update limits, and recovery
+- [x] Step 4: update human-owned feature sources with local packaging, onboarding, trigger readiness, data ownership, and shutdown capabilities
+- [x] Step 5: regenerate planning and architecture outputs from sources; never hand-edit generated meaning
+- [x] Step 6: add checkpoint result pack with installer/signature hash, clean-machine profile, fixed-budget results, smoke commands, secret scan, and known limitations
+- [x] Step 7: mark task checklists and plan status only after evidence exists; set thread terminal only with checkpoint pack
+- [x] Step 8: run GitNexus change detection and classify expected startup, config, routing, settings, lifecycle, packaging, docs, and test impact
 
 **Verification:**
-- [ ] public instructions contain no hidden Docker, Redis, worker, `.env`, repo checkout, or terminal prerequisite for FitCV Local
-- [ ] project charter, control-plane runbook, root docs, and feature sources describe one internal runtime and same packaged workflow
-- [ ] generated docs are clean after refresh
-- [ ] planning lifecycle resolves thread, spec, plan, and checkpoint
-- [ ] no active surface references external `fitcv-langgraph`
+- [x] public instructions contain no hidden Docker, Redis, worker, `.env`, repo checkout, or terminal prerequisite for FitCV Local
+- [x] project charter, control-plane runbook, root docs, and feature sources describe one internal runtime and same packaged workflow
+- [x] generated docs are clean after refresh
+- [x] planning lifecycle resolves thread, spec, plan, and checkpoint
+- [x] no active surface references external `fitcv-langgraph`
 
 **Exit Criteria:**
 - code, release artifact, docs, metadata, generated lineage, and checkpoint evidence agree

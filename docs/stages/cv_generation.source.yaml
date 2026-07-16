@@ -38,7 +38,6 @@ refs:
     - docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
     - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
     - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
-
   plan:
     - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
     - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md

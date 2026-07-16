@@ -2,27 +2,29 @@ feature_id: admin_control_plane_core
 name: Admin Control Plane Core
 status: active
 type: add
-summary: Internal admin UI and REST API to manage FitCV pipeline runs without terminal access.
-invariants: []
+summary: Internal admin UI and REST API manage FitCV pipeline runs without terminal access, including Windows-packaged FitCV Local onboarding, user-owned storage, diagnostics, and shutdown.
+invariants:
+  - FitCV Local binds loopback only, reuses one instance, and runs packaged work through one serialized executor without starting Redis or an RQ worker.
+  - Packaged mutable data remains outside installation directory and normal uninstall preserves user data.
 domains:
   - admin_ui
   - run_orchestration
 depends_on: []
 capabilities:
   - capability_id: admin_control_plane_core.fastapi-web-server
-    statement: FastAPI web server
+    statement: Serve control plane through FastAPI, including one loopback-only packaged launcher with second-instance reuse.
     state: active
   - capability_id: admin_control_plane_core.rq-background-worker-integration
-    statement: RQ background worker integration
+    statement: Keep Redis/RQ worker integration for developer/server deployment while FitCV Local uses serialized in-process execution.
     state: active
   - capability_id: admin_control_plane_core.jinja2-admin-pages
-    statement: Jinja2 admin pages, including native preference-optimization inspection and lifecycle forms backed by canonical control-plane state.
+    statement: Jinja2 admin pages, including native preference optimization plus FitCV Local onboarding, data/backup, recovery, diagnostics, and shutdown surfaces.
     state: active
   - capability_id: admin_control_plane_core.pipelinereporter-integration
     statement: PipelineReporter integration
     state: active
   - capability_id: admin_control_plane_core.pipeline-runs-sqlite-store
-    statement: pipeline_runs SQLite store
+    statement: Persist pipeline runs in SQLite, including user-owned FitCV Local database selected through atomic bootstrap pointer.
     state: active
   - capability_id: admin_control_plane_core.pipeline-run-events-sqlite-store
     statement: pipeline_run_events SQLite store
@@ -35,4 +37,3 @@ capabilities:
     state: active
 stage_participation: []
 stage_participation_rationale: This feature owns admin/control-plane infrastructure and shared persistence/orchestration primitives, not a specific pipeline execution stage.
-

@@ -1,7 +1,7 @@
 # GENERATED FILE - do not edit directly.
 features:
   admin_control_plane_core:
-    summary: Internal admin UI and REST API to manage FitCV pipeline runs without terminal access.
+    summary: Internal admin UI and REST API manage FitCV pipeline runs without terminal access, including Windows-packaged FitCV Local onboarding, user-owned storage, diagnostics, and shutdown.
     status: active
     type: add
     lineage_file: docs/features/admin_control_plane_core/lineage.generated.yaml
@@ -114,7 +114,7 @@ features:
     - pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
     - pipeline_performance.structured-output-with-json-schema-and-pydantic
   run_lifecycle_controls:
-    summary: Admins can stop queued, running, or paused `awaiting_continue` runs, archive or unarchive completed runs, apply lifecycle actions in bulk from the runs list, and rely on a server-owned max-runtime timeout guard whose diagnostics distinguish active runtime from Stage by Stage manual-wait time.
+    summary: Admins can stop, pause, continue, repair, archive, and audit runs; FitCV Local also blocks backup, relocation, import, and application shutdown while persisted or executor work is active.
     status: active
     type: add
     lineage_file: docs/features/run_lifecycle_controls/lineage.generated.yaml
@@ -130,7 +130,7 @@ features:
     - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
     - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
   settings_system:
-    summary: Admins can edit task-first pipeline settings while provider routing stays centrally owned, retired late-stage mode toggles stay absent, persisted overrides live in SQLite, and settings-used exports remain canonical.
+    summary: Admins can edit task-first pipeline settings while provider routing stays centrally owned; FitCV Local adds a narrow non-secret provider/model overlay and stores API keys only in OS credential storage.
     status: active
     type: add
     lineage_file: docs/features/settings_system/lineage.generated.yaml
@@ -158,7 +158,7 @@ features:
     - settings_system.trigger-time-effective-settings-snapshot
     - settings_system.warning-only-cv-max-pages-validation-setting
   trigger_run_management:
-    summary: Admins can trigger runs via path reference, file upload, or pasted JSON in either `Run All` or `Stage by Stage` mode, attach a run-scoped synonym overlay before trigger for either mode, continue paused staged runs one stage at a time from persisted checkpoints, replace the run overlay after enrich before continuing into rule filter, cancel paused `awaiting_continue` runs when they should not resume, inspect shared stage progress from a selection-first runs list plus run detail, and export stage-owned artifacts once a stage has been reached in either mode.
+    summary: Admins can trigger and inspect `Run All` or `Stage by Stage` runs through one control plane; FitCV Local gates submission on onboarding readiness and permits one packaged job at a time.
     status: active
     type: add
     lineage_file: docs/features/trigger_run_management/lineage.generated.yaml

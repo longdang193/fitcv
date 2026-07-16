@@ -6,6 +6,21 @@ FitCV turns noisy job posts into a reviewable shortlist, then generates CV outpu
 only when upstream evidence says “ready”. Everything stays inspectable through
 run artifacts, stage-owned truth, and admin UI surfaces.
 
+## FitCV Local
+
+FitCV Local is the primary path for non-technical Windows users:
+
+1. Download and run `FitCV-Local-<version>-Technical-Preview-Setup.exe`.
+2. Launch **FitCV Local** from the Start menu.
+3. Choose a local data folder, review the candidate profile, and configure an
+   OpenAI or OpenAI-compatible provider such as 9router.
+4. Test the provider, choose default or task-specific models, then finish setup.
+
+Normal FitCV Local use needs no Python, Git, Docker, Redis, separate worker,
+repository checkout, terminal, or manually edited `.env` file. Current Windows
+artifact is unsigned and explicitly labeled **Technical Preview**. Stable public
+release waits for code signing and clean-Windows-VM acceptance.
+
 ## Who Uses It
 
 - **Operators** running application batches and reviewing outcomes in admin UI.
@@ -115,9 +130,12 @@ Related docs:
 - [docs/configuration.md](docs/configuration.md)
 - [docs/observability.md](docs/observability.md)
 
-## Demo (Local)
+## Demo
 
-After setup, open admin UI:
+FitCV Local opens browser automatically. Reopen current instance from Start menu,
+or use its loopback URL shown by installed application.
+
+Developer/server mode uses:
 
 ```text
 http://localhost:8000/admin/runs
@@ -146,7 +164,8 @@ Bookmark flow:
 ```text
 Inputs (file/path/json)
   -> FastAPI control plane (src/fitcv_cp)
-  -> Redis + RQ worker execution
+  -> FitCV Local serialized in-process execution
+     or Redis + RQ server execution
   -> Core pipeline stages (src/fitcv)
   -> Persistent run state + artifacts
   -> Admin inspection/download surfaces
@@ -161,29 +180,33 @@ Primary architecture references:
 ## Tech Stack
 
 - Python 3.11, FastAPI, Jinja2 templates
-- Redis + RQ worker orchestration
+- Serialized FitCV Local execution; Redis + RQ for developer/server deployment
 - Config SSOT + compatibility bridging (`config/env.yaml`, `config/runtime/*`)
 - SQLite + BigQuery backend adapters
 - Test suite for config/contracts and control-plane behaviors
 
 ## Getting Started
 
-### Pre-requisites
+### FitCV Local
 
-- Python environment (`.venv` expected in repo workflows)
-- Docker + Docker Compose
-- Redis (via compose service)
-- Runtime config file (default: `config/env.yaml`; legacy `.env.yaml` is accepted only as local override)
-- Credentials required by configured backends (see setup doc)
+- Windows 11 or supported Windows 10
+- Internet access only when selected LLM provider requires it
+- Provider API key when selected provider requires authentication
 
-### Setup
+Install Technical Preview, launch from Start menu, and complete browser onboarding.
+User database, candidate profile, routing overlay, artifacts, exports, logs, and
+backups stay under selected user-owned data folder.
 
-- Read setup guide: [docs/fitcv-control-plane-setup.md](docs/fitcv-control-plane-setup.md)
-- Start local services:
+### Developer / Server
+
+Python, Docker, Redis, and RQ remain supported engineering deployment choices:
 
 ```powershell
 docker compose up -d --build redis web worker
 ```
+
+Read [docs/setup.md](docs/setup.md) and
+[docs/fitcv-control-plane-setup.md](docs/fitcv-control-plane-setup.md).
 
 ## Docs Index
 

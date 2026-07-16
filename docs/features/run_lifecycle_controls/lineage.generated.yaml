@@ -1,7 +1,13 @@
 # GENERATED FILE - do not edit directly.
 feature_id: run_lifecycle_controls
 source: docs/features/run_lifecycle_controls/feature.source.yaml
-invariants: {}
+invariants:
+  invariant-1:
+    state: active
+    statement: FitCV Local shutdown is POST-only, CSRF-protected, confirmation-gated, and unavailable outside packaged loopback mode.
+  invariant-2:
+    state: active
+    statement: Browser close or refresh does not cancel active packaged work.
 capabilities:
   run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq:
     state: active
@@ -57,6 +63,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-17-20-25-run-detail-decision-first-layout-synonym-mode-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -78,6 +85,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -145,6 +153,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-17-20-25-run-detail-decision-first-layout-synonym-mode-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -166,6 +175,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -221,6 +231,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-17-20-25-run-detail-decision-first-layout-synonym-mode-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -242,6 +253,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -315,6 +327,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-17-20-25-run-detail-decision-first-layout-synonym-mode-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -336,6 +349,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -345,7 +359,7 @@ capabilities:
     completeness_status: incomplete
   run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs:
     state: active
-    statement: State-aware max-runtime timeout handling for queued, running, cancelling, and paused manual runs
+    statement: Apply state-aware timeout and active-work guards to queued, running, cancelling, paused, and packaged application lifecycle operations.
     satisfies: []
     code: []
     tests:
@@ -391,6 +405,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-17-20-25-run-detail-decision-first-layout-synonym-mode-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -412,6 +427,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -467,6 +483,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-17-20-25-run-detail-decision-first-layout-synonym-mode-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -488,6 +505,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -543,6 +561,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-17-20-25-run-detail-decision-first-layout-synonym-mode-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -564,6 +583,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -643,6 +663,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-17-20-25-run-detail-decision-first-layout-synonym-mode-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -664,6 +685,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -719,6 +741,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-17-20-25-run-detail-decision-first-layout-synonym-mode-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+    - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -740,6 +763,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
+    - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

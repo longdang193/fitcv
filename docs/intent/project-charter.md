@@ -1,15 +1,19 @@
 # Project Charter
 
-FitCV LangGraph exists to upgrade the existing FitCV end-to-end pipeline with selective agentic AI while preserving the original pipeline's semantics, stage boundaries, and deterministic acceptance discipline.
+FitCV exists to turn job data into evidence-backed fit decisions and grounded CV
+outputs while preserving deterministic stage semantics, operator control, and
+inspectable artifacts.
 
-The project is anchored to the original FitCV runtime and control flow, not to a parallel replay-first product story.
+Product promise:
 
-The upgrade promise is:
-
-- keep the original FitCV pipeline meaning authoritative
+- make FitCV usable by non-technical Windows users through FitCV Local
+- keep one repo-owned internal LLM runtime and one browser control plane
 - preserve stage order, checkpoint meaning, and operator-facing run truth
-- introduce agentic behavior only in bounded seams where it improves quality or efficiency
-- keep deterministic validation and acceptance as the final gate
-- make new agentic outputs explainable through stage-owned artifacts and clear hold, accept, and reject reasons
+- introduce AI only in bounded seams where it improves quality or efficiency
+- keep deterministic validation and acceptance as final gate
+- keep data, configuration, credentials, backups, and shutdown under clear user control
+- retain Docker and Redis/RQ as developer/server options, not end-user prerequisites
 
-The project should feel like FitCV with stronger late-stage intelligence, not like a separate system that happens to process the same inputs.
+FitCV Local should feel like installed FitCV, not a second product. External
+runtime repositories, sibling mounts, dynamic imports, and alternate transports
+are outside charter.

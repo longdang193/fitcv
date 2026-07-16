@@ -521,6 +521,11 @@ canonical: true
     <a href="/admin/optimization">Optimization</a>
     <a href="/admin/settings">Settings</a>
     <a href="/healthz">Health</a>
+    {% if local_mode %}
+    <a href="/local/data">Data &amp; Backup</a>
+    <a href="/local/system">System</a>
+    <a href="/local/system#change-log">Change Log</a>
+    {% endif %}
     <div class="nav-actions">
       <button class="btn-secondary" id="theme-toggle" aria-label="Toggle theme" onclick="toggleTheme()">
         <span id="theme-icon">☀️</span> <span id="theme-label">Light</span>

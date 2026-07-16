@@ -4,6 +4,7 @@ doc_type: setup-guide
 explains:
   features:
     - admin_control_plane_core
+    - settings_system
     - trigger_run_management
   components:
     - src/fitcv
@@ -12,28 +13,86 @@ explains:
 
 # Setup
 
-This guide targets first-run success: clone repo, start web + worker, open
-`/admin/runs`, trigger one run.
+FitCV Local is the primary setup path for Windows users. Developer and server
+deployment stays available, but is not required for normal local use.
 
-Use [fitcv-control-plane-setup.md](fitcv-control-plane-setup.md) for deeper
-operator runbook detail.
+## 1) Install FitCV Local
 
-## 1) Prerequisites
+1. Download `FitCV-Local-<version>-Technical-Preview-Setup.exe`.
+2. Run per-user installer.
+3. Keep Start menu shortcut; desktop shortcut is optional.
+4. Launch **FitCV Local**.
+
+Technical Preview is currently unsigned. Windows may show reputation warning.
+Stable release requires signed executable and installer plus clean-Windows-VM
+acceptance.
+
+FitCV Local bundles application runtime. Users do not install Python, Git,
+Docker, Redis, RQ, or repository dependencies.
+
+## 2) Complete Onboarding
+
+Browser onboarding is resumable and stores non-secret progress under selected
+data root.
+
+1. **Local data**: keep default `%LOCALAPPDATA%\FitCV\data`, or choose another
+   writable absolute folder on local fixed disk before first run.
+2. **Candidate profile**: review and save candidate YAML.
+3. **LLM provider**: choose OpenAI, OpenAI-compatible, or 9router; enter API
+   root, auth mode, wire API, timeout, API key, and default model.
+4. **Models**: optionally discover provider models and assign task-specific
+   models for enrichment, ranking, CV generation, and synonym triage.
+5. **Test and finish**: provider test and readiness checks must pass before run
+   submission is enabled.
+
+API keys go to Windows Credential Manager through OS keyring. They are not
+written to candidate profile, routing overlay, database, diagnostics, or logs.
+
+## 3) Data Ownership
+
+`%APPDATA%\FitCV\bootstrap.json` stores only data-root pointer and minimal
+version metadata. Selected data root owns:
+
+- `fitcv.sqlite3`
+- `candidate_profile.yaml`
+- `config/local_routing_overlay.yaml`
+- `artifacts/`, `exports/`, `logs/`, `backups/`, `uploads/`, and temporary files
+
+Install and uninstall do not remove this user data. Reinstall preserves it.
+
+## 4) Backup, Import, And Move
+
+Open **Data & Backup** in FitCV Local:
+
+- **Download backup** creates validated `fitcv-backup.v1` ZIP using SQLite
+  online backup API.
+- **Move data** stages cold relocation and restarts application.
+- **Import backup** validates ZIP paths, links, duplicates, checksums, schema,
+  SQLite integrity, and size limits before switching data root.
+
+Move/import reject active work. Original source remains retained. Failed restart
+validation restores prior bootstrap pointer.
+
+## 5) Shutdown And Recovery
+
+Use **System → Shutdown**. Shutdown is CSRF-protected, confirmation-gated, and
+rejected while queued or running work exists. Accepted shutdown shows stopped
+page, closes server, and exits process.
+
+If selected data folder cannot open safely, FitCV shows recovery page and does
+not delete existing data. Close FitCV, restore folder availability and write
+access, then relaunch.
+
+## 6) Developer / Server Setup
+
+Engineering prerequisites:
 
 - Python 3.11+
 - Git
-- Optional Docker Desktop (recommended easiest path)
-- Redis (needed for local queue mode)
+- Docker Desktop for container mode
+- Redis for queued local/server mode
 
-Quick checks:
-
-```powershell
-python --version
-git --version
-docker --version
-```
-
-## 2) Clone And Install
+Clone and install:
 
 ```powershell
 git clone https://github.com/longdang193/fitcv-public.git
@@ -44,137 +103,51 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## 3) Runtime Config Contract (Single Source Of Truth)
-
-Canonical config ownership:
-
-- `.env.yaml`
-  - base runtime entry config for control-plane runs
-  - infra/environment keys and local candidate-profile path
-- `config/runtime/pipeline.yaml`
-  - canonical owner for pipeline/ranking/retrieval model+limit knobs
-  - stage behavior defaults used by `src/fitcv/*` runtime modules
-
-Secrets and runtime env vars file:
-
-- `.env` (untracked)
-
-Provider routing ownership:
-
-- canonical default owner: `config/runtime/control_plane.yaml`
-- `.env` supplies `FITCV_LLM_API_KEY`; provider, model, base URL, and wire API remain config-owned
-- do not treat `.env` as default owner for provider/model/base_url/wire_api
-
-Notes:
-
-- Do not depend on `.env.yaml.example`.
-- `.env.yaml` may exist as local override in some setups, but canonical default
-  for control-plane runs is `.env.yaml`.
-- Do not duplicate runtime/pipeline knobs in `.env.yaml` when they are
-  already owned by `config/runtime/pipeline.yaml`.
-- For provider routing expectation, precedence is:
-  1. route ownership in `control_plane.model_routing.parts.*`
-  2. provider transport defaults in `control_plane.providers.*`
-  3. fail fast on unresolved required fields
-
-Optional SQLite path override:
-
-```powershell
-$env:FITCV_CP_SQLITE_PATH = ".\data\fitcv_local.db"
-```
-
-## 4) Candidate Profile Contract (Canonical + Optional Private Source)
-
-Current default runtime path in `.env.yaml`:
-
-- `paths.candidate_profile: data/candidate_profile.yaml`
-
-Use these files with strict boundaries:
-
-- `data/candidate_profile.template.yaml`
-  - public-safe scaffold only
-  - no private values or PII
-  - edit only when profile contract/schema changes
-- `data/candidate_profile.yaml`
-  - canonical runtime candidate profile source for current defaults
-  - keep this synchronized with your local private profile workflow
-- `data/candidate_profile.private.yaml` (optional local workflow)
-  - local private candidate values
-  - ignored/untracked helper surface when teams choose private-source workflow
-
-Recommended workflow:
-
-1. Review required keys in `data/candidate_profile.template.yaml`.
-2. Fill real values in `data/candidate_profile.yaml` (or generate/sync it from a private local source).
-3. Run checks:
-
-```powershell
-git check-ignore data/candidate_profile.private.yaml
-pytest -q tests/test_candidate_profile_template_contract.py
-```
-
-## 5) Start Application (Choose One)
-
-### Track A: Docker (recommended)
+Docker mode:
 
 ```powershell
 docker compose up -d --build redis web worker
 ```
 
-Open:
-
-- `http://localhost:8000/admin/runs`
-
-### Track B: Local web + worker
-
-On Windows, a direct web start without `REDIS_URL` forces inline execution even
-when `.env` contains a false-like `FITCV_CP_INLINE_EXECUTION` value. Configure
-`REDIS_URL` when queue mode is intentional.
-
-Terminal 1:
+Source local mode:
 
 ```powershell
 .\start_web.ps1
-```
-
-Terminal 2:
-
-```powershell
 .\start_worker.ps1
 ```
 
-Open:
+Direct Windows web start without `REDIS_URL` uses inline execution. Configure
+`REDIS_URL` only when queue mode is intentional.
 
-- `http://localhost:8000/admin/runs`
+## 7) Developer Configuration
 
-## 5) Validate Health + First Run
+- `.env.yaml`: bootstrap trigger input
+- `.env`: untracked developer/server credential and environment values
+- `config/runtime/control_plane.yaml`: canonical provider/model defaults
+- `config/runtime/pipeline.yaml`: canonical pipeline execution settings
+- `data/candidate_profile.yaml`: source-run candidate profile
 
-- `GET /healthz` should return HTTP 200
-- trigger one run from `/admin/runs`
-- confirm run transitions queued -> running -> succeeded/failed
-- confirm run detail shows artifacts/events
+FitCV Local does not require these files from user. It bundles read-only defaults
+and stores narrow user-owned overlay under selected data root.
 
-## 6) Backend Mode
+## 8) Validate
 
-- built-in local SQLite runtime
-- optional `FITCV_CP_SQLITE_PATH`
+FitCV Local release budgets on documented Windows baseline:
 
-## 7) Troubleshooting
+- bundle/installed size: at most 600 MiB
+- idle resident memory: at most 250 MiB
+- health response: at most 8 seconds from launch
+- first page: at most 10 seconds from launch
 
-- `/admin/runs` not opening:
-  - check web process/container running
-  - check port 8000 conflict
-- run stuck queued:
-  - check worker running
-  - check Redis reachable
-- `/healthz` fails:
-  - inspect web logs
-  - re-check env/backend values
+Developer health check:
+
+```powershell
+Invoke-WebRequest http://localhost:8000/healthz -UseBasicParsing
+```
 
 ## Related Docs
 
+- [fitcv-control-plane-setup.md](fitcv-control-plane-setup.md)
 - [configuration.md](configuration.md)
 - [usage.md](usage.md)
-- [pipeline.md](pipeline.md)
 - [architecture.md](architecture.md)
-

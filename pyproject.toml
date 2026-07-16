@@ -12,6 +12,9 @@ dependencies = [
     "pydantic>=2.0",
 ]
 
+[project.scripts]
+fitcv-local = "fitcv_cp.local_app:main"
+
 [project.optional-dependencies]
 inverse-optimization = ["cvxpy>=1.9,<2"]
 local = ["keyring>=25.6.0"]

@@ -2,8 +2,10 @@ feature_id: run_lifecycle_controls
 name: Run Lifecycle Controls
 status: active
 type: add
-summary: Admins can stop queued, running, or paused `awaiting_continue` runs, archive or unarchive completed runs, apply lifecycle actions in bulk from the runs list, and rely on a server-owned max-runtime timeout guard whose diagnostics distinguish active runtime from Stage by Stage manual-wait time.
-invariants: []
+summary: Admins can stop, pause, continue, repair, archive, and audit runs; FitCV Local also blocks backup, relocation, import, and application shutdown while persisted or executor work is active.
+invariants:
+  - FitCV Local shutdown is POST-only, CSRF-protected, confirmation-gated, and unavailable outside packaged loopback mode.
+  - Browser close or refresh does not cancel active packaged work.
 domains:
   - admin_ui
   - run_orchestration
@@ -23,7 +25,7 @@ capabilities:
     statement: Stale cancellation repair endpoint
     state: active
   - capability_id: run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
-    statement: State-aware max-runtime timeout handling for queued, running, cancelling, and paused manual runs
+    statement: Apply state-aware timeout and active-work guards to queued, running, cancelling, paused, and packaged application lifecycle operations.
     state: active
   - capability_id: run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
     statement: Timeout copy now distinguishes queue wait, active runtime, and Stage by Stage manual-wait time

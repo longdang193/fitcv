@@ -16,6 +16,8 @@ tags:
 from __future__ import annotations
 
 import os
+import json
+import sqlite3
 import threading
 import types
 from pathlib import Path
@@ -23,14 +25,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 
 from fitcv_cp.local_app import (
     LocalAppBusyError,
     LocalJobExecutor,
+    _open_browser,
     _prebound_socket,
+    build_recovery_app,
     prepare_local_environment,
+    process_pending_storage_operation,
 )
-from fitcv_cp.local_storage import LocalStoragePaths
+from fitcv_cp.local_storage import LocalStoragePaths, write_bootstrap, write_pending_operation
 
 LOCAL_ENVIRONMENT_KEYS = (
     "FITCV_LOCAL_MODE",
@@ -203,3 +209,50 @@ def test_first_launch_runs_uvicorn_on_prebound_socket(tmp_path: Path) -> None:
     listener.close.assert_called_once()
     executor.shutdown.assert_called_once()
     mutex.close.assert_called_once()
+
+def test_process_pending_relocation_switches_bootstrap_and_keeps_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    appdata = tmp_path / "roaming"
+    source = tmp_path / "source"
+    source.mkdir()
+    monkeypatch.setenv("APPDATA", str(appdata))
+    with sqlite3.connect(source / "fitcv.sqlite3") as connection:
+        connection.execute("CREATE TABLE sample (value TEXT)")
+    bootstrap_path = appdata / "FitCV" / "bootstrap.json"
+    write_bootstrap(bootstrap_path, source, "1")
+    pending_path = appdata / "FitCV" / "pending-operation.json"
+    destination = tmp_path / "destination"
+    write_pending_operation(
+        pending_path,
+        {"operation": "relocate", "destination": str(destination)},
+    )
+
+    previous = process_pending_storage_operation(app_version="2")
+
+    assert previous == source
+    assert source.exists()
+    assert json.loads(bootstrap_path.read_text(encoding="utf-8"))["data_root"] == str(destination)
+    assert not pending_path.exists()
+
+def test_recovery_app_hides_exception_details() -> None:
+    app = build_recovery_app(RuntimeError("secret path and key"))
+
+    with TestClient(app) as client:
+        response = client.get("/")
+
+    assert response.status_code == 200
+    assert "Recovery" in response.text
+    assert "RuntimeError" in response.text
+    assert "secret path and key" not in response.text
+
+def test_open_browser_can_be_disabled_for_smoke(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FITCV_NO_BROWSER", "1")
+
+    with patch("fitcv_cp.local_app.webbrowser.open") as browser_open:
+        _open_browser("http://127.0.0.1:1234/")
+
+    browser_open.assert_not_called()

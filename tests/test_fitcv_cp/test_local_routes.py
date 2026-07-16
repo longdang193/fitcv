@@ -17,7 +17,12 @@ tags:
 from __future__ import annotations
 
 import json
+import io
+import sqlite3
+import zipfile
+import types
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -33,8 +38,20 @@ def local_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("FITCV_LOCAL_MODE", "1")
     monkeypatch.setenv("FITCV_CP_INLINE_EXECUTION", "1")
     monkeypatch.setenv("FITCV_LOCAL_DATA_ROOT", str(data_root))
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(data_root / "fitcv.sqlite3"))
     monkeypatch.setenv("FITCV_LOCAL_CANDIDATE_PROFILE_PATH", str(data_root / "candidate_profile.yaml"))
-    monkeypatch.setenv("FITCV_LOCAL_ROUTING_OVERLAY_PATH", str(data_root / "routing.yaml"))
+    monkeypatch.setenv("FITCV_LOCAL_ROUTING_OVERLAY_PATH", str(data_root / "config" / "routing.yaml"))
+    monkeypatch.setenv("FITCV_LOCAL_ARTIFACTS_PATH", str(data_root / "artifacts"))
+    monkeypatch.setenv("FITCV_LOCAL_EXPORTS_PATH", str(data_root / "exports"))
+    monkeypatch.setenv("FITCV_LOCAL_LOGS_PATH", str(data_root / "logs"))
+    monkeypatch.setenv("FITCV_LOCAL_BACKUPS_PATH", str(data_root / "backups"))
+    monkeypatch.setenv("FITCV_LOCAL_UPLOADS_PATH", str(data_root / "uploads"))
+    monkeypatch.setenv("FITCV_LOCAL_TEMP_PATH", str(data_root / "tmp"))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "roaming"))
+    for name in ("config", "artifacts", "exports", "logs", "backups", "uploads", "tmp"):
+        (data_root / name).mkdir(exist_ok=True)
+    with sqlite3.connect(data_root / "fitcv.sqlite3") as connection:
+        connection.execute("CREATE TABLE IF NOT EXISTS sample (value TEXT)")
     app = create_app(
         redis_url="",
         backend_runtime=BackendRuntime(
@@ -42,6 +59,7 @@ def local_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
             sqlite_path=str(data_root / "fitcv.sqlite3"),
         ),
     )
+    app.state.run_store.list_runs_fn = lambda **_kwargs: []
     with TestClient(app, base_url="http://127.0.0.1") as client:
         yield client
 
@@ -251,3 +269,117 @@ def test_server_mode_keeps_existing_host_and_csrf_behavior(
         response = client.get("/healthz", headers={"Host": "server.example"})
 
     assert response.status_code == 200
+
+
+def test_backup_rejects_active_work(local_client: TestClient) -> None:
+    executor = MagicMock()
+    executor.is_busy.return_value = True
+    local_client.app.state.local_job_executor = executor
+    local_client.get("/local/onboarding")
+
+    response = local_client.post(
+        "/local/data/backup",
+        headers=_csrf_headers(local_client),
+    )
+
+    assert response.status_code == 409
+    assert "active" in response.text.lower()
+
+
+def test_data_page_and_backup_download(local_client: TestClient) -> None:
+    Path(__import__("os").environ["FITCV_LOCAL_CANDIDATE_PROFILE_PATH"]).write_text(
+        "name: User\n", encoding="utf-8"
+    )
+    routing = Path(__import__("os").environ["FITCV_LOCAL_ROUTING_OVERLAY_PATH"])
+    routing.parent.mkdir(parents=True, exist_ok=True)
+    routing.write_text("version: 1\nproviders: {}\nmodel_routing:\n  parts: {}\n", encoding="utf-8")
+    local_client.get("/local/onboarding")
+
+    page = local_client.get("/local/data")
+    backup = local_client.post(
+        "/local/data/backup",
+        headers=_csrf_headers(local_client),
+    )
+
+    assert page.status_code == 200
+    assert __import__("os").environ["FITCV_LOCAL_DATA_ROOT"] in page.text
+    assert backup.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(backup.content)) as bundle:
+        assert json.loads(bundle.read("manifest.json"))["format"] == "fitcv-backup.v1"
+
+
+def test_relocation_request_persists_cold_operation_and_signals_shutdown(
+    local_client: TestClient,
+    tmp_path: Path,
+) -> None:
+    shutdown = MagicMock()
+    local_client.app.state.local_shutdown_callback = shutdown
+    local_client.get("/local/onboarding")
+    destination = tmp_path / "moved"
+
+    response = local_client.post(
+        "/local/data/relocate",
+        data={"destination": str(destination)},
+        headers=_csrf_headers(local_client),
+    )
+
+    assert response.status_code == 202
+    assert response.json()["restart_required"] is True
+    pending = Path(__import__("os").environ["APPDATA"]) / "FitCV" / "pending-operation.json"
+    assert json.loads(pending.read_text(encoding="utf-8"))["destination"] == str(destination)
+    shutdown.assert_called_once()
+
+
+def test_diagnostics_redact_secrets_and_shutdown_is_idempotent(local_client: TestClient) -> None:
+    log_path = Path(__import__("os").environ["FITCV_LOCAL_LOGS_PATH"]) / "fitcv.log"
+    log_path.write_text(
+        "INFO startup complete\nAuthorization: Bearer secret-canary\n",
+        encoding="utf-8",
+    )
+    shutdown = MagicMock()
+    local_client.app.state.local_shutdown_callback = shutdown
+    local_client.get("/local/onboarding")
+
+    diagnostics = local_client.get("/local/system/diagnostics")
+    first = local_client.post("/local/system/shutdown", headers=_csrf_headers(local_client))
+    second = local_client.post("/local/system/shutdown", headers=_csrf_headers(local_client))
+
+    assert diagnostics.status_code == 200
+    assert b"secret-canary" not in diagnostics.content
+    with zipfile.ZipFile(io.BytesIO(diagnostics.content)) as bundle:
+        assert "system.json" in bundle.namelist()
+        assert b"startup complete" in bundle.read("log_tail.txt")
+    assert first.status_code == 200
+    assert second.status_code == 200
+    shutdown.assert_called_once()
+
+
+def test_awaiting_continue_run_blocks_backup_and_shutdown(local_client: TestClient) -> None:
+    local_client.app.state.run_store.list_runs_fn = lambda **_kwargs: [
+        types.SimpleNamespace(run_id="run-paused", status="awaiting_continue")
+    ]
+    local_client.get("/local/onboarding")
+
+    backup = local_client.post("/local/data/backup", headers=_csrf_headers(local_client))
+    shutdown = local_client.post("/local/system/shutdown", headers=_csrf_headers(local_client))
+
+    assert backup.status_code == 409
+    assert shutdown.status_code == 409
+    assert "run-paused" in backup.text
+
+
+def test_import_rejects_unsafe_archive(local_client: TestClient, tmp_path: Path) -> None:
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("../escape.txt", "bad")
+    local_client.get("/local/onboarding")
+
+    response = local_client.post(
+        "/local/data/import",
+        data={"destination": str(tmp_path / "restored")},
+        files={"archive": ("bad.zip", archive.getvalue(), "application/zip")},
+        headers=_csrf_headers(local_client),
+    )
+
+    assert response.status_code == 422
+    assert "unsafe path" in response.text

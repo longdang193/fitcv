@@ -1,0 +1,20 @@
+Captured: 2026-07-16T23:58:00+02:00
+Producer: isolated scripts/smoke_fitcv_local.ps1 execution
+
+status: PASS
+smoke_elapsed_seconds: 3.157
+bundle_bytes: 60925235
+bundle_mib: 58.10
+
+Checks enforced by smoke script:
+- /healthz HTTP 200 within 8 seconds
+- /local/onboarding HTTP 200 within 10 seconds from launch
+- fitcv_csrf cookie present
+- idle resident memory at most 250 MiB
+- second launch reuses running instance and exits
+- POST /local/system/shutdown returns HTTP 200
+- packaged process exits within 10 seconds
+
+Isolation:
+- APPDATA, LOCALAPPDATA, and TEMP redirected under tmp/fitcv-local-audit-smoke-20260716
+- no Redis or RQ worker started

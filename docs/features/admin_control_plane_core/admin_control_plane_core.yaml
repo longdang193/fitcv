@@ -3,27 +3,33 @@ feature_id: admin_control_plane_core
 name: Admin Control Plane Core
 status: active
 type: add
-summary: Internal admin UI and REST API to manage FitCV pipeline runs without terminal access.
-invariants: []
+summary: Internal admin UI and REST API manage FitCV pipeline runs without terminal access, including Windows-packaged FitCV Local onboarding, user-owned storage, diagnostics, and shutdown.
+invariants:
+- invariant_id: invariant-1
+  statement: FitCV Local binds loopback only, reuses one instance, and runs packaged work through one serialized executor without starting Redis or an RQ worker.
+  state: active
+- invariant_id: invariant-2
+  statement: Packaged mutable data remains outside installation directory and normal uninstall preserves user data.
+  state: active
 domains:
 - admin_ui
 - run_orchestration
 depends_on: []
 capabilities:
 - capability_id: admin_control_plane_core.fastapi-web-server
-  statement: FastAPI web server
+  statement: Serve control plane through FastAPI, including one loopback-only packaged launcher with second-instance reuse.
   state: active
 - capability_id: admin_control_plane_core.rq-background-worker-integration
-  statement: RQ background worker integration
+  statement: Keep Redis/RQ worker integration for developer/server deployment while FitCV Local uses serialized in-process execution.
   state: active
 - capability_id: admin_control_plane_core.jinja2-admin-pages
-  statement: Jinja2 admin pages, including native preference-optimization inspection and lifecycle forms backed by canonical control-plane state.
+  statement: Jinja2 admin pages, including native preference optimization plus FitCV Local onboarding, data/backup, recovery, diagnostics, and shutdown surfaces.
   state: active
 - capability_id: admin_control_plane_core.pipelinereporter-integration
   statement: PipelineReporter integration
   state: active
 - capability_id: admin_control_plane_core.pipeline-runs-sqlite-store
-  statement: pipeline_runs SQLite store
+  statement: Persist pipeline runs in SQLite, including user-owned FitCV Local database selected through atomic bootstrap pointer.
   state: active
 - capability_id: admin_control_plane_core.pipeline-run-events-sqlite-store
   statement: pipeline_run_events SQLite store
@@ -64,6 +70,7 @@ refs:
   - docs/superpowers/specs/2026-07-16-00-19-fitcv-inverse-optimization-phase-4-decision-feedback-spec.md
   - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
   - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
+  - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
   - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -87,6 +94,7 @@ refs:
   - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
   - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
   - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
+  - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
   docs:
   - docs/features/admin_control_plane_core/history.md
   configs: []

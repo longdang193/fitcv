@@ -15,7 +15,26 @@ explains:
 
 # Usage
 
-FitCV usage splits into operator usage (UI/API) and engineering usage (runtime/tests/docs sync).
+FitCV usage splits into FitCV Local operator usage, server operator usage, and
+engineering usage.
+
+## FitCV Local Flow
+
+1. Launch **FitCV Local** from Start menu. Second launch reuses existing instance.
+2. Complete onboarding if redirected to `/local/onboarding`.
+3. Open `/admin/runs`, submit job input, and choose `Run All` or `Stage by Stage`.
+4. Inspect progress, evidence, artifacts, settings used, and generated CV output.
+5. Use **Data & Backup** for backup, import, or cold data relocation.
+6. Use **System** for redacted diagnostics, version information, and shutdown.
+
+Run submission stays disabled until candidate profile, provider routing, required
+credential, and provider test are ready. Packaged executor accepts one active job;
+concurrent submission receives visible busy response.
+
+Diagnostics include allowlisted build, OS/runtime, redacted path, database,
+provider host/model, readiness, and safe lifecycle log data. They exclude API
+keys, authorization headers, profile content, prompts, job descriptions, CV text,
+and raw database rows.
 
 ## Operator Flow
 
@@ -112,6 +131,9 @@ Important:
 3. run focused tests
 4. run contract/validator checks before merge
 
+FitCV Local release smoke additionally covers health, onboarding, global CSRF,
+second-instance reuse, shutdown, process exit, and fixed size/startup/memory budgets.
+
 ## Key Surfaces
 
 - `GET /healthz`
@@ -122,6 +144,9 @@ Important:
 - `GET /admin/runs/{run_id}`
 - `GET /admin/settings`
 - `GET /admin/optimization`
+- `GET /local/onboarding`
+- `GET /local/data`
+- `GET /local/system`
 
 ## Related Docs
 
