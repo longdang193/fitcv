@@ -411,9 +411,6 @@
     <span class="badge badge-info">technical</span>
   </div>
   <div class="kv">
-    <span class="k">Orchestration Backend</span><span class="v"><code>{{ orchestration_diagnostics.backend }}</code></span>
-    <span class="k">Backend Run ID</span><span class="v"><code>{{ orchestration_diagnostics.backend_run_id or '—' }}</code></span>
-    <span class="k">Backend Status</span><span class="v"><code>{{ orchestration_diagnostics.status }}</code>{% if not orchestration_diagnostics.status_checked %} <span class="meta">(not polled)</span>{% endif %}</span>
     <span class="k">Replay Mode</span><span class="v"><code>{{ replay_context_summary.replay_mode or 'strict' }}</code></span>
     <span class="k">Replay Source Run</span><span class="v"><code>{{ replay_context_summary.replay_source_run_id or run.run_id }}</code></span>
     <span class="k">Policy Registry</span><span class="v"><code>{{ replay_context_summary.policy_registry_version or 'policy_registry.v1' }}</code></span>

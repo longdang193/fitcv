@@ -12,23 +12,6 @@
   </div>
 </div>
 
-{% if pipeline_runs_schema_status and pipeline_runs_schema_status.status == 'fallback' %}
-<div class="card" style="border:1px solid var(--badge-warning-fg);margin-bottom:0.9rem">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;flex-wrap:wrap">
-    <div>
-      <div style="font-weight:700">Orchestration Schema Fallback Mode</div>
-      <div class="meta">
-        Missing columns on <code>pipeline_runs</code>:
-        <code>{{ pipeline_runs_schema_status.missing_columns | join(', ') }}</code>
-      </div>
-    </div>
-    <span class="badge badge-warning">schema: fallback mode</span>
-  </div>
-</div>
-{% elif pipeline_runs_schema_status and pipeline_runs_schema_status.status == 'complete' %}
-<div class="meta" style="margin-bottom:0.8rem">Orchestration schema: <strong>complete</strong></div>
-{% endif %}
-
 <style>
   .runs-table {
     width: 100%;
@@ -47,7 +30,6 @@
   .runs-table .col-mode { width: 6.75rem; }
   .runs-table .col-created-at { width: 6.5rem; }
   .runs-table .col-duration { width: 4.5rem; }
-  .runs-table .col-orch { width: 10rem; }
 
   .run-jobs-path {
     display: block;
@@ -233,12 +215,10 @@
         <th>Jobs Path</th>
         <th class="col-created-at">Created</th>
         <th class="col-duration">Duration</th>
-        <th class="col-orch">Orchestration</th>
       </tr>
     </thead>
     <tbody>
       {% for run in runs %}
-      {% set orch = run_orchestration_diagnostics.get(run.run_id, {}) %}
       {% set status_projection = run_status_projection.get(run.run_id, {}) %}
       <tr>
         <td>
@@ -278,14 +258,9 @@
             {{ ((run.finished_at - run.started_at).total_seconds() | int) }}s
           {% else %}—{% endif %}
         </td>
-        <td class="meta">
-          <div><code>{{ orch.get("backend", "default_queue") }}</code></div>
-          <div><code>{{ orch.get("backend_run_id") or "—" }}</code></div>
-          <div>{{ orch.get("status", "not_available") }}</div>
-        </td>
       </tr>
       {% else %}
-      <tr class="empty-row"><td colspan="8">No runs yet</td></tr>
+      <tr class="empty-row"><td colspan="7">No runs yet</td></tr>
       {% endfor %}
     </tbody>
   </table>

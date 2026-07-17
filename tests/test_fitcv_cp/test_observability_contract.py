@@ -22,14 +22,14 @@ def test_submit_run_emits_backend_and_routing_diagnostics(monkeypatch):
     emitted = []
 
     class _StubAdapter:
-        name = "prefect"
+        name = "default_queue"
 
         def submit(self, **kwargs):
             return RunSubmission(
                 run_id="run-obs-1",
                 queue_job_id="job-obs-1",
                 backend_run_id="backend-obs-1",
-                backend="prefect",
+                backend="queue",
             )
 
     monkeypatch.setattr(app, "ORCHESTRATION_ADAPTER", _StubAdapter())
@@ -52,7 +52,7 @@ def test_submit_run_emits_backend_and_routing_diagnostics(monkeypatch):
     assert "control_plane.model_routing" in names
     backend_payload = dict([row for row in emitted if row[0] == "control_plane.backend_execution"][0][1])
     assert backend_payload["run_id"] == "run-obs-1"
-    assert backend_payload["backend"] == "prefect"
+    assert backend_payload["backend"] == "queue"
     assert backend_payload["queue_job_id"] == "job-obs-1"
 
 

@@ -33,7 +33,7 @@ Owns:
 Primary surfaces:
 
 - `src/fitcv_cp/worker_job.py`
-- future orchestrator adapter (`default runtime`, `Prefect`)
+- `src/fitcv_cp/orchestrator.py` queue adapter
 
 ### 2) Evidence Contract
 

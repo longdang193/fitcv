@@ -242,3 +242,29 @@ Use this file for repeated or important failures, not every small mistake.
   - `src/fitcv_cp/windows_tray.py`
   - `tests/test_fitcv_cp/test_windows_tray.py`
   - `docs/superpowers/plans/audit/20260717-1334-fitcv-local-root-icon/`
+
+## One-time setup editors need a post-setup navigation path
+
+- Title: Existing controller editor became undiscoverable after onboarding
+- Date: 2026-07-17
+- Trigger / Context: A completed FitCV Local user could not find any UI for changing provider, API root, API key, or models.
+- What went wrong: The canonical editor remained at `/local/onboarding`, but navigation only linked generic pipeline Settings and the page continued presenting itself as first-run Setup.
+- Correct behavior: Reuse the same controller editor and write paths; expose a clear post-setup navigation link and completed-state labels instead of adding another settings backend.
+- Prevention added or required: Keep a completed-user navigation regression whenever onboarding owns durable settings. Separate navigation labels for pipeline settings and LLM/API settings.
+- Related artifacts:
+  - `src/fitcv_cp/templates/base.html`
+  - `src/fitcv_cp/templates/local_onboarding.html`
+  - `tests/test_fitcv_cp/test_local_routes.py`
+  - `docs/superpowers/plans/audit/20260717-1601-fitcv-local-llm-settings-discoverability/`
+
+## Fallback file edits must use bounded anchors
+
+- Title: Generic line removal corrupted unrelated Python blocks
+- Date: 2026-07-17
+- Trigger / Context: `apply_patch` was blocked by the packaged WindowsApps ACL during Prefect retirement, so a PowerShell fallback removed lines by global exact-value lookup.
+- What went wrong: Generic lines such as `        )`, `        }`, and `            client=client,` matched earlier unrelated code before the intended route block.
+- Correct behavior: When patch tooling is unavailable, edit only between unique start/end anchors or use context-checked indexed ranges; compile immediately after each fallback write.
+- Prevention added or required: Keep exact-context guards, inspect targeted diff hunks, and run `compileall` before tests after any fallback edit of Python files.
+- Related artifacts:
+  - `src/fitcv_cp/app.py`
+  - `tests/test_fitcv_cp/test_prefect_retirement.py`

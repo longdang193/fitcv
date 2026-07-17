@@ -489,7 +489,7 @@ def test_post_runs_persists_backend_binding_from_submission(tmp_path):
             run_id=str(run_id or "run-123"),
             queue_job_id="rq-job-abc",
             backend_run_id="flow-run-xyz",
-            backend="prefect",
+            backend="queue",
         )
 
     with patch("fitcv_cp.app.insert_run"), \
@@ -505,7 +505,7 @@ def test_post_runs_persists_backend_binding_from_submission(tmp_path):
     assert resp.status_code == 201, resp.text
     kwargs = binding_mock.call_args.kwargs
     assert kwargs["queue_job_id"] == "rq-job-abc"
-    assert kwargs["orchestration_backend"] == "prefect"
+    assert kwargs["orchestration_backend"] == "queue"
     assert kwargs["orchestration_run_id"] == "flow-run-xyz"
 
 
@@ -3994,66 +3994,6 @@ def test_admin_run_detail_shows_exports_card_with_results_link():
     assert "Artifacts" in resp.text
     assert 'href="/admin/runs/test-export-btn/export.json"' in resp.text
 
-def test_run_detail_shows_orchestration_backend_diagnostics() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="run-orch-detail",
-        status=RunStatus.QUEUED,
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        queue_job_id="flow-run-abc123",
-        orchestration_backend="prefect",
-        orchestration_run_id="flow-run-abc123",
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]), \
-         patch("fitcv_cp.app.orchestration_job_status", return_value="queued"):
-        resp = TestClient(_app()).get("/admin/runs/run-orch-detail")
-
-    assert resp.status_code == 200
-    assert "Orchestration Backend" in resp.text
-    assert "Backend Run ID" in resp.text
-    assert "Backend Status" in resp.text
-    assert "flow-run-abc123" in resp.text
-
-
-def test_run_detail_orchestration_diagnostics_fallback_to_queue_job_id_for_legacy_rows() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="run-orch-legacy",
-        status=RunStatus.QUEUED,
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        queue_job_id="rq-job-legacy-123",
-        orchestration_backend=None,
-        orchestration_run_id=None,
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]), \
-         patch("fitcv_cp.app.orchestration_job_status", return_value="queued"):
-        resp = TestClient(_app()).get("/admin/runs/run-orch-legacy")
-
-    assert resp.status_code == 200
-    assert "Orchestration Backend" in resp.text
-    assert "Backend Run ID" in resp.text
-    assert "rq-job-legacy-123" in resp.text
-
 def test_run_detail_shows_raw_unknown_status_diagnostic() -> None:
     from datetime import datetime, timezone
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -6279,11 +6219,30 @@ def test_resolve_synonym_triage_runtime_uses_dedicated_control_plane_route(
         "    openai_compatible:\n"
         "      base_url: http://router.local/v1\n"
         "      wire_api: chat_completions\n"
+        "      auth_mode: required\n"
+        "      timeout_seconds: 300\n"
         "  model_routing:\n"
         "    parts:\n"
+        "      enrich_extraction:\n"
+        "        provider: openai_compatible\n"
+        "        model: cx/gpt-5.2\n"
+        "      ranking_ai_score:\n"
+        "        provider: openai_compatible\n"
+        "        model: cx/gpt-5.2\n"
+        "      cv_generation_structured_write:\n"
+        "        provider: openai_compatible\n"
+        "        model: cx/gpt-5.2\n"
         "      synonym_triage_recommendation:\n"
         "        provider: openai_compatible\n"
-        "        model: cx/gpt-5.2\n",
+        "        model: cx/gpt-5.2\n"
+        "  fitcv_cp:\n"
+        "    retry:\n"
+        "      enabled: false\n"
+        "      max_attempts: 1\n"
+        "      backoff_seconds: [1]\n"
+        "      lease_seconds: 900\n"
+        "      reconciler_interval_seconds: 0\n"
+        "      error_details_max_chars: 2048\n",
         encoding="utf-8",
     )
     run = PipelineRun(
@@ -10803,76 +10762,9 @@ def test_runs_list_shows_core_operational_columns_only():
     assert "Jobs Path" in html
     assert "Created" in html
     assert "Duration" in html
-    assert "Orchestration" in html
+    assert "Orchestration" not in html
     assert "Triggered By" not in html
     assert "Actions" not in html
-
-def test_runs_list_shows_orchestration_backend_diagnostics() -> None:
-    run = _make_full_run_mock(status="queued", run_id="run-orch-list")
-    run.queue_job_id = "backend-run-123"
-    run.orchestration_backend = "prefect"
-    run.orchestration_run_id = "backend-run-123"
-    with patch("fitcv_cp.app.list_runs", return_value=[run]), \
-         patch("fitcv_cp.app.orchestration_job_status", return_value="queued"):
-        resp = TestClient(_app()).get("/admin/runs")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "backend-run-123" in html
-    assert "prefect" in html
-    assert "queued" in html
-
-def test_runs_list_shows_schema_fallback_banner_when_columns_missing() -> None:
-    run = _make_full_run_mock(status="queued", run_id="run-schema-banner")
-    with patch("fitcv_cp.app.list_runs", return_value=[run]), \
-         patch(
-             "fitcv_cp.app.get_pipeline_runs_schema_status",
-             return_value={
-                 "status": "fallback",
-                 "missing_columns": ["orchestration_backend", "orchestration_run_id"],
-                 "warning": "orchestration_binding_columns_missing",
-             },
-         ):
-        resp = TestClient(_app()).get("/admin/runs")
-    assert resp.status_code == 200
-    assert "Orchestration Schema Fallback Mode" in resp.text
-    assert "schema: fallback mode" in resp.text
-
-def test_runs_list_hides_schema_fallback_banner_for_unknown_schema_status() -> None:
-    run = _make_full_run_mock(status="queued", run_id="run-schema-unknown")
-    with patch("fitcv_cp.app.list_runs", return_value=[run]), \
-         patch(
-             "fitcv_cp.app.get_pipeline_runs_schema_status",
-             return_value={
-                 "status": "unknown",
-                 "missing_columns": [],
-                 "warning": "sqlite_mode_no_remote_schema_check",
-             },
-         ):
-        resp = TestClient(_app()).get("/admin/runs")
-    assert resp.status_code == 200
-    assert "Orchestration Schema Fallback Mode" not in resp.text
-    assert "schema: fallback mode" not in resp.text
-
-def test_runs_list_uses_persisted_backend_identity_per_run() -> None:
-    run_prefect = _make_full_run_mock(status="queued", run_id="run-prefect")
-    run_prefect.queue_job_id = "rq-job-prefect"
-    run_prefect.orchestration_backend = "prefect"
-    run_prefect.orchestration_run_id = "flow-run-1"
-    run_queue = _make_full_run_mock(status="queued", run_id="run-queue")
-    run_queue.queue_job_id = "rq-job-2"
-    run_queue.orchestration_backend = "default_queue"
-    run_queue.orchestration_run_id = "rq-job-2"
-    with patch("fitcv_cp.app.list_runs", return_value=[run_prefect, run_queue]), \
-         patch("fitcv_cp.app.get_pipeline_runs_schema_status", return_value={"status": "complete", "missing_columns": [], "warning": None}), \
-         patch("fitcv_cp.app.orchestration_job_status", return_value="queued"):
-        resp = TestClient(_app()).get("/admin/runs")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "flow-run-1" in html
-    assert "prefect" in html
-    assert "rq-job-2" in html
-    assert "default_queue" in html
-
 
 def test_runs_list_uses_canonical_run_mode_labels():
     run_all = _make_full_run_mock(status="queued", run_id="run-all-label")
@@ -15189,7 +15081,22 @@ def test_call_synonym_triage_provider_routes_through_llm_runtime(
         )
 
     monkeypatch.setattr("fitcv_cp.app.execute_llm_task", fake_execute, raising=False)
-    monkeypatch.setattr("fitcv_cp.app.render_prompt", lambda name, payload: type("Rendered", (), {"text": "prompt"})())
+    monkeypatch.setattr(
+        "fitcv_cp.app.render_prompt",
+        lambda name, payload, **kwargs: type(
+            "Rendered",
+            (),
+            {
+                "text": "prompt",
+                "prompt_id": name,
+                "version": "v1",
+                "template_path": "prompt.md",
+                "customized": False,
+                "addendum_sha256": None,
+                "addendum_char_count": 0,
+            },
+        )(),
+    )
 
     result = app_module._call_synonym_triage_provider(
         proposal={

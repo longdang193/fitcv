@@ -41,10 +41,12 @@ from pydantic import BaseModel, field_validator
 
 from fitcv.config import (
     apply_cv_compatibility_projection,
+    get_prompt_addendum,
     apply_runtime_skill_synonym_overlay,
     apply_runtime_synonym_overlay,
     load_config,
     load_control_plane_config,
+    load_prompt_task_registry,
     parse_runtime_synonym_overlay_yaml,
     parse_skill_synonym_overlay_yaml,
     resolve_cv_generation_runtime_expectation,
@@ -612,14 +614,12 @@ def _resolve_submission_binding(run_id: str, queue_job_id: str) -> RunSubmission
     cached = _pop_cached_run_submission(run_id)
     if cached is not None:
         return cached
-    requested_backend = str(ORCHESTRATION_ADAPTER.name or "default_queue")
-    execution_backend = "prefect" if requested_backend == "prefect" else "queue"
     submission = RunSubmission(
         run_id=run_id,
         queue_job_id=queue_job_id,
         backend_run_id=queue_job_id,
-        requested_backend=requested_backend,
-        execution_backend=execution_backend,
+        requested_backend="default_queue",
+        execution_backend="queue",
     )
     _, emit_backend = _observability_toggles()
     if emit_backend:
@@ -3025,19 +3025,38 @@ def _call_synonym_triage_provider(
             if str(item).strip()
         ],
     }
+    prompt_id = load_prompt_task_registry()["synonym_triage_recommendation"]["prompt_id"]
     rendered = render_prompt(
-        "synonym_triage.recommendation.v1",
+        prompt_id,
         {
             "proposal_json": _json.dumps(proposal_view, ensure_ascii=False),
             "now_iso": now_iso,
         },
+        additional_instructions=get_prompt_addendum(
+            "synonym_triage_recommendation"
+        ),
     )
+    route_values = {
+        "provider": str(runtime.get("provider") or "").strip().lower(),
+        "base_url": str(runtime.get("base_url") or "").strip(),
+        "wire_api": str(runtime.get("wire_api") or "").strip().lower(),
+        "model": str(runtime.get("model") or "").strip(),
+        "timeout_seconds": runtime.get("timeout_seconds"),
+    }
+    missing_route_values = [
+        key for key, value in route_values.items() if value in {None, ""}
+    ]
+    if missing_route_values:
+        raise ValueError(
+            "synonym triage runtime missing canonical fields: "
+            + ", ".join(missing_route_values)
+        )
     route = LlmRouting(
-        provider=str(runtime.get("provider") or "openai").strip().lower(),
-        base_url=str(runtime.get("base_url") or "").strip() or "https://api.openai.com/v1",
-        wire_api=str(runtime.get("wire_api") or "responses").strip().lower() or "responses",
-        model=str(runtime.get("model") or "gpt-4.1-mini").strip() or "gpt-4.1-mini",
-        timeout_seconds=float(runtime.get("timeout_seconds") or runtime.get("timeout_secs") or 20.0),
+        provider=str(route_values["provider"]),
+        base_url=str(route_values["base_url"]),
+        wire_api=str(route_values["wire_api"]),
+        model=str(route_values["model"]),
+        timeout_seconds=float(route_values["timeout_seconds"]),
     )
 
     def _parse(response: LlmAdapterResponse) -> dict[str, Any]:
@@ -3083,6 +3102,14 @@ def _call_synonym_triage_provider(
             if str(flag).strip()
         ],
         "llm_runtime_evidence": project_llm_runtime_evidence(result),
+        "prompt_provenance": {
+            "prompt_id": rendered.prompt_id,
+            "prompt_version": rendered.version,
+            "template_path": str(rendered.template_path),
+            "customized": rendered.customized,
+            "addendum_sha256": rendered.addendum_sha256,
+            "addendum_char_count": rendered.addendum_char_count,
+        },
     }
 
 
@@ -5901,6 +5928,11 @@ def create_app(
                 )
             return response
 
+        @app.get("/", include_in_schema=False)
+        async def local_root() -> RedirectResponse:
+            target = "/admin/runs" if onboarding_is_complete() else "/local/onboarding"
+            return RedirectResponse(target, status_code=307)
+
         app.include_router(build_local_router(templates))
     runtime_settings_schema = settings_schema_with_runtime_defaults(load_config())
     schema_by_key = {entry["key"]: entry for entry in runtime_settings_schema}
@@ -7752,21 +7784,12 @@ def create_app(
         runs = [_attach_jobs_path_display(run) for run in runs]
         max_runtime_minutes = _run_max_runtime_minutes()
         runs = [_enforce_run_timeout_guard(run, max_runtime_minutes=max_runtime_minutes) for run in runs]
-        pipeline_runs_schema_status = get_pipeline_runs_schema_status(
-            client=client,
-        )
-        run_orchestration_diagnostics = {
-            run.run_id: _build_orchestration_diagnostics(run)
-            for run in runs
-        }
         run_status_projection_by_id = {run.run_id: run_status_projection(run) for run in runs}
         return templates.TemplateResponse(
             request=request, name="runs_list.html",
             context={
                 "runs": runs,
                 "view": view,
-                "pipeline_runs_schema_status": pipeline_runs_schema_status,
-                "run_orchestration_diagnostics": run_orchestration_diagnostics,
                 "run_status_projection": run_status_projection_by_id,
             }
         )
@@ -8481,7 +8504,6 @@ def create_app(
         )
         markdown_quality_summary = _build_markdown_quality_summary(run)
         reuse_anomaly_summary = _latest_reuse_anomaly_summary(events)
-        orchestration_diagnostics = _build_orchestration_diagnostics(run)
         from fitcv_cp.run_artifact_contracts import decode_run_attempt_payload_or_none
         run_attempt_events: list[dict[str, Any]] = []
         for event in events:
@@ -8557,7 +8579,6 @@ def create_app(
                 "synonym_review_section_state": synonym_review_section_state,
                 "markdown_quality_summary": markdown_quality_summary,
                 "reuse_anomaly_summary": reuse_anomaly_summary,
-                "orchestration_diagnostics": orchestration_diagnostics,
                 "run_attempt_events": run_attempt_events,
                 "replay_context_summary": replay_context_summary,
                 "data_plane_summary": data_plane_summary,
@@ -11166,44 +11187,3 @@ def _run_to_dict(run: PipelineRun) -> dict:
         "cv_generation_debug_json": run.cv_generation_debug_json,
         "stage_transition_artifacts_json": run.stage_transition_artifacts_json,
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

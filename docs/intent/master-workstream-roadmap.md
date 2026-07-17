@@ -45,9 +45,9 @@ Deliver a FitCV-first platform where stage semantics and deterministic acceptanc
 - SQLite portability:
   - no feature drift vs BigQuery for equivalent behaviors.
   - behavior verification against BigQuery-backed implementation where relevant.
-- Prefect orchestration:
-  - implemented or verified end-to-end in this phase.
-  - end-to-end verified means submit, status progression, cancellation path, and run-detail/timeline visibility are all validated.
+- Queue orchestration hardening:
+  - submit, status progression, cancellation, and timeline behavior verified end-to-end.
+  - Prefect support was later retired from the active runtime.
 - OpenTelemetry observability:
   - telemetry pipeline verified end-to-end.
   - trace propagation plus stage/event compatibility are validated.
@@ -98,7 +98,7 @@ Deliver a FitCV-first platform where stage semantics and deterministic acceptanc
 ### Phase 2 Closure Status In This Branch
 
 - Phase 2 deliverables are closed as done in this branch, including:
-  - Prefect orchestration end-to-end verification.
+  - historical Prefect orchestration verification; active runtime now uses queue orchestration only.
   - OpenTelemetry exporter/collector integration verification.
   - Langfuse trace-link integration verification.
   - SQLite durable event-history no-drift parity verification.
