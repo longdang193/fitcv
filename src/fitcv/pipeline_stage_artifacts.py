@@ -83,6 +83,41 @@ def build_llm_runtime_summary(
     ]
     failure_counts_by_stage: dict[str, int] = {}
     failure_counts_by_code: dict[str, int] = {}
+    input_tokens = 0
+    output_tokens = 0
+    total_tokens = 0
+    cost = 0.0
+    for item in ordered:
+        telemetry = item.get("evidence", {}).get("telemetry", {})
+        usage = telemetry.get("usage", {}) if isinstance(telemetry, dict) else {}
+        if not isinstance(usage, dict):
+            usage = {}
+        item_input = usage.get("input_tokens", usage.get("prompt_tokens", 0))
+        item_output = usage.get("output_tokens", usage.get("completion_tokens", 0))
+        item_input = (
+            item_input
+            if isinstance(item_input, (int, float)) and not isinstance(item_input, bool)
+            else 0
+        )
+        item_output = (
+            item_output
+            if isinstance(item_output, (int, float)) and not isinstance(item_output, bool)
+            else 0
+        )
+        item_total = usage.get("total_tokens")
+        item_total = (
+            item_total
+            if isinstance(item_total, (int, float)) and not isinstance(item_total, bool)
+            else item_input + item_output
+        )
+        input_tokens += int(item_input)
+        output_tokens += int(item_output)
+        total_tokens += int(item_total)
+        cost_details = telemetry.get("cost", {}) if isinstance(telemetry, dict) else {}
+        if isinstance(cost_details, dict):
+            item_cost = cost_details.get("total_cost", cost_details.get("cost", 0))
+            if isinstance(item_cost, (int, float)) and not isinstance(item_cost, bool):
+                cost += float(item_cost)
     for failure in failures:
         stage = str(failure.get("stage") or "unknown")
         code = str(failure.get("code") or "unknown")
@@ -111,6 +146,20 @@ def build_llm_runtime_summary(
                 if str(item.get("evidence", {}).get("provenance", {}).get("runtime_path") or "")
             }
         ),
+        "routing_parts": sorted(
+            {
+                str(item.get("evidence", {}).get("provenance", {}).get("routing_part") or "")
+                for item in ordered
+                if str(item.get("evidence", {}).get("provenance", {}).get("routing_part") or "")
+            }
+        ),
+        "usage": {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+            "cost": round(cost, 12),
+            "input_output_ratio": input_tokens / output_tokens if output_tokens else None,
+        },
         "evidence_sample": ordered[:sample_limit],
     }
 
@@ -253,6 +302,15 @@ def build_enrich_stage_block(
             "enrich_prompt_version": enrich_prompt_provenance["prompt_version"],
             "enrich_prompt_template_path": enrich_prompt_provenance["template_path"],
             "enrich_prompt_model": enrich_prompt_provenance["model"],
+            "enrich_prompt_customized": enrich_prompt_provenance[
+                "prompt_customized"
+            ],
+            "enrich_prompt_addendum_sha256": enrich_prompt_provenance[
+                "prompt_addendum_sha256"
+            ],
+            "enrich_prompt_addendum_char_count": enrich_prompt_provenance[
+                "prompt_addendum_char_count"
+            ],
             **enrich_reuse_counts,
             "reuse_metrics": enrich_reuse_metrics,
         },
@@ -520,6 +578,15 @@ def build_ranking_stage_block(
             "ranking_prompt_id": ranking_prompt_provenance["prompt_id"],
             "ranking_prompt_version": ranking_prompt_provenance["prompt_version"],
             "ranking_prompt_template_path": ranking_prompt_provenance["template_path"],
+            "ranking_prompt_customized": ranking_prompt_provenance[
+                "prompt_customized"
+            ],
+            "ranking_prompt_addendum_sha256": ranking_prompt_provenance[
+                "prompt_addendum_sha256"
+            ],
+            "ranking_prompt_addendum_char_count": ranking_prompt_provenance[
+                "prompt_addendum_char_count"
+            ],
             "ai_score_model": ai_score_model_resolver(config),
             "ranking_policy": ranking_policy,
             "ranking_contract_fingerprint": ranking_contract.get("ranking_contract_fingerprint"),
@@ -711,6 +778,15 @@ def build_cv_generation_stage_block(
             ),
             "cv_prompt_id": cv_generation_prompt_provenance["prompt_id"],
             "cv_prompt_template_path": cv_generation_prompt_provenance["template_path"],
+            "cv_prompt_customized": cv_generation_prompt_provenance[
+                "prompt_customized"
+            ],
+            "cv_prompt_addendum_sha256": cv_generation_prompt_provenance[
+                "prompt_addendum_sha256"
+            ],
+            "cv_prompt_addendum_char_count": cv_generation_prompt_provenance[
+                "prompt_addendum_char_count"
+            ],
         },
         inputs_sample=sample_rows_builder(
             ready_records,

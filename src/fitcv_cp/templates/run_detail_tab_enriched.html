@@ -217,6 +217,20 @@
             {% if outcome.detail %}
             <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">{{ outcome.detail }}</div>
             {% endif %}
+            {% if outcome.why %}
+            <details class="meta" style="margin-top:0.4rem;max-width:24rem;white-space:normal">
+              <summary style="cursor:pointer;font-weight:600">Why?</summary>
+              <div style="margin-top:0.35rem"><strong>Reason:</strong> {{ outcome.reason_label }} (<code>{{ outcome.reason_code }}</code>)</div>
+              <div><strong>Stage:</strong> {{ outcome.stage }} / {{ outcome.why.stage_status }}</div>
+              {% if outcome.why.reason_facts %}<div><strong>Facts:</strong> <code>{{ outcome.why.reason_facts | tojson }}</code></div>{% endif %}
+              {% if outcome.why.policy_version %}<div><strong>Policy:</strong> <code>{{ outcome.why.policy_version }}</code></div>{% endif %}
+              {% if outcome.why.attempt_id %}<div><strong>Attempt:</strong> <code>{{ outcome.why.attempt_id }}</code></div>{% endif %}
+              {% if outcome.why.trace_id %}<div><strong>Trace:</strong> <code>{{ outcome.why.trace_id }}</code></div>{% endif %}
+              <div><strong>Evidence:</strong> <code>{{ outcome.why.evidence_ref.artifact }}</code> / <code>{{ outcome.why.evidence_ref.record_key }}</code></div>
+              <div><strong>Fingerprint:</strong> <code>{{ outcome.why.evidence_ref.fingerprint }}</code></div>
+              <div><strong>Compatibility:</strong> {{ outcome.projection_status }}</div>
+            </details>
+            {% endif %}
           {% else %}
             <span class="empty-value">—</span>
           {% endif %}

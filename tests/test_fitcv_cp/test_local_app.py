@@ -44,7 +44,7 @@ LOCAL_ENVIRONMENT_KEYS = (
     "REDIS_URL",
     "FITCV_CP_SQLITE_PATH",
     "FITCV_LOCAL_DATA_ROOT",
-    "FITCV_LOCAL_ROUTING_OVERLAY_PATH",
+    "FITCV_LOCAL_CONTROLLER_OVERLAY_PATH",
     "FITCV_LOCAL_CANDIDATE_PROFILE_PATH",
     "FITCV_LOCAL_ARTIFACTS_PATH",
     "FITCV_LOCAL_EXPORTS_PATH",
@@ -127,7 +127,9 @@ def test_second_launch_opens_existing_url_and_exits(tmp_path: Path) -> None:
         data_root=tmp_path,
         sqlite_path=tmp_path / "fitcv.sqlite3",
         candidate_profile_path=tmp_path / "candidate_profile.yaml",
-        routing_overlay_path=tmp_path / "config.yaml",
+        controller_overlay_path=tmp_path / "local_controller_overlay.yaml",
+        legacy_routing_overlay_path=tmp_path / "local_routing_overlay.yaml",
+        migrated_routing_overlay_path=tmp_path / "local_routing_overlay.yaml.migrated.bak",
         artifacts_path=tmp_path / "artifacts",
         exports_path=tmp_path / "exports",
         logs_path=tmp_path / "logs",
@@ -159,7 +161,9 @@ def test_first_launch_runs_uvicorn_on_prebound_socket(tmp_path: Path) -> None:
         data_root=tmp_path,
         sqlite_path=tmp_path / "fitcv.sqlite3",
         candidate_profile_path=tmp_path / "candidate_profile.yaml",
-        routing_overlay_path=tmp_path / "config.yaml",
+        controller_overlay_path=tmp_path / "local_controller_overlay.yaml",
+        legacy_routing_overlay_path=tmp_path / "local_routing_overlay.yaml",
+        migrated_routing_overlay_path=tmp_path / "local_routing_overlay.yaml.migrated.bak",
         artifacts_path=tmp_path / "artifacts",
         exports_path=tmp_path / "exports",
         logs_path=tmp_path / "logs",
@@ -175,6 +179,7 @@ def test_first_launch_runs_uvicorn_on_prebound_socket(tmp_path: Path) -> None:
     application.state = types.SimpleNamespace(run_store=run_store)
     server = MagicMock(should_exit=False)
     executor = MagicMock()
+    tray = MagicMock()
     uvicorn_module = types.ModuleType("uvicorn")
     uvicorn_module.Config = MagicMock(return_value="config")
     uvicorn_module.Server = MagicMock(return_value=server)
@@ -197,6 +202,8 @@ def test_first_launch_runs_uvicorn_on_prebound_socket(tmp_path: Path) -> None:
     ), patch.object(local_app, "_prebound_socket", return_value=listener), patch.object(
         local_app, "_write_runtime_metadata"
     ), patch.object(local_app, "get_local_job_executor", return_value=executor), patch.object(
+        local_app, "WindowsTray", return_value=tray
+    ), patch.object(
         local_app.webbrowser, "open"
     ) as browser_open:
         result = local_app.main()
@@ -206,6 +213,8 @@ def test_first_launch_runs_uvicorn_on_prebound_socket(tmp_path: Path) -> None:
     browser_open.assert_called_once_with("http://127.0.0.1:23456/")
     reconciler_module.reconcile_abandoned_attempts.assert_called_once_with(run_store)
     assert application.state.local_job_executor is executor
+    tray.start.assert_called_once()
+    tray.stop.assert_called_once()
     listener.close.assert_called_once()
     executor.shutdown.assert_called_once()
     mutex.close.assert_called_once()

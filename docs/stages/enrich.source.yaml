@@ -4,7 +4,7 @@ summary: Filter normalized jobs through pre-enrichment global checks, then enric
 boundaries:
   - normalized jobs enter and enriched job rows leave
   - pre-enrichment global filter ownership belongs to this stage in the current runtime flow
-  - extraction prompt text and metadata are centrally managed via the prompt registry, while enrich keeps ownership of schemas, parsing, and post-processing
+  - extraction prompt text and metadata are centrally managed via the prompt registry; bounded user guidance is inserted before immutable JSON/schema instructions, while enrich keeps ownership of schemas, parsing, and post-processing
   - shared `llm_runtime` owns route resolution, credentials, provider transport, wire compatibility, normalized operational failures, runtime provenance, and the only persistable per-call evidence projection; enrich owns extraction meaning, parsing, normalization, merge, retry, batching, and row shape
   - canonical downstream skill fields are limited to `required_skills` and `preferred_skills`, and are represented as canonical skill entities plus flattened canonical skill labels
   - Canonical `actual_location` is geography and remains distinct from `location_type` work mode

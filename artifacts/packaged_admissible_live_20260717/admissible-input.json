@@ -1,0 +1,25 @@
+[
+  {
+    "title": "Junior Retail Data Analyst",
+    "location": "Berlin, Berlin, Germany",
+    "postedTime": "1 day ago",
+    "publishedAt": "2026-07-17T07:35:00Z",
+    "jobUrl": "https://example.test/fitcv-packaged-junior-retail-analyst-20260717",
+    "companyName": "Example Retail Analytics",
+    "companyUrl": "https://example.test",
+    "description": "Join our Berlin retail analytics team as a Junior Retail Data Analyst. This permanent full-time hybrid role is designed for early-career candidates with zero to two years of experience. Responsibilities include analyzing sales, inventory, customer, and campaign data; building Power BI dashboards; writing SQL queries; preparing reliable reports; documenting metrics; and presenting clear recommendations to business stakeholders. Required skills are SQL, Excel, Power BI or Tableau, basic Python or R, data cleaning, reporting, and strong analytical communication. Professional working English is required. German is helpful but not required. The company provides mentoring, structured onboarding, training, and a collaborative international environment. No travel, driving license, security clearance, or relocation is required.",
+    "applicationsCount": 12,
+    "contractType": "Full-time",
+    "experienceLevel": "Entry level",
+    "workType": "Hybrid",
+    "sector": "Retail analytics",
+    "salary": "EUR 45,000 - 55,000",
+    "applyUrl": "https://example.test/apply",
+    "applyType": "external",
+    "benefits": [
+      "Mentoring",
+      "Training",
+      "Hybrid work"
+    ]
+  }
+]

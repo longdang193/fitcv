@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "strict_config_load": true,
+  "control_plane_owner": "config/runtime/control_plane.yaml",
+  "pipeline_policy_owner": "config/runtime/pipeline.yaml",
+  "env_yaml_keys": [
+    "paths.candidate_profile"
+  ],
+  "provider_ids": [
+    "9router",
+    "openai",
+    "openai_compatible"
+  ],
+  "provider_ids_shared_identity": true,
+  "provider_literal_owners": [
+    "src\\fitcv\\config.py"
+  ],
+  "task_parts": [
+    "enrich_extraction",
+    "ranking_ai_score",
+    "cv_generation_structured_write",
+    "synonym_triage_recommendation"
+  ],
+  "provider_draft_uses_task_parts": true,
+  "task_part_literal_owners": [
+    "src\\fitcv_cp\\local_setup.py"
+  ],
+  "routing_part_count": 4,
+  "external_fitcv_langgraph_runtime_present": false
+}

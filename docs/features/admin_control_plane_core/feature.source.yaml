@@ -18,7 +18,7 @@ capabilities:
     statement: Keep Redis/RQ worker integration for developer/server deployment while FitCV Local uses serialized in-process execution.
     state: active
   - capability_id: admin_control_plane_core.jinja2-admin-pages
-    statement: Jinja2 admin pages, including native preference optimization plus FitCV Local onboarding, data/backup, recovery, diagnostics, and shutdown surfaces.
+    statement: Jinja2 admin pages, including native preference optimization plus FitCV Local onboarding, controller settings with safe reset actions, data/backup, recovery, diagnostics, and shutdown surfaces.
     state: active
   - capability_id: admin_control_plane_core.pipelinereporter-integration
     statement: PipelineReporter integration

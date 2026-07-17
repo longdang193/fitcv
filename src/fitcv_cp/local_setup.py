@@ -19,28 +19,24 @@ lifecycle:
 
 from __future__ import annotations
 
-import os
-import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, TypedDict
-from urllib.parse import urlsplit, urlunsplit
 
-import yaml
-
-from fitcv_cp.local_storage import OVERLAY_VERSION, validate_routing_overlay
+from fitcv.config import (
+    LOCAL_CONTROLLER_OVERLAY_VERSION,
+    SUPPORTED_PROVIDER_IDS,
+    SUPPORTED_ROUTING_PARTS,
+    normalize_api_root,
+    validate_local_controller_overlay,
+)
+from fitcv_cp.local_storage import write_controller_overlay
 
 
 AuthMode = Literal["required", "optional", "none"]
 WireApi = Literal["responses", "chat_completions"]
-TASK_PARTS = (
-    "enrich_extraction",
-    "ranking_ai_score",
-    "cv_generation_structured_write",
-    "synonym_triage_recommendation",
-)
-PROVIDER_IDS = {"openai", "openai_compatible", "9router"}
-
+TASK_PARTS = SUPPORTED_ROUTING_PARTS
+PROVIDER_IDS = SUPPORTED_PROVIDER_IDS
 
 @dataclass(frozen=True)
 class ProviderSetup:
@@ -53,24 +49,14 @@ class ProviderSetup:
     timeout_seconds: float
     default_model: str
     task_models: dict[str, str]
+    run_retry: dict[str, Any] = field(default_factory=dict)
+    prompt_addenda: dict[str, str] = field(default_factory=dict)
 
 
 class ReadinessResult(TypedDict):
     ready: bool
     reasons: list[str]
     overlay: dict[str, Any]
-
-
-def normalize_api_root(value: str) -> str:
-    parsed = urlsplit(str(value or "").strip())
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise ValueError("base_url must be an absolute HTTP(S) API root")
-    if parsed.username or parsed.password or parsed.query or parsed.fragment:
-        raise ValueError("base_url must not contain credentials, query, or fragment")
-    path = parsed.path.rstrip("/")
-    if path.endswith(("/responses", "/chat/completions", "/models")):
-        raise ValueError("base_url must be an API root, not an operation endpoint")
-    return urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
 
 
 def build_routing_overlay(setup: ProviderSetup) -> dict[str, Any]:
@@ -89,8 +75,6 @@ def build_routing_overlay(setup: ProviderSetup) -> dict[str, Any]:
     if unknown_parts:
         raise ValueError(f"unsupported task model parts: {unknown_parts}")
     provider = {
-        "type": setup.provider_type,
-        "display_name": str(setup.display_name or setup.provider_id).strip(),
         "base_url": normalize_api_root(setup.base_url),
         "auth_mode": setup.auth_mode,
         "wire_api": setup.wire_api,
@@ -103,31 +87,22 @@ def build_routing_overlay(setup: ProviderSetup) -> dict[str, Any]:
         }
         for part in TASK_PARTS
     }
-    return validate_routing_overlay(
-        {
-            "version": OVERLAY_VERSION,
-            "providers": {setup.provider_id: provider},
-            "model_routing": {"parts": parts},
+    payload: dict[str, Any] = {
+        "version": LOCAL_CONTROLLER_OVERLAY_VERSION,
+        "providers": {setup.provider_id: provider},
+        "model_routing": {"parts": parts},
+    }
+    if setup.run_retry:
+        payload["fitcv_cp"] = {"retry": dict(setup.run_retry)}
+    if setup.prompt_addenda:
+        payload["prompts"] = {
+            "additional_instructions": dict(setup.prompt_addenda)
         }
-    )
+    return validate_local_controller_overlay(payload)
 
 
 def write_routing_overlay(path: Path, payload: dict[str, Any]) -> None:
-    validate_routing_overlay(payload)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=path.parent, delete=False
-        ) as handle:
-            yaml.safe_dump(payload, handle, sort_keys=False)
-            handle.flush()
-            os.fsync(handle.fileno())
-            temporary_path = Path(handle.name)
-        os.replace(temporary_path, path)
-    finally:
-        if temporary_path is not None and temporary_path.exists():
-            temporary_path.unlink()
+    write_controller_overlay(path, payload)
 
 
 def discover_models(setup: ProviderSetup, *, api_key: str = "") -> list[str]:

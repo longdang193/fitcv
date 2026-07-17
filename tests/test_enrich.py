@@ -2248,3 +2248,22 @@ def test_parse_extraction_response_canonicalizes_location_and_languages() -> Non
     assert result["parsed"]["actual_location"]["extraction_status"] == "complete"
     assert result["parsed"]["language_requirements"][0]["expected_level"] == "b2"
     assert result["parsed"]["language_requirements"][0]["extraction_status"] == "complete"
+
+def test_build_extraction_prompt_includes_safe_addendum() -> None:
+    prompt = build_extraction_prompt(
+        description="Need SQL.",
+        scraped_metadata={"title": "Data Analyst"},
+        config={
+            "prompts": {
+                "enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}},
+                "additional_instructions": {
+                    "enrich_extraction": "Prefer direct evidence only."
+                },
+            }
+        },
+    )
+
+    assert prompt.count("Prefer direct evidence only.") == 1
+    assert prompt.index("Prefer direct evidence only.") < prompt.index(
+        "Return ONLY a valid JSON object"
+    )

@@ -209,7 +209,27 @@ def test_get_local_sqlite_path_uses_control_plane_sqlite_path_when_env_missing(
         "  data_backend:\n"
         "    type: sqlite\n"
         "    sqlite:\n"
-        f"      path: {tmp_path / 'from-config.sqlite3'}\n",
+        f"      path: {tmp_path / 'from-config.sqlite3'}\n"
+        "  providers:\n"
+        "    openai_compatible:\n"
+        "      base_url: https://example.test/v1\n"
+        "      auth_mode: required\n"
+        "      wire_api: responses\n"
+        "      timeout_seconds: 30\n"
+        "  model_routing:\n"
+        "    parts:\n"
+        "      enrich_extraction: {provider: openai_compatible, model: m}\n"
+        "      ranking_ai_score: {provider: openai_compatible, model: m}\n"
+        "      cv_generation_structured_write: {provider: openai_compatible, model: m}\n"
+        "      synonym_triage_recommendation: {provider: openai_compatible, model: m}\n"
+        "  fitcv_cp:\n"
+        "    retry:\n"
+        "      enabled: false\n"
+        "      max_attempts: 1\n"
+        "      backoff_seconds: [1]\n"
+        "      lease_seconds: 900\n"
+        "      reconciler_interval_seconds: 0\n"
+        "      error_details_max_chars: 2048\n",
         encoding="utf-8",
     )
     monkeypatch.delenv("FITCV_CP_SQLITE_PATH", raising=False)
@@ -220,13 +240,13 @@ def test_get_local_sqlite_path_uses_control_plane_sqlite_path_when_env_missing(
 def test_load_control_plane_config_merges_narrow_local_overlay(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    overlay_path = tmp_path / "local_routing_overlay.yaml"
+    overlay_path = tmp_path / "local_controller_overlay.yaml"
     overlay_path.write_text(
         "version: 1\nproviders:\n  openai:\n    base_url: https://example.test/v1\n"
         "model_routing:\n  parts:\n    ranking_ai_score:\n      provider: openai\n      model: test-model\n",
         encoding="utf-8",
     )
-    monkeypatch.setenv("FITCV_LOCAL_ROUTING_OVERLAY_PATH", str(overlay_path))
+    monkeypatch.setenv("FITCV_LOCAL_CONTROLLER_OVERLAY_PATH", str(overlay_path))
 
     config = load_control_plane_config()
 

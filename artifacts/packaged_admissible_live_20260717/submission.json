@@ -1,0 +1,11 @@
+{
+  "build_id": "packaged-prompt-timeout-fix",
+  "executable": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\dist\\fitcv-local\\fitcv-local.exe",
+  "process_id": 8264,
+  "url": "http://127.0.0.1:60891/",
+  "run_id": "e8a1f515-56f2-484a-8f12-4522e31acd37",
+  "submitted_at": "2026-07-17T07:37:56.5244632Z",
+  "input_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\artifacts\\packaged_admissible_live_20260717\\admissible-input.json",
+  "timeout_seconds": 300,
+  "scenario": "admissible-junior-retail-analyst"
+}

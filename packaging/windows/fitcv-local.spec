@@ -14,7 +14,9 @@ hiddenimports = collect_submodules("keyring.backends") + [
 ]
 datas = [
     (str(ROOT / "packaging/windows/.env.yaml"), "."),
+    (str(ROOT / "packaging/windows/fitcv.ico"), "."),
     (str(ROOT / "src/fitcv_cp/templates"), "fitcv_cp/templates"),
+    (str(ROOT / "src/fitcv/prompts/templates"), "fitcv/prompts/templates"),
     (str(ROOT / "config/policy"), "config/policy"),
     (str(ROOT / "config/runtime/control_plane.yaml"), "config/runtime"),
     (str(ROOT / "config/runtime/pipeline.yaml"), "config/runtime"),
@@ -48,6 +50,7 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,
+    icon=str(ROOT / "packaging/windows/fitcv.ico"),
     version=str(ROOT / "packaging/windows/version_info.txt"),
 )
 bundle = COLLECT(

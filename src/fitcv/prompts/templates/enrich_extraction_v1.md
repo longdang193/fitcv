@@ -18,7 +18,7 @@ FIELD DEFINITIONS:
   Do not collapse specific concepts into broad umbrella canonicals. For example, do not map prompt engineering or vector databases to genai.
   One raw phrase may produce multiple entities when it clearly contains multiple distinct skills.
 
-Return ONLY a valid JSON object matching this schema. No markdown, no explanation.
+${prompt_addendum}Return ONLY a valid JSON object matching this schema. No markdown, no explanation.
 Every schema key must be present in the response.
 Use [] for unknown list fields.
 Use null for unknown scalar fields.

@@ -1,0 +1,10 @@
+{
+  "run_id": "live-verification-20260716-full-one-job",
+  "input_path": "artifacts\\live_verification_20260716\\one-job-input.json",
+  "started_at_epoch": 1784244140.2618532,
+  "status": "failed",
+  "elapsed_seconds": 105.74,
+  "error_type": "ValueError",
+  "error": "ranking rows are required to resolve preference policy",
+  "traceback": "Traceback (most recent call last):\n  File \"<stdin>\", line 24, in <module>\n  File \"C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\pipeline.py\", line 3580, in run_pipeline\n    resolved_preference_policy = resolve_run_preference_policy(\n        ranking_rows=ranking_inputs,\n    ...<2 lines>...\n        resolver=preference_policy_resolver,\n    )\n  File \"C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\preference_policy.py\", line 318, in resolve_run_preference_policy\n    raise ValueError(\"ranking rows are required to resolve preference policy\")\nValueError: ranking rows are required to resolve preference policy\n"
+}

@@ -1081,6 +1081,12 @@ def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_pro
             }
         },
     }
+    prompt_addendum = "Keep evidence direct."
+    config.setdefault("prompts", {})["additional_instructions"] = {
+        "enrich_extraction": prompt_addendum,
+        "ranking_ai_score": prompt_addendum,
+        "cv_generation_structured_write": prompt_addendum,
+    }
     raw_job = _minimal_job()
     enriched_job = {**raw_job, "title": "Data Analyst"}
     ai_score_row = {
@@ -1176,10 +1182,21 @@ def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_pro
         ],
     )
 
+    expected_hash = __import__("hashlib").sha256(
+        prompt_addendum.encode("utf-8")
+    ).hexdigest()
+    enrich_summary = artifacts["stages"]["enrich"]["decision_summary"]
+    assert enrich_summary["enrich_prompt_customized"] is True
+    assert enrich_summary["enrich_prompt_addendum_sha256"] == expected_hash
+    assert enrich_summary["enrich_prompt_addendum_char_count"] == len(prompt_addendum)
+
     ranking_summary = artifacts["stages"]["ranking"]["decision_summary"]
     assert ranking_summary["ranking_prompt_id"] == "ranking.ai_score.v1"
     assert ranking_summary["ranking_prompt_template_path"] == "ranking_ai_score_v1.md"
     assert ranking_summary["ai_score_model"] == "cx/gpt-5.4-mini"
+    assert ranking_summary["ranking_prompt_customized"] is True
+    assert ranking_summary["ranking_prompt_addendum_sha256"] == expected_hash
+    assert ranking_summary["ranking_prompt_addendum_char_count"] == len(prompt_addendum)
     assert artifacts["stages"]["enrich"]["llm_runtime_summary"]["calls_total"] == 1
     assert artifacts["stages"]["ranking"]["llm_runtime_summary"]["calls_total"] == 1
 
@@ -1187,6 +1204,9 @@ def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_pro
     assert cv_generation_summary["cv_prompt_id"] == "cv_generation.structured_write.v1"
     assert cv_generation_summary["cv_prompt_template_path"] == "cv_generation_structured_write_v1.md"
     assert cv_generation_summary["cv_generation_model"] == "cx/gpt-5.4-mini"
+    assert cv_generation_summary["cv_prompt_customized"] is True
+    assert cv_generation_summary["cv_prompt_addendum_sha256"] == expected_hash
+    assert cv_generation_summary["cv_prompt_addendum_char_count"] == len(prompt_addendum)
 
 
 def test_build_ranking_features_preserves_structured_job_fields_from_shortlist() -> None:
@@ -4155,7 +4175,13 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
     )
 
     assert pause_result["next_stage"] == "cv_analysis"
-    assert run_all_result["export_results"] == resumed_result["export_results"]
+    run_all_export = json.loads(json.dumps(run_all_result["export_results"]))
+    resumed_export = json.loads(json.dumps(resumed_result["export_results"]))
+    for rows in (run_all_export, resumed_export):
+        for row in rows:
+            row["job_outcome"]["run_id"] = "<run>"
+            row["job_outcome"]["occurred_at"] = "<occurred_at>"
+    assert run_all_export == resumed_export
     assert run_all_result["cv_generation_debug_records"] == resumed_result["cv_generation_debug_records"]
     assert json.loads(staged_config["runtime_inputs"]["candidate_profile_json"]) == profile
     assert mock_profile_json.called
@@ -9515,6 +9541,48 @@ def test_llm_runtime_summary_is_deterministic_and_stage_neutral() -> None:
     assert summary["adapters"] == ["fake"]
     assert summary["runtime_paths"] == ["test"]
     assert [item["scope_key"] for item in summary["evidence_sample"]] == ["a"]
+
+def test_llm_runtime_summary_aggregates_provider_usage_and_cost() -> None:
+    from fitcv.pipeline_stage_artifacts import build_llm_runtime_summary
+
+    def observation(telemetry: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "scope_key": "job",
+            "input_index": 0,
+            "invocation_index": 1,
+            "evidence": {
+                "status": "succeeded",
+                "provenance": {
+                    "routing_part": "enrich_extraction",
+                    "adapter": "openai_compatible",
+                    "runtime_path": "fitcv_llm_openai_compatible",
+                },
+                "failure": None,
+                "telemetry": telemetry,
+            },
+        }
+
+    summary = build_llm_runtime_summary(
+        [
+            observation({
+                "usage": {"input_tokens": 10, "output_tokens": 20, "total_tokens": 30},
+                "cost": {"total_cost": 0.03},
+            }),
+            observation({
+                "usage": {"prompt_tokens": 5, "completion_tokens": 10},
+                "cost": {"total_cost": 0.02},
+            }),
+        ]
+    )
+
+    assert summary["routing_parts"] == ["enrich_extraction"]
+    assert summary["usage"] == {
+        "input_tokens": 15,
+        "output_tokens": 30,
+        "total_tokens": 45,
+        "cost": 0.05,
+        "input_output_ratio": 0.5,
+    }
 
 def test_materialize_scoring_shortlist_rejects_ambiguous_passed_url_mapping() -> None:
     with pytest.raises(ValueError, match="ambiguous passed-job URL mapping"):

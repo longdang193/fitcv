@@ -13,6 +13,7 @@ tags:
 """
 
 import sqlite3
+from pathlib import Path
 
 from fitcv_cp.backend_runtime import BackendRuntime, set_backend_runtime
 from fitcv_cp import settings_store as ss
@@ -112,13 +113,17 @@ def test_local_settings_path_prefers_active_backend_runtime_over_env(tmp_path, m
 
 def test_local_settings_path_ignores_retired_settings_env_and_uses_config_fallback(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "config" / "runtime").mkdir(parents=True)
-    (tmp_path / "config" / "runtime" / "control_plane.yaml").write_text(
-        "control_plane:\n"
-        "  data_backend:\n"
-        "    type: sqlite\n"
-        "    sqlite:\n"
-        f"      path: {tmp_path / 'from-config.sqlite3'}\n",
+    config_path = tmp_path / "config" / "runtime" / "control_plane.yaml"
+    config_path.parent.mkdir(parents=True)
+    canonical_text = (
+        Path(__file__).parents[2] / "config" / "runtime" / "control_plane.yaml"
+    ).read_text(encoding="utf-8")
+    assert "path: data/fitcv_cp.sqlite3" in canonical_text
+    config_path.write_text(
+        canonical_text.replace(
+            "path: data/fitcv_cp.sqlite3",
+            f"path: {(tmp_path / 'from-config.sqlite3').as_posix()}",
+        ),
         encoding="utf-8",
     )
     retired_env_key = "FITCV_CP_" + "SETTINGS_SQLITE_PATH"

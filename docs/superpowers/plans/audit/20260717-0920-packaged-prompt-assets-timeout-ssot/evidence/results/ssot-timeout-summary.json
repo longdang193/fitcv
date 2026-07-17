@@ -1,0 +1,12 @@
+{
+  "canonical_owner": "config/runtime/control_plane.yaml",
+  "canonical_timeout_seconds": 300,
+  "local_onboarding_previous_literal": 120,
+  "timeout_failure_run_id": "698a5ad0-8607-4bf1-b39f-ba8e67ab5938",
+  "timeout_failure_status": "failed",
+  "timeout_failure_message": "timed out",
+  "final_success_run_id": "7505a7e0-42e6-4334-aa43-3551ec4cdcc1",
+  "final_success_status": "succeeded",
+  "final_build_id": "packaged-prompt-timeout-fix",
+  "final_fresh_marker": "packaged-final-20260717-0915"
+}

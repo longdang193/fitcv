@@ -53,6 +53,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
     - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -77,6 +78,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -140,6 +142,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
     - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -164,6 +167,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -173,7 +177,7 @@ capabilities:
     completeness_status: incomplete
   admin_control_plane_core.jinja2-admin-pages:
     state: active
-    statement: Jinja2 admin pages, including native preference optimization plus FitCV Local onboarding, data/backup, recovery, diagnostics, and shutdown surfaces.
+    statement: Jinja2 admin pages, including native preference optimization plus FitCV Local onboarding, controller settings with safe reset actions, data/backup, recovery, diagnostics, and shutdown surfaces.
     satisfies: []
     code:
     - path: src/fitcv_cp/templates/optimization.html
@@ -261,6 +265,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
     - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -285,6 +290,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -346,6 +352,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
     - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -370,6 +377,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -433,6 +441,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
     - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -457,6 +466,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -508,6 +518,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
     - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -532,6 +543,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -577,6 +589,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
     - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -601,6 +614,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -654,6 +668,7 @@ capabilities:
     - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
     - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -678,6 +693,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
     - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

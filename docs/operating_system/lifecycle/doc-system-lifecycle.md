@@ -135,7 +135,7 @@ Conditional folders should stay conditional rather than globally required:
 docs/features/
 docs/stages/
 docs/generated/
-configs/
+config/
 aml/components/
 docs/project_templates/
 docs/architecture_templates/
@@ -171,7 +171,7 @@ Required anchor:
 
 - `repo_config/adoption-mode.yaml`
 
-### `configs/`
+### `config/`
 
 Use runtime/workflow config for:
 
@@ -248,7 +248,7 @@ freshness schema.
 Those values are generated and should not be stored manually in
 `feature.source.yaml`.
 
-These files are not replacements for runtime/workflow config under `configs/`.
+These files are not replacements for runtime/workflow config under `config/`.
 
 Formatting rule:
 

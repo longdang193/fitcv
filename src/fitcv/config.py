@@ -16,11 +16,13 @@ lifecycle:
   - status: active
 """
 
+import hashlib
 import logging
 import os
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import yaml
 from fitcv import config_compat, config_loader, config_validators
@@ -86,7 +88,48 @@ _DEFAULT_CV_REQUIRED_MATCH_POLICY = {
     },
     "force_review_when_any_required_missing_for_fits": ["stretch"],
 }
-_SUPPORTED_PROVIDER_IDS = {"openai", "openai_compatible", "9router"}
+SUPPORTED_PROVIDER_IDS = frozenset({"openai", "openai_compatible", "9router"})
+SUPPORTED_PROVIDER_TYPES = frozenset({"openai", "openai_compatible"})
+SUPPORTED_AUTH_MODES = frozenset({"required", "optional", "none"})
+SUPPORTED_WIRE_APIS = frozenset({"responses", "chat_completions"})
+SUPPORTED_ROUTING_PARTS = (
+    "enrich_extraction",
+    "ranking_ai_score",
+    "cv_generation_structured_write",
+    "synonym_triage_recommendation",
+)
+PROMPT_ADDENDUM_TASK_IDS = SUPPORTED_ROUTING_PARTS
+PROMPT_TASK_CONFIG_PATHS = {
+    "enrich_extraction": ("enrich", "extraction"),
+    "ranking_ai_score": ("ranking", "ai_score"),
+    "cv_generation_structured_write": ("cv_generation", "structured_write"),
+    "synonym_triage_recommendation": ("synonym_triage", "recommendation"),
+}
+PROVIDER_REGISTRY = {
+    "openai": {"type": "openai", "label": "OpenAI"},
+    "openai_compatible": {
+        "type": "openai_compatible",
+        "label": "OpenAI-compatible",
+    },
+    "9router": {"type": "openai_compatible", "label": "9router"},
+}
+MAX_PROMPT_ADDENDUM_CHARS = 4000
+LOCAL_CONTROLLER_OVERLAY_VERSION = 1
+_RETRY_BOUNDS = {
+    "max_attempts": (1, 20),
+    "lease_seconds": (30, 24 * 3600),
+    "reconciler_interval_seconds": (0, 3600),
+    "error_details_max_chars": (256, 65536),
+}
+_REQUIRED_RETRY_FIELDS = (
+    "enabled",
+    "max_attempts",
+    "backoff_seconds",
+    "lease_seconds",
+    "reconciler_interval_seconds",
+    "error_details_max_chars",
+)
+_SUPPORTED_PROVIDER_IDS = SUPPORTED_PROVIDER_IDS
 _RETIRED_PROVIDER_IDS = {"gemini", "vertex", "vertex_ai", "google", "google_genai", "google_vertex"}
 _DEFAULT_ACTIVE_MODEL = "cx/gpt-5.4-mini"
 _CANONICAL_INFRA_KEYS: set[str] = set()
@@ -171,6 +214,315 @@ CV_SECTION_NAME_TO_KEY = {
 def _load_yaml_file(path: Path) -> dict[str, Any]:
     return config_loader.load_yaml_file(path, logger=logger)
 
+def normalize_api_root(value: str) -> str:
+    parsed = urlsplit(str(value or "").strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("base_url must be an absolute HTTP(S) API root")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError("base_url must not contain credentials, query, or fragment")
+    path = parsed.path.rstrip("/")
+    if path.endswith(("/responses", "/chat/completions", "/models")):
+        raise ValueError("base_url must be an API root, not an operation endpoint")
+    return urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
+
+
+def normalize_prompt_addendum(value: Any) -> str:
+    normalized = str(value or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if len(normalized) > MAX_PROMPT_ADDENDUM_CHARS:
+        raise ValueError(
+            f"prompt addendum exceeds {MAX_PROMPT_ADDENDUM_CHARS} characters"
+        )
+    return normalized
+
+
+def _overlay_mapping(value: Any, *, field: str) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"{field} must be a mapping")
+    return dict(value)
+
+
+def _bounded_int(value: Any, *, field: str, minimum: int, maximum: int) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"{field} must be an integer")
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field} must be an integer") from exc
+    if not minimum <= parsed <= maximum:
+        raise ValueError(f"{field} must be between {minimum} and {maximum}")
+    return parsed
+
+
+def validate_local_controller_overlay(payload: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("local controller overlay must be a mapping")
+    allowed_top = {"version", "providers", "model_routing", "fitcv_cp", "prompts"}
+    unsupported_top = sorted(set(payload) - allowed_top)
+    if unsupported_top:
+        raise ValueError(
+            f"local controller overlay contains unsupported keys: {unsupported_top}"
+        )
+    if payload.get("version") != LOCAL_CONTROLLER_OVERLAY_VERSION:
+        raise ValueError("local controller overlay version must be 1")
+    normalized: dict[str, Any] = {"version": LOCAL_CONTROLLER_OVERLAY_VERSION}
+
+    providers = _overlay_mapping(payload.get("providers"), field="providers")
+    normalized_providers: dict[str, Any] = {}
+    provider_fields = {"base_url", "auth_mode", "wire_api", "timeout_seconds"}
+    for provider_id, raw_provider in providers.items():
+        provider_name = str(provider_id).strip().lower()
+        if provider_name not in SUPPORTED_PROVIDER_IDS:
+            raise ValueError(f"unsupported provider_id: {provider_name}")
+        provider = _overlay_mapping(raw_provider, field=f"providers.{provider_name}")
+        unsupported = sorted(set(provider) - provider_fields)
+        if unsupported:
+            raise ValueError(
+                f"unsupported provider fields for {provider_name}: {unsupported}"
+            )
+        clean: dict[str, Any] = {}
+        if "base_url" in provider:
+            clean["base_url"] = normalize_api_root(str(provider["base_url"]))
+        if "auth_mode" in provider:
+            auth_mode = str(provider["auth_mode"]).strip().lower()
+            if auth_mode not in SUPPORTED_AUTH_MODES:
+                raise ValueError(f"unsupported auth_mode: {auth_mode}")
+            clean["auth_mode"] = auth_mode
+        if "wire_api" in provider:
+            wire_api = str(provider["wire_api"]).strip().lower()
+            if wire_api not in SUPPORTED_WIRE_APIS:
+                raise ValueError(f"unsupported wire_api: {wire_api}")
+            clean["wire_api"] = wire_api
+        if "timeout_seconds" in provider:
+            try:
+                timeout_seconds = float(provider["timeout_seconds"])
+            except (TypeError, ValueError) as exc:
+                raise ValueError("timeout_seconds must be numeric") from exc
+            if timeout_seconds <= 0:
+                raise ValueError("timeout_seconds must be positive")
+            clean["timeout_seconds"] = timeout_seconds
+        if clean:
+            normalized_providers[provider_name] = clean
+    if normalized_providers:
+        normalized["providers"] = normalized_providers
+
+    model_routing = _overlay_mapping(payload.get("model_routing"), field="model_routing")
+    unsupported_routing = sorted(set(model_routing) - {"parts"})
+    if unsupported_routing:
+        raise ValueError(
+            f"local controller model_routing contains unsupported keys: {unsupported_routing}"
+        )
+    parts = _overlay_mapping(model_routing.get("parts"), field="model_routing.parts")
+    normalized_parts: dict[str, Any] = {}
+    for part_id, raw_part in parts.items():
+        part_name = str(part_id).strip()
+        if part_name not in SUPPORTED_ROUTING_PARTS:
+            raise ValueError(f"unsupported routing part: {part_name}")
+        part = _overlay_mapping(raw_part, field=f"model_routing.parts.{part_name}")
+        unsupported = sorted(set(part) - {"provider", "model"})
+        if unsupported:
+            raise ValueError(
+                f"unsupported routing fields for {part_name}: {unsupported}"
+            )
+        clean_part: dict[str, str] = {}
+        if "provider" in part:
+            provider_name = str(part["provider"]).strip().lower()
+            if provider_name not in SUPPORTED_PROVIDER_IDS:
+                raise ValueError(f"unsupported provider_id: {provider_name}")
+            clean_part["provider"] = provider_name
+        if "model" in part:
+            model = str(part["model"]).strip()
+            if not model:
+                raise ValueError(f"model_routing.parts.{part_name}.model is required")
+            clean_part["model"] = model
+        if clean_part:
+            normalized_parts[part_name] = clean_part
+    if normalized_parts:
+        normalized["model_routing"] = {"parts": normalized_parts}
+
+    fitcv_cp = _overlay_mapping(payload.get("fitcv_cp"), field="fitcv_cp")
+    unsupported_cp = sorted(set(fitcv_cp) - {"retry"})
+    if unsupported_cp:
+        raise ValueError(f"local controller fitcv_cp contains unsupported keys: {unsupported_cp}")
+    retry = _overlay_mapping(fitcv_cp.get("retry"), field="fitcv_cp.retry")
+    unsupported_retry = sorted(set(retry) - set(_REQUIRED_RETRY_FIELDS))
+    if unsupported_retry:
+        raise ValueError(f"unsupported retry fields: {unsupported_retry}")
+    clean_retry: dict[str, Any] = {}
+    if "enabled" in retry:
+        if not isinstance(retry["enabled"], bool):
+            raise ValueError("fitcv_cp.retry.enabled must be boolean")
+        clean_retry["enabled"] = retry["enabled"]
+    if "backoff_seconds" in retry:
+        raw_backoff = retry["backoff_seconds"]
+        if not isinstance(raw_backoff, list) or not raw_backoff or len(raw_backoff) > 20:
+            raise ValueError("fitcv_cp.retry.backoff_seconds must contain 1 to 20 integers")
+        clean_retry["backoff_seconds"] = [
+            _bounded_int(item, field="fitcv_cp.retry.backoff_seconds", minimum=0, maximum=24 * 3600)
+            for item in raw_backoff
+        ]
+    for field, (minimum, maximum) in _RETRY_BOUNDS.items():
+        if field in retry:
+            clean_retry[field] = _bounded_int(
+                retry[field], field=f"fitcv_cp.retry.{field}", minimum=minimum, maximum=maximum
+            )
+    if clean_retry:
+        normalized["fitcv_cp"] = {"retry": clean_retry}
+
+    prompts = _overlay_mapping(payload.get("prompts"), field="prompts")
+    unsupported_prompts = sorted(set(prompts) - {"additional_instructions"})
+    if unsupported_prompts:
+        raise ValueError(f"local controller prompts contains unsupported keys: {unsupported_prompts}")
+    addenda = _overlay_mapping(
+        prompts.get("additional_instructions"), field="prompts.additional_instructions"
+    )
+    clean_addenda: dict[str, str] = {}
+    for task_id, raw_addendum in addenda.items():
+        task_name = str(task_id).strip()
+        if task_name not in PROMPT_ADDENDUM_TASK_IDS:
+            raise ValueError(f"unsupported prompt addendum task: {task_name}")
+        if not isinstance(raw_addendum, str):
+            raise ValueError(f"prompt addendum for {task_name} must be a string")
+        addendum = normalize_prompt_addendum(raw_addendum)
+        if addendum:
+            clean_addenda[task_name] = addendum
+    if clean_addenda:
+        normalized["prompts"] = {"additional_instructions": clean_addenda}
+    return normalized
+
+
+def load_local_controller_overlay(path: str | Path | None = None) -> dict[str, Any]:
+    raw_path = str(path or os.environ.get("FITCV_LOCAL_CONTROLLER_OVERLAY_PATH") or "").strip()
+    if not raw_path:
+        return {"version": LOCAL_CONTROLLER_OVERLAY_VERSION}
+    overlay_path = Path(raw_path)
+    if not overlay_path.exists():
+        return {"version": LOCAL_CONTROLLER_OVERLAY_VERSION}
+    return validate_local_controller_overlay(_load_yaml_file(overlay_path))
+
+
+def get_prompt_addendum(
+    task_id: str,
+    config: dict[str, Any] | None = None,
+) -> str:
+    task_name = str(task_id).strip()
+    if task_name not in PROMPT_ADDENDUM_TASK_IDS:
+        raise ValueError(f"unsupported prompt addendum task: {task_name}")
+    addenda = dict(
+        ((config or {}).get("prompts") or {}).get("additional_instructions") or {}
+    )
+    if task_name not in addenda:
+        overlay = load_local_controller_overlay()
+        addenda = dict(
+            (overlay.get("prompts") or {}).get("additional_instructions") or {}
+        )
+    value = addenda.get(task_name, "")
+    return normalize_prompt_addendum(value)
+
+
+def get_prompt_addendum_metadata(
+    task_id: str,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    addendum = get_prompt_addendum(task_id, config)
+    return {
+        "customized": bool(addendum),
+        "addendum_sha256": (
+            hashlib.sha256(addendum.encode("utf-8")).hexdigest() if addendum else None
+        ),
+        "addendum_char_count": len(addendum),
+    }
+
+
+def load_prompt_task_registry(
+    path: str | Path | None = None,
+) -> dict[str, dict[str, str]]:
+    config_path = Path(path) if path is not None else Path("config/runtime/prompts.yaml")
+    if not config_path.exists():
+        raise FileNotFoundError(f"Prompt config file not found: {config_path}")
+    prompts = dict((_load_yaml_file(config_path).get("prompts") or {}))
+    resolved: dict[str, dict[str, str]] = {}
+    for task_id, (section, key) in PROMPT_TASK_CONFIG_PATHS.items():
+        prompt_id = str(
+            dict(dict(prompts.get(section) or {}).get(key) or {}).get("prompt_id") or ""
+        ).strip()
+        if not prompt_id:
+            raise ValueError(f"prompts.{section}.{key}.prompt_id is required")
+        definition = get_prompt_definition(prompt_id)
+        resolved[task_id] = {
+            "prompt_id": definition.prompt_id,
+            "version": definition.version,
+            "template_path": str(definition.template_path),
+        }
+    return resolved
+
+
+def _merge_controller_overlay(
+    control_plane: dict[str, Any], overlay: dict[str, Any]
+) -> dict[str, Any]:
+    merged = dict(control_plane)
+    providers = dict(merged.get("providers") or {})
+    for provider_id, provider_overlay in dict(overlay.get("providers") or {}).items():
+        providers[provider_id] = {**dict(providers.get(provider_id) or {}), **dict(provider_overlay or {})}
+    merged["providers"] = providers
+    model_routing = dict(merged.get("model_routing") or {})
+    parts = dict(model_routing.get("parts") or {})
+    parts.update(dict((overlay.get("model_routing") or {}).get("parts") or {}))
+    model_routing["parts"] = parts
+    merged["model_routing"] = model_routing
+    if overlay.get("fitcv_cp"):
+        fitcv_cp = dict(merged.get("fitcv_cp") or {})
+        fitcv_cp["retry"] = {
+            **dict(fitcv_cp.get("retry") or {}),
+            **dict((overlay.get("fitcv_cp") or {}).get("retry") or {}),
+        }
+        merged["fitcv_cp"] = fitcv_cp
+    if overlay.get("prompts"):
+        prompts = dict(merged.get("prompts") or {})
+        prompts["additional_instructions"] = dict(
+            (overlay.get("prompts") or {}).get("additional_instructions") or {}
+        )
+        merged["prompts"] = prompts
+    return merged
+
+
+def _validate_control_plane_defaults(control_plane: dict[str, Any]) -> None:
+    providers = _overlay_mapping(control_plane.get("providers"), field="control_plane.providers")
+    for provider_id, raw_provider in providers.items():
+        provider_name = str(provider_id).strip().lower()
+        if provider_name not in SUPPORTED_PROVIDER_IDS:
+            raise ValueError(f"unsupported provider_id: {provider_name}")
+        provider = _overlay_mapping(raw_provider, field=f"control_plane.providers.{provider_name}")
+        for field in ("base_url", "auth_mode", "wire_api", "timeout_seconds"):
+            if field not in provider or provider[field] in {None, ""}:
+                raise ValueError(f"control_plane.providers.{provider_name}.{field} is required")
+        normalize_api_root(str(provider["base_url"]))
+        if str(provider["auth_mode"]).strip().lower() not in SUPPORTED_AUTH_MODES:
+            raise ValueError(f"control_plane.providers.{provider_name}.auth_mode is unsupported")
+        if str(provider["wire_api"]).strip().lower() not in SUPPORTED_WIRE_APIS:
+            raise ValueError(f"control_plane.providers.{provider_name}.wire_api is unsupported")
+        if float(provider["timeout_seconds"]) <= 0:
+            raise ValueError(f"control_plane.providers.{provider_name}.timeout_seconds must be positive")
+    model_routing = _overlay_mapping(control_plane.get("model_routing"), field="control_plane.model_routing")
+    parts = _overlay_mapping(model_routing.get("parts"), field="control_plane.model_routing.parts")
+    for part_name in SUPPORTED_ROUTING_PARTS:
+        part = _overlay_mapping(parts.get(part_name), field=f"control_plane.model_routing.parts.{part_name}")
+        provider_name = str(part.get("provider") or "").strip().lower()
+        model = str(part.get("model") or "").strip()
+        if provider_name not in providers:
+            raise ValueError(f"control_plane.model_routing.parts.{part_name}.provider is required")
+        if not model:
+            raise ValueError(f"control_plane.model_routing.parts.{part_name}.model is required")
+    fitcv_cp = _overlay_mapping(control_plane.get("fitcv_cp"), field="control_plane.fitcv_cp")
+    retry = _overlay_mapping(fitcv_cp.get("retry"), field="control_plane.fitcv_cp.retry")
+    for field in _REQUIRED_RETRY_FIELDS:
+        if field not in retry:
+            raise ValueError(f"control_plane.fitcv_cp.retry.{field} is required")
+    validate_local_controller_overlay(
+        {"version": LOCAL_CONTROLLER_OVERLAY_VERSION, "fitcv_cp": {"retry": retry}}
+    )
+
 def _iter_nested_mapping_keys(payload: Any) -> list[str]:
     if isinstance(payload, dict):
         flattened: list[str] = []
@@ -209,45 +561,27 @@ def sqlite_mode_enabled(config: dict[str, Any] | None = None) -> bool:
 
 
 def load_control_plane_config(path: str | Path | None = None) -> dict[str, Any]:
-    """Load control-plane runtime config with secret-hygiene checks."""
+    """Load and validate canonical control-plane config plus local overrides."""
     config_path = Path(path) if path is not None else _DEFAULT_CONTROL_PLANE_CONFIG_PATH
     if not config_path.exists():
         raise FileNotFoundError(f"Control-plane config file not found: {config_path}")
     payload = _load_yaml_file(config_path)
     control_plane = dict(payload.get("control_plane") or {})
-    overlay_path = str(os.environ.get("FITCV_LOCAL_ROUTING_OVERLAY_PATH") or "").strip()
-    if overlay_path and Path(overlay_path).exists():
-        from fitcv_cp.local_storage import validate_routing_overlay
-
-        overlay_payload = validate_routing_overlay(_load_yaml_file(Path(overlay_path)))
-        providers = dict(control_plane.get("providers") or {})
-        for provider_id, provider_overlay in dict(
-            overlay_payload.get("providers") or {}
-        ).items():
-            provider = dict(providers.get(provider_id) or {})
-            provider.update(dict(provider_overlay or {}))
-            providers[provider_id] = provider
-        control_plane["providers"] = providers
-        model_routing = dict(control_plane.get("model_routing") or {})
-        parts = dict(model_routing.get("parts") or {})
-        parts.update(dict((overlay_payload.get("model_routing") or {}).get("parts") or {}))
-        model_routing["parts"] = parts
-        control_plane["model_routing"] = model_routing
     _validate_control_plane_secret_hygiene(control_plane)
+    _validate_control_plane_defaults(control_plane)
+    control_plane = _merge_controller_overlay(control_plane, load_local_controller_overlay())
+    _validate_control_plane_defaults(control_plane)
 
     data_backend = dict(control_plane.get("data_backend") or {})
-    backend_type = str(data_backend.get("type") or "sqlite").strip().lower() or "sqlite"
+    backend_type = str(data_backend.get("type") or "sqlite").strip().lower()
     if backend_type != "sqlite":
         raise ValueError("control_plane.data_backend.type must be sqlite")
     data_backend["type"] = "sqlite"
     control_plane["data_backend"] = data_backend
-    control_plane["providers"] = dict(control_plane.get("providers") or {})
-    model_routing = dict(control_plane.get("model_routing") or {})
-    model_routing["parts"] = dict(model_routing.get("parts") or {})
-    control_plane["model_routing"] = model_routing
     control_plane["observability"] = dict(control_plane.get("observability") or {})
     control_plane["feature_flags"] = dict(control_plane.get("feature_flags") or {})
     return control_plane
+
 
 def resolve_model_routing_part(
     part_name: str,
@@ -278,7 +612,7 @@ def resolve_model_routing_part(
     base_url = str(provider_cfg.get("base_url") or "").strip()
     wire_api = str(provider_cfg.get("wire_api") or "").strip()
     timeout_seconds = str(provider_cfg.get("timeout_seconds") or "").strip()
-    auth_mode = str(provider_cfg.get("auth_mode") or "required").strip().lower()
+    auth_mode = str(provider_cfg.get("auth_mode") or "").strip().lower()
     return {
         "provider": provider_name,
         "model": model_name,

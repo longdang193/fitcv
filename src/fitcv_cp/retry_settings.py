@@ -18,7 +18,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Iterable
 
-from fitcv.config import load_control_plane_config
+from fitcv.config import (
+    LOCAL_CONTROLLER_OVERLAY_VERSION,
+    load_control_plane_config,
+    validate_local_controller_overlay,
+)
 
 
 @dataclass(frozen=True)
@@ -72,49 +76,31 @@ def _parse_int_list(value: Any) -> list[int]:
 
 
 def load_retry_settings(control_plane_cfg: dict[str, Any] | None = None) -> RetrySettings:
-    """Load retry policy from control-plane config.
-
-    SSOT rule: runtime config is canonical; env toggles not used for retry policy.
-    """
-
-    if control_plane_cfg is None:
-        try:
-            cfg = load_control_plane_config()
-        except FileNotFoundError:
-            cfg = {}
-    else:
-        cfg = control_plane_cfg
+    """Load validated whole-run retry policy from effective control-plane config."""
+    cfg = load_control_plane_config() if control_plane_cfg is None else control_plane_cfg
     fitcv_cp = dict(cfg.get("fitcv_cp") or {})
     retry = dict(fitcv_cp.get("retry") or {})
-
-    enabled = _parse_bool(retry.get("enabled"), default=False)
-    max_attempts = _parse_int(retry.get("max_attempts"), default=1, minimum=1, maximum=20)
-
-    backoff = _parse_int_list(retry.get("backoff_seconds"))
-    if not backoff:
-        backoff = [1, 2, 4, 8]
-    if len(backoff) > 20:
-        backoff = backoff[:20]
-
-    lease_seconds = _parse_int(retry.get("lease_seconds"), default=900, minimum=30, maximum=24 * 3600)
-    reconciler_interval_seconds = _parse_int(
-        retry.get("reconciler_interval_seconds"),
-        default=0,
-        minimum=0,
-        maximum=3600,
-    )
-    error_details_max_chars = _parse_int(
-        retry.get("error_details_max_chars"),
-        default=2048,
-        minimum=256,
-        maximum=65536,
-    )
-
+    for field in (
+        "enabled",
+        "max_attempts",
+        "backoff_seconds",
+        "lease_seconds",
+        "reconciler_interval_seconds",
+        "error_details_max_chars",
+    ):
+        if field not in retry:
+            raise ValueError(f"fitcv_cp.retry.{field} is required")
+    normalized = validate_local_controller_overlay(
+        {
+            "version": LOCAL_CONTROLLER_OVERLAY_VERSION,
+            "fitcv_cp": {"retry": retry},
+        }
+    )["fitcv_cp"]["retry"]
     return RetrySettings(
-        enabled=enabled,
-        max_attempts=max_attempts,
-        backoff_seconds=tuple(int(x) for x in backoff),
-        lease_seconds=lease_seconds,
-        reconciler_interval_seconds=reconciler_interval_seconds,
-        error_details_max_chars=error_details_max_chars,
+        enabled=bool(normalized["enabled"]),
+        max_attempts=int(normalized["max_attempts"]),
+        backoff_seconds=tuple(int(value) for value in normalized["backoff_seconds"]),
+        lease_seconds=int(normalized["lease_seconds"]),
+        reconciler_interval_seconds=int(normalized["reconciler_interval_seconds"]),
+        error_details_max_chars=int(normalized["error_details_max_chars"]),
     )

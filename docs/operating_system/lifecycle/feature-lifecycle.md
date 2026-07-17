@@ -20,7 +20,7 @@ concrete feature id, for example
 Stages help with architecture and planning, but features remain the primary lifecycle units.
 
 Feature YAML is a contract layer, not a general runtime configuration store.
-Workflow defaults and environment-tuned settings still belong under `configs/`.
+Workflow defaults and environment-tuned settings still belong under `config/`.
 
 For features that opt into architecture metadata generation, the human-owned
 source lives at `docs/features/<feature_id>/feature.source.yaml` and the stable

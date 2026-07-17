@@ -314,9 +314,7 @@ def resolve_run_preference_policy(
 ) -> ResolvedPreferencePolicy:
     if existing_payload:
         return resolved_preference_policy_from_dict(existing_payload)
-    if not ranking_rows:
-        raise ValueError("ranking rows are required to resolve preference policy")
-    first = ranking_rows[0]
+    first = ranking_rows[0] if ranking_rows else {}
     embedding = first.get("normalized_embedding")
     embedding_values = embedding if isinstance(embedding, list) else []
     embedding_available = bool(embedding_values)
@@ -340,6 +338,12 @@ def resolve_run_preference_policy(
         learned_alpha=policy["learned_alpha"],
         preference_vector_norm_bound=policy["preference_vector_norm_bound"],
     )
+    if not ranking_rows:
+        return resolve_zero_residual_policy(
+            runtime,
+            status="zero_residual_invalid",
+            diagnostic_code="missing_ranking_rows",
+        )
     if not embedding_available:
         return resolve_zero_residual_policy(
             runtime,

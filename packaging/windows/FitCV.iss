@@ -16,6 +16,7 @@ SolidCompression=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
+SetupIconFile=fitcv.ico
 
 [Files]
 Source: "..\..\dist\fitcv-local\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

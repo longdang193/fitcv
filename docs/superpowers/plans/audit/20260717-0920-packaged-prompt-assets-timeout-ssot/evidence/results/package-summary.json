@@ -1,0 +1,13 @@
+{
+  "build": {
+    "build_id": "packaged-prompt-timeout-fix",
+    "technical_preview": true,
+    "bundle_bytes": 60932016.0,
+    "version": "0.1.0"
+  },
+  "prompt_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\dist\\fitcv-local\\_internal\\fitcv\\prompts\\templates\\enrich_extraction_v1.md",
+  "prompt_exists": true,
+  "prompt_sha256": "83e14b20f3c0cdccceb6ae7080e42272286545eab2e658dc3981c5d97178c637",
+  "executable_sha256": "842f0bf53012312642b505abbab40a3a74f4c0f9d19de39fb4deaa078e5470d1",
+  "installer_sha256": "129dd8b491a0ab0eb90f87185f03a5cceab7744a03798d25439bb0e61fd9691b"
+}

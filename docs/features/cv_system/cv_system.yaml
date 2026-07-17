@@ -3,7 +3,7 @@ feature_id: cv_system
 name: CV System
 status: active
 type: add
-summary: Own canonical candidate-job fit facts and eligibility through grounded post-ranking analysis and CV generation, with symmetric policy projection, shared runtime adapters, canonical evidence, and stage-neutral traces.
+summary: Own canonical candidate-job fit facts and eligibility through grounded post-ranking analysis and CV generation, with symmetric policy projection, shared runtime adapters, canonical evidence, safe prompt addenda before immutable output contracts, and stage-neutral traces.
 invariants: []
 domains:
 - cv_generation
@@ -223,6 +223,9 @@ refs:
   - docs/superpowers/specs/2026-07-16-09-31-fitcv-inverse-optimization-phase-6-latent-residual-solver-evaluation-spec.md
   - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
   - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
+  - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
+  - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+  - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
   - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -327,6 +330,8 @@ refs:
   - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
   - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
   - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
+  - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
+  - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
   docs:
   - docs/features/cv_system/history.md
   configs:

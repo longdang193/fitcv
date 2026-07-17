@@ -3,13 +3,16 @@ feature_id: settings_system
 name: Settings System
 status: active
 type: add
-summary: Admins can edit task-first pipeline settings while provider routing stays centrally owned; FitCV Local adds a narrow non-secret provider/model overlay and stores API keys only in OS credential storage.
+summary: Admins can edit task-first pipeline settings while provider routing stays centrally owned; FitCV Local adds one validated non-secret controller overlay for provider/model routing, whole-run retry, and bounded prompt guidance while API keys stay only in OS credential storage.
 invariants:
 - invariant_id: invariant-1
-  statement: FitCV Local routing overlay may change provider definitions and supported task model routes only; it never copies full packaged configuration.
+  statement: FitCV Local controller overlay may change only supported provider fields, task model routes, whole-run retry, and bounded prompt addenda; packaged defaults remain canonical.
   state: active
 - invariant_id: invariant-2
-  statement: Provider API keys never persist in settings SQLite, routing overlay, diagnostics, or logs.
+  statement: Prompt addenda cannot replace fixed JSON/schema/output instructions and raw text never enters diagnostics, telemetry, or run artifacts.
+  state: active
+- invariant_id: invariant-3
+  statement: Provider API keys never persist in settings SQLite, controller overlay, diagnostics, or logs.
   state: active
 domains:
 - admin_ui
@@ -21,7 +24,7 @@ capabilities:
   statement: SQLite-backed pipeline settings store
   state: active
 - capability_id: settings_system.settings-schema-registry
-  statement: Keep settings schema registry canonical while FitCV Local onboarding validates provider, API root, wire API, timeout, default model, and supported task models.
+  statement: Keep settings schema registry canonical while FitCV Local onboarding validates provider, API root, wire API, timeout, task models, whole-run retry, and bounded per-task prompt addenda.
   state: active
 - capability_id: settings_system.operator-facing-agentic-settings
   statement: Expose bounded semantic-alignment, reuse, automation, and advanced controls while retired late-stage mode toggles remain excluded.
@@ -191,6 +194,7 @@ refs:
   - docs/superpowers/specs/2026-07-15-21-16-fitcv-inverse-optimization-phase-3-ranking-v2-baseline-spec.md
   - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
   - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+  - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
   - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -258,6 +262,7 @@ refs:
   - docs/superpowers/plans/2026-07-16-11-29-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-plan.md
   - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
   - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+  - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
   docs:
   - docs/features/settings_system/history.md
   configs: []

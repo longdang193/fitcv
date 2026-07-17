@@ -351,14 +351,36 @@ def test_default_adapter_passes_empty_json_object_text_to_parser() -> None:
 
 
 def test_project_llm_runtime_evidence_serializes_only_canonical_safe_fields() -> None:
-    success = _run(adapter=lambda request, route, api_key: _response())
+    success = _run(
+        adapter=lambda request, route, api_key: LlmAdapterResponse(
+            adapter="fake",
+            runtime_path="fitcv_llm_fake",
+            raw_text='{"value": 7}',
+            provider_payload={
+                "model": "gpt-5.4-2026-01-01",
+                "reasoning": {"effort": "high"},
+            },
+            response_id="resp-1",
+            telemetry={
+                "usage": {"input_tokens": 10, "output_tokens": 20, "total_tokens": 30},
+                "cost": {"total_cost": 0.03},
+            },
+        )
+    )
     evidence = project_llm_runtime_evidence(success)
 
     assert evidence["contract_version"] == "llm_runtime_evidence_v1"
     assert evidence["status"] == "succeeded"
     assert evidence["failure"] is None
     assert evidence["provenance"]["routing_part"] == "cv_generation_structured_write"
+    assert evidence["provenance"]["model"] == "cx/test-model"
     assert evidence["provenance"]["response_id"] == "resp-1"
+    assert evidence["telemetry"] == {
+        "provider_reported_model": "gpt-5.4-2026-01-01",
+        "usage": {"input_tokens": 10, "output_tokens": 20, "total_tokens": 30},
+        "cost": {"total_cost": 0.03},
+        "reasoning": {"effort": "high"},
+    }
     assert "route_part" not in evidence["provenance"]
     serialized = json.dumps(evidence, sort_keys=True)
     assert "secret" not in serialized

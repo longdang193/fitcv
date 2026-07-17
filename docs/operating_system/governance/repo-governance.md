@@ -65,7 +65,7 @@ The repo also splits configuration ownership by purpose:
 
 - `repo_config/`
   - repo/system configuration such as publication boundaries and adapter generation mappings
-- `configs/`
+- `config/`
   - runtime/workflow configuration such as training, monitoring, assets, and smoke profiles
 - `docs/features/*/feature.source.yaml` and `docs/stages/*.source.yaml`
   - human-owned feature and stage lifecycle sources, not generic runtime config buckets
@@ -201,7 +201,7 @@ Conditional folders remain conditional:
 - `docs/features/`
 - `docs/stages/`
 - `docs/generated/`
-- `configs/`
+- `config/`
 - `aml/components/`
 - `docs/architecture_templates/`
 - `.agents/skills/`
@@ -395,7 +395,7 @@ Does not own:
 - feature or stage contracts
 - generated outputs
 
-### `configs/`
+### `config/`
 
 Owns:
 

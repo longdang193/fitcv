@@ -21,7 +21,8 @@ deployment stays available, but is not required for normal local use.
 1. Download `FitCV-Local-<version>-Technical-Preview-Setup.exe`.
 2. Run per-user installer.
 3. Keep Start menu shortcut; desktop shortcut is optional.
-4. Launch **FitCV Local**.
+4. Launch **FitCV Local**; browser opens onboarding or the run dashboard.
+5. FitCV Local adds a Windows notification-area icon with **Open FitCV** and **Shutdown FitCV** actions. You can also use **System → Shutdown** in the web UI.
 
 Technical Preview is currently unsigned. Windows may show reputation warning.
 Stable release requires signed executable and installer plus clean-Windows-VM
@@ -42,7 +43,11 @@ data root.
    root, auth mode, wire API, timeout, API key, and default model.
 4. **Models**: optionally discover provider models and assign task-specific
    models for enrichment, ranking, CV generation, and synonym triage.
-5. **Test and finish**: provider test and readiness checks must pass before run
+5. **Run retry**: optionally retry whole failed runs using bounded attempts,
+   backoff, lease, and reconciler settings from the controller.
+6. **Prompt customization**: add up to 4000 characters of task guidance. FitCV
+   inserts it before fixed JSON/schema instructions, which users cannot remove.
+7. **Test and finish**: provider test and readiness checks must pass before run
    submission is enabled.
 
 API keys go to Windows Credential Manager through OS keyring. They are not
@@ -55,10 +60,12 @@ version metadata. Selected data root owns:
 
 - `fitcv.sqlite3`
 - `candidate_profile.yaml`
-- `config/local_routing_overlay.yaml`
+- `config/local_controller_overlay.yaml`
 - `artifacts/`, `exports/`, `logs/`, `backups/`, `uploads/`, and temporary files
 
 Install and uninstall do not remove this user data. Reinstall preserves it.
+A legacy `config/local_routing_overlay.yaml` is migrated once and retained as
+`local_routing_overlay.yaml.migrated.bak` after successful validation.
 
 ## 4) Backup, Import, And Move
 

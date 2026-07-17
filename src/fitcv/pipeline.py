@@ -78,6 +78,7 @@ from fitcv.candidate import (
 from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
     get_cv_generation_model,
+    get_prompt_addendum_metadata,
     get_cv_generation_prompt_version,
     get_ranking_ai_score_model,
     get_stage_runtime_concurrency,
@@ -90,11 +91,15 @@ from fitcv.contracts import (
     normalize_analysis_channel_mapping,
 )
 from fitcv.pipeline_contracts import (
+    JOB_OUTCOME_EVENT_STAGE,
     PIPELINE_STAGE_SEQUENCE,
     PIPELINE_STAGE_SET as _PIPELINE_STAGE_SET,
+    build_job_outcome_fact,
     build_stage_dispatch_map as _build_stage_dispatch_map,
+    job_outcome_event_reference,
     completed_pipeline_stages_through,
     next_pipeline_stage,
+    project_pipeline_status_outcome,
 )
 from fitcv.pipeline_stages.common import (
     pipeline_int,
@@ -257,14 +262,27 @@ def _prompt_runtime_metadata(
     *,
     stage_id: str,
     prompt_key: str,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     stage_block = dict((config.get("prompts_runtime") or {}).get(stage_id) or {})
     prompt_block = dict(stage_block.get(prompt_key) or {})
+    task_id = {
+        ("enrich", "extraction"): "enrich_extraction",
+        ("ranking", "ai_score"): "ranking_ai_score",
+        ("cv_generation", "structured_write"): "cv_generation_structured_write",
+    }.get((stage_id, prompt_key))
+    customization = (
+        get_prompt_addendum_metadata(task_id, config) if task_id is not None else {}
+    )
     return {
         "prompt_id": str(prompt_block.get("prompt_id") or ""),
         "prompt_version": str(prompt_block.get("version") or ""),
         "template_path": str(prompt_block.get("template_path") or ""),
         "stage_id": str(prompt_block.get("stage_id") or ""),
+        "prompt_customized": bool(customization.get("customized", False)),
+        "prompt_addendum_sha256": customization.get("addendum_sha256"),
+        "prompt_addendum_char_count": int(
+            customization.get("addendum_char_count", 0)
+        ),
     }
 
 def _materialize_scoring_shortlist(
@@ -709,6 +727,8 @@ def _build_export_results(
     cv_results: list[dict[str, Any]],
     cv_generation_debug_records: list[dict[str, Any]],
     vector_search_top_n: int,
+    run_id: str = "unknown",
+    stage_transition_artifacts: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     def _identity_seed(row: dict[str, Any]) -> dict[str, Any]:
         seeded = dict(row)
@@ -953,6 +973,101 @@ def _build_export_results(
                 "baseline_rank": score_source.get("baseline_rank"),
             }
         )
+        native_status = pipeline_status
+        if pipeline_status == "ranked_no_cv" and cv_status in {
+            "review_required",
+            "validation_failed",
+            "generation_failed",
+            "persistence_failed",
+            "analysis_failed",
+        }:
+            native_status = cv_status
+        outcome_projection = project_pipeline_status_outcome(native_status)
+        reason_code = outcome_projection["reason_code"]
+        if native_status == "review_required" and isinstance(debug_row, dict):
+            reason_code = str(
+                debug_row.get("review_required_reason_code")
+                or "review_gate_manual_required"
+            )
+        elif native_status in {"rejected_after_enrichment", "rejected_before_enrichment"}:
+            candidate_reason = str(reject_reasons[0] if reject_reasons else "").strip()
+            if candidate_reason and candidate_reason == candidate_reason.lower() and all(
+                character.isalnum() or character == "_" for character in candidate_reason
+            ):
+                reason_code = candidate_reason
+        elif native_status == "deduplicated_before_enrichment" and deduplicated_job is not None:
+            dedupe_reason = str(deduplicated_job.get("dedupe_reason") or "").strip()
+            if dedupe_reason in {"duplicate_job_url", "near_duplicate_job_posting"}:
+                reason_code = dedupe_reason
+        job_key = f"input:{input_index}"
+        evidence_record: dict[str, Any] = {
+            "record_key": job_key,
+            "job_url": job_url or None,
+            "raw_job_fingerprint": str(
+                (enriched_job or {}).get("raw_job_fingerprint")
+                or raw_job.get("raw_job_fingerprint")
+                or score_source.get("raw_job_fingerprint")
+                or ""
+            ) or None,
+            "stage_status": native_status,
+            "reason_code": reason_code,
+            "reject_reasons": [str(value) for value in reject_reasons[:16]],
+            "rule_filter_mark_codes": [
+                str(mark.get("code") or "")
+                for mark in rule_filter_marks[:16]
+                if isinstance(mark, dict) and str(mark.get("code") or "")
+            ],
+            "cv_status": cv_status,
+        }
+        evidence_bytes = json.dumps(
+            evidence_record,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        evidence_fingerprint = f"sha256:{hashlib.sha256(evidence_bytes).hexdigest()}"
+        evidence_record["fingerprint"] = evidence_fingerprint
+        if isinstance(stage_transition_artifacts, dict):
+            stages = stage_transition_artifacts.setdefault("stages", {})
+            if isinstance(stages, dict):
+                stage_artifact = stages.setdefault(outcome_projection["stage"], {})
+                if isinstance(stage_artifact, dict):
+                    records = stage_artifact.setdefault("outcome_evidence_records", [])
+                    if isinstance(records, list):
+                        records.append(evidence_record)
+        evidence_ref = {
+            "artifact": f"{outcome_projection['stage']}.json",
+            "fingerprint": evidence_fingerprint,
+            "record_key": job_key,
+        }
+        job_outcome = build_job_outcome_fact(
+            run_id=run_id,
+            input_index=input_index,
+            job_url=job_url or None,
+            attempt_id=(
+                str(debug_row.get("attempt_id") or "").strip() or None
+                if isinstance(debug_row, dict)
+                else None
+            ),
+            stage_status=native_status,
+            stage=outcome_projection["stage"],
+            outcome=outcome_projection["outcome"],
+            reason_code=reason_code,
+            reason_facts={},
+            policy_version=(
+                str(debug_row.get("policy_version") or "").strip() or None
+                if isinstance(debug_row, dict)
+                else None
+            ),
+            trace_id=(
+                str(debug_row.get("trace_id") or "").strip() or None
+                if isinstance(debug_row, dict)
+                else None
+            ),
+            evidence_ref=evidence_ref,
+            projection_status=outcome_projection["projection_status"],
+            occurred_at=datetime.datetime.now(datetime.timezone.utc),
+        )
 
         rows.append(
             {
@@ -1029,6 +1144,7 @@ def _build_export_results(
                     if cv_payload is not None
                     else None
                 ),
+                "job_outcome": job_outcome,
                 "_input_index": input_index,
             }
         )
@@ -4943,6 +5059,8 @@ def run_pipeline(
                 cv_results=results,
                 cv_generation_debug_records=cv_generation_debug_records,
                 vector_search_top_n=vector_top_n,
+                run_id=run_id,
+                stage_transition_artifacts=stage_transition_artifacts,
             ),
         }
         logger.info("Pipeline run complete [run_id=%s] summary=%s", run_id, summary)
@@ -5001,6 +5119,20 @@ def run_pipeline(
                 },
                 "late_stage_reuse_metrics": late_stage_reuse_metrics,
             }
+            for export_row in summary["export_results"]:
+                fact = export_row.get("job_outcome")
+                if not isinstance(fact, dict):
+                    continue
+                reference = job_outcome_event_reference(fact)
+                reporter.emit(
+                    JOB_OUTCOME_EVENT_STAGE,
+                    "info",
+                    (
+                        f"{reference['job_key']} {reference['outcome']} "
+                        f"at {reference['stage']}: {reference['reason_code']}"
+                    ),
+                    reference,
+                )
             reporter.emit(
                 "pipeline_compute_complete",
                 "info",

@@ -1,0 +1,1287 @@
+{
+  "run_id": "job-outcome-live-20260717",
+  "total_jobs": 1,
+  "passed_filter": 0,
+  "ranked": 0,
+  "cvs_generated": 0,
+  "cv_analysis_trace": {
+    "run_id": "job-outcome-live-20260717",
+    "trace_schema_version": "stage_execution_trace_run_v1",
+    "trace_family": "stage_execution_trace",
+    "step_id": "cv_analysis",
+    "trace_status": "partial",
+    "trace_summary": {
+      "records_total": 0,
+      "present_records": 0,
+      "attempted_analysis_jobs_total": 0
+    },
+    "records": [],
+    "degradation": {
+      "reason": "no_cv_analysis_records"
+    },
+    "artifact_refs": {
+      "cv_debug_artifact": "cv-debug.json",
+      "stage_artifact": "cv_analysis.json"
+    }
+  },
+  "cv_generation_trace": {
+    "run_id": "job-outcome-live-20260717",
+    "trace_schema_version": "stage_execution_trace_run_v1",
+    "trace_family": "stage_execution_trace",
+    "step_id": "cv_generation",
+    "trace_status": "partial",
+    "trace_summary": {
+      "records_total": 0,
+      "present_records": 0,
+      "attempted_generation_jobs_total": 0
+    },
+    "records": [],
+    "degradation": {
+      "reason": "no_attempted_generation_records"
+    },
+    "artifact_refs": {
+      "cv_debug_artifact": "cv-debug.json",
+      "stage_artifact": "cv_generation.json"
+    }
+  },
+  "late_stage_reuse_snapshots": {
+    "schema_version": "late_stage_reuse_v1",
+    "ranking_ai_scores": [],
+    "cv_analysis_records": []
+  },
+  "cv_generation_debug_records": [],
+  "mapping_suggestions": [
+    {
+      "run_id": "job-outcome-live-20260717",
+      "job_url": "https://de.linkedin.com/jobs/view/data-engineer-f-m-d-at-hyundai-autoever-europe-gmbh-4372612291?trk=public_jobs_topcard-title",
+      "job_title": "Data Engineer (f/m/d) x",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "it services and it consulting",
+      "canonical": "automotive",
+      "field": "domain"
+    },
+    {
+      "run_id": "job-outcome-live-20260717",
+      "job_url": "https://de.linkedin.com/jobs/view/data-engineer-f-m-d-at-hyundai-autoever-europe-gmbh-4372612291?trk=public_jobs_topcard-title",
+      "job_title": "Data Engineer (f/m/d) x",
+      "must_have_skill": "",
+      "matches": true,
+      "confidence": 1.0,
+      "alias": "data engineering",
+      "canonical": "data_engineering",
+      "field": "role_family"
+    }
+  ],
+  "stage_transition_artifacts": {
+    "schema_version": "stage_transition_artifacts_v8",
+    "stages": {
+      "normalize": {
+        "stage_id": "normalize",
+        "stage": "normalize",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "normalize",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "normalized_jobs": 1,
+            "deduplicated_jobs": 0
+          },
+          "evidence": {
+            "input_counts": {
+              "raw_jobs": 1
+            },
+            "decision_summary": {
+              "dedupe_reason_counts": {}
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.normalize.v1",
+          "trace_context": {
+            "trace_id": "ff6398773838e1d743bca046160f53ab",
+            "span_id": "5d0bb518fa41c191",
+            "parent_span_id": "ab9a6caeea21dad7"
+          }
+        },
+        "input_counts": {
+          "raw_jobs": 1
+        },
+        "output_counts": {
+          "normalized_jobs": 1,
+          "deduplicated_jobs": 0
+        },
+        "decision_summary": {
+          "dedupe_reason_counts": {}
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-f-m-d-at-hyundai-autoever-europe-gmbh-4372612291?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (f/m/d) x",
+            "company": "Hyundai AutoEver Europe GmbH"
+          }
+        ],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-f-m-d-at-hyundai-autoever-europe-gmbh-4372612291?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (f/m/d) x",
+            "company": "Hyundai AutoEver Europe GmbH"
+          }
+        ]
+      },
+      "enrich": {
+        "stage_id": "enrich",
+        "stage": "enrich",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "enrich",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "enriched_jobs": 1,
+            "pre_enrichment_rejected_jobs": 0
+          },
+          "evidence": {
+            "input_counts": {
+              "normalized_jobs": 1,
+              "jobs_entering_enrichment": 1
+            },
+            "decision_summary": {
+              "candidate_profile_summary": {
+                "target_role": "data analyst",
+                "effective_target_role": "data analyst",
+                "effective_role_families": [
+                  "data analytics",
+                  "business intelligence",
+                  "business analytics",
+                  "product analytics",
+                  "marketing analytics",
+                  "customer analytics",
+                  "commercial analytics",
+                  "operations analytics",
+                  "reporting analytics",
+                  "analytics engineering",
+                  "data science",
+                  "customer_success",
+                  "product_operations",
+                  "operations",
+                  "business_development",
+                  "sales_support",
+                  "growth"
+                ],
+                "effective_domains": [
+                  "retail",
+                  "consumer goods",
+                  "ecommerce",
+                  "technology",
+                  "saas",
+                  "marketplace",
+                  "fmcg",
+                  "supply chain",
+                  "logistics",
+                  "hr tech",
+                  "healthcare",
+                  "transportation",
+                  "cleantech"
+                ],
+                "preference_sources": {
+                  "target_role": "explicit_yaml",
+                  "role_families": "explicit_yaml",
+                  "location_types": "explicit_yaml",
+                  "domains": "explicit_yaml",
+                  "seniority_target": "explicit_yaml"
+                },
+                "skills_sample": [
+                  "sql",
+                  "microsoft excel",
+                  "microsoft power bi",
+                  "power query",
+                  "python"
+                ]
+              },
+              "enrich_prompt_id": "enrich.extraction.v1",
+              "enrich_prompt_version": "v1",
+              "enrich_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\enrich_extraction_v1.md",
+              "enrich_prompt_model": "cx/gpt-5.4-mini",
+              "enrich_prompt_customized": false,
+              "enrich_prompt_addendum_sha256": null,
+              "enrich_prompt_addendum_char_count": 0,
+              "reused_rows": 1,
+              "fresh_rows": 0,
+              "total_enriched_rows": 1,
+              "reuse_metrics": {
+                "reused_rows": 1,
+                "fresh_rows": 0,
+                "total_rows": 1,
+                "reuse_rate": 1.0
+              }
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.enrich.v1",
+          "trace_context": {
+            "trace_id": "0c0a5967c7dd40168bdf81c09f762402",
+            "span_id": "49f0d7286941ac2b",
+            "parent_span_id": "93caed83e676fdc5"
+          }
+        },
+        "input_counts": {
+          "normalized_jobs": 1,
+          "jobs_entering_enrichment": 1
+        },
+        "output_counts": {
+          "enriched_jobs": 1,
+          "pre_enrichment_rejected_jobs": 0
+        },
+        "decision_summary": {
+          "candidate_profile_summary": {
+            "target_role": "data analyst",
+            "effective_target_role": "data analyst",
+            "effective_role_families": [
+              "data analytics",
+              "business intelligence",
+              "business analytics",
+              "product analytics",
+              "marketing analytics",
+              "customer analytics",
+              "commercial analytics",
+              "operations analytics",
+              "reporting analytics",
+              "analytics engineering",
+              "data science",
+              "customer_success",
+              "product_operations",
+              "operations",
+              "business_development",
+              "sales_support",
+              "growth"
+            ],
+            "effective_domains": [
+              "retail",
+              "consumer goods",
+              "ecommerce",
+              "technology",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech",
+              "healthcare",
+              "transportation",
+              "cleantech"
+            ],
+            "preference_sources": {
+              "target_role": "explicit_yaml",
+              "role_families": "explicit_yaml",
+              "location_types": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml"
+            },
+            "skills_sample": [
+              "sql",
+              "microsoft excel",
+              "microsoft power bi",
+              "power query",
+              "python"
+            ]
+          },
+          "enrich_prompt_id": "enrich.extraction.v1",
+          "enrich_prompt_version": "v1",
+          "enrich_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\enrich_extraction_v1.md",
+          "enrich_prompt_model": "cx/gpt-5.4-mini",
+          "enrich_prompt_customized": false,
+          "enrich_prompt_addendum_sha256": null,
+          "enrich_prompt_addendum_char_count": 0,
+          "reused_rows": 1,
+          "fresh_rows": 0,
+          "total_enriched_rows": 1,
+          "reuse_metrics": {
+            "reused_rows": 1,
+            "fresh_rows": 0,
+            "total_rows": 1,
+            "reuse_rate": 1.0
+          }
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-f-m-d-at-hyundai-autoever-europe-gmbh-4372612291?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (f/m/d) x",
+            "company": "Hyundai AutoEver Europe GmbH",
+            "location_type": "hybrid",
+            "seniority": "mid",
+            "required_skills": [
+              "SQL",
+              "Python or Scala",
+              "data pipeline orchestration tools",
+              "Apache Airflow",
+              "DBT",
+              "Talend",
+              "data warehousing",
+              "cloud-based analytics platforms",
+              "Snowflake",
+              "Redshift",
+              "BigQuery",
+              "data modeling",
+              "performance tuning",
+              "partitioning strategies"
+            ],
+            "required_skills_canonical": [
+              "sql",
+              "python",
+              "scala",
+              "data pipeline orchestration",
+              "apache airflow",
+              "dbt",
+              "talend",
+              "data warehousing",
+              "cloud-based analytics platforms",
+              "snowflake",
+              "amazon redshift",
+              "google bigquery",
+              "data modeling",
+              "performance tuning",
+              "partitioning"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "Strong command of SQL and scripting in Python or Scala.",
+                "canonical": "sql",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Strong command of SQL and scripting in Python or Scala.",
+                "canonical": "python",
+                "confidence": 0.92
+              },
+              {
+                "raw_text": "Strong command of SQL and scripting in Python or Scala.",
+                "canonical": "scala",
+                "confidence": 0.92
+              },
+              {
+                "raw_text": "Hands-on experience with data pipeline orchestration tools (e.g., Apache Airflow, DBT, Talend).",
+                "canonical": "data pipeline orchestration",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "Hands-on experience with data pipeline orchestration tools (e.g., Apache Airflow, DBT, Talend).",
+                "canonical": "apache airflow",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Hands-on experience with data pipeline orchestration tools (e.g., Apache Airflow, DBT, Talend).",
+                "canonical": "dbt",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Hands-on experience with data pipeline orchestration tools (e.g., Apache Airflow, DBT, Talend).",
+                "canonical": "talend",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Solid understanding of data warehousing and cloud-based analytics platforms (e.g., Snowflake, Redshift, BigQuery).",
+                "canonical": "data warehousing",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Solid understanding of data warehousing and cloud-based analytics platforms (e.g., Snowflake, Redshift, BigQuery).",
+                "canonical": "cloud-based analytics platforms",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "Solid understanding of data warehousing and cloud-based analytics platforms (e.g., Snowflake, Redshift, BigQuery).",
+                "canonical": "snowflake",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Solid understanding of data warehousing and cloud-based analytics platforms (e.g., Snowflake, Redshift, BigQuery).",
+                "canonical": "amazon redshift",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Solid understanding of data warehousing and cloud-based analytics platforms (e.g., Snowflake, Redshift, BigQuery).",
+                "canonical": "google bigquery",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Familiarity with data modeling, performance tuning, and partitioning strategies.",
+                "canonical": "data modeling",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Familiarity with data modeling, performance tuning, and partitioning strategies.",
+                "canonical": "performance tuning",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "Familiarity with data modeling, performance tuning, and partitioning strategies.",
+                "canonical": "partitioning",
+                "confidence": 0.96
+              }
+            ],
+            "preferred_skills": [
+              "Salesforce data architecture",
+              "SAP data integration",
+              "web/SNS data pipelines",
+              "AWS",
+              "GCP",
+              "Azure",
+              "Git",
+              "CI/CD pipelines",
+              "Terraform",
+              "CloudFormation"
+            ],
+            "preferred_skills_canonical": [
+              "salesforce data architecture",
+              "salesforce apis",
+              "salesforce data models",
+              "sap data integration",
+              "web data pipelines",
+              "social media feeds",
+              "amazon web services",
+              "google cloud platform",
+              "microsoft azure",
+              "git",
+              "ci/cd",
+              "terraform",
+              "cloudformation"
+            ],
+            "preferred_skill_entities": [
+              {
+                "raw_text": "Experience with Salesforce data architecture (objects, APIs, data models).",
+                "canonical": "salesforce data architecture",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "Experience with Salesforce data architecture (objects, APIs, data models).",
+                "canonical": "salesforce apis",
+                "confidence": 0.91
+              },
+              {
+                "raw_text": "Experience with Salesforce data architecture (objects, APIs, data models).",
+                "canonical": "salesforce data models",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "Understanding of SAP data integration, especially in automotive or sales domains.",
+                "canonical": "sap data integration",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "Exposure to web/SNS data pipelines (clickstreams, user interaction, social media feeds).",
+                "canonical": "web data pipelines",
+                "confidence": 0.95
+              },
+              {
+                "raw_text": "Exposure to web/SNS data pipelines (clickstreams, user interaction, social media feeds).",
+                "canonical": "social media feeds",
+                "confidence": 0.92
+              },
+              {
+                "raw_text": "Practical experience working with cloud environments (AWS, GCP, or Azure)",
+                "canonical": "amazon web services",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Practical experience working with cloud environments (AWS, GCP, or Azure)",
+                "canonical": "google cloud platform",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Practical experience working with cloud environments (AWS, GCP, or Azure)",
+                "canonical": "microsoft azure",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Familiarity with version control (Git), CI/CD pipelines, and infrastructure-as-code (Terraform, CloudFormation).",
+                "canonical": "git",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Familiarity with version control (Git), CI/CD pipelines, and infrastructure-as-code (Terraform, CloudFormation).",
+                "canonical": "ci/cd",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Familiarity with version control (Git), CI/CD pipelines, and infrastructure-as-code (Terraform, CloudFormation).",
+                "canonical": "terraform",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Familiarity with version control (Git), CI/CD pipelines, and infrastructure-as-code (Terraform, CloudFormation).",
+                "canonical": "cloudformation",
+                "confidence": 0.99
+              }
+            ],
+            "responsibilities": [
+              "designing, developing, and maintaining scalable and reliable data pipelines",
+              "ingest, transform, and load data from diverse sources",
+              "integrating structured and unstructured data",
+              "create unified views for customer and sales analytics",
+              "building and optimizing ETL/ELT workflows",
+              "collaborating with data analysts and data stewards",
+              "deliver analytics-ready datasets",
+              "ensuring data quality, consistency, and compliance with data governance and privacy standards",
+              "partnering with IT, marketing, and sales teams",
+              "monitoring data flows",
+              "identifying anomalies",
+              "troubleshooting pipeline and infrastructure issues"
+            ],
+            "domain": "automotive",
+            "tech_stack": [
+              "SQL",
+              "Python",
+              "Scala",
+              "Apache Airflow",
+              "dbt",
+              "Talend",
+              "Snowflake",
+              "Redshift",
+              "BigQuery",
+              "Salesforce",
+              "SAP",
+              "AWS",
+              "GCP",
+              "Azure",
+              "Git",
+              "Terraform",
+              "CloudFormation",
+              "ERP",
+              "CRM",
+              "GDPR"
+            ],
+            "years_experience_min": 3,
+            "years_experience_max": 5,
+            "keywords": [
+              "data engineering",
+              "data marts",
+              "databases",
+              "business intelligence",
+              "BI",
+              "data infrastructure",
+              "data pipelines",
+              "ETL",
+              "ELT",
+              "data warehousing",
+              "analytics",
+              "customer analytics",
+              "sales analytics",
+              "data governance",
+              "privacy",
+              "GDPR",
+              "data quality",
+              "data modeling",
+              "partitioning",
+              "cloud analytics"
+            ],
+            "job_family": "data_engineering",
+            "enrichment_version": "v1",
+            "enrichment_model": "cx/gpt-5.4-mini",
+            "enriched_at": "2026-07-17T20:17:30.765786+00:00",
+            "raw_job_fingerprint": "08ccc802232ea6c85efbdda2cc8c7a59600ab1aa6985f2ef0e2814736dbb2fab",
+            "enrich_contract_fingerprint": "cf61262b3e0f25eadb879c9a8ddc70928c989bda0fa5af45e41015501698c829",
+            "enrich_reuse_status": "reused_cached_enrichment"
+          }
+        ],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-f-m-d-at-hyundai-autoever-europe-gmbh-4372612291?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (f/m/d) x",
+            "company": "Hyundai AutoEver Europe GmbH"
+          }
+        ],
+        "llm_runtime_summary": {
+          "contract_version": "llm_stage_runtime_summary_v1",
+          "calls_total": 0,
+          "succeeded_total": 0,
+          "failed_total": 0,
+          "failure_counts_by_stage": {},
+          "failure_counts_by_code": {},
+          "adapters": [],
+          "runtime_paths": [],
+          "routing_parts": [],
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+            "input_output_ratio": null
+          },
+          "evidence_sample": []
+        }
+      },
+      "rule_filter": {
+        "stage_id": "rule_filter",
+        "stage": "rule_filter",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "rule_filter",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "passed_jobs": 0,
+            "rejected_jobs": 1
+          },
+          "evidence": {
+            "input_counts": {
+              "enriched_jobs": 1
+            },
+            "decision_summary": {
+              "reject_reason_counts": {
+                "seniority_mismatch": 1
+              },
+              "mark_code_counts": {
+                "domain_not_preferred": 1
+              },
+              "selected_filters": [
+                "seniority_mismatch",
+                "missing_fit_context",
+                "location_type_excluded",
+                "contract_type_excluded",
+                "experience_level_excluded"
+              ]
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.rule_filter.v1",
+          "trace_context": {
+            "trace_id": "df221014f1613dce788843bc83016266",
+            "span_id": "e4c88e14663bbbcf",
+            "parent_span_id": "180bf1f000c1db8f"
+          }
+        },
+        "input_counts": {
+          "enriched_jobs": 1
+        },
+        "output_counts": {
+          "passed_jobs": 0,
+          "rejected_jobs": 1
+        },
+        "decision_summary": {
+          "reject_reason_counts": {
+            "seniority_mismatch": 1
+          },
+          "mark_code_counts": {
+            "domain_not_preferred": 1
+          },
+          "selected_filters": [
+            "seniority_mismatch",
+            "missing_fit_context",
+            "location_type_excluded",
+            "contract_type_excluded",
+            "experience_level_excluded"
+          ]
+        },
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-f-m-d-at-hyundai-autoever-europe-gmbh-4372612291?trk=public_jobs_topcard-title",
+            "raw_job_fingerprint": "08ccc802232ea6c85efbdda2cc8c7a59600ab1aa6985f2ef0e2814736dbb2fab",
+            "marks": [
+              {
+                "code": "domain_not_preferred",
+                "message": "Job domain is outside preferred domains",
+                "details": {
+                  "job_domain": "automotive",
+                  "preferred_domains": [
+                    "retail",
+                    "consumer goods",
+                    "ecommerce",
+                    "technology",
+                    "saas",
+                    "marketplace",
+                    "fmcg",
+                    "supply chain",
+                    "logistics",
+                    "hr tech",
+                    "healthcare",
+                    "transportation",
+                    "cleantech"
+                  ]
+                }
+              }
+            ],
+            "filter_outcome": "reject",
+            "reasons": [
+              "seniority_mismatch"
+            ],
+            "change_type": "rejected_after_enrichment"
+          }
+        ],
+        "inputs_sample": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-f-m-d-at-hyundai-autoever-europe-gmbh-4372612291?trk=public_jobs_topcard-title",
+            "job_title": "Data Engineer (f/m/d) x",
+            "company": "Hyundai AutoEver Europe GmbH",
+            "location_type": "hybrid",
+            "seniority": "mid",
+            "required_skills": [
+              "SQL",
+              "Python or Scala",
+              "data pipeline orchestration tools",
+              "Apache Airflow",
+              "DBT",
+              "Talend",
+              "data warehousing",
+              "cloud-based analytics platforms",
+              "Snowflake",
+              "Redshift",
+              "BigQuery",
+              "data modeling",
+              "performance tuning",
+              "partitioning strategies"
+            ],
+            "required_skills_canonical": [
+              "sql",
+              "python",
+              "scala",
+              "data pipeline orchestration",
+              "apache airflow",
+              "dbt",
+              "talend",
+              "data warehousing",
+              "cloud-based analytics platforms",
+              "snowflake",
+              "amazon redshift",
+              "google bigquery",
+              "data modeling",
+              "performance tuning",
+              "partitioning"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "Strong command of SQL and scripting in Python or Scala.",
+                "canonical": "sql",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Strong command of SQL and scripting in Python or Scala.",
+                "canonical": "python",
+                "confidence": 0.92
+              },
+              {
+                "raw_text": "Strong command of SQL and scripting in Python or Scala.",
+                "canonical": "scala",
+                "confidence": 0.92
+              },
+              {
+                "raw_text": "Hands-on experience with data pipeline orchestration tools (e.g., Apache Airflow, DBT, Talend).",
+                "canonical": "data pipeline orchestration",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "Hands-on experience with data pipeline orchestration tools (e.g., Apache Airflow, DBT, Talend).",
+                "canonical": "apache airflow",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Hands-on experience with data pipeline orchestration tools (e.g., Apache Airflow, DBT, Talend).",
+                "canonical": "dbt",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Hands-on experience with data pipeline orchestration tools (e.g., Apache Airflow, DBT, Talend).",
+                "canonical": "talend",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Solid understanding of data warehousing and cloud-based analytics platforms (e.g., Snowflake, Redshift, BigQuery).",
+                "canonical": "data warehousing",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Solid understanding of data warehousing and cloud-based analytics platforms (e.g., Snowflake, Redshift, BigQuery).",
+                "canonical": "cloud-based analytics platforms",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "Solid understanding of data warehousing and cloud-based analytics platforms (e.g., Snowflake, Redshift, BigQuery).",
+                "canonical": "snowflake",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Solid understanding of data warehousing and cloud-based analytics platforms (e.g., Snowflake, Redshift, BigQuery).",
+                "canonical": "amazon redshift",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Solid understanding of data warehousing and cloud-based analytics platforms (e.g., Snowflake, Redshift, BigQuery).",
+                "canonical": "google bigquery",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Familiarity with data modeling, performance tuning, and partitioning strategies.",
+                "canonical": "data modeling",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Familiarity with data modeling, performance tuning, and partitioning strategies.",
+                "canonical": "performance tuning",
+                "confidence": 0.97
+              },
+              {
+                "raw_text": "Familiarity with data modeling, performance tuning, and partitioning strategies.",
+                "canonical": "partitioning",
+                "confidence": 0.96
+              }
+            ],
+            "preferred_skills": [
+              "Salesforce data architecture",
+              "SAP data integration",
+              "web/SNS data pipelines",
+              "AWS",
+              "GCP",
+              "Azure",
+              "Git",
+              "CI/CD pipelines",
+              "Terraform",
+              "CloudFormation"
+            ],
+            "preferred_skills_canonical": [
+              "salesforce data architecture",
+              "salesforce apis",
+              "salesforce data models",
+              "sap data integration",
+              "web data pipelines",
+              "social media feeds",
+              "amazon web services",
+              "google cloud platform",
+              "microsoft azure",
+              "git",
+              "ci/cd",
+              "terraform",
+              "cloudformation"
+            ],
+            "preferred_skill_entities": [
+              {
+                "raw_text": "Experience with Salesforce data architecture (objects, APIs, data models).",
+                "canonical": "salesforce data architecture",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "Experience with Salesforce data architecture (objects, APIs, data models).",
+                "canonical": "salesforce apis",
+                "confidence": 0.91
+              },
+              {
+                "raw_text": "Experience with Salesforce data architecture (objects, APIs, data models).",
+                "canonical": "salesforce data models",
+                "confidence": 0.9
+              },
+              {
+                "raw_text": "Understanding of SAP data integration, especially in automotive or sales domains.",
+                "canonical": "sap data integration",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "Exposure to web/SNS data pipelines (clickstreams, user interaction, social media feeds).",
+                "canonical": "web data pipelines",
+                "confidence": 0.95
+              },
+              {
+                "raw_text": "Exposure to web/SNS data pipelines (clickstreams, user interaction, social media feeds).",
+                "canonical": "social media feeds",
+                "confidence": 0.92
+              },
+              {
+                "raw_text": "Practical experience working with cloud environments (AWS, GCP, or Azure)",
+                "canonical": "amazon web services",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Practical experience working with cloud environments (AWS, GCP, or Azure)",
+                "canonical": "google cloud platform",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Practical experience working with cloud environments (AWS, GCP, or Azure)",
+                "canonical": "microsoft azure",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Familiarity with version control (Git), CI/CD pipelines, and infrastructure-as-code (Terraform, CloudFormation).",
+                "canonical": "git",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Familiarity with version control (Git), CI/CD pipelines, and infrastructure-as-code (Terraform, CloudFormation).",
+                "canonical": "ci/cd",
+                "confidence": 0.98
+              },
+              {
+                "raw_text": "Familiarity with version control (Git), CI/CD pipelines, and infrastructure-as-code (Terraform, CloudFormation).",
+                "canonical": "terraform",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Familiarity with version control (Git), CI/CD pipelines, and infrastructure-as-code (Terraform, CloudFormation).",
+                "canonical": "cloudformation",
+                "confidence": 0.99
+              }
+            ],
+            "responsibilities": [
+              "designing, developing, and maintaining scalable and reliable data pipelines",
+              "ingest, transform, and load data from diverse sources",
+              "integrating structured and unstructured data",
+              "create unified views for customer and sales analytics",
+              "building and optimizing ETL/ELT workflows",
+              "collaborating with data analysts and data stewards",
+              "deliver analytics-ready datasets",
+              "ensuring data quality, consistency, and compliance with data governance and privacy standards",
+              "partnering with IT, marketing, and sales teams",
+              "monitoring data flows",
+              "identifying anomalies",
+              "troubleshooting pipeline and infrastructure issues"
+            ],
+            "domain": "automotive",
+            "tech_stack": [
+              "SQL",
+              "Python",
+              "Scala",
+              "Apache Airflow",
+              "dbt",
+              "Talend",
+              "Snowflake",
+              "Redshift",
+              "BigQuery",
+              "Salesforce",
+              "SAP",
+              "AWS",
+              "GCP",
+              "Azure",
+              "Git",
+              "Terraform",
+              "CloudFormation",
+              "ERP",
+              "CRM",
+              "GDPR"
+            ],
+            "years_experience_min": 3,
+            "years_experience_max": 5,
+            "keywords": [
+              "data engineering",
+              "data marts",
+              "databases",
+              "business intelligence",
+              "BI",
+              "data infrastructure",
+              "data pipelines",
+              "ETL",
+              "ELT",
+              "data warehousing",
+              "analytics",
+              "customer analytics",
+              "sales analytics",
+              "data governance",
+              "privacy",
+              "GDPR",
+              "data quality",
+              "data modeling",
+              "partitioning",
+              "cloud analytics"
+            ],
+            "job_family": "data_engineering",
+            "enrichment_version": "v1",
+            "enrichment_model": "cx/gpt-5.4-mini",
+            "enriched_at": "2026-07-17T20:17:30.765786+00:00",
+            "raw_job_fingerprint": "08ccc802232ea6c85efbdda2cc8c7a59600ab1aa6985f2ef0e2814736dbb2fab",
+            "enrich_contract_fingerprint": "cf61262b3e0f25eadb879c9a8ddc70928c989bda0fa5af45e41015501698c829",
+            "enrich_reuse_status": "reused_cached_enrichment"
+          }
+        ],
+        "outcome_evidence_records": [
+          {
+            "record_key": "input:0",
+            "job_url": "https://de.linkedin.com/jobs/view/data-engineer-f-m-d-at-hyundai-autoever-europe-gmbh-4372612291?trk=public_jobs_topcard-title",
+            "raw_job_fingerprint": "08ccc802232ea6c85efbdda2cc8c7a59600ab1aa6985f2ef0e2814736dbb2fab",
+            "stage_status": "rejected_after_enrichment",
+            "reason_code": "seniority_mismatch",
+            "reject_reasons": [
+              "seniority_mismatch"
+            ],
+            "rule_filter_mark_codes": [
+              "domain_not_preferred"
+            ],
+            "cv_status": "not_applicable",
+            "fingerprint": "sha256:b19793f84a65684b46e42f1e452bb77a1f5c0076d0d750f08137c4d309bdc71b"
+          }
+        ]
+      },
+      "shortlist": {
+        "stage_id": "shortlist",
+        "stage": "shortlist",
+        "status": "not_reached",
+        "stage_result": {
+          "stage_id": "shortlist",
+          "status": "not_reached",
+          "stage_version": "1.0.0",
+          "output": {},
+          "evidence": {
+            "input_counts": {},
+            "decision_summary": {}
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "not_reached"
+            }
+          },
+          "decision": "not_applicable",
+          "policy_version": "policy.shortlist.v1",
+          "trace_context": {
+            "trace_id": "0bb0ae78acc2091b8d8ff47325a2e100",
+            "span_id": "3e5d04d1d8f614a0",
+            "parent_span_id": "508b42c8a909399e"
+          }
+        },
+        "input_counts": {},
+        "output_counts": {},
+        "decision_summary": {},
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": []
+      },
+      "ranking": {
+        "stage_id": "ranking",
+        "stage": "ranking",
+        "status": "not_reached",
+        "stage_result": {
+          "stage_id": "ranking",
+          "status": "not_reached",
+          "stage_version": "1.0.0",
+          "output": {},
+          "evidence": {
+            "input_counts": {},
+            "decision_summary": {}
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "not_reached"
+            }
+          },
+          "decision": "not_applicable",
+          "policy_version": "policy.ranking.v1",
+          "trace_context": {
+            "trace_id": "be4bca61566b056db69aa0e72f92c0e6",
+            "span_id": "5eaec11c052ffa98",
+            "parent_span_id": "3718320780b0eee2"
+          }
+        },
+        "input_counts": {},
+        "output_counts": {},
+        "decision_summary": {},
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": []
+      },
+      "cv_analysis": {
+        "stage_id": "cv_analysis",
+        "stage": "cv_analysis",
+        "status": "not_reached",
+        "stage_result": {
+          "stage_id": "cv_analysis",
+          "status": "not_reached",
+          "stage_version": "1.0.0",
+          "output": {},
+          "evidence": {
+            "input_counts": {},
+            "decision_summary": {}
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "not_reached"
+            }
+          },
+          "decision": "not_applicable",
+          "policy_version": "policy.cv_analysis.v1",
+          "trace_context": {
+            "trace_id": "7deab3f2fefcc931ef3746549a3463b7",
+            "span_id": "21c7478053ae5ea8",
+            "parent_span_id": "bf8d78ec70864621"
+          }
+        },
+        "input_counts": {},
+        "output_counts": {},
+        "decision_summary": {},
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": []
+      },
+      "cv_generation": {
+        "stage_id": "cv_generation",
+        "stage": "cv_generation",
+        "status": "not_reached",
+        "stage_result": {
+          "stage_id": "cv_generation",
+          "status": "not_reached",
+          "stage_version": "1.0.0",
+          "output": {},
+          "evidence": {
+            "input_counts": {},
+            "decision_summary": {}
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "not_reached"
+            }
+          },
+          "decision": "not_applicable",
+          "policy_version": "policy.cv_generation.v1",
+          "trace_context": {
+            "trace_id": "6242acb919cf071055f2a751a84c4c3c",
+            "span_id": "237c053e12a17e2e",
+            "parent_span_id": "9714b3ff2c6d88c3"
+          }
+        },
+        "input_counts": {},
+        "output_counts": {},
+        "decision_summary": {},
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": []
+      }
+    }
+  },
+  "export_results": [
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-engineer-f-m-d-at-hyundai-autoever-europe-gmbh-4372612291?trk=public_jobs_topcard-title",
+      "source_job_url": "https://de.linkedin.com/jobs/view/data-engineer-f-m-d-at-hyundai-autoever-europe-gmbh-4372612291?trk=public_jobs_topcard-title",
+      "raw_job_fingerprint": "08ccc802232ea6c85efbdda2cc8c7a59600ab1aa6985f2ef0e2814736dbb2fab",
+      "shortlist_origin": null,
+      "normalized_embedding": null,
+      "embedding_vector_fingerprint": null,
+      "embedding_contract_fingerprint": null,
+      "job_title": "Data Engineer (f/m/d) x",
+      "company": "Hyundai AutoEver Europe GmbH",
+      "location_type": "hybrid",
+      "seniority": "mid",
+      "job_family": "data_engineering",
+      "domain": "automotive",
+      "pipeline_status": "rejected_after_enrichment",
+      "deterministic_outcome": null,
+      "stage_owned_subreason": null,
+      "source_stage": null,
+      "reject_reasons": [
+        "seniority_mismatch"
+      ],
+      "rule_filter_marks": [
+        {
+          "code": "domain_not_preferred",
+          "message": "Job domain is outside preferred domains",
+          "details": {
+            "job_domain": "automotive",
+            "preferred_domains": [
+              "retail",
+              "consumer goods",
+              "ecommerce",
+              "technology",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech",
+              "healthcare",
+              "transportation",
+              "cleantech"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "baseline_fit": null,
+        "baseline_fit_label": null,
+        "baseline_rank": null,
+        "final_score": null,
+        "fit_label": null,
+        "final_rank": null,
+        "personalized_rank": null,
+        "preference_residual": null,
+        "personalized_rank_score": null,
+        "personalized_display_score": null,
+        "score_was_clipped": null,
+        "preference_policy_snapshot_id": null,
+        "preference_vector_fingerprint": null,
+        "preference_runtime_contract_fingerprint": null,
+        "preference_policy_resolution_status": null,
+        "holistic_ai_fit": null,
+        "structured_fit": null,
+        "normalized_factors": null,
+        "ranking_contract_fingerprint": null,
+        "vector_score": null,
+        "ai_score_reuse_status": null,
+        "ai_score_input_fingerprint": null
+      },
+      "cv_analysis": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "not_applicable",
+          "advanced_to_scoring": false
+        },
+        "primary_fit": {
+          "source": null,
+          "label": null
+        },
+        "cv_analysis": {
+          "status": "not_run",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_applicable",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "rank": null,
+      "cv": null,
+      "job_outcome": {
+        "schema_version": "job_outcome.v1",
+        "run_id": "job-outcome-live-20260717",
+        "job_key": "input:0",
+        "job_url": "https://de.linkedin.com/jobs/view/data-engineer-f-m-d-at-hyundai-autoever-europe-gmbh-4372612291?trk=public_jobs_topcard-title",
+        "attempt_id": null,
+        "stage": "rule_filter",
+        "stage_status": "rejected_after_enrichment",
+        "outcome": "rejected",
+        "reason_code": "seniority_mismatch",
+        "reason_facts": {},
+        "policy_version": null,
+        "trace_id": null,
+        "evidence_ref": {
+          "artifact": "rule_filter.json",
+          "fingerprint": "sha256:b19793f84a65684b46e42f1e452bb77a1f5c0076d0d750f08137c4d309bdc71b",
+          "record_key": "input:0"
+        },
+        "projection_status": "native",
+        "occurred_at": "2026-07-17T20:20:51.002263Z"
+      }
+    }
+  ]
+}

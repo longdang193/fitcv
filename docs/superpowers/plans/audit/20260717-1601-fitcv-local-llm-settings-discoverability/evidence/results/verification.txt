@@ -1,0 +1,9 @@
+Captured At: 2026-07-17T16:01:30+02:00
+Producer: Codex local and packaged verification
+RED: completed-user regression failed because `FitCV Local Settings` and the `LLM & API` navigation link were absent.
+GREEN: tests/test_fitcv_cp/test_local_routes.py reported 22 passed in 5.32s.
+Build: scripts/build_fitcv_local.ps1 exited 0; PyInstaller and Inno Setup rebuilt distribution outputs.
+Smoke: scripts/smoke_fitcv_local.ps1 -BundlePath dist/fitcv-local exited 0.
+Packaged runtime: PID 18704, URL http://127.0.0.1:61790/, health status ok.
+Packaged HTML checks: navigation link present, settings title present, Back to Runs present, Finish setup absent, provider form present.
+SSOT disposition: existing `/local/onboarding/provider` handler, controller overlay, and Windows credential store remain sole write paths; no new route or configuration store was added.

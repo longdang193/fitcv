@@ -268,3 +268,18 @@ Use this file for repeated or important failures, not every small mistake.
 - Related artifacts:
   - `src/fitcv_cp/app.py`
   - `tests/test_fitcv_cp/test_prefect_retirement.py`
+## Canonical outcome truth and compatibility projections are separate responsibilities
+
+- Title: Canonical outcome truth and compatibility projections are separate responsibilities
+- Date: 2026-07-17
+- Trigger / Context: Post-fix live run persisted `Review required:` correctly, but run-detail formatter independently rendered the same terminal event as `Run paused`; an attempted native/legacy status collapse also broke historical filters.
+- What went wrong: Canonical JobOutcomeFact truth, minimal event references, user-facing formatting, and legacy filter compatibility were treated as one namespace. Fixing producer wording did not fix a separate UI projection, while collapsing legacy values changed adapter behavior rather than removing SSOT drift.
+- Correct behavior: Canonical JobOutcomeFact semantics and event-stage identity have one owner; every current UI projection derives from canonical surfaces. Historical pipeline-status values remain a bounded compatibility namespace and are translated at adapter boundaries, not promoted to canonical truth or deleted blindly.
+- Prevention added or required: Live-verify both persisted events and rendered UI, centralize event-stage identity, keep exact event-shape regressions, and test legacy filters separately from canonical outcome semantics.
+- Related artifacts:
+  - `src/fitcv/pipeline_contracts.py`
+  - `src/fitcv/pipeline.py`
+  - `src/fitcv_cp/reporter.py`
+  - `src/fitcv_cp/app.py`
+  - `src/fitcv_cp/templates/run_detail_tab_enriched.html`
+  - `docs/superpowers/plans/audit/20260717-2332-outcome-fact-live-run-contract-drift/`

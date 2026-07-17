@@ -21,6 +21,7 @@ import uuid
 from typing import Any, Optional
 
 import httpx
+from fitcv.pipeline_contracts import JOB_OUTCOME_EVENT_STAGE
 from fitcv.telemetry import (
     build_trace_context,
     current_trace_context,
@@ -262,32 +263,33 @@ class PipelineReporter:
     ) -> None:
         source_payload = dict(payload or {})
         payload_value = dict(source_payload)
-        active_trace_context = current_trace_context()
-        if active_trace_context is not None:
-            payload_value["trace_context"] = active_trace_context
-        else:
-            payload_value["trace_context"] = build_trace_context(
-                f"run:{self._run_id}:stage:{stage}:message:{message}",
-                emit_otel_span=False,
+        if stage != JOB_OUTCOME_EVENT_STAGE:
+            active_trace_context = current_trace_context()
+            if active_trace_context is not None:
+                payload_value["trace_context"] = active_trace_context
+            else:
+                payload_value["trace_context"] = build_trace_context(
+                    f"run:{self._run_id}:stage:{stage}:message:{message}",
+                    emit_otel_span=False,
+                )
+            payload_value["telemetry_export"] = telemetry_export_status()
+            payload_value["langfuse_rich_io"] = _build_langfuse_rich_io_contract(
+                stage=stage,
+                level=level,
+                message=message,
+                payload=source_payload,
             )
-        payload_value["telemetry_export"] = telemetry_export_status()
-        payload_value["langfuse_rich_io"] = _build_langfuse_rich_io_contract(
-            stage=stage,
-            level=level,
-            message=message,
-            payload=source_payload,
-        )
-        trace_id = str(payload_value["trace_context"].get("trace_id") or "")
-        native_status, native_reason = _emit_langfuse_native_io(
-            run_id=self._run_id,
-            stage=stage,
-            trace_id=trace_id,
-            rich_contract=dict(payload_value["langfuse_rich_io"] or {}),
-        )
-        payload_value["langfuse_rich_io_native"] = {
-            "status": native_status,
-            "degradation_reason": native_reason,
-        }
+            trace_id = str(payload_value["trace_context"].get("trace_id") or "")
+            native_status, native_reason = _emit_langfuse_native_io(
+                run_id=self._run_id,
+                stage=stage,
+                trace_id=trace_id,
+                rich_contract=dict(payload_value["langfuse_rich_io"] or {}),
+            )
+            payload_value["langfuse_rich_io_native"] = {
+                "status": native_status,
+                "degradation_reason": native_reason,
+            }
         event = RunEvent(
             run_id=self._run_id,
             event_id=str(uuid.uuid4()),
@@ -309,7 +311,3 @@ class PipelineReporter:
                 )
         except Exception as exc:
             logger.warning("Reporter failed to write event: %s", exc)
-
-
-
-

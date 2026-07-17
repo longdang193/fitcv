@@ -29,7 +29,13 @@ from datetime import datetime, timezone
 from typing import Any, Callable, TypedDict
 
 from pydantic import BaseModel as _BaseModel, Field as _Field, ValidationError as _ValidationError
-from fitcv.config import get_enrich_extraction_model, sqlite_mode_enabled
+from fitcv.config import (
+    get_enrich_extraction_model,
+    get_prompt_addendum,
+    get_prompt_addendum_metadata,
+    load_prompt_task_registry,
+    sqlite_mode_enabled,
+)
 from fitcv.fit_factors import (
     ACTUAL_LOCATION_EXTRACTION_VERSION,
     LANGUAGE_REQUIREMENT_EXTRACTION_VERSION,
@@ -1317,6 +1323,7 @@ def build_extraction_prompt(
             "extraction_schema": _EXTRACTION_SCHEMA,
             "description": description,
         },
+        additional_instructions=get_prompt_addendum("enrich_extraction", config),
     )
     return rendered.text
 
@@ -1324,19 +1331,25 @@ def build_extraction_prompt(
 def get_enrich_extraction_prompt_id(config: dict[str, Any] | None = None) -> str:
     prompt_id = str(
         ((((config or {}).get("prompts") or {}).get("enrich") or {}).get("extraction") or {}
-    ).get("prompt_id") or "enrich.extraction.v1")
-    return prompt_id.strip() or "enrich.extraction.v1"
+    ).get("prompt_id") or "").strip()
+    if prompt_id:
+        return prompt_id
+    return load_prompt_task_registry()["enrich_extraction"]["prompt_id"]
 
 
-def get_enrich_prompt_provenance(config: dict[str, Any] | None = None) -> dict[str, str]:
+def get_enrich_prompt_provenance(config: dict[str, Any] | None = None) -> dict[str, Any]:
     prompt_id = get_enrich_extraction_prompt_id(config)
     definition = get_prompt_definition(prompt_id)
     model_name = get_enrich_extraction_model(config or {})
+    customization = get_prompt_addendum_metadata("enrich_extraction", config)
     return {
         "prompt_id": definition.prompt_id,
         "prompt_version": definition.version,
         "template_path": str(definition.template_path),
         "model": model_name,
+        "prompt_customized": customization["customized"],
+        "prompt_addendum_sha256": customization["addendum_sha256"],
+        "prompt_addendum_char_count": customization["addendum_char_count"],
     }
 
 

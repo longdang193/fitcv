@@ -707,3 +707,38 @@ def test_run_ai_scoring_emits_stable_runtime_observation(monkeypatch: pytest.Mon
             },
         }
     ]
+
+
+def test_build_scoring_prompt_includes_safe_addendum() -> None:
+    prompt = build_scoring_prompt(
+        jd_summary="Data Analyst",
+        candidate_summary="SQL",
+        top_evidence=[],
+        config={
+            "prompts": {
+                "ranking": {"ai_score": {"prompt_id": "ranking.ai_score.v2"}},
+                "additional_instructions": {
+                    "ranking_ai_score": "Penalize unsupported claims."
+                },
+            }
+        },
+    )
+
+    assert prompt.count("Penalize unsupported claims.") == 1
+    assert prompt.index("Penalize unsupported claims.") < prompt.index("Return JSON only")
+
+def test_ai_score_contract_fingerprint_uses_hash_only_prompt_customization() -> None:
+    raw = "Private ranking guidance"
+    record = build_ai_score_contract_fingerprint(
+        {
+            "ai_score_model": "cx/test-model",
+            "prompts": {
+                "ranking": {"ai_score": {"prompt_id": "ranking.ai_score.v2"}},
+                "additional_instructions": {"ranking_ai_score": raw},
+            },
+        }
+    )
+
+    assert record["payload"]["prompt_customized"] is True
+    assert record["payload"]["prompt_addendum_char_count"] == len(raw)
+    assert raw not in str(record)

@@ -43,6 +43,7 @@ from fitcv_cp.local_storage import (
     sqlite_schema_version,
     write_bootstrap,
 )
+from fitcv_cp.windows_tray import WindowsTray
 
 
 _Result = TypeVar("_Result")
@@ -262,10 +263,20 @@ def main() -> int:
                 server.should_exit = True
 
     application.state.local_shutdown_callback = request_shutdown
+    tray = WindowsTray(
+        url=url,
+        on_open=lambda: _open_browser(url.rstrip("/") + launch_path),
+        on_shutdown=request_shutdown,
+    )
+    try:
+        tray.start()
+    except Exception:
+        logger.warning("FitCV tray startup failed; continuing without tray", exc_info=True)
     _open_browser(url.rstrip("/") + launch_path)
     try:
         server.run(sockets=[listener])
     finally:
+        tray.stop()
         listener.close()
         metadata_path.unlink(missing_ok=True)
         get_local_job_executor().shutdown()

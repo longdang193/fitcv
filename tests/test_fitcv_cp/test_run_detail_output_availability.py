@@ -5,8 +5,6 @@ import datetime
 from fitcv_cp.app import (
     _build_output_availability,
     _count_dict_leaf_differences,
-    _run_detail_visibility_registry,
-    _run_overview_consistency_summary,
 )
 from fitcv_cp.models import PipelineRun, RunStatus
 
@@ -105,29 +103,10 @@ def test_overview_core_excludes_diagnostic_only_snippets() -> None:
     assert 'href="#generated-outputs"' not in content
 
 
-def test_run_detail_visibility_registry_has_expected_tiers() -> None:
-    registry = _run_detail_visibility_registry()
-    assert {"core", "advanced", "diagnostic"} <= set(registry.keys())
-    assert any(entry["name"] == "status" for entry in registry["core"])
-    assert any(entry["name"] == "synonym_fingerprints" for entry in registry["diagnostic"])
-
-
 def test_effective_settings_delta_counter_counts_leaf_changes() -> None:
     baseline = {"pipeline": {"top_n": 10, "threshold": 0.2}, "mode": "run_all"}
     effective = {"pipeline": {"top_n": 15, "threshold": 0.2}, "mode": "manual_staged"}
     assert _count_dict_leaf_differences(baseline, effective) == 2
-
-
-def test_overview_consistency_summary_matches_diagnostics_sources() -> None:
-    run = _run(status=RunStatus.SUCCEEDED, cvs_generated=1)
-    summary = _run_overview_consistency_summary(
-        run,
-        stage_result_summary_rows=[{"stage_id": "a"}, {"stage_id": "b"}],
-    )
-    assert summary["status"] == RunStatus.SUCCEEDED.value
-    assert summary["stage_count"] == 2
-
-
 
 
 def test_enriched_tab_select_shell_wrappers_are_closed() -> None:

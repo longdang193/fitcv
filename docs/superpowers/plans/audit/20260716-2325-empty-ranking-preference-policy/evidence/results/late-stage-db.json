@@ -1,0 +1,15 @@
+{
+  "integrity": "ok",
+  "foreign_key_violations": 0,
+  "tables": {
+    "candidate_query_embeddings": 1,
+    "cv_versions": 1,
+    "job_embeddings": 1,
+    "raw_jobs": 1,
+    "rule_filter_results": 1,
+    "run_structured_jobs": 1,
+    "sqlite_sequence": 3,
+    "structured_jobs_cache": 1,
+    "vector_shortlist": 1
+  }
+}

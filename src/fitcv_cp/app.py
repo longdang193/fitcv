@@ -74,6 +74,14 @@ from fitcv.llm_runtime import (
     project_llm_runtime_evidence,
 )
 from fitcv.pipeline_contracts import (
+    JOB_OUTCOME_DEFAULT_FILTERS,
+    JOB_OUTCOME_LEGACY_SURFACES,
+    JOB_OUTCOME_STATUS_MAP,
+    JOB_OUTCOME_SURFACES,
+    count_job_outcomes,
+    job_outcome_surface,
+    project_pipeline_status_outcome,
+    resolve_job_outcome_fact,
     PIPELINE_BUNDLE_ARTIFACT_FILENAMES as BUNDLE_ARTIFACT_FILENAMES,
     PIPELINE_BUNDLE_STAGE_IDS as BUNDLE_STAGE_IDS,
     PIPELINE_STAGE_SEQUENCE as STAGE_SEQUENCE,
@@ -274,34 +282,6 @@ def _count_dict_leaf_differences(baseline: dict[str, Any], effective: dict[str, 
             count += 1
     return count
 
-
-def _run_detail_visibility_registry() -> dict[str, list[dict[str, str]]]:
-    """Visibility contract for run-detail sections."""
-    return {
-        "core": [
-            {"name": "status", "owner": "run_overview"},
-            {"name": "run_mode", "owner": "run_overview"},
-            {"name": "next_stage", "owner": "run_overview"},
-        ],
-        "advanced": [
-            {"name": "stage_result_policy_trace_summary", "owner": "advanced_diagnostics"},
-        ],
-        "diagnostic": [
-            {"name": "synonym_fingerprints", "owner": "advanced_diagnostics"},
-        ],
-    }
-
-
-def _run_overview_consistency_summary(
-    run: PipelineRun,
-    *,
-    stage_result_summary_rows: list[dict[str, Any]] | None,
-) -> dict[str, Any]:
-    """Core consistency projection used by run overview contract tests."""
-    return {
-        "status": run.status.value,
-        "stage_count": len(stage_result_summary_rows or []),
-    }
 
 
 def _build_output_availability(
@@ -656,72 +636,6 @@ def continue_run_submission(
 def orchestration_job_status(queue_job_id: str, redis_url: str = "redis://redis:6379/0") -> str:
     return get_queue_job_status(queue_job_id=queue_job_id, redis_url=redis_url)
 
-def _build_orchestration_diagnostics(run: PipelineRun) -> dict[str, Any]:
-    backend = str(run.orchestration_backend or "").strip() or str(ORCHESTRATION_ADAPTER.name or "default_queue")
-    backend_run_id = str(run.orchestration_run_id or "").strip() or str(run.queue_job_id or "").strip() or None
-    status = "not_available"
-    status_checked = False
-    if backend_run_id and run.status in {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.CANCELLING}:
-        status_checked = True
-        try:
-            status = str(orchestration_job_status(backend_run_id, redis_url=redis_url) or "unknown").strip() or "unknown"
-        except Exception:
-            status = "unknown"
-    return {
-        "backend": backend,
-        "backend_run_id": backend_run_id,
-        "status": status,
-        "status_checked": status_checked,
-    }
-PIPELINE_OUTCOME_META: dict[str, dict[str, str]] = {
-    "ranked_with_cv": {
-        "label": "CV created",
-        "badge_class": "badge-success",
-    },
-    "ranked_blocked_by_reranker_fit": {
-        "label": "Ranked, blocked by reranker fit",
-        "badge_class": "badge-warning",
-    },
-    "ranked_skipped_fit_gate": {
-        "label": "Skipped after CV analysis",
-        "badge_class": "badge-warning",
-    },
-    "ranked_no_cv": {
-        "label": "Ranked, CV failed",
-        "badge_class": "badge-warning",
-    },
-    "not_shortlisted": {
-        "label": "Passed filter, not shortlisted",
-        "badge_class": "badge-info",
-    },
-    "shortlisted_not_scored": {
-        "label": "Shortlisted, not AI scored",
-        "badge_class": "badge-info",
-    },
-    "scored_not_ranked": {
-        "label": "Scored, not final top-N",
-        "badge_class": "badge-info",
-    },
-    "rejected_after_enrichment": {
-        "label": "Rejected after enrichment",
-        "badge_class": "badge-error",
-    },
-    "rejected_before_enrichment": {
-        "label": "Rejected before enrichment",
-        "badge_class": "badge-error",
-    },
-    "deduplicated_before_enrichment": {
-        "label": "Deduplicated before enrichment",
-        "badge_class": "badge-warning",
-    },
-}
-DEFAULT_ENRICHED_PIPELINE_OUTCOMES: tuple[str, ...] = (
-    "ranked_with_cv",
-    "ranked_blocked_by_reranker_fit",
-    "ranked_no_cv",
-    "scored_not_ranked",
-    "ranked_skipped_fit_gate",
-)
 DECISION_CHAIN_LABELS: dict[str, str] = {
     "returned_by_vector_search": "returned by vector search",
     "advanced_to_scoring": "advanced to scoring",
@@ -763,33 +677,6 @@ def _checkpoint_replay_context(run: PipelineRun) -> dict[str, Any]:
     if isinstance(replay, dict):
         return dict(replay)
     return {}
-
-def _run_replay_context_summary(run: PipelineRun) -> dict[str, Any]:
-    for raw_payload, source in (
-        (run.results_export_json, "results_export"),
-        (run.settings_used_json, "settings_used"),
-        (run.checkpoint_payload_json, "checkpoint"),
-    ):
-        payload = _load_json_object(raw_payload)
-        if not isinstance(payload, dict):
-            continue
-        replay_context = payload.get("replay_context")
-        if isinstance(replay_context, dict):
-            summary = dict(replay_context)
-            summary["source"] = source
-            return summary
-    return {"replay_mode": "strict", "source": "default"}
-
-def _run_data_plane_summary(run: PipelineRun) -> dict[str, Any]:
-    for raw_payload in (run.settings_used_json, run.results_export_json):
-        payload = _load_json_object(raw_payload)
-        if not isinstance(payload, dict):
-            continue
-        block = payload.get("data_plane")
-        if isinstance(block, dict):
-            return dict(block)
-    effective = _load_run_effective_config_snapshot(run, fallback_to_runtime_config=False)
-    return data_plane_contract_payload(effective)
 
 def _resolve_replay_mode(request: Request) -> str:
     candidate = str(request.query_params.get("replay_mode") or "").strip().lower()
@@ -2158,21 +2045,37 @@ def _persist_post_hitl_closure_artifact_reconciliation(
         if isinstance(item, dict)
     ]
     approved_by_job_url: dict[str, str | None] = {}
+    resolution_by_job_url: dict[str, tuple[str, str | None]] = {}
     for action in actions:
         action_name = str(action.get("action") or "").strip().lower()
-        if action_name not in {"approve", "approve_as_is"}:
-            continue
         job_url = str(action.get("job_url") or "").strip()
         if not job_url:
             continue
         artifact_version_id = str(action.get("artifact_version_id") or "").strip() or None
-        approved_by_job_url[job_url] = artifact_version_id
+        if action_name in {"approve", "approve_as_is"}:
+            approved_by_job_url[job_url] = artifact_version_id
+            resolution_by_job_url[job_url] = (
+                "accepted",
+                str(action.get("created_at") or "").strip() or None,
+            )
+        elif action_name == "reject":
+            resolution_by_job_url[job_url] = (
+                "rejected",
+                str(action.get("created_at") or "").strip() or None,
+            )
 
-    if rows and approved_by_job_url:
+    if rows and resolution_by_job_url:
         reconciled_rows: list[dict[str, Any]] = []
         for row in rows:
             row_copy = dict(row)
             job_url = str(row_copy.get("job_url") or "").strip()
+            if job_url in resolution_by_job_url and isinstance(row_copy.get("job_outcome"), dict):
+                resolution, resolution_at = resolution_by_job_url[job_url]
+                row_copy["job_outcome"] = resolve_job_outcome_fact(
+                    dict(row_copy["job_outcome"]),
+                    resolution=resolution,
+                    occurred_at=resolution_at or datetime.datetime.now(datetime.timezone.utc),
+                )
             if job_url in approved_by_job_url:
                 cv_payload = row_copy.get("cv")
                 if not isinstance(cv_payload, dict):
@@ -2530,6 +2433,19 @@ def _artifact_applicability_state(run: PipelineRun, filename: str, included_file
 def _build_run_artifact_bundle_manifest(run: PipelineRun, files: list[RunArtifactFile]) -> dict[str, Any]:
     included_files = [artifact.filename for artifact in files]
     included_file_set = set(included_files)
+    file_fingerprints = {
+        artifact.filename: f"sha256:{hashlib.sha256(artifact.content.encode('utf-8')).hexdigest()}"
+        for artifact in files
+    }
+    result_rows: list[dict[str, object]] = []
+    results_file = next((artifact for artifact in files if artifact.filename == "results.json"), None)
+    if results_file is not None:
+        try:
+            results_payload = _json.loads(results_file.content)
+        except (TypeError, ValueError):
+            results_payload = None
+        if isinstance(results_payload, dict) and isinstance(results_payload.get("results"), list):
+            result_rows = [dict(row) for row in results_payload["results"] if isinstance(row, dict)]
     artifact_states = {
         filename: _artifact_applicability_state(run, filename, included_file_set)
         for filename in BUNDLE_ARTIFACT_FILENAMES
@@ -2542,10 +2458,12 @@ def _build_run_artifact_bundle_manifest(run: PipelineRun, files: list[RunArtifac
         "run_mode_label": run_mode_label(run.run_mode),
         "created_at": run.created_at.isoformat() if run.created_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
-        "bundle_schema_version": "run_artifact_bundle_v6",
+        "bundle_schema_version": "run_artifact_bundle_v7",
         "included_files": included_files,
         "missing_files": missing_files,
         "artifact_states": artifact_states,
+        "file_fingerprints": file_fingerprints,
+        "job_outcome_counts": count_job_outcomes(result_rows, run_id=run.run_id),
     }
 
 
@@ -2576,9 +2494,9 @@ def _build_run_export_links(run: PipelineRun) -> list[dict[str, str]]:
     if artifact_files:
         links.append(
             {
-                "label": "Download All Artifacts (.zip)",
+                "label": "Download debug bundle",
                 "href": f"/admin/runs/{run.run_id}/artifacts.zip",
-                "helper_text": "Includes all currently available run artifacts.",
+                "helper_text": "Checksummed run evidence for troubleshooting and reproduction.",
             }
         )
     for artifact in artifact_files:
@@ -4082,15 +4000,24 @@ def _event_payload(event: RunEvent) -> dict[str, Any]:
 
 
 def _canonical_pipeline_outcome_status(row: dict[str, Any]) -> str:
+    if isinstance(row.get("job_outcome"), dict):
+        return str(job_outcome_surface(row, run_id="unknown", input_index=0)["status"])
     return late_stage_canonical_pipeline_outcome_status(row)
 
-def _pipeline_outcome_surface(row: dict[str, Any]) -> dict[str, str]:
+
+def _pipeline_outcome_surface(row: dict[str, Any]) -> dict[str, object]:
+    if isinstance(row.get("job_outcome"), dict):
+        return job_outcome_surface(row, run_id="unknown", input_index=0)
+
     surface = late_stage_pipeline_outcome_surface(row)
     pipeline_status = str(row.get("pipeline_status") or "")
     if surface["label"] == (pipeline_status or "Unknown pipeline outcome"):
-        return PIPELINE_OUTCOME_META.get(pipeline_status, surface)
+        label, badge_class = JOB_OUTCOME_LEGACY_SURFACES.get(
+            pipeline_status,
+            (surface["label"], surface["badge_class"]),
+        )
+        return {"label": label, "badge_class": badge_class}
     return surface
-
 
 def _job_lookup_keys(row: dict[str, Any]) -> list[str]:
     keys: list[str] = []
@@ -4220,21 +4147,11 @@ def _filter_results_fallback_from_stage_artifacts(run: PipelineRun) -> list[dict
     return fallback_rows
 
 
-def _pipeline_outcomes_fallback_from_cv_generation_debug(run: PipelineRun) -> dict[str, dict[str, Any]]:
+def _legacy_pipeline_outcome_evidence_from_cv_generation_debug(run: PipelineRun) -> dict[str, dict[str, Any]]:
     payload = _load_run_cv_generation_debug_payload(run)
     if not isinstance(payload, dict):
         return {}
-    status_to_subreason = {
-        "accepted": ("cv_generation", "accepted", "accepted"),
-        "review_required": ("cv_generation", "review_required", "review_required"),
-        "validation_failed": ("cv_generation", "validation_failed", "rejected"),
-        "generation_failed": ("cv_generation", "generation_failed", "rejected"),
-        "persistence_failed": ("cv_generation", "persistence_failed", "rejected"),
-        "ready_for_generation": ("cv_analysis", "ready_for_generation", "accepted"),
-        "blocked_by_reranker_fit": ("cv_analysis", "blocked_by_reranker_fit", "rejected"),
-        "skipped_fit_gate": ("cv_analysis", "skipped_fit_gate", "rejected"),
-        "analysis_failed": ("cv_analysis", "analysis_failed", "rejected"),
-    }
+
     fallback: dict[str, dict[str, Any]] = {}
     for row in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or []):
         if not isinstance(row, dict):
@@ -4246,11 +4163,11 @@ def _pipeline_outcomes_fallback_from_cv_generation_debug(run: PipelineRun) -> di
         source_stage = str(row.get("source_stage") or "").strip()
         stage_owned_subreason = str(row.get("stage_owned_subreason") or "").strip()
         deterministic_outcome = str(row.get("deterministic_outcome") or "").strip()
-        if (not source_stage or not stage_owned_subreason or not deterministic_outcome) and status in status_to_subreason:
-            default_source_stage, default_subreason, default_outcome = status_to_subreason[status]
-            source_stage = source_stage or default_source_stage
-            stage_owned_subreason = stage_owned_subreason or default_subreason
-            deterministic_outcome = deterministic_outcome or default_outcome
+        canonical_status = "ranked_with_cv" if status in {"accepted", "ready_for_generation"} else status
+        projected = project_pipeline_status_outcome(canonical_status)
+        source_stage = source_stage or ("cv_analysis" if status == "ready_for_generation" else projected["stage"])
+        stage_owned_subreason = stage_owned_subreason or status
+        deterministic_outcome = deterministic_outcome or projected["outcome"]
         if not source_stage and not stage_owned_subreason and not deterministic_outcome:
             continue
         fallback[_normalize_job_url_key(job_url)] = {
@@ -4323,7 +4240,7 @@ def _pipeline_outcomes_overlay_from_hitl_review_actions(run: PipelineRun) -> dic
             overlays[lookup_key] = rendered_overlay
     return overlays
 
-def _pipeline_outcomes_fallback_from_stage_artifacts(
+def _legacy_pipeline_outcome_evidence_from_stage_artifacts(
     run: PipelineRun,
     filter_results: list[dict[str, Any]],
 ) -> dict[str, dict[str, Any]]:
@@ -4354,7 +4271,7 @@ def _pipeline_outcomes_fallback_from_stage_artifacts(
                 "pipeline_status": "rejected_after_enrichment",
                 "source_stage": "rule_filter",
                 "stage_owned_subreason": first_reason,
-                "deterministic_outcome": "rejected",
+                "deterministic_outcome": project_pipeline_status_outcome("rejected_after_enrichment")["outcome"],
                 "reject_reasons": reject_reasons if isinstance(reject_reasons, list) else [],
             },
         )
@@ -4394,7 +4311,8 @@ def _pipeline_outcomes_fallback_from_stage_artifacts(
                 "pipeline_status": "ranked_no_cv",
                 "source_stage": "cv_analysis",
                 "stage_owned_subreason": stage_owned_subreason,
-                "deterministic_outcome": str(row.get("deterministic_outcome") or "").strip() or "accepted",
+                "deterministic_outcome": str(row.get("deterministic_outcome") or "").strip()
+                or project_pipeline_status_outcome("ranked_with_cv")["outcome"],
             },
         )
     for row in list(cv_analysis_stage.get("dropped_or_changed_sample") or []):
@@ -4403,14 +4321,20 @@ def _pipeline_outcomes_fallback_from_stage_artifacts(
         stage_owned_subreason = str(row.get("stage_owned_subreason") or row.get("change_type") or "").strip()
         if not stage_owned_subreason:
             continue
+        legacy_status = (
+            "ranked_blocked_by_reranker_fit"
+            if stage_owned_subreason == "blocked_by_reranker_fit"
+            else "ranked_skipped_fit_gate"
+        )
         _store(
             row.get("job_url"),
             {
-                "status": "ranked_blocked_by_reranker_fit" if stage_owned_subreason == "blocked_by_reranker_fit" else "ranked_skipped_fit_gate",
-                "pipeline_status": "ranked_blocked_by_reranker_fit" if stage_owned_subreason == "blocked_by_reranker_fit" else "ranked_skipped_fit_gate",
+                "status": legacy_status,
+                "pipeline_status": legacy_status,
                 "source_stage": "cv_analysis",
                 "stage_owned_subreason": stage_owned_subreason,
-                "deterministic_outcome": str(row.get("deterministic_outcome") or "").strip() or "blocked",
+                "deterministic_outcome": str(row.get("deterministic_outcome") or "").strip()
+                or project_pipeline_status_outcome(legacy_status)["outcome"],
             },
         )
 
@@ -4423,14 +4347,18 @@ def _pipeline_outcomes_fallback_from_stage_artifacts(
             if not stage_owned_subreason:
                 continue
             deterministic_outcome = str(row.get("deterministic_outcome") or "").strip()
+            canonical_status = "ranked_with_cv" if stage_owned_subreason == "accepted" else stage_owned_subreason
+            projected = project_pipeline_status_outcome(canonical_status)
+            deterministic_outcome = deterministic_outcome or projected["outcome"]
+            legacy_status = "ranked_with_cv" if deterministic_outcome == "accepted" else "ranked_no_cv"
             _store(
                 row.get("job_url"),
                 {
-                    "status": "ranked_with_cv" if deterministic_outcome == "accepted" else "ranked_no_cv",
-                    "pipeline_status": "ranked_with_cv" if deterministic_outcome == "accepted" else "ranked_no_cv",
+                    "status": legacy_status,
+                    "pipeline_status": legacy_status,
                     "source_stage": "cv_generation",
                     "stage_owned_subreason": stage_owned_subreason,
-                    "deterministic_outcome": deterministic_outcome or ("accepted" if stage_owned_subreason == "accepted" else "rejected"),
+                    "deterministic_outcome": deterministic_outcome,
                 },
             )
 
@@ -4500,14 +4428,17 @@ def _coerce_positive_int(value: Any, *, default: int, minimum: int = 1, maximum:
 
 def _pipeline_outcome_options() -> list[dict[str, str]]:
     options = [
-        {"value": key, "label": meta.get("label") or key}
-        for key, meta in PIPELINE_OUTCOME_META.items()
+        {"value": key, "label": label}
+        for key, (label, _badge_class) in {
+            **JOB_OUTCOME_LEGACY_SURFACES,
+            **JOB_OUTCOME_SURFACES,
+        }.items()
     ]
     options.sort(key=lambda row: str(row.get("label") or "").lower())
     return options
 
 def _normalize_pipeline_outcomes(values: list[str] | tuple[str, ...] | None) -> list[str]:
-    allowed = set(PIPELINE_OUTCOME_META)
+    allowed = set(JOB_OUTCOME_STATUS_MAP) | set(JOB_OUTCOME_SURFACES)
     normalized: list[str] = []
     for raw_value in values or []:
         value = str(raw_value or "").strip()
@@ -4522,7 +4453,7 @@ def _selected_enriched_pipeline_outcomes(values: list[str] | tuple[str, ...] | N
     normalized = _normalize_pipeline_outcomes(values)
     if normalized:
         return normalized
-    return list(DEFAULT_ENRICHED_PIPELINE_OUTCOMES)
+    return list(JOB_OUTCOME_DEFAULT_FILTERS)
 
 def _build_enriched_tab_url(
     *,
@@ -4643,20 +4574,19 @@ def _build_enriched_tab_context(
         row for row in filter_results
         if row.get("reasons") and not any(lookup_key in enriched_job_urls for lookup_key in _job_lookup_keys(row))
     ]
-    pipeline_outcomes_by_job_url: dict[str, dict[str, str | None]] = {}
+    pipeline_outcomes_by_job_url: dict[str, dict[str, Any]] = {}
     for row in results_rows:
         if not row.get("job_url"):
             continue
-        canonical_status = _canonical_pipeline_outcome_status(row)
+        outcome_surface = _pipeline_outcome_surface(row)
         outcome_payload = {
-            "status": canonical_status or str(row.get("pipeline_status") or ""),
-            "label": _pipeline_outcome_surface(row)["label"],
-            "badge_class": _pipeline_outcome_surface(row)["badge_class"],
+            **outcome_surface,
+            "status": _canonical_pipeline_outcome_status(row) or str(row.get("pipeline_status") or ""),
             "detail": _format_pipeline_outcome_detail(row),
         }
         for lookup_key in _job_lookup_keys(row):
             pipeline_outcomes_by_job_url[lookup_key] = outcome_payload
-    for outcome_key, outcome_row in _pipeline_outcomes_fallback_from_cv_generation_debug(run).items():
+    for outcome_key, outcome_row in _legacy_pipeline_outcome_evidence_from_cv_generation_debug(run).items():
         existing = dict(pipeline_outcomes_by_job_url.get(outcome_key) or {})
         existing_status = str(existing.get("status") or "").strip()
         if existing and existing_status not in {"", "unknown_pipeline_state"}:
@@ -4669,7 +4599,7 @@ def _build_enriched_tab_context(
             "badge_class": pipeline_outcome_surface["badge_class"],
             "detail": _format_pipeline_outcome_detail(outcome_row),
         }
-    for outcome_key, outcome_row in _pipeline_outcomes_fallback_from_stage_artifacts(run, filter_results).items():
+    for outcome_key, outcome_row in _legacy_pipeline_outcome_evidence_from_stage_artifacts(run, filter_results).items():
         existing = dict(pipeline_outcomes_by_job_url.get(outcome_key) or {})
         existing_status = str(existing.get("status") or "").strip()
         if existing and existing_status not in {"", "unknown_pipeline_state"}:
@@ -5123,7 +5053,7 @@ def _timeline_stage_summary_message(
         )
     if event.stage == "cv_review_required":
         return _format_message(
-            "Run paused",
+            "Review required",
             [
                 ("review-required items pending operator action", payload.get("review_required_total")),
                 ("auto-accepted", payload.get("auto_accepted")),
@@ -5399,7 +5329,6 @@ def _timeline_stage_summary_message_html(
         cache_match = re.search(r"cache\s+([^,]+)", str(message_text or ""), flags=re.IGNORECASE)
         compute_match = re.search(r"compute\s+([^,]+)", str(message_text or ""), flags=re.IGNORECASE)
         reason_match = re.search(r"reason\s+([^,]+)", str(message_text or ""), flags=re.IGNORECASE)
-        evidence_match = re.search(r"evidence fp\s+([a-f0-9]{6,64})", str(message_text or ""), flags=re.IGNORECASE)
         source_version = str(payload_output.get("reused_cv_version_id") or "").strip()
         concurrency_match = re.search(r"concurrency\s+(\d+)", str(message_text or ""), flags=re.IGNORECASE)
         details: list[str] = [f"job {job_link}"]
@@ -5411,8 +5340,6 @@ def _timeline_stage_summary_message_html(
             details.append(f"compute {html.escape(compute_match.group(1).strip())}")
         if reason_match:
             details.append(f"reason {html.escape(reason_match.group(1).strip())}")
-        if evidence_match:
-            details.append(f"evidence fingerprint {html.escape(evidence_match.group(1).strip())}")
         if source_version:
             details.append(f"source version <code>{html.escape(source_version)}</code>")
         if concurrency_match:
@@ -8504,33 +8431,6 @@ def create_app(
         )
         markdown_quality_summary = _build_markdown_quality_summary(run)
         reuse_anomaly_summary = _latest_reuse_anomaly_summary(events)
-        from fitcv_cp.run_artifact_contracts import decode_run_attempt_payload_or_none
-        run_attempt_events: list[dict[str, Any]] = []
-        for event in events:
-            payload = decode_run_attempt_payload_or_none(event.payload_json)
-            if payload is None:
-                continue
-            attempt = payload.get("attempt") if isinstance(payload, dict) else None
-            if not isinstance(attempt, dict):
-                continue
-            error = attempt.get("error") if isinstance(attempt.get("error"), dict) else {}
-            retry = attempt.get("retry") if isinstance(attempt.get("retry"), dict) else {}
-            run_attempt_events.append(
-                {
-                    "created_at": event.created_at,
-                    "attempt_id": attempt.get("attempt_id"),
-                    "status": attempt.get("status"),
-                    "rq_job_id": attempt.get("rq_job_id"),
-                    "worker_id": attempt.get("worker_id"),
-                    "lease_expires_at": attempt.get("lease_expires_at"),
-                    "finished_at": attempt.get("finished_at"),
-                    "error_summary": error.get("summary"),
-                    "retry_eligible": retry.get("eligible"),
-                }
-            )
-        run_attempt_events.sort(key=lambda row: row.get("created_at") or datetime.datetime.min, reverse=True)
-        replay_context_summary = _run_replay_context_summary(run)
-        data_plane_summary = _run_data_plane_summary(run)
         stage_result_summary_rows = _stage_result_summary_rows(run)
         hitl_closure_summary = _build_hitl_closure_summary(run, queue=hitl_review_queue)
         hitl_review_pending_count = int(hitl_review_queue.get("pending_count") or 0)
@@ -8579,9 +8479,7 @@ def create_app(
                 "synonym_review_section_state": synonym_review_section_state,
                 "markdown_quality_summary": markdown_quality_summary,
                 "reuse_anomaly_summary": reuse_anomaly_summary,
-                "run_attempt_events": run_attempt_events,
-                "replay_context_summary": replay_context_summary,
-                "data_plane_summary": data_plane_summary,
+
                 "stage_result_summary_rows": stage_result_summary_rows,
             }
         )

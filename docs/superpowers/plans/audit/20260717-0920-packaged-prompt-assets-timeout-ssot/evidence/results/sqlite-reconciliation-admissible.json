@@ -1,0 +1,26 @@
+{
+  "database": "C:\\Users\\HOANG PHI LONG DANG\\AppData\\Local\\FitCV\\data\\fitcv.sqlite3",
+  "run_id": "e8a1f515-56f2-484a-8f12-4522e31acd37",
+  "integrity_check": "ok",
+  "foreign_key_violations": 0,
+  "pipeline_run": {
+    "run_id": "e8a1f515-56f2-484a-8f12-4522e31acd37",
+    "status": "succeeded",
+    "total_jobs": 1,
+    "passed_filter": 1,
+    "ranked": 1,
+    "cvs_generated": 0,
+    "error_message": null,
+    "queue_job_id": "inline-181dc954-e93c-43a2-a47e-e0cdc778c988",
+    "orchestration_backend": "queue",
+    "has_cv_generation_debug": true,
+    "has_results_export": true
+  },
+  "run_scoped_counts": {
+    "cv_versions": 0,
+    "local_pipeline_run_events": 41,
+    "local_pipeline_runs": 1,
+    "rule_filter_results": 1,
+    "run_structured_jobs": 1
+  }
+}

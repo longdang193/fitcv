@@ -33,9 +33,14 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Any
 
+import yaml
+
+from fitcv.config import (
+    LOCAL_CONTROLLER_OVERLAY_VERSION,
+    validate_local_controller_overlay,
+)
 
 BOOTSTRAP_VERSION = 1
-OVERLAY_VERSION = 1
 MINIMUM_RELOCATION_HEADROOM_BYTES = 512 * 1024 * 1024
 BACKUP_FORMAT = "fitcv-backup.v1"
 DATA_LAYOUT_VERSION = 1
@@ -90,7 +95,9 @@ class LocalStoragePaths:
     data_root: Path
     sqlite_path: Path
     candidate_profile_path: Path
-    routing_overlay_path: Path
+    controller_overlay_path: Path
+    legacy_routing_overlay_path: Path
+    migrated_routing_overlay_path: Path
     artifacts_path: Path
     exports_path: Path
     logs_path: Path
@@ -146,21 +153,85 @@ def write_bootstrap(path: Path, data_root: Path, app_version: str) -> None:
             temporary_path.unlink()
 
 
-def validate_routing_overlay(payload: dict[str, Any]) -> dict[str, Any]:
-    allowed_keys = {"version", "providers", "model_routing"}
-    unsupported = sorted(set(payload) - allowed_keys)
+def write_controller_overlay(path: Path, payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = validate_local_controller_overlay(payload)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=path.parent, delete=False
+        ) as handle:
+            yaml.safe_dump(normalized, handle, sort_keys=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+            temporary_path = Path(handle.name)
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path is not None and temporary_path.exists():
+            temporary_path.unlink()
+    return normalized
+
+
+def _legacy_overlay_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    allowed = {"version", "providers", "model_routing"}
+    unsupported = sorted(set(payload) - allowed)
     if unsupported:
-        raise ValueError(f"local routing overlay contains unsupported keys: {unsupported}")
-    if payload.get("version") != OVERLAY_VERSION:
-        raise ValueError("local routing overlay version must be 1")
-    model_routing = payload.get("model_routing") or {}
-    if not isinstance(model_routing, dict) or set(model_routing) - {"parts"}:
-        raise ValueError("local routing overlay model_routing may contain only parts")
-    if not isinstance(payload.get("providers") or {}, dict):
-        raise ValueError("local routing overlay providers must be a mapping")
-    if not isinstance(model_routing.get("parts") or {}, dict):
-        raise ValueError("local routing overlay model_routing.parts must be a mapping")
-    return payload
+        raise ValueError(f"legacy routing overlay contains unsupported keys: {unsupported}")
+    providers: dict[str, Any] = {}
+    for provider_id, raw_provider in dict(payload.get("providers") or {}).items():
+        provider = dict(raw_provider or {})
+        providers[str(provider_id)] = {
+            key: value
+            for key, value in provider.items()
+            if key in {"base_url", "auth_mode", "wire_api", "timeout_seconds"}
+        }
+    return validate_local_controller_overlay(
+        {
+            "version": LOCAL_CONTROLLER_OVERLAY_VERSION,
+            "providers": providers,
+            "model_routing": dict(payload.get("model_routing") or {}),
+        }
+    )
+
+
+def _retire_legacy_overlay(paths: LocalStoragePaths) -> None:
+    if not paths.legacy_routing_overlay_path.exists():
+        return
+    if paths.migrated_routing_overlay_path.exists():
+        raise BootstrapError(
+            "FitCV Local has both active and retired legacy routing overlays"
+        )
+    os.replace(paths.legacy_routing_overlay_path, paths.migrated_routing_overlay_path)
+
+
+def _activate_controller_overlay(paths: LocalStoragePaths) -> None:
+    if paths.controller_overlay_path.exists():
+        validate_local_controller_overlay(
+            yaml.safe_load(paths.controller_overlay_path.read_text(encoding="utf-8"))
+            or {}
+        )
+        _retire_legacy_overlay(paths)
+        return
+    if paths.migrated_routing_overlay_path.exists():
+        write_controller_overlay(
+            paths.controller_overlay_path,
+            {"version": LOCAL_CONTROLLER_OVERLAY_VERSION},
+        )
+        return
+    if paths.legacy_routing_overlay_path.exists():
+        legacy = yaml.safe_load(
+            paths.legacy_routing_overlay_path.read_text(encoding="utf-8")
+        ) or {}
+        write_controller_overlay(
+            paths.controller_overlay_path,
+            _legacy_overlay_payload(legacy),
+        )
+        _retire_legacy_overlay(paths)
+        return
+    write_controller_overlay(
+        paths.controller_overlay_path,
+        {"version": LOCAL_CONTROLLER_OVERLAY_VERSION},
+    )
 
 
 def validate_data_root_destination(
@@ -197,7 +268,11 @@ def _paths(bootstrap_path: Path, data_root: Path) -> LocalStoragePaths:
         data_root=data_root,
         sqlite_path=data_root / "fitcv.sqlite3",
         candidate_profile_path=data_root / "candidate_profile.yaml",
-        routing_overlay_path=data_root / "config" / "local_routing_overlay.yaml",
+        controller_overlay_path=data_root / "config" / "local_controller_overlay.yaml",
+        legacy_routing_overlay_path=data_root / "config" / "local_routing_overlay.yaml",
+        migrated_routing_overlay_path=(
+            data_root / "config" / "local_routing_overlay.yaml.migrated.bak"
+        ),
         artifacts_path=data_root / "artifacts",
         exports_path=data_root / "exports",
         logs_path=data_root / "logs",
@@ -270,7 +345,7 @@ def create_backup_archive(
         included: list[tuple[str, Path]] = [("fitcv.sqlite3", staged_db)]
         for relative, source_path in (
             ("candidate_profile.yaml", paths.candidate_profile_path),
-            ("config/local_routing_overlay.yaml", paths.routing_overlay_path),
+            ("config/local_controller_overlay.yaml", paths.controller_overlay_path),
         ):
             if source_path.exists():
                 included.append((relative, source_path))
@@ -461,7 +536,7 @@ def activate_local_storage(
     resources_root = (bundle_root or Path.cwd()).resolve()
     for directory in (
         paths.data_root,
-        paths.routing_overlay_path.parent,
+        paths.controller_overlay_path.parent,
         paths.artifacts_path,
         paths.exports_path,
         paths.logs_path,
@@ -475,11 +550,7 @@ def activate_local_storage(
             resources_root / "data" / "candidate_profile.template.yaml",
             paths.candidate_profile_path,
         )
-    if not paths.routing_overlay_path.exists():
-        paths.routing_overlay_path.write_text(
-            "version: 1\nproviders: {}\nmodel_routing:\n  parts: {}\n",
-            encoding="utf-8",
-        )
+    _activate_controller_overlay(paths)
     if (
         bootstrap is None
         or bootstrap.get("last_application_version") != app_version
@@ -490,7 +561,7 @@ def activate_local_storage(
         {
             "FITCV_CP_SQLITE_PATH": str(paths.sqlite_path),
             "FITCV_LOCAL_DATA_ROOT": str(paths.data_root),
-            "FITCV_LOCAL_ROUTING_OVERLAY_PATH": str(paths.routing_overlay_path),
+            "FITCV_LOCAL_CONTROLLER_OVERLAY_PATH": str(paths.controller_overlay_path),
             "FITCV_LOCAL_CANDIDATE_PROFILE_PATH": str(paths.candidate_profile_path),
             "FITCV_LOCAL_ARTIFACTS_PATH": str(paths.artifacts_path),
             "FITCV_LOCAL_EXPORTS_PATH": str(paths.exports_path),
@@ -500,4 +571,5 @@ def activate_local_storage(
             "FITCV_LOCAL_TEMP_PATH": str(paths.temporary_path),
         }
     )
+    os.environ.pop("FITCV_LOCAL_ROUTING_OVERLAY_PATH", None)
     return paths

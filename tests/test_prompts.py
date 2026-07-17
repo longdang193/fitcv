@@ -163,3 +163,90 @@ tags:
   - fast
   - ci-safe
 """
+
+@pytest.mark.parametrize(
+    ("prompt_id", "context", "contract_anchor"),
+    [
+        (
+            "enrich.extraction.v1",
+            {
+                "metadata_block": "{}",
+                "extraction_schema": '{"required_skills": []}',
+                "description": "Need SQL.",
+            },
+            "Return ONLY a valid JSON object",
+        ),
+        (
+            "ranking.ai_score.v2",
+            {
+                "jd_summary": "Data Analyst",
+                "candidate_summary": "SQL",
+                "evidence_section": "",
+            },
+            "Return JSON only",
+        ),
+        (
+            "cv_generation.structured_write.v1",
+            {
+                "title": "Data Analyst",
+                "required_skills": "SQL",
+                "selected_evidence": "- Evidence",
+                "allowed_skills": "SQL",
+                "allowed_certifications": "(none)",
+                "evidence_usage_guidance": "Use evidence",
+                "analysis_summary": "Summary",
+                "constraints": "Do not invent claims.",
+                "section_evidence": "(none)",
+                "output_template": "## Summary",
+                "structured_schema": '{"sections": {}}',
+                "output_instruction": "Write only valid JSON matching the schema below.",
+            },
+            "## Structured JSON Schema",
+        ),
+        (
+            "synonym_triage.recommendation.v1",
+            {"proposal_json": "{}", "now_iso": "2026-07-17T00:00:00Z"},
+            "Return strict JSON only",
+        ),
+    ],
+)
+def test_render_prompt_addendum_is_literal_bounded_and_before_contract(
+    prompt_id: str,
+    context: dict[str, str],
+    contract_anchor: str,
+) -> None:
+    rendered = render_prompt(
+        prompt_id,
+        context,
+        additional_instructions="  Keep $literal and ${not_a_variable}.\r\nPrefer concise output.  ",
+    )
+
+    normalized = "Keep $literal and ${not_a_variable}.\nPrefer concise output."
+    assert rendered.text.count(normalized) == 1
+    assert rendered.text.index(normalized) < rendered.text.index(contract_anchor)
+    assert rendered.customized is True
+    assert rendered.addendum_char_count == len(normalized)
+    assert rendered.addendum_sha256 == __import__("hashlib").sha256(
+        normalized.encode("utf-8")
+    ).hexdigest()
+
+
+def test_render_prompt_without_addendum_keeps_private_provenance_empty() -> None:
+    rendered = render_prompt(
+        "synonym_triage.recommendation.v1",
+        {"proposal_json": "{}", "now_iso": "2026-07-17T00:00:00Z"},
+    )
+
+    assert "Additional User Instructions" not in rendered.text
+    assert rendered.customized is False
+    assert rendered.addendum_sha256 is None
+    assert rendered.addendum_char_count == 0
+
+
+def test_render_prompt_rejects_oversized_addendum() -> None:
+    with pytest.raises(ValueError, match="exceeds 4000 characters"):
+        render_prompt(
+            "synonym_triage.recommendation.v1",
+            {"proposal_json": "{}", "now_iso": "2026-07-17T00:00:00Z"},
+            additional_instructions="x" * 4001,
+        )

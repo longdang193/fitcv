@@ -4,6 +4,18 @@ $ErrorActionPreference = "Stop"
 $bundle = (Resolve-Path $BundlePath).Path
 $exe = Join-Path $bundle "fitcv-local.exe"
 if (-not (Test-Path -LiteralPath $exe)) { throw "fitcv-local.exe missing" }
+$requiredPromptAssets = @(
+    "enrich_extraction_v1.md",
+    "ranking_ai_score_v2.md",
+    "cv_generation_structured_write_v1.md",
+    "synonym_triage_recommendation_v1.md"
+)
+$trayIconPath = Join-Path $bundle "_internal\fitcv.ico"
+if (-not (Test-Path -LiteralPath $trayIconPath)) { throw "fitcv.ico missing" }
+foreach ($promptAsset in $requiredPromptAssets) {
+    $promptPath = Join-Path $bundle "_internal\fitcv\prompts\templates\$promptAsset"
+    if (-not (Test-Path -LiteralPath $promptPath)) { throw "$promptAsset missing" }
+}
 $size = (Get-ChildItem -LiteralPath $bundle -Recurse -File | Measure-Object Length -Sum).Sum
 if ($size -gt 600MB) { throw "Bundle exceeds 600MB" }
 
@@ -17,7 +29,10 @@ try {
         if (Test-Path -LiteralPath $bootstrapPath) {
             $bootstrap = Get-Content -LiteralPath $bootstrapPath -Raw | ConvertFrom-Json
             $runtimePath = Join-Path $bootstrap.data_root ".fitcv-local-runtime.json"
-            if (Test-Path -LiteralPath $runtimePath) { $runtime = Get-Content -LiteralPath $runtimePath -Raw | ConvertFrom-Json; break }
+            if (Test-Path -LiteralPath $runtimePath) {
+                $candidate = Get-Content -LiteralPath $runtimePath -Raw | ConvertFrom-Json
+                if ([int]$candidate.pid -eq $process.Id) { $runtime = $candidate; break }
+            }
         }
         Start-Sleep -Milliseconds 100
     }

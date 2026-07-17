@@ -1,0 +1,26 @@
+{
+  "run_id": "live-verification-20260716-full-one-job-postfix",
+  "input_path": "artifacts\\live_verification_20260716\\one-job-input.json",
+  "started_at_epoch": 1784244448.9100966,
+  "status": "succeeded",
+  "elapsed_seconds": 175.666,
+  "completed_stages": null,
+  "paused_after_stage": null,
+  "next_stage": null,
+  "counts": {
+    "raw_jobs": 0,
+    "normalized": 0,
+    "enriched": 0,
+    "passed_jobs": 0,
+    "shortlist": 0,
+    "ranking_inputs": 0,
+    "ranked": 0,
+    "cv_analysis_results": 0,
+    "cv_generation_results": 0,
+    "cv_generation_debug_records": 0,
+    "export_results": 1
+  },
+  "preference_policy": null,
+  "error_count": 0,
+  "errors": []
+}

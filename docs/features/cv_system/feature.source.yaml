@@ -2,7 +2,7 @@ feature_id: cv_system
 name: CV System
 status: active
 type: add
-summary: Own canonical candidate-job fit facts and eligibility through grounded post-ranking analysis and CV generation, with symmetric policy projection, shared runtime adapters, canonical evidence, and stage-neutral traces.
+summary: Own canonical candidate-job fit facts and eligibility through grounded post-ranking analysis and CV generation, with symmetric policy projection, shared runtime adapters, canonical evidence, safe prompt addenda before immutable output contracts, and stage-neutral traces.
 invariants: []
 domains:
   - cv_generation

@@ -1,0 +1,70 @@
+{
+  "baseline_rows": [
+    {
+      "baseline_fit": 0.45,
+      "baseline_fit_label": "stretch",
+      "holistic_ai_fit": 0.45,
+      "job_url": "https://example.test/magdeburg-language-unknown",
+      "language_effective_weight": 0.0,
+      "location_fit": 1.0
+    },
+    {
+      "baseline_fit": 0.75,
+      "baseline_fit_label": "strong",
+      "holistic_ai_fit": 0.75,
+      "job_url": "https://example.test/berlin-language-met",
+      "language_effective_weight": 0.0,
+      "location_fit": 1.0
+    },
+    {
+      "baseline_fit": 0.35,
+      "baseline_fit_label": "skip",
+      "holistic_ai_fit": 0.35,
+      "job_url": "https://example.test/hamburg-language-met",
+      "language_effective_weight": 0.0,
+      "location_fit": 0.0
+    }
+  ],
+  "effective_structured_factor_weights": {
+    "declared_preference_fit": 0.16666666666666666,
+    "location_fit": 0.11111111111111112,
+    "must_have_match": 0.3333333333333333,
+    "seniority_fit": 0.16666666666666666,
+    "title_relevance": 0.22222222222222224
+  },
+  "effective_weight_sum": 1.0,
+  "eligibility_policy_fingerprint": "3bcd1538a8664d5fca5a4f5d4a8afb7197d958a9b43b35020cc7cd8005c3c7f9",
+  "location_ranking_values": [
+    0.0,
+    1.0
+  ],
+  "preferred_locations": [
+    "Berlin",
+    "Magdeburg"
+  ],
+  "ranked_job_urls": [
+    "https://example.test/magdeburg-language-unknown",
+    "https://example.test/berlin-language-met",
+    "https://example.test/hamburg-language-met"
+  ],
+  "ranking_contract_fingerprint": "b7bf71709af33ce35cce4fa6a30d6b57e3702db721c91d47ff09a05c4542d438",
+  "rejected_before_ranking": [
+    "https://example.test/berlin-language-fail"
+  ],
+  "scenario": "location-ranking-language-hard-gate-v1",
+  "status": "passed",
+  "synonym_mutation_disabled": {
+    "apply_to_run_enabled": true,
+    "auto_apply_recommendation_enabled": true,
+    "auto_promote_global_enabled": false,
+    "promote_global_enabled": false,
+    "triage_recommendation_reuse_enabled": true
+  },
+  "unknown_language_diagnostic": {
+    "job_url": "https://example.test/magdeburg-language-unknown",
+    "reason_codes": [
+      "language_required_unknown"
+    ],
+    "status": "unknown"
+  }
+}

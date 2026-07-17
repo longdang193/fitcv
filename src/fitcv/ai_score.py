@@ -28,6 +28,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from fitcv.config import (
+    get_prompt_addendum,
+    get_prompt_addendum_metadata,
     get_ranking_ai_score_model,
     get_ranking_prompt_id,
     get_stage_runtime_concurrency,
@@ -58,10 +60,14 @@ def _stable_json_fingerprint(payload: dict[str, Any]) -> str:
 
 
 def build_ai_score_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
+    customization = get_prompt_addendum_metadata("ranking_ai_score", config)
     payload = {
         "ai_score_model": get_ranking_ai_score_model(config),
         "prompt_schema_version": RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION,
         "prompt_id": get_ranking_prompt_id(config),
+        "prompt_customized": customization["customized"],
+        "prompt_addendum_sha256": customization["addendum_sha256"],
+        "prompt_addendum_char_count": customization["addendum_char_count"],
     }
     return {
         "payload": payload,
@@ -126,6 +132,7 @@ def build_scoring_prompt(
             "candidate_summary": candidate_summary,
             "evidence_section": evidence_section,
         },
+        additional_instructions=get_prompt_addendum("ranking_ai_score", config),
     ).text
 
 

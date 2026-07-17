@@ -1,0 +1,27 @@
+{
+  "run_id": "job-outcome-live-20260717",
+  "fact_valid": true,
+  "counts": {
+    "accepted": 0,
+    "held": 0,
+    "blocked": 0,
+    "rejected": 1,
+    "skipped": 0
+  },
+  "event_reference": {
+    "job_key": "input:0",
+    "stage": "rule_filter",
+    "outcome": "rejected",
+    "reason_code": "seniority_mismatch",
+    "outcome_fingerprint": "sha256:3061527c30026c6789058fbb5c3973ca856143b90b4db1ab073d9775749ac25b",
+    "evidence_ref": {
+      "artifact": "rule_filter.json",
+      "fingerprint": "sha256:b19793f84a65684b46e42f1e452bb77a1f5c0076d0d750f08137c4d309bdc71b",
+      "record_key": "input:0"
+    }
+  },
+  "evidence_stage_present": true,
+  "evidence_record_resolved": true,
+  "evidence_fingerprint_matches": true,
+  "secret_leaked": false
+}

@@ -34,6 +34,7 @@ from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
     CV_STRUCTURED_SECTION_KEYS,
     get_cv_generation_structured_prompt_id,
+    get_prompt_addendum,
     get_required_structured_section_keys,
 )
 from fitcv.contracts import (
@@ -1337,6 +1338,9 @@ def build_structured_generation_prompt(
                 "Do not add commentary. Do not wrap the JSON in markdown code fences."
             ),
         },
+        additional_instructions=get_prompt_addendum(
+            "cv_generation_structured_write", config
+        ),
     ).text
 
 

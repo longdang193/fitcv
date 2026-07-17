@@ -204,3 +204,25 @@ def test_existing_resolved_policy_replay_never_calls_resolver() -> None:
     )
 
     assert resolved_preference_policy_to_dict(resolved) == existing
+
+
+def test_empty_ranking_resolves_invalid_zero_residual_policy() -> None:
+    resolved = resolve_run_preference_policy(
+        ranking_rows=[],
+        config={
+            "decision_learning_policy": {
+                "domain_id": "ranking_v1",
+                "inverse_optimization": {
+                    "learned_alpha": 0.05,
+                    "preference_vector_norm_bound": 1.0,
+                },
+            },
+            "ranking_policy": {"version": 1},
+            "shortlist_embedding_model": "model",
+        },
+    )
+
+    assert resolved.resolution_status == "zero_residual_invalid"
+    assert resolved.diagnostic_code == "missing_ranking_rows"
+    assert resolved.preference_vector == (0.0,)
+    assert resolved.runtime_contract.embedding_dimension == 1

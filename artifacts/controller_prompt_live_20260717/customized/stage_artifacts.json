@@ -1,0 +1,3799 @@
+{
+  "run_id": "e5f1b56b-d82e-4226-9de9-2829edc8fa2f",
+  "status": "succeeded",
+  "artifact_schema_version": "stage_transition_artifacts_run_v1",
+  "schema_version": "stage_transition_artifacts_run_v1",
+  "created_at": "2026-07-17T10:31:34.369701+00:00",
+  "snapshot_complete": true,
+  "degradation_reason": "",
+  "artifacts": {
+    "schema_version": "stage_transition_artifacts_v8",
+    "stages": {
+      "normalize": {
+        "stage_id": "normalize",
+        "stage": "normalize",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "normalize",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "normalized_jobs": 1,
+            "deduplicated_jobs": 0
+          },
+          "evidence": {
+            "input_counts": {
+              "raw_jobs": 1
+            },
+            "decision_summary": {
+              "dedupe_reason_counts": {}
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.normalize.v1",
+          "trace_context": {
+            "trace_id": "ff6398773838e1d743bca046160f53ab",
+            "span_id": "5d0bb518fa41c191",
+            "parent_span_id": "ab9a6caeea21dad7"
+          }
+        },
+        "input_counts": {
+          "raw_jobs": 1
+        },
+        "output_counts": {
+          "normalized_jobs": 1,
+          "deduplicated_jobs": 0
+        },
+        "decision_summary": {
+          "dedupe_reason_counts": {}
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "company": "Example Retail Analytics"
+          }
+        ],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "company": "Example Retail Analytics"
+          }
+        ]
+      },
+      "enrich": {
+        "stage_id": "enrich",
+        "stage": "enrich",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "enrich",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "enriched_jobs": 1,
+            "pre_enrichment_rejected_jobs": 0
+          },
+          "evidence": {
+            "input_counts": {
+              "normalized_jobs": 1,
+              "jobs_entering_enrichment": 1
+            },
+            "decision_summary": {
+              "candidate_profile_summary": {
+                "target_role": "data analyst",
+                "effective_target_role": "data analyst",
+                "effective_role_families": [
+                  "data analytics",
+                  "business intelligence",
+                  "business analytics",
+                  "product analytics",
+                  "marketing analytics",
+                  "customer analytics",
+                  "commercial analytics",
+                  "operations analytics",
+                  "reporting analytics",
+                  "analytics engineering",
+                  "data science",
+                  "customer_success",
+                  "product_operations",
+                  "operations",
+                  "business_development",
+                  "sales_support",
+                  "growth"
+                ],
+                "effective_domains": [
+                  "retail",
+                  "consumer goods",
+                  "ecommerce",
+                  "technology",
+                  "saas",
+                  "marketplace",
+                  "fmcg",
+                  "supply chain",
+                  "logistics",
+                  "hr tech",
+                  "healthcare",
+                  "transportation",
+                  "cleantech"
+                ],
+                "preference_sources": {
+                  "target_role": "explicit_yaml",
+                  "role_families": "explicit_yaml",
+                  "location_types": "explicit_yaml",
+                  "domains": "explicit_yaml",
+                  "seniority_target": "explicit_yaml"
+                },
+                "skills_sample": [
+                  "sql",
+                  "microsoft excel",
+                  "microsoft power bi",
+                  "power query",
+                  "python"
+                ]
+              },
+              "enrich_prompt_id": "enrich.extraction.v1",
+              "enrich_prompt_version": "v1",
+              "enrich_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\dist\\fitcv-local\\_internal\\fitcv\\prompts\\templates\\enrich_extraction_v1.md",
+              "enrich_prompt_model": "cx/gpt-5.4-mini",
+              "enrich_prompt_customized": true,
+              "enrich_prompt_addendum_sha256": "863873ee7e0e3834eab0a4556fd538239c33c263d519ffb44d35212643fed5a4",
+              "enrich_prompt_addendum_char_count": 49,
+              "reused_rows": 0,
+              "fresh_rows": 1,
+              "total_enriched_rows": 1,
+              "reuse_metrics": {
+                "reused_rows": 0,
+                "fresh_rows": 1,
+                "total_rows": 1,
+                "reuse_rate": 0.0
+              }
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.enrich.v1",
+          "trace_context": {
+            "trace_id": "0c0a5967c7dd40168bdf81c09f762402",
+            "span_id": "49f0d7286941ac2b",
+            "parent_span_id": "93caed83e676fdc5"
+          }
+        },
+        "input_counts": {
+          "normalized_jobs": 1,
+          "jobs_entering_enrichment": 1
+        },
+        "output_counts": {
+          "enriched_jobs": 1,
+          "pre_enrichment_rejected_jobs": 0
+        },
+        "decision_summary": {
+          "candidate_profile_summary": {
+            "target_role": "data analyst",
+            "effective_target_role": "data analyst",
+            "effective_role_families": [
+              "data analytics",
+              "business intelligence",
+              "business analytics",
+              "product analytics",
+              "marketing analytics",
+              "customer analytics",
+              "commercial analytics",
+              "operations analytics",
+              "reporting analytics",
+              "analytics engineering",
+              "data science",
+              "customer_success",
+              "product_operations",
+              "operations",
+              "business_development",
+              "sales_support",
+              "growth"
+            ],
+            "effective_domains": [
+              "retail",
+              "consumer goods",
+              "ecommerce",
+              "technology",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech",
+              "healthcare",
+              "transportation",
+              "cleantech"
+            ],
+            "preference_sources": {
+              "target_role": "explicit_yaml",
+              "role_families": "explicit_yaml",
+              "location_types": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml"
+            },
+            "skills_sample": [
+              "sql",
+              "microsoft excel",
+              "microsoft power bi",
+              "power query",
+              "python"
+            ]
+          },
+          "enrich_prompt_id": "enrich.extraction.v1",
+          "enrich_prompt_version": "v1",
+          "enrich_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\dist\\fitcv-local\\_internal\\fitcv\\prompts\\templates\\enrich_extraction_v1.md",
+          "enrich_prompt_model": "cx/gpt-5.4-mini",
+          "enrich_prompt_customized": true,
+          "enrich_prompt_addendum_sha256": "863873ee7e0e3834eab0a4556fd538239c33c263d519ffb44d35212643fed5a4",
+          "enrich_prompt_addendum_char_count": 49,
+          "reused_rows": 0,
+          "fresh_rows": 1,
+          "total_enriched_rows": 1,
+          "reuse_metrics": {
+            "reused_rows": 0,
+            "fresh_rows": 1,
+            "total_rows": 1,
+            "reuse_rate": 0.0
+          }
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "company": "Example Retail Analytics",
+            "location_type": "hybrid",
+            "seniority": "junior",
+            "required_skills": [
+              "SQL",
+              "Excel",
+              "Power BI",
+              "Tableau",
+              "Python",
+              "R",
+              "data cleaning",
+              "reporting"
+            ],
+            "required_skills_canonical": [
+              "sql",
+              "microsoft excel",
+              "microsoft power bi",
+              "tableau",
+              "python",
+              "r",
+              "data cleaning",
+              "reporting"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "SQL",
+                "canonical": "sql",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Excel",
+                "canonical": "microsoft excel",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Power BI or Tableau",
+                "canonical": "microsoft power bi",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "Power BI or Tableau",
+                "canonical": "tableau",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "basic Python or R",
+                "canonical": "python",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "basic Python or R",
+                "canonical": "r",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "data cleaning",
+                "canonical": "data cleaning",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "reporting",
+                "canonical": "reporting",
+                "confidence": 0.99
+              }
+            ],
+            "responsibilities": [
+              "analyzing sales, inventory, customer, and campaign data",
+              "building Power BI dashboards",
+              "writing SQL queries",
+              "preparing reliable reports",
+              "documenting metrics",
+              "presenting clear recommendations to business stakeholders"
+            ],
+            "domain": "retail",
+            "tech_stack": [
+              "SQL",
+              "Excel",
+              "Power BI",
+              "Tableau",
+              "Python",
+              "R"
+            ],
+            "years_experience_min": 0,
+            "years_experience_max": 2,
+            "keywords": [
+              "retail analytics",
+              "Junior Retail Data Analyst",
+              "sales data",
+              "inventory data",
+              "customer data",
+              "campaign data",
+              "dashboards",
+              "reports",
+              "Power BI",
+              "SQL",
+              "Berlin"
+            ],
+            "job_family": "analytics",
+            "mapping_suggestions": [
+              {
+                "must_have_skill": "microsoft excel",
+                "matches": true,
+                "alias": "excel",
+                "canonical": "microsoft excel",
+                "confidence": 0.99
+              },
+              {
+                "must_have_skill": "microsoft power bi",
+                "matches": true,
+                "alias": "power bi or tableau",
+                "canonical": "microsoft power bi",
+                "confidence": 0.96
+              },
+              {
+                "must_have_skill": "tableau",
+                "matches": true,
+                "alias": "power bi or tableau",
+                "canonical": "tableau",
+                "confidence": 0.96
+              },
+              {
+                "must_have_skill": "python",
+                "matches": true,
+                "alias": "basic python or r",
+                "canonical": "python",
+                "confidence": 0.96
+              },
+              {
+                "must_have_skill": "r",
+                "matches": true,
+                "alias": "basic python or r",
+                "canonical": "r",
+                "confidence": 0.96
+              }
+            ],
+            "enrichment_version": "v1",
+            "enrichment_model": "cx/gpt-5.4-mini",
+            "enriched_at": "2026-07-17T10:29:21.041360+00:00",
+            "raw_job_fingerprint": "fc15915dd09fde5e740b71298f97f5a95bfd16e33c7e2d6fd834965e0d298dea",
+            "enrich_contract_fingerprint": "4d459edd6a40a07a0e67e0e39eb0e9d55440afe2ed1d03ce0b81bbe119ae5c87",
+            "enrich_reuse_status": "fresh_enrichment"
+          }
+        ],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "company": "Example Retail Analytics"
+          }
+        ],
+        "llm_runtime_summary": {
+          "contract_version": "llm_stage_runtime_summary_v1",
+          "calls_total": 1,
+          "succeeded_total": 1,
+          "failed_total": 0,
+          "failure_counts_by_stage": {},
+          "failure_counts_by_code": {},
+          "adapters": [
+            "openai_compatible"
+          ],
+          "runtime_paths": [
+            "fitcv_llm_openai_compatible"
+          ],
+          "evidence_sample": [
+            {
+              "contract_version": "llm_runtime_observation_v1",
+              "scope_key": "fc15915dd09fde5e740b71298f97f5a95bfd16e33c7e2d6fd834965e0d298dea",
+              "input_index": 0,
+              "invocation_index": 1,
+              "evidence": {
+                "contract_version": "llm_runtime_evidence_v1",
+                "status": "succeeded",
+                "provenance": {
+                  "routing_part": "enrich_extraction",
+                  "runtime_path": "fitcv_llm_openai_compatible",
+                  "adapter": "openai_compatible",
+                  "provider": "openai_compatible",
+                  "model": "cx/gpt-5.4-mini",
+                  "wire_api": "chat_completions",
+                  "attempt_count": 1,
+                  "response_id": "resp_084c435ca91a2b51016a5a03cb4db081a2a85c3cd025771ca4",
+                  "trace_id": null,
+                  "latency_ms": 53928
+                },
+                "failure": null
+              }
+            }
+          ]
+        }
+      },
+      "rule_filter": {
+        "stage_id": "rule_filter",
+        "stage": "rule_filter",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "rule_filter",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "passed_jobs": 1,
+            "rejected_jobs": 0
+          },
+          "evidence": {
+            "input_counts": {
+              "enriched_jobs": 1
+            },
+            "decision_summary": {
+              "reject_reason_counts": {},
+              "mark_code_counts": {},
+              "selected_filters": [
+                "seniority_mismatch",
+                "missing_fit_context",
+                "location_type_excluded",
+                "contract_type_excluded",
+                "experience_level_excluded"
+              ]
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.rule_filter.v1",
+          "trace_context": {
+            "trace_id": "df221014f1613dce788843bc83016266",
+            "span_id": "e4c88e14663bbbcf",
+            "parent_span_id": "180bf1f000c1db8f"
+          }
+        },
+        "input_counts": {
+          "enriched_jobs": 1
+        },
+        "output_counts": {
+          "passed_jobs": 1,
+          "rejected_jobs": 0
+        },
+        "decision_summary": {
+          "reject_reason_counts": {},
+          "mark_code_counts": {},
+          "selected_filters": [
+            "seniority_mismatch",
+            "missing_fit_context",
+            "location_type_excluded",
+            "contract_type_excluded",
+            "experience_level_excluded"
+          ]
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "company": "Example Retail Analytics",
+            "location_type": "hybrid",
+            "seniority": "junior",
+            "required_skills": [
+              "SQL",
+              "Excel",
+              "Power BI",
+              "Tableau",
+              "Python",
+              "R",
+              "data cleaning",
+              "reporting"
+            ],
+            "required_skills_canonical": [
+              "sql",
+              "microsoft excel",
+              "microsoft power bi",
+              "tableau",
+              "python",
+              "r",
+              "data cleaning",
+              "reporting"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "SQL",
+                "canonical": "sql",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Excel",
+                "canonical": "microsoft excel",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Power BI or Tableau",
+                "canonical": "microsoft power bi",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "Power BI or Tableau",
+                "canonical": "tableau",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "basic Python or R",
+                "canonical": "python",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "basic Python or R",
+                "canonical": "r",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "data cleaning",
+                "canonical": "data cleaning",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "reporting",
+                "canonical": "reporting",
+                "confidence": 0.99
+              }
+            ],
+            "responsibilities": [
+              "analyzing sales, inventory, customer, and campaign data",
+              "building Power BI dashboards",
+              "writing SQL queries",
+              "preparing reliable reports",
+              "documenting metrics",
+              "presenting clear recommendations to business stakeholders"
+            ],
+            "domain": "retail",
+            "tech_stack": [
+              "SQL",
+              "Excel",
+              "Power BI",
+              "Tableau",
+              "Python",
+              "R"
+            ],
+            "years_experience_min": 0,
+            "years_experience_max": 2,
+            "keywords": [
+              "retail analytics",
+              "Junior Retail Data Analyst",
+              "sales data",
+              "inventory data",
+              "customer data",
+              "campaign data",
+              "dashboards",
+              "reports",
+              "Power BI",
+              "SQL",
+              "Berlin"
+            ],
+            "job_family": "analytics",
+            "mapping_suggestions": [
+              {
+                "must_have_skill": "microsoft excel",
+                "matches": true,
+                "alias": "excel",
+                "canonical": "microsoft excel",
+                "confidence": 0.99
+              },
+              {
+                "must_have_skill": "microsoft power bi",
+                "matches": true,
+                "alias": "power bi or tableau",
+                "canonical": "microsoft power bi",
+                "confidence": 0.96
+              },
+              {
+                "must_have_skill": "tableau",
+                "matches": true,
+                "alias": "power bi or tableau",
+                "canonical": "tableau",
+                "confidence": 0.96
+              },
+              {
+                "must_have_skill": "python",
+                "matches": true,
+                "alias": "basic python or r",
+                "canonical": "python",
+                "confidence": 0.96
+              },
+              {
+                "must_have_skill": "r",
+                "matches": true,
+                "alias": "basic python or r",
+                "canonical": "r",
+                "confidence": 0.96
+              }
+            ],
+            "enrichment_version": "v1",
+            "enrichment_model": "cx/gpt-5.4-mini",
+            "enriched_at": "2026-07-17T10:29:21.041360+00:00",
+            "raw_job_fingerprint": "fc15915dd09fde5e740b71298f97f5a95bfd16e33c7e2d6fd834965e0d298dea",
+            "enrich_contract_fingerprint": "4d459edd6a40a07a0e67e0e39eb0e9d55440afe2ed1d03ce0b81bbe119ae5c87",
+            "enrich_reuse_status": "fresh_enrichment",
+            "filter_outcome": "pass"
+          }
+        ],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "company": "Example Retail Analytics",
+            "location_type": "hybrid",
+            "seniority": "junior",
+            "required_skills": [
+              "SQL",
+              "Excel",
+              "Power BI",
+              "Tableau",
+              "Python",
+              "R",
+              "data cleaning",
+              "reporting"
+            ],
+            "required_skills_canonical": [
+              "sql",
+              "microsoft excel",
+              "microsoft power bi",
+              "tableau",
+              "python",
+              "r",
+              "data cleaning",
+              "reporting"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "SQL",
+                "canonical": "sql",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Excel",
+                "canonical": "microsoft excel",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Power BI or Tableau",
+                "canonical": "microsoft power bi",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "Power BI or Tableau",
+                "canonical": "tableau",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "basic Python or R",
+                "canonical": "python",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "basic Python or R",
+                "canonical": "r",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "data cleaning",
+                "canonical": "data cleaning",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "reporting",
+                "canonical": "reporting",
+                "confidence": 0.99
+              }
+            ],
+            "responsibilities": [
+              "analyzing sales, inventory, customer, and campaign data",
+              "building Power BI dashboards",
+              "writing SQL queries",
+              "preparing reliable reports",
+              "documenting metrics",
+              "presenting clear recommendations to business stakeholders"
+            ],
+            "domain": "retail",
+            "tech_stack": [
+              "SQL",
+              "Excel",
+              "Power BI",
+              "Tableau",
+              "Python",
+              "R"
+            ],
+            "years_experience_min": 0,
+            "years_experience_max": 2,
+            "keywords": [
+              "retail analytics",
+              "Junior Retail Data Analyst",
+              "sales data",
+              "inventory data",
+              "customer data",
+              "campaign data",
+              "dashboards",
+              "reports",
+              "Power BI",
+              "SQL",
+              "Berlin"
+            ],
+            "job_family": "analytics",
+            "mapping_suggestions": [
+              {
+                "must_have_skill": "microsoft excel",
+                "matches": true,
+                "alias": "excel",
+                "canonical": "microsoft excel",
+                "confidence": 0.99
+              },
+              {
+                "must_have_skill": "microsoft power bi",
+                "matches": true,
+                "alias": "power bi or tableau",
+                "canonical": "microsoft power bi",
+                "confidence": 0.96
+              },
+              {
+                "must_have_skill": "tableau",
+                "matches": true,
+                "alias": "power bi or tableau",
+                "canonical": "tableau",
+                "confidence": 0.96
+              },
+              {
+                "must_have_skill": "python",
+                "matches": true,
+                "alias": "basic python or r",
+                "canonical": "python",
+                "confidence": 0.96
+              },
+              {
+                "must_have_skill": "r",
+                "matches": true,
+                "alias": "basic python or r",
+                "canonical": "r",
+                "confidence": 0.96
+              }
+            ],
+            "enrichment_version": "v1",
+            "enrichment_model": "cx/gpt-5.4-mini",
+            "enriched_at": "2026-07-17T10:29:21.041360+00:00",
+            "raw_job_fingerprint": "fc15915dd09fde5e740b71298f97f5a95bfd16e33c7e2d6fd834965e0d298dea",
+            "enrich_contract_fingerprint": "4d459edd6a40a07a0e67e0e39eb0e9d55440afe2ed1d03ce0b81bbe119ae5c87",
+            "enrich_reuse_status": "fresh_enrichment"
+          }
+        ]
+      },
+      "shortlist": {
+        "stage_id": "shortlist",
+        "stage": "shortlist",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "shortlist",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "raw_vector_rows": 1,
+            "raw_vector_unique_jobs": 1,
+            "raw_vector_hits": 1,
+            "scoring_shortlist_jobs": 1,
+            "audit_rows": 0,
+            "retrieval_anomalies": 0,
+            "embedding_reused_jobs": 0,
+            "embedding_fresh_jobs": 1,
+            "embedding_total_jobs": 1
+          },
+          "evidence": {
+            "input_counts": {
+              "passed_jobs": 1
+            },
+            "decision_summary": {
+              "candidate_query_text": "Headline: Data Analyst | SQL, Excel, Power BI, Python, Power Query, Reporting & Data Visualization\nTarget Role: data analyst\nRecent Roles: R&D Staff | Brand Marketing Executive\nSkills: sql | microsoft excel | microsoft power bi | power quer...[truncated]",
+              "candidate_query_components": {
+                "headline": "Data Analyst | SQL, Excel, Power BI, Python, Power Query, Reporting & Data Visualization",
+                "target_role": "data analyst",
+                "recent_roles": [
+                  "R&D Staff",
+                  "Brand Marketing Executive"
+                ],
+                "role_family_hints": [
+                  "data analytics",
+                  "business intelligence",
+                  "business analytics"
+                ],
+                "flattened_skill_sample": [
+                  "sql",
+                  "microsoft excel",
+                  "microsoft power bi",
+                  "power query",
+                  "python",
+                  "dax",
+                  "microsoft powerpoint",
+                  "data analysis",
+                  "business intelligence",
+                  "reporting",
+                  "data visualization",
+                  "dashboard development",
+                  "exploratory data analysis",
+                  "data cleaning",
+                  "data transformation"
+                ],
+                "domain_hints": [
+                  "retail",
+                  "consumer goods",
+                  "ecommerce",
+                  "technology",
+                  "saas"
+                ]
+              },
+              "candidate_query_reuse_status": "reused_cached_query_embedding",
+              "candidate_query_signature": "bdd5e6377cd367612da1a627f4069c7899abbe91a7cb8554abaf2102869d76fc",
+              "candidate_query_contract_fingerprint": "cd6d61b88b4c74541a6e1b158bb4162eb538c8cb0f865ae9860642977c2ed4b3",
+              "components_hash": "10317f2c0da0d9b40353a2e8fa37807528b20e20d449e0e02d5f8e45cefc8b9a",
+              "canonical_text_hash": "7b4717a7b271c7ea2dc0e1520bc4f961c99ef58ef6f52452303236528b91d448",
+              "quality_metrics": {
+                "eligible_jobs_total": 1,
+                "scored_jobs_total": 1,
+                "production_shortlist_total": 1,
+                "production_cutoff_rank": 1,
+                "production_cutoff_similarity": -0.11302101956102888,
+                "missing_job_embedding_total": 0,
+                "invalid_job_embedding_total": 0,
+                "embedding_coverage_rate": 1.0,
+                "audit_candidate_total": 0,
+                "audit_sample_total": 0,
+                "audit_sample_fingerprint": ""
+              },
+              "vector_search_top_n": 50,
+              "jobs_not_returned_in_raw_hits": 0,
+              "embedding_reused_jobs": 0,
+              "embedding_fresh_jobs": 1,
+              "embedding_total_jobs": 1,
+              "raw_shortlist_anomaly_urls": []
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.shortlist.v1",
+          "trace_context": {
+            "trace_id": "cbd9ab472e74a9f0497c68965f42365d",
+            "span_id": "c9e89c2a3800a751",
+            "parent_span_id": "4efadc643f68c2dc"
+          }
+        },
+        "input_counts": {
+          "passed_jobs": 1
+        },
+        "output_counts": {
+          "raw_vector_rows": 1,
+          "raw_vector_unique_jobs": 1,
+          "raw_vector_hits": 1,
+          "scoring_shortlist_jobs": 1,
+          "audit_rows": 0,
+          "retrieval_anomalies": 0,
+          "embedding_reused_jobs": 0,
+          "embedding_fresh_jobs": 1,
+          "embedding_total_jobs": 1
+        },
+        "decision_summary": {
+          "candidate_query_text": "Headline: Data Analyst | SQL, Excel, Power BI, Python, Power Query, Reporting & Data Visualization\nTarget Role: data analyst\nRecent Roles: R&D Staff | Brand Marketing Executive\nSkills: sql | microsoft excel | microsoft power bi | power quer...[truncated]",
+          "candidate_query_components": {
+            "headline": "Data Analyst | SQL, Excel, Power BI, Python, Power Query, Reporting & Data Visualization",
+            "target_role": "data analyst",
+            "recent_roles": [
+              "R&D Staff",
+              "Brand Marketing Executive"
+            ],
+            "role_family_hints": [
+              "data analytics",
+              "business intelligence",
+              "business analytics"
+            ],
+            "flattened_skill_sample": [
+              "sql",
+              "microsoft excel",
+              "microsoft power bi",
+              "power query",
+              "python",
+              "dax",
+              "microsoft powerpoint",
+              "data analysis",
+              "business intelligence",
+              "reporting",
+              "data visualization",
+              "dashboard development",
+              "exploratory data analysis",
+              "data cleaning",
+              "data transformation"
+            ],
+            "domain_hints": [
+              "retail",
+              "consumer goods",
+              "ecommerce",
+              "technology",
+              "saas"
+            ]
+          },
+          "candidate_query_reuse_status": "reused_cached_query_embedding",
+          "candidate_query_signature": "bdd5e6377cd367612da1a627f4069c7899abbe91a7cb8554abaf2102869d76fc",
+          "candidate_query_contract_fingerprint": "cd6d61b88b4c74541a6e1b158bb4162eb538c8cb0f865ae9860642977c2ed4b3",
+          "components_hash": "10317f2c0da0d9b40353a2e8fa37807528b20e20d449e0e02d5f8e45cefc8b9a",
+          "canonical_text_hash": "7b4717a7b271c7ea2dc0e1520bc4f961c99ef58ef6f52452303236528b91d448",
+          "quality_metrics": {
+            "eligible_jobs_total": 1,
+            "scored_jobs_total": 1,
+            "production_shortlist_total": 1,
+            "production_cutoff_rank": 1,
+            "production_cutoff_similarity": -0.11302101956102888,
+            "missing_job_embedding_total": 0,
+            "invalid_job_embedding_total": 0,
+            "embedding_coverage_rate": 1.0,
+            "audit_candidate_total": 0,
+            "audit_sample_total": 0,
+            "audit_sample_fingerprint": ""
+          },
+          "vector_search_top_n": 50,
+          "jobs_not_returned_in_raw_hits": 0,
+          "embedding_reused_jobs": 0,
+          "embedding_fresh_jobs": 1,
+          "embedding_total_jobs": 1,
+          "raw_shortlist_anomaly_urls": []
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "vector_similarity": -0.11302101956102888,
+            "vector_rank": 1,
+            "shortlist_origin": "vector_search",
+            "shortlist_outcome": "returned_by_vector_search",
+            "raw_hit_present": true,
+            "retrieval_anomaly_present": false,
+            "embedding_reuse_status": "fresh_embedding",
+            "embedding_input_signature": "ffebfa7e7e7a343c2607aa10d5a76f77692bf5853187e6c46c5627e6d33a7584",
+            "embedding_contract_fingerprint": "ac06156117e11f750332a7089307020397d9188c0a0146aff52e73ad09eaf270"
+          }
+        ],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "company": "Example Retail Analytics",
+            "location_type": "hybrid",
+            "seniority": "junior",
+            "required_skills": [
+              "SQL",
+              "Excel",
+              "Power BI",
+              "Tableau",
+              "Python",
+              "R",
+              "data cleaning",
+              "reporting"
+            ],
+            "required_skills_canonical": [
+              "sql",
+              "microsoft excel",
+              "microsoft power bi",
+              "tableau",
+              "python",
+              "r",
+              "data cleaning",
+              "reporting"
+            ],
+            "required_skill_entities": [
+              {
+                "raw_text": "SQL",
+                "canonical": "sql",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Excel",
+                "canonical": "microsoft excel",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "Power BI or Tableau",
+                "canonical": "microsoft power bi",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "Power BI or Tableau",
+                "canonical": "tableau",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "basic Python or R",
+                "canonical": "python",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "basic Python or R",
+                "canonical": "r",
+                "confidence": 0.96
+              },
+              {
+                "raw_text": "data cleaning",
+                "canonical": "data cleaning",
+                "confidence": 0.99
+              },
+              {
+                "raw_text": "reporting",
+                "canonical": "reporting",
+                "confidence": 0.99
+              }
+            ],
+            "responsibilities": [
+              "analyzing sales, inventory, customer, and campaign data",
+              "building Power BI dashboards",
+              "writing SQL queries",
+              "preparing reliable reports",
+              "documenting metrics",
+              "presenting clear recommendations to business stakeholders"
+            ],
+            "domain": "retail",
+            "tech_stack": [
+              "SQL",
+              "Excel",
+              "Power BI",
+              "Tableau",
+              "Python",
+              "R"
+            ],
+            "years_experience_min": 0,
+            "years_experience_max": 2,
+            "keywords": [
+              "retail analytics",
+              "Junior Retail Data Analyst",
+              "sales data",
+              "inventory data",
+              "customer data",
+              "campaign data",
+              "dashboards",
+              "reports",
+              "Power BI",
+              "SQL",
+              "Berlin"
+            ],
+            "job_family": "analytics",
+            "mapping_suggestions": [
+              {
+                "must_have_skill": "microsoft excel",
+                "matches": true,
+                "alias": "excel",
+                "canonical": "microsoft excel",
+                "confidence": 0.99
+              },
+              {
+                "must_have_skill": "microsoft power bi",
+                "matches": true,
+                "alias": "power bi or tableau",
+                "canonical": "microsoft power bi",
+                "confidence": 0.96
+              },
+              {
+                "must_have_skill": "tableau",
+                "matches": true,
+                "alias": "power bi or tableau",
+                "canonical": "tableau",
+                "confidence": 0.96
+              },
+              {
+                "must_have_skill": "python",
+                "matches": true,
+                "alias": "basic python or r",
+                "canonical": "python",
+                "confidence": 0.96
+              },
+              {
+                "must_have_skill": "r",
+                "matches": true,
+                "alias": "basic python or r",
+                "canonical": "r",
+                "confidence": 0.96
+              }
+            ],
+            "enrichment_version": "v1",
+            "enrichment_model": "cx/gpt-5.4-mini",
+            "enriched_at": "2026-07-17T10:29:21.041360+00:00",
+            "raw_job_fingerprint": "fc15915dd09fde5e740b71298f97f5a95bfd16e33c7e2d6fd834965e0d298dea",
+            "enrich_contract_fingerprint": "4d459edd6a40a07a0e67e0e39eb0e9d55440afe2ed1d03ce0b81bbe119ae5c87",
+            "enrich_reuse_status": "fresh_enrichment"
+          }
+        ],
+        "settings_refs": [
+          "pipeline.vector_search_top_n"
+        ],
+        "production_retrieval_rows": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "vector_similarity": -0.11302101956102888,
+            "normalized_embedding": [
+              -0.04267939498067058,
+              0.004941824681972391,
+              0.05166453076607491,
+              -0.05975115297293881,
+              -0.07951845170082834,
+              -0.07951845170082834,
+              -0.038186827087968424,
+              0.01752101478153844,
+              0.06334520728710055,
+              0.09209764180039443,
+              0.013926960467376718,
+              0.013926960467376718,
+              0.014825474045917148,
+              0.10827088621412222,
+              -0.10647385905704136,
+              0.048070476451913195,
+              -0.04986750360899405,
+              0.03189723203818537,
+              0.03279574561672583,
+              -0.07861993812228792,
+              -0.030998718459644956,
+              -0.07322885665104531,
+              -0.06334520728710055,
+              -0.014825474045917148,
+              0.018419528360078895,
+              -0.022013582674240615,
+              0.05615709865877709,
+              0.09569169611455615,
+              0.05436007150169623,
+              0.0894021010647731,
+              0.10467683189996049,
+              -0.08760507390769225,
+              -0.04267939498067058,
+              0.004941824681972391,
+              0.05166453076607491,
+              -0.05975115297293881,
+              -0.07951845170082834,
+              -0.07951845170082834,
+              -0.038186827087968424,
+              0.01752101478153844,
+              0.06334520728710055,
+              0.09209764180039443,
+              0.013926960467376718,
+              0.013926960467376718,
+              0.014825474045917148,
+              0.10827088621412222,
+              -0.10647385905704136,
+              0.048070476451913195,
+              -0.04986750360899405,
+              0.03189723203818537,
+              0.03279574561672583,
+              -0.07861993812228792,
+              -0.030998718459644956,
+              -0.07322885665104531,
+              -0.06334520728710055,
+              -0.014825474045917148,
+              0.018419528360078895,
+              -0.022013582674240615,
+              0.05615709865877709,
+              0.09569169611455615,
+              0.05436007150169623,
+              0.0894021010647731,
+              0.10467683189996049,
+              -0.08760507390769225,
+              -0.04267939498067058,
+              0.004941824681972391,
+              0.05166453076607491,
+              -0.05975115297293881,
+              -0.07951845170082834,
+              -0.07951845170082834,
+              -0.038186827087968424,
+              0.01752101478153844,
+              0.06334520728710055,
+              0.09209764180039443,
+              0.013926960467376718,
+              0.013926960467376718,
+              0.014825474045917148,
+              0.10827088621412222,
+              -0.10647385905704136,
+              0.048070476451913195,
+              -0.04986750360899405,
+              0.03189723203818537,
+              0.03279574561672583,
+              -0.07861993812228792,
+              -0.030998718459644956,
+              -0.07322885665104531,
+              -0.06334520728710055,
+              -0.014825474045917148,
+              0.018419528360078895,
+              -0.022013582674240615,
+              0.05615709865877709,
+              0.09569169611455615,
+              0.05436007150169623,
+              0.0894021010647731,
+              0.10467683189996049,
+              -0.08760507390769225,
+              -0.04267939498067058,
+              0.004941824681972391,
+              0.05166453076607491,
+              -0.05975115297293881,
+              -0.07951845170082834,
+              -0.07951845170082834,
+              -0.038186827087968424,
+              0.01752101478153844,
+              0.06334520728710055,
+              0.09209764180039443,
+              0.013926960467376718,
+              0.013926960467376718,
+              0.014825474045917148,
+              0.10827088621412222,
+              -0.10647385905704136,
+              0.048070476451913195,
+              -0.04986750360899405,
+              0.03189723203818537,
+              0.03279574561672583,
+              -0.07861993812228792,
+              -0.030998718459644956,
+              -0.07322885665104531,
+              -0.06334520728710055,
+              -0.014825474045917148,
+              0.018419528360078895,
+              -0.022013582674240615,
+              0.05615709865877709,
+              0.09569169611455615,
+              0.05436007150169623,
+              0.0894021010647731,
+              0.10467683189996049,
+              -0.08760507390769225,
+              -0.04267939498067058,
+              0.004941824681972391,
+              0.05166453076607491,
+              -0.05975115297293881,
+              -0.07951845170082834,
+              -0.07951845170082834,
+              -0.038186827087968424,
+              0.01752101478153844,
+              0.06334520728710055,
+              0.09209764180039443,
+              0.013926960467376718,
+              0.013926960467376718,
+              0.014825474045917148,
+              0.10827088621412222,
+              -0.10647385905704136,
+              0.048070476451913195,
+              -0.04986750360899405,
+              0.03189723203818537,
+              0.03279574561672583,
+              -0.07861993812228792,
+              -0.030998718459644956,
+              -0.07322885665104531,
+              -0.06334520728710055,
+              -0.014825474045917148,
+              0.018419528360078895,
+              -0.022013582674240615,
+              0.05615709865877709,
+              0.09569169611455615,
+              0.05436007150169623,
+              0.0894021010647731,
+              0.10467683189996049,
+              -0.08760507390769225,
+              -0.04267939498067058,
+              0.004941824681972391,
+              0.05166453076607491,
+              -0.05975115297293881,
+              -0.07951845170082834,
+              -0.07951845170082834,
+              -0.038186827087968424,
+              0.01752101478153844,
+              0.06334520728710055,
+              0.09209764180039443,
+              0.013926960467376718,
+              0.013926960467376718,
+              0.014825474045917148,
+              0.10827088621412222,
+              -0.10647385905704136,
+              0.048070476451913195,
+              -0.04986750360899405,
+              0.03189723203818537,
+              0.03279574561672583,
+              -0.07861993812228792,
+              -0.030998718459644956,
+              -0.07322885665104531,
+              -0.06334520728710055,
+              -0.014825474045917148,
+              0.018419528360078895,
+              -0.022013582674240615,
+              0.05615709865877709,
+              0.09569169611455615,
+              0.05436007150169623,
+              0.0894021010647731,
+              0.10467683189996049,
+              -0.08760507390769225,
+              -0.04267939498067058,
+              0.004941824681972391,
+              0.05166453076607491,
+              -0.05975115297293881,
+              -0.07951845170082834,
+              -0.07951845170082834,
+              -0.038186827087968424,
+              0.01752101478153844,
+              0.06334520728710055,
+              0.09209764180039443,
+              0.013926960467376718,
+              0.013926960467376718,
+              0.014825474045917148,
+              0.10827088621412222,
+              -0.10647385905704136,
+              0.048070476451913195,
+              -0.04986750360899405,
+              0.03189723203818537,
+              0.03279574561672583,
+              -0.07861993812228792,
+              -0.030998718459644956,
+              -0.07322885665104531,
+              -0.06334520728710055,
+              -0.014825474045917148,
+              0.018419528360078895,
+              -0.022013582674240615,
+              0.05615709865877709,
+              0.09569169611455615,
+              0.05436007150169623,
+              0.0894021010647731,
+              0.10467683189996049,
+              -0.08760507390769225,
+              -0.04267939498067058,
+              0.004941824681972391,
+              0.05166453076607491,
+              -0.05975115297293881,
+              -0.07951845170082834,
+              -0.07951845170082834,
+              -0.038186827087968424,
+              0.01752101478153844,
+              0.06334520728710055,
+              0.09209764180039443,
+              0.013926960467376718,
+              0.013926960467376718,
+              0.014825474045917148,
+              0.10827088621412222,
+              -0.10647385905704136,
+              0.048070476451913195,
+              -0.04986750360899405,
+              0.03189723203818537,
+              0.03279574561672583,
+              -0.07861993812228792,
+              -0.030998718459644956,
+              -0.07322885665104531,
+              -0.06334520728710055,
+              -0.014825474045917148,
+              0.018419528360078895,
+              -0.022013582674240615,
+              0.05615709865877709,
+              0.09569169611455615,
+              0.05436007150169623,
+              0.0894021010647731,
+              0.10467683189996049,
+              -0.08760507390769225
+            ],
+            "embedding_vector_fingerprint": "85ec597e34cd4300229093f8dec9ba399ba5d1b9075e1556348ac38032df12c3",
+            "embedding_contract_fingerprint": "ac06156117e11f750332a7089307020397d9188c0a0146aff52e73ad09eaf270",
+            "vector_rank": 1,
+            "shortlist_origin": "vector_search",
+            "retrieval_strategy": "vector_cosine_v1"
+          }
+        ],
+        "production_shortlist": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "vector_similarity": -0.11302101956102888,
+            "vector_rank": 1,
+            "shortlist_origin": "vector_search",
+            "shortlist_outcome": "returned_by_vector_search",
+            "raw_hit_present": true,
+            "retrieval_anomaly_present": false,
+            "embedding_reuse_status": "fresh_embedding",
+            "embedding_input_signature": "ffebfa7e7e7a343c2607aa10d5a76f77692bf5853187e6c46c5627e6d33a7584",
+            "embedding_contract_fingerprint": "ac06156117e11f750332a7089307020397d9188c0a0146aff52e73ad09eaf270"
+          }
+        ],
+        "audit_sample": [],
+        "candidate_query_debug": {
+          "candidate_query_reuse_status": "reused_cached_query_embedding",
+          "candidate_query_signature": "bdd5e6377cd367612da1a627f4069c7899abbe91a7cb8554abaf2102869d76fc",
+          "candidate_query_contract_fingerprint": "cd6d61b88b4c74541a6e1b158bb4162eb538c8cb0f865ae9860642977c2ed4b3",
+          "components_hash": "10317f2c0da0d9b40353a2e8fa37807528b20e20d449e0e02d5f8e45cefc8b9a",
+          "canonical_text_hash": "7b4717a7b271c7ea2dc0e1520bc4f961c99ef58ef6f52452303236528b91d448"
+        }
+      },
+      "ranking": {
+        "stage_id": "ranking",
+        "stage": "ranking",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "ranking",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "ranked_jobs": 1,
+            "final_top_n": 15
+          },
+          "evidence": {
+            "input_counts": {
+              "ai_scores": 1,
+              "ranking_inputs": 1
+            },
+            "decision_summary": {
+              "ranking_fit_label_counts": {
+                "stretch": 1
+              },
+              "quality_metrics": {
+                "label_distribution": {
+                  "strong_count": 0,
+                  "stretch_count": 1,
+                  "skip_count": 0,
+                  "strong_rate": 0.0,
+                  "stretch_rate": 1.0,
+                  "skip_rate": 0.0,
+                  "total_scored": 1
+                }
+              },
+              "reuse_metrics": {
+                "reused_ai_scores": 0,
+                "fresh_ai_scores": 1,
+                "total_ai_scores": 1
+              },
+              "ranking_prompt_id": "ranking.ai_score.v2",
+              "ranking_prompt_version": "v2",
+              "ranking_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\dist\\fitcv-local\\_internal\\fitcv\\prompts\\templates\\ranking_ai_score_v2.md",
+              "ranking_prompt_customized": false,
+              "ranking_prompt_addendum_sha256": null,
+              "ranking_prompt_addendum_char_count": 0,
+              "ai_score_model": "cx/gpt-5.4-mini",
+              "ranking_policy": {
+                "policy_version": "ranking-v2",
+                "normalizer_version": "absolute-fit-v1",
+                "active_baseline_mode": "holistic_ai_only",
+                "baseline_weights": {
+                  "holistic_ai_fit": 1.0,
+                  "structured_fit": 0.0
+                },
+                "structured_factor_weights": {
+                  "must_have_match": 0.3,
+                  "title_relevance": 0.2,
+                  "seniority_fit": 0.15,
+                  "declared_preference_fit": 0.15,
+                  "location_fit": 0.1,
+                  "language_fit": 0.1
+                },
+                "declared_preference_component_weights": {
+                  "domain": 0.5,
+                  "role_family": 0.3,
+                  "work_mode": 0.2
+                },
+                "missing_value_defaults": {
+                  "holistic_ai_fit": 0.0,
+                  "must_have_match": 0.5,
+                  "title_relevance": 0.5,
+                  "seniority_fit": 0.5,
+                  "declared_preference_fit": 0.5,
+                  "location_fit": 0.5,
+                  "language_fit": 0.5
+                },
+                "fit_label_thresholds": {
+                  "strong": 0.7,
+                  "stretch": 0.4
+                },
+                "label_migration_gate": {
+                  "maximum_total_label_migration_rate": 0.1,
+                  "maximum_strong_skip_crossings": 0
+                }
+              },
+              "ranking_contract_fingerprint": "acd8bfbc0abdb474e7954e61c70f1487064f13b683a7e23b87f20b3e5e4e8a03",
+              "effective_structured_factor_weights": {
+                "must_have_match": 0.3,
+                "title_relevance": 0.2,
+                "seniority_fit": 0.15,
+                "declared_preference_fit": 0.15,
+                "location_fit": 0.1,
+                "language_fit": 0.1
+              },
+              "normalizer_version": "absolute-fit-v1",
+              "legacy_checkpoint_adaptation_count": 0,
+              "zero_weight_features": [
+                "structured_fit"
+              ],
+              "contributing_features": [
+                "holistic_ai_fit"
+              ],
+              "candidate_preference_resolution": {
+                "preferences": {
+                  "target_role": "data analyst",
+                  "role_families": [
+                    "data analytics",
+                    "business intelligence",
+                    "business analytics",
+                    "product analytics",
+                    "marketing analytics",
+                    "customer analytics",
+                    "commercial analytics",
+                    "operations analytics",
+                    "reporting analytics",
+                    "analytics engineering",
+                    "data science",
+                    "customer_success",
+                    "product_operations",
+                    "operations",
+                    "business_development",
+                    "sales_support",
+                    "growth"
+                  ],
+                  "location_types": [
+                    "remote",
+                    "hybrid",
+                    "onsite"
+                  ],
+                  "locations": [],
+                  "domains": [
+                    "retail",
+                    "consumer goods",
+                    "ecommerce",
+                    "technology",
+                    "saas",
+                    "marketplace",
+                    "fmcg",
+                    "supply chain",
+                    "logistics",
+                    "hr tech",
+                    "healthcare",
+                    "transportation",
+                    "cleantech"
+                  ],
+                  "seniority_target": "junior",
+                  "salary_range": null,
+                  "notice_period": null,
+                  "exclude_contract_types": [],
+                  "exclude_experience_levels": []
+                },
+                "inferred_preferences": {},
+                "effective_preferences": {
+                  "target_role": "data analyst",
+                  "role_families": [
+                    "data analytics",
+                    "business intelligence",
+                    "business analytics",
+                    "product analytics",
+                    "marketing analytics",
+                    "customer analytics",
+                    "commercial analytics",
+                    "operations analytics",
+                    "reporting analytics",
+                    "analytics engineering",
+                    "data science",
+                    "customer_success",
+                    "product_operations",
+                    "operations",
+                    "business_development",
+                    "sales_support",
+                    "growth"
+                  ],
+                  "location_types": [
+                    "remote",
+                    "hybrid",
+                    "onsite"
+                  ],
+                  "locations": [],
+                  "domains": [
+                    "retail",
+                    "consumer goods",
+                    "ecommerce",
+                    "technology",
+                    "saas",
+                    "marketplace",
+                    "fmcg",
+                    "supply chain",
+                    "logistics",
+                    "hr tech",
+                    "healthcare",
+                    "transportation",
+                    "cleantech"
+                  ],
+                  "seniority_target": "junior",
+                  "salary_range": null,
+                  "notice_period": null,
+                  "exclude_contract_types": [],
+                  "exclude_experience_levels": []
+                },
+                "preference_sources": {
+                  "target_role": "explicit_yaml",
+                  "role_families": "explicit_yaml",
+                  "location_types": "explicit_yaml",
+                  "domains": "explicit_yaml",
+                  "seniority_target": "explicit_yaml"
+                }
+              },
+              "personalization": {
+                "schema_version": "ranking_personalization_v1",
+                "resolution_status": "zero_residual_no_active",
+                "diagnostic_code": null,
+                "runtime_contract_fingerprint": "9ff24a1418a1243f80e4e75a9f3b64fbf2dbb17f35536f9f8a42b31db911b14d",
+                "policy_snapshot_id": null,
+                "payload_fingerprint": null,
+                "preference_vector_fingerprint": "ea43e29bfe86eea6b848aac141c0524c945539d5cd37a9e518a873d895449e66",
+                "learned_alpha": 0.05,
+                "preference_vector_norm_bound": 1.0,
+                "residual_min": 0.0,
+                "residual_max": 0.0,
+                "residual_mean": 0.0,
+                "clipped_count": 0,
+                "rank_change_count": 0,
+                "clipped_rate": 0.0,
+                "rank_change_rate": 0.0
+              }
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.ranking.v1",
+          "trace_context": {
+            "trace_id": "828e9141559e004a554983d1c297e2eb",
+            "span_id": "ed89e5ac86bb4383",
+            "parent_span_id": "68adce1cbf7f3036"
+          }
+        },
+        "input_counts": {
+          "ai_scores": 1,
+          "ranking_inputs": 1
+        },
+        "output_counts": {
+          "ranked_jobs": 1,
+          "final_top_n": 15
+        },
+        "decision_summary": {
+          "ranking_fit_label_counts": {
+            "stretch": 1
+          },
+          "quality_metrics": {
+            "label_distribution": {
+              "strong_count": 0,
+              "stretch_count": 1,
+              "skip_count": 0,
+              "strong_rate": 0.0,
+              "stretch_rate": 1.0,
+              "skip_rate": 0.0,
+              "total_scored": 1
+            }
+          },
+          "reuse_metrics": {
+            "reused_ai_scores": 0,
+            "fresh_ai_scores": 1,
+            "total_ai_scores": 1
+          },
+          "ranking_prompt_id": "ranking.ai_score.v2",
+          "ranking_prompt_version": "v2",
+          "ranking_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\dist\\fitcv-local\\_internal\\fitcv\\prompts\\templates\\ranking_ai_score_v2.md",
+          "ranking_prompt_customized": false,
+          "ranking_prompt_addendum_sha256": null,
+          "ranking_prompt_addendum_char_count": 0,
+          "ai_score_model": "cx/gpt-5.4-mini",
+          "ranking_policy": {
+            "policy_version": "ranking-v2",
+            "normalizer_version": "absolute-fit-v1",
+            "active_baseline_mode": "holistic_ai_only",
+            "baseline_weights": {
+              "holistic_ai_fit": 1.0,
+              "structured_fit": 0.0
+            },
+            "structured_factor_weights": {
+              "must_have_match": 0.3,
+              "title_relevance": 0.2,
+              "seniority_fit": 0.15,
+              "declared_preference_fit": 0.15,
+              "location_fit": 0.1,
+              "language_fit": 0.1
+            },
+            "declared_preference_component_weights": {
+              "domain": 0.5,
+              "role_family": 0.3,
+              "work_mode": 0.2
+            },
+            "missing_value_defaults": {
+              "holistic_ai_fit": 0.0,
+              "must_have_match": 0.5,
+              "title_relevance": 0.5,
+              "seniority_fit": 0.5,
+              "declared_preference_fit": 0.5,
+              "location_fit": 0.5,
+              "language_fit": 0.5
+            },
+            "fit_label_thresholds": {
+              "strong": 0.7,
+              "stretch": 0.4
+            },
+            "label_migration_gate": {
+              "maximum_total_label_migration_rate": 0.1,
+              "maximum_strong_skip_crossings": 0
+            }
+          },
+          "ranking_contract_fingerprint": "acd8bfbc0abdb474e7954e61c70f1487064f13b683a7e23b87f20b3e5e4e8a03",
+          "effective_structured_factor_weights": {
+            "must_have_match": 0.3,
+            "title_relevance": 0.2,
+            "seniority_fit": 0.15,
+            "declared_preference_fit": 0.15,
+            "location_fit": 0.1,
+            "language_fit": 0.1
+          },
+          "normalizer_version": "absolute-fit-v1",
+          "legacy_checkpoint_adaptation_count": 0,
+          "zero_weight_features": [
+            "structured_fit"
+          ],
+          "contributing_features": [
+            "holistic_ai_fit"
+          ],
+          "candidate_preference_resolution": {
+            "preferences": {
+              "target_role": "data analyst",
+              "role_families": [
+                "data analytics",
+                "business intelligence",
+                "business analytics",
+                "product analytics",
+                "marketing analytics",
+                "customer analytics",
+                "commercial analytics",
+                "operations analytics",
+                "reporting analytics",
+                "analytics engineering",
+                "data science",
+                "customer_success",
+                "product_operations",
+                "operations",
+                "business_development",
+                "sales_support",
+                "growth"
+              ],
+              "location_types": [
+                "remote",
+                "hybrid",
+                "onsite"
+              ],
+              "locations": [],
+              "domains": [
+                "retail",
+                "consumer goods",
+                "ecommerce",
+                "technology",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech",
+                "healthcare",
+                "transportation",
+                "cleantech"
+              ],
+              "seniority_target": "junior",
+              "salary_range": null,
+              "notice_period": null,
+              "exclude_contract_types": [],
+              "exclude_experience_levels": []
+            },
+            "inferred_preferences": {},
+            "effective_preferences": {
+              "target_role": "data analyst",
+              "role_families": [
+                "data analytics",
+                "business intelligence",
+                "business analytics",
+                "product analytics",
+                "marketing analytics",
+                "customer analytics",
+                "commercial analytics",
+                "operations analytics",
+                "reporting analytics",
+                "analytics engineering",
+                "data science",
+                "customer_success",
+                "product_operations",
+                "operations",
+                "business_development",
+                "sales_support",
+                "growth"
+              ],
+              "location_types": [
+                "remote",
+                "hybrid",
+                "onsite"
+              ],
+              "locations": [],
+              "domains": [
+                "retail",
+                "consumer goods",
+                "ecommerce",
+                "technology",
+                "saas",
+                "marketplace",
+                "fmcg",
+                "supply chain",
+                "logistics",
+                "hr tech",
+                "healthcare",
+                "transportation",
+                "cleantech"
+              ],
+              "seniority_target": "junior",
+              "salary_range": null,
+              "notice_period": null,
+              "exclude_contract_types": [],
+              "exclude_experience_levels": []
+            },
+            "preference_sources": {
+              "target_role": "explicit_yaml",
+              "role_families": "explicit_yaml",
+              "location_types": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml"
+            }
+          },
+          "personalization": {
+            "schema_version": "ranking_personalization_v1",
+            "resolution_status": "zero_residual_no_active",
+            "diagnostic_code": null,
+            "runtime_contract_fingerprint": "9ff24a1418a1243f80e4e75a9f3b64fbf2dbb17f35536f9f8a42b31db911b14d",
+            "policy_snapshot_id": null,
+            "payload_fingerprint": null,
+            "preference_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "preference_vector_fingerprint": "ea43e29bfe86eea6b848aac141c0524c945539d5cd37a9e518a873d895449e66",
+            "learned_alpha": 0.05,
+            "preference_vector_norm_bound": 1.0,
+            "residual_min": 0.0,
+            "residual_max": 0.0,
+            "residual_mean": 0.0,
+            "clipped_count": 0,
+            "rank_change_count": 0,
+            "clipped_rate": 0.0,
+            "rank_change_rate": 0.0
+          }
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "ai_score_reuse_status": "fresh_compute",
+            "ai_score_input_fingerprint": "a40478e0b0ca0d68b441c10e7b5bbdcf208c25010831dbbce6d7410823db10ae",
+            "reranker_parser_status": "ok",
+            "diagnostic_score_reasoning": "Strong coverage of core analytics stack with SQL, Excel, Power BI, Python, reporting, data cleaning, and data visualization, but missing clear Tableau and R evidence and job-fit proof comes more from skill listing than recent retail analyti...[truncated]",
+            "diagnostic_key_risks": [
+              "No Tableau evidence",
+              "No R evidence",
+              "Recent roles are not clearly analytics-focused",
+              "Junior role fit is plausible but practical retail analytics experience is not explicit"
+            ],
+            "diagnostic_matched_strengths": [
+              "SQL",
+              "Microsoft Excel",
+              "Microsoft Power BI",
+              "Python",
+              "reporting",
+              "data cleaning",
+              "data transformation",
+              "business intelligence",
+              "dashboard development",
+              "hybrid location fit"
+            ],
+            "reranker_score_reasoning": "Strong coverage of core analytics stack with SQL, Excel, Power BI, Python, reporting, data cleaning, and data visualization, but missing clear Tableau and R evidence and job-fit proof comes more from skill listing than recent retail analyti...[truncated]",
+            "reranker_key_risks": [
+              "No Tableau evidence",
+              "No R evidence",
+              "Recent roles are not clearly analytics-focused",
+              "Junior role fit is plausible but practical retail analytics experience is not explicit"
+            ],
+            "reranker_matched_strengths": [
+              "SQL",
+              "Microsoft Excel",
+              "Microsoft Power BI",
+              "Python",
+              "reporting",
+              "data cleaning",
+              "data transformation",
+              "business intelligence",
+              "dashboard development",
+              "hybrid location fit"
+            ],
+            "vector_similarity": -0.11302101956102888,
+            "normalized_factors": {
+              "must_have_match": {
+                "value": 0.75,
+                "source": "provided",
+                "normalizer_id": "required-skill-ratio-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.3,
+                "effective_weight": 0.3,
+                "contribution": 0.22499999999999998
+              },
+              "title_relevance": {
+                "value": 1.0,
+                "source": "provided",
+                "normalizer_id": "title-role-overlap-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.2,
+                "effective_weight": 0.2,
+                "contribution": 0.2
+              },
+              "seniority_fit": {
+                "value": 0.5,
+                "source": "provided",
+                "normalizer_id": "seniority-ladder-distance-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.15,
+                "effective_weight": 0.15,
+                "contribution": 0.075
+              },
+              "declared_preference_fit": {
+                "value": 1.0,
+                "source": "provided",
+                "normalizer_id": "declared-preference-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.15,
+                "effective_weight": 0.15,
+                "contribution": 0.15
+              },
+              "location_fit": {
+                "value": 0.5,
+                "source": "provided",
+                "normalizer_id": "eligibility-location-projection-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.1,
+                "effective_weight": 0.1,
+                "contribution": 0.05
+              },
+              "language_fit": {
+                "value": 1.0,
+                "source": "provided",
+                "normalizer_id": "eligibility-language-projection-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.1,
+                "effective_weight": 0.1,
+                "contribution": 0.1
+              }
+            },
+            "declared_preference_fit_components": {
+              "domain": 1.0,
+              "role_family": 1.0,
+              "work_mode": 1.0
+            },
+            "effective_target_role": "data analyst",
+            "effective_role_families": [
+              "data analytics",
+              "business intelligence",
+              "business analytics",
+              "product analytics",
+              "marketing analytics",
+              "customer analytics",
+              "commercial analytics",
+              "operations analytics",
+              "reporting analytics",
+              "analytics engineering",
+              "data science",
+              "customer_success",
+              "product_operations",
+              "operations",
+              "business_development",
+              "sales_support",
+              "growth"
+            ],
+            "effective_domains": [
+              "retail",
+              "consumer goods",
+              "ecommerce",
+              "technology",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech",
+              "healthcare",
+              "transportation",
+              "cleantech"
+            ],
+            "preference_sources": {
+              "target_role": "explicit_yaml",
+              "role_families": "explicit_yaml",
+              "location_types": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml"
+            },
+            "baseline_fit": 0.68,
+            "baseline_fit_label": "stretch",
+            "baseline_rank": 1,
+            "personalized_rank": 1,
+            "preference_residual": 0.0,
+            "personalized_rank_score": 0.68,
+            "personalized_display_score": 0.68,
+            "score_was_clipped": false,
+            "preference_vector_fingerprint": "ea43e29bfe86eea6b848aac141c0524c945539d5cd37a9e518a873d895449e66",
+            "preference_runtime_contract_fingerprint": "9ff24a1418a1243f80e4e75a9f3b64fbf2dbb17f35536f9f8a42b31db911b14d",
+            "preference_policy_resolution_status": "zero_residual_no_active",
+            "ranking_contract_fingerprint": "acd8bfbc0abdb474e7954e61c70f1487064f13b683a7e23b87f20b3e5e4e8a03",
+            "shortlist_origin": "vector_search"
+          }
+        ],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "ai_score_reuse_status": "fresh_compute",
+            "ai_score_input_fingerprint": "a40478e0b0ca0d68b441c10e7b5bbdcf208c25010831dbbce6d7410823db10ae",
+            "reranker_parser_status": "ok",
+            "diagnostic_score_reasoning": "Strong coverage of core analytics stack with SQL, Excel, Power BI, Python, reporting, data cleaning, and data visualization, but missing clear Tableau and R evidence and job-fit proof comes more from skill listing than recent retail analyti...[truncated]",
+            "diagnostic_key_risks": [
+              "No Tableau evidence",
+              "No R evidence",
+              "Recent roles are not clearly analytics-focused",
+              "Junior role fit is plausible but practical retail analytics experience is not explicit"
+            ],
+            "diagnostic_matched_strengths": [
+              "SQL",
+              "Microsoft Excel",
+              "Microsoft Power BI",
+              "Python",
+              "reporting",
+              "data cleaning",
+              "data transformation",
+              "business intelligence",
+              "dashboard development",
+              "hybrid location fit"
+            ],
+            "reranker_score_reasoning": "Strong coverage of core analytics stack with SQL, Excel, Power BI, Python, reporting, data cleaning, and data visualization, but missing clear Tableau and R evidence and job-fit proof comes more from skill listing than recent retail analyti...[truncated]",
+            "reranker_key_risks": [
+              "No Tableau evidence",
+              "No R evidence",
+              "Recent roles are not clearly analytics-focused",
+              "Junior role fit is plausible but practical retail analytics experience is not explicit"
+            ],
+            "reranker_matched_strengths": [
+              "SQL",
+              "Microsoft Excel",
+              "Microsoft Power BI",
+              "Python",
+              "reporting",
+              "data cleaning",
+              "data transformation",
+              "business intelligence",
+              "dashboard development",
+              "hybrid location fit"
+            ],
+            "vector_similarity": -0.11302101956102888,
+            "normalized_factors": {
+              "must_have_match": {
+                "value": 0.75,
+                "source": "provided",
+                "normalizer_id": "required-skill-ratio-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.3,
+                "effective_weight": 0.3,
+                "contribution": 0.22499999999999998
+              },
+              "title_relevance": {
+                "value": 1.0,
+                "source": "provided",
+                "normalizer_id": "title-role-overlap-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.2,
+                "effective_weight": 0.2,
+                "contribution": 0.2
+              },
+              "seniority_fit": {
+                "value": 0.5,
+                "source": "provided",
+                "normalizer_id": "seniority-ladder-distance-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.15,
+                "effective_weight": 0.15,
+                "contribution": 0.075
+              },
+              "declared_preference_fit": {
+                "value": 1.0,
+                "source": "provided",
+                "normalizer_id": "declared-preference-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.15,
+                "effective_weight": 0.15,
+                "contribution": 0.15
+              },
+              "location_fit": {
+                "value": 0.5,
+                "source": "provided",
+                "normalizer_id": "eligibility-location-projection-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.1,
+                "effective_weight": 0.1,
+                "contribution": 0.05
+              },
+              "language_fit": {
+                "value": 1.0,
+                "source": "provided",
+                "normalizer_id": "eligibility-language-projection-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.1,
+                "effective_weight": 0.1,
+                "contribution": 0.1
+              }
+            },
+            "declared_preference_fit_components": {
+              "domain": 1.0,
+              "role_family": 1.0,
+              "work_mode": 1.0
+            },
+            "effective_target_role": "data analyst",
+            "effective_role_families": [
+              "data analytics",
+              "business intelligence",
+              "business analytics",
+              "product analytics",
+              "marketing analytics",
+              "customer analytics",
+              "commercial analytics",
+              "operations analytics",
+              "reporting analytics",
+              "analytics engineering",
+              "data science",
+              "customer_success",
+              "product_operations",
+              "operations",
+              "business_development",
+              "sales_support",
+              "growth"
+            ],
+            "effective_domains": [
+              "retail",
+              "consumer goods",
+              "ecommerce",
+              "technology",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech",
+              "healthcare",
+              "transportation",
+              "cleantech"
+            ],
+            "preference_sources": {
+              "target_role": "explicit_yaml",
+              "role_families": "explicit_yaml",
+              "location_types": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml"
+            },
+            "baseline_fit": 0.68,
+            "baseline_fit_label": "stretch",
+            "baseline_rank": 1,
+            "personalized_rank": 1,
+            "preference_residual": 0.0,
+            "personalized_rank_score": 0.68,
+            "personalized_display_score": 0.68,
+            "score_was_clipped": false,
+            "preference_vector_fingerprint": "ea43e29bfe86eea6b848aac141c0524c945539d5cd37a9e518a873d895449e66",
+            "preference_runtime_contract_fingerprint": "9ff24a1418a1243f80e4e75a9f3b64fbf2dbb17f35536f9f8a42b31db911b14d",
+            "preference_policy_resolution_status": "zero_residual_no_active",
+            "ranking_contract_fingerprint": "acd8bfbc0abdb474e7954e61c70f1487064f13b683a7e23b87f20b3e5e4e8a03",
+            "shortlist_origin": "vector_search"
+          }
+        ],
+        "settings_refs": [
+          "ranking_policy",
+          "ranking_contract",
+          "pipeline.final_top_n",
+          "prompts.ranking.ai_score.prompt_id"
+        ],
+        "llm_runtime_summary": {
+          "contract_version": "llm_stage_runtime_summary_v1",
+          "calls_total": 1,
+          "succeeded_total": 1,
+          "failed_total": 0,
+          "failure_counts_by_stage": {},
+          "failure_counts_by_code": {},
+          "adapters": [
+            "openai_compatible"
+          ],
+          "runtime_paths": [
+            "fitcv_llm_openai_compatible"
+          ],
+          "evidence_sample": [
+            {
+              "contract_version": "llm_runtime_observation_v1",
+              "scope_key": "fc15915dd09fde5e740b71298f97f5a95bfd16e33c7e2d6fd834965e0d298dea",
+              "input_index": 0,
+              "invocation_index": 1,
+              "evidence": {
+                "contract_version": "llm_runtime_evidence_v1",
+                "status": "succeeded",
+                "provenance": {
+                  "routing_part": "ranking_ai_score",
+                  "runtime_path": "fitcv_llm_openai_compatible",
+                  "adapter": "openai_compatible",
+                  "provider": "openai_compatible",
+                  "model": "cx/gpt-5.4-mini",
+                  "wire_api": "chat_completions",
+                  "attempt_count": 1,
+                  "response_id": "resp_01789bc55f6b1170016a5a04018df48191ab0ca60408281e77",
+                  "trace_id": null,
+                  "latency_ms": 5513
+                },
+                "failure": null
+              }
+            }
+          ]
+        }
+      },
+      "cv_analysis": {
+        "stage_id": "cv_analysis",
+        "stage": "cv_analysis",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "cv_analysis",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "blocked_by_reranker_fit": 0,
+            "ready_for_generation": 1,
+            "skipped_fit_gate": 0,
+            "analysis_failed": 0
+          },
+          "evidence": {
+            "input_counts": {
+              "ranked_jobs": 1
+            },
+            "decision_summary": {
+              "analysis_records_captured": 1,
+              "quality_metrics": {
+                "blocked_by_reranker_fit_rate": 0.0,
+                "skip_rate": 0.0,
+                "ready_for_generation_rate": 1.0,
+                "analysis_failed_rate": 0.0,
+                "blocked_by_reranker_fit": 0,
+                "skipped_fit_gate": 0,
+                "ready_for_generation": 1,
+                "analysis_failed": 0,
+                "total_processed": 1
+              },
+              "reuse_metrics": {
+                "analysis_rows_executed": 1,
+                "reused_analysis_rows": 0,
+                "fresh_analysis_rows": 1,
+                "blocked_before_analysis_rows": 0,
+                "analysis_reuse_rate": 0.0
+              },
+              "evidence_top_k": 5,
+              "effective_channel_pool_size": 4,
+              "selected_evidence_total": 5,
+              "merged_candidate_pool_total": 16
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.cv_analysis.v1",
+          "trace_context": {
+            "trace_id": "9ae468f055ee7c2f6ca4f91352666bb1",
+            "span_id": "e1d84820f9f77247",
+            "parent_span_id": "60ef7e7862be0552"
+          }
+        },
+        "input_counts": {
+          "ranked_jobs": 1
+        },
+        "output_counts": {
+          "blocked_by_reranker_fit": 0,
+          "ready_for_generation": 1,
+          "skipped_fit_gate": 0,
+          "analysis_failed": 0
+        },
+        "decision_summary": {
+          "analysis_records_captured": 1,
+          "quality_metrics": {
+            "blocked_by_reranker_fit_rate": 0.0,
+            "skip_rate": 0.0,
+            "ready_for_generation_rate": 1.0,
+            "analysis_failed_rate": 0.0,
+            "blocked_by_reranker_fit": 0,
+            "skipped_fit_gate": 0,
+            "ready_for_generation": 1,
+            "analysis_failed": 0,
+            "total_processed": 1
+          },
+          "reuse_metrics": {
+            "analysis_rows_executed": 1,
+            "reused_analysis_rows": 0,
+            "fresh_analysis_rows": 1,
+            "blocked_before_analysis_rows": 0,
+            "analysis_reuse_rate": 0.0
+          },
+          "evidence_top_k": 5,
+          "effective_channel_pool_size": 4,
+          "selected_evidence_total": 5,
+          "merged_candidate_pool_total": 16
+        },
+        "outputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "status": "ready_for_generation",
+            "stage_owned_subreason": "ready_for_generation",
+            "source_stage": "cv_analysis",
+            "analysis_reuse_status": "fresh_compute",
+            "analysis_input_fingerprint": "23b5a23db723ef932c0fd1467b2906ee19a0e880922d39d7b2f5272384cc1572",
+            "ranking_fit_label": "stretch",
+            "fit_classification": "stretch",
+            "evidence_used": [
+              {
+                "evidence_type": "experience_entry",
+                "source_ref": "experiences[1]",
+                "name": "Brand Marketing Executive — Long Hung ITS",
+                "matched_channels": [
+                  "required_skill_support",
+                  "domain_alignment",
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "responsibility_alignment",
+                  "required_skill_support",
+                  "domain_alignment"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.25,
+                    "semantic": 0.229662,
+                    "combined": 0.243899
+                  },
+                  "domain_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.332047,
+                    "combined": 0.199228
+                  },
+                  "responsibility_alignment": {
+                    "lexical": 0.26087,
+                    "semantic": 0.281334,
+                    "combined": 0.276218
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 25,
+                      "reused": 15
+                    },
+                    "job_context": {
+                      "fresh": 19,
+                      "reused": 171
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "project_entry",
+                "source_ref": "projects[2]",
+                "name": "Ecommerce Analytics Bruin",
+                "matched_channels": [
+                  "required_skill_support",
+                  "role_alignment",
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "required_skill_support",
+                  "responsibility_alignment",
+                  "role_alignment"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.375,
+                    "semantic": 0.189898,
+                    "combined": 0.319469
+                  },
+                  "role_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.242967,
+                    "combined": 0.097187
+                  },
+                  "responsibility_alignment": {
+                    "lexical": 0.304348,
+                    "semantic": 0.167748,
+                    "combined": 0.201898
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 25,
+                      "reused": 15
+                    },
+                    "job_context": {
+                      "fresh": 19,
+                      "reused": 171
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "achievement",
+                "source_ref": "achievements[2]",
+                "name": "Developed and launched 38 SKUs across B2B and B2C stationery categories, supporting portfolio expansion and new revenue opportunities.",
+                "matched_channels": [
+                  "role_alignment",
+                  "domain_alignment"
+                ],
+                "selection_reasons": [
+                  "role_alignment",
+                  "domain_alignment"
+                ],
+                "channel_subscores": {
+                  "role_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.331732,
+                    "combined": 0.132693
+                  },
+                  "domain_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.160202,
+                    "combined": 0.096121
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 25,
+                      "reused": 15
+                    },
+                    "job_context": {
+                      "fresh": 19,
+                      "reused": 171
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "project_entry",
+                "source_ref": "projects[1]",
+                "name": "Customer Churn Prediction on Azure ML",
+                "matched_channels": [
+                  "required_skill_support",
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "responsibility_alignment",
+                  "required_skill_support"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.125,
+                    "semantic": 0.415173,
+                    "combined": 0.212052
+                  },
+                  "responsibility_alignment": {
+                    "lexical": 0.086957,
+                    "semantic": 0.315794,
+                    "combined": 0.258585
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 25,
+                      "reused": 15
+                    },
+                    "job_context": {
+                      "fresh": 19,
+                      "reused": 171
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "experience_entry",
+                "source_ref": "experiences[0]",
+                "name": "R&D Staff — KOKUYO Vietnam Trading",
+                "matched_channels": [
+                  "required_skill_support"
+                ],
+                "selection_reasons": [
+                  "required_skill_support"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.25,
+                    "semantic": 0.124406,
+                    "combined": 0.212322
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 25,
+                      "reused": 15
+                    },
+                    "job_context": {
+                      "fresh": 19,
+                      "reused": 171
+                    }
+                  }
+                }
+              }
+            ],
+            "evidence_selection_summary": {
+              "channel_counts": {
+                "required_skill_support": 4,
+                "role_alignment": 4,
+                "domain_alignment": 4,
+                "responsibility_alignment": 4
+              },
+              "fallback_used": false,
+              "effective_channel_pool_size": 4,
+              "merged_pool_size": 16,
+              "deduped_pool_size": 8,
+              "selected_evidence_count": 5,
+              "selected_evidence_ids": [
+                "exp_longhung_pushmax_2019_2021",
+                "proj_ecommerce_analytics_bruin",
+                "ach_kokuyo_38_skus",
+                "proj_customer_churn_azureml",
+                "exp_kokuyo_vn_2021_2023"
+              ],
+              "unselected_top_candidates": [
+                {
+                  "evidence_id": "ach_pushmax_top5_campaign",
+                  "evidence_type": "achievement",
+                  "source_ref": "achievements[4]",
+                  "name": "Supported delivery of a top-5 social marketing campaign in the F&B category by combining consumer research, brand analysis, and performance reporting.",
+                  "matched_channels": [
+                    "domain_alignment",
+                    "responsibility_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "domain_alignment": {
+                      "lexical": 0.0,
+                      "semantic": 0.091099,
+                      "combined": 0.054659
+                    },
+                    "responsibility_alignment": {
+                      "lexical": 0.043478,
+                      "semantic": 0.213651,
+                      "combined": 0.171108
+                    }
+                  }
+                },
+                {
+                  "evidence_id": "ach_fitcv_traceable_matching",
+                  "evidence_type": "achievement",
+                  "source_ref": "achievements[1]",
+                  "name": "Combined clear screening rules, exact signals, and evidence-based review in FitCV to improve shortlist quality and make match decisions easier to explain and validate.",
+                  "matched_channels": [
+                    "role_alignment",
+                    "domain_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "role_alignment": {
+                      "lexical": 0.0,
+                      "semantic": 0.237251,
+                      "combined": 0.0949
+                    },
+                    "domain_alignment": {
+                      "lexical": 0.0,
+                      "semantic": 0.12127,
+                      "combined": 0.072762
+                    }
+                  }
+                },
+                {
+                  "evidence_id": "ach_fitcv_workflow_design",
+                  "evidence_type": "achievement",
+                  "source_ref": "achievements[0]",
+                  "name": "Designed FitCV as a staged decision workflow that filters, evaluates, and refines opportunities before CV generation, improving reviewability and reducing wasted effort on weak matches.",
+                  "matched_channels": [
+                    "role_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "role_alignment": {
+                      "lexical": 0.0,
+                      "semantic": 0.293465,
+                      "combined": 0.117386
+                    }
+                  }
+                }
+              ],
+              "hybrid_alignment": {
+                "required_skill_support": {
+                  "lexical_weight": 0.7,
+                  "semantic_weight": 0.3
+                },
+                "role_alignment": {
+                  "lexical_weight": 0.6,
+                  "semantic_weight": 0.4
+                },
+                "responsibility_alignment": {
+                  "lexical_weight": 0.25,
+                  "semantic_weight": 0.75
+                },
+                "domain_alignment": {
+                  "lexical_weight": 0.4,
+                  "semantic_weight": 0.6
+                }
+              },
+              "semantic_alignment": {
+                "enabled": true,
+                "semantic_methods": {
+                  "required_skill_support": "embedding_similarity",
+                  "role_alignment": "embedding_similarity",
+                  "responsibility_alignment": "embedding_similarity",
+                  "domain_alignment": "embedding_similarity"
+                },
+                "reuse_state": {
+                  "candidate_evidence": "mixed_fresh_and_reused",
+                  "job_context": "mixed_fresh_and_reused"
+                },
+                "embedding_counts": {
+                  "candidate_evidence": {
+                    "fresh": 25,
+                    "reused": 15
+                  },
+                  "job_context": {
+                    "fresh": 19,
+                    "reused": 171
+                  }
+                }
+              }
+            },
+            "gap_summary": {
+              "matched": [
+                "SQL",
+                "Excel",
+                "Power BI",
+                "Python",
+                "data cleaning",
+                "reporting"
+              ],
+              "partial": [],
+              "missing": [
+                "Tableau",
+                "R"
+              ],
+              "matchable_required_count": 8,
+              "ignored_for_fit": [],
+              "years_risk": false,
+              "overclaim_risk": []
+            }
+          }
+        ],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "ai_score_reuse_status": "fresh_compute",
+            "ai_score_input_fingerprint": "a40478e0b0ca0d68b441c10e7b5bbdcf208c25010831dbbce6d7410823db10ae",
+            "reranker_parser_status": "ok",
+            "diagnostic_score_reasoning": "Strong coverage of core analytics stack with SQL, Excel, Power BI, Python, reporting, data cleaning, and data visualization, but missing clear Tableau and R evidence and job-fit proof comes more from skill listing than recent retail analyti...[truncated]",
+            "diagnostic_key_risks": [
+              "No Tableau evidence",
+              "No R evidence",
+              "Recent roles are not clearly analytics-focused",
+              "Junior role fit is plausible but practical retail analytics experience is not explicit"
+            ],
+            "diagnostic_matched_strengths": [
+              "SQL",
+              "Microsoft Excel",
+              "Microsoft Power BI",
+              "Python",
+              "reporting",
+              "data cleaning",
+              "data transformation",
+              "business intelligence",
+              "dashboard development",
+              "hybrid location fit"
+            ],
+            "reranker_score_reasoning": "Strong coverage of core analytics stack with SQL, Excel, Power BI, Python, reporting, data cleaning, and data visualization, but missing clear Tableau and R evidence and job-fit proof comes more from skill listing than recent retail analyti...[truncated]",
+            "reranker_key_risks": [
+              "No Tableau evidence",
+              "No R evidence",
+              "Recent roles are not clearly analytics-focused",
+              "Junior role fit is plausible but practical retail analytics experience is not explicit"
+            ],
+            "reranker_matched_strengths": [
+              "SQL",
+              "Microsoft Excel",
+              "Microsoft Power BI",
+              "Python",
+              "reporting",
+              "data cleaning",
+              "data transformation",
+              "business intelligence",
+              "dashboard development",
+              "hybrid location fit"
+            ],
+            "vector_similarity": -0.11302101956102888,
+            "normalized_factors": {
+              "must_have_match": {
+                "value": 0.75,
+                "source": "provided",
+                "normalizer_id": "required-skill-ratio-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.3,
+                "effective_weight": 0.3,
+                "contribution": 0.22499999999999998
+              },
+              "title_relevance": {
+                "value": 1.0,
+                "source": "provided",
+                "normalizer_id": "title-role-overlap-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.2,
+                "effective_weight": 0.2,
+                "contribution": 0.2
+              },
+              "seniority_fit": {
+                "value": 0.5,
+                "source": "provided",
+                "normalizer_id": "seniority-ladder-distance-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.15,
+                "effective_weight": 0.15,
+                "contribution": 0.075
+              },
+              "declared_preference_fit": {
+                "value": 1.0,
+                "source": "provided",
+                "normalizer_id": "declared-preference-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.15,
+                "effective_weight": 0.15,
+                "contribution": 0.15
+              },
+              "location_fit": {
+                "value": 0.5,
+                "source": "provided",
+                "normalizer_id": "eligibility-location-projection-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.1,
+                "effective_weight": 0.1,
+                "contribution": 0.05
+              },
+              "language_fit": {
+                "value": 1.0,
+                "source": "provided",
+                "normalizer_id": "eligibility-language-projection-v1",
+                "missing_default_applied": false,
+                "ranking_enabled": true,
+                "configured_weight": 0.1,
+                "effective_weight": 0.1,
+                "contribution": 0.1
+              }
+            },
+            "declared_preference_fit_components": {
+              "domain": 1.0,
+              "role_family": 1.0,
+              "work_mode": 1.0
+            },
+            "effective_target_role": "data analyst",
+            "effective_role_families": [
+              "data analytics",
+              "business intelligence",
+              "business analytics",
+              "product analytics",
+              "marketing analytics",
+              "customer analytics",
+              "commercial analytics",
+              "operations analytics",
+              "reporting analytics",
+              "analytics engineering",
+              "data science",
+              "customer_success",
+              "product_operations",
+              "operations",
+              "business_development",
+              "sales_support",
+              "growth"
+            ],
+            "effective_domains": [
+              "retail",
+              "consumer goods",
+              "ecommerce",
+              "technology",
+              "saas",
+              "marketplace",
+              "fmcg",
+              "supply chain",
+              "logistics",
+              "hr tech",
+              "healthcare",
+              "transportation",
+              "cleantech"
+            ],
+            "preference_sources": {
+              "target_role": "explicit_yaml",
+              "role_families": "explicit_yaml",
+              "location_types": "explicit_yaml",
+              "domains": "explicit_yaml",
+              "seniority_target": "explicit_yaml"
+            },
+            "baseline_fit": 0.68,
+            "baseline_fit_label": "stretch",
+            "baseline_rank": 1,
+            "personalized_rank": 1,
+            "preference_residual": 0.0,
+            "personalized_rank_score": 0.68,
+            "personalized_display_score": 0.68,
+            "score_was_clipped": false,
+            "preference_vector_fingerprint": "ea43e29bfe86eea6b848aac141c0524c945539d5cd37a9e518a873d895449e66",
+            "preference_runtime_contract_fingerprint": "9ff24a1418a1243f80e4e75a9f3b64fbf2dbb17f35536f9f8a42b31db911b14d",
+            "preference_policy_resolution_status": "zero_residual_no_active",
+            "ranking_contract_fingerprint": "acd8bfbc0abdb474e7954e61c70f1487064f13b683a7e23b87f20b3e5e4e8a03",
+            "shortlist_origin": "vector_search"
+          }
+        ],
+        "settings_refs": [
+          "pipeline.evidence_top_k",
+          "cv_analysis.semantic_alignment.enabled",
+          "cv_analysis.semantic_alignment.model",
+          "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+          "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+          "cv_analysis.semantic_alignment.role_lexical_weight",
+          "cv_analysis.semantic_alignment.role_semantic_weight",
+          "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+          "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+          "cv_analysis.semantic_alignment.domain_lexical_weight",
+          "cv_analysis.semantic_alignment.domain_semantic_weight",
+          "cv_analysis.semantic_alignment.channel_pool_size"
+        ],
+        "llm_runtime_summary": {
+          "contract_version": "llm_stage_runtime_summary_v1",
+          "calls_total": 0,
+          "succeeded_total": 0,
+          "failed_total": 0,
+          "failure_counts_by_stage": {},
+          "failure_counts_by_code": {},
+          "adapters": [],
+          "runtime_paths": [],
+          "evidence_sample": []
+        }
+      },
+      "cv_generation": {
+        "stage_id": "cv_generation",
+        "stage": "cv_generation",
+        "status": "completed",
+        "stage_result": {
+          "stage_id": "cv_generation",
+          "status": "completed",
+          "stage_version": "1.0.0",
+          "output": {
+            "accepted": 0,
+            "review_required": 1,
+            "validation_failed": 0,
+            "generation_failed": 0,
+            "persistence_failed": 0
+          },
+          "evidence": {
+            "input_counts": {
+              "analysis_ready_jobs": 1
+            },
+            "decision_summary": {
+              "debug_records_captured": 1,
+              "analysis_ready_jobs_total": 1,
+              "quality_metrics": {
+                "validation_fail_rate": 0.0,
+                "accepted_rate": 0.0,
+                "review_required_rate": 1.0,
+                "generation_failed_rate": 0.0,
+                "persistence_failed_rate": 0.0,
+                "accepted": 0,
+                "review_required": 1,
+                "validation_failed": 0,
+                "generation_failed": 0,
+                "persistence_failed": 0,
+                "total_attempted": 1
+              },
+              "reuse_metrics": {
+                "reused_rows": 0,
+                "fresh_rows": 1,
+                "total_rows": 1,
+                "reuse_rate": 0.0
+              },
+              "cv_generation_model": "cx/gpt-5.4-mini",
+              "cv_generation_provider": "openai_compatible",
+              "cv_prompt_id": "cv_generation.structured_write.v1",
+              "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\dist\\fitcv-local\\_internal\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md",
+              "cv_prompt_customized": false,
+              "cv_prompt_addendum_sha256": null,
+              "cv_prompt_addendum_char_count": 0
+            }
+          },
+          "validation": {
+            "checks": [],
+            "summary": {
+              "status": "completed"
+            }
+          },
+          "decision": "pass",
+          "policy_version": "policy.cv_generation.v1",
+          "trace_context": {
+            "trace_id": "35aa9c3c4ed352b2304cbfdc6adc216d",
+            "span_id": "2805a2eff0154cb7",
+            "parent_span_id": "e8a51cdb7da32189"
+          }
+        },
+        "input_counts": {
+          "analysis_ready_jobs": 1
+        },
+        "output_counts": {
+          "accepted": 0,
+          "review_required": 1,
+          "validation_failed": 0,
+          "generation_failed": 0,
+          "persistence_failed": 0
+        },
+        "decision_summary": {
+          "debug_records_captured": 1,
+          "analysis_ready_jobs_total": 1,
+          "quality_metrics": {
+            "validation_fail_rate": 0.0,
+            "accepted_rate": 0.0,
+            "review_required_rate": 1.0,
+            "generation_failed_rate": 0.0,
+            "persistence_failed_rate": 0.0,
+            "accepted": 0,
+            "review_required": 1,
+            "validation_failed": 0,
+            "generation_failed": 0,
+            "persistence_failed": 0,
+            "total_attempted": 1
+          },
+          "reuse_metrics": {
+            "reused_rows": 0,
+            "fresh_rows": 1,
+            "total_rows": 1,
+            "reuse_rate": 0.0
+          },
+          "cv_generation_model": "cx/gpt-5.4-mini",
+          "cv_generation_provider": "openai_compatible",
+          "cv_prompt_id": "cv_generation.structured_write.v1",
+          "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\dist\\fitcv-local\\_internal\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md",
+          "cv_prompt_customized": false,
+          "cv_prompt_addendum_sha256": null,
+          "cv_prompt_addendum_char_count": 0
+        },
+        "outputs_sample": [],
+        "dropped_or_changed_sample": [],
+        "inputs_sample": [
+          {
+            "job_url": "https://example.test/fitcv-controller-prompt-customized-1784284106533593700",
+            "job_title": "Junior Retail Data Analyst",
+            "status": "ready_for_generation",
+            "stage_owned_subreason": "ready_for_generation",
+            "source_stage": "cv_analysis",
+            "analysis_reuse_status": "fresh_compute",
+            "analysis_input_fingerprint": "23b5a23db723ef932c0fd1467b2906ee19a0e880922d39d7b2f5272384cc1572",
+            "ranking_fit_label": "stretch",
+            "fit_classification": "stretch",
+            "evidence_used": [
+              {
+                "evidence_type": "experience_entry",
+                "source_ref": "experiences[1]",
+                "name": "Brand Marketing Executive — Long Hung ITS",
+                "matched_channels": [
+                  "required_skill_support",
+                  "domain_alignment",
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "responsibility_alignment",
+                  "required_skill_support",
+                  "domain_alignment"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.25,
+                    "semantic": 0.229662,
+                    "combined": 0.243899
+                  },
+                  "domain_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.332047,
+                    "combined": 0.199228
+                  },
+                  "responsibility_alignment": {
+                    "lexical": 0.26087,
+                    "semantic": 0.281334,
+                    "combined": 0.276218
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 25,
+                      "reused": 15
+                    },
+                    "job_context": {
+                      "fresh": 19,
+                      "reused": 171
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "project_entry",
+                "source_ref": "projects[2]",
+                "name": "Ecommerce Analytics Bruin",
+                "matched_channels": [
+                  "required_skill_support",
+                  "role_alignment",
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "required_skill_support",
+                  "responsibility_alignment",
+                  "role_alignment"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.375,
+                    "semantic": 0.189898,
+                    "combined": 0.319469
+                  },
+                  "role_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.242967,
+                    "combined": 0.097187
+                  },
+                  "responsibility_alignment": {
+                    "lexical": 0.304348,
+                    "semantic": 0.167748,
+                    "combined": 0.201898
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 25,
+                      "reused": 15
+                    },
+                    "job_context": {
+                      "fresh": 19,
+                      "reused": 171
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "achievement",
+                "source_ref": "achievements[2]",
+                "name": "Developed and launched 38 SKUs across B2B and B2C stationery categories, supporting portfolio expansion and new revenue opportunities.",
+                "matched_channels": [
+                  "role_alignment",
+                  "domain_alignment"
+                ],
+                "selection_reasons": [
+                  "role_alignment",
+                  "domain_alignment"
+                ],
+                "channel_subscores": {
+                  "role_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.331732,
+                    "combined": 0.132693
+                  },
+                  "domain_alignment": {
+                    "lexical": 0.0,
+                    "semantic": 0.160202,
+                    "combined": 0.096121
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 25,
+                      "reused": 15
+                    },
+                    "job_context": {
+                      "fresh": 19,
+                      "reused": 171
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "project_entry",
+                "source_ref": "projects[1]",
+                "name": "Customer Churn Prediction on Azure ML",
+                "matched_channels": [
+                  "required_skill_support",
+                  "responsibility_alignment"
+                ],
+                "selection_reasons": [
+                  "responsibility_alignment",
+                  "required_skill_support"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.125,
+                    "semantic": 0.415173,
+                    "combined": 0.212052
+                  },
+                  "responsibility_alignment": {
+                    "lexical": 0.086957,
+                    "semantic": 0.315794,
+                    "combined": 0.258585
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 25,
+                      "reused": 15
+                    },
+                    "job_context": {
+                      "fresh": 19,
+                      "reused": 171
+                    }
+                  }
+                }
+              },
+              {
+                "evidence_type": "experience_entry",
+                "source_ref": "experiences[0]",
+                "name": "R&D Staff — KOKUYO Vietnam Trading",
+                "matched_channels": [
+                  "required_skill_support"
+                ],
+                "selection_reasons": [
+                  "required_skill_support"
+                ],
+                "channel_subscores": {
+                  "required_skill_support": {
+                    "lexical": 0.25,
+                    "semantic": 0.124406,
+                    "combined": 0.212322
+                  }
+                },
+                "semantic_alignment": {
+                  "enabled": true,
+                  "semantic_methods": {
+                    "required_skill_support": "embedding_similarity",
+                    "role_alignment": "embedding_similarity",
+                    "responsibility_alignment": "embedding_similarity",
+                    "domain_alignment": "embedding_similarity"
+                  },
+                  "reuse_state": {
+                    "candidate_evidence": "mixed_fresh_and_reused",
+                    "job_context": "mixed_fresh_and_reused"
+                  },
+                  "embedding_counts": {
+                    "candidate_evidence": {
+                      "fresh": 25,
+                      "reused": 15
+                    },
+                    "job_context": {
+                      "fresh": 19,
+                      "reused": 171
+                    }
+                  }
+                }
+              }
+            ],
+            "evidence_selection_summary": {
+              "channel_counts": {
+                "required_skill_support": 4,
+                "role_alignment": 4,
+                "domain_alignment": 4,
+                "responsibility_alignment": 4
+              },
+              "fallback_used": false,
+              "effective_channel_pool_size": 4,
+              "merged_pool_size": 16,
+              "deduped_pool_size": 8,
+              "selected_evidence_count": 5,
+              "selected_evidence_ids": [
+                "exp_longhung_pushmax_2019_2021",
+                "proj_ecommerce_analytics_bruin",
+                "ach_kokuyo_38_skus",
+                "proj_customer_churn_azureml",
+                "exp_kokuyo_vn_2021_2023"
+              ],
+              "unselected_top_candidates": [
+                {
+                  "evidence_id": "ach_pushmax_top5_campaign",
+                  "evidence_type": "achievement",
+                  "source_ref": "achievements[4]",
+                  "name": "Supported delivery of a top-5 social marketing campaign in the F&B category by combining consumer research, brand analysis, and performance reporting.",
+                  "matched_channels": [
+                    "domain_alignment",
+                    "responsibility_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "domain_alignment": {
+                      "lexical": 0.0,
+                      "semantic": 0.091099,
+                      "combined": 0.054659
+                    },
+                    "responsibility_alignment": {
+                      "lexical": 0.043478,
+                      "semantic": 0.213651,
+                      "combined": 0.171108
+                    }
+                  }
+                },
+                {
+                  "evidence_id": "ach_fitcv_traceable_matching",
+                  "evidence_type": "achievement",
+                  "source_ref": "achievements[1]",
+                  "name": "Combined clear screening rules, exact signals, and evidence-based review in FitCV to improve shortlist quality and make match decisions easier to explain and validate.",
+                  "matched_channels": [
+                    "role_alignment",
+                    "domain_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "role_alignment": {
+                      "lexical": 0.0,
+                      "semantic": 0.237251,
+                      "combined": 0.0949
+                    },
+                    "domain_alignment": {
+                      "lexical": 0.0,
+                      "semantic": 0.12127,
+                      "combined": 0.072762
+                    }
+                  }
+                },
+                {
+                  "evidence_id": "ach_fitcv_workflow_design",
+                  "evidence_type": "achievement",
+                  "source_ref": "achievements[0]",
+                  "name": "Designed FitCV as a staged decision workflow that filters, evaluates, and refines opportunities before CV generation, improving reviewability and reducing wasted effort on weak matches.",
+                  "matched_channels": [
+                    "role_alignment"
+                  ],
+                  "selection_score": 0.0,
+                  "channel_subscores": {
+                    "role_alignment": {
+                      "lexical": 0.0,
+                      "semantic": 0.293465,
+                      "combined": 0.117386
+                    }
+                  }
+                }
+              ],
+              "hybrid_alignment": {
+                "required_skill_support": {
+                  "lexical_weight": 0.7,
+                  "semantic_weight": 0.3
+                },
+                "role_alignment": {
+                  "lexical_weight": 0.6,
+                  "semantic_weight": 0.4
+                },
+                "responsibility_alignment": {
+                  "lexical_weight": 0.25,
+                  "semantic_weight": 0.75
+                },
+                "domain_alignment": {
+                  "lexical_weight": 0.4,
+                  "semantic_weight": 0.6
+                }
+              },
+              "semantic_alignment": {
+                "enabled": true,
+                "semantic_methods": {
+                  "required_skill_support": "embedding_similarity",
+                  "role_alignment": "embedding_similarity",
+                  "responsibility_alignment": "embedding_similarity",
+                  "domain_alignment": "embedding_similarity"
+                },
+                "reuse_state": {
+                  "candidate_evidence": "mixed_fresh_and_reused",
+                  "job_context": "mixed_fresh_and_reused"
+                },
+                "embedding_counts": {
+                  "candidate_evidence": {
+                    "fresh": 25,
+                    "reused": 15
+                  },
+                  "job_context": {
+                    "fresh": 19,
+                    "reused": 171
+                  }
+                }
+              }
+            },
+            "gap_summary": {
+              "matched": [
+                "SQL",
+                "Excel",
+                "Power BI",
+                "Python",
+                "data cleaning",
+                "reporting"
+              ],
+              "partial": [],
+              "missing": [
+                "Tableau",
+                "R"
+              ],
+              "matchable_required_count": 8,
+              "ignored_for_fit": [],
+              "years_risk": false,
+              "overclaim_risk": []
+            }
+          }
+        ],
+        "settings_refs": [
+          "cv.generation.model",
+          "prompts.cv_generation.structured_write.prompt_id"
+        ],
+        "llm_runtime_summary": {
+          "contract_version": "llm_stage_runtime_summary_v1",
+          "calls_total": 1,
+          "succeeded_total": 1,
+          "failed_total": 0,
+          "failure_counts_by_stage": {},
+          "failure_counts_by_code": {},
+          "adapters": [
+            "openai_compatible"
+          ],
+          "runtime_paths": [
+            "fitcv_llm_openai_compatible"
+          ],
+          "evidence_sample": [
+            {
+              "contract_version": "llm_runtime_observation_v1",
+              "scope_key": "fc15915dd09fde5e740b71298f97f5a95bfd16e33c7e2d6fd834965e0d298dea",
+              "input_index": 0,
+              "invocation_index": 1,
+              "evidence": {
+                "contract_version": "llm_runtime_evidence_v1",
+                "status": "succeeded",
+                "provenance": {
+                  "routing_part": "cv_generation_structured_write",
+                  "runtime_path": "fitcv_llm_openai_compatible",
+                  "adapter": "openai_compatible",
+                  "provider": "openai_compatible",
+                  "model": "cx/gpt-5.4-mini",
+                  "wire_api": "chat_completions",
+                  "attempt_count": 1,
+                  "response_id": "resp_09026b12aec5e6e2016a5a04075f4481918852537de8a8879f",
+                  "trace_id": null,
+                  "latency_ms": 126931
+                },
+                "failure": null
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

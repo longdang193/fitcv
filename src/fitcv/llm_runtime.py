@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 import time
 from typing import Any, Callable, Literal, TypeAlias
 
+from fitcv.config import SUPPORTED_PROVIDER_IDS
 from fitcv.openai_compat import (
     decode_openai_compat_response_body,
     extract_openai_chat_completions_text,
@@ -104,7 +105,7 @@ class LlmRuntimeResult:
 def project_llm_runtime_evidence(result: LlmRuntimeResult) -> dict[str, Any]:
     provenance = result.provenance
     failure = result.failure
-    return {
+    evidence: dict[str, Any] = {
         "contract_version": "llm_runtime_evidence_v1",
         "status": result.status,
         "provenance": {
@@ -131,7 +132,23 @@ def project_llm_runtime_evidence(result: LlmRuntimeResult) -> dict[str, Any]:
             else None
         ),
     }
-
+    adapter_response = result.adapter_response
+    if adapter_response is not None:
+        provider_payload = adapter_response.provider_payload or {}
+        telemetry = {
+            key: dict(value)
+            for key, value in adapter_response.telemetry.items()
+            if key in {"usage", "cost"} and isinstance(value, dict) and value
+        }
+        provider_model = str(provider_payload.get("model") or "").strip()
+        if provider_model:
+            telemetry["provider_reported_model"] = provider_model
+        reasoning = provider_payload.get("reasoning")
+        if isinstance(reasoning, dict) and reasoning:
+            telemetry["reasoning"] = dict(reasoning)
+        if telemetry:
+            evidence["telemetry"] = telemetry
+    return evidence
 
 class LlmAdapterError(RuntimeError):
     def __init__(
@@ -393,7 +410,7 @@ def _openai_compatible_adapter(
 ) -> LlmAdapterResponse:
     import httpx
 
-    if route.provider not in {"openai", "openai_compatible", "9router"}:
+    if route.provider not in SUPPORTED_PROVIDER_IDS:
         raise ValueError(f"Unsupported default-adapter provider: {route.provider}.")
     headers = {"Content-Type": "application/json"}
     if api_key:

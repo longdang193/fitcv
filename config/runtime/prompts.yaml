@@ -21,3 +21,6 @@ prompts:
   cv_generation:
     structured_write:
       prompt_id: cv_generation.structured_write.v1
+  synonym_triage:
+    recommendation:
+      prompt_id: synonym_triage.recommendation.v1

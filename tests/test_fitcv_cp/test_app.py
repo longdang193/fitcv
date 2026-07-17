@@ -393,6 +393,22 @@ def test_timeline_stage_summary_message_distinguishes_enrich_start_vs_progress()
     assert start_message.startswith("Enrich starting:")
     assert progress_message.startswith("Enrich in progress:")
 
+def test_timeline_stage_summary_message_does_not_call_terminal_review_paused() -> None:
+    event = RunEvent(
+        run_id="r",
+        event_id="e-review",
+        stage="cv_review_required",
+        level="warning",
+        message="Review required: 4 CV item(s) pending operator action. Auto-accepted=0.",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        payload_json=json.dumps({"review_required_total": 4, "auto_accepted": 0}),
+    )
+
+    message = _timeline_stage_summary_message(event, {})
+
+    assert message.startswith("Review required:")
+    assert "Run paused" not in message
+
 def test_synonym_decision_ledger_marks_reviewed_rows_as_decision_applied() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -2123,7 +2139,7 @@ def test_run_detail_renders_single_manual_entry_synonym_workspace_cta() -> None:
     assert resp.text.count("Manual Decide + Promote") == 1
     assert "Open Synonym Workspace" not in resp.text
 
-def test_admin_run_detail_shows_replay_context_metadata() -> None:
+def test_admin_run_detail_hides_replay_and_backend_metadata() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -2154,13 +2170,12 @@ def test_admin_run_detail_shows_replay_context_metadata() -> None:
         resp = TestClient(_app()).get("/admin/runs/run-replay-meta")
 
     assert resp.status_code == 200
-    assert "Replay Mode" in resp.text
-    assert "policy_replay" in resp.text
-    assert "run-origin-1" in resp.text
-    assert "policy_registry.v2" in resp.text
-    assert "Runtime Mode" in resp.text
-    assert "full" in resp.text
-    assert "sqlite" in resp.text
+    assert "Replay Mode" not in resp.text
+    assert "policy_replay" not in resp.text
+    assert "run-origin-1" not in resp.text
+    assert "policy_registry.v2" not in resp.text
+    assert "Runtime and Backend Details" not in resp.text
+    assert "Run Attempt Timeline" not in resp.text
 
 
 def test_admin_run_detail_shows_stage_result_policy_and_trace_summary() -> None:
@@ -4078,7 +4093,7 @@ def test_admin_run_detail_shows_bundle_zip_export_link():
         resp = TestClient(_app()).get("/admin/runs/test-bundle-btn")
     assert resp.status_code == 200
     assert 'href="/admin/runs/test-bundle-btn/artifacts.zip"' in resp.text
-    assert "Download All Artifacts (.zip)" in resp.text
+    assert "Download debug bundle" in resp.text
 
 
 def test_admin_run_detail_shows_download_settings_used_json_button():
@@ -4285,6 +4300,46 @@ def test_run_detail_timeline_shows_stage_download_for_mapped_event():
     assert 'href="/admin/runs/run-stage-link/stage-artifacts/ranking.json"' in resp.text
     assert "Download Ranking JSON" in resp.text
 
+
+def test_run_detail_timeline_hides_evidence_fingerprint() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
+
+    run = PipelineRun(
+        run_id="run-private-timeline",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    events = [
+        RunEvent(
+            run_id=run.run_id,
+            event_id="e-private",
+            stage="layer4_cv_generation_result",
+            level="info",
+            message=(
+                "item 1, job https://jobs.example.com/1, outcome review required, "
+                "reason unsupported_requirement_gap, evidence fp abc123def456"
+            ),
+            created_at=datetime.now(timezone.utc),
+            payload_json='{"job_url":"https://jobs.example.com/1"}',
+        )
+    ]
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=events), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        response = TestClient(_app()).get(f"/admin/runs/{run.run_id}")
+
+    assert response.status_code == 200
+    assert "evidence fingerprint" not in response.text
+    assert "abc123def456" not in response.text
 
 def test_run_detail_paused_after_normalize_shows_normalize_download_on_timeline_row():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
@@ -8759,11 +8814,13 @@ def test_download_run_artifact_bundle_zip_endpoint_for_partial_run() -> None:
         assert "mapping-suggestions.json" not in names
         manifest = json.loads(archive.read("manifest.json"))
     assert manifest["run_id"] == "run-bundle-partial-1"
-    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v6"
+    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v7"
     assert manifest["run_mode"] == "manual_staged"
     assert manifest["run_mode_label"] == "Stage by Stage"
     assert "late_stage_mode" not in manifest
     assert "normalize.json" in manifest["included_files"]
+    assert manifest["job_outcome_counts"] == {"accepted": 0, "held": 0, "blocked": 0, "rejected": 0, "skipped": 0}
+    assert manifest["file_fingerprints"]["normalize.json"].startswith("sha256:")
     assert "mapping-suggestions.json" not in manifest["missing_files"]
     assert manifest["artifact_states"]["mapping-suggestions.json"] == "not_applicable"
 
@@ -8852,11 +8909,13 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
         trace_payload = json.loads(archive.read("cv-generation-trace.json"))
         synonym_trace_payload = json.loads(archive.read("synonym-proposals-trace.json"))
     assert manifest["run_id"] == "run-bundle-success-1"
-    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v6"
+    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v7"
     assert manifest["run_mode"] == "run_all"
     assert manifest["run_mode_label"] == "Run All"
     assert "late_stage_mode" not in manifest
     assert "results.json" in manifest["included_files"]
+    assert manifest["job_outcome_counts"] == {"accepted": 0, "held": 0, "blocked": 0, "rejected": 0, "skipped": 0}
+    assert manifest["file_fingerprints"]["results.json"].startswith("sha256:")
     assert "hitl-review-audit.json" in manifest["included_files"]
     assert manifest["artifact_states"]["cv-analysis-trace.json"] == "present"
     assert manifest["artifact_states"]["cv-generation-trace.json"] == "present"
@@ -11178,6 +11237,67 @@ def test_run_detail_shows_marks_for_passed_jobs() -> None:
     assert "Marks: must_have_skill_missing" in resp.text
 
 
+def test_run_detail_enriched_shows_canonical_why_details() -> None:
+    import json as _json
+    from datetime import datetime, timezone
+
+    from fitcv.pipeline_contracts import build_job_outcome_fact
+
+    job_url = "https://jobs.example.com/why-1"
+    fact = build_job_outcome_fact(
+        run_id="run-detail-test",
+        input_index=0,
+        job_url=job_url,
+        attempt_id="attempt-1",
+        stage_status="review_required",
+        reason_facts={"gap": "unsupported requirement"},
+        policy_version="cv_generation.v1",
+        trace_id="trace-1",
+        evidence_ref={
+            "artifact": "cv_generation.json",
+            "fingerprint": "sha256:evidence",
+            "record_key": "input:0",
+        },
+        occurred_at=datetime(2026, 7, 17, 20, tzinfo=timezone.utc),
+    )
+    export_payload = _json.dumps(
+        {
+            "results": [
+                {
+                    "job_url": job_url,
+                    "job_title": "Review Role",
+                    "pipeline_status": "ranked_no_cv",
+                    "job_outcome": fact,
+                }
+            ]
+        }
+    )
+    patches = _run_detail_patches(
+        enriched_jobs=[
+            {
+                "job_url": job_url,
+                "title": "Review Role",
+                "domain": "data",
+                "job_family": "engineering",
+                "required_skills": [],
+                "location_type": "remote",
+                "seniority": "mid",
+            }
+        ],
+        filter_results=[{"job_url": job_url, "passed": True, "reasons": []}],
+        results_export_json=export_payload,
+    )
+
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        response = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
+
+    assert response.status_code == 200
+    assert "Why?" in response.text
+    assert "review_gate_manual_required" in response.text
+    assert "cv_generation.json" in response.text
+    assert "sha256:evidence" in response.text
+    assert "input:0" in response.text
+
 def test_run_detail_enriched_shows_pipeline_outcome_for_passed_non_ranked_job():
     import json as _json
 
@@ -13104,6 +13224,10 @@ def test_download_run_enriched_filtered_zip_defaults_to_selected_pipeline_outcom
         "ranked_no_cv",
         "scored_not_ranked",
         "ranked_skipped_fit_gate",
+        "accepted",
+        "held",
+        "blocked",
+        "skipped",
     ]
 
 def test_admin_upload_trigger_accepts_jsonl_rerun_input():
@@ -13176,8 +13300,8 @@ def test_run_detail_enriched_pagination_fragment_url_matches_href():
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched?page=2&page_size=25&filter_name=all&q=python")
     assert resp.status_code == 200
-    prev_url = "/admin/runs/run-detail-test/tabs/enriched?page=1&page_size=25&filter_name=all&q=python&pipeline_outcome=ranked_with_cv&pipeline_outcome=ranked_blocked_by_reranker_fit&pipeline_outcome=ranked_no_cv&pipeline_outcome=scored_not_ranked&pipeline_outcome=ranked_skipped_fit_gate"
-    next_url = "/admin/runs/run-detail-test/tabs/enriched?page=3&page_size=25&filter_name=all&q=python&pipeline_outcome=ranked_with_cv&pipeline_outcome=ranked_blocked_by_reranker_fit&pipeline_outcome=ranked_no_cv&pipeline_outcome=scored_not_ranked&pipeline_outcome=ranked_skipped_fit_gate"
+    prev_url = "/admin/runs/run-detail-test/tabs/enriched?page=1&page_size=25&filter_name=all&q=python&pipeline_outcome=ranked_with_cv&pipeline_outcome=ranked_blocked_by_reranker_fit&pipeline_outcome=ranked_no_cv&pipeline_outcome=scored_not_ranked&pipeline_outcome=ranked_skipped_fit_gate&pipeline_outcome=accepted&pipeline_outcome=held&pipeline_outcome=blocked&pipeline_outcome=skipped"
+    next_url = "/admin/runs/run-detail-test/tabs/enriched?page=3&page_size=25&filter_name=all&q=python&pipeline_outcome=ranked_with_cv&pipeline_outcome=ranked_blocked_by_reranker_fit&pipeline_outcome=ranked_no_cv&pipeline_outcome=scored_not_ranked&pipeline_outcome=ranked_skipped_fit_gate&pipeline_outcome=accepted&pipeline_outcome=held&pipeline_outcome=blocked&pipeline_outcome=skipped"
     assert f'href="{prev_url}"' in resp.text
     assert f'data-tab-fragment-url="{prev_url}"' in resp.text
     assert f'href="{next_url}"' in resp.text

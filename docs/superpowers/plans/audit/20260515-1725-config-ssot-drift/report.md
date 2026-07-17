@@ -2,7 +2,7 @@
 layer: audit
 artifact_type: report
 template_id: audit-report-with-evidence
-status: open
+status: resolved
 name: config-ssot-drift
 ---
 
@@ -11,11 +11,11 @@ name: config-ssot-drift
 ## Metadata
 
 - Audit ID: 20260515-1725-config-ssot-drift
-- Status: open
+- Status: resolved
 - Severity: medium
 - Owner: codex
 - Created At: $created
-- Updated At: $updated
+- Updated At: 2026-07-16T23:58:00+02:00
 - Related Thread/Plan: 
 one
 
@@ -78,8 +78,8 @@ rg -n "^(gemini_model|embedding_model|enrichment_sleep_secs|vector_top_n|vector_
 
 ## Fix And Verification
 
-- Fix summary: no new code/config fix in this audit update; this is verification + evidence refresh of active SSOT drift condition.
-- Attempted fix path and outcomes: prior mitigation existed in earlier audit revision, but current files still show overlapping ownership across audited surfaces; condition remains open.
+- Fix summary: runtime config migrated to canonical `config/runtime`, `config/policy`, and `config/taxonomy` owners; strict loader enforcement rejects prohibited overlap. Provider IDs and onboarding task-part contracts now use shared constants.
+- Current verification evidence: `evidence/results/20260716-resolution-summary.json`.
 - Verification commands:
 
 `powershell
@@ -95,9 +95,9 @@ rg -n "^(gemini_model|embedding_model|enrichment_sleep_secs|vector_top_n|vector_
 
 ## Risk And Disposition
 
-- Residual risk: config edits can silently diverge between duplicated env surfaces and pipeline/control-plane surfaces, causing inconsistent runtime decisions.
-- Disposition decision: open
-- Follow-ups: define enforced ownership map + add CI guard failing on prohibited overlap.
+- Residual risk: historical snapshots retain old paths as evidence only.
+- Disposition decision: resolved
+- Follow-ups: keep strict config load and shared-constant regressions in CI.
 
 ## Artifact Index
 

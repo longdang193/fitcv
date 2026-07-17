@@ -12,11 +12,11 @@ tags:
 from fitcv_cp.retry_settings import load_retry_settings
 
 
-def test_load_retry_settings_applies_defaults_when_missing() -> None:
-    settings = load_retry_settings({})
-    assert settings.enabled is False
-    assert settings.max_attempts == 1
-    assert settings.backoff_seconds == (1, 2, 4, 8)
+def test_load_retry_settings_rejects_missing_canonical_fields() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="fitcv_cp.retry.enabled is required"):
+        load_retry_settings({})
 
 
 def test_load_retry_settings_parses_values_from_control_plane_cfg() -> None:

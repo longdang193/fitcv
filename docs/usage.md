@@ -21,11 +21,14 @@ engineering usage.
 ## FitCV Local Flow
 
 1. Launch **FitCV Local** from Start menu. Second launch reuses existing instance.
-2. Complete onboarding if redirected to `/local/onboarding`.
-3. Open `/admin/runs`, submit job input, and choose `Run All` or `Stage by Stage`.
-4. Inspect progress, evidence, artifacts, settings used, and generated CV output.
-5. Use **Data & Backup** for backup, import, or cold data relocation.
-6. Use **System** for redacted diagnostics, version information, and shutdown.
+2. Complete onboarding if redirected to `/local/onboarding`. After setup, use
+   **LLM & API** in navigation to edit provider/model routing, whole-run retry,
+   and bounded prompt guidance on the same page.
+3. Use each reset action to remove user override and return to packaged default.
+4. Open `/admin/runs`, submit job input, and choose `Run All` or `Stage by Stage`.
+5. Inspect progress, evidence, artifacts, settings used, and generated CV output.
+6. Use **Data & Backup** for backup, import, or cold data relocation.
+7. Use **System** for redacted diagnostics, version information, and shutdown.
 
 Run submission stays disabled until candidate profile, provider routing, required
 credential, and provider test are ready. Packaged executor accepts one active job;
@@ -153,4 +156,3 @@ second-instance reuse, shutdown, process exit, and fixed size/startup/memory bud
 - [setup.md](setup.md)
 - [pipeline.md](pipeline.md)
 - [architecture.md](architecture.md)
-

@@ -142,17 +142,21 @@ def test_list_filter_results_for_run_decodes_marks_and_reasons() -> None:
 def test_local_sqlite_path_uses_control_plane_config_when_env_missing(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("FITCV_CP_SQLITE_PATH", raising=False)
-    (tmp_path / "config" / "runtime").mkdir(parents=True)
-    (tmp_path / "config" / "runtime" / "control_plane.yaml").write_text(
-        "control_plane:\n"
-        "  data_backend:\n"
-        "    type: sqlite\n"
-        "    sqlite:\n"
-        f"      path: {tmp_path / 'from-config.sqlite3'}\n",
+    config_path = tmp_path / "config" / "runtime" / "control_plane.yaml"
+    config_path.parent.mkdir(parents=True)
+    canonical_text = (
+        Path(__file__).parents[2] / "config" / "runtime" / "control_plane.yaml"
+    ).read_text(encoding="utf-8")
+    assert "path: data/fitcv_cp.sqlite3" in canonical_text
+    config_path.write_text(
+        canonical_text.replace(
+            "path: data/fitcv_cp.sqlite3",
+            f"path: {(tmp_path / 'from-config.sqlite3').as_posix()}",
+        ),
         encoding="utf-8",
     )
 
-    assert sqlite_store._local_sqlite_path() == str(tmp_path / "from-config.sqlite3")
+    assert Path(sqlite_store._local_sqlite_path()) == tmp_path / "from-config.sqlite3"
 
 
 def _training_row() -> dict[str, object]:

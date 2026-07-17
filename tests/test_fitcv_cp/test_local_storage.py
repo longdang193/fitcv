@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 
+from fitcv.config import validate_local_controller_overlay
 from fitcv_cp.local_storage import (
     BootstrapError,
     activate_local_storage,
@@ -33,7 +34,6 @@ from fitcv_cp.local_storage import (
     restore_backup_archive,
     load_bootstrap,
     validate_data_root_destination,
-    validate_routing_overlay,
     write_pending_operation,
     write_bootstrap,
 )
@@ -42,7 +42,7 @@ from fitcv_cp.local_storage import (
 _LOCAL_ENV_KEYS = (
     "FITCV_CP_SQLITE_PATH",
     "FITCV_LOCAL_DATA_ROOT",
-    "FITCV_LOCAL_ROUTING_OVERLAY_PATH",
+    "FITCV_LOCAL_CONTROLLER_OVERLAY_PATH",
     "FITCV_LOCAL_CANDIDATE_PROFILE_PATH",
     "FITCV_LOCAL_ARTIFACTS_PATH",
     "FITCV_LOCAL_EXPORTS_PATH",
@@ -69,9 +69,9 @@ def test_activate_local_storage_creates_expected_layout(
 
     assert paths.data_root == tmp_path / "local" / "FitCV" / "data"
     assert paths.sqlite_path == paths.data_root / "fitcv.sqlite3"
-    assert paths.routing_overlay_path == paths.data_root / "config" / "local_routing_overlay.yaml"
+    assert paths.controller_overlay_path == paths.data_root / "config" / "local_controller_overlay.yaml"
     assert paths.candidate_profile_path.exists()
-    assert paths.routing_overlay_path.read_text(encoding="utf-8") == "version: 1\nproviders: {}\nmodel_routing:\n  parts: {}\n"
+    assert paths.controller_overlay_path.read_text(encoding="utf-8") == "version: 1\n"
     assert json.loads(paths.bootstrap_path.read_text(encoding="utf-8")) == {
         "version": 1,
         "data_root": str(paths.data_root),
@@ -102,9 +102,9 @@ def test_load_bootstrap_rejects_malformed_json(tmp_path: Path) -> None:
         load_bootstrap(bootstrap_path)
 
 
-def test_validate_routing_overlay_rejects_non_routing_keys() -> None:
+def test_validate_controller_overlay_rejects_unsupported_keys() -> None:
     with pytest.raises(ValueError, match="unsupported keys"):
-        validate_routing_overlay({"version": 1, "data_backend": {}})
+        validate_local_controller_overlay({"version": 1, "data_backend": {}})
 
 
 def test_validate_data_root_destination_rejects_relative_path() -> None:
@@ -169,9 +169,9 @@ def test_backup_archive_restores_sqlite_and_user_configuration(tmp_path: Path) -
     paths = __import__("fitcv_cp.local_storage", fromlist=["_paths"])._paths(
         tmp_path / "bootstrap.json", source
     )
-    paths.routing_overlay_path.parent.mkdir(parents=True)
+    paths.controller_overlay_path.parent.mkdir(parents=True)
     paths.candidate_profile_path.write_text("name: User\n", encoding="utf-8")
-    paths.routing_overlay_path.write_text("version: 1\nproviders: {}\nmodel_routing:\n  parts: {}\n", encoding="utf-8")
+    paths.controller_overlay_path.write_text("version: 1\n", encoding="utf-8")
     paths.logs_path.mkdir()
     (paths.logs_path / "secret.log").write_text("api-key-canary", encoding="utf-8")
     with sqlite3.connect(paths.sqlite_path) as connection:

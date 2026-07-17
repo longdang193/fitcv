@@ -35,7 +35,7 @@ capabilities:
     statement: Provide aggregate timeline rows and bounded per-stage transition artifacts for major stage handoffs.
     state: active
   - capability_id: inspection_debugging.prompt-provenance-diagnostics
-    statement: Surface effective enrich, ranking, and CV-generation prompt identifiers, templates, and models in diagnostics.
+    statement: Surface effective enrich, ranking, CV-generation, and synonym-triage prompt identity plus hash-only customization status, SHA-256, and character count without raw prompt text.
     state: active
   - capability_id: inspection_debugging.ranking-diagnostics
     statement: Expose ranking-v2 policy and contract fingerprints, configured/effective weights, absolute normalizers, missing-value use, factor contributions, baseline labels, migration summary, AI-score reuse state, and bounded preference-policy candidate and lifecycle history.

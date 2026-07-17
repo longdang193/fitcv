@@ -2907,6 +2907,9 @@ def test_worker_review_required_reason_totals_preserved_while_remaining_counts_o
 
     review_events = [call.args[0] for call in mock_append.call_args_list if call.args and str(getattr(call.args[0], "stage", "")) == "cv_review_required"]
     assert review_events
+    message = str(getattr(review_events[-1], "message", "") or "")
+    assert message.startswith("Review required:")
+    assert "Run paused" not in message
     payload = json.loads(str(getattr(review_events[-1], "payload_json", "") or "{}"))
     assert int(payload.get("remaining") or 0) == 1
     assert int(payload.get("remaining_missing_job_url") or 0) == 1

@@ -1,0 +1,80 @@
+{
+  "evidence_type": "saved_packaged_live_surfaces",
+  "generated_at": "2026-07-17",
+  "build": {
+    "build_id": "d210f548",
+    "version": "0.1.0",
+    "technical_preview": true,
+    "bundle_bytes": 60948161
+  },
+  "customized": {
+    "run_id": "e5f1b56b-d82e-4226-9de9-2829edc8fa2f",
+    "status": "succeeded",
+    "checkpoint_status": "awaiting_review",
+    "last_completed_stage": "cv_generation",
+    "total_jobs": 1,
+    "passed_filter": 1,
+    "ranked": 1,
+    "cvs_generated": 0,
+    "prompt_provenance": {
+      "enrich": {
+        "enrich_prompt_customized": true,
+        "enrich_prompt_addendum_sha256": "863873ee7e0e3834eab0a4556fd538239c33c263d519ffb44d35212643fed5a4",
+        "enrich_prompt_addendum_char_count": 49
+      },
+      "ranking": {
+        "ranking_prompt_customized": false,
+        "ranking_prompt_addendum_sha256": null,
+        "ranking_prompt_addendum_char_count": 0
+      },
+      "cv": {
+        "cv_prompt_customized": false,
+        "cv_prompt_addendum_sha256": null,
+        "cv_prompt_addendum_char_count": 0
+      }
+    },
+    "evidence_dir": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\artifacts\\controller_prompt_live_20260717\\customized"
+  },
+  "reset": {
+    "run_id": "f41a4f4c-0598-4d58-a5c0-b0b527dc7162",
+    "status": "succeeded",
+    "checkpoint_status": "awaiting_review",
+    "last_completed_stage": "cv_generation",
+    "total_jobs": 1,
+    "passed_filter": 1,
+    "ranked": 1,
+    "cvs_generated": 0,
+    "prompt_provenance": {
+      "enrich": {
+        "enrich_prompt_customized": false,
+        "enrich_prompt_addendum_sha256": null,
+        "enrich_prompt_addendum_char_count": 0
+      },
+      "ranking": {
+        "ranking_prompt_customized": false,
+        "ranking_prompt_addendum_sha256": null,
+        "ranking_prompt_addendum_char_count": 0
+      },
+      "cv": {
+        "cv_prompt_customized": false,
+        "cv_prompt_addendum_sha256": null,
+        "cv_prompt_addendum_char_count": 0
+      }
+    },
+    "evidence_dir": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\artifacts\\controller_prompt_live_20260717\\reset"
+  },
+  "privacy": {
+    "raw_prompt_in_http_run_surfaces": false,
+    "raw_prompt_in_run_artifacts_logs": false,
+    "raw_prompt_in_sqlite": false,
+    "credential_in_http_run_surfaces": false,
+    "credential_in_run_artifacts_logs": false,
+    "credential_in_sqlite": false,
+    "settings_cache_control": "no-store"
+  },
+  "sqlite": {
+    "integrity_check": "ok",
+    "foreign_key_violations": 0
+  },
+  "runner_note": "Generated from saved surfaces after fixing UTF-8 BOM handling in run_packaged_controller_prompt_live.py; no live rerun performed."
+}

@@ -2192,7 +2192,7 @@ def execute_pipeline_run(
                             stage="cv_review_required",
                             level="warning",
                             message=(
-                                f"Run paused: {pending_review_required} review-required CV item(s) pending operator action. "
+                                f"Review required: {pending_review_required} CV item(s) pending operator action. "
                                 f"Auto-accepted={auto_accepted_count}."
                             ),
                             created_at=datetime.datetime.now(datetime.timezone.utc),

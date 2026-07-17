@@ -1,0 +1,1194 @@
+{
+  "run_id": "f41a4f4c-0598-4d58-a5c0-b0b527dc7162",
+  "status": "succeeded",
+  "debug_schema_version": "cv_generation_debug_v3",
+  "schema_version": "cv_generation_debug_v3",
+  "run_mode": "run_all",
+  "run_mode_label": "Run All",
+  "created_at": "2026-07-17T10:34:53.847280+00:00",
+  "ranked_jobs_total": 1,
+  "debug_records_captured": 1,
+  "attempted_generation_jobs_total": 1,
+  "non_attempted_ranked_jobs_total": 0,
+  "omission_reason_counts": {},
+  "snapshot_complete": true,
+  "debug_records": [
+    {
+      "job_url": "https://example.test/fitcv-controller-prompt-reset-1784284299197100900",
+      "job_title": "Junior Retail Data Analyst",
+      "status": "review_required",
+      "ranking_fit_label": "strong",
+      "fit_classification": "strong",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "baseline_fit_label",
+          "label": "strong"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "accepted",
+          "attempted": true
+        },
+        "validation": {
+          "status": "accepted"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "sql",
+          "microsoft excel",
+          "microsoft power bi",
+          "tableau",
+          "python",
+          "r",
+          "data cleaning",
+          "reporting"
+        ],
+        "responsibilities": [
+          "analyzing sales, inventory, customer, and campaign data",
+          "building Power BI dashboards",
+          "writing SQL queries",
+          "preparing reliable reports",
+          "documenting metrics",
+          "presenting clear recommendations to business stakeholders"
+        ],
+        "job_family": "analytics",
+        "domain": "retail",
+        "location_type": "hybrid"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[1]",
+          "name": "Brand Marketing Executive — Long Hung ITS",
+          "matched_channels": [
+            "required_skill_support",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "required_skill_support",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.25,
+              "semantic": 0.229662,
+              "combined": 0.243899
+            },
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.332047,
+              "combined": 0.199228
+            },
+            "responsibility_alignment": {
+              "lexical": 0.26087,
+              "semantic": 0.281334,
+              "combined": 0.276218
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 25,
+                "reused": 15
+              },
+              "job_context": {
+                "fresh": 19,
+                "reused": 171
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[2]",
+          "name": "Ecommerce Analytics Bruin",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "required_skill_support",
+            "responsibility_alignment",
+            "role_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.375,
+              "semantic": 0.189898,
+              "combined": 0.319469
+            },
+            "role_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.242967,
+              "combined": 0.097187
+            },
+            "responsibility_alignment": {
+              "lexical": 0.304348,
+              "semantic": 0.167748,
+              "combined": 0.201898
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 25,
+                "reused": 15
+              },
+              "job_context": {
+                "fresh": 19,
+                "reused": 171
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[2]",
+          "name": "Developed and launched 38 SKUs across B2B and B2C stationery categories, supporting portfolio expansion and new revenue opportunities.",
+          "matched_channels": [
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "role_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.331732,
+              "combined": 0.132693
+            },
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.160202,
+              "combined": 0.096121
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 25,
+                "reused": 15
+              },
+              "job_context": {
+                "fresh": 19,
+                "reused": 171
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[1]",
+          "name": "Customer Churn Prediction on Azure ML",
+          "matched_channels": [
+            "required_skill_support",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.125,
+              "semantic": 0.415173,
+              "combined": 0.212052
+            },
+            "responsibility_alignment": {
+              "lexical": 0.086957,
+              "semantic": 0.315794,
+              "combined": 0.258585
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 25,
+                "reused": 15
+              },
+              "job_context": {
+                "fresh": 19,
+                "reused": 171
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[0]",
+          "name": "R&D Staff — KOKUYO Vietnam Trading",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.25,
+              "semantic": 0.124406,
+              "combined": 0.212322
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 25,
+                "reused": 15
+              },
+              "job_context": {
+                "fresh": 19,
+                "reused": 171
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "fallback_used": false,
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 8,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_longhung_pushmax_2019_2021",
+          "proj_ecommerce_analytics_bruin",
+          "ach_kokuyo_38_skus",
+          "proj_customer_churn_azureml",
+          "exp_kokuyo_vn_2021_2023"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "ach_pushmax_top5_campaign",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[4]",
+            "name": "Supported delivery of a top-5 social marketing campaign in the F&B category by combining consumer research, brand analysis, and performance reporting.",
+            "matched_channels": [
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.091099,
+                "combined": 0.054659
+              },
+              "responsibility_alignment": {
+                "lexical": 0.043478,
+                "semantic": 0.213651,
+                "combined": 0.171108
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_fitcv_traceable_matching",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Combined clear screening rules, exact signals, and evidence-based review in FitCV to improve shortlist quality and make match decisions easier to explain and validate.",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.237251,
+                "combined": 0.0949
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.12127,
+                "combined": 0.072762
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_fitcv_workflow_design",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[0]",
+            "name": "Designed FitCV as a staged decision workflow that filters, evaluates, and refines opportunities before CV generation, improving reviewability and reducing wasted effort on weak matches.",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.293465,
+                "combined": 0.117386
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility_alignment": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain_alignment": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 25,
+              "reused": 15
+            },
+            "job_context": {
+              "fresh": 19,
+              "reused": 171
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "SQL",
+          "Excel",
+          "Power BI",
+          "Python",
+          "data cleaning",
+          "reporting"
+        ],
+        "partial": [],
+        "missing": [
+          "Tableau",
+          "R"
+        ],
+        "matchable_required_count": 8,
+        "ignored_for_fit": [],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://example.test/fitcv-controller-prompt-reset-1784284299197100900",
+        "fit_classification": "strong",
+        "target_role": "Junior Retail Data Analyst",
+        "sections": {
+          "header": {
+            "name": "LONG DANG",
+            "title": "Junior Retail Data Analyst",
+            "location": "Germany",
+            "contact": {
+              "email": "longdanghoangphi@gmail.com",
+              "phone": "(+49) 15560 668152",
+              "linkedin": "https://www.linkedin.com/in/longdhp/"
+            }
+          },
+          "summary": {
+            "text": "Junior retail data analyst profile. Uses SQL, Excel, Power BI, Python, data cleaning, and reporting to turn sales, retail, and consumer data into decision-ready insights. Background spans brand analysis, product analysis, market intelligence, and structured reporting."
+          },
+          "experience": [
+            {
+              "role": "R&D Staff",
+              "company": "KOKUYO Vietnam Trading",
+              "start": "2021-09",
+              "end": "2023-09",
+              "location": null,
+              "bullets": [
+                "Prepared recurring analysis and reporting materials in Excel and PowerPoint to communicate product performance, findings, and launch recommendations to cross-functional stakeholders.",
+                "Managed end-to-end new product development from market research and concept validation to packaging, pre-production QA, sales training, launch planning, and post-launch performance review."
+              ]
+            },
+            {
+              "role": "Brand Marketing Executive",
+              "company": "Long Hung ITS",
+              "start": "2019-06",
+              "end": "2021-06",
+              "location": null,
+              "bullets": [
+                "Conducted brand and product audits by integrating sales data, retail audit, fieldwork findings, brand health tracking, consumer panel data, and industry reports to evaluate portfolio performance and identify growth opportunities.",
+                "Built structured reporting and presentation materials with Excel and PowerPoint to summarize campaign performance, consumer insights, and recommendations for stakeholders."
+              ]
+            }
+          ],
+          "projects": [
+            {
+              "name": "Ecommerce Analytics Bruin",
+              "context": null,
+              "bullets": [
+                "Designed staged Bruin pipeline that transforms GA4 ecommerce source data in BigQuery into reusable analytical datasets for reporting and monitoring.",
+                "Used SQL and Python transformation logic, plus BigQuery ML, to extend analytics beyond reporting with in-warehouse training and scoring."
+              ]
+            },
+            {
+              "name": "Customer Churn Prediction on Azure ML",
+              "context": null,
+              "bullets": [
+                "Built end-to-end Azure ML workflow covering data validation, feature preparation, training, deployment, monitoring, and retraining handoff.",
+                "Separated exploratory tuning from repeatable production training to improve reproducibility and release safety."
+              ]
+            }
+          ],
+          "education": [
+            {
+              "degree": "Bachelor's Degree",
+              "institution": "Foreign Trade University",
+              "field": "International Business",
+              "start": "2015-09",
+              "end": "2019-09"
+            },
+            {
+              "degree": "Master of Science",
+              "institution": "Otto von Guericke University Magdeburg",
+              "field": "Operations Research and Business Analytics",
+              "start": "2024-10",
+              "end": null
+            }
+          ],
+          "skills": {
+            "groups": [
+              {
+                "label": "Technical",
+                "items": [
+                  "sql",
+                  "python",
+                  "microsoft excel",
+                  "reporting",
+                  "data analysis"
+                ]
+              },
+              {
+                "label": "Analysis",
+                "items": [
+                  "sales analysis",
+                  "product analysis",
+                  "market intelligence",
+                  "customer insights",
+                  "portfolio analysis",
+                  "brand analysis"
+                ]
+              }
+            ]
+          },
+          "certifications": [],
+          "publications": [],
+          "languages": [
+            {
+              "name": "Vietnamese",
+              "level": "native"
+            },
+            {
+              "name": "English",
+              "level": "read C1, write C1, speak C1"
+            },
+            {
+              "name": "German",
+              "level": "read A2, write A2, speak A2"
+            }
+          ]
+        }
+      },
+      "validation_initial": {
+        "valid": true,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {
+          "hard_fact_mode": "selected_evidence",
+          "soft_claim_mode": "hybrid_selected_evidence",
+          "selected_evidence_ids": [
+            "exp_longhung_pushmax_2019_2021",
+            "proj_ecommerce_analytics_bruin",
+            "ach_kokuyo_38_skus",
+            "proj_customer_churn_azureml",
+            "exp_kokuyo_vn_2021_2023"
+          ],
+          "selected_evidence_count": 5,
+          "deterministic_supported_soft_claims": 9,
+          "semantic_supported_soft_claims": 0,
+          "evaluated_soft_claims": 9
+        },
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": []
+      },
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://example.test/fitcv-controller-prompt-reset-1784284299197100900",
+        "fit_classification": "strong",
+        "target_role": "Junior Retail Data Analyst",
+        "sections": {
+          "header": {
+            "name": "LONG DANG",
+            "title": "Junior Retail Data Analyst",
+            "location": "Germany",
+            "contact": {
+              "email": "longdanghoangphi@gmail.com",
+              "phone": "(+49) 15560 668152",
+              "linkedin": "https://www.linkedin.com/in/longdhp/"
+            }
+          },
+          "summary": {
+            "text": "Junior retail data analyst profile. Uses SQL, Excel, Power BI, Python, data cleaning, and reporting to turn sales, retail, and consumer data into decision-ready insights. Background spans brand analysis, product analysis, market intelligence, and structured reporting."
+          },
+          "experience": [
+            {
+              "role": "R&D Staff",
+              "company": "KOKUYO Vietnam Trading",
+              "start": "2021-09",
+              "end": "2023-09",
+              "location": null,
+              "bullets": [
+                "Prepared recurring analysis and reporting materials in Excel and PowerPoint to communicate product performance, findings, and launch recommendations to cross-functional stakeholders.",
+                "Managed end-to-end new product development from market research and concept validation to packaging, pre-production QA, sales training, launch planning, and post-launch performance review."
+              ]
+            },
+            {
+              "role": "Brand Marketing Executive",
+              "company": "Long Hung ITS",
+              "start": "2019-06",
+              "end": "2021-06",
+              "location": null,
+              "bullets": [
+                "Conducted brand and product audits by integrating sales data, retail audit, fieldwork findings, brand health tracking, consumer panel data, and industry reports to evaluate portfolio performance and identify growth opportunities.",
+                "Built structured reporting and presentation materials with Excel and PowerPoint to summarize campaign performance, consumer insights, and recommendations for stakeholders."
+              ]
+            }
+          ],
+          "projects": [
+            {
+              "name": "Ecommerce Analytics Bruin",
+              "context": null,
+              "bullets": [
+                "Designed staged Bruin pipeline that transforms GA4 ecommerce source data in BigQuery into reusable analytical datasets for reporting and monitoring.",
+                "Used SQL and Python transformation logic, plus BigQuery ML, to extend analytics beyond reporting with in-warehouse training and scoring."
+              ]
+            },
+            {
+              "name": "Customer Churn Prediction on Azure ML",
+              "context": null,
+              "bullets": [
+                "Built end-to-end Azure ML workflow covering data validation, feature preparation, training, deployment, monitoring, and retraining handoff.",
+                "Separated exploratory tuning from repeatable production training to improve reproducibility and release safety."
+              ]
+            }
+          ],
+          "education": [
+            {
+              "degree": "Bachelor's Degree",
+              "institution": "Foreign Trade University",
+              "field": "International Business",
+              "start": "2015-09",
+              "end": "2019-09"
+            },
+            {
+              "degree": "Master of Science",
+              "institution": "Otto von Guericke University Magdeburg",
+              "field": "Operations Research and Business Analytics",
+              "start": "2024-10",
+              "end": null
+            }
+          ],
+          "skills": {
+            "groups": [
+              {
+                "label": "Technical",
+                "items": [
+                  "sql",
+                  "python",
+                  "microsoft excel",
+                  "reporting",
+                  "data analysis"
+                ]
+              },
+              {
+                "label": "Analysis",
+                "items": [
+                  "sales analysis",
+                  "product analysis",
+                  "market intelligence",
+                  "customer insights",
+                  "portfolio analysis",
+                  "brand analysis"
+                ]
+              }
+            ]
+          },
+          "certifications": [],
+          "publications": [],
+          "languages": [
+            {
+              "name": "Vietnamese",
+              "level": "native"
+            },
+            {
+              "name": "English",
+              "level": "read C1, write C1, speak C1"
+            },
+            {
+              "name": "German",
+              "level": "read A2, write A2, speak A2"
+            }
+          ]
+        }
+      },
+      "markdown_final": "# LONG DANG\n**Junior Retail Data Analyst**\n\n## Summary\nJunior retail data analyst profile. Uses SQL, Excel, Power BI, Python, data cleaning, and reporting to turn sales, retail, and consumer data into decision-ready insights. Background spans brand analysis, product analysis, market intelligence, and structured reporting.\n\n## Education\n\n### Bachelor's Degree — Foreign Trade University (2015-09–2019-09)\n*International Business*\n\n### Master of Science — Otto von Guericke University Magdeburg (2024-10)\n*Operations Research and Business Analytics*\n\n## Experience\n\n### R&D Staff — KOKUYO Vietnam Trading (2021-09–2023-09)\n\n- Prepared recurring analysis and reporting materials in Excel and PowerPoint to communicate product performance, findings, and launch recommendations to cross-functional stakeholders.\n- Managed end-to-end new product development from market research and concept validation to packaging, pre-production QA, sales training, launch planning, and post-launch performance review.\n\n### Brand Marketing Executive — Long Hung ITS (2019-06–2021-06)\n\n- Conducted brand and product audits by integrating sales data, retail audit, fieldwork findings, brand health tracking, consumer panel data, and industry reports to evaluate portfolio performance and identify growth opportunities.\n- Built structured reporting and presentation materials with Excel and PowerPoint to summarize campaign performance, consumer insights, and recommendations for stakeholders.\n\n## Skills\nsql, python, microsoft excel, reporting, data analysis, sales analysis, product analysis, market intelligence, customer insights, portfolio analysis, brand analysis\n\n## Certifications\n\n## Projects\n\n### Ecommerce Analytics Bruin\n- Designed staged Bruin pipeline that transforms GA4 ecommerce source data in BigQuery into reusable analytical datasets for reporting and monitoring.\n- Used SQL and Python transformation logic, plus BigQuery ML, to extend analytics beyond reporting with in-warehouse training and scoring.\n\n### Customer Churn Prediction on Azure ML\n- Built end-to-end Azure ML workflow covering data validation, feature preparation, training, deployment, monitoring, and retraining handoff.\n- Separated exploratory tuning from repeatable production training to improve reproducibility and release safety.\n\n## Languages\n\n- Vietnamese (native)\n- English (read C1, write C1, speak C1)\n- German (read A2, write A2, speak A2)\n",
+      "validation": {
+        "valid": true,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {
+          "hard_fact_mode": "selected_evidence",
+          "soft_claim_mode": "hybrid_selected_evidence",
+          "selected_evidence_ids": [
+            "exp_longhung_pushmax_2019_2021",
+            "proj_ecommerce_analytics_bruin",
+            "ach_kokuyo_38_skus",
+            "proj_customer_churn_azureml",
+            "exp_kokuyo_vn_2021_2023"
+          ],
+          "selected_evidence_count": 5,
+          "deterministic_supported_soft_claims": 9,
+          "semantic_supported_soft_claims": 0,
+          "evaluated_soft_claims": 9
+        },
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": []
+      },
+      "outcome_reason": {
+        "stage": "review",
+        "code": "unsupported_requirement_gap",
+        "message": "Unsupported requirements require review: R, Tableau"
+      },
+      "error": null,
+      "llm_runtime_observations": [
+        {
+          "contract_version": "llm_runtime_observation_v1",
+          "scope_key": "eb27f2d60df4a9882d62c681630e35087b981adc28c7cdf8aba6134c6485362d",
+          "input_index": 0,
+          "invocation_index": 1,
+          "evidence": {
+            "contract_version": "llm_runtime_evidence_v1",
+            "status": "succeeded",
+            "provenance": {
+              "routing_part": "cv_generation_structured_write",
+              "runtime_path": "fitcv_llm_openai_compatible",
+              "adapter": "openai_compatible",
+              "provider": "openai_compatible",
+              "model": "cx/gpt-5.4-mini",
+              "wire_api": "chat_completions",
+              "attempt_count": 1,
+              "response_id": "resp_05b6b26d681c62b5016a5a04c8e6b8819aaf70389288c2d388",
+              "trace_id": null,
+              "latency_ms": 133169
+            },
+            "failure": null
+          }
+        }
+      ],
+      "cv_generation_trace": {
+        "trace_schema_version": "stage_execution_trace_record_v1",
+        "trace_family": "stage_execution_trace",
+        "step_id": "cv_generation",
+        "trace_status": "completed",
+        "trace_metadata": {
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "initial_generation",
+            "input_item_count": 5,
+            "retry_reason": null,
+            "debug_flags_active": {
+              "FITCV_LLM_DEBUG_LIVE": false,
+              "FITCV_LLM_DEBUG_LIVE_DUMP_PATH": false
+            },
+            "prompt_contract": "fitcv_structured_generation_prompt",
+            "template_path": "templates/cv_template.md",
+            "response_schema_name": "fitcv_structured_cv_document",
+            "llm_runtime_evidence": {
+              "contract_version": "llm_runtime_evidence_v1",
+              "status": "succeeded",
+              "provenance": {
+                "routing_part": "cv_generation_structured_write",
+                "runtime_path": "fitcv_llm_openai_compatible",
+                "adapter": "openai_compatible",
+                "provider": "openai_compatible",
+                "model": "cx/gpt-5.4-mini",
+                "wire_api": "chat_completions",
+                "attempt_count": 1,
+                "response_id": "resp_05b6b26d681c62b5016a5a04c8e6b8819aaf70389288c2d388",
+                "trace_id": null,
+                "latency_ms": 133169
+              },
+              "failure": null
+            },
+            "response_id": "resp_05b6b26d681c62b5016a5a04c8e6b8819aaf70389288c2d388",
+            "provider_status": "accepted",
+            "accepted_output_present": true
+          }
+        ],
+        "input_summary": {
+          "attempt_count": 1,
+          "input_item_count": 5
+        },
+        "output_summary": {
+          "accepted_output_present": true,
+          "final_status": "accepted"
+        },
+        "validation_summary": {
+          "initial_valid": true,
+          "final_valid": true,
+          "initial_missing_fields": [],
+          "final_missing_fields": [],
+          "initial_grounding_violation_count": 0,
+          "final_grounding_violation_count": 0,
+          "initial_skill_violation_count": 0,
+          "final_skill_violation_count": 0,
+          "violation_count": 0,
+          "warning_count": 0
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempt_count": 0,
+          "repair_targets": [],
+          "repair_reason": ""
+        },
+        "error_summary": null
+      },
+      "result_contract_version": "cv_generation_result_v2",
+      "raw_job_fingerprint": "eb27f2d60df4a9882d62c681630e35087b981adc28c7cdf8aba6134c6485362d",
+      "analysis_input_fingerprint": "3c7f9129841202eb9d262031ac04b9bc619f0631513c2a8e398c992eaf5ed4f5",
+      "cv_generation_input_fingerprint": "71e4bcec445914a5223de1d3adb4175655573d28c1672a604ad8f7245580c2ae",
+      "cv_generation_input_components": {
+        "schema_version": "cv_generation_input_fingerprint_v2",
+        "generation_contract_version": "cv_generation_result_v2",
+        "analysis_input_fingerprint": "3c7f9129841202eb9d262031ac04b9bc619f0631513c2a8e398c992eaf5ed4f5",
+        "fit_classification": "strong",
+        "prompt_id": "cv_generation.structured_write.v1",
+        "prompt_version": "v1",
+        "template_path": "templates\\cv_template.md",
+        "template_fingerprint": "b1cefe6659b66f8813e2be7b150280b720dedd5b22323c6cd1ff40f3a040f8a3",
+        "enabled_sections": [
+          "Certifications",
+          "Education",
+          "Experience",
+          "Languages",
+          "Projects",
+          "Skills",
+          "Summary"
+        ],
+        "acceptance_policy": {
+          "enabled": false,
+          "enforce_for_fit_labels": [
+            "stretch"
+          ],
+          "min_required_match_score": 0.5,
+          "min_required_skill_support_ratio": 0.5,
+          "downgrade_status": "review_required",
+          "review_reason_code": "policy_acceptance",
+          "required_match": {
+            "min_ratio_by_fit": {
+              "strong": 0.8,
+              "stretch": 0.5
+            },
+            "max_missing_by_fit": {
+              "strong": 0,
+              "stretch": 1
+            }
+          },
+          "force_review_when_any_required_missing_for_fits": [
+            "stretch"
+          ]
+        },
+        "validation_policy": {
+          "required_sections": [
+            "Certifications",
+            "Education",
+            "Experience",
+            "Languages",
+            "Projects",
+            "Skills",
+            "Summary"
+          ],
+          "cv_validation": {
+            "max_pages": 2
+          },
+          "content_rules": {}
+        },
+        "route_contract": {
+          "provider": "openai_compatible",
+          "model": "cx/gpt-5.4-mini",
+          "base_url": "http://host.docker.internal:20128/v1",
+          "wire_api": "chat_completions"
+        }
+      },
+      "cv_generation_reuse_status": "fresh_compute",
+      "reuse_decision": {
+        "decision": "fresh_compute",
+        "reason_code": "fresh_compute_required",
+        "fingerprint": "71e4bcec445914a5223de1d3adb4175655573d28c1672a604ad8f7245580c2ae",
+        "source_run_id": null,
+        "source_artifact_type": "cv_generation"
+      },
+      "reused_cv_version_id": null,
+      "review_required_reason_code": "unsupported_requirement_gap",
+      "validation_evidence_fingerprint": "f75ac9d542a9530b6703e86226fb0c66a147aa405e97454e2bd77954a60f6b2e",
+      "validation_final": {
+        "valid": true,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {
+          "hard_fact_mode": "selected_evidence",
+          "soft_claim_mode": "hybrid_selected_evidence",
+          "selected_evidence_ids": [
+            "exp_longhung_pushmax_2019_2021",
+            "proj_ecommerce_analytics_bruin",
+            "ach_kokuyo_38_skus",
+            "proj_customer_churn_azureml",
+            "exp_kokuyo_vn_2021_2023"
+          ],
+          "selected_evidence_count": 5,
+          "deterministic_supported_soft_claims": 9,
+          "semantic_supported_soft_claims": 0,
+          "evaluated_soft_claims": 9
+        },
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": []
+      },
+      "enabled_sections": [
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Languages"
+      ],
+      "cv_generation_model": "cx/gpt-5.4-mini",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\dist\\fitcv-local\\_internal\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md",
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: R, Tableau",
+      "markdown_full": "# LONG DANG\n**Junior Retail Data Analyst**\n\n## Summary\nJunior retail data analyst profile. Uses SQL, Excel, Power BI, Python, data cleaning, and reporting to turn sales, retail, and consumer data into decision-ready insights. Background spans brand analysis, product analysis, market intelligence, and structured reporting.\n\n## Education\n\n### Bachelor's Degree — Foreign Trade University (2015-09–2019-09)\n*International Business*\n\n### Master of Science — Otto von Guericke University Magdeburg (2024-10)\n*Operations Research and Business Analytics*\n\n## Experience\n\n### R&D Staff — KOKUYO Vietnam Trading (2021-09–2023-09)\n\n- Prepared recurring analysis and reporting materials in Excel and PowerPoint to communicate product performance, findings, and launch recommendations to cross-functional stakeholders.\n- Managed end-to-end new product development from market research and concept validation to packaging, pre-production QA, sales training, launch planning, and post-launch performance review.\n\n### Brand Marketing Executive — Long Hung ITS (2019-06–2021-06)\n\n- Conducted brand and product audits by integrating sales data, retail audit, fieldwork findings, brand health tracking, consumer panel data, and industry reports to evaluate portfolio performance and identify growth opportunities.\n- Built structured reporting and presentation materials with Excel and PowerPoint to summarize campaign performance, consumer insights, and recommendations for stakeholders.\n\n## Skills\nsql, python, microsoft excel, reporting, data analysis, sales analysis, product analysis, market intelligence, customer insights, portfolio analysis, brand analysis\n\n## Certifications\n\n## Projects\n\n### Ecommerce Analytics Bruin\n- Designed staged Bruin pipeline that transforms GA4 ecommerce source data in BigQuery into reusable analytical datasets for reporting and monitoring.\n- Used SQL and Python transformation logic, plus BigQuery ML, to extend analytics beyond reporting with in-warehouse training and scoring.\n\n### Customer Churn Prediction on Azure ML\n- Built end-to-end Azure ML workflow covering data validation, feature preparation, training, deployment, monitoring, and retraining handoff.\n- Separated exploratory tuning from repeatable production training to improve reproducibility and release safety.\n\n## Languages\n\n- Vietnamese (native)\n- English (read C1, write C1, speak C1)\n- German (read A2, write A2, speak A2)\n",
+      "markdown_preview": "# LONG DANG\n**Junior Retail Data Analyst**\n\n## Summary\nJunior retail data analyst profile. Uses SQL, Excel, Power BI, Python, data cleaning, and reporting to turn sales, retail, and consumer data into decision-ready insights. Background spans brand analysis, product analysis, market intelligence, and structured reporting.\n\n## Education\n\n### Bachelor's Degree — Foreign Trade University (2015-09–2019-09)\n*International Business*\n\n### Master of Science — Otto von Guericke University Magdeburg (2024-10)\n*Operations Research and Business Analytics*\n\n## Experience\n\n### R&D Staff — KOKUYO Vietnam Trading (2021-09–2023-09)\n\n- Prepared recurring analysis and reporting materials in Excel and PowerPoint to communicate product performance, findings, and launch recommendations to cross-functional stakeholders.\n- Managed end-to-end new product development from market research and concept validation to packaging, pre-production QA, sales training, launch planning, and post-launch performance review.\n\n### Brand Marketing Executive — Long Hung ITS (2019-06–2021-06)\n\n- Conducted brand and product audits by integrating sales data, retail audit, fieldwork findings, brand health tracking, consumer panel data, and industry reports to evaluate portfolio performance and identify growth opportunities.\n- Built structured reporting and presentation materials with Excel and PowerPoint to summarize campaign performance, consumer insights, and recommendations for stakeholders.\n\n## Skills\nsql, python, microsoft excel, reporting, data analysis, sales analysis, product analysis, market intelligence, customer insights, portfolio analysis, brand analysis\n\n## Certifications\n\n## Projects\n\n### Ecommerce Analytics Bruin\n- Designed staged Bruin pipeline that transforms GA4 ecommerce source data in BigQuery into reusable analytical datasets for reporting and monitoring.\n- Used SQL and Python transformation logic, plus BigQuery ML, to extend analytics beyond reporting with in-warehouse training and scoring.\n\n### Customer Churn Prediction on Azure ML\n- Built end-to-end Azure ML workflow covering data validation, feature preparation, training, deployment, monitoring, and retraining handoff.\n- Separated exploratory tuning from repeatable production training to improve reproducibility and release safety.\n\n## Languages\n\n- Vietnamese (native)\n- English (read C1, write C1, speak C1)\n- German (read A2, write A2, speak A2)\n",
+      "review_item_id": "ri_338816ebbe20b62c9aa0",
+      "reranker_fit_label": "strong"
+    }
+  ],
+  "cv_generation_trace": {
+    "run_id": "f41a4f4c-0598-4d58-a5c0-b0b527dc7162",
+    "trace_schema_version": "stage_execution_trace_run_v1",
+    "trace_family": "stage_execution_trace",
+    "step_id": "cv_generation",
+    "trace_status": "completed",
+    "trace_summary": {
+      "records_total": 1,
+      "present_records": 1,
+      "attempted_generation_jobs_total": 1
+    },
+    "records": [
+      {
+        "trace_schema_version": "stage_execution_trace_record_v1",
+        "trace_family": "stage_execution_trace",
+        "step_id": "cv_generation",
+        "trace_status": "completed",
+        "trace_metadata": {
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "initial_generation",
+            "input_item_count": 5,
+            "retry_reason": null,
+            "debug_flags_active": {
+              "FITCV_LLM_DEBUG_LIVE": false,
+              "FITCV_LLM_DEBUG_LIVE_DUMP_PATH": false
+            },
+            "prompt_contract": "fitcv_structured_generation_prompt",
+            "template_path": "templates/cv_template.md",
+            "response_schema_name": "fitcv_structured_cv_document",
+            "llm_runtime_evidence": {
+              "contract_version": "llm_runtime_evidence_v1",
+              "status": "succeeded",
+              "provenance": {
+                "routing_part": "cv_generation_structured_write",
+                "runtime_path": "fitcv_llm_openai_compatible",
+                "adapter": "openai_compatible",
+                "provider": "openai_compatible",
+                "model": "cx/gpt-5.4-mini",
+                "wire_api": "chat_completions",
+                "attempt_count": 1,
+                "response_id": "resp_05b6b26d681c62b5016a5a04c8e6b8819aaf70389288c2d388",
+                "trace_id": null,
+                "latency_ms": 133169
+              },
+              "failure": null
+            },
+            "response_id": "resp_05b6b26d681c62b5016a5a04c8e6b8819aaf70389288c2d388",
+            "provider_status": "accepted",
+            "accepted_output_present": true
+          }
+        ],
+        "input_summary": {
+          "attempt_count": 1,
+          "input_item_count": 5
+        },
+        "output_summary": {
+          "accepted_output_present": true,
+          "final_status": "accepted"
+        },
+        "validation_summary": {
+          "initial_valid": true,
+          "final_valid": true,
+          "initial_missing_fields": [],
+          "final_missing_fields": [],
+          "initial_grounding_violation_count": 0,
+          "final_grounding_violation_count": 0,
+          "initial_skill_violation_count": 0,
+          "final_skill_violation_count": 0,
+          "violation_count": 0,
+          "warning_count": 0
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempt_count": 0,
+          "repair_targets": [],
+          "repair_reason": ""
+        },
+        "error_summary": null,
+        "record_id": "https://example.test/fitcv-controller-prompt-reset-1784284299197100900",
+        "scope_type": "job",
+        "scope_key": "https://example.test/fitcv-controller-prompt-reset-1784284299197100900",
+        "status": "review_required",
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "baseline_fit_label",
+            "label": "strong"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "accepted",
+            "attempted": true
+          },
+          "validation": {
+            "status": "accepted"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_generation.json"
+        }
+      }
+    ],
+    "degradation": {},
+    "artifact_refs": {
+      "cv_debug_artifact": "cv-debug.json",
+      "stage_artifact": "cv_generation.json"
+    }
+  },
+  "cv_analysis_trace": {
+    "run_id": "f41a4f4c-0598-4d58-a5c0-b0b527dc7162",
+    "trace_schema_version": "stage_execution_trace_run_v1",
+    "trace_family": "stage_execution_trace",
+    "step_id": "cv_analysis",
+    "trace_status": "completed",
+    "trace_summary": {
+      "records_total": 1,
+      "present_records": 1,
+      "attempted_analysis_jobs_total": 1
+    },
+    "records": [
+      {
+        "trace_schema_version": "stage_execution_trace_record_v1",
+        "trace_family": "stage_execution_trace",
+        "step_id": "cv_analysis",
+        "trace_status": "completed",
+        "record_id": "fp:eb27f2d60df4a9882d62c681630e35087b981adc28c7cdf8aba6134c6485362d",
+        "scope_type": "job",
+        "scope_key": "fp:eb27f2d60df4a9882d62c681630e35087b981adc28c7cdf8aba6134c6485362d",
+        "status": "ready_for_generation",
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "analysis",
+            "attempt_status": "ready_for_generation",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "analysis_input_fingerprint": "3c7f9129841202eb9d262031ac04b9bc619f0631513c2a8e398c992eaf5ed4f5",
+          "required_skills_count": 8,
+          "preferred_skills_count": 0,
+          "responsibilities_count": 6
+        },
+        "output_summary": {
+          "selected_evidence_count": 5,
+          "fallback_used": false,
+          "requirement_coverage_count": 8,
+          "section_confidence_present": true
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null,
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "baseline_fit_label",
+            "label": "strong"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "not_attempted",
+            "attempted": false
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_analysis.json"
+        }
+      }
+    ],
+    "degradation": {},
+    "artifact_refs": {
+      "cv_debug_artifact": "cv-debug.json",
+      "stage_artifact": "cv_analysis.json"
+    }
+  }
+}

@@ -116,7 +116,7 @@ outputs:
 invariants:
 - shortlist candidates enter and ranked jobs leave
 - ranking owns `baseline_fit`, `baseline_fit_label`, global `baseline_rank`, personalized raw ordering, `personalized_rank`, and the ranking contract fingerprint
-- shared `llm_runtime` owns route resolution, credentials, provider transport, wire compatibility, normalized operational failures, runtime provenance, and persistable call evidence; ranking owns prompt meaning, scalar parsing, factor algebra, label derivation, ordering, and row shape
+- shared `llm_runtime` owns route resolution, credentials, provider transport, wire compatibility, normalized operational failures, runtime provenance, and persistable call evidence; ranking owns prompt meaning, safe bounded addendum composition before immutable JSON instructions, scalar parsing, factor algebra, label derivation, ordering, and row shape
 - '`config/policy/ranking.yaml` is the sole mutable ranking-policy owner; code does not own numeric fallbacks'
 - location and language consume Phase 1 absolute factor projections; hard-gated or disabled factors are excluded once from effective structured weights
 - vector evidence is shortlist provenance only and cannot affect baseline score, label, fingerprint, or tie order

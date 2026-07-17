@@ -17,6 +17,7 @@ control_plane:
       base_url: https://api.openai.com/v1
       wire_api: chat_completions
       auth_mode: required
+      timeout_seconds: 300
 
   model_routing:
     parts:

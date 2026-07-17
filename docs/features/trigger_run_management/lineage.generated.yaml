@@ -126,6 +126,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -209,6 +211,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -339,6 +342,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -422,6 +427,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -534,6 +540,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -617,6 +625,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -741,6 +750,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -824,6 +835,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -936,6 +948,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1019,6 +1033,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1131,6 +1146,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1214,6 +1231,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1338,6 +1356,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1421,6 +1441,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1557,6 +1578,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1640,6 +1663,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1752,6 +1776,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1835,6 +1861,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1947,6 +1974,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2030,6 +2059,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2154,6 +2184,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2237,6 +2269,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2349,6 +2382,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2432,6 +2467,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2544,6 +2580,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2627,6 +2665,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2745,6 +2784,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2828,6 +2869,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2940,6 +2982,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -3023,6 +3067,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3135,6 +3180,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -3218,6 +3265,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3336,6 +3384,8 @@ capabilities:
     - docs/superpowers/specs/2026-07-14-12-52-fitcv-llm-runtime-spine-phase-1-cv-analysis-single-owner-spec.md
     - docs/superpowers/specs/2026-07-15-19-01-fitcv-inverse-optimization-phase-2-vector-only-shortlist-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
+    - docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -3419,6 +3469,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-15-21-fitcv-llm-runtime-spine-phase-2-cv-generation-adapter-only-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

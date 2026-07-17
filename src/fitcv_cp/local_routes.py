@@ -39,8 +39,20 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.templating import Jinja2Templates
 
 from fitcv.candidate import load_profile_text
+from fitcv.config import (
+    PROMPT_ADDENDUM_TASK_IDS,
+    PROVIDER_REGISTRY,
+    SUPPORTED_AUTH_MODES,
+    SUPPORTED_ROUTING_PARTS,
+    SUPPORTED_WIRE_APIS,
+    load_control_plane_config,
+    load_local_controller_overlay,
+    load_prompt_task_registry,
+    resolve_model_routing_part,
+)
 from fitcv_cp.local_credentials import credential_is_configured, get_credential, set_credential
 from fitcv_cp.local_setup import (
+    TASK_PARTS,
     ProviderSetup,
     build_routing_overlay,
     discover_models,
@@ -71,10 +83,7 @@ PROVIDER_DRAFT_FIELDS = (
     "wire_api",
     "timeout_seconds",
     "default_model",
-    "enrich_extraction",
-    "ranking_ai_score",
-    "cv_generation_structured_write",
-    "synonym_triage_recommendation",
+    *TASK_PARTS,
 )
 ACTIVE_RUN_STATUSES = {"queued", "running", "awaiting_continue", "cancelling"}
 SENSITIVE_LOG_PATTERN = re.compile(
@@ -104,7 +113,15 @@ def _local_paths() -> LocalStoragePaths:
         data_root=data_root,
         sqlite_path=Path(os.environ["FITCV_CP_SQLITE_PATH"]),
         candidate_profile_path=Path(os.environ["FITCV_LOCAL_CANDIDATE_PROFILE_PATH"]),
-        routing_overlay_path=Path(os.environ["FITCV_LOCAL_ROUTING_OVERLAY_PATH"]),
+        controller_overlay_path=Path(
+            os.environ["FITCV_LOCAL_CONTROLLER_OVERLAY_PATH"]
+        ),
+        legacy_routing_overlay_path=(
+            data_root / "config" / "local_routing_overlay.yaml"
+        ),
+        migrated_routing_overlay_path=(
+            data_root / "config" / "local_routing_overlay.yaml.migrated.bak"
+        ),
         artifacts_path=Path(os.environ["FITCV_LOCAL_ARTIFACTS_PATH"]),
         exports_path=Path(os.environ["FITCV_LOCAL_EXPORTS_PATH"]),
         logs_path=Path(os.environ["FITCV_LOCAL_LOGS_PATH"]),
@@ -212,24 +229,77 @@ def onboarding_is_complete() -> bool:
 
 
 def _provider_setup(form: Any) -> ProviderSetup:
+    control_plane = load_control_plane_config()
     provider_id = str(form.get("provider_id") or "openai_compatible").strip().lower()
-    default_model = str(form.get("default_model") or "").strip()
+    provider_defaults = dict((control_plane.get("providers") or {}).get(provider_id) or {})
+    if not provider_defaults:
+        raise ValueError(f"unsupported provider_id: {provider_id}")
+    routes = {
+        part: resolve_model_routing_part(part)
+        for part in SUPPORTED_ROUTING_PARTS
+    }
+    default_model = str(
+        form.get("default_model")
+        or routes["cv_generation_structured_write"]["model"]
+    ).strip()
+    retry: dict[str, Any] = {}
+    prompt_addenda: dict[str, str] = {}
+    if str(form.get("controller_settings_present") or "") == "1":
+        retry_defaults = dict((control_plane.get("fitcv_cp") or {}).get("retry") or {})
+        raw_backoff = str(
+            form.get("retry_backoff_seconds")
+            or ",".join(str(value) for value in retry_defaults["backoff_seconds"])
+        )
+        try:
+            backoff_seconds = [int(value.strip()) for value in raw_backoff.split(",") if value.strip()]
+        except ValueError as exc:
+            raise ValueError("Run retry backoff must be comma-separated integers") from exc
+        retry = {
+            "enabled": form.get("retry_enabled") is not None,
+            "max_attempts": int(
+                form.get("retry_max_attempts") or retry_defaults["max_attempts"]
+            ),
+            "backoff_seconds": backoff_seconds,
+            "lease_seconds": int(
+                form.get("retry_lease_seconds") or retry_defaults["lease_seconds"]
+            ),
+            "reconciler_interval_seconds": int(
+                form.get("retry_reconciler_interval_seconds")
+                or retry_defaults["reconciler_interval_seconds"]
+            ),
+            "error_details_max_chars": int(
+                form.get("retry_error_details_max_chars")
+                or retry_defaults["error_details_max_chars"]
+            ),
+        }
+        prompt_addenda = {
+            task_id: str(form.get(f"prompt_addendum_{task_id}") or "")
+            for task_id in PROMPT_ADDENDUM_TASK_IDS
+        }
+    provider_meta = PROVIDER_REGISTRY[provider_id]
     return ProviderSetup(
         provider_id=provider_id,
-        provider_type=str(form.get("provider_type") or ("openai" if provider_id == "openai" else "openai_compatible")).strip().lower(),  # type: ignore[arg-type]
-        display_name=str(form.get("display_name") or "OpenAI-compatible").strip(),
-        base_url=str(form.get("base_url") or "").strip(),
-        auth_mode=str(form.get("auth_mode") or "required").strip().lower(),  # type: ignore[arg-type]
-        wire_api=str(form.get("wire_api") or "responses").strip().lower(),  # type: ignore[arg-type]
-        timeout_seconds=float(str(form.get("timeout_seconds") or "120")),
+        provider_type=str(provider_meta["type"]),  # type: ignore[arg-type]
+        display_name=str(provider_meta["label"]),
+        base_url=str(form.get("base_url") or provider_defaults["base_url"]).strip(),
+        auth_mode=str(
+            form.get("auth_mode") or provider_defaults["auth_mode"]
+        ).strip().lower(),  # type: ignore[arg-type]
+        wire_api=str(
+            form.get("wire_api") or provider_defaults["wire_api"]
+        ).strip().lower(),  # type: ignore[arg-type]
+        timeout_seconds=float(
+            form.get("timeout_seconds") or provider_defaults["timeout_seconds"]
+        ),
         default_model=default_model,
-        task_models={part: str(form.get(part) or default_model).strip() for part in (
-            "enrich_extraction",
-            "ranking_ai_score",
-            "cv_generation_structured_write",
-            "synonym_triage_recommendation",
-        )},
+        task_models={
+            part: str(form.get(part) or routes[part]["model"]).strip()
+            for part in SUPPORTED_ROUTING_PARTS
+        },
+        run_retry=retry,
+        prompt_addenda=prompt_addenda,
     )
+
 
 def _provider_draft(form: Any) -> dict[str, str]:
     return {field: str(form.get(field) or "").strip() for field in PROVIDER_DRAFT_FIELDS}
@@ -237,26 +307,90 @@ def _provider_draft(form: Any) -> dict[str, str]:
 def _configured_provider_setup() -> ProviderSetup | None:
     state = load_onboarding_state()
     provider_id = str(state.get("provider_id") or "openai_compatible")
-    overlay_path = Path(os.environ["FITCV_LOCAL_ROUTING_OVERLAY_PATH"])
-    if not overlay_path.exists():
-        return None
-    overlay = yaml.safe_load(overlay_path.read_text(encoding="utf-8")) or {}
-    provider = dict((overlay.get("providers") or {}).get(provider_id) or {})
+    control_plane = load_control_plane_config()
+    provider = dict((control_plane.get("providers") or {}).get(provider_id) or {})
     if not provider:
         return None
-    parts = dict((overlay.get("model_routing") or {}).get("parts") or {})
-    default_model = str((parts.get("cv_generation_structured_write") or {}).get("model") or "")
+    parts = dict((control_plane.get("model_routing") or {}).get("parts") or {})
+    provider_meta = PROVIDER_REGISTRY[provider_id]
+    default_model = str(
+        (parts.get("cv_generation_structured_write") or {}).get("model") or ""
+    )
     return ProviderSetup(
         provider_id=provider_id,
-        provider_type=str(provider.get("type") or "openai_compatible"),  # type: ignore[arg-type]
-        display_name=str(provider.get("display_name") or provider_id),
-        base_url=str(provider.get("base_url") or ""),
-        auth_mode=str(provider.get("auth_mode") or "required"),  # type: ignore[arg-type]
-        wire_api=str(provider.get("wire_api") or "responses"),  # type: ignore[arg-type]
-        timeout_seconds=float(provider.get("timeout_seconds") or 120),
+        provider_type=str(provider_meta["type"]),  # type: ignore[arg-type]
+        display_name=str(provider_meta["label"]),
+        base_url=str(provider["base_url"]),
+        auth_mode=str(provider["auth_mode"]),  # type: ignore[arg-type]
+        wire_api=str(provider["wire_api"]),  # type: ignore[arg-type]
+        timeout_seconds=float(provider["timeout_seconds"]),
         default_model=default_model,
-        task_models={part: str((parts.get(part) or {}).get("model") or "") for part in parts},
+        task_models={
+            part: str((parts.get(part) or {}).get("model") or "")
+            for part in SUPPORTED_ROUTING_PARTS
+        },
     )
+
+
+def _controller_view(state: dict[str, Any]) -> dict[str, Any]:
+    effective = load_control_plane_config()
+    overlay = load_local_controller_overlay()
+    parts = dict((effective.get("model_routing") or {}).get("parts") or {})
+    active_provider_id = str(
+        state.get("provider_id")
+        or (parts.get("enrich_extraction") or {}).get("provider")
+        or "openai_compatible"
+    )
+    providers = dict(effective.get("providers") or {})
+    provider = dict(providers[active_provider_id])
+    overlay_providers = dict(overlay.get("providers") or {})
+    overlay_parts = dict((overlay.get("model_routing") or {}).get("parts") or {})
+    retry = dict((effective.get("fitcv_cp") or {}).get("retry") or {})
+    overlay_retry = dict((overlay.get("fitcv_cp") or {}).get("retry") or {})
+    addenda = dict((effective.get("prompts") or {}).get("additional_instructions") or {})
+    overlay_addenda = dict((overlay.get("prompts") or {}).get("additional_instructions") or {})
+    prompt_registry = load_prompt_task_registry()
+    return {
+        "provider_id": active_provider_id,
+        "providers": [
+            {
+                "id": provider_id,
+                "label": str(meta["label"]),
+                "selected": provider_id == active_provider_id,
+            }
+            for provider_id, meta in PROVIDER_REGISTRY.items()
+        ],
+        "provider": provider,
+        "provider_source": (
+            "local" if active_provider_id in overlay_providers else "packaged"
+        ),
+        "auth_modes": sorted(SUPPORTED_AUTH_MODES),
+        "wire_apis": sorted(SUPPORTED_WIRE_APIS),
+        "routes": [
+            {
+                "id": task_id,
+                "label": task_id.replace("_", " ").title(),
+                "model": str((parts.get(task_id) or {}).get("model") or ""),
+                "source": "local" if task_id in overlay_parts else "packaged",
+            }
+            for task_id in SUPPORTED_ROUTING_PARTS
+        ],
+        "retry": retry,
+        "retry_source": "local" if overlay_retry else "packaged",
+        "retry_backoff": ", ".join(str(value) for value in retry["backoff_seconds"]),
+        "prompts": [
+            {
+                "task_id": task_id,
+                "label": task_id.replace("_", " ").title(),
+                "prompt_id": prompt_registry[task_id]["prompt_id"],
+                "version": prompt_registry[task_id]["version"],
+                "addendum": str(addenda.get(task_id) or ""),
+                "source": "local" if task_id in overlay_addenda else "packaged",
+            }
+            for task_id in PROMPT_ADDENDUM_TASK_IDS
+        ],
+    }
+
 
 def local_readiness_status() -> dict[str, object]:
     state = load_onboarding_state()
@@ -286,10 +420,18 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
         profile_draft = str((state.get("drafts") or {}).get("profile") or "")
         if not profile_draft and profile_path.exists():
             profile_draft = profile_path.read_text(encoding="utf-8")
+        controller = _controller_view(state)
         return templates.TemplateResponse(
             request=request,
             name="local_onboarding.html",
-            context={"state": state, "data_root": str(_data_root()), "profile_draft": profile_draft},
+            context={
+                "state": state,
+                "data_root": str(_data_root()),
+                "profile_draft": profile_draft,
+                "provider_timeout_seconds": f"{controller['provider']['timeout_seconds']}",
+                "controller": controller,
+            },
+            headers={"Cache-Control": "no-store"},
         )
 
     @router.post("/onboarding/profile")
@@ -322,7 +464,7 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
         api_key = str(form.get("api_key") or "").strip()
         if api_key:
             set_credential(setup.provider_id, api_key)
-        write_routing_overlay(Path(os.environ["FITCV_LOCAL_ROUTING_OVERLAY_PATH"]), overlay)
+        write_routing_overlay(Path(os.environ["FITCV_LOCAL_CONTROLLER_OVERLAY_PATH"]), overlay)
         _save_feedback("provider", draft=draft, error=None)
         state = load_onboarding_state()
         state.update(
@@ -375,6 +517,35 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
         )
         save_onboarding_state(state)
         return JSONResponse(result)
+
+    @router.post("/onboarding/controller/reset")
+    async def reset_controller_override(request: Request) -> RedirectResponse:
+        form = await request.form()
+        scope = str(form.get("scope") or "").strip()
+        overlay = load_local_controller_overlay()
+        if scope == "provider":
+            overlay.pop("providers", None)
+            overlay.pop("model_routing", None)
+        elif scope == "retry":
+            overlay.pop("fitcv_cp", None)
+        elif scope.startswith("prompt:"):
+            task_id = scope.partition(":")[2]
+            if task_id not in PROMPT_ADDENDUM_TASK_IDS:
+                raise HTTPException(status_code=422, detail="Unsupported prompt reset scope")
+            prompts = dict(overlay.get("prompts") or {})
+            addenda = dict(prompts.get("additional_instructions") or {})
+            addenda.pop(task_id, None)
+            if addenda:
+                prompts["additional_instructions"] = addenda
+                overlay["prompts"] = prompts
+            else:
+                overlay.pop("prompts", None)
+        else:
+            raise HTTPException(status_code=422, detail="Unsupported controller reset scope")
+        write_routing_overlay(
+            Path(os.environ["FITCV_LOCAL_CONTROLLER_OVERLAY_PATH"]), overlay
+        )
+        return RedirectResponse("/local/onboarding", status_code=303)
 
     @router.post("/onboarding/complete")
     async def complete_onboarding() -> RedirectResponse:

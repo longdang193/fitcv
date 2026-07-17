@@ -29,7 +29,7 @@ features:
     - bounded_parallel_enrichment.per-job-failure-isolation
     - bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
   cv_system:
-    summary: Own canonical candidate-job fit facts and eligibility through grounded post-ranking analysis and CV generation, with symmetric policy projection, shared runtime adapters, canonical evidence, and stage-neutral traces.
+    summary: Own canonical candidate-job fit facts and eligibility through grounded post-ranking analysis and CV generation, with symmetric policy projection, shared runtime adapters, canonical evidence, safe prompt addenda before immutable output contracts, and stage-neutral traces.
     status: active
     type: add
     lineage_file: docs/features/cv_system/lineage.generated.yaml
@@ -130,7 +130,7 @@ features:
     - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
     - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
   settings_system:
-    summary: Admins can edit task-first pipeline settings while provider routing stays centrally owned; FitCV Local adds a narrow non-secret provider/model overlay and stores API keys only in OS credential storage.
+    summary: Admins can edit task-first pipeline settings while provider routing stays centrally owned; FitCV Local adds one validated non-secret controller overlay for provider/model routing, whole-run retry, and bounded prompt guidance while API keys stay only in OS credential storage.
     status: active
     type: add
     lineage_file: docs/features/settings_system/lineage.generated.yaml

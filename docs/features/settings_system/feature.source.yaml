@@ -2,10 +2,11 @@ feature_id: settings_system
 name: Settings System
 status: active
 type: add
-summary: Admins can edit task-first pipeline settings while provider routing stays centrally owned; FitCV Local adds a narrow non-secret provider/model overlay and stores API keys only in OS credential storage.
+summary: Admins can edit task-first pipeline settings while provider routing stays centrally owned; FitCV Local adds one validated non-secret controller overlay for provider/model routing, whole-run retry, and bounded prompt guidance while API keys stay only in OS credential storage.
 invariants:
-  - FitCV Local routing overlay may change provider definitions and supported task model routes only; it never copies full packaged configuration.
-  - Provider API keys never persist in settings SQLite, routing overlay, diagnostics, or logs.
+  - FitCV Local controller overlay may change only supported provider fields, task model routes, whole-run retry, and bounded prompt addenda; packaged defaults remain canonical.
+  - Prompt addenda cannot replace fixed JSON/schema/output instructions and raw text never enters diagnostics, telemetry, or run artifacts.
+  - Provider API keys never persist in settings SQLite, controller overlay, diagnostics, or logs.
 domains:
   - admin_ui
   - pipeline_config
@@ -16,7 +17,7 @@ capabilities:
     statement: SQLite-backed pipeline settings store
     state: active
   - capability_id: settings_system.settings-schema-registry
-    statement: Keep settings schema registry canonical while FitCV Local onboarding validates provider, API root, wire API, timeout, default model, and supported task models.
+    statement: Keep settings schema registry canonical while FitCV Local onboarding validates provider, API root, wire API, timeout, task models, whole-run retry, and bounded per-task prompt addenda.
     state: active
   - capability_id: settings_system.operator-facing-agentic-settings
     statement: Expose bounded semantic-alignment, reuse, automation, and advanced controls while retired late-stage mode toggles remain excluded.

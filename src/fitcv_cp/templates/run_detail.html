@@ -405,62 +405,6 @@
 <details class="card" id="advanced-diagnostics">
   <summary style="cursor:pointer;user-select:none;font-weight:700">Advanced &amp; Diagnostics</summary>
   <div style="margin-top:0.85rem">
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Runtime and Backend Details</h3>
-    <span class="badge badge-info">technical</span>
-  </div>
-  <div class="kv">
-    <span class="k">Replay Mode</span><span class="v"><code>{{ replay_context_summary.replay_mode or 'strict' }}</code></span>
-    <span class="k">Replay Source Run</span><span class="v"><code>{{ replay_context_summary.replay_source_run_id or run.run_id }}</code></span>
-    <span class="k">Policy Registry</span><span class="v"><code>{{ replay_context_summary.policy_registry_version or 'policy_registry.v1' }}</code></span>
-    <span class="k">Runtime Mode</span><span class="v"><code>{{ data_plane_summary.runtime_mode or 'full' }}</code></span>
-    <span class="k">State Backend</span><span class="v"><code>{{ data_plane_summary.state_backend or 'unknown' }}</code></span>
-    <span class="k">Artifact Backend</span><span class="v"><code>{{ data_plane_summary.artifact_backend or 'unknown' }}</code></span>
-    <span class="k">Telemetry Backend</span><span class="v"><code>{{ data_plane_summary.telemetry_backend or 'otel_json' }}</code></span>
-  </div>
-</div>
-
-{% if run_attempt_events %}
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
-    <h3 style="margin:0">Run Attempt Timeline</h3>
-    <span class="badge badge-info">{{ run_attempt_events|length }} event(s)</span>
-  </div>
-  <div class="meta" style="margin-bottom:0.75rem">
-    Attempt events are SSOT-sourced from run events (`run_attempt.v1`). Use this to confirm retry and crash recovery behavior.
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Created</th>
-        <th>Attempt ID</th>
-        <th>Status</th>
-        <th>RQ Job</th>
-        <th>Worker</th>
-        <th>Lease Expires</th>
-        <th>Error</th>
-        <th>Retry</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in run_attempt_events %}
-      <tr>
-        <td><code>{{ row.created_at }}</code></td>
-        <td><code>{{ row.attempt_id or '—' }}</code></td>
-        <td><code>{{ row.status or '—' }}</code></td>
-        <td><code>{{ row.rq_job_id or '—' }}</code></td>
-        <td><code>{{ row.worker_id or '—' }}</code></td>
-        <td><code>{{ row.lease_expires_at or '—' }}</code></td>
-        <td><code>{{ row.error_summary or '—' }}</code></td>
-        <td><code>{{ row.retry_eligible if row.retry_eligible is not none else '—' }}</code></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
-
 {% if stage_result_summary_rows %}
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">

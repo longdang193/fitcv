@@ -31,6 +31,17 @@ from fitcv_cp.local_setup import (
 )
 
 
+def test_local_provider_contracts_use_shared_ssot_constants() -> None:
+    from fitcv.config import SUPPORTED_PROVIDER_IDS
+    from fitcv.llm_runtime import SUPPORTED_PROVIDER_IDS as ADAPTER_PROVIDER_IDS
+    from fitcv_cp.local_routes import PROVIDER_DRAFT_FIELDS
+    from fitcv_cp.local_setup import PROVIDER_IDS, TASK_PARTS
+
+    assert ADAPTER_PROVIDER_IDS is SUPPORTED_PROVIDER_IDS
+    assert PROVIDER_IDS is SUPPORTED_PROVIDER_IDS
+    assert PROVIDER_DRAFT_FIELDS[-len(TASK_PARTS) :] == TASK_PARTS
+
+
 def _setup(auth_mode: str = "required") -> ProviderSetup:
     return ProviderSetup(
         provider_id="openai_compatible",

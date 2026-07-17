@@ -1,0 +1,31 @@
+Captured: 2026-07-17T23:32:05+02:00
+Run: 994ab364-d94c-48cf-856f-fcf6a10bc649
+Input: data/sample_data_engineer_jobs.json
+Database: artifacts/live_run_sample_data_engineer_newdb_20260717-224857/fitcv-live.sqlite3
+
+PASS: 13 job_outcome.v1 facts cover input:0 through input:12.
+PASS: Required keys are symmetric across all facts.
+PASS: Outcomes are held=3, blocked=2, rejected=8, accepted=0, skipped=0.
+PASS: 13 evidence references resolve exact records and fingerprints.
+PASS: 13 job_outcome events preserve semantics and fingerprints.
+PASS: run_artifact_bundle_v7 has no missing files; hashes match.
+PASS: Credentials and full prompt templates are absent from bundle.
+PASS: New DB has one run and 58 events in canonical tables.
+
+FAIL: Default run detail contains no Why? control or text.
+FAIL: Default Event Timeline exposes evidence fingerprint values.
+FAIL: job_outcome payloads contain four keys beyond six-key contract.
+FAIL: Terminal status is succeeded while timeline says Run paused.
+
+Extra event keys: trace_context, telemetry_export, langfuse_rich_io,
+langfuse_rich_io_native.
+
+UI evidence:
+- download-html.html:1842 exposes evidence fingerprint 3c41cdb80e1c.
+- download-html.html:2058 says Run paused with pending review.
+- Case-insensitive Why? search returns no match.
+
+Contract evidence:
+- Spec line 373 defines six event payload keys.
+- Spec line 384 requires default Why? inspection.
+- Spec line 511 requires Why? evidence resolution.

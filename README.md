@@ -14,7 +14,8 @@ FitCV Local is the primary path for non-technical Windows users:
 2. Launch **FitCV Local** from the Start menu.
 3. Choose a local data folder, review the candidate profile, and configure an
    OpenAI or OpenAI-compatible provider such as 9router.
-4. Test the provider, choose default or task-specific models, then finish setup.
+4. Review whole-run retry, optionally add bounded task prompt guidance, test the
+   provider, choose default or task-specific models, then finish setup.
 
 Normal FitCV Local use needs no Python, Git, Docker, Redis, separate worker,
 repository checkout, terminal, or manually edited `.env` file. Current Windows
@@ -194,7 +195,7 @@ Primary architecture references:
 - Provider API key when selected provider requires authentication
 
 Install Technical Preview, launch from Start menu, and complete browser onboarding.
-User database, candidate profile, routing overlay, artifacts, exports, logs, and
+User database, candidate profile, controller overlay, artifacts, exports, logs, and
 backups stay under selected user-owned data folder.
 
 ### Developer / Server

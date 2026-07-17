@@ -85,6 +85,8 @@ def test_resolve_cv_generation_routing_snapshot_openai_compatible() -> None:
             "model": "cx/gpt-5.2",
             "base_url": "http://localhost:1234/v1",
             "wire_api": "responses",
+            "timeout_seconds": "300",
+            "auth_mode": "required",
         },
     ), patch("fitcv.runtime_routing.resolve_openai_compatible_api_key", return_value="test-key"):
         snapshot = resolve_cv_generation_routing_snapshot({}, default_model="fallback-model")
@@ -103,6 +105,8 @@ def test_resolve_cv_generation_runtime_provenance_openai_compatible() -> None:
             "model": "cx/gpt-5.2",
             "base_url": "http://localhost:1234/v1",
             "wire_api": "responses",
+            "timeout_seconds": "300",
+            "auth_mode": "required",
         },
     ):
         provenance = resolve_cv_generation_runtime_provenance({}, default_model="fallback-model")
@@ -118,7 +122,9 @@ def test_resolve_cv_generation_runtime_provenance_builtin_provider() -> None:
             "provider": "vertexai_gemini",
             "model": "cx/gpt-5.4-mini",
             "base_url": "",
-            "wire_api": "",
+            "wire_api": "builtin",
+            "timeout_seconds": "300",
+            "auth_mode": "none",
         },
     ):
         provenance = resolve_cv_generation_runtime_provenance({}, default_model="fallback-model")
@@ -148,6 +154,8 @@ def test_validate_cv_generation_routing_ready_openai_compatible_requires_api_key
             "model": "cx/gpt-5.2",
             "base_url": "http://localhost:1234/v1",
             "wire_api": "responses",
+            "timeout_seconds": "300",
+            "auth_mode": "required",
         },
     ), patch("fitcv.runtime_routing.resolve_openai_compatible_api_key", return_value=""):
         try:
@@ -165,6 +173,7 @@ def test_local_cv_readiness_names_credential_store() -> None:
             "model": "cx/gpt-5.2",
             "base_url": "http://localhost:1234/v1",
             "wire_api": "responses",
+            "timeout_seconds": "300",
             "auth_mode": "required",
         },
     ), patch("fitcv.runtime_routing.resolve_openai_compatible_api_key", return_value=""):
@@ -179,7 +188,9 @@ def test_validate_cv_generation_routing_ready_builtin_provider_no_api_key_needed
             "provider": "vertexai_gemini",
             "model": "cx/gpt-5.4-mini",
             "base_url": "",
-            "wire_api": "",
+            "wire_api": "builtin",
+            "timeout_seconds": "300",
+            "auth_mode": "none",
         },
     ):
         validate_cv_generation_routing_ready({})
@@ -191,6 +202,7 @@ def test_resolve_llm_routing_matches_cv_wrapper() -> None:
         "base_url": "https://provider.example/v1",
         "wire_api": "CHAT_COMPLETIONS",
         "timeout_seconds": "42",
+        "auth_mode": "required",
     }
     with patch("fitcv.runtime_routing.resolve_model_routing_part", return_value=route_payload):
         generic = resolve_llm_routing("cv_generation_structured_write", model_fallback="fallback")
@@ -211,6 +223,8 @@ def test_generic_readiness_uses_env_only_openai_credential() -> None:
             "model": "cx/test-model",
             "base_url": "https://provider.example/v1",
             "wire_api": "responses",
+            "timeout_seconds": "300",
+            "auth_mode": "required",
         },
     ):
         route = resolve_llm_routing("ranking_ai_score")
@@ -237,3 +251,19 @@ def test_validate_llm_routing_ready_requires_control_plane_model() -> None:
             assert "requires model" in str(exc)
         else:
             raise AssertionError("missing routed model must fail")
+
+
+def test_resolve_llm_routing_rejects_missing_canonical_transport_fields() -> None:
+    with patch(
+        "fitcv.runtime_routing.resolve_model_routing_part",
+        return_value={
+            "provider": "openai_compatible",
+            "model": "cx/test-model",
+            "base_url": "https://provider.example/v1",
+            "wire_api": "",
+            "timeout_seconds": "",
+            "auth_mode": "required",
+        },
+    ):
+        with pytest.raises(ValueError, match="wire_api is required"):
+            resolve_llm_routing("ranking_ai_score")

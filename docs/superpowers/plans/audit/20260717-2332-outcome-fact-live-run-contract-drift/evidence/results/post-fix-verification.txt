@@ -1,0 +1,36 @@
+Resolution verification — Friday, July 17, 2026
+
+Live evidence: artifacts/live_run_outcome_fix_20260717
+Run ID: ae564960-2139-4cc4-9b0c-5919c7783590
+Terminal status: succeeded
+Input rows: 13
+Canonical JobOutcomeFact rows: 13
+Minimal job_outcome events: 13; exact six-key payload; no extra telemetry envelope keys
+Outcome counts: accepted=0, held=4, blocked=1, rejected=8, skipped=0
+UI: Why? visible with exact evidence reference; default timeline hides evidence fingerprint; review wording is consistent
+Bundle: run_artifact_bundle_v7; zero missing files; all declared hashes match
+Security: no loaded secret value or prompt body found in extracted bundle
+Database: one run row; 60 event rows; 13 job_outcome rows
+Tracked SSOT files: hashes unchanged across run
+Shutdown: server stopped; port 50624 released
+
+Host clock note: raw runtime artifacts emitted July 18 local timestamps. Governing task and audit date remains Friday, July 17, 2026; raw timestamps were preserved and not rewritten.
+
+Focused verification:
+- pytest -q tests/test_fitcv_cp/test_reporter.py tests/test_pipeline_outcome_fact.py -> 48 passed
+- pytest -q tests/test_fitcv_cp/test_app.py -k "enriched or fingerprint or job_outcome" -> 44 passed
+- pytest -q tests/test_fitcv_cp/test_app.py::test_timeline_stage_summary_message_does_not_call_terminal_review_paused -> 1 passed
+- pytest -q tests/test_fitcv_cp/test_worker_job.py -k "review_required_reason_totals" -> 1 passed
+Final verification:
+- pytest -q tests/test_pipeline.py tests/test_pipeline_outcome_fact.py -> 169 passed
+- pytest -q tests/test_fitcv_cp -> 1009 passed; known Windows pytest atexit cleanup ACL warning occurred after exit code 0
+- python -m mypy src/fitcv/pipeline_contracts.py --follow-imports=skip -> success
+- python -m compileall -q src/fitcv src/fitcv_cp -> passed
+- python scripts/hooks/run_validator.py --fast -> passed
+- python scripts/validate_repo_contracts.py --fast -> passed
+- python scripts/sync_agent_adapters.py --check -> skipped by consumer-derived policy; agent runtime drift validator passed
+
+Separate docs-only SSOT correction:
+- Active JOB-PROJECT governance now consistently names `config/` as runtime/workflow config root.
+- Starter-only adoption guidance remains unchanged.
+- Audit bypass: docs-only invariant correction with clear failure boundary; no runtime behavior changed.

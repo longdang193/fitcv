@@ -36,7 +36,7 @@ capabilities:
   statement: Provide aggregate timeline rows and bounded per-stage transition artifacts for major stage handoffs.
   state: active
 - capability_id: inspection_debugging.prompt-provenance-diagnostics
-  statement: Surface effective enrich, ranking, and CV-generation prompt identifiers, templates, and models in diagnostics.
+  statement: Surface effective enrich, ranking, CV-generation, and synonym-triage prompt identity plus hash-only customization status, SHA-256, and character count without raw prompt text.
   state: active
 - capability_id: inspection_debugging.ranking-diagnostics
   statement: Expose ranking-v2 policy and contract fingerprints, configured/effective weights, absolute normalizers, missing-value use, factor contributions, baseline labels, migration summary, AI-score reuse state, and bounded preference-policy candidate and lifecycle history.
@@ -302,6 +302,8 @@ refs:
   - docs/superpowers/specs/2026-07-16-11-05-fitcv-inverse-optimization-phase-7-policy-lifecycle-runtime-residual-closeout-spec.md
   - docs/superpowers/specs/2026-07-16-17-34-fitcv-inverse-optimization-phase-8-admin-page-spec.md
   - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+  - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
+  - docs/superpowers/specs/2026-07-17-20-45-fitcv-outcome-fact-ssot-and-debug-traceability-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
   - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -410,6 +412,8 @@ refs:
   - docs/superpowers/plans/2026-07-16-17-46-fitcv-inverse-optimization-phase-8-admin-page-plan.md
   - docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md
   - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+  - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
+  - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
   docs:
   - docs/features/inspection_debugging/history.md
   configs:

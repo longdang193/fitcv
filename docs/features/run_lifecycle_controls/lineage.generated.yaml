@@ -64,6 +64,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -86,6 +87,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -154,6 +156,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -176,6 +179,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -232,6 +236,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -254,6 +259,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -328,6 +334,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -350,6 +357,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -406,6 +414,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -428,6 +437,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -484,6 +494,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -506,6 +517,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -562,6 +574,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -584,6 +597,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -664,6 +678,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -686,6 +701,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -742,6 +758,7 @@ capabilities:
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
     - docs/superpowers/specs/2026-07-16-22-29-fitcv-local-distribution-and-onboarding-spec.md
+    - docs/superpowers/specs/2026-07-17-10-02-fitcv-local-controller-ssot-and-safe-prompt-customization-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -764,6 +781,7 @@ capabilities:
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
+    - docs/superpowers/plans/2026-07-17-10-17-fitcv-local-controller-ssot-and-safe-prompt-customization-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

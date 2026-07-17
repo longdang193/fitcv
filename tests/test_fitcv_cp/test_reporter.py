@@ -163,6 +163,27 @@ def test_reporter_langfuse_rich_io_coerces_scalar_cost(monkeypatch):
     assert rich_output.get("cost") == {"total": 0.123, "currency": "usd"}
 
 
+def test_reporter_keeps_job_outcome_payload_minimal() -> None:
+    reporter = PipelineReporter(run_id="r1")
+    payload = {
+        "job_key": "input:0",
+        "stage": "cv_analysis",
+        "outcome": "blocked",
+        "reason_code": "reranker_fit_below_threshold",
+        "outcome_fingerprint": "sha256:outcome",
+        "evidence_ref": {
+            "artifact": "cv_analysis.json",
+            "fingerprint": "sha256:evidence",
+            "record_key": "input:0",
+        },
+    }
+
+    with patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
+        reporter.emit("job_outcome", "info", "input:0 blocked", payload=payload)
+
+    event = append_mock.call_args.args[0]
+    assert json.loads(str(event.payload_json or "{}")) == payload
+
 def test_reporter_reuses_active_trace_context_when_available():
     reporter = PipelineReporter(run_id="r1")
     active_context = {

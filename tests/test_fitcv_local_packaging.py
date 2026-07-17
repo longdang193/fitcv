@@ -32,9 +32,14 @@ def test_pyinstaller_spec_is_onedir_and_bundles_required_resources() -> None:
 
     assert "COLLECT(" in spec
     assert "console=False" in spec
+    assert "fitcv.ico" in spec
+    assert '(str(ROOT / "packaging/windows/fitcv.ico"), ".")' in spec
+    assert (ROOT / "packaging/windows/fitcv.ico").exists()
+    assert "local_controller_overlay.yaml" not in spec
     for required in (
         "packaging/windows/.env.yaml",
         "fitcv_cp/templates",
+        "src/fitcv/prompts/templates",
         "candidate_profile.template.yaml",
         "config",
         "prompts",
@@ -51,6 +56,7 @@ def test_inno_installer_is_per_user_and_preserves_user_data() -> None:
 
     assert "PrivilegesRequired=lowest" in installer
     assert "FitCV Local Technical Preview" in installer
+    assert "SetupIconFile=fitcv.ico" in installer
     assert "UninstallDelete" not in installer
     assert "fitcv-local.exe" in installer
 
@@ -69,5 +75,12 @@ def test_build_and_smoke_scripts_cover_release_contract() -> None:
         "fitcv_csrf",
         "/local/system/shutdown",
         "second instance",
+        "enrich_extraction_v1.md",
+        "ranking_ai_score_v2.md",
+        "cv_generation_structured_write_v1.md",
+        "synonym_triage_recommendation_v1.md",
+        "fitcv.ico",
+        "candidate.pid",
+        "$process.Id",
     ):
         assert required in smoke

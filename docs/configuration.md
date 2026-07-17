@@ -33,7 +33,7 @@ FitCV Local keeps application defaults read-only and user configuration narrow:
 | --- | --- | --- |
 | `%APPDATA%\FitCV\bootstrap.json` | selected data-root pointer and minimal version metadata | no |
 | `<data-root>\candidate_profile.yaml` | user candidate profile | private user data, not credential |
-| `<data-root>\config\local_routing_overlay.yaml` | provider definition and `model_routing.parts` overrides | no |
+| `<data-root>\config\local_controller_overlay.yaml` | validated provider, task routing, whole-run retry, and prompt-addendum overrides | no |
 | Windows Credential Manager service `FitCV.Local` | provider API keys | yes |
 | packaged `config/runtime/control_plane.yaml` | immutable provider/model defaults | no |
 
@@ -229,6 +229,25 @@ Examples:
 - provider credential input:
   - FitCV Local: Windows Credential Manager, keyed by provider ID
   - developer/server mode: `FITCV_LLM_API_KEY`
+
+### FitCV Local Controller Overlay
+
+- packaged defaults remain owned by `config/runtime/control_plane.yaml` and
+  active prompt IDs remain owned by `config/runtime/prompts.yaml`
+- user-owned non-secret overrides live at
+  `<data-root>/config/local_controller_overlay.yaml`
+- supported overlay sections are provider fields, task model routes, whole-run
+  retry settings, and `prompts.additional_instructions`
+- precedence is packaged defaults, validated local overlay, then existing
+  explicit per-run overrides
+- prompt addenda normalize line endings, trim surrounding whitespace, and are
+  limited to 4000 Unicode code points per supported task
+- fixed JSON/schema/output instructions stay packaged and immutable
+- artifacts and diagnostics store only customization status, SHA-256, and
+  character count; raw addenda stay in the overlay, explicit backups, and the
+  loopback settings response marked `Cache-Control: no-store`
+- resetting an override removes its overlay key and reveals packaged default;
+  it does not copy packaged defaults into user configuration
 
 ## AI-Plane Contract (Migration Freeze)
 

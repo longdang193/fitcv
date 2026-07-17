@@ -21,7 +21,7 @@ Use this file for repo-wide behavior only. More specific directory instructions 
 - Repo governance lives in `docs/operating_system/`.
 - Agent memory lives in `docs/operating_system/agent_memory/`.
 - Skills live in `.agents/skills/`, which remains the canonical Codex skill surface.
-- Runtime/workflow config lives in `configs/`, while repo/system config lives in `repo_config/`.
+- Runtime/workflow config lives in `config/`, while repo/system config lives in `repo_config/`.
 - `.codex/rules/` is a generated rules output surface, not the canonical home for skills or memory.
 - Skills should follow the Codex Skills model: one focused workflow per skill, with `SKILL.md` as the primary entrypoint.
 
@@ -195,7 +195,7 @@ generated_by: scripts/sync_agent_adapters.py
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **fitcv** (36826 symbols, 63139 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **fitcv** (38022 symbols, 64587 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

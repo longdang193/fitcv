@@ -18,9 +18,13 @@ from dataclasses import dataclass
 import os
 from typing import Any
 
-from fitcv.config import get_cv_generation_model, resolve_model_routing_part
+from fitcv.config import (
+    SUPPORTED_PROVIDER_IDS,
+    get_cv_generation_model,
+    resolve_model_routing_part,
+)
 
-_OPENAI_COMPATIBLE_PROVIDERS = {"openai", "openai_compatible", "9router"}
+_OPENAI_COMPATIBLE_PROVIDERS = SUPPORTED_PROVIDER_IDS
 @dataclass(frozen=True)
 class LlmRouting:
     provider: str
@@ -68,16 +72,25 @@ def resolve_llm_routing(part_name: str, *, model_fallback: str = "") -> LlmRouti
         normalized_part_name,
         model_fallback=str(model_fallback or "").strip(),
     )
-    timeout_seconds = float(str(route.get("timeout_seconds") or "").strip() or "120")
+    wire_api = str(route.get("wire_api") or "").strip().lower()
+    if not wire_api:
+        raise ValueError("wire_api is required in canonical provider config")
+    raw_timeout = str(route.get("timeout_seconds") or "").strip()
+    if not raw_timeout:
+        raise ValueError("timeout_seconds is required in canonical provider config")
+    timeout_seconds = float(raw_timeout)
     if timeout_seconds <= 0:
         raise ValueError("timeout_seconds must be positive")
+    auth_mode = str(route.get("auth_mode") or "").strip().lower()
+    if not auth_mode:
+        raise ValueError("auth_mode is required in canonical provider config")
     return LlmRouting(
         provider=str(route.get("provider") or "").strip().lower(),
         base_url=str(route.get("base_url") or "").strip(),
-        wire_api=str(route.get("wire_api") or "").strip().lower() or "responses",
+        wire_api=wire_api,
         model=str(route.get("model") or "").strip(),
         timeout_seconds=timeout_seconds,
-        auth_mode=str(route.get("auth_mode") or "required").strip().lower(),
+        auth_mode=auth_mode,
     )
 
 

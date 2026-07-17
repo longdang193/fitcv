@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}FitCV Local Setup{% endblock %}
+{% block title %}{% if state.complete %}FitCV Local Settings{% else %}FitCV Local Setup{% endif %}{% endblock %}
 {% block content %}
-<h1>FitCV Local Setup</h1>
+<h1>{% if state.complete %}FitCV Local Settings{% else %}FitCV Local Setup{% endif %}</h1>
 <div data-current-step="{{ state.current_step }}"></div>
 {% if state.errors %}
-<div class="card" role="alert">
+<div class="card" role="alert" tabindex="-1">
   {% for section, error in state.errors.items() %}<p><strong>{{ section|title }}:</strong> {{ error }}</p>{% endfor %}
 </div>
 {% endif %}
@@ -16,36 +16,89 @@
 <div class="card">
   <h2>Candidate profile</h2>
   <form method="post" action="/local/onboarding/profile">
-    <textarea name="profile" rows="14" required>{{ profile_draft }}</textarea>
+    <label for="candidate-profile">Candidate profile YAML</label>
+    <textarea id="candidate-profile" name="profile" rows="14" required>{{ profile_draft }}</textarea>
     <button type="submit">Save profile</button>
   </form>
 </div>
 <div class="card">
-  <h2>LLM provider</h2>
+  <h2>LLM controller</h2>
   <form id="provider-form" method="post" action="/local/onboarding/provider">
-    <label>Provider <select name="provider_id"><option value="openai_compatible">OpenAI-compatible</option><option value="openai">OpenAI</option><option value="9router">9router</option></select></label>
-    <label>API root <input name="base_url" type="url" required placeholder="https://api.openai.com/v1"></label>
-    <label>API key <input name="api_key" type="password" autocomplete="new-password"></label>
-    <label>Auth <select name="auth_mode"><option>required</option><option>optional</option><option>none</option></select></label>
-    <label>Wire API <select name="wire_api"><option value="responses">Responses</option><option value="chat_completions">Chat Completions</option></select></label>
-    <label>Default model <input name="default_model" required></label>
-    <input name="timeout_seconds" type="number" min="1" value="120">
-    <details>
-      <summary>Advanced task models</summary>
-      <label>Enrichment <input name="enrich_extraction"></label>
-      <label>Ranking <input name="ranking_ai_score"></label>
-      <label>CV generation <input name="cv_generation_structured_write"></label>
-      <label>Synonym triage <input name="synonym_triage_recommendation"></label>
-    </details>
+    <input type="hidden" name="controller_settings_present" value="1">
+    <fieldset>
+      <legend>Provider</legend>
+      <p data-source="{{ controller.provider_source }}">Source: {{ controller.provider_source }}</p>
+      <label>Provider
+        <select name="provider_id">
+          {% for provider in controller.providers %}
+          <option value="{{ provider.id }}"{% if provider.selected %} selected{% endif %}>{{ provider.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>API root <input name="base_url" type="url" required value="{{ controller.provider.base_url }}" placeholder="https://api.openai.com/v1"></label>
+      <label>API key <input name="api_key" type="password" autocomplete="new-password"></label>
+      <label>Auth
+        <select name="auth_mode">
+          {% for mode in controller.auth_modes %}<option value="{{ mode }}"{% if mode == controller.provider.auth_mode %} selected{% endif %}>{{ mode }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Wire API
+        <select name="wire_api">
+          {% for wire_api in controller.wire_apis %}<option value="{{ wire_api }}"{% if wire_api == controller.provider.wire_api %} selected{% endif %}>{{ wire_api }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Default model <input name="default_model" required value="{{ controller.routes[2].model }}"></label>
+      <label>Timeout seconds <input name="timeout_seconds" type="number" min="1" value="{{ provider_timeout_seconds }}"></label>
+      <details>
+        <summary>Advanced task models</summary>
+        {% for route in controller.routes %}
+        <label>{{ route.label }} <span data-source="{{ route.source }}">({{ route.source }})</span>
+          <input name="{{ route.id }}" value="{{ route.model }}">
+        </label>
+        {% endfor %}
+      </details>
+      <button type="submit" formaction="/local/onboarding/controller/reset" name="scope" value="provider">Reset provider and models</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Run retry</legend>
+      <p>Retries whole failed runs, not individual LLM requests.</p>
+      <p data-source="{{ controller.retry_source }}">Source: {{ controller.retry_source }}</p>
+      <label><input name="retry_enabled" type="checkbox"{% if controller.retry.enabled %} checked{% endif %}> Enable run retry</label>
+      <label>Maximum attempts <input name="retry_max_attempts" type="number" min="1" max="20" value="{{ controller.retry.max_attempts }}"></label>
+      <label>Backoff seconds <input name="retry_backoff_seconds" value="{{ controller.retry_backoff }}"></label>
+      <label>Lease seconds <input name="retry_lease_seconds" type="number" min="30" value="{{ controller.retry.lease_seconds }}"></label>
+      <label>Reconciler interval seconds <input name="retry_reconciler_interval_seconds" type="number" min="0" value="{{ controller.retry.reconciler_interval_seconds }}"></label>
+      <label>Error detail limit <input name="retry_error_details_max_chars" type="number" min="256" value="{{ controller.retry.error_details_max_chars }}"></label>
+      <button type="submit" formaction="/local/onboarding/controller/reset" name="scope" value="retry">Reset run retry</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Prompt customization</legend>
+      <p>Optional guidance is inserted before fixed JSON and schema instructions. Maximum 4000 characters per task.</p>
+      {% for prompt in controller.prompts %}
+      <div class="card">
+        <label for="prompt-{{ prompt.task_id }}">{{ prompt.label }}</label>
+        <p><code>{{ prompt.prompt_id }}</code> {{ prompt.version }} <span data-source="{{ prompt.source }}">Source: {{ prompt.source }}</span></p>
+        <textarea id="prompt-{{ prompt.task_id }}" name="prompt_addendum_{{ prompt.task_id }}" rows="5" maxlength="4000">{{ prompt.addendum }}</textarea>
+        <button type="submit" formaction="/local/onboarding/controller/reset" name="scope" value="prompt:{{ prompt.task_id }}">Reset prompt</button>
+      </div>
+      {% endfor %}
+    </fieldset>
+
     <button type="button" id="discover-models">Discover models</button>
     <button type="button" id="test-provider">Test provider</button>
-    <button type="submit">Save provider</button>
+    <button type="submit">Save controller settings</button>
   </form>
   <pre id="provider-result" aria-live="polite"></pre>
 </div>
+{% if state.complete %}
+<p><a href="/admin/runs">Back to Runs</a></p>
+{% else %}
 <form method="post" action="/local/onboarding/complete">
   <button type="submit">Finish setup</button>
 </form>
+{% endif %}
 <script>
 (function() {
   var form = document.getElementById('provider-form');

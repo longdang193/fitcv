@@ -843,6 +843,9 @@ def test_generate_cv_uses_openai_compatible_routed_client(
             "provider": "openai_compatible",
             "model": "cx/gpt-5.2",
             "base_url": "http://localhost:20128/v1",
+            "wire_api": "responses",
+            "timeout_seconds": "300",
+            "auth_mode": "required",
         },
     )
     template_path = tmp_path / "cv_template.md"
@@ -929,6 +932,8 @@ def test_generate_cv_parses_chat_completions_json_with_trailing_sse_done(
             "model": "cx/gpt-5.2",
             "base_url": "http://localhost:20128/v1",
             "wire_api": "chat_completions",
+            "timeout_seconds": "300",
+            "auth_mode": "required",
         },
     )
     template_path = tmp_path / "cv_template.md"
@@ -998,6 +1003,9 @@ def test_generate_cv_reads_model_from_nested_cv_config(
             "provider": "openai_compatible",
             "model": "cx/gpt-5.2",
             "base_url": "http://localhost:20128/v1",
+            "wire_api": "responses",
+            "timeout_seconds": "300",
+            "auth_mode": "required",
         },
     )
 
@@ -1375,3 +1383,29 @@ def test_build_generation_prompt_consumes_extended_analysis_hints() -> None:
 def test_europass_template_includes_publications_section() -> None:
     template = Path("templates/cv_template.md").read_text(encoding="utf-8")
     assert "## Publications" in template
+
+
+def test_build_structured_generation_prompt_includes_safe_addendum() -> None:
+    prompt = build_structured_generation_prompt(
+        jd={"title": "Data Analyst", "required_skills": ["SQL"]},
+        evidence=[],
+        gap={"matched": ["SQL"], "missing": []},
+        template="## Summary",
+        config={
+            "prompts": {
+                "cv_generation": {
+                    "structured_write": {
+                        "prompt_id": "cv_generation.structured_write.v1"
+                    }
+                },
+                "additional_instructions": {
+                    "cv_generation_structured_write": "Keep bullets concise."
+                },
+            }
+        },
+    )
+
+    assert prompt.count("Keep bullets concise.") == 1
+    assert prompt.index("Keep bullets concise.") < prompt.index(
+        "## Structured JSON Schema"
+    )
