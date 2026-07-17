@@ -201,3 +201,44 @@ Use this file for repeated or important failures, not every small mistake.
   - `src/fitcv_cp/app.py`
   - `tests/test_fitcv_cp/test_app.py`
   - `docs/superpowers/plans/2026-07-16-21-16-fitcv-langgraph-removal-and-llm-runtime-ssot-closeout-plan.md`
+
+## Empty pipeline results are valid terminal outcomes
+
+- Title: Empty ranking must resolve zero residual instead of aborting
+- Date: 2026-07-16
+- Trigger / Context: FitCV Local full live run with one valid input that was rejected by policy before ranking.
+- What went wrong: `resolve_run_preference_policy()` required at least one ranking row and raised `ValueError`, turning a valid zero-ranked run into user-visible failure.
+- Correct behavior: Empty ranking resolves a typed zero-residual policy with explicit diagnostic, then pipeline completes with zero ranked jobs and truthful export outcome.
+- Prevention added or required: Keep empty-ranking regression, full zero-result live scenario, and late-stage admissible scenario. Treat zero work at each stage as normal state unless contract explicitly forbids it.
+- Related artifacts:
+  - `src/fitcv/preference_policy.py`
+  - `tests/test_preference_policy.py`
+  - `docs/superpowers/plans/audit/20260716-2325-empty-ranking-preference-policy/`
+## Packaged startup smoke does not prove packaged pipeline assets
+
+- Title: Packaged startup smoke does not prove packaged pipeline assets
+- Date: 2026-07-17
+- Trigger / Context: FitCV Local bundle passed health, onboarding, second-instance, and shutdown smoke, but first real packaged pipeline run failed loading `enrich_extraction_v1.md`.
+- What went wrong: PyInstaller omitted runtime prompt templates; smoke never asserted exact pipeline data assets or submitted a packaged run. Smoke also accepted stale runtime metadata, and onboarding duplicated a `120s` provider timeout while canonical control-plane config owned `300s`.
+- Correct behavior: Release evidence separates source pipeline proof, packaged lifecycle smoke, and fresh-fingerprint packaged pipeline proof. Smoke binds runtime metadata to started PID and asserts exact required data assets. User-facing defaults resolve runtime config SSOT.
+- Prevention added or required: Keep exact prompt bundle assertion, PID-bound runtime metadata polling, canonical timeout integration regression, and one fresh packaged pipeline scenario before distribution closure.
+- Related artifacts:
+  - `packaging/windows/fitcv-local.spec`
+  - `scripts/smoke_fitcv_local.ps1`
+  - `src/fitcv_cp/local_routes.py`
+  - `tests/test_fitcv_local_packaging.py`
+  - `tests/test_fitcv_cp/test_local_routes.py`
+  - `docs/superpowers/plans/audit/20260717-0920-packaged-prompt-assets-timeout-ssot/`
+
+## Transient tray icons should not reuse persistent GUID identity
+
+- Title: Stable tray GUID can collide across frozen probe and product executables
+- Date: 2026-07-17
+- Trigger / Context: FitCV Local server stayed healthy, but its packaged Windows tray icon never appeared and `Shell_NotifyIconW(NIM_ADD)` returned false.
+- What went wrong: Tray registration first omitted the created owner `hWnd`, then used one persistent GUID across isolated probe and full product executables. Fresh GUID and GUID-free registrations succeeded, proving shell identity state—not server lifecycle—was the remaining boundary.
+- Correct behavior: Set `NOTIFYICONDATA.hWnd` before `NIM_ADD`; use process-owned `hWnd + uID` identity for a transient local app tray; verify with `Shell_NotifyIconGetRect` and command dispatch in the full frozen package.
+- Prevention added or required: Keep owner-before-registration and no-persistent-GUID regressions. Do not treat source mode, isolated probes, or healthy HTTP startup as packaged tray proof.
+- Related artifacts:
+  - `src/fitcv_cp/windows_tray.py`
+  - `tests/test_fitcv_cp/test_windows_tray.py`
+  - `docs/superpowers/plans/audit/20260717-1334-fitcv-local-root-icon/`

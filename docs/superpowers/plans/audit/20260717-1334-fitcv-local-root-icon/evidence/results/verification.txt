@@ -1,0 +1,17 @@
+Captured At: 2026-07-17T13:34:02+02:00
+Producer: Codex local verification
+RED: launcher/icon regressions failed before fix; completed-onboarding root test returned 404 instead of 307.
+GREEN: 34 passed in 5.54s for tests/test_fitcv_cp/test_local_routes.py tests/test_fitcv_cp/test_local_app.py tests/test_fitcv_local_packaging.py.
+Build: scripts/build_fitcv_local.ps1 exited 0; PyInstaller logged "Copying icon to EXE"; Inno Setup compiled installer successfully.
+Smoke: scripts/smoke_fitcv_local.ps1 -BundlePath dist/fitcv-local exited 0.
+Packaged runtime: GET / returned 307 Location: /admin/runs for completed onboarding; GET /local/onboarding returned 200 text/html.
+Diff hygiene: git diff --check exited 0 after touched-file EOF normalization.
+
+Tray RED: full console-frozen FitCV logged `OSError: Shell_NotifyIconW failed for FitCV tray`; notification overflow contained no FitCV icon.
+Tray boundary experiment: fresh random GUID succeeded; GUID-free `hWnd + uID` registration also succeeded in the same full frozen executable; stable GUID registration failed.
+Tray GREEN: final packaged PID 14836 created `FitCVTrayWindow_14836` with HWND 5899078. `Shell_NotifyIconGetRect` returned nonnegative HRESULT 1 and rectangle `(1518,1162,1548,1200)`.
+Tray commands: posted Open command ID 1001, then Shutdown command ID 1002; packaged process exited successfully.
+Tray tests: 18 passed in 0.95s for tests/test_fitcv_cp/test_windows_tray.py tests/test_fitcv_cp/test_local_app.py tests/test_fitcv_local_packaging.py.
+Final build: scripts/build_fitcv_local.ps1 exited 0 and rebuilt both dist/fitcv-local and installer output.
+Final smoke: scripts/smoke_fitcv_local.ps1 -BundlePath dist/fitcv-local exited 0.
+Repo contracts: scripts/validate_repo_contracts.py exited 0; contract pytest reported 101 passed in 40.92s.
