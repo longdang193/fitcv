@@ -1,0 +1,19 @@
+Runtime SSOT scan findings
+
+Unauthorized or unresolved data-plane semantic authorities:
+- src/fitcv/enrich.py:120 reads skill_synonyms directly.
+- src/fitcv/enrich.py:130 reads domain_alias_map directly.
+- src/fitcv/enrich.py:140 reads role_family_alias_map directly.
+- src/fitcv/rule_filter.py:111-117 retains get_skill_synonyms raw-map authority.
+- src/fitcv/gap_analysis.py:71-80 retains local _skill_variants and reverse-map traversal.
+- src/fitcv/ranking.py:34 retains duplicate _canonicalize_with_alias_map helper.
+
+Allowed control-plane/config reads remain in config.py, semantic_snapshot.py, fitcv_cp/app.py, worker_job.py, and worker_run_support.py for policy compilation/administration.
+
+Pipeline scan:
+- semantic_snapshot appears only in config/enrich/core implementation surfaces.
+- no downstream pipeline stage consumes persisted SemanticSnapshot.
+- live artifacts contain existing stage-specific fingerprints but no semantic_value_fingerprint or semantic_derivation_fingerprint.
+
+GitNexus result:
+- advisory query returned no processes because FTS indexes are missing/stale; source and live artifacts are authoritative.

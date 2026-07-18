@@ -436,9 +436,9 @@ def test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields() 
     merged = merge_scraped_and_enriched(scraped, enriched)
 
     assert merged["required_skills"] == ["Python programming for data science"]
-    assert merged["required_skills_canonical"] == ["python"]
+    assert merged["required_skills_canonical"] == ["python programming for data science"]
     assert merged["required_skill_entities"] == [
-        {"raw_text": "Python programming for data science", "canonical": "python"}
+        {"raw_text": "Python programming for data science", "canonical": "python programming for data science"}
     ]
     assert merged["mapping_suggestions"][0]["alias"] == "python programming for data science"
     assert merged["location_type_raw"] == "Remote"
@@ -1010,7 +1010,7 @@ def test_merge_scraped_and_enriched_supplements_sparse_required_skills_from_tech
     )
 
     assert result["required_skills"] == ["Excel/Sheets", "Excel", "Sheets", "SQL", "BI-Tools"]
-    assert result["required_skills_canonical"] == ["excel/sheets", "excel", "sheets", "sql", "bi-tools"]
+    assert result["required_skills_canonical"] == ["bi-tools", "excel", "excel/sheets", "sheets", "sql"]
 
 
 def test_merge_scraped_and_enriched_supplements_sparse_generic_required_skills_from_description() -> None:
@@ -1056,10 +1056,10 @@ def test_merge_scraped_and_enriched_supplements_sparse_generic_required_skills_f
 
     assert result["required_skills"] == ["CRM", "Account Management", "Customer Success", "B2B-Vertrieb"]
     assert result["required_skills_canonical"] == [
-        "crm",
         "account management",
-        "customer success",
         "b2b-vertrieb",
+        "crm",
+        "customer success",
     ]
     assert result["required_skill_entities"] == []
 
@@ -1306,10 +1306,10 @@ def test_lookup_reusable_structured_jobs_repairs_sparse_generic_required_skills_
         "B2B-Vertrieb",
     ]
     assert reusable["https://example.com/jobs/reused-account-manager"]["required_skills_canonical"] == [
-        "crm",
         "account management",
-        "customer success",
         "b2b-vertrieb",
+        "crm",
+        "customer success",
     ]
 
 
@@ -2267,3 +2267,73 @@ def test_build_extraction_prompt_includes_safe_addendum() -> None:
     assert prompt.index("Prefer direct evidence only.") < prompt.index(
         "Return ONLY a valid JSON object"
     )
+
+def test_merge_scraped_and_enriched_reprojects_canonical_fields_from_raw_values() -> None:
+    merged = merge_scraped_and_enriched(
+        {"job_url": "https://example.com/job", "title": "Data Engineer"},
+        {
+            "raw_job_fingerprint": "raw-job-1",
+            "required_skills": ["GCP"],
+            "required_skills_canonical": ["stale-value"],
+            "required_skill_entities": [
+                {"raw_text": "GCP", "canonical": "stale-value", "confidence": 0.8}
+            ],
+            "preferred_skills": [],
+            "preferred_skills_canonical": [],
+            "preferred_skill_entities": [],
+            "domain_raw": "Fin-Tech",
+            "domain": "stale-domain",
+            "job_family_raw": "BI Analyst",
+            "job_family": "stale-family",
+        },
+        {
+            "skill_synonyms": {"gcp": "google cloud platform"},
+            "domain_alias_map": {"fin tech": "financial services"},
+            "role_family_alias_map": {"bi analyst": "analytics"},
+        },
+    )
+
+    assert merged["required_skills_canonical"] == ["google cloud platform"]
+    assert merged["required_skill_entities"][0]["canonical"] == "google cloud platform"
+    assert merged["domain"] == "financial services"
+    assert merged["job_family"] == "analytics"
+    assert merged["semantic_snapshot"]["subject_identity"] == "raw-job-1"
+    assert merged["semantic_snapshot"]["field_completeness"]["required_skills"] == "complete"
+
+
+def test_load_run_structured_jobs_persists_semantic_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+
+    sqlite_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    merged = merge_scraped_and_enriched(
+        {"job_url": "https://example.com/snapshot", "title": "Data Engineer"},
+        {
+            "raw_job_fingerprint": "raw-1",
+            "required_skills": ["GCP"],
+            "required_skill_entities": [{"raw_text": "GCP", "canonical": "stale"}],
+            "preferred_skills": [],
+            "domain_raw": "Fin-Tech",
+            "job_family_raw": "BI Analyst",
+        },
+        {
+            "skill_synonyms": {"gcp": "google cloud"},
+            "domain_alias_map": {"fin tech": "financial services"},
+            "role_family_alias_map": {"bi analyst": "analytics"},
+        },
+    )
+
+    assert load_run_structured_jobs([merged], "run-1", {}) == 1
+    with sqlite3.connect(sqlite_path) as conn:
+        raw_payload = conn.execute(
+            "SELECT payload_json FROM run_structured_jobs WHERE run_id = ?",
+            ("run-1",),
+        ).fetchone()[0]
+    payload = json.loads(str(raw_payload))
+
+    assert payload["semantic_snapshot"] == merged["semantic_snapshot"]
+    assert payload["semantic_snapshot"]["semantic_value_fingerprint"]
+    assert payload["semantic_snapshot"]["semantic_derivation_fingerprint"]

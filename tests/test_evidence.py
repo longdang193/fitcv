@@ -1183,3 +1183,51 @@ def test_normalize_evidence_selection_records_contract() -> None:
 
 
 
+
+
+def test_cv_analysis_contract_ignores_synonym_data_changes() -> None:
+    baseline = evidence_module.build_cv_analysis_contract_fingerprint(
+        {"skill_synonyms": {"gcp": "google cloud platform"}}
+    )
+    changed = evidence_module.build_cv_analysis_contract_fingerprint(
+        {"skill_synonyms": {"gcp": "google cloud", "unrelated": "value"}}
+    )
+
+    assert baseline == changed
+
+
+def test_cv_analysis_input_fingerprint_tracks_bounded_alias_equivalence() -> None:
+    profile = {"skills": ["GCP"]}
+    job = {
+        "raw_job_fingerprint": "raw-1",
+        "job_url": "https://example.com/job",
+        "title": "Cloud Analyst",
+        "required_skills": ["GCP"],
+        "preferred_skills": [],
+        "responsibilities": ["Operate cloud data pipelines"],
+    }
+    baseline_config = {"skill_synonyms": {"gcp": "google cloud"}}
+    unrelated_config = {
+        "skill_synonyms": {"gcp": "google cloud", "unused alias": "unused canonical"}
+    }
+    target_changed_config = {"skill_synonyms": {"gcp": "google cloud changed"}}
+    alias_added_config = {
+        "skill_synonyms": {"gcp": "google cloud", "gcp snapshot alias": "google cloud"}
+    }
+
+    baseline = evidence_module.build_cv_analysis_input_fingerprint(
+        profile, job, baseline_config
+    )
+    unrelated = evidence_module.build_cv_analysis_input_fingerprint(
+        profile, job, unrelated_config
+    )
+    target_changed = evidence_module.build_cv_analysis_input_fingerprint(
+        profile, job, target_changed_config
+    )
+    alias_added = evidence_module.build_cv_analysis_input_fingerprint(
+        profile, job, alias_added_config
+    )
+
+    assert baseline["fingerprint"] == unrelated["fingerprint"]
+    assert baseline["fingerprint"] != target_changed["fingerprint"]
+    assert baseline["fingerprint"] != alias_added["fingerprint"]

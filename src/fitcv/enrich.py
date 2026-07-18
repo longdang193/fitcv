@@ -55,6 +55,11 @@ from fitcv.llm_runtime import (
 )
 from fitcv.pipeline_stages.common import extract_job_url
 from fitcv.prompts import get_prompt_definition, render_prompt
+from fitcv.semantic_snapshot import (
+    build_semantic_snapshot,
+    compile_semantic_policy,
+    project_canonical,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -112,43 +117,23 @@ def _get_valid_seniority_enrich(config: dict | None) -> frozenset[str]:
 
 def _build_normalization_policy(config: dict | None) -> NormalizationPolicy:
     cfg = config or {}
-    raw_synonyms = cfg.get("skill_synonyms")
-    skill_synonyms = (
-        {
-            str(alias).strip().lower(): str(canonical).strip().lower()
-            for alias, canonical in raw_synonyms.items()
-            if str(alias).strip() and str(canonical).strip()
-        }
-        if isinstance(raw_synonyms, dict)
-        else {}
-    )
-    raw_domain_alias_map = cfg.get("domain_alias_map")
-    domain_alias_map = (
-        {
-            str(alias).strip().lower(): str(canonical).strip().lower()
-            for alias, canonical in raw_domain_alias_map.items()
-            if str(alias).strip() and str(canonical).strip()
-        }
-        if isinstance(raw_domain_alias_map, dict)
-        else {}
-    )
-    raw_role_family_alias_map = cfg.get("role_family_alias_map")
-    role_family_alias_map = (
-        {
-            str(alias).strip().lower(): str(canonical).strip().lower()
-            for alias, canonical in raw_role_family_alias_map.items()
-            if str(alias).strip() and str(canonical).strip()
-        }
-        if isinstance(raw_role_family_alias_map, dict)
-        else {}
-    )
+    semantic_policy = cfg.get("semantic_policy")
+    if not isinstance(semantic_policy, dict):
+        semantic_policy = compile_semantic_policy(cfg)
+    maps = semantic_policy.get("maps")
+    semantic_maps = maps if isinstance(maps, dict) else {}
+    skill_synonyms = semantic_maps.get("skill")
+    domain_alias_map = semantic_maps.get("domain")
+    role_family_alias_map = semantic_maps.get("role_family")
     role_taxonomy = cfg.get("role_taxonomy")
     return NormalizationPolicy(
         valid_location_types=_get_valid_location_types(cfg),
         valid_seniority_enrich=_get_valid_seniority_enrich(cfg),
-        skill_synonyms=skill_synonyms,
-        domain_alias_map=domain_alias_map,
-        role_family_alias_map=role_family_alias_map,
+        skill_synonyms=dict(skill_synonyms) if isinstance(skill_synonyms, dict) else {},
+        domain_alias_map=dict(domain_alias_map) if isinstance(domain_alias_map, dict) else {},
+        role_family_alias_map=(
+            dict(role_family_alias_map) if isinstance(role_family_alias_map, dict) else {}
+        ),
         role_taxonomy=role_taxonomy if isinstance(role_taxonomy, dict) else {},
     )
 
@@ -1542,6 +1527,95 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
 
 # ── merge ─────────────────────────────────────────────────────────────────────
 
+def _semantic_skill_values(
+    enriched: dict[str, Any],
+    raw_field: str,
+    entity_field: str,
+) -> list[str] | None:
+    raw_values = enriched.get(raw_field)
+    if isinstance(raw_values, list):
+        return [str(value) for value in raw_values if str(value or "").strip()]
+    entities = enriched.get(entity_field)
+    if not isinstance(entities, list):
+        return None
+    values = [
+        str(entity.get("raw_text"))
+        for entity in entities
+        if isinstance(entity, dict) and str(entity.get("raw_text") or "").strip()
+    ]
+    return values or None
+
+def _apply_job_semantic_snapshot(
+    merged: dict[str, Any],
+    enriched: dict[str, Any],
+    config: dict[str, Any],
+) -> None:
+    policy = config.get("semantic_policy")
+    if not isinstance(policy, dict):
+        policy = compile_semantic_policy(config)
+
+    raw_fields: dict[str, object] = {}
+    for raw_field, entity_field in (
+        ("required_skills", "required_skill_entities"),
+        ("preferred_skills", "preferred_skill_entities"),
+    ):
+        values = _semantic_skill_values(enriched, raw_field, entity_field)
+        if values is not None:
+            raw_fields[raw_field] = values
+    for raw_field, snapshot_field in (
+        ("domain_raw", "domain"),
+        ("job_family_raw", "job_family"),
+    ):
+        value = enriched.get(raw_field)
+        if isinstance(value, str):
+            raw_fields[snapshot_field] = value
+
+    snapshot = build_semantic_snapshot(
+        "job",
+        str(merged.get("raw_job_fingerprint") or merged.get("job_url") or ""),
+        raw_fields,
+        policy,
+    )
+    merged["semantic_snapshot"] = snapshot
+    for field, target in (
+        ("required_skills", "required_skills_canonical"),
+        ("preferred_skills", "preferred_skills_canonical"),
+        ("domain", "domain"),
+        ("job_family", "job_family"),
+    ):
+        canonical = project_canonical(snapshot, field)
+        if canonical is not None:
+            merged[target] = canonical
+
+    snapshot_fields = snapshot.get("fields")
+    if not isinstance(snapshot_fields, dict):
+        return
+    for field, entity_field in (
+        ("required_skills", "required_skill_entities"),
+        ("preferred_skills", "preferred_skill_entities"),
+    ):
+        field_entities = snapshot_fields.get(field)
+        if not isinstance(field_entities, list):
+            continue
+        canonical_by_raw = {
+            str(entity.get("raw_value") or ""): str(entity.get("canonical_value") or "")
+            for entity in field_entities
+            if isinstance(entity, dict)
+        }
+        existing = merged.get(entity_field)
+        if isinstance(existing, list) and existing:
+            merged[entity_field] = [
+                {
+                    **entity,
+                    "canonical": canonical_by_raw.get(
+                        str(entity.get("raw_text") or "").strip().lower(),
+                        str(entity.get("canonical") or ""),
+                    ),
+                }
+                for entity in existing
+                if isinstance(entity, dict)
+            ]
+
 def merge_scraped_and_enriched(
     scraped: dict[str, Any],
     enriched: dict[str, Any],
@@ -1685,7 +1759,9 @@ def merge_scraped_and_enriched(
                 }
             )
         merged["role_family_mapping_suggestions"] = existing_role
-    return _repair_required_skill_signal(merged, config)
+    merged = _repair_required_skill_signal(merged, config)
+    _apply_job_semantic_snapshot(merged, merged, cfg)
+    return merged
 
 
 def _parse_json_field(raw_value: Any) -> Any:
@@ -2270,6 +2346,7 @@ _RUN_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("raw_job_fingerprint",  "STRING",    "NULLABLE"),
     ("enrich_contract_fingerprint", "STRING", "NULLABLE"),
     ("enrich_reuse_status",  "STRING",    "NULLABLE"),
+    ("semantic_snapshot",    "JSON",      "NULLABLE"),
 )
 
 _RUN_SCHEMA_KEYS: frozenset[str] = frozenset(name for name, _, _ in _RUN_SCHEMA_FIELDS)

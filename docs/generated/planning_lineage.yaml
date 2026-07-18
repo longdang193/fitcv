@@ -645,4 +645,5 @@ workstreams:
     - docs/superpowers/plans/2026-05-21-22-11-cv-generation-determinism-plan.md
     - docs/superpowers/plans/2026-05-21-23-55-cv-generation-decision-reuse-symmetry-plan.md
     - docs/superpowers/plans/2026-05-22-16-57-cross-stage-reuse-symmetry-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     derived_completion: in_progress

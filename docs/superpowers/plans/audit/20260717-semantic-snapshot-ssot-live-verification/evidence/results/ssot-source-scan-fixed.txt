@@ -1,0 +1,36 @@
+SSOT runtime source scan - 2026-07-18
+Allowed raw-map reads: config.py, semantic_snapshot.py, explicit fitcv_cp control-plane administration.
+
+src/fitcv_cp\app.py:734:    synonyms = dict(config.get("skill_synonyms") or {})
+src/fitcv_cp\app.py:2551:        "skill_synonyms": int(section_counts.get("skill_synonyms") or 0),
+src/fitcv_cp\app.py:2552:        "domain_alias_map": int(section_counts.get("domain_alias_map") or 0),
+src/fitcv_cp\app.py:2553:        "role_family_alias_map": int(section_counts.get("role_family_alias_map") or 0),
+src/fitcv_cp\app.py:2607:    source_map = pre_run_global_synonyms if pre_run_global_synonyms else dict(effective_config.get("skill_synonyms") or {})
+src/fitcv_cp\app.py:3183:    raw_map = payload.get("domain_alias_map")
+src/fitcv_cp\app.py:3209:    raw_map = payload.get("role_family_alias_map")
+src/fitcv_cp\app.py:6713:            current_count = len(dict(effective_config.get("skill_synonyms") or {}))
+src/fitcv_cp\app.py:6732:                    prior_count = len(dict((prior_cfg or {}).get("skill_synonyms") or {})) if isinstance(prior_cfg, dict) else 0
+src/fitcv_cp\app.py:6888:            current_count = len(dict(effective_config.get("skill_synonyms") or {}))
+src/fitcv_cp\app.py:6907:                    prior_count = len(dict((prior_cfg or {}).get("skill_synonyms") or {})) if isinstance(prior_cfg, dict) else 0
+src/fitcv_cp\app.py:7996:                global_synonyms=dict(updated_config.get("skill_synonyms") or {}),
+src/fitcv\config.py:829:        "skill_synonyms": _normalize_skill_synonyms(raw_payload.get("skill_synonyms")),
+src/fitcv\config.py:830:        "domain_alias_map": _normalize_alias_map(raw_payload.get("domain_alias_map")),
+src/fitcv\config.py:831:        "role_family_alias_map": _normalize_alias_map(raw_payload.get("role_family_alias_map")),
+src/fitcv\config.py:867:        candidate = payload.get("skill_synonyms") if "skill_synonyms" in payload else payload
+src/fitcv\config.py:872:    return dict(parse_runtime_synonym_overlay_yaml(raw_yaml).get("skill_synonyms") or {})
+src/fitcv\config.py:886:    overlay_skill_synonyms = dict(normalized_overlay.get("skill_synonyms") or {})
+src/fitcv\config.py:887:    overlay_domain_alias_map = dict(normalized_overlay.get("domain_alias_map") or {})
+src/fitcv\config.py:888:    overlay_role_family_alias_map = dict(normalized_overlay.get("role_family_alias_map") or {})
+src/fitcv\config.py:895:        base_effective_synonyms = _normalize_skill_synonyms(updated_cfg.get("skill_synonyms"))
+src/fitcv\config.py:900:    base_domain_alias_map = _normalize_alias_map(updated_cfg.get("domain_alias_map"))
+src/fitcv\config.py:903:    base_role_family_alias_map = _normalize_alias_map(updated_cfg.get("role_family_alias_map"))
+src/fitcv\config.py:1110:        raw_overlay = overlay_cfg.get("skill_synonyms") if "skill_synonyms" in overlay_cfg else overlay_cfg
+src/fitcv\config.py:1353:    base_skill_synonyms = _normalize_skill_synonyms(cfg.get("skill_synonyms"))
+src/fitcv\config.py:1354:    cfg["domain_alias_map"] = _normalize_alias_map(cfg.get("domain_alias_map"))
+src/fitcv\config.py:1355:    cfg["role_family_alias_map"] = _normalize_alias_map(cfg.get("role_family_alias_map"))
+src/fitcv_cp\worker_job.py:845:    raw_map = payload.get("domain_alias_map")
+src/fitcv_cp\worker_job.py:871:    raw_map = payload.get("role_family_alias_map")
+src/fitcv_cp\worker_run_support.py:295:    raw_synonyms = settings_payload.get("skill_synonyms")
+src/fitcv\semantic_snapshot.py:90:        "skill": _compile_map(config.get("skill_synonyms"), "skill"),
+src/fitcv\semantic_snapshot.py:91:        "domain": _compile_map(config.get("domain_alias_map"), "domain"),
+src/fitcv\semantic_snapshot.py:92:        "role_family": _compile_map(config.get("role_family_alias_map"), "role_family"),

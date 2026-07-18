@@ -1,18 +1,21 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: active
 template_id: detailed-specification
 name: fitcv-semantic-snapshot-ssot
 parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-cross-stage-cache-safety
 targets:
   - docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/04-efficiency-reuse-cross-stage-cache-safety.md
   - src/fitcv/config.py
+  - src/fitcv/semantic_snapshot.py
   - src/fitcv/enrich.py
   - src/fitcv/rule_filter.py
   - src/fitcv/embeddings.py
   - src/fitcv/ranking.py
   - src/fitcv/gap_analysis.py
+  - src/fitcv/cv_generator.py
+  - src/fitcv/validator.py
   - src/fitcv/pipeline.py
   - src/fitcv/evidence.py
   - src/fitcv/ai_score.py
@@ -20,14 +23,24 @@ targets:
   - src/fitcv/agentic_cv_generation.py
   - src/fitcv/reuse.py
   - tests/test_config.py
+  - tests/test_semantic_snapshot.py
   - tests/test_enrich.py
   - tests/test_rule_filter.py
   - tests/test_embeddings.py
   - tests/test_ranking.py
   - tests/test_gap_analysis.py
+  - tests/test_cv_generator.py
+  - tests/test_validator.py
+  - tests/test_ai_score.py
   - tests/test_evidence.py
   - tests/test_agentic_cv_analysis.py
+  - tests/test_cv_generation_reason_mapping.py
   - tests/test_pipeline.py
+  - tests/test_pipeline_stage_resume_parity.py
+  - tests/test_pipeline_checkpoint_contract.py
+  - tests/test_fitcv_cp/test_worker_job.py
+  - tests/test_fitcv_cp/test_worker_job_auto_promote_skill_only.py
+  - tests/test_fitcv_cp/test_worker_job_attempt_terminalization.py
   - docs/features/pipeline_performance/feature.source.yaml
   - docs/features/cv_system/feature.source.yaml
   - docs/features/trigger_run_management/feature.source.yaml
@@ -37,6 +50,9 @@ targets:
   - docs/stages/ranking.source.yaml
   - docs/stages/cv_analysis.source.yaml
   - docs/stages/cv_generation.source.yaml
+  - docs/architecture.md
+  - docs/pipeline.md
+  - docs/configuration.md
 related_features:
   - pipeline_performance
   - cv_system
@@ -182,8 +198,8 @@ Define one compatibility projector for cached rows that predate native semantic 
 **Steps:**
 - [x] define acceptance criteria and validation evidence
 - [x] define migration and rollback boundaries
-- [ ] approve this specification
-- [ ] write implementation plan
+- [x] approve this specification
+- [x] write implementation plan
 
 **Verification:**
 - [x] validation covers fresh, cached, resumed, staged, and historical paths
@@ -228,7 +244,7 @@ Define one compatibility projector for cached rows that predate native semantic 
   - add another policy configuration file
 - impact:
   - current config and overlay precedence remain unchanged
-  - policy compilation owns trimming, case normalization, chain flattening, cycle rejection, and deterministic ordering
+  - policy compilation preserves taxonomy-specific normalization and existing one-hop chain semantics, rejects cycles, and provides deterministic ordering
   - no new operator setting is required
 
 ### Decision: Use one field contract registry
@@ -325,7 +341,7 @@ job_family        taxonomy=role_family  cardinality=scalar equality=scalar
 
 - context: case, whitespace, duplicates, and order can create false cache misses
 - choice:
-  - normalize text with one resolver-owned normalization rule
+  - dispatch through resolver-owned taxonomy-specific normalization rules that preserve existing skill, domain, and role-family semantics
   - compare scalar fields as normalized scalars
   - compare set-semantic lists as sorted unique canonical values
   - preserve order only for fields explicitly declared ordered
@@ -396,7 +412,8 @@ Required logical shape:
 schema_version
 subject_kind: job | candidate | criteria
 subject_identity
-completeness: complete | incomplete
+field_completeness
+  <registered scalar or list field>: complete | incomplete
 fields
   <registered scalar or list field>
 raw_semantic_source_fingerprint
@@ -404,10 +421,10 @@ semantic_derivation_fingerprint
 semantic_value_fingerprint
 resolver_contract_fingerprint
 policy_fingerprint
-incomplete_reasons[]
+incomplete_reasons_by_field
 ```
 
-Every job must have a job snapshot. Candidate and criteria inputs use same contract with their registered field subsets. Snapshot must not duplicate independently authored canonical lists. Compatibility fields derive from `fields`.
+Every job must have a job snapshot. Candidate and criteria inputs use same contract with their registered field subsets. Snapshot must not duplicate independently authored canonical lists. Compatibility fields derive from `fields`. `subject_identity` is the existing `raw_job_fingerprint` for jobs, a stable fingerprint of the authoritative candidate-profile input for candidates, and a stable fingerprint of the authoritative criteria/preferences input for criteria. Subject identity does not participate in `semantic_value_fingerprint`; artifact lookup and stage inputs include it only when identity is consumed.
 
 ### Stage input contract
 
@@ -431,7 +448,7 @@ reusable(S, O, N) =
     and O.stage == S
     and O.stage_input_fingerprint == fingerprint(N.stage_input)
     and O.stage_contract_fingerprint == N.stage_contract_fingerprint
-    and N.semantic_snapshot.completeness == complete
+    and N.stage_input.semantic_requirements_complete == true
 ```
 
 No additional synonym-list-change condition is allowed.
@@ -456,11 +473,11 @@ If a stage consumes canonical values only, raw alias changes that resolve to sam
 | stage algorithm, prompt, model, or schema changes | stage contract changes | recompute that stage |
 | policy contains cycle or unresolved conflict | policy compilation fails | run cannot use invalid policy; no stale fallback |
 | legacy cache lacks sufficient raw facts | snapshot incomplete | affected stage reuse denied; fresh authoritative path required |
-| synonym promotion occurs during manual staged run | effective policy snapshot changes at checkpoint | reproject once before next semantic-consuming stage; apply same reuse law |
+| synonym promotion occurs during manual staged run | current run policy remains frozen | promotion affects the next run; continuing the current run uses its original compiled policy |
 
 ## Invariants
 
-- One effective run config owns taxonomy data and overlay precedence.
+- One effective run config owns taxonomy data and overlay precedence and remains frozen for the run lifetime.
 - One compiled `SemanticPolicy` owns normalized taxonomy lookup.
 - One resolver owns raw-to-canonical semantic projection.
 - One `SemanticSnapshot` contract owns resolved semantics for job, candidate, and criteria subjects; each persisted job has one native job snapshot.
@@ -472,7 +489,7 @@ If a stage consumes canonical values only, raw alias changes that resolve to sam
 - No stage maintains a synonym-specific cache invalidation branch.
 - Stage execution and stage fingerprinting use same validated input object.
 - Expensive reuse is accepted only on exact stage-input and stage-contract matches.
-- Incomplete historical semantic facts never silently authorize reuse.
+- Incomplete historical semantic fields never silently authorize reuse for stages consuming those fields; unrelated complete projections remain reusable.
 - Policy normalization is deterministic and independent of dictionary insertion order.
 - Invalid cycles and conflicts fail closed.
 - Raw extraction facts remain available for audit and reprojection.
@@ -491,7 +508,7 @@ If a stage consumes canonical values only, raw alias changes that resolve to sam
 9. CV-analysis reuse no longer depends on entire global synonym map when exact inputs remain unchanged.
 10. Every reusable stage hashes its exact validated execution input plus its stage contract.
 11. Set-semantic fields are insensitive to order, duplicates, case, and surrounding whitespace after normalization.
-12. Invalid alias cycles and unresolved conflicts fail policy compilation with actionable errors.
+12. Invalid alias cycles and unresolved conflicts fail policy compilation with actionable errors; acyclic chains preserve existing one-hop resolution semantics.
 13. Legacy cached rows with sufficient raw facts reproject successfully; insufficient rows deny affected reuse truthfully.
 14. Initial, retry, continue, run-all, and manual-staged execution paths produce symmetric reuse decisions.
 15. Existing operator synonym review and promotion workflows remain available and continue producing effective run config snapshots.
@@ -555,8 +572,8 @@ If a stage consumes canonical values only, raw alias changes that resolve to sam
   - evidence: identical compiled policy and policy fingerprint
 
 - proof target: invalid policy fails closed
-  - method: empty, cyclic, chained, and conflicting mapping fixtures
-  - evidence: chains flatten; empty, cyclic, and unresolved conflict cases raise stable validation errors
+  - method: empty, cyclic, chained, conflicting, and punctuation-sensitive mapping fixtures
+  - evidence: acyclic chains preserve one-hop resolution; empty values are ignored; cyclic, colliding, and unresolved conflict cases raise stable validation errors without collapsing distinct skills such as `C`, `C++`, `C#`, `.NET`, and `Node.js`
 
 - proof target: snapshot resolution is uniform
   - method: parameterized scalar/list fixtures across skill, domain, and role-family contracts
@@ -600,7 +617,7 @@ If a stage consumes canonical values only, raw alias changes that resolve to sam
 
 - proof target: legacy compatibility is safe
   - method: fixtures with native snapshot, raw entities only, raw lists only, canonical-only fields, and malformed payloads
-  - evidence: first three produce complete snapshots where sufficient; canonical-only and malformed cases become incomplete and deny affected reuse
+  - evidence: first three produce complete field projections where sufficient; canonical-only and malformed fields become incomplete and deny reuse only for stages consuming those fields
 
 - proof target: lifecycle modes are symmetric
   - method: equivalent initial, retry, continue, run-all, and manual-staged tests

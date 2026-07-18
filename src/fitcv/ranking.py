@@ -21,6 +21,7 @@ from typing import Any
 from fitcv.candidate import canonicalize_role_title, infer_role_family
 from fitcv.preference_policy import ResolvedPreferencePolicy, project_personalized_score
 from fitcv.ranking_contract import STRUCTURED_FACTOR_IDS
+from fitcv.semantic_snapshot import compile_semantic_policy, resolve_semantic_value
 
 SUPPORTED_RANKING_FEATURES = STRUCTURED_FACTOR_IDS
 
@@ -30,22 +31,17 @@ def _normalize_text(value: str | None) -> str:
         return ""
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9_]+", " ", value.lower())).strip()
 
-def _canonicalize_with_alias_map(value: str | None, alias_map: dict[str, str] | None) -> str:
-    normalized_value = _normalize_text(value)
-    if not normalized_value:
-        return ""
-    if not isinstance(alias_map, dict):
-        return normalized_value
-    canonical = alias_map.get(normalized_value)
-    return _normalize_text(canonical) if canonical else normalized_value
-
 def _canonical_domain(value: str | None, config: dict[str, Any] | None = None) -> str:
-    alias_map = (config or {}).get("domain_alias_map")
-    return _canonicalize_with_alias_map(value, alias_map if isinstance(alias_map, dict) else None)
+    policy = (config or {}).get("semantic_policy")
+    if not isinstance(policy, dict):
+        policy = compile_semantic_policy(config or {})
+    return resolve_semantic_value(value, "domain", policy)
 
 def _canonical_role_family(value: str | None, config: dict[str, Any] | None = None) -> str:
-    alias_map = (config or {}).get("role_family_alias_map")
-    return _canonicalize_with_alias_map(value, alias_map if isinstance(alias_map, dict) else None)
+    policy = (config or {}).get("semantic_policy")
+    if not isinstance(policy, dict):
+        policy = compile_semantic_policy(config or {})
+    return resolve_semantic_value(value, "role_family", policy)
 
 def _domain_neighbors(config: dict[str, Any] | None = None) -> dict[str, frozenset[str]]:
     raw_neighbors = (config or {}).get("domain_neighbors")
@@ -98,16 +94,11 @@ def compute_must_have_match(
     if not candidate_skills:
         return 0.0
 
-    raw_synonyms = (config or {}).get("skill_synonyms", {})
-    synonyms = raw_synonyms if isinstance(raw_synonyms, dict) else {}
-
-    def canonical(s: str) -> str:
-        lower = s.strip().lower()
-        value = synonyms.get(lower)
-        return value if isinstance(value, str) else lower
-
-    reqs = {canonical(s) for s in job_skills}
-    cands = {canonical(s) for s in candidate_skills}
+    policy = (config or {}).get("semantic_policy")
+    if not isinstance(policy, dict):
+        policy = compile_semantic_policy(config or {})
+    reqs = {resolve_semantic_value(skill, "skill", policy) for skill in job_skills}
+    cands = {resolve_semantic_value(skill, "skill", policy) for skill in candidate_skills}
 
     matched = len(reqs & cands)
     return matched / len(reqs)

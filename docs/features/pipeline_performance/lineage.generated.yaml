@@ -85,6 +85,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -174,6 +175,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -251,6 +253,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -342,6 +345,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -431,6 +435,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -520,6 +525,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -603,6 +609,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -692,6 +699,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -775,6 +783,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -858,6 +867,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -935,6 +945,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -1026,6 +1037,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1103,6 +1115,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -1182,6 +1195,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -1261,6 +1275,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -1346,6 +1361,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1429,6 +1445,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1518,6 +1535,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1601,6 +1619,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-14-19-33-fitcv-llm-runtime-spine-phase-4-enrich-ranking-migration-plan.md
     - docs/superpowers/plans/2026-07-14-20-54-fitcv-llm-runtime-spine-phase-5-observability-parity-closeout-plan.md
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

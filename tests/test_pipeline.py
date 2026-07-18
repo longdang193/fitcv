@@ -9593,3 +9593,23 @@ def test_materialize_scoring_shortlist_rejects_ambiguous_passed_url_mapping() ->
                 {"job_url": "https://example.com/1", "raw_job_fingerprint": "raw-2"},
             ],
         )
+
+
+def test_job_sample_exports_semantic_snapshot() -> None:
+    from fitcv import pipeline as pipeline_module
+
+    snapshot = {
+        "schema_version": "semantic_snapshot_v1",
+        "semantic_value_fingerprint": "value-fp",
+        "semantic_derivation_fingerprint": "derivation-fp",
+    }
+    sample = pipeline_module._job_sample(
+        {
+            "job_url": "https://example.com/job",
+            "title": "Data Engineer",
+            "semantic_snapshot": snapshot,
+        }
+    )
+
+    assert sample is not None
+    assert sample["semantic_snapshot"] == snapshot

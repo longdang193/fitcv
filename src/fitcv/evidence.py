@@ -37,7 +37,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from fitcv.candidate import flatten_skills
 from fitcv.config import get_embedding_model
+from fitcv.semantic_snapshot import (
+    build_semantic_snapshot,
+    compile_semantic_policy,
+    project_alias_equivalence,
+)
 from fitcv.contracts import (
     ANALYSIS_CHANNEL_IDS,
     CV_ANALYSIS_REUSE_SCHEMA_VERSION,
@@ -220,17 +226,6 @@ def _normalize_optional_text(value: Any) -> str:
     return str(value or "").strip()
 
 
-def _normalize_skill_synonyms_for_contract(value: Any) -> dict[str, str]:
-    if not isinstance(value, dict):
-        return {}
-    normalized: dict[str, str] = {}
-    for raw_alias, raw_canonical in value.items():
-        alias = str(raw_alias or "").strip().casefold()
-        canonical = str(raw_canonical or "").strip().casefold()
-        if not alias or not canonical:
-            continue
-        normalized[alias] = canonical
-    return dict(sorted(normalized.items()))
 
 
 def _canonicalize_json_value(value: Any) -> Any:
@@ -423,7 +418,6 @@ def _cv_analysis_profile_payload(profile: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_cv_analysis_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
-    stable_skill_synonyms = _normalize_skill_synonyms_for_contract(config.get("skill_synonyms"))
     payload = {
         "schema_version": CV_ANALYSIS_REUSE_SCHEMA_VERSION,
         "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
@@ -433,9 +427,6 @@ def build_cv_analysis_contract_fingerprint(config: dict[str, Any]) -> dict[str, 
             (config.get("ranking_policy") or {}).get("fit_label_thresholds") or {}
         ),
         "role_taxonomy": dict(config.get("role_taxonomy") or {}),
-        # Use semantic synonym map, not runtime counters/metadata, to keep
-        # reuse keys stable across runs when behavior is unchanged.
-        "skill_synonyms": stable_skill_synonyms,
     }
     return {
         "payload": payload,
@@ -448,6 +439,48 @@ def build_cv_analysis_input_fingerprint(
     job_context: dict[str, Any] | list[str],
     config: dict[str, Any],
 ) -> dict[str, Any]:
+    semantic_policy = config.get("semantic_policy")
+    if not isinstance(semantic_policy, dict):
+        semantic_policy = compile_semantic_policy(config)
+    raw_required_skills = (
+        list(job_context.get("required_skills") or [])
+        if isinstance(job_context, dict)
+        else list(job_context)
+    )
+    raw_preferred_skills = (
+        list(job_context.get("preferred_skills") or [])
+        if isinstance(job_context, dict)
+        else []
+    )
+    candidate_snapshot = build_semantic_snapshot(
+        "candidate",
+        "cv-analysis-candidate",
+        {"candidate_skills": flatten_skills(profile)},
+        semantic_policy,
+    )
+    required_snapshot = build_semantic_snapshot(
+        "criteria",
+        "cv-analysis-required",
+        {"must_have_skills": raw_required_skills},
+        semantic_policy,
+    )
+    preferred_snapshot = build_semantic_snapshot(
+        "criteria",
+        "cv-analysis-preferred",
+        {"must_have_skills": raw_preferred_skills},
+        semantic_policy,
+    )
+    semantic_alias_equivalence = {
+        "candidate_skills": project_alias_equivalence(
+            candidate_snapshot, "candidate_skills", semantic_policy
+        ),
+        "required_skills": project_alias_equivalence(
+            required_snapshot, "must_have_skills", semantic_policy
+        ),
+        "preferred_skills": project_alias_equivalence(
+            preferred_snapshot, "must_have_skills", semantic_policy
+        ),
+    }
     coerced_job_context = _coerce_job_context(job_context)
     job_payload = {
         "raw_job_fingerprint": str(coerced_job_context.get("raw_job_fingerprint") or ""),
@@ -463,6 +496,7 @@ def build_cv_analysis_input_fingerprint(
     }
     payload = {
         "profile": _cv_analysis_profile_payload(profile),
+        "semantic_alias_equivalence": semantic_alias_equivalence,
         "job": {
             key: value
             for key, value in job_payload.items()

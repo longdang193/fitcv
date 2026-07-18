@@ -31,6 +31,7 @@ from fitcv.decision_feedback import validate_decision_learning_policy
 from fitcv.ranking_contract import build_ranking_contract_context, validate_ranking_policy
 from fitcv.cv_presets import SUPPORTED_PRESETS
 from fitcv.prompts import get_prompt_definition
+from fitcv.semantic_snapshot import compile_semantic_policy
 
 logger = logging.getLogger(__name__)
 
@@ -943,6 +944,7 @@ def apply_runtime_synonym_overlay(
     updated_cfg["role_family_neighbors"] = merged_role_family_neighbors
     updated_cfg["role_taxonomy"] = merged_role_taxonomy
     updated_cfg["skill_synonyms_runtime"] = runtime
+    updated_cfg["semantic_policy"] = compile_semantic_policy(updated_cfg)
     return updated_cfg
 
 def apply_runtime_skill_synonym_overlay(
@@ -1391,6 +1393,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         paths = dict(cfg.get("paths") or {})
         paths["candidate_profile"] = local_candidate_profile
         cfg["paths"] = paths
+    cfg["semantic_policy"] = compile_semantic_policy(cfg)
     return cfg
 
 

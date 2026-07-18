@@ -246,6 +246,7 @@ _EXPORT_ENRICHED_JOB_FIELDS = (
     "raw_job_fingerprint",
     "enrich_contract_fingerprint",
     "enrich_reuse_status",
+    "semantic_snapshot",
 )
 _DEDUPE_REASON_LABELS = {
     "duplicate_job_url": "duplicate_job_url",

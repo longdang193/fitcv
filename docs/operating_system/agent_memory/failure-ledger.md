@@ -283,3 +283,31 @@ Use this file for repeated or important failures, not every small mistake.
   - `src/fitcv_cp/app.py`
   - `src/fitcv_cp/templates/run_detail_tab_enriched.html`
   - `docs/superpowers/plans/audit/20260717-2332-outcome-fact-live-run-contract-drift/`
+
+## Unit-only semantic snapshots can disappear at persistence allowlists
+
+- Title: Unit-level SSOT construction does not prove live persistence
+- Date: 2026-07-17
+- Trigger / Context: Semantic Snapshot SSOT live verification passed focused tests and completed a 13-job source-mode run, but exported artifacts and all `run_structured_jobs` payloads contained zero snapshots.
+- What went wrong: `merge_scraped_and_enriched()` produced the new field in unit scope, while a downstream structured-job projection or persistence allowlist silently dropped it before stage artifacts and cache rows. Downstream stages therefore continued using flat compatibility fields and legacy fingerprints.
+- Correct behavior: Any new runtime authority must have one end-to-end persistence assertion covering fresh output, cached reconstruction, stage artifact export, and database payload before calling migration complete.
+- Prevention added or required: Keep a live or integration persistence test for `semantic_snapshot`, add source-boundary enforcement for direct semantic-map reads, and require all three mapping-change reuse scenarios before closing SSOT work.
+- Related artifacts:
+  - `src/fitcv/semantic_snapshot.py`
+  - `src/fitcv/enrich.py`
+  - `docs/superpowers/plans/audit/20260717-semantic-snapshot-ssot-live-verification/`
+
+## Canonical fingerprints must include bounded alias identity for alias-sensitive consumers
+
+- Title: Canonical value identity alone is insufficient for alias-sensitive stage reuse
+- Date: 2026-07-18
+- Trigger / Context: Semantic Snapshot SSOT preserved canonical values across a relevant alias addition, but CV gap analysis also consumed alias equivalence and initially reused its prior result.
+- What went wrong: The CV-analysis input fingerprint represented canonical semantic values but omitted the bounded alias projection consumed by that stage. An alias-only LHS change therefore remained invisible even though stage behavior could change.
+- Correct behavior: Exact stage identity includes every semantic input the stage consumes: canonical snapshot identity plus a bounded alias-equivalence projection for relevant terms. Unrelated mappings remain invisible; canonical-target changes and relevant alias changes invalidate only affected consumers.
+- Prevention added or required: Keep symmetric skill/domain/role alias projection tests and three mapping laws: unrelated mapping preserves input, target change alters canonical input, and alias-only change alters alias-sensitive input.
+- Related artifacts:
+  - `src/fitcv/semantic_snapshot.py`
+  - `src/fitcv/evidence.py`
+  - `tests/test_semantic_snapshot.py`
+  - `tests/test_evidence.py`
+  - `docs/superpowers/plans/audit/20260717-semantic-snapshot-ssot-live-verification/`

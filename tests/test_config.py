@@ -1803,3 +1803,22 @@ def test_load_config_rejects_decision_learning_policy_shadow(tmp_path: Path) -> 
 
     with pytest.raises(ValueError, match="decision_learning_policy.*canonical"):
         load_config(env_yaml)
+
+
+def test_apply_runtime_synonym_overlay_recompiles_semantic_policy() -> None:
+    updated = apply_runtime_synonym_overlay(
+        {
+            "skill_synonyms": {"gcp": "google cloud"},
+            "domain_alias_map": {},
+            "role_family_alias_map": {},
+        },
+        {"skill_synonyms": {"k8s": "kubernetes"}},
+        source="test",
+        filename="overlay.yaml",
+        uploaded_at="2026-07-17T00:00:00Z",
+    )
+
+    assert updated["semantic_policy"]["maps"]["skill"] == {
+        "gcp": "google cloud",
+        "k8s": "kubernetes",
+    }

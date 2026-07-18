@@ -1,0 +1,60 @@
+{
+  "governing_date": "2026-07-17",
+  "host_clock_note": "host emitted July 18 local timestamps",
+  "terminal_status": "succeeded",
+  "manifest_missing_files": [],
+  "bundle_hash_failures": [],
+  "semantic_policy_present": true,
+  "semantic_policy_schema": "semantic_policy_v1",
+  "exported_semantic_snapshot_count": 0,
+  "db_structured_row_count": 13,
+  "db_semantic_snapshot_count": 0,
+  "semantic_value_fingerprint_count": 0,
+  "semantic_derivation_fingerprint_count": 0,
+  "stage_input_fingerprint_count": 0,
+  "stage_contract_fingerprint_count": 0,
+  "error_events": [
+    {
+      "stage": "synonym_proposal_triage_completed",
+      "message": "Synonym triage refresh completed: triaged=8, reused=0, fallback=0, skipped=0, failed=0"
+    },
+    {
+      "stage": "synonym_proposal_auto_apply_completed",
+      "message": "Synonym auto-apply completed: applied=8, skipped=0, failed=0"
+    },
+    {
+      "stage": "synonym_proposal_auto_apply_completed",
+      "message": "Synonym auto-apply completed: applied=8, skipped=0, failed=0"
+    },
+    {
+      "stage": "synonym_proposal_auto_apply_completed",
+      "message": "Synonym auto-apply completed: applied=8, skipped=0, failed=0"
+    },
+    {
+      "stage": "synonym_proposal_auto_apply_completed",
+      "message": "Synonym auto-apply completed: applied=8, skipped=0, failed=0"
+    },
+    {
+      "stage": "layer4_cv_analysis",
+      "message": "CV analysis complete: 2 ready, 2 blocked by reranker, 0 skipped, 0 failed"
+    },
+    {
+      "stage": "synonym_proposal_auto_apply_completed",
+      "message": "Synonym auto-apply completed: applied=8, skipped=0, failed=0"
+    },
+    {
+      "stage": "pipeline_compute_complete",
+      "message": "Pipeline compute complete: ranked=4, attempted=2, accepted=0, review_required=2, failed=0, retries=0"
+    },
+    {
+      "stage": "synonym_proposal_auto_apply_completed",
+      "message": "Synonym auto-apply completed: applied=8, skipped=0, failed=0"
+    }
+  ],
+  "ssot_hashes_unchanged": true,
+  "sample_paths": {
+    "semantic_snapshot": [],
+    "stage_input": [],
+    "stage_contract": []
+  }
+}

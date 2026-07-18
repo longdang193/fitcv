@@ -22,7 +22,12 @@ from pathlib import Path
 from typing import Any
 
 from fitcv.persistence import get_local_sqlite_path
-from fitcv.rule_filter import canonicalize_skill, get_skill_synonyms
+from fitcv.rule_filter import canonicalize_skill
+from fitcv.semantic_snapshot import (
+    build_semantic_snapshot,
+    compile_semantic_policy,
+    project_alias_equivalence,
+)
 
 
 # ── config defaults ───────────────────────────────────────────────────────────
@@ -68,22 +73,26 @@ def _normalise_compact_skill(skill: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", normalise_raw_skill(skill))
 
 
-def _skill_variants(skill: str, config: dict[str, Any] | None = None) -> set[str]:
-    """Return raw/canonical alias variants for phrase-level matching."""
-    synonyms = get_skill_synonyms(config)
-    canonical = _normalise_phrase_text(canonicalize_skill(skill, config))
-    variants = {
-        _normalise_phrase_text(skill),
-        canonical,
-        _normalise_compact_skill(skill),
-        _normalise_compact_skill(canonicalize_skill(skill, config)),
+def _semantic_skill_variants(skill: str, config: dict[str, Any] | None = None) -> set[str]:
+    """Return normalized variants from shared alias-equivalence projection."""
+    policy = (config or {}).get("semantic_policy")
+    if not isinstance(policy, dict):
+        policy = compile_semantic_policy(config or {})
+    snapshot = build_semantic_snapshot(
+        "candidate",
+        normalise_raw_skill(skill),
+        {"candidate_skills": [skill]},
+        policy,
+    )
+    groups = project_alias_equivalence(snapshot, "candidate_skills", policy)
+    aliases = {alias for values in groups.values() for alias in values}
+    aliases.add(skill)
+    return {
+        variant
+        for alias in aliases
+        for variant in (_normalise_phrase_text(alias), _normalise_compact_skill(alias))
+        if variant
     }
-    for alias, canonical_value in synonyms.items():
-        if _normalise_phrase_text(canonical_value) == canonical:
-            variants.add(_normalise_phrase_text(alias))
-            variants.add(_normalise_compact_skill(alias))
-    return {variant for variant in variants if variant}
-
 
 def _phrase_mentions_skill(required_skill: str, candidate_skill: str, config: dict[str, Any] | None = None) -> bool:
     """Return True when a long JD phrase explicitly mentions a candidate skill variant."""
@@ -91,7 +100,7 @@ def _phrase_mentions_skill(required_skill: str, candidate_skill: str, config: di
     if len(required_text.split()) < 3 and not any(token in required_skill for token in ("(", ")", "/", ",", ":")):
         return False
     haystack = f" {required_text} "
-    for variant in _skill_variants(candidate_skill, config):
+    for variant in _semantic_skill_variants(candidate_skill, config):
         if f" {variant} " in haystack:
             return True
     return False

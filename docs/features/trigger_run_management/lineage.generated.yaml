@@ -212,6 +212,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -428,6 +429,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -626,6 +628,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -836,6 +839,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1034,6 +1038,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1232,6 +1237,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1442,6 +1448,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1664,6 +1671,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -1862,6 +1870,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2060,6 +2069,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2270,6 +2280,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2468,6 +2479,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2666,6 +2678,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -2870,6 +2883,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3068,6 +3082,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3266,6 +3281,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:
@@ -3470,6 +3486,7 @@ capabilities:
     - docs/superpowers/plans/2026-07-15-19-20-fitcv-inverse-optimization-phase-2-vector-only-shortlist-plan.md
     - docs/superpowers/plans/2026-07-16-22-40-fitcv-local-distribution-and-onboarding-plan.md
     - docs/superpowers/plans/2026-07-17-21-14-fitcv-outcome-fact-ssot-and-debug-traceability-plan.md
+    - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
     evidence_gaps:
     - missing_code_evidence
     allowed_evidence_gaps:

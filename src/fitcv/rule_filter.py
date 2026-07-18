@@ -26,6 +26,7 @@ from fitcv.fit_factors import (
     build_candidate_fit_context,
     evaluate_fit_factors,
 )
+from fitcv.semantic_snapshot import compile_semantic_policy, resolve_semantic_value
 
 
 logger = logging.getLogger(__name__)
@@ -109,13 +110,13 @@ def _get_seniority_aliases(config: dict[str, Any] | None) -> dict[str, str]:
 
 
 def get_skill_synonyms(config: dict[str, Any] | None) -> dict[str, str]:
-    """Return the skill synonym map from config, or the built-in fallback."""
-    if config:
-        synonyms = config.get("skill_synonyms")
-        if isinstance(synonyms, dict) and synonyms:
-            return {str(k).lower(): str(v).lower() for k, v in synonyms.items()}
-    return _FALLBACK_SKILL_SYNONYMS
-
+    """Return compiled skill mappings for compatibility callers."""
+    policy = (config or {}).get("semantic_policy")
+    if not isinstance(policy, dict):
+        policy = compile_semantic_policy(config or {"skill_synonyms": _FALLBACK_SKILL_SYNONYMS})
+    maps = policy.get("maps")
+    skill_map = maps.get("skill") if isinstance(maps, dict) else None
+    return dict(skill_map) if isinstance(skill_map, dict) else dict(_FALLBACK_SKILL_SYNONYMS)
 
 def _get_preferred_domains(prefs: dict[str, Any]) -> list[str]:
     domains = _normalized_string_list(prefs.get("domains"))
@@ -198,9 +199,10 @@ def check_seniority(
 
 def canonicalize_skill(skill: str, config: dict[str, Any] | None = None) -> str:
     """Return the canonical form of a skill name (lower-cased, synonym-resolved)."""
-    synonyms = get_skill_synonyms(config)
-    lower = skill.strip().lower()
-    return synonyms.get(lower, lower)
+    policy = (config or {}).get("semantic_policy")
+    if not isinstance(policy, dict):
+        policy = compile_semantic_policy(config or {"skill_synonyms": _FALLBACK_SKILL_SYNONYMS})
+    return resolve_semantic_value(skill, "skill", policy)
 
 
 # ── individual checks ─────────────────────────────────────────────────────────

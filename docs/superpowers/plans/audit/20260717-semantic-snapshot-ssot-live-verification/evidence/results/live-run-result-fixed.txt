@@ -1,0 +1,13 @@
+Governing date: 2026-07-18
+Live evidence root: artifacts\live_run_semantic_snapshot_ssot_fixed_20260718-022717
+Baseline run ID: 8dc9b773-9875-4b6a-ac86-9b1a916180fc
+Baseline status: succeeded
+Completed stage: cv_generation
+Persisted semantic snapshots: 13/13
+Exported semantic snapshot occurrences: 68
+Semantic value fingerprint occurrences: 68
+Semantic derivation fingerprint occurrences: 68
+Tracked semantic/prompt/input hashes unchanged: True
+Scenario unrelated: 13 enrich cache hits; 4 AI exact reuses; 1 CV-analysis exact reuse.
+Scenario target-change-relevant: 13 enrich cache hits; 5 semantic values changed; 1 AI fresh compute; 1 CV-analysis fresh compute.
+Scenario alias-add-relevant: 13 enrich cache hits; 0 semantic values changed; 4 AI exact reuses; 1 CV-analysis fresh compute.
