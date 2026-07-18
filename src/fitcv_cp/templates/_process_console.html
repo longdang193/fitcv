@@ -1,0 +1,155 @@
+{% set loaded_count = process_console.events|length %}
+<section class="card process-console" id="process-console" data-process-type="{{ process_type }}" data-process-id="{{ process_id }}" aria-labelledby="process-console-title">
+  <style>
+    .process-console-controls { display:flex; flex-wrap:wrap; gap:0.65rem; align-items:end; margin:0.75rem 0; }
+    .process-console-controls label { display:grid; gap:0.25rem; min-width:10rem; }
+    .process-console details pre { max-width:44rem; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .process-console :focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+  </style>
+  <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">
+    <div>
+      <h2 id="process-console-title" style="margin:0">Process Console</h2>
+      <p class="muted">Exact canonical events. Clear stores a browser-local cursor; backend evidence remains immutable.</p>
+      <p class="meta" role="status" aria-live="polite" data-console-count>
+        Showing <strong data-console-visible-count>{{ loaded_count }}</strong> visible of {{ loaded_count }} loaded / {{ process_console.total_count }} total canonical events.
+      </p>
+    </div>
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+      <button type="button" class="btn-secondary" data-console-clear>Clear view</button>
+      <button type="button" class="btn-secondary" data-console-reset>Show history</button>
+      <a href="/admin/process-events.json?process_type={{ process_type|urlencode }}&process_id={{ process_id|urlencode }}&limit=500">Raw JSON</a>
+      {% if loaded_count < process_console.total_count and timeline_next_limit is defined %}
+      <a href="?timeline_limit={{ timeline_next_limit }}#process-console">Load older</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="process-console-controls" aria-label="Process console filters">
+    <label>Filter
+      <input type="search" data-console-filter autocomplete="off" placeholder="Message, event ID, operation">
+    </label>
+    <label>Level
+      <select data-console-level>
+        <option value="">All levels</option>
+        <option value="debug">debug</option>
+        <option value="info">info</option>
+        <option value="warning">warning</option>
+        <option value="error">error</option>
+      </select>
+    </label>
+    <label>Operation
+      <select data-console-operation><option value="">All operations</option></select>
+    </label>
+  </div>
+
+  {% if process_console.integrity_conflicts %}
+  <div role="alert" class="callout callout-warning"><strong>Integrity conflicts:</strong> {{ process_console.integrity_conflicts|length }}</div>
+  {% endif %}
+
+  <p class="muted" data-console-empty hidden>No canonical events match current cursor and filters.</p>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Time</th><th>Operation</th><th>State</th><th>Level</th><th>Message</th><th>Event ID</th><th>Details</th></tr></thead>
+      <tbody data-console-rows>
+      {% for event in process_console.events %}
+        <tr data-recorded-at="{{ event.recorded_at.isoformat() }}" data-event-id="{{ event.event_id }}" data-level="{{ event.level }}" data-operation="{{ event.operation }}">
+          <td class="meta">{{ event.recorded_at.isoformat() }}</td>
+          <td><code>{{ event.operation }}</code></td>
+          <td>{{ event.state }}</td>
+          <td><span class="badge badge-{{ event.level }}">{{ event.level }}</span></td>
+          <td>{{ event.message }}</td>
+          <td><code>{{ event.event_id }}</code></td>
+          <td>
+            <details>
+              <summary>Canonical details</summary>
+              <dl>
+                <dt>Schema version</dt><dd><code>{{ event.schema_version }}</code></dd>
+                <dt>Fingerprint</dt><dd><code>{{ event.event_fingerprint }}</code></dd>
+                <dt>Payload JSON</dt><dd><pre>{{ event.payload_json if event.payload_json is not none else 'null' }}</pre></dd>
+                <dt>Diagnostic refs JSON</dt><dd><pre>{{ event.diagnostic_refs_json if event.diagnostic_refs_json is not none else 'null' }}</pre></dd>
+                <dt>Trace context JSON</dt><dd><pre>{{ event.trace_context_json if event.trace_context_json is not none else 'null' }}</pre></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+      {% else %}
+        <tr class="empty-row"><td colspan="7">No events yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<script>
+(function(section) {
+  const rows = Array.from(section.querySelectorAll('[data-console-rows] tr[data-event-id]'));
+  const filter = section.querySelector('[data-console-filter]');
+  const level = section.querySelector('[data-console-level]');
+  const operation = section.querySelector('[data-console-operation]');
+  const visibleCount = section.querySelector('[data-console-visible-count]');
+  const empty = section.querySelector('[data-console-empty]');
+  const storageKey = 'fitcv.process-console.clear:' + encodeURIComponent(section.dataset.processType) + ':' + encodeURIComponent(section.dataset.processId);
+  let volatileCursor = null;
+
+  Array.from(new Set(rows.map(row => row.dataset.operation))).sort().forEach(value => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = value;
+    operation.appendChild(option);
+  });
+
+  function readCursor() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(storageKey));
+      if (Array.isArray(parsed) && parsed.length === 2 && parsed.every(value => typeof value === 'string')) return parsed;
+    } catch (_) {}
+    return volatileCursor;
+  }
+
+  function writeCursor(cursor) {
+    volatileCursor = cursor;
+    try { localStorage.setItem(storageKey, JSON.stringify(cursor)); } catch (_) {}
+  }
+
+  function resetCursor() {
+    volatileCursor = null;
+    try { localStorage.removeItem(storageKey); } catch (_) {}
+  }
+
+  function atOrBeforeCursor(row, cursor) {
+    if (!cursor) return false;
+    const recordedAt = row.dataset.recordedAt;
+    const eventId = row.dataset.eventId;
+    return recordedAt < cursor[0] || (recordedAt === cursor[0] && eventId <= cursor[1]);
+  }
+
+  function applyView() {
+    const cursor = readCursor();
+    const query = filter.value.trim().toLowerCase();
+    let count = 0;
+    rows.forEach(row => {
+      const matches = !atOrBeforeCursor(row, cursor)
+        && (!query || row.textContent.toLowerCase().includes(query))
+        && (!level.value || row.dataset.level === level.value)
+        && (!operation.value || row.dataset.operation === operation.value);
+      row.hidden = !matches;
+      if (matches) count += 1;
+    });
+    visibleCount.textContent = String(count);
+    empty.hidden = count !== 0 || rows.length === 0;
+  }
+
+  section.querySelector('[data-console-clear]').addEventListener('click', function() {
+    const last = rows[rows.length - 1];
+    if (last) writeCursor([last.dataset.recordedAt, last.dataset.eventId]);
+    applyView();
+  });
+  section.querySelector('[data-console-reset]').addEventListener('click', function() {
+    resetCursor();
+    applyView();
+  });
+  filter.addEventListener('input', applyView);
+  level.addEventListener('change', applyView);
+  operation.addEventListener('change', applyView);
+  applyView();
+})(document.currentScript.previousElementSibling);
+</script>

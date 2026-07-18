@@ -27,60 +27,26 @@ from fitcv.telemetry import (
     current_trace_context,
     telemetry_export_status,
 )
-from fitcv_cp.sqlite_store import append_event
-from fitcv_cp.models import RunEvent
+from fitcv_cp.sqlite_store import (
+    append_process_event,
+    list_pending_process_event_deliveries,
+    record_process_event_delivery,
+)
+from fitcv_cp.models import (
+    ProcessEvent,
+    build_process_event,
+    sanitize_process_event_value,
+)
 from fitcv_cp.runtime_contracts import is_truthy_env
 
 logger = logging.getLogger(__name__)
 
-_MAX_STRING_LENGTH = 500
-_MAX_LIST_ITEMS = 20
-_MAX_OBJECT_KEYS = 30
-_SENSITIVE_KEY_PARTS = {
-    "password",
-    "secret",
-    "authorization",
-    "api_key",
-    "private_key",
-    "access_key",
-    "cookie",
-}
-
-
-
 def _truncate_string(value: str) -> str:
-    if len(value) <= _MAX_STRING_LENGTH:
-        return value
-    return f"{value[:_MAX_STRING_LENGTH]}...[truncated]"
+    return str(sanitize_process_event_value(value))
 
 
 def _redact_and_bound(value: Any, *, depth: int = 0) -> Any:
-    if depth > 4:
-        return "[truncated_depth]"
-    if isinstance(value, dict):
-        reduced: dict[str, Any] = {}
-        for idx, (key, val) in enumerate(value.items()):
-            if idx >= _MAX_OBJECT_KEYS:
-                reduced["__truncated_keys__"] = True
-                break
-            key_text = str(key)
-            key_lower = key_text.lower()
-            if any(part in key_lower for part in _SENSITIVE_KEY_PARTS):
-                reduced[key_text] = "[REDACTED]"
-                continue
-            reduced[key_text] = _redact_and_bound(val, depth=depth + 1)
-        return reduced
-    if isinstance(value, list):
-        items = [_redact_and_bound(item, depth=depth + 1) for item in value[:_MAX_LIST_ITEMS]]
-        if len(value) > _MAX_LIST_ITEMS:
-            items.append("[truncated_items]")
-        return items
-    if isinstance(value, str):
-        return _truncate_string(value)
-    if isinstance(value, (int, float, bool)) or value is None:
-        return value
-    return _truncate_string(str(value))
-
+    return sanitize_process_event_value(value, depth=depth)
 
 def _build_langfuse_rich_io_contract(
     *,
@@ -105,11 +71,11 @@ def _build_langfuse_rich_io_contract(
     elif "cv_generation" in stage_lower:
         stage_family = "cv_generation"
 
-    bounded_payload = _redact_and_bound(payload)
+    bounded_payload = payload
     rich_input: dict[str, Any] = {
         "stage": stage,
         "stage_family": stage_family,
-        "message": _truncate_string(message),
+        "message": message,
         "payload": bounded_payload,
     }
     rich_output: dict[str, Any] = {
@@ -171,6 +137,7 @@ def _emit_langfuse_native_io(
     stage: str,
     trace_id: str,
     rich_contract: dict[str, Any],
+    event: ProcessEvent,
 ) -> tuple[str, str | None]:
     if not _langfuse_ingestion_enabled():
         return "disabled", "langfuse_rich_io_disabled"
@@ -207,6 +174,21 @@ def _emit_langfuse_native_io(
                     "stage": stage,
                     "stage_family": stage_family,
                     "rich_io_source": "fitcv-control-plane",
+                    "process_event": {
+                        "schema_version": event.schema_version,
+                        "event_id": event.event_id,
+                        "process_type": event.process_type,
+                        "process_id": event.process_id,
+                        "operation": event.operation,
+                        "state": event.state,
+                        "level": event.level,
+                        "message": event.message,
+                        "payload_json": event.payload_json,
+                        "diagnostic_refs_json": event.diagnostic_refs_json,
+                        "trace_context_json": event.trace_context_json,
+                        "recorded_at": event.recorded_at.isoformat(),
+                        "event_fingerprint": event.event_fingerprint,
+                    },
                 },
             },
         }
@@ -250,6 +232,72 @@ def _emit_langfuse_native_io(
         return "degraded", "langfuse_ingestion_failed"
 
 
+def append_event(event: ProcessEvent, **kwargs: Any) -> dict[str, str]:
+    return append_process_event(event, **kwargs)
+
+
+def _default_process_event_rich_contract(event: ProcessEvent) -> dict[str, Any]:
+    payload = json.loads(event.payload_json) if event.payload_json else {}
+    return {
+        "status": "enabled",
+        "degradation_reason": None,
+        "input": {
+            "stage": event.operation,
+            "stage_family": "generic",
+            "message": event.message,
+            "payload": payload,
+        },
+        "output": {
+            "level": event.level,
+            "event_status": event.state,
+            "stage_family": "generic",
+        },
+    }
+
+
+def deliver_process_event(
+    event: ProcessEvent,
+    *,
+    rich_contract: dict[str, Any] | None = None,
+) -> tuple[str, str | None]:
+    trace_context = json.loads(event.trace_context_json) if event.trace_context_json else {}
+    trace_id = str(trace_context.get("trace_id") or event.event_id)
+    native_status, native_reason = _emit_langfuse_native_io(
+        run_id=event.process_id,
+        stage=event.operation,
+        trace_id=trace_id,
+        rich_contract=rich_contract or _default_process_event_rich_contract(event),
+        event=event,
+    )
+    delivered = native_status.startswith("sent:") or native_status in {
+        "disabled",
+        "not_applicable",
+        "superseded_by_span_contract",
+    }
+    record_process_event_delivery(
+        event.event_id,
+        "langfuse",
+        "delivered" if delivered else "failed",
+        native_reason,
+    )
+    return native_status, native_reason
+
+
+def retry_pending_process_event_deliveries(*, limit: int = 20) -> int:
+    delivered_count = 0
+    for item in list_pending_process_event_deliveries(limit=limit):
+        if item["sink"] != "langfuse":
+            continue
+        status, _reason = deliver_process_event(item["event"])
+        if status.startswith("sent:") or status in {
+            "disabled",
+            "not_applicable",
+            "superseded_by_span_contract",
+        }:
+            delivered_count += 1
+    return delivered_count
+
+
 class PipelineReporter:
     def __init__(self, run_id: str) -> None:
         self._run_id = run_id
@@ -261,46 +309,48 @@ class PipelineReporter:
         message: str,
         payload: Optional[dict[str, Any]] = None,
     ) -> None:
+        try:
+            retry_pending_process_event_deliveries(limit=5)
+        except Exception as exc:
+            logger.warning("Pending process-event delivery retry failed during emission: %s", exc)
         source_payload = dict(payload or {})
+        trace_context: dict[str, Any] | None = None
+        rich_contract: dict[str, Any] | None = None
         payload_value = dict(source_payload)
+        delivery_sinks: tuple[str, ...] = ()
         if stage != JOB_OUTCOME_EVENT_STAGE:
             active_trace_context = current_trace_context()
-            if active_trace_context is not None:
-                payload_value["trace_context"] = active_trace_context
-            else:
-                payload_value["trace_context"] = build_trace_context(
+            trace_context = (
+                dict(active_trace_context)
+                if active_trace_context is not None
+                else build_trace_context(
                     f"run:{self._run_id}:stage:{stage}:message:{message}",
                     emit_otel_span=False,
                 )
+            )
             payload_value["telemetry_export"] = telemetry_export_status()
-            payload_value["langfuse_rich_io"] = _build_langfuse_rich_io_contract(
+            rich_contract = _build_langfuse_rich_io_contract(
                 stage=stage,
                 level=level,
                 message=message,
                 payload=source_payload,
             )
-            trace_id = str(payload_value["trace_context"].get("trace_id") or "")
-            native_status, native_reason = _emit_langfuse_native_io(
-                run_id=self._run_id,
-                stage=stage,
-                trace_id=trace_id,
-                rich_contract=dict(payload_value["langfuse_rich_io"] or {}),
-            )
-            payload_value["langfuse_rich_io_native"] = {
-                "status": native_status,
-                "degradation_reason": native_reason,
-            }
-        event = RunEvent(
-            run_id=self._run_id,
-            event_id=str(uuid.uuid4()),
-            stage=stage,
+            payload_value["langfuse_rich_io"] = rich_contract
+            delivery_sinks = ("langfuse",)
+        event = build_process_event(
+            process_type="pipeline",
+            process_id=self._run_id,
+            operation=stage,
+            state="recorded",
             level=level,
             message=message,
-            created_at=datetime.datetime.now(datetime.timezone.utc),
-            payload_json=json.dumps(payload_value),
+            payload=payload_value,
+            trace_context=trace_context,
         )
+        if rich_contract is not None and event.payload_json:
+            rich_contract = dict(json.loads(event.payload_json).get("langfuse_rich_io") or {})
         try:
-            status = append_event(event)
+            status = append_event(event, delivery_sinks=delivery_sinks)
             if status.get("persistence_status") != "persisted":
                 logger.warning(
                     "Reporter event degraded [run_id=%s stage=%s status=%s reason=%s]",
@@ -309,5 +359,9 @@ class PipelineReporter:
                     status.get("persistence_status"),
                     status.get("degradation_reason"),
                 )
+                return
+            if status.get("persistence_backend") != "sqlite" or rich_contract is None:
+                return
+            deliver_process_event(event, rich_contract=rich_contract)
         except Exception as exc:
             logger.warning("Reporter failed to write event: %s", exc)

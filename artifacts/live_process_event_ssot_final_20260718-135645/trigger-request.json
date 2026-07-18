@@ -1,0 +1,12 @@
+{
+  "jobs_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\data\\sample_jobs - Copy.json",
+  "config_path": ".env.yaml",
+  "triggered_by": "codex-final-live-verification",
+  "config_overrides": {
+    "synonym_management": {
+      "promote_global_enabled": false,
+      "auto_promote_global_enabled": false
+    }
+  },
+  "run_mode": "run_all"
+}

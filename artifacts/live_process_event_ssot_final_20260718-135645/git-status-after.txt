@@ -1,0 +1,22 @@
+ M docs/generated/planning_lineage.yaml
+ M src/fitcv_cp/app.py
+ M src/fitcv_cp/main.py
+ M src/fitcv_cp/models.py
+ M src/fitcv_cp/reporter.py
+ M src/fitcv_cp/sqlite_store.py
+ M src/fitcv_cp/store.py
+ M src/fitcv_cp/templates/optimization.html
+ M src/fitcv_cp/templates/run_detail.html
+ M src/fitcv_cp/worker_job.py
+ M tests/test_fitcv_cp/test_app.py
+ M tests/test_fitcv_cp/test_main.py
+ M tests/test_fitcv_cp/test_reporter.py
+ M tests/test_fitcv_cp/test_sqlite_store.py
+ M tests/test_fitcv_cp/test_worker_job.py
+?? artifacts/live_process_event_ssot_20260718-133532/
+?? artifacts/live_process_event_ssot_final_20260718-135645/
+?? data/fitcv_cp_event_history/73dac4a7233f1c3d2f37d9930da8b5d01004381585257bd4f36285f7e49f2636/
+?? data/fitcv_cp_event_history/8144a369d897d1df5ac6238802f34776e345bb8b7723880bc0b2cb580604561f/
+?? docs/superpowers/plans/2026-07-18-12-29-process-event-ssot-drift-patch-and-console-plan.md
+?? docs/superpowers/specs/2026-07-18-11-55-process-event-ssot-drift-patch-and-console-spec.md
+?? src/fitcv_cp/templates/_process_console.html

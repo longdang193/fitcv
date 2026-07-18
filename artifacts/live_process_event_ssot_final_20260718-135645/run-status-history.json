@@ -1,0 +1,16 @@
+[
+  {
+    "observed_at": "2026-07-18T13:57:14.2837425+02:00",
+    "status": "running",
+    "error_stage": null,
+    "error_message": null,
+    "finished_at": null
+  },
+  {
+    "observed_at": "2026-07-18T13:58:45.1689460+02:00",
+    "status": "succeeded",
+    "error_stage": null,
+    "error_message": null,
+    "finished_at": "2026-07-18T13:58:43.258196+02:00"
+  }
+]

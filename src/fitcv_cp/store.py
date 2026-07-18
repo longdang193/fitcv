@@ -45,6 +45,7 @@ class RunStore(Protocol):
         archived_only: bool = False,
     ) -> list[PipelineRun]: ...
     def get_events(self, run_id: str) -> list[RunEvent]: ...
+    def get_process_events(self, process_type: str, process_id: str, *, limit: int = 200) -> dict[str, Any]: ...
     def update_run_status(self, run_id: str, status: Any, **kwargs: Any) -> dict[str, str]: ...
     def update_run_checkpoint(self, run_id: str, **kwargs: Any) -> dict[str, str]: ...
     def request_run_cancel(
@@ -97,6 +98,7 @@ class ControlPlaneStore:
     get_run_fn: Any | None = None
     list_runs_fn: Any | None = None
     get_events_fn: Any | None = None
+    get_process_events_fn: Any | None = None
     update_run_status_fn: Any | None = None
     update_run_checkpoint_fn: Any | None = None
     request_run_cancel_fn: Any | None = None
@@ -209,6 +211,17 @@ class ControlPlaneStore:
             self.get_events_fn,
             sqlite_store.get_events,
             run_id,
+        )
+
+    def get_process_events(
+        self, process_type: str, process_id: str, *, limit: int = 200
+    ) -> dict[str, Any]:
+        return self._call_dict(
+            self.get_process_events_fn,
+            sqlite_store.get_process_events,
+            process_type,
+            process_id,
+            limit=limit,
         )
 
     def update_run_status(self, run_id: str, status: Any, **kwargs: Any) -> dict[str, str]:

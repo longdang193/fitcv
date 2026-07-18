@@ -1,0 +1,12 @@
+{
+  "root": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\artifacts\\live_process_event_ssot_final_20260718-135645",
+  "db_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\artifacts\\live_process_event_ssot_final_20260718-135645\\fitcv.sqlite3",
+  "journal_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\artifacts\\live_process_event_ssot_final_20260718-135645\\event_history",
+  "port": 60246,
+  "pid": 12552,
+  "started_at": "2026-07-18T13:56:46.0395263+02:00",
+  "input_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\data\\sample_jobs - Copy.json",
+  "base_url": "http://127.0.0.1:60246",
+  "run_id": "6069d122-c323-4eac-a913-be0944b4be34",
+  "triggered_at": "2026-07-18T13:56:47.9775012+02:00"
+}

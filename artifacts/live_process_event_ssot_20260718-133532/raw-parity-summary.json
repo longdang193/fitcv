@@ -1,0 +1,11 @@
+{
+  "db_count": 45,
+  "export_count": 45,
+  "legacy_count": 45,
+  "exact_record_list_equal": true,
+  "event_order_equal": true,
+  "per_event_field_diff_count": 0,
+  "field_diffs": [],
+  "fingerprints_equal": true,
+  "ids_equal": true
+}

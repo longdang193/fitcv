@@ -16,7 +16,11 @@ lifecycle:
 import dataclasses
 import datetime
 from enum import Enum
-from typing import Optional
+import json
+import uuid
+from typing import Any, Optional
+
+from fitcv_cp.run_artifact_contracts import stable_sha256_fingerprint
 
 
 class RunStatus(str, Enum):
@@ -103,3 +107,196 @@ class RunEvent:
     message: str
     created_at: datetime.datetime
     payload_json: Optional[str] = None
+
+PROCESS_EVENT_SCHEMA_VERSION = "process_event_v1"
+PROCESS_EVENT_STATES = frozenset({
+    "requested",
+    "started",
+    "progress",
+    "waiting",
+    "succeeded",
+    "skipped",
+    "rejected",
+    "failed",
+    "cancelled",
+    "recorded",
+})
+_PROCESS_EVENT_MAX_STRING_LENGTH = 500
+_PROCESS_EVENT_MAX_LIST_ITEMS = 20
+_PROCESS_EVENT_MAX_OBJECT_KEYS = 30
+_PROCESS_EVENT_MAX_DEPTH = 4
+_PROCESS_EVENT_SENSITIVE_KEY_PARTS = frozenset({
+    "password",
+    "secret",
+    "authorization",
+    "api_key",
+    "private_key",
+    "access_key",
+    "cookie",
+})
+
+
+def _bound_process_event_string(value: str) -> str:
+    if len(value) <= _PROCESS_EVENT_MAX_STRING_LENGTH:
+        return value
+    return f"{value[:_PROCESS_EVENT_MAX_STRING_LENGTH]}...[truncated]"
+
+
+def sanitize_process_event_value(value: Any, *, depth: int = 0) -> Any:
+    if depth > _PROCESS_EVENT_MAX_DEPTH:
+        return "[truncated_depth]"
+    if dataclasses.is_dataclass(value):
+        value = dataclasses.asdict(value)
+    if isinstance(value, Enum):
+        value = value.value
+    if isinstance(value, datetime.datetime):
+        value = value.isoformat()
+    if isinstance(value, dict):
+        reduced: dict[str, Any] = {}
+        keys = sorted((str(key), key) for key in value)
+        for key_text, original_key in keys[:_PROCESS_EVENT_MAX_OBJECT_KEYS]:
+            if any(part in key_text.lower() for part in _PROCESS_EVENT_SENSITIVE_KEY_PARTS):
+                reduced[key_text] = "[REDACTED]"
+            else:
+                reduced[key_text] = sanitize_process_event_value(
+                    value[original_key], depth=depth + 1
+                )
+        if len(keys) > _PROCESS_EVENT_MAX_OBJECT_KEYS:
+            reduced["__truncated_keys__"] = True
+        return reduced
+    if isinstance(value, (list, tuple)):
+        items = [
+            sanitize_process_event_value(item, depth=depth + 1)
+            for item in list(value)[:_PROCESS_EVENT_MAX_LIST_ITEMS]
+        ]
+        if len(value) > _PROCESS_EVENT_MAX_LIST_ITEMS:
+            items.append("[truncated_items]")
+        return items
+    if isinstance(value, str):
+        return _bound_process_event_string(value)
+    if isinstance(value, (int, float, bool)) or value is None:
+        return value
+    try:
+        return _bound_process_event_string(str(value))
+    except Exception as exc:
+        raise ValueError("unsupported process event value") from exc
+
+
+def _process_event_json(value: Any) -> str:
+    return json.dumps(
+        sanitize_process_event_value(value),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class ProcessEvent:
+    schema_version: str
+    event_id: str
+    process_type: str
+    process_id: str
+    operation: str
+    state: str
+    level: str
+    message: str
+    payload_json: Optional[str]
+    diagnostic_refs_json: Optional[str]
+    trace_context_json: Optional[str]
+    recorded_at: datetime.datetime
+    event_fingerprint: str
+
+    @property
+    def run_id(self) -> str:
+        return self.process_id
+
+    @property
+    def stage(self) -> str:
+        return self.operation
+
+    @property
+    def created_at(self) -> datetime.datetime:
+        return self.recorded_at
+
+
+@dataclasses.dataclass(frozen=True)
+class ProcessEventIntegrityConflict:
+    conflict_id: str
+    process_type: str
+    process_id: str
+    event_id: Optional[str]
+    reason: str
+    evidence_json: str
+    recorded_at: datetime.datetime
+
+
+def build_process_event(
+    *,
+    process_type: str,
+    process_id: str,
+    operation: str,
+    state: str,
+    level: str,
+    message: str,
+    payload: Any = None,
+    diagnostic_refs: Any = None,
+    trace_context: Any = None,
+    event_id: str | None = None,
+    recorded_at: datetime.datetime | None = None,
+) -> ProcessEvent:
+    normalized_process_type = str(process_type).strip()
+    normalized_process_id = str(process_id).strip()
+    normalized_operation = str(operation).strip()
+    normalized_state = str(state).strip().lower()
+    normalized_level = str(level).strip().lower()
+    if not normalized_process_type or not normalized_process_id or not normalized_operation:
+        raise ValueError("process_type, process_id, and operation are required")
+    if normalized_state not in PROCESS_EVENT_STATES:
+        raise ValueError(f"invalid process event state: {state}")
+    if normalized_level not in {item.value for item in EventLevel}:
+        raise ValueError(f"invalid process event level: {level}")
+    timestamp = recorded_at or datetime.datetime.now(datetime.timezone.utc)
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=datetime.timezone.utc)
+    timestamp = timestamp.astimezone(datetime.timezone.utc)
+    normalized_event_id = str(event_id or uuid.uuid4()).strip()
+    if not normalized_event_id:
+        raise ValueError("event_id is required")
+    normalized_message = _bound_process_event_string(str(message))
+    payload_json = _process_event_json(payload) if payload is not None else None
+    diagnostic_refs_json = (
+        _process_event_json(diagnostic_refs) if diagnostic_refs is not None else None
+    )
+    trace_context_json = (
+        _process_event_json(trace_context) if trace_context is not None else None
+    )
+    fingerprint_payload = {
+        "schema_version": PROCESS_EVENT_SCHEMA_VERSION,
+        "event_id": normalized_event_id,
+        "process_type": normalized_process_type,
+        "process_id": normalized_process_id,
+        "operation": normalized_operation,
+        "state": normalized_state,
+        "level": normalized_level,
+        "message": normalized_message,
+        "payload_json": payload_json,
+        "diagnostic_refs_json": diagnostic_refs_json,
+        "trace_context_json": trace_context_json,
+        "recorded_at": timestamp.isoformat(),
+    }
+    return ProcessEvent(
+        schema_version=PROCESS_EVENT_SCHEMA_VERSION,
+        event_id=normalized_event_id,
+        process_type=normalized_process_type,
+        process_id=normalized_process_id,
+        operation=normalized_operation,
+        state=normalized_state,
+        level=normalized_level,
+        message=normalized_message,
+        payload_json=payload_json,
+        diagnostic_refs_json=diagnostic_refs_json,
+        trace_context_json=trace_context_json,
+        recorded_at=timestamp,
+        event_fingerprint=stable_sha256_fingerprint(fingerprint_payload),
+    )

@@ -1,0 +1,20 @@
+{
+  "first_patched_session": {
+    "after_clear": 0,
+    "after_reset": 25,
+    "total": 45,
+    "after_reload": 0,
+    "loaded": 25,
+    "details": 25
+  },
+  "backend_count_after_clear": 47,
+  "final_fresh_db_session": {
+    "after_clear": 0,
+    "job_outcome_filter_visible": 6,
+    "total": 47,
+    "after_reload": 0,
+    "loaded": 25,
+    "details": 25,
+    "browser_errors": []
+  }
+}

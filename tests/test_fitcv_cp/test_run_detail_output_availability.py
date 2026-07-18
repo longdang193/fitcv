@@ -51,7 +51,7 @@ def test_run_detail_template_mentions_output_availability_contract() -> None:
     assert 'id="run-overview-core"' in content
     assert "<h3 style=\"margin:0\">Synonyms (List Entities)</h3>" in content
     assert "<h3>Pipeline Results</h3>" in content
-    assert "<h2>Event Timeline</h2>" in content
+    assert '{% include "_process_console.html" %}' in content
     assert "<h3 style=\"margin:0 0 0.85rem\">Artifacts</h3>" in content
     assert "Compatibility note: outputs/download actions moved to <strong>Artifacts</strong>." in content
     assert "output_availability." in content
@@ -66,10 +66,10 @@ def test_run_detail_template_enforces_canonical_section_order_and_no_overview_du
     overview_pos = content.index(">Run Overview</h3>")
     synonym_pos = content.index(">Synonyms (List Entities)</h3>")
     pipeline_pos = content.index(">Pipeline Results</h3>")
-    timeline_pos = content.index(">Event Timeline</h2>")
+    console_pos = content.index('{% include "_process_console.html" %}')
     artifacts_pos = content.index('id="artifacts"')
     advanced_pos = content.index('id="advanced-diagnostics"')
-    assert overview_pos < synonym_pos < pipeline_pos < timeline_pos < artifacts_pos < advanced_pos
+    assert overview_pos < synonym_pos < pipeline_pos < console_pos < artifacts_pos < advanced_pos
     assert 'id="outputs-action"' not in content
 
 def test_advanced_diagnostics_collapsed_container_preserves_evidence_sections() -> None:

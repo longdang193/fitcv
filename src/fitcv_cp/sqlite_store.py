@@ -17,12 +17,14 @@ from __future__ import annotations
 
 import datetime
 import dataclasses
+import hashlib
 import json
 import logging
 import os
 import shutil
 import sqlite3
 import time
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from collections.abc import Iterator
@@ -40,7 +42,14 @@ from fitcv.persistence import get_local_sqlite_path
 from fitcv.preference_policy import build_policy_snapshot_identity, build_training_run_identity
 from fitcv.shortlist_runtime import build_contract_fingerprint
 from fitcv_cp.backend_runtime import get_backend_runtime
-from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
+from fitcv_cp.models import (
+    PipelineRun,
+    ProcessEvent,
+    ProcessEventIntegrityConflict,
+    RunEvent,
+    RunStatus,
+    build_process_event,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -446,6 +455,41 @@ def insert_ranking_policy_candidate(payload: dict[str, Any]) -> dict[str, Any]:
         return _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", snapshot_id) or row
 
 
+def _optimization_process_state(status: str) -> str:
+    if status == "candidate_created":
+        return "succeeded"
+    if status == "no_op":
+        return "skipped"
+    if status in {"evaluation_rejected", "insufficient_evidence", "invalid_input"}:
+        return "rejected"
+    return "failed"
+
+
+def _build_optimization_attempt_event(
+    training: dict[str, Any], snapshot: dict[str, Any] | None
+) -> ProcessEvent:
+    status = str(training["status"])
+    training_id = str(training["training_run_id"])
+    snapshot_id = str(snapshot["policy_snapshot_id"]) if snapshot is not None else None
+    refs = [{"kind": "inverse_training_run", "id": training_id}]
+    if snapshot_id is not None:
+        refs.append({"kind": "ranking_policy_snapshot", "id": snapshot_id})
+    return build_process_event(
+        process_type="optimization",
+        process_id=str(training["domain_id"]),
+        operation="candidate_create" if status == "candidate_created" else status,
+        state=_optimization_process_state(status),
+        level="error" if _optimization_process_state(status) == "failed" else (
+            "warning" if _optimization_process_state(status) == "rejected" else "info"
+        ),
+        message=f"Optimization attempt {status}",
+        payload={"status": status, "training_run_id": training_id, "policy_snapshot_id": snapshot_id},
+        diagnostic_refs=refs,
+        event_id=f"optimization:{training_id}",
+        recorded_at=datetime.datetime.fromisoformat(str(training["created_at"])),
+    )
+
+
 def persist_candidate_attempt(
     training_payload: dict[str, Any],
     snapshot_payload: dict[str, Any] | None = None,
@@ -473,8 +517,10 @@ def persist_candidate_attempt(
             raise ValueError("snapshot fingerprint mismatch")
     db_path = Path(_local_sqlite_path())
     with _sqlite_connection(db_path) as conn:
-        conn.execute("BEGIN IMMEDIATE")
         _ensure_local_preference_policy_tables(conn)
+        _ensure_process_event_tables(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
         existing_training = _fetch_policy_row(
             conn, "inverse_training_runs", "training_run_id", expected_training_id
         )
@@ -494,6 +540,14 @@ def persist_candidate_attempt(
                 _insert_policy_row(conn, "ranking_policy_snapshots", _SNAPSHOT_COLUMNS, snapshot)
             elif existing_snapshot["payload_fingerprint"] != snapshot["payload_fingerprint"]:
                 raise ValueError("existing snapshot conflicts with payload")
+        _insert_process_event(
+            conn,
+            _build_optimization_attempt_event(
+                existing_training or training, existing_snapshot or snapshot
+            ),
+            delivery_sinks=("langfuse",),
+            raise_on_conflict=True,
+        )
         conn.commit()
         return {
             "training_run": _fetch_policy_row(
@@ -774,6 +828,24 @@ def _append_policy_event(
         "expected_parent_ref", "evidence_head_fingerprint", "acted_by", "created_at",
     )
     _insert_policy_row(conn, "policy_activation_events", columns, payload)
+    process_event = build_process_event(
+        process_type="optimization",
+        process_id=domain_id,
+        operation=action,
+        state="rejected" if action in {"reject", "stale"} else "succeeded",
+        level="warning" if action in {"reject", "stale"} else "info",
+        message=f"Optimization {action}: {reason_code}",
+        payload=payload,
+        diagnostic_refs=[
+            {"kind": "policy_activation_event", "id": payload["activation_event_id"]},
+            *([{"kind": "ranking_policy_snapshot", "id": target_snapshot_id}] if target_snapshot_id else []),
+        ],
+        event_id=str(payload["activation_event_id"]),
+        recorded_at=datetime.datetime.fromisoformat(created_at),
+    )
+    _insert_process_event(
+        conn, process_event, delivery_sinks=("langfuse",), raise_on_conflict=True
+    )
     return payload
 
 
@@ -791,8 +863,10 @@ def activate_ranking_policy_candidate(
 ) -> dict[str, Any]:
     db_path = Path(_local_sqlite_path())
     with _sqlite_connection(db_path) as conn:
-        conn.execute("BEGIN IMMEDIATE")
         _ensure_local_preference_policy_tables(conn)
+        _ensure_process_event_tables(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
         candidate = _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", policy_snapshot_id)
         if candidate is None:
             raise KeyError(policy_snapshot_id)
@@ -938,8 +1012,10 @@ def reject_ranking_policy_candidate(
         raise ValueError("reason must be nonempty")
     db_path = Path(_local_sqlite_path())
     with _sqlite_connection(db_path) as conn:
-        conn.execute("BEGIN IMMEDIATE")
         _ensure_local_preference_policy_tables(conn)
+        _ensure_process_event_tables(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
         candidate = _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", policy_snapshot_id)
         if candidate is None:
             raise KeyError(policy_snapshot_id)
@@ -984,8 +1060,10 @@ def rollback_ranking_policy(
 ) -> dict[str, Any]:
     db_path = Path(_local_sqlite_path())
     with _sqlite_connection(db_path) as conn:
-        conn.execute("BEGIN IMMEDIATE")
         _ensure_local_preference_policy_tables(conn)
+        _ensure_process_event_tables(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
         current = _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", expected_active)
         if current is None or current["domain_id"] != domain_id or current["status"] != "active":
             raise ValueError("active snapshot changed")
@@ -1681,6 +1759,580 @@ def _local_save_run(run: PipelineRun) -> None:
     _upsert_local_pipeline_run(run)
 
 
+def _ensure_process_event_tables(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS process_events (
+            schema_version TEXT NOT NULL,
+            event_id TEXT PRIMARY KEY,
+            process_type TEXT NOT NULL,
+            process_id TEXT NOT NULL,
+            operation TEXT NOT NULL,
+            state TEXT NOT NULL,
+            level TEXT NOT NULL,
+            message TEXT NOT NULL,
+            payload_json TEXT,
+            diagnostic_refs_json TEXT,
+            trace_context_json TEXT,
+            recorded_at TEXT NOT NULL,
+            event_fingerprint TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS process_events_process_order
+            ON process_events(process_type, process_id, recorded_at, event_id);
+        CREATE TABLE IF NOT EXISTS process_event_integrity_conflicts (
+            conflict_id TEXT PRIMARY KEY,
+            process_type TEXT NOT NULL,
+            process_id TEXT NOT NULL,
+            event_id TEXT,
+            reason TEXT NOT NULL,
+            evidence_json TEXT NOT NULL,
+            recorded_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS process_event_conflicts_process_order
+            ON process_event_integrity_conflicts(process_type, process_id, recorded_at, conflict_id);
+        CREATE TABLE IF NOT EXISTS process_event_deliveries (
+            event_id TEXT NOT NULL,
+            sink TEXT NOT NULL,
+            status TEXT NOT NULL,
+            reason TEXT,
+            attempt_count INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(event_id, sink),
+            FOREIGN KEY(event_id) REFERENCES process_events(event_id)
+        );
+        CREATE TABLE IF NOT EXISTS process_event_migrations (
+            migration_id TEXT PRIMARY KEY,
+            completed_at TEXT NOT NULL,
+            source_row_count INTEGER NOT NULL,
+            source_fingerprint TEXT NOT NULL
+        );
+        CREATE TRIGGER IF NOT EXISTS process_events_immutable_update
+        BEFORE UPDATE ON process_events BEGIN
+            SELECT RAISE(ABORT, 'process_events are immutable');
+        END;
+        CREATE TRIGGER IF NOT EXISTS process_events_immutable_delete
+        BEFORE DELETE ON process_events BEGIN
+            SELECT RAISE(ABORT, 'process_events are immutable');
+        END;
+        """
+    )
+    _migrate_legacy_process_events(conn)
+
+
+def _process_event_record(event: ProcessEvent) -> dict[str, Any]:
+    payload = dataclasses.asdict(event)
+    payload["recorded_at"] = event.recorded_at.isoformat()
+    return payload
+
+
+def _process_event_from_record(record: dict[str, Any]) -> ProcessEvent:
+    timestamp = datetime.datetime.fromisoformat(str(record["recorded_at"]))
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=datetime.timezone.utc)
+    event = ProcessEvent(
+        schema_version=str(record["schema_version"]),
+        event_id=str(record["event_id"]),
+        process_type=str(record["process_type"]),
+        process_id=str(record["process_id"]),
+        operation=str(record["operation"]),
+        state=str(record["state"]),
+        level=str(record["level"]),
+        message=str(record["message"]),
+        payload_json=record.get("payload_json"),
+        diagnostic_refs_json=record.get("diagnostic_refs_json"),
+        trace_context_json=record.get("trace_context_json"),
+        recorded_at=timestamp.astimezone(datetime.timezone.utc),
+        event_fingerprint=str(record["event_fingerprint"]),
+    )
+    rebuilt = build_process_event(
+        process_type=event.process_type,
+        process_id=event.process_id,
+        operation=event.operation,
+        state=event.state,
+        level=event.level,
+        message=event.message,
+        payload=_decode_json_or_none(event.payload_json),
+        diagnostic_refs=_decode_json_or_none(event.diagnostic_refs_json),
+        trace_context=_decode_json_or_none(event.trace_context_json),
+        event_id=event.event_id,
+        recorded_at=event.recorded_at,
+    )
+    if rebuilt.event_fingerprint != event.event_fingerprint:
+        raise ValueError("process event fingerprint mismatch")
+    return event
+
+
+def _insert_process_event(
+    conn: sqlite3.Connection,
+    event: ProcessEvent,
+    *,
+    delivery_sinks: tuple[str, ...] = (),
+    raise_on_conflict: bool = False,
+) -> str:
+    existing = conn.execute(
+        "SELECT event_fingerprint FROM process_events WHERE event_id = ?",
+        (event.event_id,),
+    ).fetchone()
+    if existing is not None:
+        if str(existing[0]) == event.event_fingerprint:
+            return "equal"
+        conflict = ProcessEventIntegrityConflict(
+            conflict_id=str(uuid.uuid4()),
+            process_type=event.process_type,
+            process_id=event.process_id,
+            event_id=event.event_id,
+            reason="fingerprint_mismatch",
+            evidence_json=json.dumps(
+                {
+                    "existing_fingerprint": str(existing[0]),
+                    "incoming_fingerprint": event.event_fingerprint,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+            recorded_at=datetime.datetime.now(datetime.timezone.utc),
+        )
+        conn.execute(
+            """
+            INSERT INTO process_event_integrity_conflicts(
+                conflict_id, process_type, process_id, event_id, reason, evidence_json, recorded_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                conflict.conflict_id,
+                conflict.process_type,
+                conflict.process_id,
+                conflict.event_id,
+                conflict.reason,
+                conflict.evidence_json,
+                conflict.recorded_at.isoformat(),
+            ),
+        )
+        if raise_on_conflict:
+            raise ValueError("process event fingerprint conflict")
+        return "conflict"
+    record = _process_event_record(event)
+    conn.execute(
+        """
+        INSERT INTO process_events(
+            schema_version, event_id, process_type, process_id, operation, state, level,
+            message, payload_json, diagnostic_refs_json, trace_context_json, recorded_at,
+            event_fingerprint
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        tuple(record[key] for key in (
+            "schema_version", "event_id", "process_type", "process_id", "operation",
+            "state", "level", "message", "payload_json", "diagnostic_refs_json",
+            "trace_context_json", "recorded_at", "event_fingerprint"
+        )),
+    )
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    for sink in delivery_sinks:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO process_event_deliveries(
+                event_id, sink, status, reason, attempt_count, updated_at
+            ) VALUES (?, ?, 'pending', NULL, 0, ?)
+            """,
+            (event.event_id, sink, now),
+        )
+    return "inserted"
+
+
+def _migrate_legacy_process_events(conn: sqlite3.Connection) -> None:
+    migration_id = "local_pipeline_run_events_to_process_events_v1"
+    if conn.execute(
+        "SELECT 1 FROM process_event_migrations WHERE migration_id = ?",
+        (migration_id,),
+    ).fetchone():
+        return
+    table_exists = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'local_pipeline_run_events'"
+    ).fetchone()
+    rows: list[sqlite3.Row] = []
+    if table_exists:
+        previous_factory = conn.row_factory
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT run_id, event_id, stage, level, message, payload_json, created_at
+            FROM local_pipeline_run_events
+            ORDER BY created_at, rowid
+            """
+        ).fetchall()
+        conn.row_factory = previous_factory
+        for row in rows:
+            payload = _decode_json_or_none(row["payload_json"])
+            if payload is None and row["payload_json"] is not None:
+                payload = {"legacy_payload_json": str(row["payload_json"])}
+            event = build_process_event(
+                process_type="pipeline",
+                process_id=str(row["run_id"]),
+                operation=str(row["stage"]),
+                state="recorded",
+                level=str(row["level"]),
+                message=str(row["message"]),
+                payload=payload,
+                event_id=str(row["event_id"]),
+                recorded_at=datetime.datetime.fromisoformat(str(row["created_at"])),
+            )
+            _insert_process_event(conn, event)
+    source_identity = [
+        [str(row["run_id"]), str(row["event_id"]), str(row["created_at"])]
+        for row in rows
+    ]
+    conn.execute(
+        """
+        INSERT INTO process_event_migrations(
+            migration_id, completed_at, source_row_count, source_fingerprint
+        ) VALUES (?, ?, ?, ?)
+        """,
+        (
+            migration_id,
+            datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            len(rows),
+            hashlib.sha256(
+                json.dumps(source_identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest(),
+        ),
+    )
+
+
+def _process_event_journal_dir(process_type: str, process_id: str) -> Path:
+    identity = json.dumps(
+        [str(process_type), str(process_id)],
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return _local_event_history_dir() / hashlib.sha256(identity).hexdigest()
+
+
+def _process_event_journal_file(event: ProcessEvent) -> Path:
+    event_name = hashlib.sha256(event.event_id.encode("utf-8")).hexdigest()
+    return _process_event_journal_dir(event.process_type, event.process_id) / f"{event_name}.json"
+
+
+def _write_json_atomically(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _write_process_event_journal(event: ProcessEvent) -> None:
+    path = _process_event_journal_file(event)
+    if path.exists():
+        existing = _process_event_from_record(json.loads(path.read_text(encoding="utf-8")))
+        if existing.event_fingerprint == event.event_fingerprint:
+            return
+        conflict_path = path.parent / "_conflicts" / f"{uuid.uuid4().hex}.json"
+        _write_json_atomically(
+            conflict_path,
+            {
+                "conflict_id": conflict_path.stem,
+                "process_type": event.process_type,
+                "process_id": event.process_id,
+                "event_id": event.event_id,
+                "reason": "fingerprint_mismatch",
+                "evidence_json": json.dumps(
+                    {
+                        "existing_fingerprint": existing.event_fingerprint,
+                        "incoming_fingerprint": event.event_fingerprint,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            },
+        )
+        raise ValueError("process event journal fingerprint conflict")
+    _write_json_atomically(path, _process_event_record(event))
+
+
+def _read_process_event_journal(
+    process_type: str, process_id: str
+) -> tuple[list[tuple[ProcessEvent, Path]], list[ProcessEventIntegrityConflict]]:
+    directory = _process_event_journal_dir(process_type, process_id)
+    events: list[tuple[ProcessEvent, Path]] = []
+    conflicts: list[ProcessEventIntegrityConflict] = []
+    if not directory.exists():
+        return events, conflicts
+    for path in sorted(directory.glob("*.json")):
+        try:
+            events.append((_process_event_from_record(json.loads(path.read_text(encoding="utf-8"))), path))
+        except Exception as exc:
+            conflicts.append(ProcessEventIntegrityConflict(
+                conflict_id=f"journal:{path.name}",
+                process_type=process_type,
+                process_id=process_id,
+                event_id=None,
+                reason="journal_malformed",
+                evidence_json=json.dumps({"file": path.name, "error": str(exc)}, sort_keys=True),
+                recorded_at=datetime.datetime.fromtimestamp(path.stat().st_mtime, datetime.timezone.utc),
+            ))
+    conflict_dir = directory / "_conflicts"
+    if conflict_dir.exists():
+        for path in sorted(conflict_dir.glob("*.json")):
+            try:
+                record = json.loads(path.read_text(encoding="utf-8"))
+                conflicts.append(ProcessEventIntegrityConflict(
+                    conflict_id=str(record["conflict_id"]),
+                    process_type=str(record["process_type"]),
+                    process_id=str(record["process_id"]),
+                    event_id=record.get("event_id"),
+                    reason=str(record["reason"]),
+                    evidence_json=str(record["evidence_json"]),
+                    recorded_at=datetime.datetime.fromisoformat(str(record["recorded_at"])),
+                ))
+            except Exception as exc:
+                conflicts.append(ProcessEventIntegrityConflict(
+                    conflict_id=f"journal-conflict:{path.name}",
+                    process_type=process_type,
+                    process_id=process_id,
+                    event_id=None,
+                    reason="journal_malformed",
+                    evidence_json=json.dumps({"file": path.name, "error": str(exc)}, sort_keys=True),
+                    recorded_at=datetime.datetime.fromtimestamp(path.stat().st_mtime, datetime.timezone.utc),
+                ))
+    return events, conflicts
+
+
+def append_process_event(
+    event: ProcessEvent,
+    *,
+    delivery_sinks: tuple[str, ...] = (),
+    conn: sqlite3.Connection | None = None,
+    raise_on_conflict: bool = False,
+) -> dict[str, str]:
+    if conn is not None:
+        _ensure_process_event_tables(conn)
+        disposition = _insert_process_event(
+            conn, event, delivery_sinks=delivery_sinks, raise_on_conflict=raise_on_conflict
+        )
+        return {
+            "persistence_status": "persisted" if disposition != "conflict" else "failed",
+            "degradation_reason": "none" if disposition != "conflict" else "event_fingerprint_conflict",
+            "persistence_backend": "sqlite",
+        }
+    db_path = Path(_local_sqlite_path())
+    try:
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        with _sqlite_connection(db_path) as local_conn:
+            _ensure_process_event_tables(local_conn)
+            disposition = _insert_process_event(
+                local_conn,
+                event,
+                delivery_sinks=delivery_sinks,
+                raise_on_conflict=raise_on_conflict,
+            )
+            local_conn.commit()
+        return {
+            "persistence_status": "persisted" if disposition != "conflict" else "failed",
+            "degradation_reason": "none" if disposition != "conflict" else "event_fingerprint_conflict",
+            "persistence_backend": "sqlite",
+        }
+    except Exception as exc:
+        logger.warning(
+            "process event sqlite persistence degraded for process_type=%s process_id=%s: %s",
+            event.process_type,
+            event.process_id,
+            exc,
+        )
+        try:
+            _write_process_event_journal(event)
+            return {
+                "persistence_status": "persisted",
+                "degradation_reason": "sqlite_event_insert_failed",
+                "persistence_backend": "journal",
+            }
+        except Exception as file_exc:
+            logger.warning(
+                "process event journal persistence degraded for process_type=%s process_id=%s: %s",
+                event.process_type,
+                event.process_id,
+                file_exc,
+            )
+            return {
+                "persistence_status": "failed",
+                "degradation_reason": "event_insert_failed_no_local_fallback",
+                "persistence_backend": "none",
+            }
+
+
+def record_process_event_delivery(
+    event_id: str, sink: str, status: str, reason: str | None = None
+) -> None:
+    if status not in {"pending", "delivered", "failed"}:
+        raise ValueError("invalid process event delivery status")
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        _ensure_process_event_tables(conn)
+        conn.execute(
+            """
+            INSERT INTO process_event_deliveries(
+                event_id, sink, status, reason, attempt_count, updated_at
+            ) VALUES (?, ?, ?, ?, 1, ?)
+            ON CONFLICT(event_id, sink) DO UPDATE SET
+                status = excluded.status,
+                reason = excluded.reason,
+                attempt_count = process_event_deliveries.attempt_count + 1,
+                updated_at = excluded.updated_at
+            """,
+            (
+                event_id, sink, status, reason,
+                datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            ),
+        )
+        conn.commit()
+
+
+def list_pending_process_event_deliveries(
+    *, limit: int = 20
+) -> list[dict[str, Any]]:
+    db_path = Path(_local_sqlite_path())
+    if not db_path.exists():
+        return []
+    with _sqlite_connection(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_process_event_tables(conn)
+        rows = conn.execute(
+            """
+            SELECT e.*, d.sink, d.status AS delivery_status, d.reason AS delivery_reason,
+                   d.attempt_count, d.updated_at
+            FROM process_event_deliveries d
+            JOIN process_events e ON e.event_id = d.event_id
+            WHERE d.status IN ('pending', 'failed')
+            ORDER BY d.updated_at, e.recorded_at, e.event_id
+            LIMIT ?
+            """,
+            (max(1, min(int(limit), 100)),),
+        ).fetchall()
+    return [
+        {
+            "event": _process_event_from_record(dict(row)),
+            "sink": str(row["sink"]),
+            "status": str(row["delivery_status"]),
+            "reason": row["delivery_reason"],
+            "attempt_count": int(row["attempt_count"]),
+        }
+        for row in rows
+    ]
+
+
+def get_process_events(
+    process_type: str,
+    process_id: str,
+    *,
+    limit: int = 200,
+) -> dict[str, Any]:
+    normalized_limit = max(1, min(int(limit), 500))
+    sqlite_events: list[ProcessEvent] = []
+    sqlite_conflicts: list[ProcessEventIntegrityConflict] = []
+    deliveries: list[dict[str, Any]] = []
+    db_path = Path(_local_sqlite_path())
+    if db_path.exists():
+        with _sqlite_connection(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            _ensure_process_event_tables(conn)
+            rows = conn.execute(
+                """
+                SELECT * FROM process_events
+                WHERE process_type = ? AND process_id = ?
+                ORDER BY recorded_at, event_id
+                """,
+                (process_type, process_id),
+            ).fetchall()
+            sqlite_events = [_process_event_from_record(dict(row)) for row in rows]
+            conflict_rows = conn.execute(
+                """
+                SELECT * FROM process_event_integrity_conflicts
+                WHERE process_type = ? AND process_id = ?
+                ORDER BY recorded_at, conflict_id
+                """,
+                (process_type, process_id),
+            ).fetchall()
+            sqlite_conflicts = [
+                ProcessEventIntegrityConflict(
+                    conflict_id=str(row["conflict_id"]),
+                    process_type=str(row["process_type"]),
+                    process_id=str(row["process_id"]),
+                    event_id=row["event_id"],
+                    reason=str(row["reason"]),
+                    evidence_json=str(row["evidence_json"]),
+                    recorded_at=datetime.datetime.fromisoformat(str(row["recorded_at"])),
+                )
+                for row in conflict_rows
+            ]
+            deliveries = [dict(row) for row in conn.execute(
+                """
+                SELECT d.* FROM process_event_deliveries d
+                JOIN process_events e ON e.event_id = d.event_id
+                WHERE e.process_type = ? AND e.process_id = ?
+                ORDER BY d.event_id, d.sink
+                """,
+                (process_type, process_id),
+            ).fetchall()]
+            journal_events, journal_conflicts = _read_process_event_journal(process_type, process_id)
+            replayed_paths: list[Path] = []
+            for journal_event, journal_path in journal_events:
+                try:
+                    disposition = _insert_process_event(conn, journal_event)
+                    if disposition in {"inserted", "equal"}:
+                        replayed_paths.append(journal_path)
+                except Exception:
+                    continue
+            if replayed_paths:
+                conn.commit()
+                for replayed_path in replayed_paths:
+                    replayed_path.unlink(missing_ok=True)
+                rows = conn.execute(
+                    """
+                    SELECT * FROM process_events
+                    WHERE process_type = ? AND process_id = ?
+                    ORDER BY recorded_at, event_id
+                    """,
+                    (process_type, process_id),
+                ).fetchall()
+                sqlite_events = [_process_event_from_record(dict(row)) for row in rows]
+    else:
+        journal_events, journal_conflicts = _read_process_event_journal(process_type, process_id)
+    by_id = {event.event_id: event for event in sqlite_events}
+    for event, _path in journal_events:
+        existing = by_id.get(event.event_id)
+        if existing is None:
+            by_id[event.event_id] = event
+        elif existing.event_fingerprint != event.event_fingerprint:
+            journal_conflicts.append(ProcessEventIntegrityConflict(
+                conflict_id=f"merge:{event.event_id}:{event.event_fingerprint}",
+                process_type=process_type,
+                process_id=process_id,
+                event_id=event.event_id,
+                reason="fingerprint_mismatch",
+                evidence_json=json.dumps({
+                    "sqlite_fingerprint": existing.event_fingerprint,
+                    "journal_fingerprint": event.event_fingerprint,
+                }, sort_keys=True),
+                recorded_at=datetime.datetime.now(datetime.timezone.utc),
+            ))
+    ordered = sorted(by_id.values(), key=lambda item: (item.recorded_at, item.event_id))
+    return {
+        "events": ordered[-normalized_limit:],
+        "integrity_conflicts": sorted(
+            [*sqlite_conflicts, *journal_conflicts],
+            key=lambda item: (item.recorded_at, item.conflict_id),
+        ),
+        "deliveries": deliveries,
+        "total_count": len(ordered),
+        "next_cursor": None,
+    }
+
+
 def _local_event_history_dir() -> Path:
     raw = str(
         os.environ.get("FITCV_CP_LOCAL_EVENT_HISTORY_DIR")
@@ -1852,45 +2504,20 @@ def update_run_progress(
 
 
 def append_event(event: RunEvent, *_compat_args: Any, **_compat_kwargs: Any) -> dict[str, str]:
-    # Use persistence-time timestamp as canonical ordering key so mixed producers
-    # cannot backdate events and scramble timeline order.
-    persisted_event = dataclasses.replace(
-    event,
-    created_at=datetime.datetime.now(datetime.timezone.utc),
+    payload = _decode_json_or_none(event.payload_json)
+    if payload is None and event.payload_json is not None:
+        payload = {"legacy_payload_json": str(event.payload_json)}
+    process_event = build_process_event(
+        process_type="pipeline",
+        process_id=event.run_id,
+        operation=event.stage,
+        state="recorded",
+        level=event.level,
+        message=event.message,
+        payload=payload,
+        event_id=event.event_id,
     )
-    try:
-        _append_local_pipeline_run_event(persisted_event)
-        return _persistence_result("persisted")
-    except Exception as exc:
-        logger.warning(
-            "local append_event sqlite persistence degraded for run_id=%s: %s",
-            persisted_event.run_id,
-            exc,
-        )
-        try:
-            event_file = _local_event_history_file(persisted_event.run_id)
-            event_file.parent.mkdir(parents=True, exist_ok=True)
-            record = {
-                "run_id": persisted_event.run_id,
-                "event_id": persisted_event.event_id,
-                "stage": persisted_event.stage,
-                "level": persisted_event.level,
-                "message": persisted_event.message,
-                "payload_json": persisted_event.payload_json,
-                "created_at": persisted_event.created_at.isoformat(),
-            }
-            with event_file.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-            return _persistence_result("persisted")
-        except Exception as file_exc:
-            logger.warning(
-                "local append_event file fallback degraded for run_id=%s: %s",
-                persisted_event.run_id,
-                file_exc,
-            )
-            return _persistence_result(
-                "failed", "event_insert_failed_no_local_fallback"
-            )
+    return append_process_event(process_event)
 
 
 def get_run(run_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> Optional[PipelineRun]:
@@ -2188,50 +2815,19 @@ def delete_archived_runs(
         _delete_run_artifact_mirror(run.run_id)
     return {"deleted_count": len(deleted_run_ids), "deleted_run_ids": deleted_run_ids}
 def get_events(run_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> list[RunEvent]:
-    events = _list_local_pipeline_run_events(run_id)
-    if events:
-        return events
-    event_file = _local_event_history_file(run_id)
-    if not event_file.exists():
-        return []
-    file_events: list[RunEvent] = []
-    try:
-        with event_file.open("r", encoding="utf-8") as handle:
-            for line in handle:
-                raw = line.strip()
-                if not raw:
-                    continue
-                try:
-                    record = _decode_json_or_none(raw)
-                    if not isinstance(record, dict):
-                        continue
-                    created_raw = str(record.get("created_at") or "").strip()
-                    created_at = (
-                        datetime.datetime.fromisoformat(created_raw)
-                        if created_raw
-                        else datetime.datetime.now(datetime.timezone.utc)
-                    )
-                    file_events.append(
-                        RunEvent(
-                            run_id=str(record.get("run_id") or run_id),
-                            event_id=str(record.get("event_id") or ""),
-                            stage=str(record.get("stage") or ""),
-                            level=str(record.get("level") or ""),
-                            message=str(record.get("message") or ""),
-                            created_at=created_at,
-                            payload_json=record.get("payload_json"),
-                        )
-                    )
-                except Exception:
-                    continue
-    except Exception as exc:
-        logger.warning(
-            "local get_events file read degraded for run_id=%s: %s",
-            run_id,
-            exc,
+    page = get_process_events("pipeline", run_id, limit=500)
+    return [
+        RunEvent(
+            run_id=event.process_id,
+            event_id=event.event_id,
+            stage=event.operation,
+            level=event.level,
+            message=event.message,
+            created_at=event.recorded_at,
+            payload_json=event.payload_json,
         )
-    file_events.sort(key=lambda ev: ev.created_at)
-    return file_events
+        for event in page["events"]
+    ]
 
 
 def _row_to_run(row: Any) -> PipelineRun:

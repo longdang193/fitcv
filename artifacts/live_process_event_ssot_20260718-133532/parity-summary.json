@@ -1,0 +1,81 @@
+{
+  "run_id": "a93c4ea8-03b1-4a9a-b299-bc50def51302",
+  "run_status": "succeeded",
+  "db_event_count": 45,
+  "export_event_count": 45,
+  "legacy_event_count": 45,
+  "db_export_exact": false,
+  "db_export_ids_equal": true,
+  "db_export_fingerprints_equal": true,
+  "event_ids_unique": true,
+  "conflict_count": 0,
+  "delivery_count": 23,
+  "delivery_status_counts": {
+    "delivered": 23
+  },
+  "delivery_sink_counts": {
+    "langfuse": 23
+  },
+  "journal_file_count": 0,
+  "journal_parse_errors": [],
+  "journal_run_event_count": 0,
+  "journal_ids_equal_db": false,
+  "journal_fingerprints_equal_db": true,
+  "foreign_key_check": [],
+  "integrity_check": "ok",
+  "operations": {
+    "run_attempt": 3,
+    "pipeline_start": 1,
+    "layer1_normalize": 1,
+    "layer1b_pre_filter": 1,
+    "enrich_heartbeat": 10,
+    "layer1_jobs": 1,
+    "synonym_proposal_triage_completed": 6,
+    "synonym_proposal_auto_apply_completed": 6,
+    "synonym_proposal_suppression_summary": 1,
+    "layer2_candidate": 1,
+    "layer3_filter": 1,
+    "layer3_shortlist": 1,
+    "layer3_ai_score": 1,
+    "layer3_ranking": 1,
+    "layer4_cv_analysis_invoked": 1,
+    "layer4_cv_analysis": 1,
+    "layer4_cv_analysis_blocked_details": 1,
+    "job_outcome": 6,
+    "pipeline_compute_complete": 1
+  },
+  "levels": {
+    "info": 45
+  },
+  "first_recorded_at": "2026-07-18T11:37:06.258922+00:00",
+  "last_recorded_at": "2026-07-18T11:39:25.363082+00:00",
+  "legacy_sample_keys": [
+    "created_at",
+    "event_id",
+    "level",
+    "message",
+    "payload_json",
+    "stage"
+  ],
+  "tracked_tables": [
+    "candidate_embeddings",
+    "candidate_query_embeddings",
+    "cv_versions",
+    "inverse_training_runs",
+    "job_embeddings",
+    "local_pipeline_runs",
+    "pipeline_settings",
+    "policy_activation_events",
+    "process_event_deliveries",
+    "process_event_integrity_conflicts",
+    "process_event_migrations",
+    "process_events",
+    "ranking_policy_snapshots",
+    "raw_jobs",
+    "rule_filter_results",
+    "run_structured_jobs",
+    "sqlite_sequence",
+    "structured_jobs_cache",
+    "vector_shortlist"
+  ]
+}

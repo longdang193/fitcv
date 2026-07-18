@@ -266,6 +266,12 @@ def execute_cv_regenerate_once(
     note: str | None = None,
 ) -> None:
     load_dotenv_defaults()
+    from fitcv_cp.reporter import retry_pending_process_event_deliveries
+
+    try:
+        retry_pending_process_event_deliveries(limit=20)
+    except Exception as exc:
+        logger.warning("Pending process-event delivery retry failed at CV worker start: %s", exc)
     runtime = resolve_backend_runtime()
     set_backend_runtime(runtime)
     client = None
@@ -1556,12 +1562,15 @@ def execute_pipeline_run(
     queue_job_id: str | None = None,
 ) -> None:
     load_dotenv_defaults()
+    from fitcv_cp.reporter import PipelineReporter, retry_pending_process_event_deliveries
+
+    try:
+        retry_pending_process_event_deliveries(limit=20)
+    except Exception as exc:
+        logger.warning("Pending process-event delivery retry failed at pipeline worker start: %s", exc)
     runtime = resolve_backend_runtime()
     set_backend_runtime(runtime)
     client = None
-
-    # Import here to avoid circular deps at module load time
-    from fitcv_cp.reporter import PipelineReporter
 
     summary: dict[str, Any] = {}
     run_record: Any | None = None

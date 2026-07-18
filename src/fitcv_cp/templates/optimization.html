@@ -158,8 +158,12 @@ canonical: true
     {% else %}<p class="muted">No compatible learned policy is active.</p>{% endif %}
   </section>
 
+  {% set process_type = "optimization" %}
+  {% set process_id = domain_id %}
+  {% include "_process_console.html" %}
+
   <section class="card optimization-history">
-    <h2>History</h2>
+    <h2>Legacy Optimization History</h2>
     <h3>Training Runs</h3>
     <table><thead><tr><th>Created</th><th>Status</th><th>Training Run</th><th>Watermark</th></tr></thead><tbody>
       {% for row in history.training_runs %}<tr><td>{{ row.created_at }}</td><td>{{ row.status }}</td><td><code>{{ row.training_run_id }}</code></td><td>{{ row.event_watermark }}</td></tr>{% else %}<tr class="empty-row"><td colspan="4">No training runs.</td></tr>{% endfor %}

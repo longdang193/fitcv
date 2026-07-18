@@ -340,6 +340,13 @@ def list_runs(
 def get_events(run_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> list[RunEvent]:
     return _resolve_run_store().get_events(run_id)
 
+def get_process_events(
+    process_type: str, process_id: str, *, limit: int = 200
+) -> dict[str, Any]:
+    return _resolve_run_store().get_process_events(
+        process_type, process_id, limit=limit
+    )
+
 
 def update_run_status(run_id: str, status: RunStatus, *_compat_args: Any, **kwargs: Any) -> dict[str, str]:
     return dict(_resolve_run_store().update_run_status(run_id, status, **kwargs))
@@ -5737,6 +5744,7 @@ def _optimization_page_context(
             row for row in lifecycle["snapshots"] if row.get("rollback_eligible")
         ],
         "history": lifecycle,
+        "process_console": store.get_process_events("optimization", domain_id, limit=200),
     }
 
 
@@ -7231,6 +7239,25 @@ def create_app(
             for e in events
         ]
 
+    @app.get("/admin/process-events.json")
+    def get_process_event_export(
+        process_type: str, process_id: str, limit: int = 200
+    ) -> dict[str, Any]:
+        page = get_process_events(process_type, process_id, limit=limit)
+        return {
+            "events": [
+                {**dataclasses.asdict(event), "recorded_at": event.recorded_at.isoformat()}
+                for event in page["events"]
+            ],
+            "integrity_conflicts": [
+                {**dataclasses.asdict(conflict), "recorded_at": conflict.recorded_at.isoformat()}
+                for conflict in page["integrity_conflicts"]
+            ],
+            "deliveries": page["deliveries"],
+            "total_count": page["total_count"],
+            "next_cursor": page["next_cursor"],
+        }
+
     @app.get("/settings")
     def get_settings_view() -> dict:
         return load_active_settings()
@@ -8332,6 +8359,7 @@ def create_app(
             maximum=200,
         )
         events = get_events(run_id, client=client)
+        process_console = get_process_events("pipeline", run_id, limit=timeline_limit)
         stage_artifacts_by_id = _stage_artifacts_by_id(run)
         stage_quality_metrics = _stage_quality_metrics_from_stage_artifacts(stage_artifacts_by_id)
         stage_quality_metric_rows = _build_stage_quality_metric_rows(stage_quality_metrics)
@@ -8443,6 +8471,7 @@ def create_app(
                 "run_status_projection": run_status_projection(run),
                 "run_mode_label": run_mode_label(run.run_mode),
                 "events": timeline_events,
+                "process_console": process_console,
                 "timeline_has_more": len(events) > timeline_limit,
                 "timeline_next_limit": min(timeline_limit + 25, 200),
                 "cv_versions": cv_versions_with_bookmarks,

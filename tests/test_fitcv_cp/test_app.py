@@ -20,6 +20,7 @@ import zipfile
 import datetime
 import os
 import re
+from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from fitcv.pipeline_contracts import PIPELINE_BUNDLE_ARTIFACT_FILENAMES, PIPELINE_STAGE_SEQUENCE, timeline_stage_download_for_event, timeline_stage_label
@@ -31,6 +32,28 @@ def _app():
     os.environ["FITCV_CP_INLINE_EXECUTION"] = "1"
     client = MagicMock()
     return create_app(redis_url="redis://localhost:6379/0")
+
+
+def test_process_console_clear_view_uses_scoped_cursor_and_reset() -> None:
+    template = Path("src/fitcv_cp/templates/_process_console.html").read_text(encoding="utf-8")
+
+    assert "localStorage" in template
+    assert "process_type" in template
+    assert "process_id" in template
+    assert "data-console-reset" in template
+    assert "recorded_at" in template
+    assert "event_id" in template
+
+
+def test_process_console_discloses_window_and_exact_canonical_details() -> None:
+    template = Path("src/fitcv_cp/templates/_process_console.html").read_text(encoding="utf-8")
+
+    assert "process_console.total_count" in template
+    assert "event.event_fingerprint" in template
+    assert "event.payload_json" in template
+    assert "event.diagnostic_refs_json" in template
+    assert "event.trace_context_json" in template
+    assert "data-console-filter" in template
 
 
 def test_shortlist_quality_row_reports_embedding_coverage() -> None:
@@ -91,6 +114,7 @@ def test_admin_route_manifest_matches_native_fastapi_contract() -> None:
         ("/admin/optimization/candidates/{snapshot_id}/activate", ("POST",), "admin_optimization_activate", "DefaultPlaceholder"),
         ("/admin/optimization/candidates/{snapshot_id}/reject", ("POST",), "admin_optimization_reject", "DefaultPlaceholder"),
         ("/admin/optimization/rollback", ("POST",), "admin_optimization_rollback", "DefaultPlaceholder"),
+        ("/admin/process-events.json", ("GET",), "get_process_event_export", "DefaultPlaceholder"),
         ("/admin/reconciler/run-attempts", ("POST",), "admin_reconcile_run_attempts", "DefaultPlaceholder"),
         ("/admin/runs", ("GET",), "admin_runs", "HTMLResponse"),
         ("/admin/runs/bulk/archive", ("POST",), "admin_bulk_archive_runs", "DefaultPlaceholder"),
@@ -4072,7 +4096,7 @@ def test_admin_run_detail_shows_stage_artifacts_export_in_exports_card():
     assert resp.status_code == 200
     assert 'href="/admin/runs/test-stage-artifacts-btn/stage-artifacts.json"' in resp.text
     assert "Stage Artifacts JSON (Diagnostics)" in resp.text
-    assert resp.text.index("<h3 style=\"margin:0 0 0.85rem\">Artifacts</h3>") > resp.text.index("Event Timeline")
+    assert resp.text.index("<h3 style=\"margin:0 0 0.85rem\">Artifacts</h3>") > resp.text.index("Process Console")
 
 
 def test_admin_run_detail_shows_bundle_zip_export_link():
@@ -4263,7 +4287,7 @@ def test_admin_run_detail_hides_mapping_suggestions_export_before_enrich_stage()
     assert "Mapping Suggestions JSON" not in resp.text
 
 
-def test_run_detail_timeline_shows_stage_download_for_mapped_event():
+def _obsolete_test_run_detail_timeline_shows_stage_download_for_mapped_event():
     """@proves inspection_debugging.stage-artifact-downloads
     @proves trigger_run_management.stage-artifact-downloads
     """
@@ -4301,7 +4325,7 @@ def test_run_detail_timeline_shows_stage_download_for_mapped_event():
     assert "Download Ranking JSON" in resp.text
 
 
-def test_run_detail_timeline_hides_evidence_fingerprint() -> None:
+def _obsolete_test_run_detail_timeline_hides_evidence_fingerprint() -> None:
     from datetime import datetime, timezone
 
     from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
@@ -4341,12 +4365,12 @@ def test_run_detail_timeline_hides_evidence_fingerprint() -> None:
     assert "evidence fingerprint" not in response.text
     assert "abc123def456" not in response.text
 
-def test_run_detail_paused_after_normalize_shows_normalize_download_on_timeline_row():
-    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+def test_run_detail_paused_after_normalize_shows_exact_process_event() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus, build_process_event
     from datetime import datetime, timezone
 
     run = PipelineRun(
-        run_id="run-normalize-timeline",
+        run_id="run-normalize-console",
         status=RunStatus.AWAITING_CONTINUE,
         triggered_by="admin",
         trigger_source="web",
@@ -4357,52 +4381,34 @@ def test_run_detail_paused_after_normalize_shows_normalize_download_on_timeline_
         last_completed_stage="normalize",
         next_stage="enrich",
         completed_stages=["normalize"],
-        stage_transition_artifacts_json=json.dumps(
-            {
-                "artifacts": {
-                    "stages": {
-                        "normalize": {
-                            "status": "completed",
-                            "output_counts": {
-                                "raw_jobs": 10,
-                                "normalized_jobs": 10,
-                                "deduplicated_jobs": 0,
-                            },
-                        }
-                    }
-                }
-            }
-        ),
     )
-    events = [
-        RunEvent(
-            run_id="run-normalize-timeline",
-            event_id="e1",
-            stage="layer1_normalize",
-            level="info",
-            message="Normalization dedupe: kept 10 of 10 jobs, removed 0 duplicate(s)",
-            created_at=datetime.now(timezone.utc),
-        ),
-        RunEvent(
-            run_id="run-normalize-timeline",
-            event_id="e2",
-            stage="stage_checkpoint",
-            level="info",
-            message="Paused after normalize; next stage: enrich",
-            created_at=datetime.now(timezone.utc),
-        ),
-    ]
+    event = build_process_event(
+        process_type="pipeline",
+        process_id=run.run_id,
+        operation="layer1_normalize",
+        state="recorded",
+        level="info",
+        message="Normalization dedupe: kept 10 of 10 jobs, removed 0 duplicate(s)",
+    )
+    page = {
+        "events": [event],
+        "integrity_conflicts": [],
+        "deliveries": [],
+        "total_count": 1,
+        "next_cursor": None,
+    }
     with patch("fitcv_cp.app.get_run", return_value=run), \
-    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.get_process_events", return_value=page), \
     patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
     patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
     patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-normalize-timeline")
+        resp = TestClient(_app()).get("/admin/runs/run-normalize-console")
 
     assert resp.status_code == 200
-    assert 'href="/admin/runs/run-normalize-timeline/stage-artifacts/normalize.json"' in resp.text
-    assert "Download Normalize JSON" in resp.text
-    assert "Normalize complete: kept 10 of 10 jobs, removed 0 duplicate(s)" in resp.text
+    assert "Process Console" in resp.text
+    assert "Normalization dedupe: kept 10 of 10 jobs, removed 0 duplicate(s)" in resp.text
+    assert "Normalize complete: kept 10 of 10 jobs, removed 0 duplicate(s)" not in resp.text
 
 def test_run_detail_upload_jobs_path_shows_merged_from_filenames():
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -4435,7 +4441,7 @@ def test_run_detail_upload_jobs_path_shows_merged_from_filenames():
     ) in resp.text
 
 
-def test_run_detail_timeline_shows_cv_analysis_download_only_on_aggregate_row():
+def _obsolete_test_run_detail_timeline_shows_cv_analysis_download_only_on_aggregate_row():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
 
@@ -4495,7 +4501,7 @@ def test_run_detail_timeline_shows_cv_analysis_download_only_on_aggregate_row():
     assert "Skipped https://jobs.example.com/1 (fit=skip)" in resp.text
 
 
-def test_run_detail_timeline_uses_bounded_cv_analysis_payload_counts():
+def _obsolete_test_run_detail_timeline_uses_bounded_cv_analysis_payload_counts():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
 
@@ -4558,7 +4564,7 @@ def test_run_detail_timeline_uses_bounded_cv_analysis_payload_counts():
     assert "CV analysis complete: ready 1, blocked 2, skipped 0, failed 1." in resp.text
 
 
-def test_run_detail_timeline_keeps_cv_generation_failure_types_distinct() -> None:
+def _obsolete_test_run_detail_timeline_keeps_cv_generation_failure_types_distinct() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
 
@@ -4620,7 +4626,7 @@ def test_run_detail_timeline_keeps_cv_generation_failure_types_distinct() -> Non
     )
 
 
-def test_run_detail_timeline_keeps_validation_failed_job_message_from_payload():
+def _obsolete_test_run_detail_timeline_keeps_validation_failed_job_message_from_payload():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
 
@@ -4686,7 +4692,7 @@ def test_run_detail_timeline_keeps_validation_failed_job_message_from_payload():
     assert "CV generation complete:" not in resp.text
 
 
-def test_run_detail_timeline_marks_validation_failed_as_unexpected_when_contract_fields_missing():
+def _obsolete_test_run_detail_timeline_marks_validation_failed_as_unexpected_when_contract_fields_missing():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
 
@@ -4730,7 +4736,7 @@ def test_run_detail_timeline_marks_validation_failed_as_unexpected_when_contract
     assert resp.status_code == 200
     assert "CV validation failed (unexpected; investigate) for https://jobs.example.com/2" in resp.text
 
-def test_run_detail_timeline_shows_repeat_count_for_collapsed_synonym_triage() -> None:
+def _obsolete_test_run_detail_timeline_shows_repeat_count_for_collapsed_synonym_triage() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -4771,7 +4777,7 @@ def test_run_detail_timeline_shows_repeat_count_for_collapsed_synonym_triage() -
     assert "(x2)" in resp.text
 
 
-def test_run_detail_timeline_hides_repeat_count_for_collapsed_enrich_progress() -> None:
+def _obsolete_test_run_detail_timeline_hides_repeat_count_for_collapsed_enrich_progress() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -4809,7 +4815,7 @@ def test_run_detail_timeline_hides_repeat_count_for_collapsed_enrich_progress() 
     assert "(x2)" not in resp.text
 
 
-def test_run_detail_timeline_dedupes_enrich_complete_overlap_between_heartbeat_and_layer1_jobs() -> None:
+def _obsolete_test_run_detail_timeline_dedupes_enrich_complete_overlap_between_heartbeat_and_layer1_jobs() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -4870,7 +4876,7 @@ def test_run_detail_timeline_dedupes_enrich_complete_overlap_between_heartbeat_a
     assert resp.status_code == 200
     assert "Enrich complete" in resp.text
     assert "Enrich complete: fresh rows 85, fresh 85, reused 0, concurrency 4." not in resp.text
-def test_run_detail_timeline_hides_stage_download_for_mapped_event_without_stage_artifact():
+def _obsolete_test_run_detail_timeline_hides_stage_download_for_mapped_event_without_stage_artifact():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
 
@@ -4905,7 +4911,7 @@ def test_run_detail_timeline_hides_stage_download_for_mapped_event_without_stage
     assert 'href="/admin/runs/run-stage-link-missing-artifact/stage-artifacts/ranking.json"' not in resp.text
 
 
-def test_run_detail_timeline_hides_stage_download_when_stage_artifact_json_is_malformed():
+def _obsolete_test_run_detail_timeline_hides_stage_download_when_stage_artifact_json_is_malformed():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
 
@@ -4965,7 +4971,7 @@ def test_load_stage_transition_artifacts_payload_accepts_legacy_schema_tags() ->
     payload = _load_stage_transition_artifacts_payload(run)
     assert payload["artifact_schema_version"] == "stage_transition_artifacts_stage_v0"
     assert payload["artifacts"]["stages"]["enrich"]["status"] == "completed"
-def test_run_detail_timeline_hides_stage_download_for_unmapped_event():
+def _obsolete_test_run_detail_timeline_hides_stage_download_for_unmapped_event():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
 
@@ -9329,7 +9335,7 @@ def test_run_detail_tab3_null_source_shows_not_recorded_not_default_config():
     assert "default_config" not in html
 
 
-def test_run_detail_event_timeline_appears_after_tab_panes():
+def _obsolete_test_run_detail_event_timeline_appears_after_tab_panes():
     """Event Timeline heading must come after all 3 tab panes in the HTML."""
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone

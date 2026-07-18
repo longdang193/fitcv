@@ -878,3 +878,108 @@ def test_policy_lifecycle_inspection_limits_in_sql_and_marks_rollback_eligibilit
         if row["policy_snapshot_id"] == first["policy_snapshot_id"]
     )
     assert first_row["rollback_eligible"] is True
+
+
+def test_process_event_ledger_merges_sqlite_and_atomic_journal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fitcv_cp.models import build_process_event
+
+    monkeypatch.setenv("FITCV_CP_LOCAL_EVENT_HISTORY_DIR", str(tmp_path / "events"))
+    first = build_process_event(
+        process_type="pipeline",
+        process_id="a/b",
+        operation="start",
+        state="started",
+        level="info",
+        message="started",
+        payload={"attempt": 1},
+        event_id="event-1",
+    )
+    second = build_process_event(
+        process_type="pipeline",
+        process_id="a:b",
+        operation="finish",
+        state="succeeded",
+        level="info",
+        message="finished",
+        payload={"attempt": 1},
+        event_id="event-2",
+    )
+
+    sqlite_store.append_process_event(first)
+    monkeypatch.setattr(
+        sqlite_store,
+        "_insert_process_event",
+        lambda *args, **kwargs: (_ for _ in ()).throw(sqlite3.OperationalError("disk I/O error")),
+    )
+    result = sqlite_store.append_process_event(second)
+
+    page = sqlite_store.get_process_events("pipeline", "a/b")
+    other_page = sqlite_store.get_process_events("pipeline", "a:b")
+
+    assert result["persistence_backend"] == "journal"
+    assert [event.event_id for event in page["events"]] == ["event-1"]
+    assert [event.event_id for event in other_page["events"]] == ["event-2"]
+    assert sqlite_store._process_event_journal_dir("pipeline", "a/b") != sqlite_store._process_event_journal_dir("pipeline", "a:b")
+
+
+def test_process_event_contract_freezes_sanitizer_and_fingerprint() -> None:
+    from fitcv_cp.models import build_process_event
+
+    left = build_process_event(
+        process_type="pipeline",
+        process_id="run-1",
+        operation="enrich",
+        state="started",
+        level="info",
+        message="x" * 600,
+        payload={"z": 1, "password_value": "secret", "a": [1] * 25},
+        event_id="event-stable",
+    )
+    right = build_process_event(
+        process_type="pipeline",
+        process_id="run-1",
+        operation="enrich",
+        state="started",
+        level="info",
+        message="x" * 600,
+        payload={"a": [1] * 25, "password_value": "different", "z": 1},
+        event_id="event-stable",
+        recorded_at=left.recorded_at,
+    )
+
+    assert left.payload_json == right.payload_json
+    assert left.event_fingerprint == right.event_fingerprint
+    assert len(left.message) == 514
+    assert json.loads(left.payload_json or "{}") ["password_value"] == "[REDACTED]"
+
+
+def test_candidate_attempt_process_event_is_atomic(monkeypatch: pytest.MonkeyPatch) -> None:
+    training = _training_row()
+    snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
+
+    persisted = sqlite_store.persist_candidate_attempt(training, snapshot)
+    page = sqlite_store.get_process_events("optimization", "ranking_v1")
+
+    assert persisted["snapshot"] is not None
+    assert [(event.operation, event.state) for event in page["events"]] == [("candidate_create", "succeeded")]
+
+    failing_training = _training_row()
+    failing_training["event_watermark"] = 3
+    failing_training.pop("training_run_id")
+    failing_training["training_run_id"] = build_training_run_identity(failing_training)
+    failing_snapshot = _snapshot_row(str(failing_training["training_run_id"]), vector=[0.2, -0.2], suffix="-atomic")
+    original_insert = sqlite_store._insert_process_event
+    monkeypatch.setattr(
+        sqlite_store,
+        "_insert_process_event",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("event failed")),
+    )
+    with pytest.raises(RuntimeError, match="event failed"):
+        sqlite_store.persist_candidate_attempt(failing_training, failing_snapshot)
+    monkeypatch.setattr(sqlite_store, "_insert_process_event", original_insert)
+
+    lifecycle = sqlite_store.inspect_ranking_policy_lifecycle("ranking_v1")
+    assert len(lifecycle["training_runs"]) == 1
+    assert len(lifecycle["snapshots"]) == 1

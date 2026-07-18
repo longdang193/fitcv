@@ -31,6 +31,32 @@ def _force_sqlite_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     yield
     set_backend_runtime(None)
 
+def test_worker_entrypoints_retry_pending_process_event_deliveries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv_cp import reporter, worker_job
+
+    calls: list[int] = []
+    monkeypatch.setattr(worker_job, "load_dotenv_defaults", lambda: None)
+    monkeypatch.setattr(
+        reporter,
+        "retry_pending_process_event_deliveries",
+        lambda *, limit: calls.append(limit) or 0,
+    )
+    monkeypatch.setattr(
+        worker_job,
+        "resolve_backend_runtime",
+        lambda: (_ for _ in ()).throw(RuntimeError("stop-after-retry")),
+    )
+
+    with pytest.raises(RuntimeError, match="stop-after-retry"):
+        worker_job.execute_pipeline_run("r1", "jobs.json", ".env.yaml")
+    with pytest.raises(RuntimeError, match="stop-after-retry"):
+        worker_job.execute_cv_regenerate_once(run_id="r1", job_url="https://example.com/job")
+
+    assert calls == [20, 20]
+
+
 def test_execute_cv_regenerate_once_updates_target_record_and_emits_success() -> None:
     from fitcv_cp.worker_job import execute_cv_regenerate_once
 
@@ -677,7 +703,7 @@ def test_worker_reporter_event_includes_telemetry_degraded_payload() -> None:
     telemetry_export = dict(payload.get("telemetry_export") or {})
     assert telemetry_export.get("status") in {"degraded", "disabled"}
 
-def test_worker_reporter_event_includes_langfuse_rich_contract_disabled_by_default() -> None:
+def test_worker_reporter_event_keeps_mirror_state_out_of_canonical_payload() -> None:
     client = MagicMock()
     client.insert_rows_json.return_value = []
     client.query.return_value.result.return_value = iter([])
@@ -714,7 +740,7 @@ def test_worker_reporter_event_includes_langfuse_rich_contract_disabled_by_defau
     rich = dict(payload.get("langfuse_rich_io") or {})
     native = dict(payload.get("langfuse_rich_io_native") or {})
     assert rich.get("status") == "disabled"
-    assert native.get("status") == "disabled"
+    assert native == {}
 
 def test_worker_persists_cv_generation_debug_json_on_success():
     client = MagicMock()
