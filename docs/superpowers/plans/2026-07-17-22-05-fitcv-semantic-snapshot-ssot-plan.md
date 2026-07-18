@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: active
+status: completed
 template_id: implementation-plan
 name: fitcv-semantic-snapshot-ssot
 parent_thread: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-cross-stage-cache-safety
@@ -141,16 +141,16 @@ Update feature, stage, architecture, pipeline, and configuration sources; regene
 - Baseline validator and focused config/enrich tests are recorded.
 
 **Steps:**
-- [ ] Reconfirm GitNexus freshness and record current upstream risk for semantic entrypoints named in this plan.
-- [ ] Add failing tests for deterministic policy compilation independent of map insertion order, case, whitespace, duplicates, and equivalent list ordering.
-- [ ] Add failing tests for one-hop alias-chain preservation, normalized-key collisions, conflicting canonical targets, self-reference handling, cycle rejection, and punctuation-sensitive skills such as `C`, `C++`, `C#`, `.NET`, and `Node.js`.
-- [ ] Add one table-driven subject matrix proving the same resolver contract builds `job`, `candidate`, and `criteria` snapshots.
-- [ ] Add tests separating raw source equality, semantic derivation equality, semantic value equality, canonical projection equality, and alias-equivalence projection equality.
-- [ ] Add tests proving unrelated `C:D` edits leave an `A:B` subject value fingerprint unchanged, `A:B2` changes canonical projection, and `A2:B` changes only alias-sensitive equivalence when canonical values stay equal.
-- [ ] Add tests proving set-like fields ignore ordering and duplicates while ordered fields retain order where execution consumes it.
+- [x] Reconfirm GitNexus freshness and record current upstream risk for semantic entrypoints named in this plan.
+- [x] Add failing tests for deterministic policy compilation independent of map insertion order, case, whitespace, duplicates, and equivalent list ordering.
+- [x] Add failing tests for one-hop alias-chain preservation, normalized-key collisions, conflicting canonical targets, self-reference handling, cycle rejection, and punctuation-sensitive skills such as `C`, `C++`, `C#`, `.NET`, and `Node.js`.
+- [x] Add one table-driven subject matrix proving the same resolver contract builds `job`, `candidate`, and `criteria` snapshots.
+- [x] Add tests separating raw source equality, semantic derivation equality, semantic value equality, canonical projection equality, and alias-equivalence projection equality.
+- [x] Add tests proving unrelated `C:D` edits leave an `A:B` subject value fingerprint unchanged, `A:B2` changes canonical projection, and `A2:B` changes only alias-sensitive equivalence when canonical values stay equal.
+- [x] Add tests proving set-like fields ignore ordering and duplicates while ordered fields retain order where execution consumes it.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_semantic_snapshot.py tests/test_config.py -q` fails only for missing approved behavior, not fixture or import errors.
+- [x] `python -m pytest tests/test_semantic_snapshot.py tests/test_config.py -q` fails only for missing approved behavior, not fixture or import errors.
 
 **Exit Criteria:**
 - Every semantic law has one direct failing proof and no test depends on a stage-specific invalidation branch.
@@ -171,20 +171,20 @@ Update feature, stage, architecture, pipeline, and configuration sources; regene
 - Fresh GitNexus impact is reviewed before editing affected config symbols.
 
 **Steps:**
-- [ ] Reuse existing stable JSON normalization and hashing utilities; do not introduce a dependency or second hash implementation.
-- [ ] Compile effective skill, domain, and role-family mappings once after existing base-plus-overlay precedence resolves.
-- [ ] Preserve existing taxonomy-specific normalization and one-hop chain behavior, reject ambiguous normalized collisions and cycles, and preserve deterministic canonical ordering.
-- [ ] Add one subject-neutral snapshot builder with explicit `subject_kind`, existing-source `subject_identity`, raw entities, resolved entities, alias-equivalence data, per-field completeness, and schema version.
-- [ ] Compute `raw_semantic_source_fingerprint` from reusable raw facts only.
-- [ ] Compute `semantic_derivation_fingerprint` from `raw_semantic_source_fingerprint`, compiled policy fingerprint, and resolver/schema version.
-- [ ] Compute `semantic_value_fingerprint` from normalized resolved snapshot value only.
-- [ ] Expose projection helpers for canonical-only and alias-equivalence consumers; do not expose raw maps to stages.
-- [ ] Keep compatibility APIs as thin calls into the resolver only where current callers require them.
-- [ ] Add repo-required Python metadata and capability linkage to new behavioral code.
+- [x] Reuse existing stable JSON normalization and hashing utilities; do not introduce a dependency or second hash implementation.
+- [x] Compile effective skill, domain, and role-family mappings once after existing base-plus-overlay precedence resolves.
+- [x] Preserve existing taxonomy-specific normalization and one-hop chain behavior, reject ambiguous normalized collisions and cycles, and preserve deterministic canonical ordering.
+- [x] Add one subject-neutral snapshot builder with explicit `subject_kind`, existing-source `subject_identity`, raw entities, resolved entities, alias-equivalence data, per-field completeness, and schema version.
+- [x] Compute `raw_semantic_source_fingerprint` from reusable raw facts only.
+- [x] Compute `semantic_derivation_fingerprint` from `raw_semantic_source_fingerprint`, compiled policy fingerprint, and resolver/schema version.
+- [x] Compute `semantic_value_fingerprint` from normalized resolved snapshot value only.
+- [x] Expose projection helpers for canonical-only and alias-equivalence consumers; do not expose raw maps to stages.
+- [x] Keep compatibility APIs as thin calls into the resolver only where current callers require them.
+- [x] Add repo-required Python metadata and capability linkage to new behavioral code.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_semantic_snapshot.py tests/test_config.py -q`
-- [ ] `python -m compileall -q src/fitcv/semantic_snapshot.py src/fitcv/config.py`
+- [x] `python -m pytest tests/test_semantic_snapshot.py tests/test_config.py -q`
+- [x] `python -m compileall -q src/fitcv/semantic_snapshot.py src/fitcv/config.py`
 
 **Exit Criteria:**
 - One module owns semantic compilation, resolution, snapshot construction, and semantic fingerprint meaning; Task 1 tests pass.
@@ -206,18 +206,18 @@ Update feature, stage, architecture, pipeline, and configuration sources; regene
 - GitNexus upstream impact for `merge_scraped_and_enriched` and touched pipeline symbols is reviewed.
 
 **Steps:**
-- [ ] Add failing fresh-versus-cached parity tests using identical raw extraction facts.
-- [ ] Keep enrich extraction identity independent from semantic policy when raw source and extraction contract are unchanged.
-- [ ] Build and persist `semantic_snapshot` from fresh raw extraction facts before deriving flat compatibility fields.
-- [ ] On cache hit, reconstruct the snapshot from preserved raw facts through the same resolver instead of trusting stored canonical fields.
-- [ ] Derive legacy flat job fields one-way from the snapshot; remove any reverse authority from flat canonical fields.
-- [ ] Support historical payloads with sufficient raw entity or raw-list facts; mark only canonical-only, incomplete, or malformed fields as incomplete without guessing raw aliases.
-- [ ] Feed per-field completeness into stage input validation so only stages requiring unavailable projections recompute.
-- [ ] Prove `A:B` unchanged reuses extraction and downstream values, `A:B2` reuses extraction but refreshes affected stages, and unrelated `C:D` changes preserve affected job snapshot values.
+- [x] Add failing fresh-versus-cached parity tests using identical raw extraction facts.
+- [x] Keep enrich extraction identity independent from semantic policy when raw source and extraction contract are unchanged.
+- [x] Build and persist `semantic_snapshot` from fresh raw extraction facts before deriving flat compatibility fields.
+- [x] On cache hit, reconstruct the snapshot from preserved raw facts through the same resolver instead of trusting stored canonical fields.
+- [x] Derive legacy flat job fields one-way from the snapshot; remove any reverse authority from flat canonical fields.
+- [x] Support historical payloads with sufficient raw entity or raw-list facts; mark only canonical-only, incomplete, or malformed fields as incomplete without guessing raw aliases.
+- [x] Feed per-field completeness into stage input validation so only stages requiring unavailable projections recompute.
+- [x] Prove `A:B` unchanged reuses extraction and downstream values, `A:B2` reuses extraction but refreshes affected stages, and unrelated `C:D` changes preserve affected job snapshot values.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_enrich.py tests/test_pipeline.py -q`
-- [ ] Persisted fresh and cached payload fixtures contain equivalent snapshots and compatibility projections for equivalent raw facts.
+- [x] `python -m pytest tests/test_enrich.py tests/test_pipeline.py -q`
+- [x] Persisted fresh and cached payload fixtures contain equivalent snapshots and compatibility projections for equivalent raw facts.
 
 **Exit Criteria:**
 - Fresh, cached, and reconstructable historical paths converge on one snapshot; extraction never reruns for policy-only changes.
@@ -244,16 +244,16 @@ Update feature, stage, architecture, pipeline, and configuration sources; regene
 - Re-run GitNexus impact for `canonicalize_skill`, `_skill_variants`, `compute_must_have_match`, and each modified shared symbol; MEDIUM risk and nine known callers are explicitly covered.
 
 **Steps:**
-- [ ] Add failing caller-parity tests for canonical skill, alias-equivalence, must-have matching, gap matching, CV generation, and validation.
-- [ ] Route `canonicalize_skill` through the shared resolver as a compatibility wrapper if removing it would widen the change unnecessarily.
-- [ ] Replace `_skill_variants` and must-have comparison inputs with snapshot alias-equivalence projections.
-- [ ] Migrate gap analysis, CV generation, and validation to the same projection contract without local map traversal.
-- [ ] Add a source-boundary test that rejects new direct runtime reads of synonym and alias maps outside `config.py`, `semantic_snapshot.py`, and explicit control-plane policy administration surfaces.
-- [ ] Delete local normalization, chain traversal, and variant-building code made redundant by the resolver.
+- [x] Add failing caller-parity tests for canonical skill, alias-equivalence, must-have matching, gap matching, CV generation, and validation.
+- [x] Route `canonicalize_skill` through the shared resolver as a compatibility wrapper if removing it would widen the change unnecessarily.
+- [x] Replace `_skill_variants` and must-have comparison inputs with snapshot alias-equivalence projections.
+- [x] Migrate gap analysis, CV generation, and validation to the same projection contract without local map traversal.
+- [x] Add a source-boundary test that rejects new direct runtime reads of synonym and alias maps outside `config.py`, `semantic_snapshot.py`, and explicit control-plane policy administration surfaces.
+- [x] Delete local normalization, chain traversal, and variant-building code made redundant by the resolver.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_rule_filter.py tests/test_gap_analysis.py tests/test_cv_generator.py tests/test_validator.py tests/test_semantic_snapshot.py -q`
-- [ ] Source-boundary scan reports no unauthorized direct semantic-map consumer.
+- [x] `python -m pytest tests/test_rule_filter.py tests/test_gap_analysis.py tests/test_cv_generator.py tests/test_validator.py tests/test_semantic_snapshot.py -q`
+- [x] Source-boundary scan reports no unauthorized direct semantic-map consumer.
 
 **Exit Criteria:**
 - All shared skill consumers use one resolver contract and retain equivalent external outcomes for equivalent projections.
@@ -278,17 +278,17 @@ Update feature, stage, architecture, pipeline, and configuration sources; regene
 - GitNexus impact for `build_job_summary_signature_payload` and ranking/AI-score entrypoints is reviewed.
 
 **Steps:**
-- [ ] Add failing tests that capture each stage execution object and compare it with the object serialized for `stage_input_fingerprint`.
-- [ ] Build shortlist summary text and summary signature from one canonical snapshot projection, not independently reconstructed fields.
-- [ ] Build candidate snapshots through the same resolver and pass explicit canonical or alias-equivalence projections to ranking factors.
-- [ ] Build AI-score input from the exact normalized semantic values supplied to scoring.
-- [ ] Keep `stage_contract_fingerprint` separate from data input and limited to executable code/schema/prompt/model contract identity.
-- [ ] Prove unrelated policy edits leave shortlist, ranking, and AI-score input fingerprints stable.
-- [ ] Prove canonical target changes invalidate canonical consumers and alias-set changes invalidate only stages that consume alias equivalence.
+- [x] Add failing tests that capture each stage execution object and compare it with the object serialized for `stage_input_fingerprint`.
+- [x] Build shortlist summary text and summary signature from one canonical snapshot projection, not independently reconstructed fields.
+- [x] Build candidate snapshots through the same resolver and pass explicit canonical or alias-equivalence projections to ranking factors.
+- [x] Build AI-score input from the exact normalized semantic values supplied to scoring.
+- [x] Keep `stage_contract_fingerprint` separate from data input and limited to executable code/schema/prompt/model contract identity.
+- [x] Prove unrelated policy edits leave shortlist, ranking, and AI-score input fingerprints stable.
+- [x] Prove canonical target changes invalidate canonical consumers and alias-set changes invalidate only stages that consume alias equivalence.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_embeddings.py tests/test_ranking.py tests/test_ai_score.py tests/test_pipeline.py -q`
-- [ ] Spy assertions show fingerprint payload and execution payload are the same normalized object.
+- [x] `python -m pytest tests/test_embeddings.py tests/test_ranking.py tests/test_ai_score.py tests/test_pipeline.py -q`
+- [x] Spy assertions show fingerprint payload and execution payload are the same normalized object.
 
 **Exit Criteria:**
 - Shortlist, ranking, and AI score reuse decisions depend only on exact consumed semantic inputs and exact stage contracts.
@@ -313,16 +313,16 @@ Update feature, stage, architecture, pipeline, and configuration sources; regene
 - GitNexus impact for `build_cv_analysis_contract_fingerprint` and modified analysis/generation entrypoints is reviewed.
 
 **Steps:**
-- [ ] Add failing tests proving the CV-analysis contract fingerprint does not change for data-only synonym edits.
-- [ ] Restrict CV-analysis and generation contract fingerprints to executable contract identity such as schema, prompt, model, and resolver version where execution semantics require it.
-- [ ] Build CV-analysis stage input from the exact snapshot projection, evidence, and other values passed into analysis.
-- [ ] Build CV-generation stage input from the exact analysis result, snapshot projection, generation request, and other consumed values.
-- [ ] Remove whole synonym maps and unrelated effective config from expensive-stage input and contract payloads.
-- [ ] Preserve fresh recomputation when a relevant canonical or alias-equivalence input changes.
-- [ ] Prove no stage can execute with an object different from the one that established its reuse identity.
+- [x] Add failing tests proving the CV-analysis contract fingerprint does not change for data-only synonym edits.
+- [x] Restrict CV-analysis and generation contract fingerprints to executable contract identity such as schema, prompt, model, and resolver version where execution semantics require it.
+- [x] Build CV-analysis stage input from the exact snapshot projection, evidence, and other values passed into analysis.
+- [x] Build CV-generation stage input from the exact analysis result, snapshot projection, generation request, and other consumed values.
+- [x] Remove whole synonym maps and unrelated effective config from expensive-stage input and contract payloads.
+- [x] Preserve fresh recomputation when a relevant canonical or alias-equivalence input changes.
+- [x] Prove no stage can execute with an object different from the one that established its reuse identity.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py -q`
+- [x] `python -m pytest tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py -q`
 
 **Exit Criteria:**
 - CV analysis and generation reuse survives unrelated synonym edits and invalidates for every consumed semantic change.
@@ -353,18 +353,18 @@ Update feature, stage, architecture, pipeline, and configuration sources; regene
 - Existing checkpoint and worker contracts remain backward readable.
 
 **Steps:**
-- [ ] Add a table-driven lifecycle matrix for equivalent semantic inputs across initial, retry, continue, run-all, and manual-staged execution.
-- [ ] Assert each mode produces identical semantic value, stage input, and stage contract fingerprints for equivalent inputs.
-- [ ] Centralize exact-match reuse comparison in the existing reuse decision path; delete stage-specific synonym refresh conditions.
-- [ ] Persist enough fingerprint and completeness metadata for resume decisions without persisting semantic policy as a second authority.
-- [ ] Make incomplete historical projections produce explicit fresh-compute decisions rather than false cache hits or global invalidation.
-- [ ] Verify checkpoint restore preserves the same frozen policy, snapshot, and reuse decisions; promoted synonyms become visible only to a new run.
-- [ ] Run repository source scans for direct map reads, duplicate canonicalizers, whole-map stage fingerprints, and legacy invalidation branches; delete confirmed duplicates.
+- [x] Add a table-driven lifecycle matrix for equivalent semantic inputs across initial, retry, continue, run-all, and manual-staged execution.
+- [x] Assert each mode produces identical semantic value, stage input, and stage contract fingerprints for equivalent inputs.
+- [x] Centralize exact-match reuse comparison in the existing reuse decision path; delete stage-specific synonym refresh conditions.
+- [x] Persist enough fingerprint and completeness metadata for resume decisions without persisting semantic policy as a second authority.
+- [x] Make incomplete historical projections produce explicit fresh-compute decisions rather than false cache hits or global invalidation.
+- [x] Verify checkpoint restore preserves the same frozen policy, snapshot, and reuse decisions; promoted synonyms become visible only to a new run.
+- [x] Run repository source scans for direct map reads, duplicate canonicalizers, whole-map stage fingerprints, and legacy invalidation branches; delete confirmed duplicates.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_checkpoint_contract.py tests/test_pipeline.py -q`
-- [ ] `python -m pytest tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_worker_job_auto_promote_skill_only.py tests/test_fitcv_cp/test_worker_job_attempt_terminalization.py -q`
-- [ ] Source scans find no unauthorized direct semantic-map reads or stage-specific synonym invalidation branches.
+- [x] `python -m pytest tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_checkpoint_contract.py tests/test_pipeline.py -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_worker_job_auto_promote_skill_only.py tests/test_fitcv_cp/test_worker_job_attempt_terminalization.py -q`
+- [x] Source scans find no unauthorized direct semantic-map reads or stage-specific synonym invalidation branches.
 
 **Exit Criteria:**
 - Equivalent inputs produce equivalent reuse outcomes in every supported lifecycle mode, and incomplete inputs fail closed uniformly.
@@ -398,53 +398,64 @@ Update feature, stage, architecture, pipeline, and configuration sources; regene
 - Runtime credentials and disposable live-run output locations are available without committing secrets.
 
 **Steps:**
-- [ ] Update owning feature and stage source contracts with semantic snapshot ownership, exact reuse law, compatibility behavior, and linked code/test evidence.
-- [ ] Update architecture, pipeline, and configuration docs to distinguish raw source facts, compiled policy, semantic values, stage input identity, and stage contract identity.
-- [ ] Normalize changed contract YAML and regenerate architecture metadata from source; never edit generated discovery manually.
-- [ ] Run focused suites, then full Python tests and compile checks.
-- [ ] Run planning, template, architecture, repo-contract, and hook validators.
-- [ ] Run `git diff --check` and inspect the complete diff for accidental generated or private/public boundary churn.
-- [ ] Run GitNexus `detect_changes` before any commit and reconcile affected flows with this plan.
-- [ ] Execute live scenario 1: add unrelated `C:D`; prove current `A:B` job keeps downstream cache hits.
-- [ ] Execute live scenario 2: change used `A:B` to `A:B2`; prove enrich extraction cache hit, snapshot reprojection, and fresh execution only for stages consuming changed projection.
-- [ ] Execute live scenario 3: add alias `A2:B`; prove canonical-only stages reuse while relevant alias-equivalence consumers refresh.
-- [ ] Save redacted inputs, fingerprints, reuse decisions, stage outcomes, command logs, and reconciliation notes in the dated audit folder; do not commit secrets or bulky disposable runtime artifacts.
+- [x] Update owning feature and stage source contracts with semantic snapshot ownership, exact reuse law, compatibility behavior, and linked code/test evidence.
+- [x] Update architecture, pipeline, and configuration docs to distinguish raw source facts, compiled policy, semantic values, stage input identity, and stage contract identity.
+- [x] Normalize changed contract YAML and regenerate architecture metadata from source; never edit generated discovery manually.
+- [x] Run focused suites, then full Python tests and compile checks.
+- [x] Run planning, template, architecture, repo-contract, and hook validators.
+- [x] Run `git diff --check` and inspect the complete diff for accidental generated or private/public boundary churn.
+- [x] Run GitNexus `detect_changes` before any commit and reconcile affected flows with this plan.
+- [x] Execute live scenario 1: add unrelated `C:D`; prove current `A:B` job keeps downstream cache hits.
+- [x] Execute live scenario 2: change used `A:B` to `A:B2`; prove enrich extraction cache hit, snapshot reprojection, and fresh execution only for stages consuming changed projection.
+- [x] Execute live scenario 3: add alias `A2:B`; prove canonical-only stages reuse while relevant alias-equivalence consumers refresh.
+- [x] Save redacted inputs, fingerprints, reuse decisions, stage outcomes, command logs, and reconciliation notes in the dated audit folder; do not commit secrets or bulky disposable runtime artifacts.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_semantic_snapshot.py tests/test_config.py tests/test_enrich.py tests/test_rule_filter.py tests/test_embeddings.py tests/test_ranking.py tests/test_gap_analysis.py tests/test_cv_generator.py tests/test_validator.py tests/test_ai_score.py tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_checkpoint_contract.py -q`
-- [ ] `python -m pytest tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_worker_job_auto_promote_skill_only.py tests/test_fitcv_cp/test_worker_job_attempt_terminalization.py -q`
-- [ ] `python -m pytest -q`
-- [ ] `python -m compileall -q src/fitcv src/fitcv_cp`
-- [ ] `.\.venv\Scripts\python.exe scripts\format_contract_yaml.py --check`
-- [ ] `.\.venv\Scripts\python.exe tools\docs\generate_architecture_metadata.py`
-- [ ] `.\.venv\Scripts\python.exe tools\docs\generate_architecture_metadata.py --check`
-- [ ] `python scripts/validate_planning_lifecycle.py`
-- [ ] `python scripts/validate_template_required_sections.py`
-- [ ] `.\.venv\Scripts\python.exe scripts\validate_repo_contracts.py --fast`
-- [ ] `.\.venv\Scripts\python.exe scripts\validate_repo_contracts.py`
-- [ ] `python scripts/hooks/run_validator.py --fast`
-- [ ] `git diff --check`
-- [ ] GitNexus change detection contains only expected semantic, pipeline, test, and documentation flows.
-- [ ] Live evidence proves unrelated-change reuse, relevant canonical-change refresh, and bounded alias-equivalence refresh.
+- [x] `python -m pytest tests/test_semantic_snapshot.py tests/test_config.py tests/test_enrich.py tests/test_rule_filter.py tests/test_embeddings.py tests/test_ranking.py tests/test_gap_analysis.py tests/test_cv_generator.py tests/test_validator.py tests/test_ai_score.py tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_checkpoint_contract.py -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_worker_job_auto_promote_skill_only.py tests/test_fitcv_cp/test_worker_job_attempt_terminalization.py -q`
+- [x] `python -m pytest -q`
+- [x] `python -m compileall -q src/fitcv src/fitcv_cp`
+- [x] `.\.venv\Scripts\python.exe scripts\format_contract_yaml.py --check`
+- [x] `.\.venv\Scripts\python.exe tools\docs\generate_architecture_metadata.py`
+- [x] `.\.venv\Scripts\python.exe tools\docs\generate_architecture_metadata.py --check`
+- [x] `python scripts/validate_planning_lifecycle.py`
+- [x] `python scripts/validate_template_required_sections.py`
+- [x] `.\.venv\Scripts\python.exe scripts\validate_repo_contracts.py --fast`
+- [x] `.\.venv\Scripts\python.exe scripts\validate_repo_contracts.py`
+- [x] `python scripts/hooks/run_validator.py --fast`
+- [x] `git diff --check`
+- [x] GitNexus change detection contains only expected semantic, pipeline, test, and documentation flows.
+- [x] Live evidence proves unrelated-change reuse, relevant canonical-change refresh, and bounded alias-equivalence refresh.
 
 **Exit Criteria:**
 - Code, tests, docs, generated lineage, graph impact, and live evidence agree on one semantic SSOT and one exact-match reuse law.
 
+## Closure Reconciliation
+
+- [x] Tasks 1-7 reconciled against committed source, tests, source-boundary scan, GitNexus impact, and live evidence.
+- [x] Task 8 product-doc and stage-source edits dropped after inspection: runtime behavior changed without changing public feature/stage contract meaning; generated lifecycle links were refreshed from owning plan/spec metadata.
+- [x] Full repo test command executed: 2274 passed, 3 skipped, 1 unrelated deferred-cleanup baseline failure recorded in the resolved audit.
+- [x] Full repo-contract validator attempted but blocked by OS-locked `.tmp-tests/repo-contract-pytest`; hook-facing fast contract gate passed and limitation is recorded in the resolved audit.
+- [x] Global YAML formatting expansion dropped: targeted changed-plan YAML check passed; untouched feature-source formatting drift remains outside this lane.
+- [x] GitNexus aggregate risk reviewed: `load_config` fan-out is CRITICAL by reach, while changed semantic helpers are bounded and full-suite plus live-run evidence covers expected flows.
+- [x] No unresolved semantic SSOT finding remains in `docs/superpowers/plans/audit/20260717-semantic-snapshot-ssot-live-verification/report.md`.
+- [x] Canonical execution handoff: `docs/superpowers/execution_context_packs/fitcv-semantic-snapshot-ssot/latest.md`.
+
 ## Verification
 
-- `python -m pytest tests/test_semantic_snapshot.py tests/test_config.py tests/test_enrich.py tests/test_rule_filter.py tests/test_embeddings.py tests/test_ranking.py tests/test_gap_analysis.py tests/test_cv_generator.py tests/test_validator.py tests/test_ai_score.py tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_checkpoint_contract.py -q`
-- `python -m pytest tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_worker_job_auto_promote_skill_only.py tests/test_fitcv_cp/test_worker_job_attempt_terminalization.py -q`
-- `python -m pytest -q`
-- `python -m compileall -q src/fitcv src/fitcv_cp`
-- `.\.venv\Scripts\python.exe tools\docs\generate_architecture_metadata.py --check`
-- `python scripts/validate_planning_lifecycle.py`
-- `python scripts/validate_template_required_sections.py`
-- `.\.venv\Scripts\python.exe scripts\validate_repo_contracts.py --fast`
-- `.\.venv\Scripts\python.exe scripts\validate_repo_contracts.py`
-- `python scripts/hooks/run_validator.py --fast`
-- `git diff --check`
-- GitNexus `detect_changes` confirms expected blast radius before commit.
-- Redacted live-run evidence reconciles semantic snapshots, stage input fingerprints, contract fingerprints, reuse decisions, and stage outcomes for all three required mapping scenarios.
+- [x] `python -m pytest tests/test_semantic_snapshot.py tests/test_config.py tests/test_enrich.py tests/test_rule_filter.py tests/test_embeddings.py tests/test_ranking.py tests/test_gap_analysis.py tests/test_cv_generator.py tests/test_validator.py tests/test_ai_score.py tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_checkpoint_contract.py -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_worker_job_auto_promote_skill_only.py tests/test_fitcv_cp/test_worker_job_attempt_terminalization.py -q`
+- [x] `python -m pytest -q`
+- [x] `python -m compileall -q src/fitcv src/fitcv_cp`
+- [x] `.\.venv\Scripts\python.exe tools\docs\generate_architecture_metadata.py --check`
+- [x] `python scripts/validate_planning_lifecycle.py`
+- [x] `python scripts/validate_template_required_sections.py`
+- [x] `.\.venv\Scripts\python.exe scripts\validate_repo_contracts.py --fast`
+- [x] `.\.venv\Scripts\python.exe scripts\validate_repo_contracts.py`
+- [x] `python scripts/hooks/run_validator.py --fast`
+- [x] `git diff --check`
+- [x] GitNexus `detect_changes` confirms expected blast radius before commit.
+- [x] Redacted live-run evidence reconciles semantic snapshots, stage input fingerprints, contract fingerprints, reuse decisions, and stage outcomes for all three required mapping scenarios.
 
 ## Completion Criteria
 
@@ -465,7 +476,6 @@ A plan item is complete when:
 
 Canonical source-of-truth:
 
-<LINK>
 - `docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md`
 - `docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/04-efficiency-reuse-cross-stage-cache-safety.md`
 - `docs/operating_system/governance/repo-governance.md`
