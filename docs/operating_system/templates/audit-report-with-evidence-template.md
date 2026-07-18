@@ -1,113 +1,49 @@
 ---
 template_id: audit-report-with-evidence
-document_type: template
 target_globs:
-- docs/superpowers/plans/audit/*/report.md
+- docs/superpowers/plans/audit/????-??-??-??-??-*/report.md
 required_sections:
-- Metadata
-- Scope
-- Findings
-- Evidence
-- Reproduction
-- Root Cause And Boundary
-- Fix And Verification
-- Risk And Disposition
-- Artifact Index
-- Completion Checklist
+- Current situation
+- Core problem
+- Evidence and reproduction
+- Root cause and boundary
+- Resolution and verification
+- Risk and next steps
+- Assumptions and unresolved questions
 distribution_tier: starter_kit
 ---
-
 # Audit Report With Evidence Template
 
-## Metadata
+Use only for qualifying or explicitly requested failures requiring formal evidence. Do not use for ordinary debugging or design exploration. Save as `docs/superpowers/plans/audit/<audit_id>/report.md`. Add `evidence/` or `repro/` files only when they contain real artifacts needed by report.
 
-- Audit ID: `<YYYYMMDD-HHMM-<topic>>`
-- Status: `open | mitigated | resolved | accepted-risk`
-- Severity: `low | medium | high | critical`
-- Owner: `<name>`
-- Created At: `<ISO-8601>`
-- Updated At: `<ISO-8601>`
-- Related Thread/Plan: `<path or none>`
+## 1. Current situation
 
-## Scope
+State affected environment and surface, relevant branch or commit, incident status, and important constraints.
 
-- Environment: `<os/runtime/versions>`
-- Commit/Branch: `<commit sha + branch>`
-- Affected Surface: `<modules/stages/components>`
+## 2. Core problem
 
-## Findings
+State expected behavior, actual behavior, impact, severity, and affected users, data, or systems. Group related symptoms under one incident-level problem.
 
-### Finding `<ID>`: `<short title>`
+## 3. Evidence and reproduction
 
-- Classification: `regression | flaky | environment | spec-mismatch | security | data-quality | other`
-- Impact: `<who/what affected>`
-- Expected Behavior: `<expected>`
-- Actual Behavior: `<actual>`
+Provide exact reproduction steps, commands, inputs, seeds, or configuration. Link logs, screenshots, traces, result files, or reproduction assets only when they exist.
 
-## Evidence
+Keep reproduction commands in report unless separate files are materially easier to run or preserve. Redact secrets before saving evidence.
 
-For each finding, include links to raw artifacts:
+## 4. Root cause and boundary
 
-- Screenshot/Image: `evidence/images/<file>`
-- Result JSON: `evidence/results/<file>.json`
-- Logs/Text: `evidence/results/<file>.log`
-- Trace/Telemetry export: `evidence/results/<file>`
+State confirmed failure boundary, evidence-supported root cause, and affected invariant or contract. If root cause remains unknown, say so; do not present hypothesis as fact.
 
-Each evidence item should include:
+## 5. Resolution and verification
 
-- capture timestamp
-- producing command/tool
-- checksum (sha256) from `manifest.yaml`
+If resolved, state smallest applied fix, verification commands, resulting evidence, and preserved behavior.
 
-## Reproduction
+If unresolved, state current mitigation, evidence still needed, and blocking condition. Do not include full implementation plan.
 
-- Preconditions:
-  - `<required env/config>`
-- Steps:
-  1. `<step>`
-  2. `<step>`
-- Commands:
+## 6. Risk and next steps
 
-```powershell
-# exact reproducible commands
-```
+State residual risk, current disposition, immediate remediation or planning action, and whether separate brainstorming, specification, or plan is needed.
 
-- Determinism notes: `<seed/input dataset/options>`
+## 7. Assumptions and unresolved questions
 
-## Root Cause And Boundary
-
-- Failure boundary: `<stage/component/contract>`
-- Root cause summary: `<concise technical cause>`
-
-## Fix And Verification
-
-- Fix summary: `<bounded fix>`
-- Verification commands:
-
-```powershell
-# exact verification commands
-```
-
-- Verification evidence links:
-  - `<path>`
-
-## Risk And Disposition
-
-- Residual risk: `<none/describe>`
-- Disposition decision: `<resolved | mitigated | accepted-risk>`
-- Follow-ups: `<tests/specs/scenarios/docs>`
-
-## Artifact Index
-
-- Manifest: `manifest.yaml`
-- Evidence root: `evidence/`
-- Repro root: `repro/`
-
-## Completion Checklist
-
-- [ ] qualifying trigger documented (or explicit bypass)
-- [ ] evidence bundle linked and hashed
-- [ ] deterministic repro steps included
-- [ ] expected vs actual included
-- [ ] verification evidence attached
-- [ ] final status recorded
+List only assumptions or questions that could change root-cause confidence, risk, disposition, or next action.

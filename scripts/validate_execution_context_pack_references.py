@@ -3,7 +3,6 @@
 name: validate_execution_context_pack_references
 type: script
 domain: docs
-distribution_tier: starter_kit
 responsibility:
   - Validate canonical execution context-pack policy references across execution surfaces.
 inputs:

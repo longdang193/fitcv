@@ -3,7 +3,6 @@
 name: run_validator
 type: script
 domain: validation
-distribution_tier: starter_kit
 responsibility:
   - Run repo-contract validation from stable repo-root hook entrypoint.
 inputs:

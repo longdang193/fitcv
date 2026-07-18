@@ -1,28 +1,25 @@
 # Precedence
 
-Runtime precedence is provider-native first. Canonical repo sources are compiled into the
-runtime surfaces each provider actually loads.
+Runtime precedence is provider-native first. Canonical repo sources generate the runtime surfaces each provider loads.
 
 ## Rule Order
 
 1. emergency deny/block rules
 2. root runtime instructions (`AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`)
-3. provider-native skills, including generated workflow-skills
-4. provider-native rules files when the provider supports direct rule loading
-5. canonical shared rules and workflow documents as source material
+3. provider-native skills when deployed
+4. provider-native rule files when directly supported
+5. canonical shared rules as source material
 6. personal preferences
 
 ## Provider Notes
 
-- Codex: `AGENTS.md` is authoritative; `rules/` mirrors are not a behavioral dependency
-  unless the runtime explicitly supports them.
-- Claude: `CLAUDE.md`, `rules/`, and `skills/` are provider-native runtime surfaces.
-- Antigravity/Gemini: `GEMINI.md` and `antigravity/skills/*/SKILL.md` are the
-  primary runtime surfaces; `rules/` mirrors are informational unless verified.
+- Codex: `AGENTS.md` is authoritative; generated rule mirrors are not behavioral dependencies unless runtime support is verified.
+- Claude: `CLAUDE.md`, rules, and skills are provider-native runtime surfaces.
+- Antigravity/Gemini: `GEMINI.md` and deployed skills are primary runtime surfaces; rule mirrors are informational unless verified.
 
 ## Conflict Policy
 
-- fail on duplicate rule/workflow/prompt names in the same layer
+- fail on duplicate rule or prompt names in same layer
 - fail on missing `required_reads` targets
-- fail on broken prompt/workflow references in metadata `next_steps`
-- fail when generated runtime manifests or workflow-skills drift from canonical sources
+- fail on broken prompt metadata references
+- fail when generated runtime surfaces drift from canonical sources

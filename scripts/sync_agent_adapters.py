@@ -31,9 +31,6 @@ import sys
 
 import yaml
 
-from validator_policy import DEFAULT_REPO_ROLE, normalize_adoption_mode
-
-
 @dataclass(frozen=True)
 class Mapping:
     source: str
@@ -44,6 +41,8 @@ class Mapping:
 
 
 GENERATED_BY = "scripts/sync_agent_adapters.py"
+ROOT_INSTRUCTION_SOURCE = "docs/operating_system/templates/agents/root-AGENTS.template.md"
+ROOT_INSTRUCTION_DESTINATION = "AGENTS.md"
 MANIFEST_BEGIN = "<!-- BEGIN GENERATED: RUNTIME_MANIFEST -->"
 MANIFEST_END = "<!-- END GENERATED: RUNTIME_MANIFEST -->"
 
@@ -51,91 +50,6 @@ MANIFEST_END = "<!-- END GENERATED: RUNTIME_MANIFEST -->"
 def _render_json_from_yaml(text: str) -> str:
     payload = yaml.safe_load(text)
     return yaml.safe_dump(payload, sort_keys=False, allow_unicode=False)
-
-
-def _provider_settings_to_codex_hooks(payload: dict) -> dict:
-    hooks_payload: dict[str, list[dict[str, object]]] = {}
-    events = payload.get("hooks", {}).get("events", {})
-    if not isinstance(events, dict):
-        return {"hooks": {}}
-    for event in events.values():
-        if not isinstance(event, dict) or not event.get("enabled"):
-            continue
-        provider_event = event.get("provider_event")
-        commands = event.get("commands")
-        if not isinstance(provider_event, str) or not provider_event.strip():
-            continue
-        if not isinstance(commands, list) or not commands:
-            continue
-        mapped_hooks: list[dict[str, object]] = []
-        timeout_seconds = int(event.get("timeout_seconds", 60))
-        for command in commands:
-            if not isinstance(command, str) or not command.strip():
-                continue
-            mapped_hooks.append(
-                {
-                    "type": "command",
-                    "command": command,
-                    "timeout": timeout_seconds,
-                    "statusMessage": "Validating repo contracts",
-                }
-            )
-        if not mapped_hooks:
-            continue
-        hooks_payload.setdefault(provider_event, []).append({"hooks": mapped_hooks})
-    return {"hooks": hooks_payload}
-
-
-def _provider_settings_to_claude_settings(payload: dict) -> dict:
-    hooks_payload: dict[str, list[dict[str, object]]] = {}
-    events = payload.get("hooks", {}).get("events", {})
-    if not isinstance(events, dict):
-        return {"hooks": {}}
-    for event in events.values():
-        if not isinstance(event, dict) or not event.get("enabled"):
-            continue
-        provider_event = event.get("provider_event")
-        commands = event.get("commands")
-        if not isinstance(provider_event, str) or not provider_event.strip():
-            continue
-        if not isinstance(commands, list) or not commands:
-            continue
-        mapped_hooks: list[dict[str, object]] = []
-        timeout_seconds = int(event.get("timeout_seconds", 60))
-        for command in commands:
-            if not isinstance(command, str) or not command.strip():
-                continue
-            mapped_hooks.append(
-                {
-                    "type": "command",
-                    "command": command,
-                    "timeout": timeout_seconds,
-                }
-            )
-        if not mapped_hooks:
-            continue
-        hooks_payload.setdefault(provider_event, []).append({"hooks": mapped_hooks})
-    return {"hooks": hooks_payload}
-
-
-def _provider_settings_to_antigravity_settings(payload: dict) -> dict:
-    hooks = payload.get("hooks", {})
-    events = hooks.get("events", {}) if isinstance(hooks, dict) else {}
-    fallback_rule = ""
-    if isinstance(events, dict):
-        task_end = events.get("task_end")
-        if isinstance(task_end, dict):
-            value = task_end.get("fallback_rule")
-            if isinstance(value, str):
-                fallback_rule = value
-    return {
-        "provider": "antigravity",
-        "lifecycle_hooks_supported": False,
-        "fallback": {
-            "mode": "rules_workflows",
-            "task_end_rule": fallback_rule,
-        },
-    }
 
 
 def _strip_markdown_frontmatter(text: str) -> str:
@@ -199,51 +113,8 @@ def _extract_title_and_summary(path: Path, *, body: str | None = None) -> tuple[
     return title, summary.rstrip(".") + "."
 
 
-def _workflow_skill_text(src: Path) -> str:
-    raw = src.read_text(encoding="utf-8")
-    normalized = raw.replace("\r\n", "\n")
-    meta: dict[str, object] = {}
-    body = _strip_markdown_frontmatter(raw).strip()
-    if normalized.startswith("---\n"):
-        parts = normalized.split("---\n", 2)
-        if len(parts) >= 3:
-            payload = yaml.safe_load(parts[1]) or {}
-            if isinstance(payload, dict):
-                meta = dict(payload)
-            body = parts[2].lstrip("\n").strip()
-    title, summary = _extract_title_and_summary(src, body=body)
-    skill_name = _strip_extension(src.name)
-    title_heading = f"# {title}"
-    if body.startswith(title_heading):
-        body = body[len(title_heading) :].lstrip("\n")
-    meta["name"] = str(meta.get("name") or skill_name)
-    meta["description"] = str(meta.get("description") or summary)
-    allowed = meta.get("allowed-tools")
-    if not isinstance(allowed, list):
-        meta["allowed-tools"] = []
-    required_reads = meta.get("required_reads")
-    if not isinstance(required_reads, list):
-        meta["required_reads"] = []
-    required_outputs = meta.get("required_outputs")
-    if not isinstance(required_outputs, list):
-        meta["required_outputs"] = []
-    related_skills = meta.get("related_skills")
-    if related_skills is not None and not isinstance(related_skills, list):
-        meta["related_skills"] = []
-    tags = meta.get("tags")
-    if not isinstance(tags, list):
-        tags = []
-    if "workflow-skill" not in tags:
-        tags.append("workflow-skill")
-    meta["tags"] = tags
-    frontmatter = yaml.safe_dump(meta, sort_keys=False, allow_unicode=False).strip()
-    heading = f"# {title}\n\n"
-    return f"---\n{frontmatter}\n---\n\n{heading}{body}\n"
-
-
 def _render_manifest(root: Path, platform: str) -> str:
     rules_root = root / "docs" / "operating_system" / "rules"
-    workflows_root = root / "docs" / "operating_system" / "workflows"
     skills_root = root / ".agents" / "skills"
     lines = [
         MANIFEST_BEGIN,
@@ -251,7 +122,7 @@ def _render_manifest(root: Path, platform: str) -> str:
         "",
         "> [!IMPORTANT]",
         "> This section is generated. Do not edit manually.",
-        "> Source of truth: `docs/operating_system/rules/*.md`, `docs/operating_system/workflows/*.md`, `.agents/skills/*/SKILL.md`.",
+        "> Source of truth: `docs/operating_system/rules/*.md`, `.agents/skills/*/SKILL.md`.",
         "> Regenerate via: `scripts/sync_agent_adapters.py`.",
         "",
         "### Rules Manifest",
@@ -260,13 +131,6 @@ def _render_manifest(root: Path, platform: str) -> str:
         title, summary = _extract_title_and_summary(path)
         lines.append(f"- `{path.name}` — {summary}")
         lines.append(f"  - Source: `docs/operating_system/rules/{path.name}`")
-    lines.extend(["", "### Workflow-Skills Manifest"])
-    for path in sorted(workflows_root.glob("*.md")):
-        title, summary = _extract_title_and_summary(path)
-        skill_name = _strip_extension(path.name)
-        lines.append(f"- `{skill_name}` — {summary}")
-        lines.append(f"  - Source: `docs/operating_system/workflows/{path.name}`")
-        lines.append(f"  - Generated skill: `skills/{skill_name}/SKILL.md`")
     lines.extend(["", "### Native Skills Manifest"])
     for path in sorted(skills_root.glob("*/SKILL.md")):
         title, summary = _extract_title_and_summary(path)
@@ -277,12 +141,12 @@ def _render_manifest(root: Path, platform: str) -> str:
     if platform == "codex":
         lines.extend([
             "- `AGENTS.md` is the authoritative Codex root instruction surface.",
-            "- Rules are summarized here; workflow runtime invocation flows through skill surfaces.",
+            "- Rules are summarized here; reusable methods stay in native skills and prompts provide wording.",
         ])
     elif platform == "claude":
         lines.extend([
             "- `CLAUDE.md` complements provider-native rules and skills surfaces.",
-            "- Workflows are deployed as skills for consistent invocation.",
+            "- Reusable methods deploy through native skills; prompts remain wording-only.",
         ])
     else:
         lines.extend([
@@ -331,7 +195,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--all-platforms",
         action="store_true",
-        help="Process all adapter mappings regardless of adoption-mode policy.",
+        help="Process all adapter mappings.",
     )
     return parser.parse_args()
 
@@ -453,61 +317,6 @@ def _expected_codex_rules_paths(src_root: Path, pattern: str, dst_root: Path) ->
     }
 
 
-def _read_adoption_config(root: Path) -> tuple[str, str]:
-    mode_file = root / "repo_config" / "adoption-mode.yaml"
-    if not mode_file.exists():
-        return "managed_architecture_metadata", DEFAULT_REPO_ROLE
-    payload = yaml.safe_load(mode_file.read_text(encoding="utf-8")) or {}
-    if not isinstance(payload, dict):
-        return "managed_architecture_metadata", DEFAULT_REPO_ROLE
-    mode = normalize_adoption_mode(payload.get("adoption_mode"))
-    repo_role = payload.get("repo_role", DEFAULT_REPO_ROLE)
-    normalized_mode = mode if isinstance(mode, str) and mode.strip() else "managed_architecture_metadata"
-    normalized_role = repo_role if isinstance(repo_role, str) and repo_role.strip() else DEFAULT_REPO_ROLE
-    return normalized_mode, normalized_role
-
-
-def _read_adapter_sync_policy(root: Path) -> tuple[list[str], dict[str, dict[str, list[str]]]]:
-    policy_file = root / "repo_config" / "adapter-sync-policy.yaml"
-    if not policy_file.exists():
-        return ["codex"], {}
-    payload = yaml.safe_load(policy_file.read_text(encoding="utf-8")) or {}
-    if not isinstance(payload, dict):
-        return ["codex"], {}
-    defaults_raw = payload.get("default_platforms", ["codex"])
-    defaults = [str(item).strip() for item in defaults_raw if str(item).strip()] if isinstance(defaults_raw, list) else ["codex"]
-    mode_role_raw = payload.get("mode_role_platforms", {})
-    mode_role: dict[str, dict[str, list[str]]] = {}
-    if isinstance(mode_role_raw, dict):
-        for role, by_mode in mode_role_raw.items():
-            if not isinstance(by_mode, dict):
-                continue
-            mode_map: dict[str, list[str]] = {}
-            for mode, platforms in by_mode.items():
-                if not isinstance(platforms, list):
-                    continue
-                cleaned = [str(item).strip() for item in platforms if str(item).strip()]
-                if cleaned:
-                    mode_map[str(mode).strip()] = cleaned
-            if mode_map:
-                mode_role[str(role).strip()] = mode_map
-    return defaults or ["codex"], mode_role
-
-
-def _resolve_platform_selection(root: Path, args: argparse.Namespace) -> tuple[set[str], str]:
-    if args.all_platforms:
-        return set(), "all-platforms"
-    cli_platforms = {item.strip() for item in (args.platform or []) if isinstance(item, str) and item.strip()}
-    if cli_platforms:
-        return cli_platforms, "cli-platform"
-    adoption_mode, repo_role = _read_adoption_config(root)
-    defaults, mode_role = _read_adapter_sync_policy(root)
-    selected = set(mode_role.get(repo_role, {}).get(adoption_mode, []))
-    if not selected:
-        selected = set(defaults)
-    return selected, f"mode-policy(adoption_mode={adoption_mode},repo_role={repo_role})"
-
-
 def _mapping_files_for_selection(adapters_root: Path, selected_platforms: set[str]) -> list[Path]:
     all_mappings = sorted(adapters_root.glob("*/mapping.yaml"))
     if not selected_platforms:
@@ -526,28 +335,15 @@ def _has_explicit_platform_selection(args: argparse.Namespace) -> bool:
     return bool(cli_platforms)
 
 
+def _resolve_platform_selection(root: Path, args: argparse.Namespace) -> tuple[set[str], str]:
+    del root
+    if args.all_platforms:
+        return set(), "all-platforms"
+    selected = {item.strip() for item in args.platform if item.strip()}
+    if selected:
+        return selected, "explicit"
+    return {"codex"}, "default"
 
-def _is_optional_provider_settings_source(root: Path, source_path: Path) -> bool:
-    try:
-        rel = source_path.resolve().relative_to(root.resolve()).as_posix()
-    except ValueError:
-        return False
-    if not rel.startswith("docs/operating_system/provider_settings/"):
-        return False
-    if not rel.endswith(".yaml"):
-        return False
-    adoption_mode, repo_role = _read_adoption_config(root)
-    requires_source_owned_provider_settings = (
-        adoption_mode != "starter_method_only" and repo_role == "source_owner"
-    )
-    return not requires_source_owned_provider_settings
-
-
-def _expected_workflow_skill_paths(src_root: Path, pattern: str) -> set[Path]:
-    return {
-        Path(_strip_extension(path.name)) / "SKILL.md"
-        for path in _iter_matching_files(src_root, pattern)
-    }
 
 
 def _preserve_paths_for_destination(
@@ -598,34 +394,11 @@ def _sync_file(root: Path, mapping: Mapping, *, platform: str, check: bool) -> l
     src = root / mapping.source
     dst = root / mapping.destination
     if not src.exists():
-        if _is_optional_provider_settings_source(root, src):
-            print(
-                "SKIP:sync_agent_adapters:provider_settings source omitted for starter_method_only or consumer_derived mode"
-            )
-            return []
         return [f"Missing source: {src.as_posix()}"]
     src_text = src.read_text(encoding="utf-8")
     source_rel = src.relative_to(root).as_posix()
     if mapping.mode == "render_json_from_yaml":
         payload = _inject_json_generated_metadata(yaml.safe_load(src_text) or {}, source_rel=source_rel)
-        rendered = json.dumps(payload, indent=2) + "\n"
-    elif mapping.mode == "render_codex_hooks_from_yaml":
-        payload = _inject_json_generated_metadata(
-            _provider_settings_to_codex_hooks(yaml.safe_load(src_text) or {}),
-            source_rel=source_rel,
-        )
-        rendered = json.dumps(payload, indent=2) + "\n"
-    elif mapping.mode == "render_claude_settings_from_yaml":
-        payload = _inject_json_generated_metadata(
-            _provider_settings_to_claude_settings(yaml.safe_load(src_text) or {}),
-            source_rel=source_rel,
-        )
-        rendered = json.dumps(payload, indent=2) + "\n"
-    elif mapping.mode == "render_antigravity_settings_from_yaml":
-        payload = _inject_json_generated_metadata(
-            _provider_settings_to_antigravity_settings(yaml.safe_load(src_text) or {}),
-            source_rel=source_rel,
-        )
         rendered = json.dumps(payload, indent=2) + "\n"
     elif mapping.mode == "render_root_doc_with_manifest":
         rendered = _inject_manifest(
@@ -728,40 +501,20 @@ def _sync_codex_rules_tree(
     return issues
 
 
-def _sync_workflow_skills_tree(
-    root: Path,
-    mapping: Mapping,
-    *,
-    check: bool,
-    preserve_paths: set[Path] | None = None,
-) -> list[str]:
-    src_root = root / mapping.source
-    dst_root = root / mapping.destination
-    if not src_root.exists():
-        return [f"Missing source directory: {src_root.as_posix()}"]
-    pattern = mapping.include_glob or "*.md"
-    issues: list[str] = []
-    expected_paths = _expected_workflow_skill_paths(src_root, pattern)
-    for src in _iter_matching_files(src_root, pattern):
-        skill_name = _strip_extension(src.name)
-        dst = dst_root / skill_name / "SKILL.md"
-        rendered = _render_with_header(
-            _workflow_skill_text(src),
-            source_rel=src.relative_to(root).as_posix(),
-            prefix=mapping.comment_prefix,
-        )
-        if check:
-            if not dst.exists():
-                issues.append(f"Missing generated file: {dst.as_posix()}")
-                continue
-            actual = dst.read_text(encoding="utf-8")
-            if _normalized(actual) != _normalized(rendered):
-                issues.append(f"Drift detected: {dst.as_posix()}")
-            continue
-        _write_text_if_changed(dst, rendered)
-    if not check:
-        _remove_stale_files(dst_root, preserve_paths or expected_paths)
-    return issues
+
+def _sync_root_instruction(root: Path, *, check: bool) -> list[str]:
+    return _sync_file(
+        root,
+        Mapping(
+            source=ROOT_INSTRUCTION_SOURCE,
+            destination=ROOT_INSTRUCTION_DESTINATION,
+            mode="copy_file",
+            comment_prefix="#",
+            include_glob=None,
+        ),
+        platform="shared",
+        check=check,
+    )
 
 
 def run() -> int:
@@ -772,22 +525,14 @@ def run() -> int:
     mapping_files = _mapping_files_for_selection(adapters_root, selected_platforms)
     if not mapping_files:
         selected_display = ",".join(sorted(selected_platforms)) if selected_platforms else "all"
-        adoption_mode, repo_role = _read_adoption_config(root)
-        explicit_selection = _has_explicit_platform_selection(args)
-        if repo_role == "consumer_derived" and not explicit_selection:
-            print(
-                "SKIP:sync_agent_adapters:no mappings for consumer_derived default mode-policy selection "
-                f"(selection={selected_display}, selector={selector}, adoption_mode={adoption_mode}, repo_role={repo_role})."
-            )
-            return 0
         print(
             f"No adapter mappings found for selection={selected_display} under {adapters_root.as_posix()} "
-            f"(selector={selector}, adoption_mode={adoption_mode}, repo_role={repo_role})."
+            f"(selector={selector})."
         )
         return 1
     selected_display = ",".join(sorted(selected_platforms)) if selected_platforms else "all"
     print(f"Adapter selection: {selected_display} (selector={selector})")
-    issues: list[str] = []
+    issues: list[str] = _sync_root_instruction(root, check=args.check)
     destination_preserve_paths: dict[Path, set[Path]] = defaultdict(set)
     loaded_mappings: list[tuple[str, list[Mapping]]] = []
     all_mappings: list[Mapping] = []
@@ -811,13 +556,6 @@ def run() -> int:
                     pattern = mapping.include_glob or "*.md"
                     destination_preserve_paths[dst_root].update(
                         _expected_codex_rules_paths(src_root, pattern, dst_root)
-                    )
-            elif mapping.mode == "render_workflow_skills_tree":
-                src_root = root / mapping.source
-                if src_root.exists():
-                    pattern = mapping.include_glob or "*.md"
-                    destination_preserve_paths[dst_root].update(
-                        _expected_workflow_skill_paths(src_root, pattern)
                     )
 
     destination_roots = list(destination_preserve_paths.keys())
@@ -848,15 +586,6 @@ def run() -> int:
             elif mapping.mode == "render_codex_rules_tree":
                 issues.extend(
                     _sync_codex_rules_tree(
-                        root,
-                        mapping,
-                        check=args.check,
-                        preserve_paths=preserve_paths,
-                    )
-                )
-            elif mapping.mode == "render_workflow_skills_tree":
-                issues.extend(
-                    _sync_workflow_skills_tree(
                         root,
                         mapping,
                         check=args.check,

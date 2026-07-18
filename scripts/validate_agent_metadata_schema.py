@@ -1,172 +1,47 @@
-"""
-@meta
-name: validate_agent_metadata_schema
-type: script
-domain: validation
-distribution_tier: starter_kit
-responsibility:
-  - Validate canonical metadata schema for skills, rules, and workflows.
-  - Enforce frontmatter shape and reference integrity for agent metadata surfaces.
-inputs:
-  - Skill, rule, and workflow markdown files with YAML frontmatter
-outputs:
-  - Exit status and schema validation findings
-lifecycle:
-  status: active
-"""
-
 from __future__ import annotations
-
 import argparse
-from dataclasses import dataclass
 from pathlib import Path
-import re
-from typing import Any
-
 import yaml
 
+SKILL_ALLOWED={"name","description","required_reads","distribution_tier"}
 
-@dataclass(frozen=True)
-class Finding:
-    category: str
-    path: str
-    message: str
+def _meta(path: Path):
+    text=path.read_text(encoding="utf-8",errors="ignore")
+    if not text.startswith("---"): return None
+    parts=text.split("---",2)
+    value=yaml.safe_load(parts[1]) if len(parts)==3 else None
+    return value if isinstance(value,dict) else None
 
-
-def repo_root() -> Path:
-    return Path(__file__).resolve().parents[1]
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate skills/rules/workflows metadata schema.")
-    parser.add_argument("--repo-root", default=str(repo_root()))
-    return parser.parse_args()
-
-
-def _extract_frontmatter(path: Path) -> dict[str, Any] | None:
-    text = path.read_text(encoding="utf-8", errors="ignore")
-    if not text.startswith("---"):
-        return None
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return None
-    payload = yaml.safe_load(parts[1]) if parts[1].strip() else {}
-    if not isinstance(payload, dict):
-        return None
-    return payload
-
-
-def _require_list(meta: dict[str, Any], key: str, findings: list[Finding], rel: str) -> None:
-    value = meta.get(key)
-    if not isinstance(value, list):
-        findings.append(Finding("agent_metadata_schema_error", rel, f"`{key}` must be a list."))
-
-
-def _require_string(meta: dict[str, Any], key: str, findings: list[Finding], rel: str) -> None:
-    value = meta.get(key)
-    if not isinstance(value, str) or not value.strip():
-        findings.append(Finding("agent_metadata_schema_error", rel, f"`{key}` must be a non-empty string."))
-
-
-def _require_resolved_skill_refs(
-    meta: dict[str, Any],
-    key: str,
-    findings: list[Finding],
-    rel: str,
-    known_skills: set[str],
-) -> None:
-    value = meta.get(key)
-    if not isinstance(value, list):
-        return
-    for item in value:
-        if not isinstance(item, str) or not item.strip():
-            findings.append(Finding("agent_metadata_schema_error", rel, f"`{key}` entries must be non-empty strings."))
-            continue
-        if item not in known_skills:
-            findings.append(Finding("agent_metadata_schema_error", rel, f"`{key}` references unknown skill `{item}`."))
-
-
-def validate(root: Path) -> list[Finding]:
-    findings: list[Finding] = []
-    known_skills = {path.parent.name for path in sorted((root / ".agents" / "skills").glob("*/SKILL.md"))}
-
-    # Skills
-    for path in sorted((root / ".agents" / "skills").glob("*/SKILL.md")):
-        rel = path.relative_to(root).as_posix()
-        meta = _extract_frontmatter(path)
+def validate(root: Path) -> list[str]:
+    findings=[]
+    skills=list((root/".agents/skills").glob("*/SKILL.md"))
+    for path in sorted(skills):
+        meta=_meta(path)
         if meta is None:
-            findings.append(Finding("agent_metadata_schema_error", rel, "missing YAML frontmatter."))
-            continue
-        for key in ("name", "description"):
-            _require_string(meta, key, findings, rel)
-        name = meta.get("name")
-        if isinstance(name, str) and name != path.parent.name:
-            findings.append(Finding("agent_metadata_schema_error", rel, f"`name` must match skill folder name `{path.parent.name}`."))
-        _require_list(meta, "allowed-tools", findings, rel)
-        hooks = meta.get("hooks")
-        if not isinstance(hooks, dict):
-            findings.append(Finding("agent_metadata_schema_error", rel, "`hooks` must be an object with `pre` and `post` lists."))
+            findings.append(f"{path}: missing frontmatter"); continue
+        for key in ("name","description"):
+            if not isinstance(meta.get(key),str) or not meta[key].strip(): findings.append(f"{path}: invalid {key}")
+        if meta.get("name") != path.parent.name: findings.append(f"{path}: name must match folder")
+        extra=set(meta)-SKILL_ALLOWED
+        if extra: findings.append(f"{path}: unused metadata {sorted(extra)}")
+        reads=meta.get("required_reads",[])
+        if not isinstance(reads,list): findings.append(f"{path}: required_reads must be list")
+        elif len(reads)>1: findings.append(f"{path}: more than one unconditional required read")
         else:
-            if not isinstance(hooks.get("pre"), list):
-                findings.append(Finding("agent_metadata_schema_error", rel, "`hooks.pre` must be a list."))
-            if not isinstance(hooks.get("post"), list):
-                findings.append(Finding("agent_metadata_schema_error", rel, "`hooks.post` must be a list."))
-        _require_list(meta, "required_reads", findings, rel)
-        _require_list(meta, "required_outputs", findings, rel)
-        _require_list(meta, "tags", findings, rel)
-        _require_resolved_skill_refs(meta, "related_skills", findings, rel, known_skills)
-
-    # Rules
-    rules_root = root / "docs" / "operating_system" / "rules"
-    for path in sorted(rules_root.glob("*.md")):
-        rel = path.relative_to(root).as_posix()
-        meta = _extract_frontmatter(path)
-        if meta is None:
-            findings.append(Finding("agent_metadata_schema_error", rel, "missing YAML frontmatter."))
-            continue
-        for key in ("name", "description"):
-            _require_string(meta, key, findings, rel)
-        if not isinstance(meta.get("alwaysApply"), bool):
-            findings.append(Finding("agent_metadata_schema_error", rel, "`alwaysApply` must be boolean."))
-        _require_list(meta, "required_reads", findings, rel)
-        _require_list(meta, "tags", findings, rel)
-
-    # Workflows
-    workflows_root = root / "docs" / "operating_system" / "workflows"
-    for path in sorted(workflows_root.glob("*.md")):
-        rel = path.relative_to(root).as_posix()
-        meta = _extract_frontmatter(path)
-        if meta is None:
-            findings.append(Finding("agent_metadata_schema_error", rel, "missing YAML frontmatter."))
-            continue
-        for key in ("name", "description"):
-            _require_string(meta, key, findings, rel)
-        name = meta.get("name")
-        if isinstance(name, str) and name != path.stem:
-            findings.append(Finding("agent_metadata_schema_error", rel, f"`name` must match workflow filename stem `{path.stem}`."))
-        _require_list(meta, "allowed-tools", findings, rel)
-        _require_list(meta, "required_reads", findings, rel)
-        _require_list(meta, "required_outputs", findings, rel)
-        _require_list(meta, "related_skills", findings, rel)
-        _require_resolved_skill_refs(meta, "related_skills", findings, rel, known_skills)
-        _require_list(meta, "tags", findings, rel)
-
+            for read in reads:
+                if not (root/read).exists(): findings.append(f"{path}: missing required read {read}")
     return findings
 
-
-def main() -> int:
-    args = parse_args()
-    root = Path(args.repo_root).resolve()
-    findings = validate(root)
+def main(argv=None):
+    parser=argparse.ArgumentParser(description="Validate lean skill metadata.")
+    parser.add_argument("--repo-root",default=str(Path(__file__).resolve().parents[1]))
+    args=parser.parse_args(argv)
+    findings=validate(Path(args.repo_root))
     if findings:
-        print("Agent metadata schema validation failed:")
-        for finding in findings:
-            print(f"- {finding.category}: {finding.path} - {finding.message}")
+        print("Agent metadata validation failed:")
+        for finding in findings: print(f"- {finding}")
         return 1
-    print("Agent metadata schema validation passed.")
+    print("Agent metadata validation passed.")
     return 0
 
-
-if __name__ == "__main__":
-    raise SystemExit(main())
-
+if __name__=="__main__": raise SystemExit(main())

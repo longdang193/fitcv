@@ -3,34 +3,21 @@ param(
   [Parameter(Mandatory=$true)][string]$AuditId
 )
 
-$root = "docs/superpowers/plans/audit/$AuditId"
-$dirs = @(
-  $root,
-  "$root/evidence/images",
-  "$root/evidence/results",
-  "$root/repro/inputs"
-)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
 
-foreach ($d in $dirs) {
-  New-Item -ItemType Directory -Path $d -Force | Out-Null
+if ($AuditId -notmatch '^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$') {
+  throw "AuditId must match YYYY-MM-DD-HH-MM-<topic>: $AuditId"
 }
 
+$root = "docs/superpowers/plans/audit/$AuditId"
 $template = "docs/operating_system/templates/audit-report-with-evidence-template.md"
 $report = "$root/report.md"
-if (Test-Path $template) {
-  Copy-Item $template $report -Force
-} else {
-  "# Audit Report`n" | Out-File -FilePath $report -Encoding utf8
-}
 
-$manifest = @"
-audit_id: $AuditId
-created_at: $(Get-Date -Format o)
-artifacts: []
-"@
-$manifest | Out-File -FilePath "$root/manifest.yaml" -Encoding utf8
+if (Test-Path -LiteralPath $root) { throw "Audit report already exists: $root" }
+if (-not (Test-Path -LiteralPath $template)) { throw "Audit template not found: $template" }
 
-"# Reproduction Steps" | Out-File -FilePath "$root/repro/steps.md" -Encoding utf8
-"# Repro commands" | Out-File -FilePath "$root/repro/commands.ps1" -Encoding utf8
+New-Item -ItemType Directory -Path $root | Out-Null
+Copy-Item -LiteralPath $template -Destination $report
 
-Write-Host "Created audit bundle at $root"
+Write-Host "Created audit report at $report"

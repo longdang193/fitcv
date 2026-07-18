@@ -1,48 +1,24 @@
 # Operating System Docs
 
-This folder holds the repo's method, governance, execution-routing rules, and
-agent/runtime operating guidance.
+This folder holds repo governance, execution routing, runtime guidance, reusable prompts, templates, and maintainer procedures.
 
 ## Start Here
 
-<LINK>
-- [governance/repo-governance.md](./governance/repo-governance.md)
-- [planning/planning-dispatch.md](./planning/planning-dispatch.md)
-- [lifecycle/doc-system-lifecycle.md](./lifecycle/doc-system-lifecycle.md)
-</LINK>
+- [Repository governance](./governance/repo-governance.md)
+- [Planning dispatch](./planning/planning-dispatch.md)
 
 ## Sections
 
-- `governance/`
-  - repo rules, precedence, skill governance, and feature-vs-method routing
-- `lifecycle/`
-  - documentation, feature, and stage ownership/lifecycle rules
-- `planning/`
-  - planning dispatch and roadmap/thread expansion guidance
-- `runtime/`
-  - runtime surfaces and runtime metadata guidance
-- `adoption/`
-  - project adoption and migration guidance
-- `procedures/`
-  - steady-state operating procedures such as publication workflow
-- `agent_memory/`
-  - reusable lessons, invariants, patterns, failures, and open questions
-- `prompt_templates/`
-  - prompt ladders and operational prompt entrypoints
-- `rules/`
-  - canonical rule documents
-- `templates/`
-  - reusable specification, planning, and doc templates
-- `tooling/`
-  - tooling-specific operating-system references
-- `workflows/`
-  - canonical workflow documents used as human and generated workflow surfaces
-- `provider_settings/`
-  - provider-specific adapter/runtime settings sources
+- `governance/` — repo ownership, precedence, and routing policy
+- `planning/` — planning-tier and execution routing
+- `runtime/` — runtime surfaces
+- `adoption/` — project adoption and migration guidance
+- `procedures/` — maintainer runbooks
+- `rules/agent-memory-rule.md` — conditional MCP memory policy
+- `prompt_templates/` — reusable invocation wording
+- `rules/` — canonical hard invariants
+- `templates/` — reusable artifact templates
+- `tooling/` — tool-selection guidance
+- `publication/` — publication policy and rewrite guidance
 
-## Notes
-
-- This README is a navigation layer, not a second source of truth.
-- Keep detailed policy in the owning documents above.
-- Preserve typed subtrees such as `rules/`, `workflows/`, `prompt_templates/`,
-  and `templates/` rather than flattening them into prose.
+Detailed policy belongs in owning documents, not this index.

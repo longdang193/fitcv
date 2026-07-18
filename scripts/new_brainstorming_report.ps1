@@ -3,32 +3,21 @@ param(
   [Parameter(Mandatory=$true)][string]$ReportId
 )
 
-$root = "docs/superpowers/plans/brainstorming/$ReportId"
-$dirs = @(
-  $root,
-  "$root/context",
-  "$root/evidence/inputs"
-)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
 
-foreach ($d in $dirs) {
-  New-Item -ItemType Directory -Path $d -Force | Out-Null
+if ($ReportId -notmatch '^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$') {
+  throw "ReportId must match YYYY-MM-DD-HH-MM-<topic>: $ReportId"
 }
 
+$root = "docs/superpowers/plans/brainstorming/$ReportId"
 $template = "docs/operating_system/templates/brainstorming-detailed-report-template.md"
 $report = "$root/report.md"
-if (Test-Path $template) {
-  Copy-Item $template $report -Force
-} else {
-  "# Brainstorming Detailed Report`n" | Out-File -FilePath $report -Encoding utf8
-}
 
-$manifest = @"
-report_id: $ReportId
-created_at: $(Get-Date -Format o)
-artifacts: []
-"@
-$manifest | Out-File -FilePath "$root/manifest.yaml" -Encoding utf8
+if (Test-Path -LiteralPath $root) { throw "Brainstorming report already exists: $root" }
+if (-not (Test-Path -LiteralPath $template)) { throw "Brainstorming template not found: $template" }
 
-"# Context Summary" | Out-File -FilePath "$root/context/summary.md" -Encoding utf8
+New-Item -ItemType Directory -Path $root | Out-Null
+Copy-Item -LiteralPath $template -Destination $report
 
-Write-Host "Created brainstorming report bundle at $root"
+Write-Host "Created brainstorming report at $report"

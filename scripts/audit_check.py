@@ -3,7 +3,6 @@
 name: audit_check
 type: script
 domain: governance
-distribution_tier: starter_kit
 responsibility:
   - Validate audit bundle structure and required report sections.
   - Enforce presence of evidence, repro, and manifest artifact declarations.

@@ -1,135 +1,151 @@
 ---
 template_id: detailed-specification
-document_type: detailed_specification
 target_globs:
 - docs/superpowers/specs/*.md
 required_sections:
-- Goal
-- Key Deliverables
-- Task/Wave Breakdown
+- Goal and Problem
+- Required Outcomes
+- Design Analysis
 - Design Decisions
-- Invariants
+- Invariants and Edge Cases
 - Validation Plan
 - Completion Criteria
 required_frontmatter:
   artifact_type: spec
+  status: proposed
+  layer: change
 distribution_tier: starter_kit
 ---
 
 # Detailed Specification Template
 
-## Goal
+Use this template after problem, evidence, and design direction are understood. Specification owns required behavior and design-level boundaries. Exact files, task order, commands, dependencies, rollout steps, and execution waves belong in implementation plan.
 
-<what this specification must define>
+## Goal and Problem
 
-## Key Deliverables
+### Problem
 
-Use this section for artifact-level design outcomes only.
-Do not restate detailed decisions, invariants, or proof methods here.
+- current behavior or opportunity:
+- affected users, systems, or maintainers:
+- evidence:
+- consequence of no change:
 
-### <deliverable 1>
+### Goal
 
-Describe one concrete specification outcome this document must deliver, such as a resolved design boundary, contract decision, or validated implementation constraint.
+- desired outcome:
+- observable success:
 
-### <deliverable 2>
+## Required Outcomes
 
-Describe another concrete specification result this document must deliver, such as clarified invariants, interface shape, or validation confidence.
+### Outcome: <name>
 
-## Task/Wave Breakdown
+- affected actor or system:
+- required result:
+- success condition:
 
-Use this section for progression from source-first analysis into decision closure and validation readiness.
-Do not duplicate the canonical decision, invariant, or validation records here.
+## Design Analysis
 
-### Wave 1: Source-first analysis
+### Current State and Evidence
 
-**Purpose:**
-- define current behavior, boundaries, and design constraints before proposing decisions
+| Question | Evidence | Source | Confidence | Specification implication |
+|---|---|---|---|---|
+| <what must be known> | <observed fact> | <file, test, tool, or system> | high / medium / low | <decision or open question> |
 
-**Steps:**
-- [ ] inspect current source-of-truth surfaces
-- [ ] identify unresolved contract edges
-- [ ] record affected invariants, interfaces, and dependency boundaries
+### Scope
 
-**Verification:**
-- [ ] current-state understanding is explicit enough to support concrete design decisions
+- included behavior:
+- affected boundaries:
+- admissible cases:
+- compatibility expectation:
 
-**Exit Criteria:**
-- no core design decision depends on unstated assumptions
+### Non-Goals
 
-### Wave 2: Decision closure
+- <explicitly excluded behavior>
 
-**Purpose:**
-- resolve design choices and document why chosen shape is preferred
+### Requirements and Behavioral Contract
 
-**Steps:**
-- [ ] define major design decisions
-- [ ] compare alternatives where non-obvious
-- [ ] record impact on interfaces, invariants, and downstream implementation
+#### Requirement: <name>
 
-**Verification:**
-- [ ] each major design question has a documented decision or explicit deferral
+- trigger or actor:
+- preconditions:
+- required behavior:
+- output or state change:
+- failure behavior:
+- observable acceptance:
 
-**Exit Criteria:**
-- design is internally coherent and bounded
+When relevant define inputs, outputs, identity, data grain, schemas, state transitions, defaults, validation, errors, retries, idempotency, ordering, cancellation, fallback, and boundary conversions.
 
-### Wave 3: Validation and approval readiness
+### Constraints and Alternatives
 
-**Purpose:**
-- prepare the spec for implementation handoff by making proof expectations explicit
-
-**Steps:**
-- [ ] define validation plan
-- [ ] confirm invariant preservation strategy
-- [ ] identify any open approval questions or follow-up notes
-
-**Verification:**
-- [ ] validation plan proves intended behavior and contract preservation
-
-**Exit Criteria:**
-- spec is ready for approval or implementation planning
+- constraint: <design, operational, compatibility, security, accessibility, or platform constraint>
+- alternative: <candidate>
+  - benefit:
+  - trade-off:
+  - reason accepted or rejected:
 
 ## Design Decisions
 
-This section is the canonical design-choice record.
-Keep chosen approach, alternatives, and impact here.
-Do not restate invariants or full validation procedure here.
+### Decision: <name>
 
-### Decision: <short title>
-
-- context: <why decision exists>
-- choice: <selected approach>
+- context:
+- selected approach:
+- rationale:
 - alternatives considered:
-  - <alternative>
-- impact:
-  - <affected interface, boundary, or downstream implication>
+- accepted trade-offs:
+- affected owners and boundaries:
 
-## Invariants
+### Compatibility, Migration, and Risk
 
-This section is the canonical constraint record.
-Keep only what must remain true.
+- old behavior:
+- new behavior:
+- compatibility boundary:
+- migration or backfill:
+- rollout and rollback:
+- deprecation or consumer impact:
+- risk:
+  - mitigation:
+
+Use `Not applicable: <reason>` for fields that genuinely do not apply. Do not leave required decisions unresolved as implementation details.
+
+## Invariants and Edge Cases
+
+### Invariants
 
 - <must remain true>
 
+### Edge Cases
+
+- empty or minimal input:
+- normal and large input:
+- duplicate, missing, malformed, or unsupported data:
+- retry, cancellation, timeout, partial failure, or concurrency:
+- migration or mixed-version state:
+- generated-source consistency:
+- security or accessibility boundary:
+
+Remove non-applicable edge-case rows or mark them with reason. Preserve equivalent rules under one authoritative owner.
+
 ## Validation Plan
 
-This section is the canonical proof record.
-Keep how claims will be verified here.
+### Acceptance Criterion: <claim>
 
-- proof target: <claim>
-  - method: <test, inspection, comparison, or run>
-  - evidence: <expected proof>
+- setup or precondition:
+- action:
+- expected result:
+- failure condition:
+- proof method:
+- expected evidence:
+
+Every required outcome and material requirement must map to observable acceptance and proof intent. Exact commands and execution order belong in implementation plan.
 
 ## Completion Criteria
 
-A specification item is considered complete when:
+Specification is complete when:
 
-1. all Key Deliverables are satisfied
-2. all downstream/child items are terminal
-3. every child item is `completed` or `dropped`
-
-Canonical source-of-truth:
-
-<LINK>
-- `docs/operating_system/governance/repo-governance.md`
-- `scripts/validate_planning_lifecycle.py`
-</LINK>
+1. problem, evidence, goal, scope, and non-goals are explicit
+2. required outcomes and behavioral contracts are unambiguous
+3. design decisions, ownership boundaries, compatibility, migration, and material risks are resolved
+4. invariants and applicable edge cases are explicit
+5. every required outcome maps to acceptance and validation intent
+6. unresolved questions are closed or explicitly approved as deferred
+7. implementation sequencing is left to implementation plan

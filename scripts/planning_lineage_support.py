@@ -3,7 +3,6 @@
 name: planning_lineage_support
 type: utility
 domain: docs
-distribution_tier: starter_kit
 responsibility:
   - Assemble the planning-lineage graph from roadmap, workstream, thread, spec, and plan surfaces.
   - Provide stable derived planning-lineage output for validation and generation workflows.

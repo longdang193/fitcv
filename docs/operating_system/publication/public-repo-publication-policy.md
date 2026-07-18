@@ -13,7 +13,7 @@ This policy defines:
 
 This policy does not define execution commands. Use runbook:
 
-- [Public Repo Publishing](./public-repo-publishing.md)
+- [Publication Procedure](../procedures/publication-procedure.md)
 
 For doc sanitization patterns, use:
 
@@ -93,4 +93,4 @@ Publication workflow must include:
 
 Procedure details belong to runbook:
 
-- [Public Repo Publishing](./public-repo-publishing.md)
+- [Publication Procedure](../procedures/publication-procedure.md)

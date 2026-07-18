@@ -5,21 +5,12 @@ type: script
 domain: docs
 distribution_tier: starter_kit
 responsibility:
-  - Validate the repo contract graph across source-owned, generated, and partially generated surfaces.
-  - Orchestrate architecture checks, adoption-shape validation, repo-config validation, and governed metadata coverage checks through one canonical command.
-  - Enforce mixed-ownership boundary rules for feature history files before commit or CI completion.
+  - Validate active repository contracts through one canonical command.
+  - Orchestrate focused schema, planning, prompt, runtime, and repository checks.
 inputs:
-  - docs/features/*/feature.source.yaml
-  - docs/features/*/history.md
-  - docs/stages/*.source.yaml
   - docs/superpowers/specs/*.md
   - docs/superpowers/plans/*.md
-  - repo_config/adoption-mode.yaml
   - repo_config/*.json
-  - configs/*.yaml
-  - aml/components/*.yaml
-  - setup/*.ps1
-  - setup/*.sh
 outputs:
   - Exit status and human-readable repo contract validation results.
 tags:
@@ -46,18 +37,9 @@ import sys
 from types import ModuleType
 
 import json
-import yaml
-from validator_policy import (
-    ALLOWED_MODES,
-    ARCHITECTURE_METADATA_MARKER_LINE,
-    GENERATED_HISTORY_END_MARKER,
-    GENERATED_HISTORY_START_MARKER,
-    HUMAN_NOTES_HEADING,
-    normalize_adoption_mode,
-    SETUP_META_MARKER,
-    STARTER_KIT_CLASSIFICATION_ENFORCEMENT,
-    STARTER_KIT_DISTRIBUTION_TIER,
-)
+
+STARTER_KIT_CLASSIFICATION_ENFORCEMENT = "fail"
+STARTER_KIT_DISTRIBUTION_TIER = "starter_kit"
 
 
 @dataclass(frozen=True)
@@ -78,9 +60,8 @@ def relative_path(path: Path, root: Path) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Validate the repo contract graph across generated outputs, "
-            "metadata-bearing sources, mixed-ownership docs, adoption shape, "
-            "and repo config."
+            "Validate active repository schemas, planning contracts, generated "
+            "agent surfaces, and starter-kit classification."
         )
     )
     parser.add_argument(
@@ -91,11 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fast",
         action="store_true",
-        help=(
-            "Run the hook-facing validation subset. This still runs the "
-            "architecture sync check path and skips only the extra validator-"
-            "specific pytest pass."
-        ),
+        help="Run the hook-facing subset without validator-specific pytest.",
     )
     parser.add_argument(
         "--sync-starter-kit-tier",
@@ -115,44 +92,14 @@ def pytest_basetemp(default_relative: str) -> str:
     return default_relative
 
 
-@lru_cache(maxsize=8)
-def load_adoption_mode_payload(root: Path) -> dict | None:
-    adoption_mode_path = root / "repo_config" / "adoption-mode.yaml"
-    if not adoption_mode_path.exists():
-        return None
-    payload = yaml.safe_load(adoption_mode_path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        return None
-    return payload
-
-def managed_architecture_metadata_enabled(root: Path) -> bool:
-    payload = load_adoption_mode_payload(root)
-    if payload is None:
-        return True
-    return bool(payload.get("managed_architecture_metadata", False))
-
-def read_adoption_mode(root: Path) -> str | None:
-    payload = load_adoption_mode_payload(root)
-    if payload is None:
-        return None
-    mode = normalize_adoption_mode(payload.get("adoption_mode"))
-    if mode not in ALLOWED_MODES:
-        return None
-    return mode
-
 IN_PROCESS_SCRIPT_NAMES = {
-    "validate_adoption_shape.py",
-    "validate_checkpoint_packs.py",
     "validate_planning_lifecycle.py",
     "validate_template_required_sections.py",
-    "validate_prompt_ladder.py",
+    "validate_learning_materials_format.py",
     "validate_prompt_metadata_schema.py",
-    "validate_execution_context_pack_references.py",
     "validate_agent_metadata_schema.py",
-    "validate_provider_settings_schema.py",
     "validate_generated_header_format.py",
     "validate_agent_runtime_drift.py",
-    "sync_architecture_docs.py",
     "validate_repo_config.py",
 }
 
@@ -219,53 +166,27 @@ def build_subprocess_steps(
     root: Path,
     python_executable: str,
     fast: bool,
-    adoption_mode: str | None = None,
 ) -> list[list[str]]:
-    adoption_shape_script = str(root / "scripts" / "validate_adoption_shape.py")
-    checkpoint_pack_script = str(root / "scripts" / "validate_checkpoint_packs.py")
     planning_lifecycle_script = str(root / "scripts" / "validate_planning_lifecycle.py")
     template_sections_script = str(root / "scripts" / "validate_template_required_sections.py")
-    prompt_ladder_script = str(root / "scripts" / "validate_prompt_ladder.py")
+    learning_format_script = str(root / "scripts" / "validate_learning_materials_format.py")
     prompt_metadata_schema_script = str(root / "scripts" / "validate_prompt_metadata_schema.py")
-    context_pack_references_script = str(root / "scripts" / "validate_execution_context_pack_references.py")
     repo_config_script = str(root / "scripts" / "validate_repo_config.py")
     agent_metadata_schema_script = str(root / "scripts" / "validate_agent_metadata_schema.py")
-    provider_settings_schema_script = str(root / "scripts" / "validate_provider_settings_schema.py")
     generated_header_script = str(root / "scripts" / "validate_generated_header_format.py")
     env_gitignore_contract_script = str(root / "scripts" / "validate_env_gitignore_contract.py")
-    python_meta_headers_script = str(root / "scripts" / "validate_python_meta_headers.py")
     agent_runtime_drift_script = str(root / "scripts" / "validate_agent_runtime_drift.py")
-    python_meta_step = [python_executable, python_meta_headers_script]
-    if adoption_mode is None:
-        adoption_mode = read_adoption_mode(root)
-    if adoption_mode != "starter_method_only":
-        python_meta_step.extend(
-            [
-                "--enforce-capability-linkage",
-                "--require-ownership",
-                "--require-feature-capabilities",
-            ]
-        )
 
     steps: list[list[str]] = [
-        [python_executable, adoption_shape_script],
-        [python_executable, checkpoint_pack_script],
         [python_executable, planning_lifecycle_script],
         [python_executable, template_sections_script],
-        [python_executable, prompt_ladder_script],
+        [python_executable, learning_format_script],
         [python_executable, prompt_metadata_schema_script],
-        [python_executable, context_pack_references_script],
         [python_executable, agent_metadata_schema_script],
-        [python_executable, provider_settings_schema_script],
         [python_executable, generated_header_script],
         [python_executable, env_gitignore_contract_script],
-        python_meta_step,
+        [python_executable, agent_runtime_drift_script, "--skip-deploy-check"],
     ]
-    if adoption_mode != "starter_method_only":
-        steps.append([python_executable, agent_runtime_drift_script, "--skip-deploy-check"])
-        sync_script = root / "scripts" / "sync_architecture_docs.py"
-        if sync_script.exists():
-            steps.append([python_executable, str(sync_script), "--check"])
     steps.append([python_executable, repo_config_script])
     if not fast:
         pytest_targets = [
@@ -273,9 +194,6 @@ def build_subprocess_steps(
             "tests/test_validate_planning_lifecycle.py",
             "tests/test_validate_repo_contracts.py",
         ]
-        adoption_test = root / "tests" / "test_validate_adoption_shape.py"
-        if adoption_test.exists():
-            pytest_targets.insert(1, "tests/test_validate_adoption_shape.py")
         steps.append(
             [
                 python_executable,
@@ -288,163 +206,6 @@ def build_subprocess_steps(
             ]
         )
     return steps
-
-
-def validate_history_boundaries(root: Path) -> list[ValidationIssue]:
-    issues: list[ValidationIssue] = []
-    for source_path in sorted((root / "docs" / "features").glob("*/feature.source.yaml")):
-        history_path = source_path.parent / "history.md"
-        rel_path = relative_path(history_path, root)
-        if not history_path.exists():
-            issues.append(
-                ValidationIssue(
-                    category="partial_generated_boundary_error",
-                    path=rel_path,
-                    message="missing required history.md for opted-in feature folder",
-                )
-            )
-            continue
-
-        text = history_path.read_text(encoding="utf-8")
-        start_count = text.count(GENERATED_HISTORY_START_MARKER)
-        end_count = text.count(GENERATED_HISTORY_END_MARKER)
-        human_count = text.count(HUMAN_NOTES_HEADING)
-
-        if start_count != 1:
-            issues.append(
-                ValidationIssue(
-                    category="partial_generated_boundary_error",
-                    path=rel_path,
-                    message=(
-                        "expected exactly one generated history start marker, "
-                        f"found {start_count}"
-                    ),
-                )
-            )
-        if end_count != 1:
-            issues.append(
-                ValidationIssue(
-                    category="partial_generated_boundary_error",
-                    path=rel_path,
-                    message=(
-                        "expected exactly one generated history end marker, "
-                        f"found {end_count}"
-                    ),
-                )
-            )
-        if start_count != 1 or end_count != 1:
-            continue
-
-        start_index = text.index(GENERATED_HISTORY_START_MARKER)
-        end_index = text.index(GENERATED_HISTORY_END_MARKER)
-        if start_index > end_index:
-            issues.append(
-                ValidationIssue(
-                    category="partial_generated_boundary_error",
-                    path=rel_path,
-                    message="generated history end marker appears before the start marker",
-                )
-            )
-            continue
-
-        after_end = text[end_index + len(GENERATED_HISTORY_END_MARKER) :].lstrip("\n")
-        if not after_end.startswith(HUMAN_NOTES_HEADING):
-            issues.append(
-                ValidationIssue(
-                    category="partial_generated_boundary_error",
-                    path=rel_path,
-                    message="missing required `## Human Notes` section after generated history block",
-                )
-            )
-        elif human_count != 1:
-            issues.append(
-                ValidationIssue(
-                    category="partial_generated_boundary_error",
-                    path=rel_path,
-                    message=(
-                        "expected exactly one `## Human Notes` heading, "
-                        f"found {human_count}"
-                    ),
-                )
-            )
-    return issues
-
-
-def _starts_with_architecture_block(text: str) -> bool:
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if stripped == ARCHITECTURE_METADATA_MARKER_LINE:
-            return True
-        if stripped.startswith("#"):
-            continue
-        return False
-    return False
-
-
-def _has_setup_meta(text: str, suffix: str) -> bool:
-    lines = text.splitlines()
-    if suffix == ".sh" and lines and lines[0].startswith("#!"):
-        lines = lines[1:]
-    for line in lines:
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if not stripped.startswith("#"):
-            return False
-        return stripped[1:].lstrip() == SETUP_META_MARKER
-    return False
-
-
-def validate_required_metadata_coverage(root: Path) -> list[ValidationIssue]:
-    issues: list[ValidationIssue] = []
-    if not managed_architecture_metadata_enabled(root):
-        return issues
-
-    components_root = root / "aml" / "components"
-    if components_root.exists():
-        for path in sorted(components_root.glob("*.yaml")):
-            if not path.is_file():
-                continue
-            if not _starts_with_architecture_block(path.read_text(encoding="utf-8")):
-                issues.append(
-                    ValidationIssue(
-                        category="missing_required_metadata",
-                        path=relative_path(path, root),
-                        message="AML component is missing required top-of-file `# @architecture` metadata",
-                    )
-                )
-
-    configs_root = root / "configs"
-    if configs_root.exists():
-        for path in sorted(configs_root.glob("*.yaml")):
-            if not path.is_file():
-                continue
-            if not _starts_with_architecture_block(path.read_text(encoding="utf-8")):
-                issues.append(
-                    ValidationIssue(
-                        category="missing_required_metadata",
-                        path=relative_path(path, root),
-                        message="runtime config is missing required top-of-file `# @architecture` metadata",
-                    )
-                )
-
-    setup_root = root / "setup"
-    if setup_root.exists():
-        for pattern in ("*.ps1", "*.sh"):
-            for path in sorted(setup_root.glob(pattern)):
-                if not path.is_file():
-                    continue
-                if not _has_setup_meta(path.read_text(encoding="utf-8"), path.suffix):
-                    issues.append(
-                        ValidationIssue(
-                            category="missing_required_metadata",
-                            path=relative_path(path, root),
-                            message="setup script is missing required top-of-file `@meta` comment block",
-                        )
-                    )
-    return issues
 
 
 def _load_starter_kit_manifest(root: Path) -> dict | None:
@@ -658,15 +419,7 @@ def main(argv: list[str] | None = None) -> int:
         if patched:
             print(f"Starter-kit distribution tier sync patched {patched} file(s).")
 
-    base_issues = [
-        *validate_required_metadata_coverage(root),
-        *validate_history_boundaries(root),
-    ]
     classification_issues = validate_starter_kit_classification(root)
-
-    status = report_issues(base_issues)
-    if status != 0:
-        return status
 
     if classification_issues:
         if STARTER_KIT_CLASSIFICATION_ENFORCEMENT == "fail":

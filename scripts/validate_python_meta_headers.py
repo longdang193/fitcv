@@ -3,7 +3,6 @@
 name: validate_python_meta_headers
 type: script
 domain: validation
-distribution_tier: starter_kit
 responsibility:
   - Validate module-level Python @meta docstring blocks for governed source folders.
   - Enforce required metadata keys and basic shape constraints.

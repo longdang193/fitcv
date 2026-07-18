@@ -15,7 +15,7 @@ Scope of this document:
 Canonical companions:
 
 - policy authority: [Public Repo Publication Policy](./public-repo-publication-policy.md)
-- execution runbook: [Public Repo Publishing](./public-repo-publishing.md)
+- execution runbook: [Publication Procedure](../procedures/publication-procedure.md)
 
 Public-safe does not mean "delete everything private-adjacent." The public
 mirror should preserve reproducible shape whenever that structure is safe to

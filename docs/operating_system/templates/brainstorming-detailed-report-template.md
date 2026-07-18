@@ -1,6 +1,5 @@
 ---
 template_id: brainstorming-detailed-report
-document_type: template
 target_globs:
 - docs/superpowers/plans/brainstorming/*/report.md
 required_sections:
@@ -16,7 +15,7 @@ distribution_tier: starter_kit
 
 # Brainstorming Detailed Report Template
 
-Use this template to turn brainstorming output into a concise, decision-oriented report. Follow Occam’s razor: include only information that adds distinct value, avoid duplicate sections, and keep implementation details out of the report because specs and execution plans are handled separately.
+Use this template to turn brainstorming output into a concise, decision-oriented exploratory report. This report is not approved specification or implementation truth; accepted recommendations must be restated in approved scope or a specification. Follow Occam’s razor: include only information that adds distinct value, avoid duplicate sections, and keep implementation details out of the report because specs and execution plans are handled separately.
 
 ## 1. Current situation
 
@@ -86,7 +85,7 @@ Select the best option or combination of options. Explain the rationale using th
 
 ## 6. Recommended next steps
 
-List only the immediate decisions, validations, or planning actions needed to move forward. Do not include a full implementation plan, detailed task breakdown, owners, timeline, or specification details.
+List only the immediate decisions, validations, or planning actions needed to move forward. Do not include a full implementation plan, detailed task breakdown, owners, timeline, interface contracts, invariants, or specification details.
 
 ## 7. Assumptions and unresolved questions
 

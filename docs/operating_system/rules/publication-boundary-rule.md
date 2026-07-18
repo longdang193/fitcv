@@ -3,7 +3,7 @@ name: publication-boundary
 description: Enforce private/public publication boundaries and controlled export workflow.
 alwaysApply: true
 required_reads:
-- docs/operating_system/procedures/publication-workflow.md
+- docs/operating_system/procedures/publication-procedure.md
 - docs/operating_system/governance/repo-governance.md
 tags:
 - rule

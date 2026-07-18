@@ -68,10 +68,19 @@ def get_allowed_values(repo_root: Path, field_name: str, artifact_type: str) -> 
 
 
 def get_required_fields(repo_root: Path, artifact_type: str) -> list[str]:
-    required_fields = get_artifact_schema(repo_root, artifact_type).get("required_fields", [])
-    if not isinstance(required_fields, list):
-        return []
-    return [field for field in required_fields if isinstance(field, str)]
+    schema = load_planning_artifact_schema(repo_root)
+    shared_fields = schema.get("shared_base_fields", {})
+    required_fields = [
+        field
+        for field, rules in shared_fields.items()
+        if isinstance(field, str)
+        and isinstance(rules, dict)
+        and rules.get("required") is True
+    ] if isinstance(shared_fields, dict) else []
+    artifact_fields = get_artifact_schema(repo_root, artifact_type).get("required_fields", [])
+    if isinstance(artifact_fields, list):
+        required_fields.extend(field for field in artifact_fields if isinstance(field, str))
+    return list(dict.fromkeys(required_fields))
 
 
 def get_required_values(repo_root: Path, artifact_type: str) -> dict[str, str]:

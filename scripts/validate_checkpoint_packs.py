@@ -3,7 +3,6 @@
 name: validate_checkpoint_packs
 type: script
 domain: docs
-distribution_tier: starter_kit
 responsibility:
   - Validate bounded change thread checkpoint result-pack coverage.
   - Require checkpoint packs for active and completed thread statuses.

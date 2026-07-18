@@ -3,7 +3,6 @@
 name: validator_policy
 type: module
 domain: docs
-distribution_tier: starter_kit
 responsibility:
   - Centralize validator-owned adoption-shape policy constants and field registries.
   - Keep schema, template, and canonical-style rule data separate from validator flow logic.

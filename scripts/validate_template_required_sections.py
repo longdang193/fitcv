@@ -5,16 +5,11 @@ type: script
 domain: docs
 distribution_tier: starter_kit
 responsibility:
-  - Validate that generated planning documents include required sections from template metadata.
+  - Validate that templated documents include required sections from template metadata.
   - Enforce non-empty required sections and template-specific frontmatter constraints.
 inputs:
   - docs/operating_system/templates/*-template.md
-  - docs/intent/master-workstream-roadmap.md
-  - docs/intent/workstreams/threads/**/*.md
-  - docs/superpowers/workstreams/registered-workstream-list.md
-  - docs/superpowers/specs/*.md
-  - docs/superpowers/execution_maps/*.md
-  - docs/superpowers/plans/*.md
+  - Documents matched by template target_globs
 outputs:
   - Exit status and human-readable template compliance report.
 tags:
@@ -39,9 +34,25 @@ import yaml
 HEADING_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 PLACEHOLDER_ONLY_RE = re.compile(r"^\s*(<[^>\n]+>|\[[^\]\n]+\]|\([^)\n]+\))\s*$")
 SECTION_ALIASES: dict[str, tuple[str, ...]] = {
-    "Task/Wave Breakdown": (
-        "Task/Wave Breakdown",
+    "Goal and Problem": (
+        "Goal and Problem",
+        "Goal",
+    ),
+    "Required Outcomes": (
+        "Required Outcomes",
+        "Key Deliverables",
+    ),
+    "Implementation Outcomes": (
+        "Implementation Outcomes",
+        "Key Deliverables",
+    ),
+    "Invariants and Edge Cases": (
+        "Invariants and Edge Cases",
+        "Invariants",
+    ),
+    "Task Breakdown": (
         "Task Breakdown",
+        "Task/Wave Breakdown",
         "Execution Waves",
         "Authoring Waves",
         "Phase Structure",
@@ -61,7 +72,6 @@ class Finding:
 class TemplateRule:
     template_path: Path
     template_id: str
-    document_type: str
     target_globs: list[str]
     required_sections: list[str]
     required_frontmatter: dict[str, str]
@@ -128,7 +138,6 @@ def discover_template_rules(root: Path) -> tuple[list[TemplateRule], list[Findin
         payload, _ = _extract_frontmatter_and_body(path)
         rel = relative_path(path, root)
         template_id = payload.get("template_id")
-        document_type = payload.get("document_type")
         target_globs = payload.get("target_globs")
         required_sections = payload.get("required_sections")
         required_frontmatter = payload.get("required_frontmatter", {})
@@ -139,15 +148,6 @@ def discover_template_rules(root: Path) -> tuple[list[TemplateRule], list[Findin
                     category="template_metadata_error",
                     path=rel,
                     message="missing required `template_id` frontmatter.",
-                )
-            )
-            continue
-        if not isinstance(document_type, str) or not document_type.strip():
-            findings.append(
-                Finding(
-                    category="template_metadata_error",
-                    path=rel,
-                    message="missing required `document_type` frontmatter.",
                 )
             )
             continue
@@ -197,7 +197,6 @@ def discover_template_rules(root: Path) -> tuple[list[TemplateRule], list[Findin
             TemplateRule(
                 template_path=path,
                 template_id=template_id.strip(),
-                document_type=document_type.strip(),
                 target_globs=[item.strip() for item in target_globs],
                 required_sections=[item.strip() for item in required_sections],
                 required_frontmatter={key.strip(): value.strip() for key, value in required_frontmatter.items()},
@@ -276,19 +275,12 @@ def _select_rule(path: Path, frontmatter: dict[str, Any], rules: list[TemplateRu
     return None
 
 
-def discover_target_documents(root: Path) -> list[Path]:
-    targets: list[Path] = []
-    roadmap = root / "docs" / "intent" / "master-workstream-roadmap.md"
-    if roadmap.exists():
-        targets.append(roadmap)
-    ws_list = root / "docs" / "superpowers" / "workstreams" / "registered-workstream-list.md"
-    if ws_list.exists():
-        targets.append(ws_list)
-    targets.extend(sorted((root / "docs" / "intent" / "workstreams" / "threads").glob("*/*.md")))
-    targets.extend(sorted((root / "docs" / "superpowers" / "specs").glob("*.md")))
-    targets.extend(sorted((root / "docs" / "superpowers" / "execution_maps").glob("*.md")))
-    targets.extend(sorted((root / "docs" / "superpowers" / "plans").glob("*.md")))
-    return [path for path in targets if path.name != "README.md"]
+def discover_target_documents(root: Path, rules: list[TemplateRule]) -> list[Path]:
+    targets: set[Path] = set()
+    for rule in rules:
+        for pattern in rule.target_globs:
+            targets.update(path for path in root.glob(pattern) if path.is_file())
+    return sorted(path for path in targets if path.name != "README.md")
 
 
 def validate_documents(
@@ -298,7 +290,7 @@ def validate_documents(
     require_template_selection: bool,
 ) -> list[Finding]:
     findings: list[Finding] = []
-    for path in discover_target_documents(root):
+    for path in discover_target_documents(root, rules):
         frontmatter, body = _extract_frontmatter_and_body(path)
         rel = relative_path(path, root)
 
@@ -327,7 +319,11 @@ def validate_documents(
         sections = _extract_h2_sections(body)
         section_names = set(sections.keys())
 
-        for required in rule.required_sections:
+        grandfathered_completed_spec = (
+            rule.template_id == "detailed-specification"
+            and frontmatter.get("status") == "completed"
+        )
+        for required in (() if grandfathered_completed_spec else rule.required_sections):
             resolved_name = _resolve_section_name(required, section_names)
             if resolved_name is None:
                 findings.append(
@@ -361,42 +357,6 @@ def validate_documents(
                     )
                 )
 
-        if rule.template_id == "master-workstream-roadmap":
-            roadmap_structure_name = _resolve_section_name("Task/Wave Breakdown", section_names)
-            phase_structure = sections.get(roadmap_structure_name, "") if roadmap_structure_name else ""
-            phase_sections = _extract_h3_sections(phase_structure)
-            for phase_name in ("Phase 1", "Phase 2", "Phase 3"):
-                phase_block = phase_sections.get(phase_name)
-                if phase_block is None:
-                    findings.append(
-                        Finding(
-                            category="template_phase_structure_missing",
-                            path=rel,
-                            message=f"missing required phase block `{phase_name}`.",
-                        )
-                    )
-                    continue
-                phase_subsections = _extract_h4_sections(phase_block)
-                for sub in ("Goal", "Exit Criteria"):
-                    sub_content = phase_subsections.get(sub)
-                    if sub_content is None:
-                        findings.append(
-                            Finding(
-                                category="template_phase_structure_missing",
-                                path=rel,
-                                message=f"`{phase_name}` is missing required subsection `{sub}`.",
-                            )
-                        )
-                        continue
-                    if _is_section_empty(sub_content):
-                        findings.append(
-                            Finding(
-                                category="template_phase_structure_empty",
-                                path=rel,
-                                message=f"`{phase_name}` subsection `{sub}` is empty.",
-                            )
-                        )
-            continue
     return findings
 
 

@@ -3,7 +3,6 @@
 name: validate_provider_settings_schema
 type: script
 domain: validation
-distribution_tier: starter_kit
 responsibility:
   - Validate provider settings schema, hook contracts, and capability compatibility.
 lifecycle:
