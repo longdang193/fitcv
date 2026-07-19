@@ -4,9 +4,6 @@
 ## Summary
 {{ summary }}
 
-## Skills
-{{ selected_skills | join(", ") }}
-
 ## Experience
 {% for exp in selected_experiences %}
 ### {{ exp.role }} — {{ exp.company }} ({{ exp.start }}–{{ exp.end }})
@@ -21,6 +18,14 @@
 {% if edu.field %}*{{ edu.field }}*{% endif %}
 {% endfor %}
 
+## Skills
+{{ selected_skills | join(", ") }}
+
+## Certifications
+{% for cert in selected_certifications %}
+- **{{ cert.name }}** — {{ cert.issuer }} ({{ cert.year }})
+{% endfor %}
+
 ## Projects
 {% for proj in selected_projects %}
 ### {{ proj.name }}
@@ -30,11 +35,6 @@
 ## Publications
 {% for publication in selected_publications %}
 - {{ publication.title }}{% if publication.publisher %} — {{ publication.publisher }}{% endif %}{% if publication.year %} ({{ publication.year }}){% endif %}
-{% endfor %}
-
-## Certifications
-{% for cert in selected_certifications %}
-- **{{ cert.name }}** — {{ cert.issuer }} ({{ cert.year }})
 {% endfor %}
 
 ## Languages

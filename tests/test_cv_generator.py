@@ -1385,6 +1385,19 @@ def test_europass_template_includes_publications_section() -> None:
     assert "## Publications" in template
 
 
+def test_europass_template_heading_order_matches_preset() -> None:
+    from fitcv.cv_presets import get_section_order
+
+    template = Path("templates/cv_template.md").read_text(encoding="utf-8")
+    heading_order = [
+        line.removeprefix("## ").strip().lower()
+        for line in template.splitlines()
+        if line.startswith("## ")
+    ]
+
+    assert heading_order == get_section_order("europass")
+
+
 def test_build_structured_generation_prompt_includes_safe_addendum() -> None:
     prompt = build_structured_generation_prompt(
         jd={"title": "Data Analyst", "required_skills": ["SQL"]},
