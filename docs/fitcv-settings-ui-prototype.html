@@ -15,6 +15,9 @@
   <style>
     dialog{width:min(560px,calc(100vw - 32px));padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);color:var(--text);box-shadow:0 24px 64px -16px rgba(0,0,0,.35)}dialog::backdrop{background:rgba(17,24,39,.34);backdrop-filter:blur(3px)}.dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:24px 24px 18px;border-bottom:1px solid var(--border-soft)}.dialog-head h2{margin:0;font-size:21px;letter-spacing:-.025em}.dialog-head p{margin:4px 0 0;color:var(--muted)}.dialog-close{display:grid;width:36px;height:36px;place-items:center;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;font-size:24px}.dialog-close:hover{background:var(--surface-2);color:var(--text)}.weight-form{padding:8px 24px 0}.weight-row{display:grid;grid-template-columns:minmax(0,1fr) 120px;align-items:center;gap:18px;padding:15px 0;border-bottom:1px solid var(--border-soft)}.weight-row label{font-weight:650}.weight-row span{display:block;margin-top:2px;color:var(--muted);font-size:12px}.weight-row .field{width:100%}.weight-status{margin:18px 24px 0;padding:10px 12px;border-radius:8px;background:var(--surface-2);color:var(--muted);font-size:13px}.weight-status.invalid{background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--accent)}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:20px 24px 24px}.btn:disabled{border-color:var(--border);background:var(--surface-2);color:var(--subtle);cursor:not-allowed}@media(max-width:760px){.weight-row{grid-template-columns:1fr}.dialog-actions{display:grid;grid-template-columns:1fr 1fr}}
   </style>
+  <style>
+    .supporting-text{margin-top:6px!important;color:var(--muted);font-size:12px!important}.row.is-disabled{background:var(--surface-2)}.row-status{min-height:18px;margin-top:5px!important;font-size:12px!important}.row-status.error{color:var(--accent)}.field[aria-invalid="true"]{border-color:var(--accent)}.weight-status.warning{background:#fff7df;color:#7a4d00}[data-theme="dark"] .weight-status.warning{background:#3b2e13;color:#f5cf78}.weight-status.valid{background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}[data-theme="dark"] .weight-status.valid{color:#86efac}.transaction-summary{display:block;margin-top:5px;color:var(--muted);font-size:12px}.check-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0;border-bottom:1px solid var(--border-soft)}.check-row:last-child{border-bottom:0}.check-row label{font-weight:650}.btn:disabled{pointer-events:none}.badge{display:inline-flex;min-height:30px;align-items:center;padding:0 10px;border-radius:999px;background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:650}@media(max-width:760px){.check-row{align-items:flex-start}}
+  </style>
 </head>
 <body>
   <div class="shell">
@@ -24,7 +27,7 @@
       <nav aria-label="Workspace">
         <a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg>Runs</a>
         <a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
-        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child" href="#" data-prototype-link>Overview</a><a class="nav-link child" href="#" data-prototype-link>Enrichment</a><a class="nav-link child" href="#" data-prototype-link>Rules &amp; Filters</a><a class="nav-link child" href="#" data-prototype-link>Shortlist</a><a class="nav-link child active" href="#ranking" aria-current="page">Ranking</a><a class="nav-link child" href="#" data-prototype-link>CV Analysis</a><a class="nav-link child" href="#" data-prototype-link>CV Generation</a><a class="nav-link child" href="#" data-prototype-link>Runtime &amp; Limits</a><a class="nav-link child" href="#" data-prototype-link>Automation &amp; Reuse</a></div></details>
+        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening-shortlisting">Screening &amp; Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a></div></details>
         <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children"><a class="nav-link child" href="#" data-prototype-link>Appearance</a><a class="nav-link child" href="#" data-prototype-link>LLM &amp; API</a><a class="nav-link child" href="#" data-prototype-link>Data &amp; Backup</a><a class="nav-link child" href="#" data-prototype-link>System</a></div></details>
         <div class="nav-divider" aria-hidden="true"></div><a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h4l2-5 4 10 2-5h4"/></svg>Health</a>
       </nav>
@@ -42,29 +45,441 @@
   <dialog id="weightsDialog" aria-labelledby="weightsTitle" aria-describedby="weightsDescription"><div class="dialog-head"><div><h2 id="weightsTitle">Weight Configuration</h2><p id="weightsDescription">Edit all weights together. Save only when their total equals 1.00.</p></div><button class="dialog-close" id="closeWeights" type="button" aria-label="Close weight configuration">×</button></div><form class="weight-form" id="weightForm"><div class="weight-row"><label for="skillsWeight">Skills match<span>Required skills and capability alignment</span></label><input class="field" id="skillsWeight" type="number" min="0" max="1" step="0.01" value="0.40" aria-label="Skills match weight"></div><div class="weight-row"><label for="experienceWeight">Experience<span>Relevant level and work history</span></label><input class="field" id="experienceWeight" type="number" min="0" max="1" step="0.01" value="0.30" aria-label="Experience weight"></div><div class="weight-row"><label for="roleFitWeight">Role fit<span>Alignment with role requirements</span></label><input class="field" id="roleFitWeight" type="number" min="0" max="1" step="0.01" value="0.20" aria-label="Role fit weight"></div><div class="weight-row"><label for="recencyWeight">Recency<span>Freshness of candidate evidence</span></label><input class="field" id="recencyWeight" type="number" min="0" max="1" step="0.01" value="0.10" aria-label="Recency weight"></div></form><p class="weight-status" id="weightStatus" role="status" aria-live="polite"></p><div class="dialog-actions"><button class="btn" id="cancelWeights" type="button">Cancel</button><button class="btn primary" id="saveWeights" type="button">Save weights</button></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite">Ranking changes saved in prototype</div>
   <script>
-    const key="fitcv-ranking-prototype",form=document.querySelector("#form"),theme=document.querySelector("#theme"),search=document.querySelector("#search"),sidebar=document.querySelector("#sidebar"),menu=document.querySelector("#menu"),scrim=document.querySelector("#scrim"),toast=document.querySelector("#toast"),restore=document.querySelector("#restore"),weightsDialog=document.querySelector("#weightsDialog"),weightForm=document.querySelector("#weightForm"),weightFields=[...weightForm.querySelectorAll("input")],weightStatus=document.querySelector("#weightStatus"),weightSave=document.querySelector("#saveWeights"),weightSummary=document.querySelector("#weightSummary");
-    const read=()=>Object.fromEntries([...form.elements].filter(control=>control.name).map(control=>[control.name,control.type==="checkbox"?control.checked:control.value]));
-    function apply(state){Object.entries(state).forEach(([name,value])=>{const control=form.elements.namedItem(name);if(!control)return;control.type==="checkbox"?control.checked=Boolean(value):control.value=value})}function persist(){localStorage.setItem(key,JSON.stringify(read()))}function setTheme(value){document.documentElement.dataset.theme=value;theme.ariaLabel=value==="dark"?"Use light theme":"Use dark theme"}function notify(text){toast.textContent=text;toast.classList.add("show");clearTimeout(notify.timer);notify.timer=setTimeout(()=>toast.classList.remove("show"),2200)}function openNav(open){sidebar.classList.toggle("open",open);scrim.classList.toggle("show",open);menu.ariaExpanded=String(open)}function renderWeightSummary(){weightSummary.textContent=weightFields.map(field=>`${field.labels[0].childNodes[0].textContent.trim()} ${Number(form.elements.namedItem(field.id).value).toFixed(2)}`).join(" · ")}function loadWeights(){weightFields.forEach(field=>field.value=form.elements.namedItem(field.id).value)}function validateWeights(){const values=weightFields.map(field=>Number(field.value)),valid=weightForm.checkValidity()&&values.every(Number.isFinite),total=values.reduce((sum,value)=>sum+value,0),difference=1-total,ready=valid&&Math.abs(difference)<.0001;weightSave.disabled=!ready;weightStatus.classList.toggle("invalid",!ready);weightStatus.textContent=!valid?"Enter every weight between 0.00 and 1.00.":ready?"Total 1.00 — ready to save.":`${difference>0?"Add":"Reduce"} ${Math.abs(difference).toFixed(2)} to reach 1.00.`;return ready}
-    apply(JSON.parse(localStorage.getItem(key)||"{}"));setTheme(localStorage.getItem(`${key}:theme`)||"light");renderWeightSummary();form.addEventListener("change",persist);restore.addEventListener("click",()=>{form.reset();persist();renderWeightSummary();notify("Ranking defaults restored")});document.querySelector("#manageWeights").addEventListener("click",()=>{loadWeights();validateWeights();weightsDialog.showModal()});weightFields.forEach(field=>field.addEventListener("input",validateWeights));document.querySelector("#closeWeights").addEventListener("click",()=>weightsDialog.close());document.querySelector("#cancelWeights").addEventListener("click",()=>weightsDialog.close());weightSave.addEventListener("click",()=>{if(!validateWeights())return;weightFields.forEach(field=>form.elements.namedItem(field.id).value=Number(field.value).toFixed(2));persist();renderWeightSummary();weightsDialog.close();notify("Ranking weights saved")});theme.addEventListener("click",()=>{const next=document.documentElement.dataset.theme==="dark"?"light":"dark";setTheme(next);localStorage.setItem(`${key}:theme`,next)});menu.addEventListener("click",()=>openNav(!sidebar.classList.contains("open")));scrim.addEventListener("click",()=>openNav(false));document.addEventListener("keydown",event=>{if(event.key==="Escape")openNav(false)});document.querySelectorAll("[data-prototype-link]").forEach(link=>link.addEventListener("click",event=>{event.preventDefault();notify(`${link.textContent.trim()} is navigation-only in this prototype`);openNav(false)}));search.addEventListener("input",()=>{const query=search.value.trim().toLowerCase(),rows=[...document.querySelectorAll("[data-row]")];rows.forEach(row=>row.hidden=Boolean(query)&&!row.textContent.toLowerCase().includes(query));document.querySelectorAll("[data-section]").forEach(section=>section.hidden=Boolean(query)&&!section.querySelector("[data-row]:not([hidden])"))});console.assert(document.querySelectorAll("[data-section]").length===3,"Ranking section contract changed");
-  </script>
-  <script>
   (()=>{
+  'use strict';
+  const STORAGE_KEY='fitcv-pipeline-settings-prototype-v4';
+  const n=(key,label,description,value,min,max,step=1)=>({type:'number',key,label,description,value,min,max,step});
+  const b=(key,label,description,value)=>({type:'boolean',key,label,description,value});
+  const s=(key,label,description,value,options)=>({type:'select',key,label,description,value,options});
+  const ro=(label,description,value)=>({type:'readonly',label,description,value});
+  const tx=(group,label,description,options={})=>({type:'manage',group,label,description,...options});
+  const pair=(title,subject)=>({
+    type:'pair',title,
+    description:`Choose how ${subject} balances exact wording with meaning-based similarity.`,
+    fields:[
+      {key:'exact',label:'Exact Wording',description:`Higher values reward direct phrase matches in ${subject}.`,value:.45},
+      {key:'semantic',label:'Semantic Similarity',description:`Higher values reward equivalent meaning even when ${subject} uses different wording.`,value:.55}
+    ]
+  });
+  const runtime=(title,description,delay,batch,concurrency)=>({
+    type:'runtime',title,description,
+    fields:[
+      {key:'delay',label:'Request Delay',description:'Seconds to wait between requests. Higher values reduce service pressure but increase run time.',value:delay,min:0,step:.1},
+      {key:'batch',label:'Batch Size',description:'Items processed together. Larger batches can improve throughput but increase memory and retry cost.',value:batch,min:1,step:1},
+      {key:'concurrency',label:'Concurrency',description:'Tasks processed at the same time. Higher values can run faster but may trigger rate limits.',value:concurrency,min:1,step:1}
+    ]
+  });
+
+  const transactions={
+    'factor-weights':{
+      type:'weights',title:'Factor Weights',description:'Set each factor’s share of the final ranking score. All weights must total 1.00.',
+      fields:[
+        {key:'mustHave',label:'Must-have Match',description:'Required skills and qualifications. Raising this weight makes missing essentials reduce the final score more strongly.',value:.30},
+        {key:'title',label:'Title Relevance',description:'Similarity between target and listing titles. Raising this weight favors roles with closer title alignment.',value:.18},
+        {key:'seniority',label:'Seniority Fit',description:'Alignment with the target career level. Raising this weight gives seniority mismatches more influence.',value:.14},
+        {key:'preference',label:'Preference Fit',description:'Declared domain, role family, and work-mode preferences. Raising this weight gives those stated preferences more influence.',value:.16},
+        {key:'location',label:'Location Fit',description:'Alignment with preferred locations. Raising this weight favors listings in selected locations.',value:.12},
+        {key:'language',label:'Language Fit',description:'Alignment with required and preferred languages. Raising this weight gives language compatibility more influence.',value:.10}
+      ]
+    },
+    'preference-fit':{
+      type:'weights',title:'Preference Fit Balance',description:'Choose which declared preferences shape the Preference Fit factor. All weights must total 1.00.',
+      fields:[
+        {key:'domain',label:'Domain Preference',description:'Higher values favor jobs in declared industries and domains.',value:.40},
+        {key:'roleFamily',label:'Role Family Preference',description:'Higher values favor jobs in declared role families.',value:.35},
+        {key:'workMode',label:'Work Mode Preference',description:'Higher values favor declared remote, hybrid, or onsite preferences.',value:.25}
+      ]
+    },
+    'cv-skills':pair('Skills Match','skills and capability evidence'),
+    'cv-role':pair('Role Match','role titles and role expectations'),
+    'cv-responsibilities':pair('Responsibilities Match','responsibilities and achievement evidence'),
+    'cv-domain':pair('Domain Match','industry and domain experience'),
+    'included-sections':{
+      type:'checks',title:'Included Sections',description:'Choose which sections appear in generated CVs.',
+      fields:[
+        {key:'summary',label:'Summary',value:true},{key:'education',label:'Education',value:true},
+        {key:'experience',label:'Experience',value:true},{key:'skills',label:'Skills',value:true},
+        {key:'certifications',label:'Certifications',value:true},{key:'projects',label:'Projects',value:true},
+        {key:'publications',label:'Publications',value:false},{key:'languages',label:'Languages',value:true}
+      ]
+    },
+    'runtime-enrichment':runtime('Enrichment Runtime','Controls request pacing while job listings are prepared.',.5,10,6),
+    'runtime-ranking':runtime('Ranking Runtime','Controls request pacing while shortlisted listings are scored.',0,20,8),
+    'runtime-cv-analysis':runtime('CV Analysis Runtime','Controls request pacing while CV evidence is compared with jobs.',.2,10,6),
+    'runtime-cv-generation':runtime('CV Generation Runtime','Controls request pacing while tailored CVs are generated.',1,5,4)
+  };
+
   const pages=[
-  ['overview','Overview','Most-used controls.','Core choices',[['pipeline.vector_search_top_n','Initial Candidate Pool Size','Candidates entering review.','n',50,1,1000],['pipeline.final_top_n','Final Output Count','Candidates in final output.','n',10,1,100]]],
-  ['enrichment','Enrichment','Set eligibility boundaries before enrichment.','Candidate scope',[['global_job_filters.applications_count_max','Maximum applications','Limit applications per source.','n',200,1,10000],['global_job_filters.max_age_days','Maximum posting age','Ignore older postings.','n',30,1,365]]],
-  ['rules-filters','Rules & Filters','Choose early exclusion checks.','Active filters',[['rule_filter.selected_filters.seniority_mismatch','Seniority mismatch','Exclude target seniority mismatch.','b',true],['rule_filter.selected_filters.missing_fit_context','Missing fit context','Exclude missing fit context.','b',true],['rule_filter.selected_filters.location_type_excluded','Location type excluded','Apply location exclusions.','b',true],['rule_filter.selected_filters.contract_type_excluded','Contract type excluded','Apply contract exclusions.','b',true],['rule_filter.selected_filters.experience_level_excluded','Experience level excluded','Apply experience exclusions.','b',true]]],
-  ['shortlist','Shortlist','No independently editable canonical control.','',[],true],
-  ['ranking','Ranking','Tune ranking pool and policy factors.','Ranking choices',[['pipeline.ai_score_top_n','AI Reranking Pool Size','Candidates sent through AI scoring.','n',50,1,1000],['ranking_policy.fit_label_thresholds.strong','Strong fit threshold','Minimum Strong fit score.','n',.7,0,1,.01],['ranking_policy.fit_label_thresholds.stretch','Stretch fit threshold','Minimum Stretch fit score.','n',.4,0,1,.01],['ranking_policy.structured_factor_weights','Structured factor weights','Must total 1.00.','tx','structured'],['ranking_policy.declared_preference_component_weights','Preference mix','Must total 1.00.','tx','preference']]],
-  ['cv-analysis','CV Analysis','Set evidence depth and semantic alignment.','Analysis choices',[['pipeline.evidence_top_k','Final Evidence Items','Evidence retained per candidate.','n',5,1,20],['cv_analysis.semantic_alignment.enabled','Semantic alignment','Use semantic matching.','b',false],['cv_analysis.semantic_alignment.model','Embedding model','Used when semantic alignment is enabled.','ro','text-embedding-005'],['cv_analysis.semantic_alignment.weights','Lexical and semantic pairs','Each lexical and semantic pair totals 1.00.','tx','semantic'],['cv_analysis.semantic_alignment.channel_pool_size','Channel pool size','Channels sampled.','n',4,1,20]]],
-  ['cv-generation','CV Generation','Control output composition.','Output choices',[['cv_preset','CV preset','Metadata only; Europass supported.','ro','europass'],['cv_generation_model','Generation model','Model for CV generation.','s','cx/gpt-5.4-mini',['cx/gpt-5.4-mini','cx/gpt-5.4']],['cv_max_pages','Maximum pages','Generated CV length limit.','n',2,1,5],['cv_generation.include.summary','Summary','Include summary.','b',true],['cv_generation.include.education','Education','Include education.','b',true],['cv_generation.include.experience','Experience','Include experience.','b',true],['cv_generation.include.skills','Skills','Include skills.','b',true],['cv_generation.include.certifications','Certifications','Include certifications.','b',true],['cv_generation.include.projects','Projects','Include projects.','b',true],['cv_generation.include.publications','Publications','Include publications.','b',false],['cv_generation.include.languages','Languages','Include languages.','b',true]]],
-  ['runtime-limits','Runtime & Limits','Single owner for runtime and lifecycle limits.','Runtime matrix',[['run_lifecycle.max_runtime_minutes','Maximum run duration','Minutes before stopping run.','n',240,1,1440],['stage_runtime.enrich.sleep_seconds','Enrichment request delay','Seconds between requests.','n',0,0,60],['stage_runtime.enrich.batch_size','Enrichment batch size','Items per batch.','n',10,1,100],['stage_runtime.enrich.concurrency','Enrichment concurrency','Concurrent work.','n',8,1,32],['stage_runtime.ranking.sleep_seconds','Ranking request delay','Seconds between requests.','n',0,0,60],['stage_runtime.ranking.concurrency','Ranking concurrency','Concurrent work.','n',4,1,32],['stage_runtime.cv_analysis.sleep_seconds','CV Analysis request delay','Seconds between requests.','n',0,0,60],['stage_runtime.cv_analysis.concurrency','CV Analysis concurrency','Concurrent work.','n',4,1,32],['stage_runtime.cv_generation.sleep_seconds','CV Generation request delay','Seconds between requests.','n',0,0,60],['stage_runtime.cv_generation.concurrency','CV Generation concurrency','Concurrent work.','n',4,1,32]]],
-  ['automation-reuse','Automation & Reuse','Manage optional automation and cache reuse.','Reuse',[['reuse.enrich','Reuse enrichment','Reuse matching enrichment output.','b',true],['reuse.ranking','Reuse ranking','Reuse matching ranking output.','b',true],['reuse.cv_analysis','Reuse CV analysis','Reuse matching analysis output.','b',true],['reuse.cv_generation','Reuse CV generation','Reuse matching CV output.','b',true],['reuse.synonym_triage','Reuse synonym triage','Reuse matching triage.','b',true],['synonym.proposals.enabled','Generate synonym proposals','Suggest candidates for triage.','b',true],['synonym.apply_approved','Apply approved synonyms','Apply approved changes.','b',false],['synonym.promote_approved','Promote approved synonyms','Promote shared reuse.','b',false],['synonym.ai_accept','AI accept suggestions','Allow automatic acceptance.','b',false],['synonym.manual_gate','Require manual gate','Require review before changes.','b',true]]]
-  ],groups={structured:[['Must-have match',.3],['Title relevance',.2],['Seniority fit',.15],['Declared preference fit',.15],['Location fit',.1],['Language fit',.1]],preference:[['Domain',.5],['Role family',.3],['Work mode',.2]],semantic:[['Required skills: lexical',.7],['Required skills: semantic',.3],['Role: lexical',.6],['Role: semantic',.4],['Responsibility: lexical',.25],['Responsibility: semantic',.75],['Domain: lexical',.4],['Domain: semantic',.6]]},key='fitcv-pipeline-contract-v1',state=JSON.parse(localStorage.getItem(key)||'{}'),defaults=Object.fromEntries(pages.flatMap(p=>p[4].filter(r=>!['tx','ro'].includes(r[3])).map(r=>[r[0],r[4]])));let activeGroup='';const get=(k,d)=>k in state?state[k]:d,write=()=>localStorage.setItem(key,JSON.stringify(state)),notify=t=>{toast.textContent=t;toast.classList.add('show');clearTimeout(notify.t);notify.t=setTimeout(()=>toast.classList.remove('show'),1800)};
-  function control(r){const [k,label,description,type,initial,min,max,step]=r;const current=get(k,initial);const text=`<span><strong>${label}</strong><p>${description}</p></span>`;if(type==='ro')return `<div class="row" data-row>${text}<span class="control"><span class="badge">${initial}</span></span></div>`;if(type==='tx')return `<div class="row" data-row>${text}<span class="control"><button class="btn" type="button" data-group="${initial}">Manage</button></span></div>`;if(type==='b')return `<label class="row" data-row>${text}<span class="control"><span class="switch"><input type="checkbox" data-key="${k}" ${current?'checked':''} aria-label="${label}"><span class="track"></span></span></span></label>`;if(type==='s')return `<label class="row" data-row>${text}<span class="control"><select class="field" data-key="${k}" aria-label="${label}">${min.map(option=>`<option ${option===current?'selected':''}>${option}</option>`).join('')}</select></span></label>`;return `<label class="row" data-row>${text}<span class="control"><input class="field" type="number" data-key="${k}" value="${current}" min="${min}" max="${max}" step="${step||1}" aria-label="${label}"></span></label>`}
-  function page(){const p=pages.find(item=>item[0]===location.hash.slice(1))||pages[0];location.hash=p[0];const nav=document.querySelector('#sidebar details .nav-children');nav.replaceChildren(...pages.map(item=>{const link=document.createElement('a');link.className=`nav-link child${item[0]===p[0]?' active':''}`;link.href=`#${item[0]}`;link.textContent=item[1];if(item[0]===p[0])link.setAttribute('aria-current','page');return link}));const form=document.querySelector('#form');form.replaceChildren();const head=document.createElement('div');head.className='page-head';head.innerHTML='<div><p class="eyebrow">Pipeline</p><h2>'+p[1]+'</h2><p>'+p[2]+'</p></div><button class="btn" id="restore" type="button" '+(p[5]?'disabled':'')+'>Restore Defaults</button>';form.append(head);if(p[5]){const empty=document.createElement('div');empty.className='empty';empty.innerHTML='<strong>No standalone controls</strong><p>Shortlist reads upstream decisions and Ranking output. Nothing page-owned exists to restore.</p>';form.append(empty)}else{const stack=document.createElement('div');stack.className='stack';const section=document.createElement('details');section.className='setting-section';section.open=true;section.innerHTML='<summary><span class="section-heading"><strong>'+p[3]+'</strong></span></summary><div class="settings-card">'+p[4].map(control).join('')+'</div>';stack.append(section);form.append(stack)}form.querySelectorAll('[data-key]').forEach(el=>el.addEventListener('change',()=>{const k=el.dataset.key,value=el.type==='checkbox'?el.checked:el.valueAsNumber;if(el.type==='number'&&(!Number.isFinite(value)||value<Number(el.min)||value>Number(el.max))){const error=document.getElementById(`error-${k}`);if(error)error.textContent=`Enter ${el.min}–${el.max}.`;el.value=get(k,defaults[k]);return}state[k]=value;write();notify(`${p[1]} saved`)}));form.querySelectorAll('[data-group]').forEach(el=>el.addEventListener('click',()=>openGroup(el.dataset.group)));document.getElementById('restore').addEventListener('click',()=>{p[4].forEach(row=>{if(row[0] in defaults)state[row[0]]=defaults[row[0]]});write();page();notify(`${p[1]} defaults restored`)})}
-  function openGroup(name){activeGroup=name;weightsTitle.textContent=name==='structured'?'Structured factor weights':name==='preference'?'Declared preference mix':'Lexical and semantic pairs';weightsDescription.textContent='Drafts stay local until all required totals are valid.';const saved=get(`group.${name}`,groups[name].map(x=>x[1]));weightForm.innerHTML=groups[name].map((x,i)=>`<div class="weight-row"><label>${x[0]}</label><input class="field group-weight" type="number" min="0" max="1" step=".01" value="${saved[i]}" aria-label="${x[0]}"></div>`).join('');weightsDialog.showModal();weightForm.querySelectorAll('input').forEach(x=>x.addEventListener('input',validGroup));validGroup()}
-  function validGroup(){const values=[...weightForm.querySelectorAll('input')].map(x=>Number(x.value));const sums=activeGroup==='semantic'?[0,2,4,6].map(i=>values[i]+values[i+1]):[values.reduce((a,b)=>a+b,0)];const ok=values.every(x=>Number.isFinite(x)&&x>=0&&x<=1)&&sums.every(x=>Math.abs(x-1)<.0001);weightSave.disabled=!ok;weightStatus.classList.toggle('invalid',!ok);weightStatus.textContent=ok?'Totals valid — ready to save.':activeGroup==='semantic'?'Each lexical and semantic pair must total 1.00.':'Adjust values to reach 1.00.';return ok}
-  closeWeights.onclick=cancelWeights.onclick=()=>weightsDialog.close();weightSave.onclick=()=>{if(!validGroup())return;state[`group.${activeGroup}`]=[...weightForm.querySelectorAll('input')].map(x=>Number(x.value));write();weightsDialog.close();notify('Weight group saved')};window.fitcvPipelineContract={pages,defaults};console.assert(pages.length===9,'Pipeline page contract changed');console.assert(!JSON.stringify(pages).match(/enrichment_sleep_secs|ranking_sleep_secs/),'Legacy timing aliases visible');addEventListener('hashchange',page);page();
+    {id:'overview',title:'Overview',description:'Set the most important pipeline volumes and output limits.',sections:[
+      {title:'Core Choices',open:true,rows:[
+        s('overview.candidateScope','Candidate Scope','Choose which available listings enter the initial candidate pool.','All matching listings',['All matching listings','Preferred markets only','Saved searches only']),
+        n('pipeline.initialPool','Initial Candidate Pool Size','Listings collected before screening begins.',100,1,1000,10),
+        n('pipeline.aiPool','AI Reranking Pool Size','Top screened listings sent for deeper AI ranking.',40,1,500,5),
+        n('pipeline.finalCount','Final Output Count','Best-fit listings returned when the pipeline finishes.',10,1,100),
+        n('pipeline.evidenceItems','Final Evidence Items Per Job','Strongest CV evidence items retained for each final job.',5,1,20)
+      ]},
+      {title:'Advanced',open:false,rows:[
+        n('overview.maxApplications','Maximum Applications','Skip listings whose visible application count is above this limit.',200,1,10000,10),
+        n('overview.maxPostingAge','Maximum Posting Age','Only include listings posted within this many days.',30,1,365)
+      ]}
+    ]},
+    {id:'enrichment',title:'Enrichment',description:'Control how listing information is prepared before screening.',sections:[
+      {title:'Listing Quality',open:true,rows:[
+        b('enrichment.skipIncomplete','Skip Incomplete Listings','Skip listings missing information needed for a reliable fit decision.',true)
+      ]}
+    ]},
+    {id:'screening-shortlisting',title:'Screening & Shortlisting',description:'Choose which listings qualify and how many continue to ranking.',sections:[
+      {title:'Screening Rules',open:true,rows:[
+        b('screening.requireFitContext','Require Fit Context','Continue only when the listing has enough role context for a reliable fit decision.',true),
+        s('screening.location','Location','Choose how strongly preferred locations limit eligible listings.','Prefer selected locations',['Any location','Prefer selected locations','Require selected locations']),
+        s('screening.workMode','Work Mode','Choose which remote, hybrid, or onsite arrangements are eligible.','Any preferred mode',['Any preferred mode','Remote only','Hybrid only','Onsite only']),
+        b('screening.seniority','Apply Seniority Preference','Exclude roles clearly outside the target seniority.',true),
+        b('screening.contract','Apply Contract Preference','Exclude contract types outside declared preferences.',true)
+      ]},
+      {title:'Shortlisting',open:false,rows:[
+        n('shortlisting.size','Shortlist Size','Maximum qualified listings passed to Ranking.',30,1,250,5),
+        b('shortlisting.borderline','Keep Borderline Matches','Keep uncertain listings for ranking instead of excluding them immediately.',false)
+      ]}
+    ]},
+    {id:'ranking',title:'Ranking',description:'Control how shortlisted listings receive their final fit score.',sections:[
+      {title:'Scoring',open:true,rows:[
+        tx('factor-weights','Factor Weights','Set how strongly each fit factor influences the final ranking score.'),
+        tx('preference-fit','Preference Fit Balance','Set how domain, role-family, and work-mode preferences contribute to Preference Fit.')
+      ]},
+      {title:'Fit Labels',open:false,rows:[
+        n('ranking.strongThreshold','Strong Fit Threshold','Minimum score labeled Strong Fit.',.70,0,1,.01),
+        n('ranking.stretchThreshold','Stretch Fit Threshold','Minimum score labeled Stretch Fit.',.40,0,1,.01)
+      ]}
+    ]},
+    {id:'cv-analysis',title:'CV Analysis',description:'Control how CV evidence is compared with each job.',sections:[
+      {title:'Semantic Alignment',open:true,rows:[
+        b('cv.semanticEnabled','Semantic Alignment','Compare meaning as well as exact words so equivalent experience can match differently phrased job requirements.',false),
+        ro('Embedding Model','Model used to compare meaning when Semantic Alignment is on.','text-embedding-005')
+      ]},
+      {title:'Match Methods',open:true,rows:[
+        tx('cv-skills','Skills Match','Balance exact skill wording against meaning-based skill similarity.',{enabledWhen:'cv.semanticEnabled',disabledText:'Turn on Semantic Alignment to configure Skills Match.'}),
+        tx('cv-role','Role Match','Balance exact role wording against meaning-based role similarity.',{enabledWhen:'cv.semanticEnabled',disabledText:'Turn on Semantic Alignment to configure Role Match.'}),
+        tx('cv-responsibilities','Responsibilities Match','Balance exact responsibility wording against meaning-based similarity.',{enabledWhen:'cv.semanticEnabled',disabledText:'Turn on Semantic Alignment to configure Responsibilities Match.'}),
+        tx('cv-domain','Domain Match','Balance exact domain wording against meaning-based domain similarity.',{enabledWhen:'cv.semanticEnabled',disabledText:'Turn on Semantic Alignment to configure Domain Match.'})
+      ]}
+    ]},
+    {id:'cv-generation',title:'CV Generation',description:'Choose content included in generated CVs.',sections:[
+      {title:'Composition',open:true,rows:[
+        tx('included-sections','Included Sections','Choose which CV sections are included. Changes apply together when saved.')
+      ]}
+    ]},
+    {id:'runtime-limits',title:'Runtime & Limits',description:'Set request pacing for each pipeline stage from one place.',sections:[
+      {title:'Stage Runtime',open:true,rows:[
+        tx('runtime-enrichment','Enrichment','Manage request delay, batch size, and concurrency for listing preparation.'),
+        tx('runtime-ranking','Ranking','Manage request delay, batch size, and concurrency for scoring.'),
+        tx('runtime-cv-analysis','CV Analysis','Manage request delay, batch size, and concurrency for evidence comparison.'),
+        tx('runtime-cv-generation','CV Generation','Manage request delay, batch size, and concurrency for CV creation.')
+      ]}
+    ]},
+    {id:'automation-reuse',title:'Automation & Reuse',description:'Control how approved alternate terms are suggested and reused.',sections:[
+      {title:'Synonym Review',open:true,rows:[
+        b('synonyms.suggest','Suggest Alternate Terms','Suggest related terms when they may improve matching.',true),
+        b('synonyms.useThisRun','Use Approved Terms for This Run','Apply reviewed terms to the current pipeline run.',true),
+        b('synonyms.shareFuture','Share Approved Terms with Future Runs','Reuse reviewed terms in later runs.',true)
+      ]},
+      {title:'Synonym Automation',open:false,rows:[
+        b('synonyms.autoApply','Automatically Apply Approved Terms','Use previously approved terms without asking again.',false),
+        b('synonyms.autoAccept','Automatically Accept Suggestions','Accept new suggestions without review. Use only when suggestions are consistently reliable.',false)
+      ]}
+    ]}
+  ];
+  function assessTransaction(definition,values){
+    if(definition.type==='weights'||definition.type==='pair'){
+      const numbers=Object.values(values),finite=numbers.every(Number.isFinite),within=numbers.every(value=>value>=0&&value<=1);
+      const total=numbers.reduce((sum,value)=>sum+value,0),difference=1-total;
+      const valid=finite&&within&&Math.abs(difference)<.0001;
+      if(!finite||!within)return {valid:false,kind:'invalid',message:'Error: Enter every value from 0.00 to 1.00.'};
+      if(!valid)return {valid:false,kind:'invalid',message:`${difference>0?'Add':'Reduce'} ${Math.abs(difference).toFixed(2)} to reach 1.00.`};
+      return {valid:true,kind:'valid',message:'Total 1.00 — ready to save.'};
+    }
+    if(definition.type==='runtime'){
+      const errors=[];
+      if(!Number.isFinite(values.delay)||values.delay<0)errors.push('Request Delay must be 0 or greater.');
+      if(!Number.isFinite(values.batch)||values.batch<1)errors.push('Batch Size must be at least 1.');
+      if(!Number.isFinite(values.concurrency)||values.concurrency<1)errors.push('Concurrency must be at least 1.');
+      if(errors.length)return {valid:false,kind:'invalid',message:`Error: ${errors.join(' ')}`};
+      const warnings=[];
+      if(values.delay===0&&values.concurrency>8)warnings.push('No request delay with concurrency above 8 may trigger rate limits.');
+      if(values.concurrency>16)warnings.push('Concurrency above 16 may overload external services.');
+      if(values.batch>50)warnings.push('Batch Size above 50 may increase memory use and retry cost.');
+      if(warnings.length)return {valid:true,kind:'warning',message:`Warning: ${warnings.join(' ')} Save is allowed.`};
+      return {valid:true,kind:'valid',message:'Runtime values valid — ready to save.'};
+    }
+    return {valid:true,kind:'valid',message:'Changes valid — ready to save.'};
+  }
+  const form=document.querySelector('#form');
+  const theme=document.querySelector('#theme');
+  const search=document.querySelector('#search');
+  const sidebar=document.querySelector('#sidebar');
+  const menu=document.querySelector('#menu');
+  const scrim=document.querySelector('#scrim');
+  const toast=document.querySelector('#toast');
+  const dialog=document.querySelector('#weightsDialog');
+  const dialogTitle=document.querySelector('#weightsTitle');
+  const dialogDescription=document.querySelector('#weightsDescription');
+  const dialogForm=document.querySelector('#weightForm');
+  const dialogStatus=document.querySelector('#weightStatus');
+  const dialogSave=document.querySelector('#saveWeights');
+  const pipelineNav=document.querySelector('#sidebar .nav-group .nav-children');
+  const defaults={};
+  const directRows=new Map();
+  let activeGroup=null;
+
+  for(const page of pages){
+    for(const section of page.sections){
+      for(const row of section.rows){
+        if(row.key){defaults[row.key]=row.value;directRows.set(row.key,row)}
+      }
+    }
+  }
+  for(const [group,definition] of Object.entries(transactions)){
+    defaults[`transaction.${group}`]=Object.fromEntries(definition.fields.map(field=>[field.key,field.value]));
+  }
+
+  function clone(value){return structuredClone(value)}
+  function readStored(){
+    try{
+      const parsed=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
+      return parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed:{};
+    }catch{
+      localStorage.removeItem(STORAGE_KEY);
+      return {};
+    }
+  }
+  function normaliseStored(stored){
+    const clean=clone(defaults);
+    for(const [key,row] of directRows){
+      if(!Object.hasOwn(stored,key))continue;
+      const value=stored[key];
+      if(row.type==='number'&&Number.isFinite(value)&&value>=row.min&&value<=row.max)clean[key]=value;
+      if(row.type==='boolean'&&typeof value==='boolean')clean[key]=value;
+      if(row.type==='select'&&row.options.includes(value))clean[key]=value;
+    }
+    for(const [group,definition] of Object.entries(transactions)){
+      const key=`transaction.${group}`,value=stored[key];
+      if(!value||typeof value!=='object'||Array.isArray(value))continue;
+      const candidate=clone(defaults[key]);
+      let shapeValid=true;
+      for(const field of definition.fields){
+        if(!Object.hasOwn(value,field.key)){shapeValid=false;break}
+        const fieldValue=value[field.key];
+        if(definition.type==='checks'){
+          if(typeof fieldValue!=='boolean'){shapeValid=false;break}
+        }else if(!Number.isFinite(fieldValue)){
+          shapeValid=false;break;
+        }
+        candidate[field.key]=fieldValue;
+      }
+      if(shapeValid&&assessTransaction(definition,candidate).valid)clean[key]=candidate;
+    }
+    return clean;
+  }
+  let state=normaliseStored(readStored());
+  write();
+  function get(key){return state[key]??defaults[key]}
+  function write(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
+  function notify(message){
+    toast.textContent=message;
+    toast.classList.add('show');
+    clearTimeout(notify.timer);
+    notify.timer=setTimeout(()=>toast.classList.remove('show'),1800);
+  }
+  function setTheme(value){
+    document.documentElement.dataset.theme=value;
+    theme.setAttribute('aria-label',value==='dark'?'Use light theme':'Use dark theme');
+  }
+  function openNav(open){
+    sidebar.classList.toggle('open',open);
+    scrim.classList.toggle('show',open);
+    menu.setAttribute('aria-expanded',String(open));
+  }
+  function slug(value){return value.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase()}
+  function transactionValue(group){
+    const fallback=defaults[`transaction.${group}`];
+    const saved=state[`transaction.${group}`];
+    return saved&&typeof saved==='object'&&!Array.isArray(saved)?{...clone(fallback),...saved}:clone(fallback);
+  }
+  function transactionSummary(group){
+    const definition=transactions[group],value=transactionValue(group);
+    if(definition.type==='runtime')return `${Number(value.delay).toFixed(1)}s delay · batch ${value.batch} · concurrency ${value.concurrency}`;
+    if(definition.type==='pair')return `Exact ${Number(value.exact).toFixed(2)} · Semantic ${Number(value.semantic).toFixed(2)}`;
+    if(definition.type==='checks')return `${Object.values(value).filter(Boolean).length} of ${definition.fields.length} sections included`;
+    return definition.fields.map(field=>`${field.label} ${Number(value[field.key]).toFixed(2)}`).join(' · ');
+  }
+  function rowMarkup(row){
+    const id=slug(row.key||row.group||row.label);
+    const copy=`<span><strong>${row.label}</strong><p>${row.description}</p>`;
+    if(row.type==='readonly')return `<div class="row" data-row>${copy}</span><span class="control"><span class="badge">${row.value}</span></span></div>`;
+    if(row.type==='manage'){
+      const disabled=Boolean(row.enabledWhen&&!get(row.enabledWhen));
+      const supportId=`support-${id}`;
+      const support=disabled?`<p class="supporting-text" id="${supportId}">${row.disabledText}</p>`:'';
+      return `<div class="row${disabled?' is-disabled':''}" data-row>${copy}<span class="transaction-summary">${transactionSummary(row.group)}</span>${support}</span><span class="control"><button class="btn" type="button" data-group="${row.group}" ${disabled?`disabled aria-describedby="${supportId}"`:''}>Manage</button></span></div>`;
+    }
+    const current=get(row.key);
+    const status=`<p class="row-status" id="status-${id}" role="status" aria-live="polite"></p>`;
+    if(row.type==='boolean')return `<label class="row" data-row>${copy}${status}</span><span class="control"><span class="switch"><input type="checkbox" data-key="${row.key}" ${current?'checked':''} aria-label="${row.label}"><span class="track"></span></span></span></label>`;
+    if(row.type==='select')return `<label class="row" data-row>${copy}${status}</span><span class="control"><select class="field" data-key="${row.key}" aria-label="${row.label}">${row.options.map(option=>`<option value="${option}" ${option===current?'selected':''}>${option}</option>`).join('')}</select></span></label>`;
+    return `<label class="row" data-row>${copy}${status}</span><span class="control"><input class="field" type="number" data-key="${row.key}" value="${current}" min="${row.min}" max="${row.max}" step="${row.step}" aria-label="${row.label}"></span></label>`;
+  }
+  function currentPage(){return pages.find(page=>page.id===location.hash.slice(1))||pages[0]}
+  function renderPage(){
+    const page=currentPage();
+    if(location.hash!==`#${page.id}`)history.replaceState(null,'',`#${page.id}`);
+    pipelineNav.replaceChildren(...pages.map(item=>{
+      const link=document.createElement('a');
+      link.className=`nav-link child${item.id===page.id?' active':''}`;
+      link.href=`#${item.id}`;
+      link.textContent=item.title;
+      if(item.id===page.id)link.setAttribute('aria-current','page');
+      return link;
+    }));
+    const sections=page.sections.filter(section=>section.rows.length);
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Pipeline</p><h2>${page.title}</h2><p>${page.description}</p></div><button class="btn" id="restore" type="button">Restore Defaults</button></div><div class="stack">${sections.map(section=>`<details class="setting-section" data-section ${section.open?'open':''}><summary><span class="section-heading"><strong>${section.title}</strong></span></summary><div class="settings-card">${section.rows.map(rowMarkup).join('')}</div></details>`).join('')}</div>`;
+    search.setAttribute('aria-label',`Search ${page.title}`);
+    bindPage(page);
+    filterRows();
+  }
+  function findRow(page,key){
+    for(const section of page.sections){
+      const row=section.rows.find(item=>item.key===key);
+      if(row)return row;
+    }
+  }
+  function validateDirect(control,row){
+    const status=document.querySelector(`#status-${slug(row.key)}`);
+    if(row.type!=='number'){
+      control.removeAttribute('aria-invalid');
+      if(status){status.textContent='';status.className='row-status'}
+      return true;
+    }
+    const value=control.valueAsNumber;
+    const valid=Number.isFinite(value)&&value>=row.min&&value<=row.max;
+    control.setAttribute('aria-invalid',String(!valid));
+    if(status){
+      status.textContent=valid?'':`Error: Enter a value from ${row.min} to ${row.max}.`;
+      status.className=`row-status${valid?'':' error'}`;
+    }
+    return valid;
+  }
+  function bindPage(page){
+    form.querySelectorAll('[data-key]').forEach(control=>{
+      const row=findRow(page,control.dataset.key);
+      if(control.type==='number')control.addEventListener('input',()=>validateDirect(control,row));
+      control.addEventListener('change',()=>{
+        if(!validateDirect(control,row))return;
+        state[row.key]=row.type==='boolean'?control.checked:row.type==='number'?control.valueAsNumber:control.value;
+        write();
+        notify(`${row.label} saved`);
+        if(row.key==='cv.semanticEnabled'){
+          if(!control.checked&&activeGroup?.startsWith('cv-'))dialog.close();
+          renderPage();
+        }
+      });
+    });
+    form.querySelectorAll('[data-group]').forEach(button=>button.addEventListener('click',()=>openTransaction(button.dataset.group)));
+    document.querySelector('#restore').addEventListener('click',()=>restorePage(page));
+  }
+  function restorePage(page){
+    for(const section of page.sections){
+      for(const row of section.rows){
+        if(row.key)state[row.key]=clone(defaults[row.key]);
+        if(row.group)state[`transaction.${row.group}`]=clone(defaults[`transaction.${row.group}`]);
+      }
+    }
+    write();
+    renderPage();
+    notify(`${page.title} defaults restored`);
+  }
+  function renderDialogFields(definition,draft){
+    if(definition.type==='checks'){
+      dialogForm.innerHTML=definition.fields.map(field=>`<div class="check-row"><label for="dialog-${field.key}">${field.label}</label><span class="switch"><input id="dialog-${field.key}" type="checkbox" data-field="${field.key}" ${draft[field.key]?'checked':''}><span class="track"></span></span></div>`).join('');
+      return;
+    }
+    dialogForm.innerHTML=definition.fields.map(field=>`<div class="weight-row"><label for="dialog-${field.key}">${field.label}<span>${field.description}</span></label><input class="field" id="dialog-${field.key}" data-field="${field.key}" type="number" min="${field.min??0}" ${definition.type==='runtime'?'':`max="1"`} step="${field.step??.01}" value="${draft[field.key]}" aria-label="${field.label}"></div>`).join('');
+  }
+  function openTransaction(group){
+    if(group.startsWith('cv-')&&!get('cv.semanticEnabled'))return;
+    activeGroup=group;
+    const definition=transactions[group];
+    dialogTitle.textContent=definition.title;
+    dialogDescription.textContent=definition.description;
+    dialogSave.textContent='Save';
+    renderDialogFields(definition,transactionValue(group));
+    dialogForm.querySelectorAll('input').forEach(input=>{
+      input.addEventListener('input',validateTransaction);
+      input.addEventListener('change',validateTransaction);
+    });
+    validateTransaction();
+    dialog.showModal();
+    dialogForm.querySelector('input')?.focus();
+  }
+  function draftValues(definition){
+    return Object.fromEntries(definition.fields.map(field=>{
+      const input=dialogForm.querySelector(`[data-field="${field.key}"]`);
+      return [field.key,definition.type==='checks'?input.checked:Number(input.value)];
+    }));
+  }
+  function validateTransaction(){
+    if(!activeGroup)return {valid:false};
+    const definition=transactions[activeGroup],values=draftValues(definition);
+    const assessment=assessTransaction(definition,values);
+    dialogSave.disabled=!assessment.valid;
+    dialogStatus.className=`weight-status ${assessment.kind}`;
+    dialogStatus.textContent=assessment.message;
+    return {...assessment,values};
+  }
+  function filterRows(){
+    const query=search.value.trim().toLowerCase();
+    form.querySelectorAll('[data-row]').forEach(row=>row.hidden=Boolean(query)&&!row.textContent.toLowerCase().includes(query));
+    form.querySelectorAll('[data-section]').forEach(section=>section.hidden=Boolean(query)&&!section.querySelector('[data-row]:not([hidden])'));
+  }
+  function selfCheck(){
+    if(pages.length!==8)throw new Error('Expected eight Pipeline pages');
+    if(new Set(pages.map(page=>page.id)).size!==pages.length)throw new Error('Pipeline page IDs must be unique');
+    if(pages.some(page=>page.id==='shortlist'))throw new Error('Shortlist must not be a standalone page');
+    if(/gap thresholds?/i.test(JSON.stringify({pages,transactions})))throw new Error('Gap Thresholds must not exist in prototype contract');
+    if(defaults['enrichment.skipIncomplete']!==true)throw new Error('Skip Incomplete Listings must default On');
+    const generation=pages.find(page=>page.id==='cv-generation');
+    if(generation.sections.flatMap(section=>section.rows).some(row=>row.label!=='Included Sections'))throw new Error('CV Generation must expose only Included Sections');
+    const runtimeRows=pages.find(page=>page.id==='runtime-limits').sections.flatMap(section=>section.rows);
+    if(runtimeRows.length!==4||runtimeRows.some(row=>transactions[row.group]?.type!=='runtime'))throw new Error('Runtime page must own four managed stage rows');
+    return true;
+  }
+
+  document.querySelector('#closeWeights').addEventListener('click',()=>dialog.close());
+  document.querySelector('#cancelWeights').addEventListener('click',()=>dialog.close());
+  dialog.addEventListener('close',()=>{activeGroup=null;dialogForm.replaceChildren();dialogStatus.textContent=''});
+  dialogSave.addEventListener('click',()=>{
+    const group=activeGroup,result=validateTransaction();
+    if(!result.valid)return;
+    state[`transaction.${group}`]=result.values;
+    write();
+    dialog.close();
+    renderPage();
+    notify(`${transactions[group].title} saved`);
+  });
+  theme.addEventListener('click',()=>{
+    const next=document.documentElement.dataset.theme==='dark'?'light':'dark';
+    setTheme(next);
+    localStorage.setItem(`${STORAGE_KEY}:theme`,next);
+  });
+  menu.addEventListener('click',()=>openNav(!sidebar.classList.contains('open')));
+  scrim.addEventListener('click',()=>openNav(false));
+  pipelineNav.addEventListener('click',()=>openNav(false));
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!dialog.open)openNav(false)});
+  document.querySelectorAll('[data-prototype-link]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();notify(`${link.textContent.trim()} is navigation-only in this prototype`);openNav(false)}));
+  search.addEventListener('input',filterRows);
+  addEventListener('hashchange',renderPage);
+  setTheme(localStorage.getItem(`${STORAGE_KEY}:theme`)||'light');
+  window.fitcvPipelineContract={pages,transactions,defaults,selfCheck,validateTransaction};
+  console.assert(selfCheck(),'Pipeline prototype self-check failed');
+  renderPage();
   })();
   </script>
 </body>
