@@ -16,7 +16,7 @@
     dialog{width:min(560px,calc(100vw - 32px));padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);color:var(--text);box-shadow:0 24px 64px -16px rgba(0,0,0,.35)}dialog::backdrop{background:rgba(17,24,39,.34);backdrop-filter:blur(3px)}.dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:24px 24px 18px;border-bottom:1px solid var(--border-soft)}.dialog-head h2{margin:0;font-size:21px;letter-spacing:-.025em}.dialog-head p{margin:4px 0 0;color:var(--muted)}.dialog-close{display:grid;width:36px;height:36px;place-items:center;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;font-size:24px}.dialog-close:hover{background:var(--surface-2);color:var(--text)}.weight-form{padding:8px 24px 0}.weight-row{display:grid;grid-template-columns:minmax(0,1fr) 120px;align-items:center;gap:18px;padding:15px 0;border-bottom:1px solid var(--border-soft)}.weight-row label{font-weight:650}.weight-row span{display:block;margin-top:2px;color:var(--muted);font-size:12px}.weight-row .field{width:100%}.weight-status{margin:18px 24px 0;padding:10px 12px;border-radius:8px;background:var(--surface-2);color:var(--muted);font-size:13px}.weight-status.invalid{background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--accent)}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:20px 24px 24px}.btn:disabled{border-color:var(--border);background:var(--surface-2);color:var(--subtle);cursor:not-allowed}@media(max-width:760px){.weight-row{grid-template-columns:1fr}.dialog-actions{display:grid;grid-template-columns:1fr 1fr}}
   </style>
   <style>
-    .supporting-text{margin-top:6px!important;color:var(--muted);font-size:12px!important}.row.is-disabled{background:var(--surface-2)}.row-status{min-height:18px;margin-top:5px!important;font-size:12px!important}.row-status.error{color:var(--accent)}.field[aria-invalid="true"]{border-color:var(--accent)}.weight-status.warning{background:#fff7df;color:#7a4d00}[data-theme="dark"] .weight-status.warning{background:#3b2e13;color:#f5cf78}.weight-status.valid{background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}[data-theme="dark"] .weight-status.valid{color:#86efac}.transaction-summary{display:block;margin-top:5px;color:var(--muted);font-size:12px}.check-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0;border-bottom:1px solid var(--border-soft)}.check-row:last-child{border-bottom:0}.check-row label{font-weight:650}.btn:disabled{pointer-events:none}.badge{display:inline-flex;min-height:30px;align-items:center;padding:0 10px;border-radius:999px;background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:650}@media(max-width:760px){.check-row{align-items:flex-start}}
+    .supporting-text{margin-top:6px!important;color:var(--muted);font-size:12px!important}.row.is-disabled,.row.is-mirror{background:var(--surface-2)}.row.is-mirror>span:first-child,.mirror-value{color:var(--subtle)}.overview-link{display:grid;width:38px;height:38px;place-items:center;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--accent);text-decoration:none}.overview-link:hover{border-color:var(--accent);background:var(--accent-soft)}.overview-link svg{width:18px}.dialog-detail-link,.dialog-back{display:inline-flex;margin-top:6px;padding:0;border:0;background:transparent;color:var(--accent);cursor:pointer;font-size:12px;font-weight:650}.dialog-detail-link:hover,.dialog-back:hover{text-decoration:underline}.dialog-back{margin:12px 0 2px}.row-status{min-height:18px;margin-top:5px!important;font-size:12px!important}.row-status.error{color:var(--accent)}.field[aria-invalid="true"]{border-color:var(--accent)}.weight-status.warning{background:#fff7df;color:#7a4d00}[data-theme="dark"] .weight-status.warning{background:#3b2e13;color:#f5cf78}.weight-status.valid{background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}[data-theme="dark"] .weight-status.valid{color:#86efac}.transaction-summary{display:block;margin-top:5px;color:var(--muted);font-size:12px}.check-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0;border-bottom:1px solid var(--border-soft)}.check-row:last-child{border-bottom:0}.check-row>label:first-child{font-weight:650}.btn:disabled{pointer-events:none}.badge,.mirror-value{display:inline-flex;min-height:30px;align-items:center;padding:0 10px;border-radius:999px;background:var(--surface);font-size:12px;font-weight:650}@media(max-width:760px){.check-row{align-items:flex-start}}
   </style>
 </head>
 <body>
@@ -27,7 +27,7 @@
       <nav aria-label="Workspace">
         <a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg>Runs</a>
         <a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
-        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening-shortlisting">Screening &amp; Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a></div></details>
+        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening">Screening</a><a class="nav-link child" href="#shortlisting">Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a></div></details>
         <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children"><a class="nav-link child" href="#" data-prototype-link>Appearance</a><a class="nav-link child" href="#" data-prototype-link>LLM &amp; API</a><a class="nav-link child" href="#" data-prototype-link>Data &amp; Backup</a><a class="nav-link child" href="#" data-prototype-link>System</a></div></details>
         <div class="nav-divider" aria-hidden="true"></div><a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h4l2-5 4 10 2-5h4"/></svg>Health</a>
       </nav>
@@ -35,14 +35,10 @@
     <div class="scrim" id="scrim"></div>
     <main class="main"><div class="grid" aria-hidden="true"></div>
       <header><div class="title"><button class="menu-btn" id="menu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><svg class="title-icon" width="23" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg><div><h1>Pipeline</h1><p>Configure how each matching run selects and prepares candidates.</p></div></div><div class="actions"><label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="search" type="search" placeholder="Search Pipeline" aria-label="Search Pipeline Overview"></label><button class="icon-btn" id="theme" type="button" aria-label="Use dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"/></svg></button></div></header>
-      <div class="scroll"><div class="content"><form id="form"><input type="hidden" name="skillsWeight" value="0.40"><input type="hidden" name="experienceWeight" value="0.30"><input type="hidden" name="roleFitWeight" value="0.20"><input type="hidden" name="recencyWeight" value="0.10"><div class="page-head" id="ranking"><div><p class="eyebrow">Pipeline</p><h2>Ranking</h2><p>Rank shortlisted candidates. Valid changes apply immediately; score weights commit together.</p></div><button class="btn" id="restore" type="button">Restore Defaults</button></div><div class="stack">
-        <details class="setting-section" data-section open><summary><span class="section-heading"><strong>Ranking behavior</strong><span>Choose how the shortlist is scored and narrowed.</span></span></summary><div class="settings-card"><label class="row" data-row><span><strong>Re-ranking Pool Size</strong><p>Top shortlisted candidates evaluated by the deeper ranking pass.</p></span><span class="control"><input class="field" type="number" name="rerankPool" min="10" max="500" step="10" value="100" aria-label="Re-ranking Pool Size"></span></label><label class="row" data-row><span><strong>Minimum Match Score</strong><p>Hide candidates below this score unless manually reviewed.</p></span><span class="control"><input class="field" type="number" name="minimumScore" min="0" max="100" step="1" value="65" aria-label="Minimum Match Score"></span></label><label class="row" data-row><span><strong>Use AI Re-ranking</strong><p>Apply deeper job-fit analysis before the final ranking.</p></span><span class="control"><span class="switch"><input type="checkbox" name="aiReranking" checked aria-label="Use AI Re-ranking"><span class="track"></span></span></span></label></div></details>
-        <details class="setting-section" data-section open><summary><span class="section-heading"><strong>Scoring weights</strong><span>Weights are edited together to keep the total score valid.</span></span></summary><div class="settings-card"><div class="row" data-row><span><strong>Weight Configuration</strong><p id="weightSummary">Skills 0.40 · Experience 0.30 · Role fit 0.20 · Recency 0.10</p><a class="support-link" href="#" data-prototype-link>Learn how scoring works</a></span><span class="control"><button class="btn" id="manageWeights" type="button">Manage</button></span></div></div></details>
-        <details class="setting-section" data-section><summary><span class="section-heading"><strong>Advanced</strong><span>Less frequent ranking behavior.</span></span></summary><div class="settings-card"><label class="row" data-row><span><strong>Reuse Eligible Ranking Results</strong><p>Reuse prior scoring when the candidate and role inputs have not changed.</p></span><span class="control"><span class="switch"><input type="checkbox" name="reuseRanking" checked aria-label="Reuse Eligible Ranking Results"><span class="track"></span></span></span></label><label class="row" data-row><span><strong>Fallback for Missing Evidence</strong><p>Choose how candidates with incomplete evidence are positioned.</p></span><span class="control"><select class="field" name="missingEvidence" aria-label="Fallback for Missing Evidence"><option>Keep lower</option><option>Keep neutral</option><option>Exclude</option></select></span></label></div></details>
-      </div></form></div></div>
+      <div class="scroll"><div class="content"><form id="form"></form></div></div>
     </main>
   </div>
-  <dialog id="weightsDialog" aria-labelledby="weightsTitle" aria-describedby="weightsDescription"><div class="dialog-head"><div><h2 id="weightsTitle">Weight Configuration</h2><p id="weightsDescription">Edit all weights together. Save only when their total equals 1.00.</p></div><button class="dialog-close" id="closeWeights" type="button" aria-label="Close weight configuration">×</button></div><form class="weight-form" id="weightForm"><div class="weight-row"><label for="skillsWeight">Skills match<span>Required skills and capability alignment</span></label><input class="field" id="skillsWeight" type="number" min="0" max="1" step="0.01" value="0.40" aria-label="Skills match weight"></div><div class="weight-row"><label for="experienceWeight">Experience<span>Relevant level and work history</span></label><input class="field" id="experienceWeight" type="number" min="0" max="1" step="0.01" value="0.30" aria-label="Experience weight"></div><div class="weight-row"><label for="roleFitWeight">Role fit<span>Alignment with role requirements</span></label><input class="field" id="roleFitWeight" type="number" min="0" max="1" step="0.01" value="0.20" aria-label="Role fit weight"></div><div class="weight-row"><label for="recencyWeight">Recency<span>Freshness of candidate evidence</span></label><input class="field" id="recencyWeight" type="number" min="0" max="1" step="0.01" value="0.10" aria-label="Recency weight"></div></form><p class="weight-status" id="weightStatus" role="status" aria-live="polite"></p><div class="dialog-actions"><button class="btn" id="cancelWeights" type="button">Cancel</button><button class="btn primary" id="saveWeights" type="button">Save weights</button></div></dialog>
+  <dialog id="weightsDialog" aria-labelledby="weightsTitle" aria-describedby="weightsDescription"><div class="dialog-head"><div><h2 id="weightsTitle"></h2><p id="weightsDescription"></p></div><button class="dialog-close" id="closeWeights" type="button" aria-label="Close weight configuration">×</button></div><form class="weight-form" id="weightForm"></form><p class="weight-status" id="weightStatus" role="status" aria-live="polite"></p><div class="dialog-actions"><button class="btn" id="cancelWeights" type="button">Cancel</button><button class="btn primary" id="saveWeights" type="button">Save weights</button></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite">Ranking changes saved in prototype</div>
   <script>
   (()=>{
@@ -52,6 +48,7 @@
   const b=(key,label,description,value)=>({type:'boolean',key,label,description,value});
   const s=(key,label,description,value,options)=>({type:'select',key,label,description,value,options});
   const ro=(label,description,value)=>({type:'readonly',label,description,value});
+  const mirror=key=>({type:'mirror',key});
   const tx=(group,label,description,options={})=>({type:'manage',group,label,description,...options});
   const pair=(title,subject)=>({
     type:'pair',title,
@@ -77,7 +74,7 @@
         {key:'mustHave',label:'Must-have Match',description:'Required skills and qualifications. Raising this weight makes missing essentials reduce the final score more strongly.',value:.30},
         {key:'title',label:'Title Relevance',description:'Similarity between target and listing titles. Raising this weight favors roles with closer title alignment.',value:.18},
         {key:'seniority',label:'Seniority Fit',description:'Alignment with the target career level. Raising this weight gives seniority mismatches more influence.',value:.14},
-        {key:'preference',label:'Preference Fit',description:'Declared domain, role family, and work-mode preferences. Raising this weight gives those stated preferences more influence.',value:.16},
+        {key:'preference',label:'Preference Fit',description:'Declared domain, role family, and work-mode preferences. Raising this weight gives those stated preferences more influence.',value:.16,detailsGroup:'preference-fit',detailsLabel:'Configure Preference Fit'},
         {key:'location',label:'Location Fit',description:'Alignment with preferred locations. Raising this weight favors listings in selected locations.',value:.12},
         {key:'language',label:'Language Fit',description:'Alignment with required and preferred languages. Raising this weight gives language compatibility more influence.',value:.10}
       ]
@@ -111,47 +108,60 @@
 
   const pages=[
     {id:'overview',title:'Overview',description:'Set the most important pipeline volumes and output limits.',sections:[
-      {title:'Core Choices',open:true,rows:[
-        s('overview.candidateScope','Candidate Scope','Choose which available listings enter the initial candidate pool.','All matching listings',['All matching listings','Preferred markets only','Saved searches only']),
-        n('pipeline.initialPool','Initial Candidate Pool Size','Listings collected before screening begins.',100,1,1000,10),
-        n('pipeline.aiPool','AI Reranking Pool Size','Top screened listings sent for deeper AI ranking.',40,1,500,5),
+      {title:'Candidate Scope',open:true,rows:[
+        n('pipeline.initialPool','Initial Candidate Pool Size','Listings collected before screening begins.',100,1,1000),
+        n('pipeline.aiPool','AI Reranking Pool Size','Top screened listings sent for deeper AI ranking.',40,1,500),
         n('pipeline.finalCount','Final Output Count','Best-fit listings returned when the pipeline finishes.',10,1,100),
         n('pipeline.evidenceItems','Final Evidence Items Per Job','Strongest CV evidence items retained for each final job.',5,1,20)
       ]},
-      {title:'Advanced',open:false,rows:[
-        n('overview.maxApplications','Maximum Applications','Skip listings whose visible application count is above this limit.',200,1,10000,10),
+      {title:'Pre-enrichment Filter',open:true,rows:[
+        n('overview.maxApplications','Maximum Applications','Skip listings whose visible application count is above this limit.',200,1,10000),
         n('overview.maxPostingAge','Maximum Posting Age','Only include listings posted within this many days.',30,1,365)
       ]}
     ]},
     {id:'enrichment',title:'Enrichment',description:'Control how listing information is prepared before screening.',sections:[
+      {title:'Pre-enrichment Filter',open:true,rows:[
+        mirror('overview.maxApplications'),
+        mirror('overview.maxPostingAge')
+      ]},
       {title:'Listing Quality',open:true,rows:[
         b('enrichment.skipIncomplete','Skip Incomplete Listings','Skip listings missing information needed for a reliable fit decision.',true)
       ]}
     ]},
-    {id:'screening-shortlisting',title:'Screening & Shortlisting',description:'Choose which listings qualify and how many continue to ranking.',sections:[
-      {title:'Screening Rules',open:true,rows:[
+    {id:'screening',title:'Screening',description:'Choose which listings qualify before ranking.',sections:[
+      {title:'Fit Context',open:true,rows:[
         b('screening.requireFitContext','Require Fit Context','Continue only when the listing has enough role context for a reliable fit decision.',true),
-        s('screening.location','Location','Choose how strongly preferred locations limit eligible listings.','Prefer selected locations',['Any location','Prefer selected locations','Require selected locations']),
-        s('screening.workMode','Work Mode','Choose which remote, hybrid, or onsite arrangements are eligible.','Any preferred mode',['Any preferred mode','Remote only','Hybrid only','Onsite only']),
-        b('screening.seniority','Apply Seniority Preference','Exclude roles clearly outside the target seniority.',true),
-        b('screening.contract','Apply Contract Preference','Exclude contract types outside declared preferences.',true)
       ]},
-      {title:'Shortlisting',open:false,rows:[
-        n('shortlisting.size','Shortlist Size','Maximum qualified listings passed to Ranking.',30,1,250,5),
-        b('shortlisting.borderline','Keep Borderline Matches','Keep uncertain listings for ranking instead of excluding them immediately.',false)
+      {title:'Preferences',open:true,rows:[
+        b('screening.locationPreference','Location Preference','Prefer selected locations when screening listings.',true),
+        b('screening.workModePreference','Work Mode Preference','Prefer selected work modes when screening listings.',true),
+        b('screening.seniority','Seniority Preference','Exclude roles clearly outside the target seniority.',true),
+        b('screening.contract','Contract Preference','Exclude contract types outside declared preferences.',true),
+        b('screening.experienceLevel','Experience Preference','Exclude roles clearly outside the target experience level.',true)
+      ]},
+    ]},
+    {id:'shortlisting',title:'Shortlisting',description:'Control how many screened listings continue to ranking.',sections:[
+      {title:'Candidate Scope',open:true,rows:[
+        mirror('pipeline.initialPool')
       ]}
     ]},
     {id:'ranking',title:'Ranking',description:'Control how shortlisted listings receive their final fit score.',sections:[
-      {title:'Scoring',open:true,rows:[
-        tx('factor-weights','Factor Weights','Set how strongly each fit factor influences the final ranking score.'),
-        tx('preference-fit','Preference Fit Balance','Set how domain, role-family, and work-mode preferences contribute to Preference Fit.')
+      {title:'Candidate Scope',open:true,rows:[
+        mirror('pipeline.aiPool'),
+        mirror('pipeline.finalCount')
       ]},
-      {title:'Fit Labels',open:false,rows:[
-        n('ranking.strongThreshold','Strong Fit Threshold','Minimum score labeled Strong Fit.',.70,0,1,.01),
-        n('ranking.stretchThreshold','Stretch Fit Threshold','Minimum score labeled Stretch Fit.',.40,0,1,.01)
+      {title:'Scoring',open:true,rows:[
+        tx('factor-weights','Factor Weights','Set how strongly each fit factor influences the final ranking score.')
+      ]},
+      {title:'Fit Labels',open:true,rows:[
+        n('ranking.strongThreshold','Strong Fit Threshold','Minimum score needed before a listing is labeled Strong Fit. Raise this to keep only stronger matches.',.70,0,1,.01),
+        n('ranking.stretchThreshold','Stretch Fit Threshold','Minimum score needed before a listing is labeled Stretch Fit. Raise this to keep fewer stretch matches.',.40,0,1,.01)
       ]}
     ]},
     {id:'cv-analysis',title:'CV Analysis',description:'Control how CV evidence is compared with each job.',sections:[
+      {title:'Evidence Scope',open:true,rows:[
+        mirror('pipeline.evidenceItems')
+      ]},
       {title:'Semantic Alignment',open:true,rows:[
         b('cv.semanticEnabled','Semantic Alignment','Compare meaning as well as exact words so equivalent experience can match differently phrased job requirements.',false),
         ro('Embedding Model','Model used to compare meaning when Semantic Alignment is on.','text-embedding-005')
@@ -176,15 +186,21 @@
         tx('runtime-cv-generation','CV Generation','Manage request delay, batch size, and concurrency for CV creation.')
       ]}
     ]},
-    {id:'automation-reuse',title:'Automation & Reuse',description:'Control how approved alternate terms are suggested and reused.',sections:[
-      {title:'Synonym Review',open:true,rows:[
-        b('synonyms.suggest','Suggest Alternate Terms','Suggest related terms when they may improve matching.',true),
-        b('synonyms.useThisRun','Use Approved Terms for This Run','Apply reviewed terms to the current pipeline run.',true),
-        b('synonyms.shareFuture','Share Approved Terms with Future Runs','Reuse reviewed terms in later runs.',true)
+    {id:'automation-reuse',title:'Automation & Reuse',description:'Control how approved alternate terms and previous results are suggested, reused, and automated.',sections:[
+      {title:'Reuse Results',open:true,rows:[
+        b('reuse.enrichment','Reuse Enrichment Results','Reuse matching enrichment output from an earlier run.',true),
+        b('reuse.ranking','Reuse Ranking Results','Reuse matching ranking output from an earlier run.',true),
+        b('reuse.cvAnalysis','Reuse CV Analysis Results','Reuse matching CV analysis output from an earlier run.',true),
+        b('reuse.generatedCvs','Reuse Generated CVs','Reuse matching generated CV output from an earlier run.',true),
+        b('reuse.synonymReview','Reuse Synonym Review Results','Reuse matching synonym proposals and review decisions from an earlier run.',true)
       ]},
-      {title:'Synonym Automation',open:false,rows:[
-        b('synonyms.autoApply','Automatically Apply Approved Terms','Use previously approved terms without asking again.',false),
-        b('synonyms.autoAccept','Automatically Accept Suggestions','Accept new suggestions without review. Use only when suggestions are consistently reliable.',false)
+      {title:'Synonym Proposal & Review',open:true,rows:[
+        b('synonyms.generateProposals','Generate Synonym Proposals','Suggest alternate terms when different wording may represent the same skill, role, or domain.',true),
+        b('synonyms.requireManualReview','Require Manual Review','Require approval before a new synonym proposal can affect matching.',true)
+      ]},
+      {title:'Approved Synonym Use',open:true,rows:[
+        b('synonyms.applyApproved','Apply Approved Synonyms','Use approved synonym decisions when matching jobs in the current pipeline run.',true),
+        b('synonyms.promoteApproved','Promote Approved Synonyms','Share approved synonym decisions for reuse by future matching pipeline runs.',false)
       ]}
     ]}
   ];
@@ -210,6 +226,12 @@
       if(warnings.length)return {valid:true,kind:'warning',message:`Warning: ${warnings.join(' ')} Save is allowed.`};
       return {valid:true,kind:'valid',message:'Runtime values valid — ready to save.'};
     }
+    if(definition.type==='checks'){
+      if(Object.hasOwn(values,'education')&&Object.hasOwn(values,'experience')&&!values.education&&!values.experience){
+        return {valid:false,kind:'warning',message:'Warning: turn on Education or Experience to save. CVs need at least one of them.'};
+      }
+      return {valid:true,kind:'valid',message:'Sections valid — ready to save.'};
+    }
     return {valid:true,kind:'valid',message:'Changes valid — ready to save.'};
   }
   const form=document.querySelector('#form');
@@ -229,11 +251,13 @@
   const defaults={};
   const directRows=new Map();
   let activeGroup=null;
+  let dialogParentGroup=null;
+  const dialogDrafts=new Map();
 
   for(const page of pages){
     for(const section of page.sections){
       for(const row of section.rows){
-        if(row.key){defaults[row.key]=row.value;directRows.set(row.key,row)}
+        if(row.key&&row.type!=='mirror'){defaults[row.key]=row.value;directRows.set(row.key,row)}
       }
     }
   }
@@ -312,14 +336,16 @@
     return definition.fields.map(field=>`${field.label} ${Number(value[field.key]).toFixed(2)}`).join(' · ');
   }
   function rowMarkup(row){
-    const id=slug(row.key||row.group||row.label);
-    const copy=`<span><strong>${row.label}</strong><p>${row.description}</p>`;
+    const source=row.type==='mirror'?directRows.get(row.key):row;
+    const id=slug(source.key||source.group||source.label);
+    const copy=`<span><strong>${source.label}</strong><p>${source.description}</p>`;
     if(row.type==='readonly')return `<div class="row" data-row>${copy}</span><span class="control"><span class="badge">${row.value}</span></span></div>`;
+    if(row.type==='mirror')return `<div class="row is-mirror" data-row>${copy}<p class="supporting-text">Managed in Overview.</p></span><span class="control"><span class="mirror-value">${get(row.key)}</span><a class="overview-link" href="#overview" data-overview-key="${row.key}" aria-label="Adjust in Overview" title="Adjust ${source.label} in Overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></a></span></div>`;
     if(row.type==='manage'){
       const disabled=Boolean(row.enabledWhen&&!get(row.enabledWhen));
       const supportId=`support-${id}`;
-      const support=disabled?`<p class="supporting-text" id="${supportId}">${row.disabledText}</p>`:'';
-      return `<div class="row${disabled?' is-disabled':''}" data-row>${copy}<span class="transaction-summary">${transactionSummary(row.group)}</span>${support}</span><span class="control"><button class="btn" type="button" data-group="${row.group}" ${disabled?`disabled aria-describedby="${supportId}"`:''}>Manage</button></span></div>`;
+      const disabledSupport=disabled?`<p class="supporting-text" id="${supportId}">${row.disabledText}</p>`:'';
+      return `<div class="row${disabled?' is-disabled':''}" data-row>${copy}<span class="transaction-summary">${transactionSummary(row.group)}</span>${disabledSupport}</span><span class="control"><button class="btn" type="button" data-group="${row.group}" ${disabled?`disabled aria-describedby="${supportId}"`:''}>Manage</button></span></div>`;
     }
     const current=get(row.key);
     const status=`<p class="row-status" id="status-${id}" role="status" aria-live="polite"></p>`;
@@ -382,14 +408,20 @@
         }
       });
     });
-    form.querySelectorAll('[data-group]').forEach(button=>button.addEventListener('click',()=>openTransaction(button.dataset.group)));
+    form.querySelectorAll('[data-group]').forEach(button=>button.addEventListener('click',event=>{event.preventDefault();openTransaction(button.dataset.group)}));
+    form.querySelectorAll('[data-overview-key]').forEach(link=>link.addEventListener('click',()=>{search.value=''}));
     document.querySelector('#restore').addEventListener('click',()=>restorePage(page));
   }
   function restorePage(page){
     for(const section of page.sections){
       for(const row of section.rows){
-        if(row.key)state[row.key]=clone(defaults[row.key]);
-        if(row.group)state[`transaction.${row.group}`]=clone(defaults[`transaction.${row.group}`]);
+        if(row.key&&row.type!=='mirror')state[row.key]=clone(defaults[row.key]);
+        if(row.group){
+          state[`transaction.${row.group}`]=clone(defaults[`transaction.${row.group}`]);
+          for(const field of transactions[row.group].fields){
+            if(field.detailsGroup)state[`transaction.${field.detailsGroup}`]=clone(defaults[`transaction.${field.detailsGroup}`]);
+          }
+        }
       }
     }
     write();
@@ -397,25 +429,41 @@
     notify(`${page.title} defaults restored`);
   }
   function renderDialogFields(definition,draft){
+    const back=dialogParentGroup?`<button class="dialog-back" type="button" data-dialog-back>← Back to ${transactions[dialogParentGroup].title}</button>`:'';
     if(definition.type==='checks'){
-      dialogForm.innerHTML=definition.fields.map(field=>`<div class="check-row"><label for="dialog-${field.key}">${field.label}</label><span class="switch"><input id="dialog-${field.key}" type="checkbox" data-field="${field.key}" ${draft[field.key]?'checked':''}><span class="track"></span></span></div>`).join('');
+      dialogForm.innerHTML=back+definition.fields.map(field=>`<div class="check-row"><label for="dialog-${field.key}">${field.label}</label><label class="switch"><input id="dialog-${field.key}" type="checkbox" data-field="${field.key}" ${draft[field.key]?'checked':''} aria-label="${field.label}"><span class="track"></span></label></div>`).join('');
       return;
     }
-    dialogForm.innerHTML=definition.fields.map(field=>`<div class="weight-row"><label for="dialog-${field.key}">${field.label}<span>${field.description}</span></label><input class="field" id="dialog-${field.key}" data-field="${field.key}" type="number" min="${field.min??0}" ${definition.type==='runtime'?'':`max="1"`} step="${field.step??.01}" value="${draft[field.key]}" aria-label="${field.label}"></div>`).join('');
+    dialogForm.innerHTML=back+definition.fields.map(field=>`<div class="weight-row"><div><label for="dialog-${field.key}">${field.label}<span>${field.description}</span></label>${field.detailsGroup?`<button class="dialog-detail-link" type="button" data-dialog-details="${field.detailsGroup}">${field.detailsLabel}</button>`:''}</div><input class="field" id="dialog-${field.key}" data-field="${field.key}" type="number" min="${field.min??0}" ${definition.type==='runtime'?'':`max="1"`} step="${field.step??.01}" value="${draft[field.key]}" aria-label="${field.label}"></div>`).join('');
   }
-  function openTransaction(group){
-    if(group.startsWith('cv-')&&!get('cv.semanticEnabled'))return;
+  function showTransaction(group){
     activeGroup=group;
     const definition=transactions[group];
     dialogTitle.textContent=definition.title;
     dialogDescription.textContent=definition.description;
     dialogSave.textContent='Save';
-    renderDialogFields(definition,transactionValue(group));
+    renderDialogFields(definition,dialogDrafts.get(group)||transactionValue(group));
     dialogForm.querySelectorAll('input').forEach(input=>{
       input.addEventListener('input',validateTransaction);
       input.addEventListener('change',validateTransaction);
     });
+    dialogForm.querySelector('[data-dialog-details]')?.addEventListener('click',event=>{
+      dialogDrafts.set(activeGroup,draftValues(definition));
+      dialogParentGroup=activeGroup;
+      showTransaction(event.currentTarget.dataset.dialogDetails);
+    });
+    dialogForm.querySelector('[data-dialog-back]')?.addEventListener('click',()=>{
+      const parent=dialogParentGroup;
+      dialogParentGroup=null;
+      showTransaction(parent);
+    });
     validateTransaction();
+  }
+  function openTransaction(group){
+    if(group.startsWith('cv-')&&!get('cv.semanticEnabled'))return;
+    dialogParentGroup=null;
+    dialogDrafts.clear();
+    showTransaction(group);
     dialog.showModal();
     dialogForm.querySelector('input')?.focus();
   }
@@ -440,26 +488,39 @@
     form.querySelectorAll('[data-section]').forEach(section=>section.hidden=Boolean(query)&&!section.querySelector('[data-row]:not([hidden])'));
   }
   function selfCheck(){
-    if(pages.length!==8)throw new Error('Expected eight Pipeline pages');
+    if(pages.length!==9)throw new Error('Expected nine Pipeline pages');
     if(new Set(pages.map(page=>page.id)).size!==pages.length)throw new Error('Pipeline page IDs must be unique');
-    if(pages.some(page=>page.id==='shortlist'))throw new Error('Shortlist must not be a standalone page');
+    if(!pages.some(page=>page.id==='shortlisting'))throw new Error('Shortlisting must be a standalone page');
     if(/gap thresholds?/i.test(JSON.stringify({pages,transactions})))throw new Error('Gap Thresholds must not exist in prototype contract');
     if(defaults['enrichment.skipIncomplete']!==true)throw new Error('Skip Incomplete Listings must default On');
     const generation=pages.find(page=>page.id==='cv-generation');
     if(generation.sections.flatMap(section=>section.rows).some(row=>row.label!=='Included Sections'))throw new Error('CV Generation must expose only Included Sections');
     const runtimeRows=pages.find(page=>page.id==='runtime-limits').sections.flatMap(section=>section.rows);
     if(runtimeRows.length!==4||runtimeRows.some(row=>transactions[row.group]?.type!=='runtime'))throw new Error('Runtime page must own four managed stage rows');
+    const rankingRows=pages.find(page=>page.id==='ranking').sections.flatMap(section=>section.rows);
+    if(rankingRows.some(row=>row.group==='preference-fit'))throw new Error('Preference Fit Balance must be opened from Factor Weights');
+    if(!transactions['factor-weights'].fields.some(field=>field.detailsGroup==='preference-fit'))throw new Error('Factor Weights must link to Preference Fit Balance');
+    const mirrors=pages.flatMap(page=>page.sections.flatMap(section=>section.rows)).filter(row=>row.type==='mirror');
+    if(mirrors.length!==6||mirrors.some(row=>!directRows.has(row.key)))throw new Error('Every stage mirror must reference an Overview-owned setting');
+    if(/synonym triage/i.test(JSON.stringify(pages)))throw new Error('Internal synonym triage wording must not appear');
     return true;
   }
 
   document.querySelector('#closeWeights').addEventListener('click',()=>dialog.close());
   document.querySelector('#cancelWeights').addEventListener('click',()=>dialog.close());
-  dialog.addEventListener('close',()=>{activeGroup=null;dialogForm.replaceChildren();dialogStatus.textContent=''});
+  dialog.addEventListener('close',()=>{activeGroup=null;dialogParentGroup=null;dialogDrafts.clear();dialogForm.replaceChildren();dialogStatus.textContent=''});
   dialogSave.addEventListener('click',()=>{
     const group=activeGroup,result=validateTransaction();
     if(!result.valid)return;
     state[`transaction.${group}`]=result.values;
     write();
+    if(dialogParentGroup){
+      const parent=dialogParentGroup;
+      dialogParentGroup=null;
+      notify(`${transactions[group].title} saved`);
+      showTransaction(parent);
+      return;
+    }
     dialog.close();
     renderPage();
     notify(`${transactions[group].title} saved`);
