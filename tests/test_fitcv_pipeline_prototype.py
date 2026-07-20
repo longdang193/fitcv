@@ -43,6 +43,10 @@ def test_run_page_prototype_contract() -> None:
     assert "data-run-page" in html
     assert 'id="runDetailsDrawer"' in html
     assert 'id="runDetailsBody"' in html
+    assert html.count('<details class="setting-section drawer-section" open>') == 3
+    assert '<section class="drawer-section">' not in html
+    assert "event.target===runDetailsDrawer" in html
+    assert "clientX<bounds.left" not in html
     assert html.count('<dl class="details-grid') >= 2
     assert ".detail-item dt,.job-attribute span" in html
     assert ".detail-item dd,.job-attribute strong" in html
