@@ -61,22 +61,9 @@ def build_synonym_proposal_identity(
     identity_seed = f"{normalized_field}:{normalized_alias}:{'|'.join(normalized_canonicals)}:{normalized_family}"
     return f"synident-{hashlib.sha1(identity_seed.encode('utf-8')).hexdigest()[:16]}"
 
-def build_synonym_triage_fingerprint(
-    *,
-    proposal: dict[str, Any],
-    runtime: dict[str, Any],
-    overlay_fingerprint: str | None = None,
-) -> str:
-    payload = {
-        "proposal_identity": str(proposal.get("proposal_identity") or "").strip()
-        or build_synonym_proposal_identity(
-            field=str(proposal.get("field") or "skill"),
-            alias=str(proposal.get("alias") or ""),
-            candidate_canonicals=[str(item) for item in list(proposal.get("candidate_canonicals") or [])],
-            proposal_family=str(proposal.get("proposal_family") or "alias_to_canonical_mapping"),
-        ),
-        "proposal_status": str(proposal.get("proposal_status") or "").strip(),
-        "field": str(proposal.get("field") or "skill").strip().lower(),
+def build_synonym_triage_input(proposal: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "field": str(proposal.get("field") or "skill").strip().lower() or "skill",
         "alias": str(proposal.get("alias") or "").strip().lower(),
         "canonical": str(proposal.get("canonical") or "").strip().lower(),
         "candidate_canonicals": sorted(
@@ -86,13 +73,24 @@ def build_synonym_triage_fingerprint(
                 if str(item).strip()
             }
         ),
+        "confidence": round(float(proposal.get("confidence") or 0.0), 6),
+    }
+
+def build_synonym_triage_fingerprint(
+    *,
+    proposal: dict[str, Any],
+    runtime: dict[str, Any],
+) -> str:
+    payload = {
+        "triage_input": build_synonym_triage_input(proposal),
+        "status": str(proposal.get("proposal_status") or "").strip(),
+        "has_conflict": bool((proposal.get("conflict_summary") or {}).get("has_conflict")),
         "provider": str(runtime.get("provider") or "fitcv_builtin").strip().lower(),
         "model": str(runtime.get("model") or "synonym_triage_v1").strip(),
         "wire_api": str(runtime.get("wire_api") or "builtin").strip(),
         "sleep_secs": round(float(runtime.get("sleep_secs") or 0.0), 6),
         "concurrency": int(runtime.get("concurrency") or 1),
         "triage_version": "synonym_triage_v1",
-        "overlay_fingerprint": str(overlay_fingerprint or "").strip() or None,
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
@@ -101,36 +99,72 @@ def build_synonym_triage_core_fingerprint(
     *,
     proposal: dict[str, Any],
     runtime: dict[str, Any],
-    overlay_fingerprint: str | None = None,
 ) -> str:
     payload = {
-        "field": str(proposal.get("field") or "skill").strip().lower(),
-        "alias": str(proposal.get("alias") or "").strip().lower(),
-        "canonical": str(proposal.get("canonical") or "").strip().lower(),
-        "proposal_family": str(proposal.get("proposal_family") or "alias_to_canonical_mapping").strip().lower(),
+        "triage_input": build_synonym_triage_input(proposal),
         "provider": str(runtime.get("provider") or "fitcv_builtin").strip().lower(),
         "model": str(runtime.get("model") or "synonym_triage_v1").strip(),
         "wire_api": str(runtime.get("wire_api") or "builtin").strip(),
         "triage_version": "synonym_triage_v1",
-        "overlay_fingerprint": str(overlay_fingerprint or "").strip() or None,
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
 def _build_synonym_triage_gate_snapshot(proposal: dict[str, Any]) -> dict[str, Any]:
-    canonical = str(proposal.get("canonical") or "").strip().lower()
-    candidates = sorted(
-        {
-            str(item).strip().lower()
-            for item in list(proposal.get("candidate_canonicals") or [])
-            if str(item).strip()
-        }
-    )
+    triage_input = build_synonym_triage_input(proposal)
     return {
         "status": str(proposal.get("proposal_status") or "").strip() or "proposed_unreviewed",
         "has_conflict": bool((proposal.get("conflict_summary") or {}).get("has_conflict")),
-        "canonical": canonical,
-        "candidate_canonicals": candidates,
+        "canonical": str(triage_input["canonical"]),
+        "candidate_canonicals": list(triage_input["candidate_canonicals"]),
+    }
+
+def build_builtin_synonym_triage_recommendation(
+    proposal: dict[str, Any],
+    *,
+    now_iso: str,
+) -> dict[str, Any]:
+    triage_input = build_synonym_triage_input(proposal)
+    alias = str(triage_input["alias"])
+    canonical = str(triage_input["canonical"])
+    confidence = float(triage_input["confidence"])
+    candidate_canonicals = list(triage_input["candidate_canonicals"])
+    risk_flags: list[str] = []
+    rationale = "Alias/canonical pair appears stable for run-scoped overlay."
+    recommended_action = "approve"
+    recommendation_confidence = min(max(confidence, 0.0), 1.0)
+    if not alias or not canonical:
+        recommended_action = "reject"
+        recommendation_confidence = 0.98
+        rationale = "Alias or canonical is empty after normalization."
+        risk_flags.append("invalid_mapping_shape")
+    elif len(candidate_canonicals) > 1:
+        recommended_action = "defer"
+        recommendation_confidence = max(0.55, min(confidence, 0.85))
+        rationale = "Alias maps to multiple canonical candidates; review conflict manually."
+        risk_flags.append("alias_canonical_conflict")
+    elif confidence < 0.50:
+        recommended_action = "reject"
+        recommendation_confidence = min(0.95, 1.0 - confidence + 0.2)
+        rationale = "Low confidence mapping is likely noisy and should be rejected."
+        risk_flags.append("low_confidence")
+    elif confidence < 0.75:
+        recommended_action = "defer"
+        recommendation_confidence = min(0.85, confidence + 0.1)
+        rationale = "Moderate confidence mapping should be deferred for review."
+        risk_flags.append("moderate_confidence")
+    return {
+        "recommended_action": recommended_action,
+        "recommendation_confidence": round(float(recommendation_confidence), 3),
+        "recommendation_rationale": rationale,
+        "recommendation_risk_flags": risk_flags,
+        "recommendation_runtime": {
+            "provider": "fitcv_builtin",
+            "model": "synonym_triage_v1",
+            "wire_api": "builtin",
+            "triage_at": now_iso,
+            "triage_version": "synonym_triage_v1",
+        },
     }
 
 
@@ -153,17 +187,14 @@ def evaluate_synonym_triage_reuse(
     proposal: dict[str, Any],
     runtime: dict[str, Any],
     runtime_meta: dict[str, Any],
-    overlay_fingerprint: str | None = None,
 ) -> dict[str, Any]:
     strict_fp = build_synonym_triage_fingerprint(
         proposal=proposal,
         runtime=runtime,
-        overlay_fingerprint=overlay_fingerprint,
     )
     core_fp = build_synonym_triage_core_fingerprint(
         proposal=proposal,
         runtime=runtime,
-        overlay_fingerprint=overlay_fingerprint,
     )
     gate = _build_synonym_triage_gate_snapshot(proposal)
     stored_strict_fp = str(

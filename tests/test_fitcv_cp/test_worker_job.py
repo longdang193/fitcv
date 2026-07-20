@@ -2671,16 +2671,15 @@ def test_build_synonym_overlay_yaml_roundtrips_reserved_scalars() -> None:
 def test_persist_global_skill_synonyms_map_atomic_write_failure_preserves_existing_file(
     tmp_path: Path,
 ) -> None:
-    from fitcv_cp.worker_job import _persist_global_skill_synonyms_map
+    from fitcv_cp.synonym_policy_io import persist_global_synonym_map
 
     target = tmp_path / "skill_synonyms.yaml"
     original = "skill_synonyms:\n  keep: existing\n"
     target.write_text(original, encoding="utf-8")
 
-    with patch("fitcv_cp.worker_job._global_skill_synonyms_path", return_value=target), \
-         patch("fitcv_cp.worker_job.os.replace", side_effect=OSError("replace failed")):
+    with patch("fitcv_cp.synonym_policy_io.os.replace", side_effect=OSError("replace failed")):
         with pytest.raises(OSError, match="replace failed"):
-            _persist_global_skill_synonyms_map({"new": "value"})
+            persist_global_synonym_map("skill", {"new": "value"}, path=target)
 
     assert target.read_text(encoding="utf-8") == original
     assert list(tmp_path.glob("skill_synonyms.yaml.*.tmp")) == []

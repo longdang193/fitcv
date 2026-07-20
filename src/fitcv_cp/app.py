@@ -185,11 +185,21 @@ from fitcv_cp.settings_store import (
 )
 from fitcv_cp.synonym_proposals import (
     apply_synonym_management_defaults,
+    build_builtin_synonym_triage_recommendation,
+    build_synonym_triage_input,
     build_synonym_proposals_payload,
     build_synonym_triage_fingerprint,
     evaluate_synonym_triage_reuse,
     resolve_synonym_management_mode,
     transition_synonym_proposal_status,
+)
+from fitcv_cp.synonym_policy_io import (
+    compile_global_synonym_map,
+    load_global_synonym_map,
+    persist_global_synonym_map,
+    render_yaml_top_level_mapping,
+    replace_yaml_top_level_mapping_block,
+    synonym_policy_error_reason,
 )
 from fitcv_cp.data_plane import data_plane_contract_payload
 from fitcv_cp.observability import emit_observability_event
@@ -706,7 +716,6 @@ def _apply_trigger_runtime_envelope(
     candidate_profile_source: str | None,
     candidate_profile_json: str | None,
     run_mode: str,
-    reuse_precheck_warning: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     synonym_management = dict(effective_config.get("synonym_management") or {})
     synonym_management.setdefault("auto_apply_recommendation_enabled", False)
@@ -738,21 +747,9 @@ def _apply_trigger_runtime_envelope(
         "run_mode": run_mode,
         "has_jobs_input_snapshot": bool(jobs_input_json),
         "has_candidate_profile_snapshot": bool(candidate_profile_json),
-        "reuse_precheck_warning": dict(reuse_precheck_warning or {}),
+        "reuse_precheck_warning": {},
     }
     return effective_config
-
-def _stable_synonym_hash(config: dict[str, Any]) -> str:
-    synonyms = dict(config.get("skill_synonyms") or {})
-    normalized: dict[str, str] = {}
-    for raw_alias, raw_canonical in synonyms.items():
-        alias = str(raw_alias or "").strip().casefold()
-        canonical = str(raw_canonical or "").strip().casefold()
-        if not alias or not canonical:
-            continue
-        normalized[alias] = canonical
-    seed = _json.dumps(dict(sorted(normalized.items())), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.sha256(seed.encode("utf-8")).hexdigest()
 
 
 def _resolve_jobs_path_snapshot(jobs_path: str) -> tuple[str, str]:
@@ -2887,54 +2884,7 @@ def _triage_synonym_proposal_recommendation(
             },
         }
 
-    alias = str(proposal.get("alias") or "").strip().lower()
-    canonical = str(proposal.get("canonical") or "").strip().lower()
-    confidence = float(proposal.get("confidence") or 0.0)
-    candidate_canonicals = [
-        str(item).strip().lower()
-        for item in list(proposal.get("candidate_canonicals") or [])
-        if str(item).strip()
-    ]
-    risk_flags: list[str] = []
-    rationale = "Alias/canonical pair appears stable for run-scoped overlay."
-    recommended_action = "approve"
-    recommendation_confidence = min(max(confidence, 0.0), 1.0)
-
-    if not alias or not canonical:
-        recommended_action = "reject"
-        recommendation_confidence = 0.98
-        rationale = "Alias or canonical is empty after normalization."
-        risk_flags.append("invalid_mapping_shape")
-    elif len(set(candidate_canonicals)) > 1:
-        recommended_action = "defer"
-        recommendation_confidence = max(0.55, min(confidence, 0.85))
-        rationale = "Alias maps to multiple canonical candidates; review conflict manually."
-        risk_flags.append("alias_canonical_conflict")
-    elif confidence < 0.50:
-        recommended_action = "reject"
-        recommendation_confidence = min(0.95, 1.0 - confidence + 0.2)
-        rationale = "Low confidence mapping is likely noisy and should be rejected."
-        risk_flags.append("low_confidence")
-    elif confidence < 0.75:
-        recommended_action = "defer"
-        recommendation_confidence = min(0.85, confidence + 0.1)
-        rationale = "Moderate confidence mapping should be deferred for review."
-        risk_flags.append("moderate_confidence")
-
-    return {
-        "recommended_action": recommended_action,
-        "recommendation_confidence": round(float(recommendation_confidence), 3),
-        "recommendation_rationale": rationale,
-        "recommendation_risk_flags": risk_flags,
-        "recommendation_runtime": {
-            "provider": provider,
-            "model": model,
-            "base_url": base_url,
-            "wire_api": wire_api,
-            "triage_at": now_iso,
-            "triage_version": "synonym_triage_v1",
-        },
-    }
+    return build_builtin_synonym_triage_recommendation(proposal, now_iso=now_iso)
 
 
 def _call_synonym_triage_provider(
@@ -2943,24 +2893,12 @@ def _call_synonym_triage_provider(
     runtime: dict[str, Any],
     now_iso: str,
 ) -> dict[str, Any]:
-    proposal_view = {
-        "proposal_id": str(proposal.get("proposal_id") or "").strip(),
-        "proposal_status": str(proposal.get("proposal_status") or "").strip(),
-        "alias": str(proposal.get("alias") or "").strip(),
-        "canonical": str(proposal.get("canonical") or "").strip(),
-        "confidence": float(proposal.get("confidence") or 0.0),
-        "candidate_canonicals": [
-            str(item).strip()
-            for item in list(proposal.get("candidate_canonicals") or [])
-            if str(item).strip()
-        ],
-    }
+    proposal_view = build_synonym_triage_input(proposal)
     prompt_id = load_prompt_task_registry()["synonym_triage_recommendation"]["prompt_id"]
     rendered = render_prompt(
         prompt_id,
         {
             "proposal_json": _json.dumps(proposal_view, ensure_ascii=False),
-            "now_iso": now_iso,
         },
         additional_instructions=get_prompt_addendum(
             "synonym_triage_recommendation"
@@ -3115,27 +3053,15 @@ def _synonym_triage_fingerprint(
     proposal: dict[str, Any],
     *,
     runtime: dict[str, Any],
-    overlay_fingerprint: str | None = None,
 ) -> str:
     return build_synonym_triage_fingerprint(
         proposal=proposal,
         runtime=runtime,
-        overlay_fingerprint=overlay_fingerprint,
     )
 
 
-def _global_skill_synonyms_path() -> Path:
-    return Path("config") / "taxonomy" / "skill_synonyms.yaml"
-
-_YAML_TOP_LEVEL_KEY_RE = re.compile(r"^[A-Za-z0-9_]+\s*:")
-
 def _render_yaml_top_level_mapping(*, key: str, mappings: dict[str, str]) -> list[str]:
-    if not mappings:
-        return [f"{key}: {{}}\n"]
-    lines = [f"{key}:\n"]
-    for alias, canonical in sorted(mappings.items()):
-        lines.append(f"  {alias}: {canonical}\n")
-    return lines
+    return render_yaml_top_level_mapping(key=key, mappings=mappings)
 
 def _replace_yaml_top_level_mapping_block(
     *,
@@ -3143,100 +3069,31 @@ def _replace_yaml_top_level_mapping_block(
     key: str,
     mappings: dict[str, str],
 ) -> str:
-    lines = raw_yaml.splitlines(keepends=True)
-    start_idx: int | None = None
-    for idx, line in enumerate(lines):
-        if line.startswith(f"{key}:"):
-            start_idx = idx
-            break
-    replacement = _render_yaml_top_level_mapping(key=key, mappings=mappings)
-    if start_idx is None:
-        if raw_yaml and not raw_yaml.endswith("\n"):
-            return raw_yaml + "\n" + "".join(replacement)
-        return raw_yaml + "".join(replacement)
-    end_idx = start_idx + 1
-    while end_idx < len(lines):
-        candidate = lines[end_idx]
-        if candidate.startswith("#") or not candidate.strip():
-            end_idx += 1
-            continue
-        if candidate[:1].isspace():
-            end_idx += 1
-            continue
-        if _YAML_TOP_LEVEL_KEY_RE.match(candidate):
-            break
-        end_idx += 1
-    return "".join([*lines[:start_idx], *replacement, *lines[end_idx:]])
+    return replace_yaml_top_level_mapping_block(
+        raw_yaml=raw_yaml,
+        key=key,
+        mappings=mappings,
+    )
 
 
 def _load_global_skill_synonyms_map() -> dict[str, str]:
-    path = _global_skill_synonyms_path()
-    if not path.exists():
-        return {}
-    raw_yaml = path.read_text(encoding="utf-8")
-    return parse_skill_synonym_overlay_yaml(raw_yaml)
+    return load_global_synonym_map("skill")
 
 
 def _persist_global_skill_synonyms_map(mappings: dict[str, str]) -> None:
-    path = _global_skill_synonyms_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_build_synonym_overlay_yaml(mappings), encoding="utf-8")
-
-def _global_domain_synonyms_path() -> Path:
-    return Path("config") / "taxonomy" / "domain_synonyms.yaml"
+    persist_global_synonym_map("skill", mappings)
 
 def _load_global_domain_alias_map() -> dict[str, str]:
-    path = _global_domain_synonyms_path()
-    if not path.exists():
-        return {}
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        return {}
-    raw_map = payload.get("domain_alias_map")
-    if not isinstance(raw_map, dict):
-        return {}
-    return {
-        str(alias).strip().lower(): str(canonical).strip().lower()
-        for alias, canonical in raw_map.items()
-        if str(alias).strip() and str(canonical).strip()
-    }
+    return load_global_synonym_map("domain")
 
 def _persist_global_domain_alias_map(mappings: dict[str, str]) -> None:
-    path = _global_domain_synonyms_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    raw_yaml = path.read_text(encoding="utf-8") if path.exists() else ""
-    updated = _replace_yaml_top_level_mapping_block(raw_yaml=raw_yaml, key="domain_alias_map", mappings=mappings)
-    path.write_text(updated, encoding="utf-8")
-
-def _global_role_family_synonyms_path() -> Path:
-    return Path("config") / "taxonomy" / "role_family_synonyms.yaml"
+    persist_global_synonym_map("domain", mappings)
 
 def _load_global_role_family_alias_map() -> dict[str, str]:
-    path = _global_role_family_synonyms_path()
-    if not path.exists():
-        return {}
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        return {}
-    raw_map = payload.get("role_family_alias_map")
-    if not isinstance(raw_map, dict):
-        return {}
-    return {
-        str(alias).strip().lower(): str(canonical).strip().lower()
-        for alias, canonical in raw_map.items()
-        if str(alias).strip() and str(canonical).strip()
-    }
+    return load_global_synonym_map("role_family")
 
 def _persist_global_role_family_alias_map(mappings: dict[str, str]) -> None:
-    path = _global_role_family_synonyms_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    raw_yaml = path.read_text(encoding="utf-8") if path.exists() else ""
-    updated = _replace_yaml_top_level_mapping_block(
-        raw_yaml=raw_yaml,
-        key="role_family_alias_map",
-        mappings=mappings,
-    )
-    path.write_text(updated, encoding="utf-8")
+    persist_global_synonym_map("role_family", mappings)
 
 
 def _canonical_variants_for_compare(value: str) -> set[str]:
@@ -3399,6 +3256,39 @@ def _build_promote_global_preview(
             bucket["update"] += 1
             bucket["overridden_aliases"] += 1
 
+    for field, global_map in global_maps.items():
+        candidate = dict(global_map)
+        candidate_rows = [
+            row
+            for row in selected
+            if str(row.get("field") or "").strip() == field
+            and str(row.get("diff_type") or "").strip() in {"add", "update"}
+        ]
+        for row in candidate_rows:
+            candidate[str(row["alias"])] = str(row["canonical"])
+        try:
+            compiled = compile_global_synonym_map(field, candidate)
+        except ValueError as exc:
+            reason = synonym_policy_error_reason(exc)
+            bucket = counts_by_field.setdefault(field, _fresh_counts())
+            for row in candidate_rows:
+                previous_diff = str(row.get("diff_type") or "")
+                counts[previous_diff] -= 1
+                bucket[previous_diff] -= 1
+                if previous_diff == "add":
+                    counts["new_aliases"] -= 1
+                    bucket["new_aliases"] -= 1
+                else:
+                    counts["overridden_aliases"] -= 1
+                    bucket["overridden_aliases"] -= 1
+                row["diff_type"] = "conflict"
+                row["reason"] = reason
+                counts["conflict"] += 1
+                bucket["conflict"] += 1
+        else:
+            for row in candidate_rows:
+                row["canonical"] = compiled[str(row["alias"])]
+
     ready_rows = [row for row in selected if str(row.get("diff_type") or "").strip() in {"add", "update"}]
     already_global_rows = [
         row for row in selected
@@ -3530,16 +3420,37 @@ def _commit_synonym_global_promotion(
             "label": "role_family_alias_map",
         },
     }
-    global_maps: dict[str, dict[str, str]] = {
+    original_maps: dict[str, dict[str, str]] = {
         field: dict(spec["load"]())
         for field, spec in field_specs.items()
     }
+    global_maps = {field: dict(mappings) for field, mappings in original_maps.items()}
     conflict_fields: set[str] = set()
+    failure_reasons_by_field: dict[str, str] = {}
     for row in list(preview.get("rows") or []):
         if not isinstance(row, dict):
             continue
         if str(row.get("diff_type") or "").strip() == "conflict":
             conflict_fields.add(str(row.get("field") or "").strip().lower() or "skill")
+
+    for row in list(preview.get("rows") or []):
+        if not isinstance(row, dict):
+            continue
+        field = str(row.get("field") or "skill").strip().lower() or "skill"
+        if field not in field_specs or field in conflict_fields:
+            continue
+        if str(row.get("diff_type") or "").strip() not in {"add", "update"}:
+            continue
+        alias = str(row.get("alias") or "").strip()
+        canonical = str(row.get("canonical") or "").strip()
+        if alias and canonical:
+            global_maps[field][alias] = canonical
+    for field, candidate in global_maps.items():
+        try:
+            global_maps[field] = compile_global_synonym_map(field, candidate)
+        except ValueError as exc:
+            conflict_fields.add(field)
+            failure_reasons_by_field[field] = synonym_policy_error_reason(exc)
 
     applied = 0
     skipped = 0
@@ -3573,7 +3484,7 @@ def _commit_synonym_global_promotion(
             skipped += 1
             failed += 1
             continue
-        current = str(global_maps[field].get(alias) or "").strip().lower()
+        current = str(original_maps[field].get(alias) or "").strip().lower()
         if not current:
             new_aliases += 1
         elif _canonicals_equivalent_for_promotion(current, canonical):
@@ -3582,7 +3493,6 @@ def _commit_synonym_global_promotion(
             continue
         else:
             overridden_aliases += 1
-        global_maps[field][alias] = canonical
         applied += 1
         applied_by_field[field] = int(applied_by_field.get(field) or 0) + 1
         updated_ids.append(proposal_id)
@@ -3638,6 +3548,7 @@ def _commit_synonym_global_promotion(
                     "overridden_aliases_count": overridden_aliases,
                     "applied_count_by_field": dict(applied_by_field),
                     "conflict_fields": sorted(conflict_fields),
+                    "failure_reasons_by_field": dict(failure_reasons_by_field),
                     "proposal_ids": sorted(set(updated_ids)),
                     "acted_by": acted_by,
                     "note": note,
@@ -3656,6 +3567,7 @@ def _commit_synonym_global_promotion(
         "overridden_aliases": overridden_aliases,
         "applied_by_field": dict(applied_by_field),
         "conflict_fields": sorted(conflict_fields),
+        "failure_reasons_by_field": dict(failure_reasons_by_field),
     }
 
 def _run_post_validation_auto_promote_global(
@@ -6801,38 +6713,6 @@ def create_app(
         apply_settings_to_config(effective_config, coerced_overrides)
         # Recompute derived fields (required_cv_sections, etc.) from effective composition
         effective_config = apply_cv_compatibility_projection(effective_config)
-        reuse_precheck_warning: dict[str, Any] | None = None
-        try:
-            current_hash = _stable_synonym_hash(effective_config)
-            current_count = len(dict(effective_config.get("skill_synonyms") or {}))
-            recent_runs = list_runs(
-                client=client,
-                include_archived=True,
-                limit=50,
-            )
-            prior_success = next(
-                (
-                    run
-                    for run in recent_runs
-                    if str(getattr(run, "status", "") or "").strip().lower() in {"succeeded", "awaiting_continue"}
-                    and str(getattr(run, "effective_settings_json", "") or "").strip()
-                ),
-                None,
-            )
-            if prior_success is not None:
-                prior_cfg = _load_json_object(getattr(prior_success, "effective_settings_json", ""))
-                prior_hash = _stable_synonym_hash(prior_cfg if isinstance(prior_cfg, dict) else {})
-                if prior_hash and prior_hash != current_hash:
-                    prior_count = len(dict((prior_cfg or {}).get("skill_synonyms") or {})) if isinstance(prior_cfg, dict) else 0
-                    reuse_precheck_warning = {
-                        "code": "cv_analysis_reuse_reset_likely",
-                        "message": "Skill synonym map changed from previous successful run; exact CV-analysis reuse may reset.",
-                        "previous_run_id": str(getattr(prior_success, "run_id", "") or ""),
-                        "previous_synonym_count": int(prior_count),
-                        "current_synonym_count": int(current_count),
-                    }
-        except Exception as exc:
-            logger.warning("reuse precheck warning generation failed (non-blocking): %s", exc)
         actual_jobs_path, jobs_input_json_snapshot = _resolve_jobs_path_snapshot(jobs_path)
         candidate_json_snapshot = _resolve_default_candidate_profile_snapshot(config_path)
         effective_config = _apply_trigger_runtime_envelope(
@@ -6843,7 +6723,6 @@ def create_app(
             candidate_profile_source="default_config",
             candidate_profile_json=candidate_json_snapshot,
             run_mode=run_mode,
-            reuse_precheck_warning=reuse_precheck_warning,
         )
 
         run_id = str(uuid.uuid4())
@@ -6886,7 +6765,7 @@ def create_app(
             submission.queue_job_id,
             client=client,
         )
-        return {"run_id": run_id, "warnings": [reuse_precheck_warning] if reuse_precheck_warning else []}
+        return {"run_id": run_id, "warnings": []}
 
     def _execute_trigger_with_inputs(
         jobs_path: str,
@@ -6976,38 +6855,6 @@ def create_app(
         apply_settings_to_config(effective_config, coerced_overrides)
         # Recompute derived fields (required_cv_sections, etc.) from effective composition
         effective_config = apply_cv_compatibility_projection(effective_config)
-        reuse_precheck_warning: dict[str, Any] | None = None
-        try:
-            current_hash = _stable_synonym_hash(effective_config)
-            current_count = len(dict(effective_config.get("skill_synonyms") or {}))
-            recent_runs = list_runs(
-                client=client,
-                include_archived=True,
-                limit=50,
-            )
-            prior_success = next(
-                (
-                    run
-                    for run in recent_runs
-                    if str(getattr(run, "status", "") or "").strip().lower() in {"succeeded", "awaiting_continue"}
-                    and str(getattr(run, "effective_settings_json", "") or "").strip()
-                ),
-                None,
-            )
-            if prior_success is not None:
-                prior_cfg = _load_json_object(getattr(prior_success, "effective_settings_json", ""))
-                prior_hash = _stable_synonym_hash(prior_cfg if isinstance(prior_cfg, dict) else {})
-                if prior_hash and prior_hash != current_hash:
-                    prior_count = len(dict((prior_cfg or {}).get("skill_synonyms") or {})) if isinstance(prior_cfg, dict) else 0
-                    reuse_precheck_warning = {
-                        "code": "cv_analysis_reuse_reset_likely",
-                        "message": "Skill synonym map changed from previous successful run; exact CV-analysis reuse may reset.",
-                        "previous_run_id": str(getattr(prior_success, "run_id", "") or ""),
-                        "previous_synonym_count": int(prior_count),
-                        "current_synonym_count": int(current_count),
-                    }
-        except Exception as exc:
-            logger.warning("reuse precheck warning generation failed (non-blocking): %s", exc)
         effective_config = _apply_trigger_runtime_envelope(
             effective_config,
             jobs_input_source=jobs_input_source,
@@ -7016,7 +6863,6 @@ def create_app(
             candidate_profile_source=candidate_profile_source,
             candidate_profile_json=candidate_profile_json,
             run_mode=run_mode,
-            reuse_precheck_warning=reuse_precheck_warning,
         )
 
         if run_synonym_overlay:
@@ -7069,7 +6915,7 @@ def create_app(
             submission.queue_job_id,
             client=client,
         )
-        return {"run_id": run_id, "warnings": [reuse_precheck_warning] if reuse_precheck_warning else []}
+        return {"run_id": run_id, "warnings": []}
 
     @app.post("/runs", status_code=201)
     def trigger_run(req: TriggerRequest) -> dict:
@@ -9973,7 +9819,6 @@ def create_app(
                 proposal=proposal,
                 runtime=triage_runtime,
                 runtime_meta=runtime_meta,
-                overlay_fingerprint=overlay_fp,
             )
             reuse_enabled = bool(mode.get("triage_recommendation_reuse_enabled"))
             if reuse_enabled and str(reuse_eval.get("decision") or "") in {"strict_reuse", "core_reuse"}:

@@ -138,18 +138,19 @@ def test_get_prompt_definition_returns_synonym_triage_metadata() -> None:
     assert definition.template_path.name == "synonym_triage_recommendation_v1.md"
 
 
-def test_render_prompt_synonym_triage_includes_proposal_and_timestamp() -> None:
+def test_render_prompt_synonym_triage_includes_only_deterministic_proposal_input() -> None:
     rendered = render_prompt(
         "synonym_triage.recommendation.v1",
         {
-            "proposal_json": '{"proposal_id":"proposal-a","alias":"gcp"}',
-            "now_iso": "2026-05-14T10:35:00Z",
+            "proposal_json": '{"field":"skill","alias":"gcp","canonical":"google cloud","candidate_canonicals":["google cloud"],"confidence":0.9}',
         },
     )
 
     assert "You are a synonym triage assistant." in rendered.text
-    assert '"proposal_id":"proposal-a"' in rendered.text
-    assert "2026-05-14T10:35:00Z" in rendered.text
+    assert '"alias":"gcp"' in rendered.text
+    assert "proposal_id" not in rendered.text
+    assert "proposal_status" not in rendered.text
+    assert "Timestamp:" not in rendered.text
 """
 @meta
 type: test
@@ -205,7 +206,7 @@ tags:
         ),
         (
             "synonym_triage.recommendation.v1",
-            {"proposal_json": "{}", "now_iso": "2026-07-17T00:00:00Z"},
+            {"proposal_json": "{}"},
             "Return strict JSON only",
         ),
     ],
@@ -234,7 +235,7 @@ def test_render_prompt_addendum_is_literal_bounded_and_before_contract(
 def test_render_prompt_without_addendum_keeps_private_provenance_empty() -> None:
     rendered = render_prompt(
         "synonym_triage.recommendation.v1",
-        {"proposal_json": "{}", "now_iso": "2026-07-17T00:00:00Z"},
+        {"proposal_json": "{}"},
     )
 
     assert "Additional User Instructions" not in rendered.text
@@ -247,6 +248,6 @@ def test_render_prompt_rejects_oversized_addendum() -> None:
     with pytest.raises(ValueError, match="exceeds 4000 characters"):
         render_prompt(
             "synonym_triage.recommendation.v1",
-            {"proposal_json": "{}", "now_iso": "2026-07-17T00:00:00Z"},
+            {"proposal_json": "{}"},
             additional_instructions="x" * 4001,
         )

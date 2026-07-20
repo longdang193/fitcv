@@ -59,6 +59,9 @@ This matrix defines current SSOT ownership for migration execution.
 | `config/policy/ranking.yaml` | ranking-v2 baseline policy | Sole mutable owner of exact ranking policy, absolute defaults, fixed weights, label thresholds, active baseline mode, and label-migration gate. |
 | `config/policy/decision_learning.yaml` | decision-learning policy | Sole owner of ordinal 1–5 application-interest labels, compiler policy, latent-residual optimizer/evaluation policy, and Phase 7 activation threshold/version. Not exposed as a runtime setting. |
 | `config/taxonomy/taxonomy.yaml` | shared business taxonomy and enum families | Owns seniority taxonomy, location/contract/experience enums, role taxonomy maps. |
+| `config/taxonomy/skill_synonyms.yaml` | global skill alias policy | Alias keys are unique after normalization and compile directly to terminal canonical values. |
+| `config/taxonomy/domain_synonyms.yaml` | global domain alias policy | Uses same duplicate rejection and terminal compilation contract as skill aliases. |
+| `config/taxonomy/role_family_synonyms.yaml` | global role-family alias policy | Uses same duplicate rejection and terminal compilation contract as skill aliases. |
 | `.env.yaml` | bootstrap trigger input | Current default `config_path`; now limited to small bootstrap-only values. |
 | `config/env.private.yaml` | no active canonical owner in this worktree | File not present in tracked worktree; treat as deprecated/removed unless explicitly reintroduced as local-only untracked override. |
 
@@ -151,6 +154,15 @@ Remove legacy compatibility behavior only when all gates pass:
 - no secret values in YAML
 - no secret key-name indirection in YAML
 - `settings-used.json` is the run-time evidence snapshot
+
+### Synonym Policy Contract
+
+- YAML ingestion rejects duplicate normalized aliases when targets differ and deduplicates repeats only when normalized targets match.
+- Accepted chains compile to direct terminal mappings. Example: `laptop: notebook` plus `notebook: portable computer` becomes `laptop: portable computer` and `notebook: portable computer`.
+- Run overlays validate independently, then override matching global aliases. They do not create a second traversal or reuse authority.
+- Global promotion validates and terminalizes the complete candidate policy before atomic file replacement for skill, domain, and role-family mappings.
+- Semantic-stage reuse depends on exact consumed canonical projections and stage contracts, not a full synonym-map hash.
+- Synonym-triage reuse depends on exact normalized pair input, candidate/conflict gates, confidence, and runtime contract. Overlay fingerprints are retained only for diagnostics.
 
 ## Effective Settings Resolution
 

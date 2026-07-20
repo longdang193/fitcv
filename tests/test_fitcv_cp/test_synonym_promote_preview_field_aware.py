@@ -66,3 +66,31 @@ def test_build_promote_global_preview_is_field_aware() -> None:
     assert [row["proposal_id"] for row in preview["already_global_rows_by_field"]["skill"]] == ["p-skill"]
     assert preview["already_global_rows_by_field"]["skill"][0]["reason"] == "already_present"
 
+def test_build_promote_global_preview_rejects_complete_map_cycle() -> None:
+    from fitcv_cp.app import _build_promote_global_preview
+
+    with (
+        patch("fitcv_cp.app._load_global_skill_synonyms_map", return_value={"b": "a"}),
+        patch("fitcv_cp.app._load_global_domain_alias_map", return_value={}),
+        patch("fitcv_cp.app._load_global_role_family_alias_map", return_value={}),
+    ):
+        preview = _build_promote_global_preview(
+            run=SimpleNamespace(run_id="run-cycle"),
+            payload={
+                "proposals": [
+                    {
+                        "proposal_id": "p-cycle",
+                        "field": "skill",
+                        "alias": "a",
+                        "canonical": "b",
+                        "proposal_status": "approved_for_run_overlay",
+                    }
+                ]
+            },
+            selected_proposal_ids=["p-cycle"],
+        )
+
+    assert preview["ready_rows"] == []
+    assert preview["blocked_rows"][0]["diff_type"] == "conflict"
+    assert preview["blocked_rows"][0]["reason"] == "synonym_cycle"
+

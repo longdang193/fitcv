@@ -23,9 +23,14 @@ from typing import Any, Literal
 
 from fitcv.shortlist_runtime import build_contract_fingerprint
 
-SEMANTIC_POLICY_SCHEMA_VERSION = "semantic_policy_v1"
+SEMANTIC_POLICY_SCHEMA_VERSION = "semantic_policy_v2"
 SEMANTIC_SNAPSHOT_SCHEMA_VERSION = "semantic_snapshot_v1"
-SEMANTIC_RESOLVER_CONTRACT_VERSION = "semantic_resolver_v1"
+SEMANTIC_RESOLVER_CONTRACT_VERSION = "semantic_resolver_v2"
+
+_SUPPORTED_POLICY_CONTRACTS = {
+    ("semantic_policy_v1", "semantic_resolver_v1"),
+    (SEMANTIC_POLICY_SCHEMA_VERSION, SEMANTIC_RESOLVER_CONTRACT_VERSION),
+}
 
 SubjectKind = Literal["job", "candidate", "criteria"]
 
@@ -68,17 +73,19 @@ def _compile_map(raw_map: object, taxonomy: str) -> dict[str, str]:
         compiled[alias] = canonical
     states: dict[str, int] = {}
 
-    def visit(alias: str) -> None:
+    def visit(alias: str) -> str:
         state = states.get(alias, 0)
         if state == 1:
             raise ValueError(f"{taxonomy} synonym cycle is not supported: {alias}")
         if state == 2:
-            return
+            return compiled[alias]
         states[alias] = 1
         canonical = compiled.get(alias)
         if canonical and canonical != alias and canonical in compiled:
-            visit(canonical)
+            canonical = visit(canonical)
+            compiled[alias] = canonical
         states[alias] = 2
+        return compiled[alias]
 
     for alias in compiled:
         visit(alias)
@@ -98,6 +105,15 @@ def compile_semantic_policy(config: Mapping[str, object]) -> dict[str, Any]:
     }
     return {**payload, "policy_fingerprint": build_contract_fingerprint(payload)}
 
+def _resolver_contract_version(policy: Mapping[str, Any]) -> str:
+    schema_version = str(policy.get("schema_version") or "")
+    resolver_version = str(policy.get("resolver_contract_version") or "")
+    if (schema_version, resolver_version) not in _SUPPORTED_POLICY_CONTRACTS:
+        raise ValueError(
+            f"unsupported semantic policy contract: {schema_version}/{resolver_version}"
+        )
+    return resolver_version
+
 
 def _normalized_list(values: object, taxonomy: str) -> list[str] | None:
     if not isinstance(values, (list, tuple, set, frozenset)):
@@ -106,6 +122,7 @@ def _normalized_list(values: object, taxonomy: str) -> list[str] | None:
 
 
 def _resolve_value(value: str, taxonomy: str, policy: Mapping[str, Any]) -> str:
+    _resolver_contract_version(policy)
     maps = policy.get("maps")
     taxonomy_map = maps.get(taxonomy) if isinstance(maps, Mapping) else None
     return str(taxonomy_map.get(value, value)) if isinstance(taxonomy_map, Mapping) else value
@@ -136,6 +153,7 @@ def build_semantic_snapshot(
     raw_fields: Mapping[str, object],
     policy: Mapping[str, Any],
 ) -> dict[str, Any]:
+    resolver_contract_version = _resolver_contract_version(policy)
     contracts = _FIELD_CONTRACTS[subject_kind]
     fields: dict[str, object] = {}
     field_completeness: dict[str, str] = {}
@@ -167,7 +185,7 @@ def build_semantic_snapshot(
         field_completeness[field] = "complete"
     raw_fingerprint = build_contract_fingerprint(raw_payload)
     resolver_fingerprint = build_contract_fingerprint(
-        {"version": SEMANTIC_RESOLVER_CONTRACT_VERSION, "field_contracts": contracts}
+        {"version": resolver_contract_version, "field_contracts": contracts}
     )
     derivation_fingerprint = build_contract_fingerprint(
         {

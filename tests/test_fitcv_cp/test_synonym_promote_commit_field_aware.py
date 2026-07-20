@@ -86,4 +86,42 @@ def test_commit_synonym_global_promotion_routes_by_field_and_skips_conflict_fiel
     assert result["failed"] >= 1
     assert "domain" in result["conflict_fields"]
 
+def test_commit_synonym_global_promotion_revalidates_complete_map_before_write() -> None:
+    from fitcv_cp.app import _commit_synonym_global_promotion
+
+    persist_calls: list[dict[str, str]] = []
+    with (
+        patch("fitcv_cp.app._load_global_skill_synonyms_map", return_value={"b": "a"}),
+        patch("fitcv_cp.app._load_global_domain_alias_map", return_value={}),
+        patch("fitcv_cp.app._load_global_role_family_alias_map", return_value={}),
+        patch("fitcv_cp.app._persist_global_skill_synonyms_map", side_effect=persist_calls.append),
+        patch("fitcv_cp.app.update_run_synonym_proposals"),
+        patch("fitcv_cp.app.append_event"),
+    ):
+        result = _commit_synonym_global_promotion(
+            run=SimpleNamespace(run_id="run-cycle"),
+            payload={"proposals": [{"proposal_id": "p-cycle"}]},
+            preview={
+                "rows": [
+                    {
+                        "proposal_id": "p-cycle",
+                        "field": "skill",
+                        "alias": "a",
+                        "canonical": "b",
+                        "diff_type": "add",
+                        "reason": "new_alias",
+                    }
+                ]
+            },
+            selected_ids=["p-cycle"],
+            acted_by="tester",
+            note="test",
+            client=None,
+        )
+
+    assert persist_calls == []
+    assert result["applied"] == 0
+    assert result["failed"] == 1
+    assert result["failure_reasons_by_field"] == {"skill": "synonym_cycle"}
+
 

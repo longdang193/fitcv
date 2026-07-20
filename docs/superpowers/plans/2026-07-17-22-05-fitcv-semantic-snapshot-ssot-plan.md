@@ -89,6 +89,10 @@ Known change risk:
 - `merge_scraped_and_enriched`, `build_job_summary_signature_payload`, `build_cv_analysis_contract_fingerprint`, `_skill_variants`, and `compute_must_have_match` have LOW direct impact but participate in pipeline reuse flows
 - execution must rerun GitNexus impact before editing each named symbol and stop for user warning if fresh risk becomes HIGH or CRITICAL
 
+## Amendment — 2026-07-20
+
+This completed plan records the original one-hop implementation as executed. New runs now use terminal synonym policy v2 from `docs/superpowers/plans/2026-07-20-10-45-terminal-synonym-mapping-cache-safety-patch-plan.md`: chains compile to terminal canonicals, ambiguous duplicate aliases fail closed, and unchanged pair-local inputs preserve reuse across unrelated map edits. Existing v1 persisted runs remain reproducible under their captured one-hop contract.
+
 ## Key Deliverables
 
 ### One semantic policy compiler and resolver

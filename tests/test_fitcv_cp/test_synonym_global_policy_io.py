@@ -2,6 +2,12 @@ from __future__ import annotations
 
 import pytest
 
+from fitcv_cp.synonym_policy_io import (
+    load_global_synonym_map,
+    persist_global_synonym_map,
+    replace_yaml_top_level_mapping_block,
+)
+
 
 @pytest.mark.parametrize(
     "module_path",
@@ -90,4 +96,39 @@ def test_replace_yaml_top_level_mapping_block_appends_when_missing(module_path: 
     assert "some_other_key: 1\n" in updated
     assert "role_family_alias_map:\n" in updated
     assert "  alias: canonical\n" in updated
+
+def test_shared_policy_io_persists_terminal_mappings_atomically(tmp_path) -> None:
+    path = tmp_path / "skill_synonyms.yaml"
+    path.write_text("skill_synonyms:\n  existing: value\n", encoding="utf-8")
+
+    persist_global_synonym_map(
+        "skill",
+        {"a": "b", "b": "c"},
+        path=path,
+    )
+
+    assert load_global_synonym_map("skill", path=path) == {"a": "c", "b": "c"}
+
+def test_shared_policy_io_rejects_cycle_before_file_replacement(tmp_path) -> None:
+    path = tmp_path / "domain_synonyms.yaml"
+    original = "domain_alias_map:\n  existing: value\ndomain_neighbors: {}\n"
+    path.write_text(original, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="cycle"):
+        persist_global_synonym_map(
+            "domain",
+            {"a": "b", "b": "a"},
+            path=path,
+        )
+
+    assert path.read_text(encoding="utf-8") == original
+
+def test_shared_replace_preserves_other_yaml_sections() -> None:
+    updated = replace_yaml_top_level_mapping_block(
+        raw_yaml="domain_alias_map: {}\ndomain_neighbors:\n  data: [analytics]\n",
+        key="domain_alias_map",
+        mappings={"fintech": "financial services"},
+    )
+
+    assert "domain_neighbors:\n  data: [analytics]\n" in updated
 

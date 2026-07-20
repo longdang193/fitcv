@@ -518,6 +518,58 @@ def test_post_runs_inserts_before_enqueue(tmp_path):
     assert "run_id" in resp.json()
     assert call_order == ["insert", "enqueue"], f"Order was: {call_order}"
 
+def test_post_runs_does_not_warn_for_whole_synonym_map_changes(tmp_path) -> None:
+    from types import SimpleNamespace
+
+    captured: dict[str, Any] = {}
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+    prior_run = SimpleNamespace(
+        run_id="prior-success",
+        status="succeeded",
+        effective_settings_json=json.dumps(
+            {"skill_synonyms": {"looker": "looker studio"}}
+        ),
+    )
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    with patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch(
+             "fitcv_cp.app.submit_run",
+             return_value=RunSubmission(
+                 run_id="run-123",
+                 queue_job_id="rq-job-abc",
+                 backend_run_id="run-123",
+                 backend="default_queue",
+             ),
+         ), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.list_runs", return_value=[prior_run]) as list_runs_mock, \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
+             "skill_synonyms": {
+                 "looker": "looker studio",
+                 "power bi": "microsoft power bi",
+             },
+         }):
+        response = TestClient(_app()).post(
+            "/runs",
+            json={"jobs_path": str(jobs_file)},
+        )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["warnings"] == []
+    effective = json.loads(captured["run"].effective_settings_json)
+    assert effective["trigger_runtime_envelope"]["reuse_precheck_warning"] == {}
+    list_runs_mock.assert_not_called()
+
 def test_post_runs_persists_backend_binding_from_submission(tmp_path):
     jobs_file = tmp_path / "jobs.json"
     jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
@@ -6525,10 +6577,71 @@ def test_synonym_triage_fingerprint_is_stable_across_run_scoped_proposal_ids() -
     proposal_b = dict(proposal_a)
     proposal_b["proposal_id"] = "synprop-run-b"
 
-    fp_a = _synonym_triage_fingerprint(proposal_a, runtime=runtime, overlay_fingerprint=None)
-    fp_b = _synonym_triage_fingerprint(proposal_b, runtime=runtime, overlay_fingerprint=None)
+    fp_a = _synonym_triage_fingerprint(proposal_a, runtime=runtime)
+    fp_b = _synonym_triage_fingerprint(proposal_b, runtime=runtime)
 
     assert fp_a == fp_b
+
+def test_synonym_triage_fingerprints_are_pair_local_and_input_complete() -> None:
+    from fitcv_cp.synonym_proposals import (
+        build_synonym_triage_core_fingerprint,
+        build_synonym_triage_fingerprint,
+        evaluate_synonym_triage_reuse,
+    )
+
+    proposal = {
+        "proposal_status": "proposed_unreviewed",
+        "field": "skill",
+        "alias": "laptop",
+        "canonical": "portable computer",
+        "candidate_canonicals": ["portable computer"],
+        "confidence": 0.75,
+        "conflict_summary": {"has_conflict": False},
+    }
+    runtime = {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "sleep_secs": 0.0,
+        "concurrency": 1,
+    }
+
+    strict = build_synonym_triage_fingerprint(proposal=proposal, runtime=runtime)
+    core = build_synonym_triage_core_fingerprint(proposal=proposal, runtime=runtime)
+    assert evaluate_synonym_triage_reuse(
+        proposal=proposal,
+        runtime=runtime,
+        runtime_meta={
+            "triage_fingerprint_strict": strict,
+            "run_overlay_fingerprint": "unrelated-overlay-b",
+        },
+    )["decision"] == "strict_reuse"
+
+    confidence_changed = {**proposal, "confidence": 0.749999}
+    candidates_changed = {
+        **proposal,
+        "candidate_canonicals": ["notebook", "portable computer"],
+    }
+    pair_changed = {**proposal, "canonical": "notebook"}
+    runtime_changes = (
+        {**runtime, "provider": "openai_compatible"},
+        {**runtime, "model": "synonym_triage_v2"},
+        {**runtime, "wire_api": "responses"},
+    )
+    for changed_proposal, changed_runtime in (
+        (confidence_changed, runtime),
+        (candidates_changed, runtime),
+        (pair_changed, runtime),
+        *((proposal, changed_runtime) for changed_runtime in runtime_changes),
+    ):
+        assert strict != build_synonym_triage_fingerprint(
+            proposal=changed_proposal,
+            runtime=changed_runtime,
+        )
+        assert core != build_synonym_triage_core_fingerprint(
+            proposal=changed_proposal,
+            runtime=changed_runtime,
+        )
 
 def test_build_synonym_proposals_payload_reuses_existing_state_by_identity_across_runs() -> None:
     from datetime import datetime, timezone
@@ -6628,7 +6741,7 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_when_fingerprint_matc
         "candidate_canonicals": ["google cloud"],
         "confidence": 0.9,
     }
-    fp = _synonym_triage_fingerprint(triage_target, runtime=runtime, overlay_fingerprint=None)
+    fp = _synonym_triage_fingerprint(triage_target, runtime=runtime)
     row_with_existing_runtime = dict(triage_target)
     row_with_existing_runtime["recommendation_runtime"] = {"triage_fingerprint": fp}
     row_with_existing_runtime["recommended_action"] = "approve"
@@ -6688,7 +6801,7 @@ def test_admin_run_synonym_proposals_triage_refresh_recomputes_when_runtime_fing
         "candidate_canonicals": ["structured query language"],
         "confidence": 0.9,
     }
-    old_fp = _synonym_triage_fingerprint(row, runtime=old_runtime, overlay_fingerprint=None)
+    old_fp = _synonym_triage_fingerprint(row, runtime=old_runtime)
     row["recommendation_runtime"] = {"triage_fingerprint": old_fp}
     row["recommended_action"] = "approve"
 
@@ -6744,7 +6857,7 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_when_core_matches_and
         "confidence": 0.88,
         "conflict_summary": {"has_conflict": True},
     }
-    core_fp = build_synonym_triage_core_fingerprint(proposal=row, runtime=runtime, overlay_fingerprint=None)
+    core_fp = build_synonym_triage_core_fingerprint(proposal=row, runtime=runtime)
     row["recommendation_runtime"] = {
         "triage_fingerprint": "strict-old-and-different",
         "triage_fingerprint_core": core_fp,
@@ -6817,7 +6930,7 @@ def test_admin_run_synonym_proposals_triage_refresh_core_match_gate_mismatch_for
         "confidence": 0.91,
         "conflict_summary": {"has_conflict": False},
     }
-    core_fp = build_synonym_triage_core_fingerprint(proposal=row, runtime=runtime, overlay_fingerprint=None)
+    core_fp = build_synonym_triage_core_fingerprint(proposal=row, runtime=runtime)
     row["recommendation_runtime"] = {
         "triage_fingerprint": "strict-old-and-different",
         "triage_fingerprint_core": core_fp,
@@ -6892,7 +7005,7 @@ def test_admin_run_synonym_proposals_triage_refresh_core_reuse_allows_open_statu
         "conflict_summary": {"has_conflict": False},
         "recommended_action": "approve_for_run_overlay",
     }
-    core_fp = build_synonym_triage_core_fingerprint(proposal=row, runtime=runtime, overlay_fingerprint=None)
+    core_fp = build_synonym_triage_core_fingerprint(proposal=row, runtime=runtime)
     row["recommendation_runtime"] = {
         "triage_fingerprint": "strict-older-value",
         "triage_fingerprint_core": core_fp,
@@ -14616,9 +14729,9 @@ def test_call_synonym_triage_provider_routes_through_llm_runtime(
         )
 
     monkeypatch.setattr("fitcv_cp.app.execute_llm_task", fake_execute, raising=False)
-    monkeypatch.setattr(
-        "fitcv_cp.app.render_prompt",
-        lambda name, payload, **kwargs: type(
+    def fake_render_prompt(name, payload, **kwargs):
+        captured["prompt_payload"] = payload
+        return type(
             "Rendered",
             (),
             {
@@ -14630,8 +14743,9 @@ def test_call_synonym_triage_provider_routes_through_llm_runtime(
                 "addendum_sha256": None,
                 "addendum_char_count": 0,
             },
-        )(),
-    )
+        )()
+
+    monkeypatch.setattr("fitcv_cp.app.render_prompt", fake_render_prompt)
 
     result = app_module._call_synonym_triage_provider(
         proposal={
@@ -14655,5 +14769,13 @@ def test_call_synonym_triage_provider_routes_through_llm_runtime(
     assert captured["request"].routing_part == "synonym_triage_recommendation"
     assert captured["request"].response_mode == "json_object"
     assert captured["route"].model == "cx/gpt-5.4-mini"
+    assert json.loads(captured["prompt_payload"]["proposal_json"]) == {
+        "field": "skill",
+        "alias": "gcp",
+        "canonical": "google cloud",
+        "candidate_canonicals": [],
+        "confidence": 0.9,
+    }
+    assert "now_iso" not in captured["prompt_payload"]
     assert result["recommended_action"] == "approve"
     assert result["llm_runtime_evidence"]["provenance"]["response_id"] == "resp-triage"

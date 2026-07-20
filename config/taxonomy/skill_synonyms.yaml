@@ -179,7 +179,7 @@ skill_synonyms:
   ci weiterentwickeln: corporate identity
   ci/cd: ci/cd
   ci/cd pipelines: ci/cd
-  ci/cd-prozesse: ci/cd pipelines
+  ci/cd-prozesse: ci/cd
   circuit design: electrical circuit design
   classification algorithms: classification algorithms
   classroom management: classroom management
@@ -460,7 +460,7 @@ skill_synonyms:
   funnel instrumentation: funnel instrumentation
   ga4: google analytics 4
   gas measurement: gas measurement
-  gcp: google cloud
+  gcp: google cloud platform
   gefriertrocknung: freeze drying
   gefährdungsbeurteilungen: risk assessment
   gemini: google gemini

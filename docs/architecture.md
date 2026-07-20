@@ -14,13 +14,12 @@ explains:
 
 # Architecture
 
-FitCV architecture has five cross-cutting layers:
+FitCV architecture has four cross-cutting runtime layers:
 
 1. FitCV Local packaged launcher and user-owned storage boundary
 2. control plane (`src/fitcv_cp`)
 3. pipeline runtime (`src/fitcv`)
 4. backend/provider adapters and runtime routing
-5. managed architecture metadata + generated contract outputs
 
 ## Runtime Surfaces
 
@@ -75,6 +74,14 @@ Location/language eligibility ownership:
 - `src/fitcv/fit_factors.py` owns one symmetric factor algebra: candidate adaptation, evaluation truth, absolute normalization, policy projection, and policy fingerprinting.
 - `src/fitcv/rule_filter.py` owns eligibility projection. Only confirmed failures under `gate_required` reject; unknown and not-applicable facts remain eligible with diagnostics.
 - ranking consumes the same location/language projections without redefining their normalization or hard-gate behavior.
+
+Synonym policy ownership:
+
+- `config/taxonomy/skill_synonyms.yaml`, `config/taxonomy/domain_synonyms.yaml`, and `config/taxonomy/role_family_synonyms.yaml` own global alias mappings for their fields.
+- `src/fitcv/config_loader.py` preserves duplicate YAML keys long enough for `src/fitcv/config.py` to reject normalized aliases with different targets, deduplicate same-target repeats, and compile every accepted alias directly to its terminal canonical value. Cycles and ambiguous terminal targets fail closed.
+- Run overlays use the same normalized policy contract and override global mappings only after both sources validate. Global promotion compiles the complete candidate map before one atomic replacement.
+- `src/fitcv/semantic_snapshot.py` owns runtime semantic projection. Stage reuse hashes only exact consumed projections plus stage contracts, so unrelated synonym edits do not invalidate unaffected work while a changed terminal value refreshes every consuming stage.
+- Synonym-triage reuse hashes normalized field, alias, terminal canonical, sorted candidate canonicals, six-decimal confidence, status/conflict gates, and provider/model/wire contract. Whole-overlay fingerprints remain observability metadata only.
 
 Ranking-v2 ownership:
 

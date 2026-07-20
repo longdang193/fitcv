@@ -7,4 +7,3 @@ ${prompt_addendum}Return strict JSON only with keys:
 - recommendation_risk_flags (array of short strings)
 
 Proposal: $proposal_json
-Timestamp: $now_iso

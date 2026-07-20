@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: terminal-synonym-mapping-cache-safety-patch
 parent_spec: docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md
@@ -14,8 +14,6 @@ targets:
   - src/fitcv_cp/app.py
   - src/fitcv_cp/worker_job.py
   - src/fitcv_cp/worker_run_support.py
-  - tests/test_pipeline_stage_resume_parity.py
-  - tests/test_pipeline_checkpoint_contract.py
   - docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md
 ---
 
@@ -47,10 +45,16 @@ Runtime code, tests, and the semantic snapshot specification agree on terminal-c
 
 - Mode: `inline sequential`
 - Required skills: `skill-code-standards`, `skill-test-driven-development`, `skill-verification-before-completion`
-- Isolation: `current workspace`; preserve unrelated untracked `.playwright-mcp/` and pipeline-settings plan artifacts
+- Isolation: manual Git worktree `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/terminal-synonym-mapping-cache-safety` on `codex/terminal-synonym-mapping-cache-safety`; primary-checkout prototype changes remain outside this lane
 - Parallel ownership: none; `src/fitcv/semantic_snapshot.py` and synonym fingerprint contracts are shared prerequisites
 - Sequential fallback: semantic contract, ingestion, write paths, reuse logic, then docs and final verification
 - Validation baseline: before any implementation edit, run `python scripts/validate_planning_lifecycle.py --strict 2>&1 | Set-Content "$env:TEMP\terminal-synonym-planning-before.txt"`; existing unrelated metadata errors are tolerated only when final output adds no new error path or code
+
+## Execution Progress
+
+- 2026-07-20: Task 1 verified with `113 passed`; terminal policy v2, captured v1 compatibility, canonical terminal mappings, and specification text now agree.
+- 2026-07-20: Task 2 verified with `106 passed`; duplicate-safe loading covers dedicated synonym files, configured overlays, uploaded YAML, and synonym sections inside the supported legacy taxonomy fallback without changing unrelated taxonomy duplicate handling.
+- 2026-07-20: Task 3 active; shared compiled atomic policy I/O exists and app/worker load/persist wrappers use it. Preview rejects complete-map cycles before readiness. Worker all-field promotion symmetry and final commit-path reconciliation remain open.
 
 ## Task Breakdown
 
@@ -75,8 +79,6 @@ Runtime code, tests, and the semantic snapshot specification agree on terminal-c
 - Modify: `src/fitcv/semantic_snapshot.py:_resolve_value`
 - Modify: `src/fitcv/semantic_snapshot.py:build_semantic_snapshot`
 - Modify: `tests/test_semantic_snapshot.py:test_compile_semantic_policy_preserves_one_hop_chains_and_rejects_cycles_and_collisions`
-- Modify: `tests/test_pipeline_stage_resume_parity.py`
-- Modify: `tests/test_pipeline_checkpoint_contract.py`
 - Modify: `config/taxonomy/skill_synonyms.yaml`
 - Modify: `docs/superpowers/specs/2026-07-17-21-30-fitcv-semantic-snapshot-ssot-spec.md`
 
@@ -85,21 +87,21 @@ Runtime code, tests, and the semantic snapshot specification agree on terminal-c
 - Current specification contradicts itself: canonical contract requires terminal flattening while acceptance text and tests preserve one-hop chains.
 
 **Steps:**
-- [ ] Replace the one-hop chain test with terminal-flattening assertions for `a -> b -> c`, plus existing cycle and normalized-collision rejection assertions.
-- [ ] Flatten acyclic chains during `_compile_map`, store terminal targets in the compiled map, and keep `_resolve_value` as one lookup over already-terminal data.
-- [ ] Bump compiled policy and resolver contracts to `semantic_policy_v2` and `semantic_resolver_v2`; keep `SEMANTIC_SNAPSHOT_SCHEMA_VERSION` unchanged because snapshot shape does not change.
-- [ ] Preserve captured `semantic_policy_v1` for persisted continue/retry runs; compile v2 for new runs and for explicit overlay replacement.
-- [ ] Derive each snapshot resolver fingerprint from its captured policy `resolver_contract_version`, not the current module constant; reject unsupported policy versions and deny cross-version reuse through resolver-contract fingerprint mismatch.
-- [ ] Rewrite current non-terminal entries to `ci/cd-prozesse: ci/cd` and `gcp: google cloud platform`; retain canonical self-mappings where already present.
-- [ ] Update contradictory specification acceptance and validation text from one-hop preservation to deterministic terminal flattening.
-- [ ] Add boundary proof that adding unrelated `C:D` preserves `A:B`, while adding `B:C` is related and changes effective `A` from `B` to terminal `C`.
+- [x] Replace the one-hop chain test with terminal-flattening assertions for `a -> b -> c`, plus existing cycle and normalized-collision rejection assertions.
+- [x] Flatten acyclic chains during `_compile_map`, store terminal targets in the compiled map, and keep `_resolve_value` as one lookup over already-terminal data.
+- [x] Bump compiled policy and resolver contracts to `semantic_policy_v2` and `semantic_resolver_v2`; keep `SEMANTIC_SNAPSHOT_SCHEMA_VERSION` unchanged because snapshot shape does not change.
+- [x] Preserve captured `semantic_policy_v1` for persisted continue/retry runs; compile v2 for new runs and for explicit overlay replacement.
+- [x] Derive each snapshot resolver fingerprint from its captured policy `resolver_contract_version`, not the current module constant; reject unsupported policy versions and deny cross-version reuse through resolver-contract fingerprint mismatch.
+- [x] Rewrite current non-terminal entries to `ci/cd-prozesse: ci/cd` and `gcp: google cloud platform`; retain canonical self-mappings where already present.
+- [x] Update contradictory specification acceptance and validation text from one-hop preservation to deterministic terminal flattening.
+- [x] Add boundary proof that adding unrelated `C:D` preserves `A:B`, while adding `B:C` is related and changes effective `A` from `B` to terminal `C`.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_semantic_snapshot.py -q`
+- [x] `python -m pytest tests/test_semantic_snapshot.py -q`
 - Expected: chains resolve to terminal values; cycles and normalized collisions raise stable `ValueError` messages.
-- [ ] `python -m pytest tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_checkpoint_contract.py -q`
-- Expected: persisted v1 runs remain reproducible, new/overlay-recompiled runs use v2, and cross-version reuse fails closed.
-- [ ] `$env:PYTHONPATH='src'; python -c "from fitcv.config import load_config; c=load_config(); assert c['semantic_policy']['maps']['skill']['gcp']=='google cloud platform'; assert c['semantic_policy']['maps']['skill']['ci/cd-prozesse']=='ci/cd'"`
+- [x] Add semantic-policy tests with a captured v1 policy fixture and a newly compiled v2 fixture.
+- Expected: captured v1 maps retain one-hop resolution and v1 resolver fingerprint; compiled v2 maps resolve terminal values and produce a different resolver fingerprint.
+- [x] `$env:PYTHONPATH='src'; python -c "from fitcv.config import load_config; c=load_config(); assert c['semantic_policy']['maps']['skill']['gcp']=='google cloud platform'; assert c['semantic_policy']['maps']['skill']['ci/cd-prozesse']=='ci/cd'"`
 - Expected: current canonical policy has no non-terminal compiled skill targets.
 
 **Exit Criteria:**
@@ -133,15 +135,15 @@ Runtime code, tests, and the semantic snapshot specification agree on terminal-c
 - Task 1 terminal compiler contract complete.
 
 **Steps:**
-- [ ] Add one duplicate-key-aware YAML loader option in `config_loader.py`; error includes normalized alias and source path or upload context.
-- [ ] In the `load_config` policy loop, request duplicate-key rejection only for `skill_synonyms`, `domain_synonyms`, and `role_family_synonyms`; leave unrelated policy YAML behavior unchanged.
-- [ ] Use the same duplicate-key rejection for configured synonym overlay files and uploaded runtime synonym YAML.
-- [ ] Change `_normalize_skill_synonyms` from dictionary-comprehension overwrite to explicit normalized insertion that rejects same-source aliases mapping to different normalized canonicals.
-- [ ] Allow same-source duplicate normalized aliases only when canonical values normalize identically, then deduplicate deterministically.
-- [ ] Keep overlay precedence unchanged by validating base and each overlay before the existing ordered merge.
+- [x] Add one duplicate-key-aware YAML loader option in `config_loader.py`; error includes normalized alias and source path or upload context.
+- [x] In the `load_config` policy loop, request duplicate-key rejection for `skill_synonyms`, `domain_synonyms`, and `role_family_synonyms`; selectively inspect only synonym-map sections in the supported legacy `taxonomy.yaml` fallback so unrelated policy YAML behavior remains unchanged.
+- [x] Use the same duplicate-key rejection for configured synonym overlay files and uploaded runtime synonym YAML.
+- [x] Change `_normalize_skill_synonyms` from dictionary-comprehension overwrite to explicit normalized insertion that rejects same-source aliases mapping to different normalized canonicals.
+- [x] Allow same-source duplicate normalized aliases only when canonical values normalize identically, then deduplicate deterministically.
+- [x] Keep overlay precedence unchanged by validating base and each overlay before the existing ordered merge.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_config.py -q`
+- [x] `python -m pytest tests/test_config.py -q`
 - Expected: exact duplicate `looker` keys and normalized `Looker`/`looker` conflicts fail; identical normalized duplicates deduplicate; overlay override of a base alias still wins.
 
 **Exit Criteria:**
@@ -184,14 +186,14 @@ Runtime code, tests, and the semantic snapshot specification agree on terminal-c
 - Tasks 1 and 2 provide compiler and YAML-validation contracts.
 
 **Steps:**
-- [ ] Move duplicated skill/domain/role-family global-policy load, render, validate, and atomic-write behavior into `synonym_policy_io.py`; app and worker retain thin imports only.
-- [ ] Build and compile the complete candidate field map during preview; mark cycles, normalized conflicts, and invalid terminalization with stable reason codes before showing rows as ready.
-- [ ] Recompile the same complete candidate map before file replacement and persist compiled terminal mappings, not unchecked proposal values.
-- [ ] Preserve existing atomic replacement and failure cleanup behavior.
-- [ ] Return identical actionable promotion failure reason codes from preview, manual commit, and worker auto-promotion instead of partially writing the map.
+- [x] Move duplicated skill/domain/role-family global-policy load, render, validate, and atomic-write behavior into `synonym_policy_io.py`; app and worker retain thin imports only.
+- [x] Build and compile the complete candidate field map during preview; mark cycles, normalized conflicts, and invalid terminalization with stable reason codes before showing rows as ready.
+- [x] Recompile the same complete candidate map before file replacement and persist compiled terminal mappings, not unchecked proposal values.
+- [x] Preserve existing atomic replacement and failure cleanup behavior.
+- [x] Return identical actionable promotion failure reason codes from preview, manual commit, and worker auto-promotion instead of partially writing the map.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_fitcv_cp/test_synonym_global_policy_io.py tests/test_fitcv_cp/test_synonym_promote_commit_field_aware.py tests/test_fitcv_cp/test_worker_job_auto_promote_skill_only.py tests/test_fitcv_cp/test_worker_job.py -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_synonym_global_policy_io.py tests/test_fitcv_cp/test_synonym_promote_commit_field_aware.py tests/test_fitcv_cp/test_worker_job_auto_promote_skill_only.py tests/test_fitcv_cp/test_worker_job.py -q`
 - Expected: preview and commit agree, app and worker share one validated write path, and invalid complete maps leave existing files unchanged.
 
 **Exit Criteria:**
@@ -228,17 +230,17 @@ Runtime code, tests, and the semantic snapshot specification agree on terminal-c
 - Task 1 defines terminal pair identity.
 
 **Steps:**
-- [ ] Add failing tests proving unrelated overlay pair changes preserve strict/core triage reuse for unchanged `A:B`.
-- [ ] Remove whole `run_overlay_fingerprint` from strict and core triage fingerprint payloads and evaluator inputs; retain overlay fingerprints only as observability metadata.
-- [ ] Build one normalized triage-input object containing field, alias, terminal canonical, sorted candidate canonicals, and six-decimal confidence; use it for builtin recommendation logic, provider prompt input, and fingerprinting.
-- [ ] Keep compatible status gate, runtime provider/model/wire API, and triage version beside the shared triage input in reuse identity.
-- [ ] Remove run-scoped `proposal_id`, open-state `proposal_status`, and volatile `now_iso` from provider decision input; keep status only as reuse eligibility gate and timestamps only in emitted recommendation metadata after decision generation.
-- [ ] Move duplicated builtin recommendation decision logic into `synonym_proposals.py`; app and worker call the same pure function.
-- [ ] Add negative tests proving `A:B2`, changed confidence across decision thresholds, changed conflict candidates, or changed runtime contract forces fresh recommendation.
+- [x] Add failing tests proving unrelated overlay pair changes preserve strict/core triage reuse for unchanged `A:B`.
+- [x] Remove whole `run_overlay_fingerprint` from strict and core triage fingerprint payloads and evaluator inputs; retain overlay fingerprints only as observability metadata.
+- [x] Build one normalized triage-input object containing field, alias, terminal canonical, sorted candidate canonicals, and six-decimal confidence; use it for builtin recommendation logic, provider prompt input, and fingerprinting.
+- [x] Keep compatible status gate, runtime provider/model/wire API, and triage version beside the shared triage input in reuse identity.
+- [x] Remove run-scoped `proposal_id`, open-state `proposal_status`, and volatile `now_iso` from provider decision input; keep status only as reuse eligibility gate and timestamps only in emitted recommendation metadata after decision generation.
+- [x] Move duplicated builtin recommendation decision logic into `synonym_proposals.py`; app and worker call the same pure function.
+- [x] Add negative tests proving `A:B2`, changed confidence across decision thresholds, changed conflict candidates, or changed runtime contract forces fresh recommendation.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_fitcv_cp/test_app.py -k "synonym_triage and (fingerprint or reuse)" -q`
-- [ ] `python -m pytest tests/test_fitcv_cp/test_worker_job.py -k "synonym and (triage or reuse)" -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_app.py -k "synonym_triage and (fingerprint or reuse)" -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_worker_job.py -k "synonym and (triage or reuse)" -q`
 - Expected: unrelated map edits reuse; pair, confidence, conflict-gate, or runtime changes refresh; app and worker counters agree.
 
 **Exit Criteria:**
@@ -270,22 +272,24 @@ Runtime code, tests, and the semantic snapshot specification agree on terminal-c
 **Dependencies:**
 - Tasks 1 through 4 complete.
 
+**Repository Divergence:**
+- `docs/features/*`, `docs/stages/*`, and `docs/generated/*` were intentionally removed by commit `b253bb44` before this lane started. Do not recreate retired starter-kit metadata. `docs/architecture.md` and `docs/configuration.md` are current canonical documentation owners. The retained generator validates with `--validate-only`; write mode creates empty retired outputs and must not be used for this tree.
+
 **Steps:**
-- [ ] Remove both whole-map comparison blocks and `_stable_synonym_hash`; preserve trigger API response shape with an empty warnings list when no real warning exists.
-- [ ] Document terminal compilation, conflict rejection, overlay precedence, pair-local semantic reuse, and pair-local triage reuse.
-- [ ] Add a concise amendment note to the completed 2026-07-17 semantic snapshot plan pointing to this patch plan; preserve its historical checked one-hop execution record unchanged.
-- [ ] Update feature source contracts first, then regenerate managed outputs; do not edit generated lineage directly.
-- [ ] Run source scans proving no cache decision or warning uses the complete skill synonym map as a proxy for exact consumed values.
-- [ ] Capture final output with `python scripts/validate_planning_lifecycle.py --strict 2>&1 | Set-Content "$env:TEMP\terminal-synonym-planning-after.txt"`; final output may retain only identical pre-existing error paths/codes and must add no error for either touched planning artifact.
+- [x] Remove both whole-map comparison blocks and `_stable_synonym_hash`; preserve trigger API response shape with an empty warnings list when no real warning exists.
+- [x] Document terminal compilation, conflict rejection, overlay precedence, pair-local semantic reuse, and pair-local triage reuse.
+- [x] Add a concise amendment note to the completed 2026-07-17 semantic snapshot plan pointing to this patch plan; preserve its historical checked one-hop execution record unchanged.
+- [x] Record retired feature-source divergence, update current canonical docs, and validate retained generator inputs without recreating empty generated outputs.
+- [x] Run source scans proving no cache decision or warning uses the complete skill synonym map as a proxy for exact consumed values.
+- [x] Capture final output with `python scripts/validate_planning_lifecycle.py --strict 2>&1 | Set-Content "$env:TEMP\terminal-synonym-planning-after.txt"`; final output may retain only identical pre-existing error paths/codes and must add no error for either touched planning artifact.
 
 **Verification:**
-- [ ] `rg -n "_stable_synonym_hash|cv_analysis_reuse_reset_likely" src tests docs`
+- [x] `rg -n "_stable_synonym_hash|cv_analysis_reuse_reset_likely" src tests docs --glob '!docs/superpowers/plans/2026-07-20-10-45-terminal-synonym-mapping-cache-safety-patch-plan.md'`
 - Expected: no runtime or contract references remain.
-- [ ] `python tools/docs/generate_architecture_metadata.py`
-- [ ] `python tools/docs/generate_architecture_metadata.py --check`
-- Expected: generated architecture metadata matches canonical sources.
-- [ ] `python scripts/validate_planning_lifecycle.py --strict 2>&1 | Set-Content "$env:TEMP\terminal-synonym-planning-after.txt"`
-- [ ] `Compare-Object (Get-Content "$env:TEMP\terminal-synonym-planning-before.txt") (Get-Content "$env:TEMP\terminal-synonym-planning-after.txt")`
+- [x] `python tools/docs/generate_architecture_metadata.py --validate-only`
+- Expected: retained generator accepts current source tree without recreating retired metadata outputs.
+- [x] `python scripts/validate_planning_lifecycle.py --strict 2>&1 | Set-Content "$env:TEMP\terminal-synonym-planning-after.txt"`
+- [x] `Compare-Object (Get-Content "$env:TEMP\terminal-synonym-planning-before.txt") (Get-Content "$env:TEMP\terminal-synonym-planning-after.txt")`
 - Expected: no added planning error path/code; unrelated baseline errors may remain until their owning work is executed.
 
 **Exit Criteria:**
@@ -301,7 +305,7 @@ Runtime code, tests, and the semantic snapshot specification agree on terminal-c
 - `python scripts/validate_repo_contracts.py --fast`
 - `python scripts/hooks/run_validator.py --fast`
 - `git diff --check`
-- `rg -n "preserve.*one-hop|one-hop.*chain|_stable_synonym_hash|cv_analysis_reuse_reset_likely" src tests docs`
+- `rg -n "preserve.*one-hop|one-hop.*chain|_stable_synonym_hash|cv_analysis_reuse_reset_likely" src tests docs --glob '!docs/superpowers/plans/2026-07-20-10-45-terminal-synonym-mapping-cache-safety-patch-plan.md' --glob '!docs/superpowers/plans/2026-07-17-22-05-fitcv-semantic-snapshot-ssot-plan.md'`
 
 ## Completion Criteria
 

@@ -244,7 +244,7 @@ Define one compatibility projector for cached rows that predate native semantic 
   - add another policy configuration file
 - impact:
   - current config and overlay precedence remain unchanged
-  - policy compilation preserves taxonomy-specific normalization and existing one-hop chain semantics, rejects cycles, and provides deterministic ordering
+  - policy compilation preserves taxonomy-specific normalization, flattens acyclic chains to terminal canonical values, rejects cycles, and provides deterministic ordering
   - no new operator setting is required
 
 ### Decision: Use one field contract registry
@@ -508,7 +508,7 @@ If a stage consumes canonical values only, raw alias changes that resolve to sam
 9. CV-analysis reuse no longer depends on entire global synonym map when exact inputs remain unchanged.
 10. Every reusable stage hashes its exact validated execution input plus its stage contract.
 11. Set-semantic fields are insensitive to order, duplicates, case, and surrounding whitespace after normalization.
-12. Invalid alias cycles and unresolved conflicts fail policy compilation with actionable errors; acyclic chains preserve existing one-hop resolution semantics.
+12. Invalid alias cycles and unresolved conflicts fail policy compilation with actionable errors; acyclic chains flatten deterministically to terminal canonical values.
 13. Legacy cached rows with sufficient raw facts reproject successfully; insufficient rows deny affected reuse truthfully.
 14. Initial, retry, continue, run-all, and manual-staged execution paths produce symmetric reuse decisions.
 15. Existing operator synonym review and promotion workflows remain available and continue producing effective run config snapshots.
@@ -573,7 +573,7 @@ If a stage consumes canonical values only, raw alias changes that resolve to sam
 
 - proof target: invalid policy fails closed
   - method: empty, cyclic, chained, conflicting, and punctuation-sensitive mapping fixtures
-  - evidence: acyclic chains preserve one-hop resolution; empty values are ignored; cyclic, colliding, and unresolved conflict cases raise stable validation errors without collapsing distinct skills such as `C`, `C++`, `C#`, `.NET`, and `Node.js`
+  - evidence: acyclic chains flatten to terminal canonical values; empty values are ignored; cyclic, colliding, and unresolved conflict cases raise stable validation errors without collapsing distinct skills such as `C`, `C++`, `C#`, `.NET`, and `Node.js`
 
 - proof target: snapshot resolution is uniform
   - method: parameterized scalar/list fixtures across skill, domain, and role-family contracts

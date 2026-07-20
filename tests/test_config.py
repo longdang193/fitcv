@@ -692,6 +692,24 @@ def test_load_config_merges_skill_synonym_overlay_paths(tmp_path: Path) -> None:
     assert cfg["skill_synonyms_runtime"]["has_overlay"] is True
     assert len(cfg["skill_synonyms_runtime"]["overlay_paths"]) == 1
 
+def test_load_config_rejects_duplicate_keys_in_skill_synonym_overlay(tmp_path: Path) -> None:
+    env_yaml = _write_minimal_eligibility_config(tmp_path)
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "skill_synonyms_overlay_paths:\n"
+        "  - duplicate.overlay.yaml\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "config" / "duplicate.overlay.yaml").write_text(
+        "skill_synonyms:\n"
+        "  looker: looker studio\n"
+        "  looker: powerbi\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"duplicate\.overlay\.yaml.*duplicate YAML key.*looker"):
+        load_config(env_yaml)
+
 
 def test_load_config_normalizes_role_taxonomy_structure(tmp_path: Path) -> None:
     env_yaml = tmp_path / ".env.yaml"
@@ -875,6 +893,21 @@ def test_load_config_falls_back_to_taxonomy_for_non_skill_synonym_maps(tmp_path:
     assert cfg["domain_alias_map"]["fintech"] == "financial services"
     assert cfg["role_family_alias_map"]["bi analyst"] == "analytics"
 
+def test_load_config_rejects_synonym_duplicates_in_taxonomy_fallback_only(tmp_path: Path) -> None:
+    env_yaml = _write_minimal_eligibility_config(tmp_path)
+    (tmp_path / "config" / "taxonomy.yaml").write_text(
+        "unrelated:\n"
+        "  value: first\n"
+        "  value: second\n"
+        "domain_alias_map:\n"
+        "  fintech: financial services\n"
+        "  fintech: banking\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"taxonomy\.yaml.*duplicate YAML key.*fintech"):
+        load_config(env_yaml)
+
 
 def test_parse_skill_synonym_overlay_yaml_accepts_nested_skill_synonyms() -> None:
     overlay = parse_skill_synonym_overlay_yaml(
@@ -895,6 +928,29 @@ def test_parse_skill_synonym_overlay_yaml_rejects_invalid_mapping_values() -> No
             "skill_synonyms:\n"
             "  powerbi: ''\n"
         )
+
+def test_parse_skill_synonym_overlay_yaml_rejects_duplicate_yaml_keys() -> None:
+    with pytest.raises(ValueError, match="uploaded synonym overlay.*duplicate YAML key.*looker"):
+        parse_skill_synonym_overlay_yaml(
+            "skill_synonyms:\n"
+            "  looker: looker studio\n"
+            "  looker: powerbi\n"
+        )
+
+def test_parse_skill_synonym_overlay_yaml_rejects_normalized_alias_conflicts() -> None:
+    with pytest.raises(ValueError, match="normalized synonym alias conflict: looker"):
+        parse_skill_synonym_overlay_yaml(
+            "skill_synonyms:\n"
+            "  Looker: looker studio\n"
+            "  looker: powerbi\n"
+        )
+
+def test_parse_skill_synonym_overlay_yaml_deduplicates_same_normalized_mapping() -> None:
+    assert parse_skill_synonym_overlay_yaml(
+        "skill_synonyms:\n"
+        "  Looker: Looker Studio\n"
+        "  ' looker ': looker studio\n"
+    ) == {"looker": "looker studio"}
 
 def test_parse_runtime_synonym_overlay_yaml_accepts_multi_field_sections() -> None:
     payload = parse_runtime_synonym_overlay_yaml(

@@ -3,7 +3,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 
-def test_worker_auto_promote_global_skips_non_skill_proposals() -> None:
+def test_worker_auto_promote_global_routes_domain_proposals() -> None:
     from fitcv_cp.worker_job import _run_synonym_automation_for_payload
     from fitcv_cp.models import RunStatus
 
@@ -34,6 +34,8 @@ def test_worker_auto_promote_global_skips_non_skill_proposals() -> None:
     with (
         patch("fitcv_cp.worker_job.resolve_synonym_management_mode", return_value=mode),
         patch("fitcv_cp.worker_job._persist_global_skill_synonyms_map") as persist_skill,
+        patch("fitcv_cp.worker_job._load_global_domain_alias_map", return_value={}),
+        patch("fitcv_cp.worker_job._persist_global_domain_alias_map") as persist_domain,
         patch("fitcv_cp.worker_job.append_event"),
         patch("fitcv_cp.worker_job.update_run_synonym_proposals"),
         patch("fitcv_cp.worker_job.update_run_effective_settings"),
@@ -47,6 +49,7 @@ def test_worker_auto_promote_global_skips_non_skill_proposals() -> None:
         )
 
     persist_skill.assert_not_called()
+    persist_domain.assert_called_once_with({"fintech": "financial technology"})
 
 
 

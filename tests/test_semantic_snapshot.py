@@ -24,6 +24,7 @@ from fitcv.semantic_snapshot import (
     project_canonical,
     semantic_requirements_complete,
 )
+from fitcv.shortlist_runtime import build_contract_fingerprint
 
 
 def _config(**overrides: object) -> dict[str, object]:
@@ -52,7 +53,7 @@ def test_compile_semantic_policy_is_order_invariant_and_preserves_skill_punctuat
     assert first["maps"]["domain"]["fin tech"] == "financial services"
 
 
-def test_compile_semantic_policy_preserves_one_hop_chains_and_rejects_cycles_and_collisions() -> None:
+def test_compile_semantic_policy_flattens_chains_and_rejects_cycles_and_collisions() -> None:
     policy = compile_semantic_policy(_config(skill_synonyms={"a": "b", "b": "c"}))
     snapshot = build_semantic_snapshot(
         "criteria",
@@ -61,12 +62,62 @@ def test_compile_semantic_policy_preserves_one_hop_chains_and_rejects_cycles_and
         policy,
     )
 
-    assert project_canonical(snapshot, "must_have_skills") == ["b"]
+    assert policy["schema_version"] == "semantic_policy_v2"
+    assert policy["resolver_contract_version"] == "semantic_resolver_v2"
+    assert policy["maps"]["skill"] == {"a": "c", "b": "c"}
+    assert project_canonical(snapshot, "must_have_skills") == ["c"]
     with pytest.raises(ValueError, match="cycle"):
         compile_semantic_policy(_config(skill_synonyms={"a": "b", "b": "a"}))
     with pytest.raises(ValueError, match="collision"):
         compile_semantic_policy(
             _config(domain_alias_map={"Fin-Tech": "financial services", "fin tech": "banking"})
+        )
+
+def test_captured_v1_policy_preserves_one_hop_resolution_and_resolver_identity() -> None:
+    payload = {
+        "schema_version": "semantic_policy_v1",
+        "resolver_contract_version": "semantic_resolver_v1",
+        "maps": {"skill": {"a": "b", "b": "c"}, "domain": {}, "role_family": {}},
+    }
+    captured_v1 = {**payload, "policy_fingerprint": build_contract_fingerprint(payload)}
+    compiled_v2 = compile_semantic_policy(_config(skill_synonyms={"a": "b", "b": "c"}))
+
+    v1_snapshot = build_semantic_snapshot(
+        "criteria",
+        "criteria-1",
+        {"must_have_skills": ["a"]},
+        captured_v1,
+    )
+    v2_snapshot = build_semantic_snapshot(
+        "criteria",
+        "criteria-1",
+        {"must_have_skills": ["a"]},
+        compiled_v2,
+    )
+
+    assert project_canonical(v1_snapshot, "must_have_skills") == ["b"]
+    assert project_canonical(v2_snapshot, "must_have_skills") == ["c"]
+    assert v1_snapshot["resolver_contract_fingerprint"] == build_contract_fingerprint(
+        {
+            "version": "semantic_resolver_v1",
+            "field_contracts": {"must_have_skills": ("skill", "list")},
+        }
+    )
+    assert (
+        v1_snapshot["resolver_contract_fingerprint"]
+        != v2_snapshot["resolver_contract_fingerprint"]
+    )
+
+def test_semantic_snapshot_rejects_unsupported_policy_contracts() -> None:
+    policy = compile_semantic_policy(_config())
+    policy["schema_version"] = "semantic_policy_v3"
+
+    with pytest.raises(ValueError, match="unsupported semantic policy contract"):
+        build_semantic_snapshot(
+            "criteria",
+            "criteria-1",
+            {"must_have_skills": ["a"]},
+            policy,
         )
 
 
@@ -132,6 +183,7 @@ def test_alias_equivalence_projection_is_bounded_to_consumed_values() -> None:
 def test_mapping_edits_change_only_consumed_semantic_projection() -> None:
     baseline_policy = compile_semantic_policy(_config(skill_synonyms={"a": "b"}))
     unrelated_policy = compile_semantic_policy(_config(skill_synonyms={"a": "b", "c": "d"}))
+    related_policy = compile_semantic_policy(_config(skill_synonyms={"a": "b", "b": "c"}))
     target_changed_policy = compile_semantic_policy(_config(skill_synonyms={"a": "b2"}))
     alias_added_policy = compile_semantic_policy(_config(skill_synonyms={"a": "b", "a2": "b"}))
 
@@ -145,6 +197,7 @@ def test_mapping_edits_change_only_consumed_semantic_projection() -> None:
 
     baseline = snapshot(baseline_policy)
     unrelated = snapshot(unrelated_policy)
+    related = snapshot(related_policy)
     target_changed = snapshot(target_changed_policy)
     alias_added = snapshot(alias_added_policy)
 
@@ -155,6 +208,9 @@ def test_mapping_edits_change_only_consumed_semantic_projection() -> None:
     assert project_alias_equivalence(
         baseline, "candidate_skills", baseline_policy
     ) == project_alias_equivalence(unrelated, "candidate_skills", unrelated_policy)
+
+    assert project_canonical(related, "candidate_skills") == ["c"]
+    assert baseline["semantic_value_fingerprint"] != related["semantic_value_fingerprint"]
 
     assert baseline["semantic_value_fingerprint"] != target_changed["semantic_value_fingerprint"]
     assert project_canonical(baseline, "candidate_skills") != project_canonical(

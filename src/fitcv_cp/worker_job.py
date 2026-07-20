@@ -85,6 +85,13 @@ from fitcv_cp.synonym_proposals import (
     evaluate_synonym_triage_reuse,
     transition_synonym_proposal_status,
 )
+from fitcv_cp.synonym_policy_io import (
+    compile_global_synonym_map,
+    load_global_synonym_map,
+    persist_global_synonym_map,
+    replace_yaml_top_level_mapping_block,
+    synonym_policy_error_reason,
+)
 from fitcv_cp.review_identity import ensure_review_item_id, is_review_resolution_pending
 from fitcv_cp.retry_policy import classify_exception_for_retry
 from fitcv_cp.run_artifact_contracts import (
@@ -754,55 +761,20 @@ def _build_cv_generation_debug_payload(
     return encode_json_object(payload)
 
 
-def _global_skill_synonyms_path() -> Path:
-    return Path("config") / "taxonomy" / "skill_synonyms.yaml"
-
-_YAML_TOP_LEVEL_KEY_RE = re.compile(r"^[A-Za-z0-9_]+\s*:")
-
-def _render_yaml_top_level_mapping(*, key: str, mappings: dict[str, str]) -> list[str]:
-    if not mappings:
-        return [f"{key}: {{}}\n"]
-    lines = [f"{key}:\n"]
-    for alias, canonical in sorted(mappings.items()):
-        lines.append(f"  {alias}: {canonical}\n")
-    return lines
-
 def _replace_yaml_top_level_mapping_block(
     *,
     raw_yaml: str,
     key: str,
     mappings: dict[str, str],
 ) -> str:
-    lines = raw_yaml.splitlines(keepends=True)
-    start_idx: int | None = None
-    for idx, line in enumerate(lines):
-        if line.startswith(f"{key}:"):
-            start_idx = idx
-            break
-    replacement = _render_yaml_top_level_mapping(key=key, mappings=mappings)
-    if start_idx is None:
-        if raw_yaml and not raw_yaml.endswith("\n"):
-            return raw_yaml + "\n" + "".join(replacement)
-        return raw_yaml + "".join(replacement)
-    end_idx = start_idx + 1
-    while end_idx < len(lines):
-        candidate = lines[end_idx]
-        if candidate.startswith("#") or not candidate.strip():
-            end_idx += 1
-            continue
-        if candidate[:1].isspace():
-            end_idx += 1
-            continue
-        if _YAML_TOP_LEVEL_KEY_RE.match(candidate):
-            break
-        end_idx += 1
-    return "".join([*lines[:start_idx], *replacement, *lines[end_idx:]])
+    return replace_yaml_top_level_mapping_block(
+        raw_yaml=raw_yaml,
+        key=key,
+        mappings=mappings,
+    )
 
 def _load_global_skill_synonyms_map() -> dict[str, str]:
-    path = _global_skill_synonyms_path()
-    if not path.exists():
-        return {}
-    return parse_skill_synonym_overlay_yaml(path.read_text(encoding="utf-8"))
+    return load_global_synonym_map("skill")
 
 def _build_synonym_overlay_yaml(overlay: dict[str, str]) -> str:
     if not overlay:
@@ -816,83 +788,19 @@ def _build_synonym_overlay_yaml(overlay: dict[str, str]) -> str:
     return yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
 
 def _persist_global_skill_synonyms_map(mappings: dict[str, str]) -> None:
-    path = _global_skill_synonyms_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    content = _build_synonym_overlay_yaml(mappings)
-    tmp_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            dir=str(path.parent),
-            prefix=f"{path.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as tmp_file:
-            tmp_file.write(content)
-            tmp_file.flush()
-            os.fsync(tmp_file.fileno())
-            tmp_path = Path(tmp_file.name)
-        os.replace(tmp_path, path)
-    finally:
-        if tmp_path is not None and tmp_path.exists():
-            tmp_path.unlink(missing_ok=True)
-
-def _global_domain_synonyms_path() -> Path:
-    return Path("config") / "taxonomy" / "domain_synonyms.yaml"
+    persist_global_synonym_map("skill", mappings)
 
 def _load_global_domain_alias_map() -> dict[str, str]:
-    path = _global_domain_synonyms_path()
-    if not path.exists():
-        return {}
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        return {}
-    raw_map = payload.get("domain_alias_map")
-    if not isinstance(raw_map, dict):
-        return {}
-    return {
-        str(alias).strip().lower(): str(canonical).strip().lower()
-        for alias, canonical in raw_map.items()
-        if str(alias).strip() and str(canonical).strip()
-    }
+    return load_global_synonym_map("domain")
 
 def _persist_global_domain_alias_map(mappings: dict[str, str]) -> None:
-    path = _global_domain_synonyms_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    raw_yaml = path.read_text(encoding="utf-8") if path.exists() else ""
-    updated = _replace_yaml_top_level_mapping_block(raw_yaml=raw_yaml, key="domain_alias_map", mappings=mappings)
-    path.write_text(updated, encoding="utf-8")
-
-def _global_role_family_synonyms_path() -> Path:
-    return Path("config") / "taxonomy" / "role_family_synonyms.yaml"
+    persist_global_synonym_map("domain", mappings)
 
 def _load_global_role_family_alias_map() -> dict[str, str]:
-    path = _global_role_family_synonyms_path()
-    if not path.exists():
-        return {}
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        return {}
-    raw_map = payload.get("role_family_alias_map")
-    if not isinstance(raw_map, dict):
-        return {}
-    return {
-        str(alias).strip().lower(): str(canonical).strip().lower()
-        for alias, canonical in raw_map.items()
-        if str(alias).strip() and str(canonical).strip()
-    }
+    return load_global_synonym_map("role_family")
 
 def _persist_global_role_family_alias_map(mappings: dict[str, str]) -> None:
-    path = _global_role_family_synonyms_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    raw_yaml = path.read_text(encoding="utf-8") if path.exists() else ""
-    updated = _replace_yaml_top_level_mapping_block(
-        raw_yaml=raw_yaml,
-        key="role_family_alias_map",
-        mappings=mappings,
-    )
-    path.write_text(updated, encoding="utf-8")
+    persist_global_synonym_map("role_family", mappings)
 
 
 def _map_review_required_reason_code(record: dict[str, Any]) -> str:
@@ -1247,59 +1155,76 @@ def _run_synonym_automation_for_payload(
         if run_status != RunStatus.SUCCEEDED:
             promote_skip_reason = "validation_not_eligible"
         else:
-            approved_skill = [
-                item for item in proposals
-                if str(item.get("proposal_status") or "").strip() == "approved_for_run_overlay"
-                and str(item.get("field") or "skill").strip().lower() == "skill"
-            ]
-            approved_non_skill_count = sum(
-                1
-                for item in proposals
-                if str(item.get("proposal_status") or "").strip() == "approved_for_run_overlay"
-                and str(item.get("field") or "skill").strip().lower() != "skill"
-            )
-            if not approved_skill:
-                promote_skip_reason = "no_approved_skill_proposals" if approved_non_skill_count else "no_approved_proposals"
+            field_specs = {
+                "skill": (_load_global_skill_synonyms_map, _persist_global_skill_synonyms_map),
+                "domain": (_load_global_domain_alias_map, _persist_global_domain_alias_map),
+                "role_family": (
+                    _load_global_role_family_alias_map,
+                    _persist_global_role_family_alias_map,
+                ),
+            }
+            approved_by_field: dict[str, list[tuple[int, dict[str, Any]]]] = {
+                field: [] for field in field_specs
+            }
+            for idx, item in enumerate(proposals):
+                if str(item.get("proposal_status") or "").strip() != "approved_for_run_overlay":
+                    continue
+                field = str(item.get("field") or "skill").strip().lower() or "skill"
+                if field not in field_specs:
+                    promote_counts["skipped"] += 1
+                    continue
+                approved_by_field[field].append((idx, item))
+            if not any(approved_by_field.values()):
+                promote_skip_reason = "no_approved_proposals"
             else:
-                global_map = _load_global_skill_synonyms_map()
-                alias_to_canonicals: dict[str, set[str]] = {}
-                for item in approved_skill:
-                    alias = str(item.get("alias") or "").strip().lower()
-                    canonical = str(item.get("canonical") or "").strip().lower()
-                    if alias and canonical:
-                        alias_to_canonicals.setdefault(alias, set()).add(canonical)
-                conflict_aliases = {k for k, v in alias_to_canonicals.items() if len(v) > 1}
-                if conflict_aliases:
-                    promote_skip_reason = "conflicts_present"
-                    promote_counts["failed"] = len(conflict_aliases)
-                else:
-                    updated_ids: list[str] = []
-                    for idx, item in enumerate(proposals):
-                        if str(item.get("proposal_status") or "").strip() != "approved_for_run_overlay":
-                            continue
-                        if str(item.get("field") or "skill").strip().lower() != "skill":
-                            promote_counts["skipped"] += 1
-                            continue
+                last_failure_reason = ""
+                for field, rows in approved_by_field.items():
+                    if not rows:
+                        continue
+                    load_map, persist_map = field_specs[field]
+                    current_map = load_map()
+                    candidate = dict(current_map)
+                    alias_to_canonicals: dict[str, set[str]] = {}
+                    pending: list[tuple[int, dict[str, Any], str, str, str]] = []
+                    for idx, item in rows:
                         alias = str(item.get("alias") or "").strip().lower()
                         canonical = str(item.get("canonical") or "").strip().lower()
                         if not alias or not canonical:
                             promote_counts["skipped"] += 1
                             continue
-                        current = str(global_map.get(alias) or "").strip().lower()
-                        if not current:
-                            promote_counts["new_aliases"] += 1
-                        elif current == canonical:
+                        alias_to_canonicals.setdefault(alias, set()).add(canonical)
+                        current = str(current_map.get(alias) or "").strip().lower()
+                        if current == canonical:
                             promote_counts["unchanged_aliases"] += 1
                             promote_counts["skipped"] += 1
                             continue
-                        else:
+                        candidate[alias] = canonical
+                        pending.append((idx, item, alias, canonical, current))
+                    conflicts = {alias for alias, values in alias_to_canonicals.items() if len(values) > 1}
+                    if conflicts:
+                        promote_counts["failed"] += len(conflicts)
+                        last_failure_reason = "synonym_alias_conflict"
+                        continue
+                    try:
+                        compiled = compile_global_synonym_map(field, candidate)
+                    except ValueError as exc:
+                        promote_counts["failed"] += len(pending)
+                        last_failure_reason = synonym_policy_error_reason(exc)
+                        continue
+                    if not pending:
+                        continue
+                    persist_map(compiled)
+                    for idx, item, alias, _canonical, current in pending:
+                        if current:
                             promote_counts["overridden_aliases"] += 1
-                        global_map[alias] = canonical
+                        else:
+                            promote_counts["new_aliases"] += 1
                         promote_counts["applied"] += 1
-                        proposal_id = str(item.get("proposal_id") or "").strip()
-                        if proposal_id:
-                            updated_ids.append(proposal_id)
-                        history = [entry for entry in list(item.get("global_promotion_history") or []) if isinstance(entry, dict)]
+                        history = [
+                            entry
+                            for entry in list(item.get("global_promotion_history") or [])
+                            if isinstance(entry, dict)
+                        ]
                         history.append(
                             {
                                 "action": "promote_to_global",
@@ -1310,35 +1235,40 @@ def _run_synonym_automation_for_payload(
                             }
                         )
                         updated = dict(item)
+                        updated["canonical"] = compiled[alias]
                         updated["global_promotion_history"] = history
                         proposals[idx] = updated
-                    _persist_global_skill_synonyms_map(global_map)
-                    if promote_counts["applied"] > 0:
-                        append_event(
-                            RunEvent(
-                                run_id=run_id,
-                                event_id=str(uuid.uuid4()),
-                                stage="synonym_proposal_promoted_global",
-                                level="info",
-                                message=f"Promoted {promote_counts['applied']} synonym proposal mapping(s) to global policy",
-                                created_at=datetime.datetime.now(datetime.timezone.utc),
-                                payload_json=json.dumps(
-                                    {
-                                        "applied_count": promote_counts["applied"],
-                                        "skipped_count": promote_counts["skipped"],
-                                        "new_aliases_count": promote_counts["new_aliases"],
-                                        "unchanged_aliases_count": promote_counts["unchanged_aliases"],
-                                        "overridden_aliases_count": promote_counts["overridden_aliases"],
-                                        "acted_by": "system",
-                                        "note": "auto:run-execution",
-                                    },
-                                    ensure_ascii=False,
-                                ),
+                if promote_counts["applied"] > 0:
+                    append_event(
+                        RunEvent(
+                            run_id=run_id,
+                            event_id=str(uuid.uuid4()),
+                            stage="synonym_proposal_promoted_global",
+                            level="info",
+                            message=f"Promoted {promote_counts['applied']} synonym proposal mapping(s) to global policy",
+                            created_at=datetime.datetime.now(datetime.timezone.utc),
+                            payload_json=json.dumps(
+                                {
+                                    "applied_count": promote_counts["applied"],
+                                    "skipped_count": promote_counts["skipped"],
+                                    "failed_count": promote_counts["failed"],
+                                    "new_aliases_count": promote_counts["new_aliases"],
+                                    "unchanged_aliases_count": promote_counts["unchanged_aliases"],
+                                    "overridden_aliases_count": promote_counts["overridden_aliases"],
+                                    "acted_by": "system",
+                                    "note": "auto:run-execution",
+                                },
+                                ensure_ascii=False,
                             ),
-                            client=client,
-                        )
-                    promote_skip_reason = "applied"
-                    if int(auto_apply_counts.get("applied") or 0) > 0:
+                        ),
+                        client=client,
+                    )
+                promote_skip_reason = (
+                    "applied"
+                    if promote_counts["applied"] > 0
+                    else last_failure_reason or "no_changes"
+                )
+                if int(auto_apply_counts.get("applied") or 0) > 0:
                         effective = json.loads(getattr(run_record, "effective_settings_json", "{}") or "{}")
                         if not isinstance(effective, dict):
                             effective = {}

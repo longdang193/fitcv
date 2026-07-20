@@ -212,8 +212,18 @@ CV_SECTION_NAME_TO_KEY = {
 }
 
 
-def _load_yaml_file(path: Path) -> dict[str, Any]:
-    return config_loader.load_yaml_file(path, logger=logger)
+def _load_yaml_file(
+    path: Path,
+    *,
+    reject_duplicate_keys: bool = False,
+    duplicate_key_sections: frozenset[str] = frozenset(),
+) -> dict[str, Any]:
+    return config_loader.load_yaml_file(
+        path,
+        logger=logger,
+        reject_duplicate_keys=reject_duplicate_keys,
+        duplicate_key_sections=duplicate_key_sections,
+    )
 
 def normalize_api_root(value: str) -> str:
     parsed = urlsplit(str(value or "").strip())
@@ -667,11 +677,21 @@ def resolve_cv_generation_runtime_expectation(
         "source": "control_plane",
     }
 
-def _load_policy_file(config_dir: Path, rel_paths: tuple[str, ...]) -> tuple[dict[str, Any], Path]:
+def _load_policy_file(
+    config_dir: Path,
+    rel_paths: tuple[str, ...],
+    *,
+    reject_duplicate_keys: bool = False,
+    duplicate_key_sections: frozenset[str] = frozenset(),
+) -> tuple[dict[str, Any], Path]:
     return config_loader.load_policy_file(
         config_dir,
         rel_paths,
-        load_yaml_file_fn=_load_yaml_file,
+        load_yaml_file_fn=lambda path: _load_yaml_file(
+            path,
+            reject_duplicate_keys=reject_duplicate_keys,
+            duplicate_key_sections=duplicate_key_sections,
+        ),
         logger=logger,
     )
 
@@ -723,16 +743,32 @@ def _apply_legacy_env_compatibility_projection(cfg: dict[str, Any]) -> dict[str,
     return config_compat.apply_legacy_env_compatibility_projection(cfg)
 
 
-def _normalize_skill_synonyms(raw_synonyms: Any) -> dict[str, str]:
+def _normalize_skill_synonyms(
+    raw_synonyms: Any,
+    *,
+    source: str = "skill_synonyms",
+) -> dict[str, str]:
     if not isinstance(raw_synonyms, dict):
         return {}
-    return {
-        str(alias).strip().lower(): str(canonical).strip().lower()
-        for alias, canonical in raw_synonyms.items()
-        if str(alias).strip() and str(canonical).strip()
-    }
+    normalized: dict[str, str] = {}
+    for alias, canonical in raw_synonyms.items():
+        alias_normalized = str(alias).strip().lower()
+        canonical_normalized = str(canonical).strip().lower()
+        if not alias_normalized or not canonical_normalized:
+            continue
+        previous = normalized.get(alias_normalized)
+        if previous is not None and previous != canonical_normalized:
+            raise ValueError(
+                f"{source}: normalized synonym alias conflict: {alias_normalized}"
+            )
+        normalized[alias_normalized] = canonical_normalized
+    return normalized
 
-def _normalize_alias_map(raw_map: Any) -> dict[str, str]:
+def _normalize_alias_map(
+    raw_map: Any,
+    *,
+    source: str = "alias map",
+) -> dict[str, str]:
     if not isinstance(raw_map, dict):
         return {}
     normalized: dict[str, str] = {}
@@ -741,6 +777,11 @@ def _normalize_alias_map(raw_map: Any) -> dict[str, str]:
         canonical_normalized = _normalize_role_text(canonical)
         if not alias_normalized or not canonical_normalized:
             continue
+        previous = normalized.get(alias_normalized)
+        if previous is not None and previous != canonical_normalized:
+            raise ValueError(
+                f"{source}: normalized synonym alias conflict: {alias_normalized}"
+            )
         normalized[alias_normalized] = canonical_normalized
     return normalized
 
@@ -822,13 +863,24 @@ def _normalize_role_taxonomy(raw_taxonomy: Any) -> dict[str, Any]:
 
 
 
-def _normalize_runtime_synonym_overlay_payload(raw_payload: Any) -> dict[str, Any]:
+def _normalize_runtime_synonym_overlay_payload(
+    raw_payload: Any,
+    *,
+    source: str = "runtime synonym overlay",
+) -> dict[str, Any]:
     if not isinstance(raw_payload, dict):
         return {}
     return {
-        "skill_synonyms": _normalize_skill_synonyms(raw_payload.get("skill_synonyms")),
-        "domain_alias_map": _normalize_alias_map(raw_payload.get("domain_alias_map")),
-        "role_family_alias_map": _normalize_alias_map(raw_payload.get("role_family_alias_map")),
+        "skill_synonyms": _normalize_skill_synonyms(
+            raw_payload.get("skill_synonyms"), source=f"{source} skill_synonyms"
+        ),
+        "domain_alias_map": _normalize_alias_map(
+            raw_payload.get("domain_alias_map"), source=f"{source} domain_alias_map"
+        ),
+        "role_family_alias_map": _normalize_alias_map(
+            raw_payload.get("role_family_alias_map"),
+            source=f"{source} role_family_alias_map",
+        ),
         "domain_neighbors": _normalize_neighbor_map(raw_payload.get("domain_neighbors")),
         "role_family_neighbors": _normalize_neighbor_map(raw_payload.get("role_family_neighbors")),
     }
@@ -836,7 +888,11 @@ def _normalize_runtime_synonym_overlay_payload(raw_payload: Any) -> dict[str, An
 def parse_runtime_synonym_overlay_yaml(raw_yaml: str) -> dict[str, Any]:
     """Parse and validate a run-scoped multi-field synonym overlay YAML payload."""
     try:
-        payload = yaml.safe_load(raw_yaml)
+        payload = config_loader.load_yaml_text(
+            raw_yaml,
+            source="uploaded synonym overlay",
+            reject_duplicate_keys=True,
+        )
     except yaml.YAMLError as exc:
         raise ValueError("Synonym overlay must be valid YAML") from exc
     if payload is None:
@@ -852,7 +908,10 @@ def parse_runtime_synonym_overlay_yaml(raw_yaml: str) -> dict[str, Any]:
     }
     if not any(key in payload for key in supported_keys):
         payload = {"skill_synonyms": payload}
-    normalized = _normalize_runtime_synonym_overlay_payload(payload)
+    normalized = _normalize_runtime_synonym_overlay_payload(
+        payload,
+        source="uploaded synonym overlay",
+    )
     if not any(bool(section) for section in normalized.values()):
         raise ValueError("Synonym overlay must define at least one mapping")
     return normalized
@@ -860,7 +919,11 @@ def parse_runtime_synonym_overlay_yaml(raw_yaml: str) -> dict[str, Any]:
 def parse_skill_synonym_overlay_yaml(raw_yaml: str) -> dict[str, str]:
     """Backward-compatible parser for skill-only run overlays."""
     try:
-        payload = yaml.safe_load(raw_yaml)
+        payload = config_loader.load_yaml_text(
+            raw_yaml,
+            source="uploaded synonym overlay",
+            reject_duplicate_keys=True,
+        )
     except yaml.YAMLError as exc:
         raise ValueError("Synonym overlay must be valid YAML") from exc
     if isinstance(payload, dict):
@@ -1106,9 +1169,9 @@ def _load_skill_synonym_overlays(
     resolved_paths: list[str] = []
     for overlay_path in overlay_paths:
         resolved_path = _resolve_config_relative_path(config_dir, overlay_path)
-        overlay_cfg = _load_yaml_file(resolved_path)
+        overlay_cfg = _load_yaml_file(resolved_path, reject_duplicate_keys=True)
         raw_overlay = overlay_cfg.get("skill_synonyms") if "skill_synonyms" in overlay_cfg else overlay_cfg
-        overlay_synonyms = _normalize_skill_synonyms(raw_overlay)
+        overlay_synonyms = _normalize_skill_synonyms(raw_overlay, source=str(resolved_path))
         if not overlay_synonyms:
             continue
         merged.update(overlay_synonyms)
@@ -1256,7 +1319,29 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     # only backfill missing keys during Option B transition window.
     # Merge policy YAML files — later files add keys; .env.yaml keys take priority
     for policy_name, rel_paths in _POLICY_FILE_CANDIDATES:
-        policy, resolved_policy_path = _load_policy_file(config_dir, rel_paths)
+        policy, resolved_policy_path = _load_policy_file(
+            config_dir,
+            rel_paths,
+            reject_duplicate_keys=policy_name
+            in {"skill_synonyms", "domain_synonyms", "role_family_synonyms"},
+            duplicate_key_sections=(
+                frozenset({"skill_synonyms", "domain_alias_map", "role_family_alias_map"})
+                if policy_name == "taxonomy"
+                else frozenset()
+            ),
+        )
+        if policy_name == "skill_synonyms":
+            _normalize_skill_synonyms(
+                policy.get("skill_synonyms"), source=str(resolved_policy_path)
+            )
+        elif policy_name == "domain_synonyms":
+            _normalize_alias_map(
+                policy.get("domain_alias_map"), source=str(resolved_policy_path)
+            )
+        elif policy_name == "role_family_synonyms":
+            _normalize_alias_map(
+                policy.get("role_family_alias_map"), source=str(resolved_policy_path)
+            )
         if policy_name == "eligibility" and not resolved_policy_path.exists():
             eligibility_policy_missing = True
             continue

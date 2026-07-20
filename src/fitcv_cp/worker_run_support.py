@@ -34,7 +34,10 @@ from fitcv_cp.run_artifact_contracts import (
     replay_context_payload,
     require_payload_keys,
 )
-from fitcv_cp.synonym_proposals import resolve_synonym_management_mode
+from fitcv_cp.synonym_proposals import (
+    build_builtin_synonym_triage_recommendation,
+    resolve_synonym_management_mode,
+)
 
 _SETTINGS_COMPATIBILITY_KEYS = {
     "vector_top_n",
@@ -323,50 +326,4 @@ def _synonym_management_mode_from_run_record(run_record: Any) -> dict[str, bool]
     return resolve_synonym_management_mode(settings_payload)
 
 def _triage_synonym_proposal_recommendation_builtin(proposal: dict[str, Any], *, now_iso: str) -> dict[str, Any]:
-    alias = str(proposal.get("alias") or "").strip().lower()
-    canonical = str(proposal.get("canonical") or "").strip().lower()
-    confidence = float(proposal.get("confidence") or 0.0)
-    candidate_canonicals = [
-        str(item).strip().lower()
-        for item in list(proposal.get("candidate_canonicals") or [])
-        if str(item).strip()
-    ]
-    risk_flags: list[str] = []
-    rationale = "Alias/canonical pair appears stable for run-scoped overlay."
-    recommended_action = "approve"
-    recommendation_confidence = min(max(confidence, 0.0), 1.0)
-
-    if not alias or not canonical:
-        recommended_action = "reject"
-        recommendation_confidence = 0.98
-        rationale = "Alias or canonical is empty after normalization."
-        risk_flags.append("invalid_mapping_shape")
-    elif len(set(candidate_canonicals)) > 1:
-        recommended_action = "defer"
-        recommendation_confidence = max(0.55, min(confidence, 0.85))
-        rationale = "Alias maps to multiple canonical candidates; review conflict manually."
-        risk_flags.append("alias_canonical_conflict")
-    elif confidence < 0.50:
-        recommended_action = "reject"
-        recommendation_confidence = min(0.95, 1.0 - confidence + 0.2)
-        rationale = "Low confidence mapping is likely noisy and should be rejected."
-        risk_flags.append("low_confidence")
-    elif confidence < 0.75:
-        recommended_action = "defer"
-        recommendation_confidence = min(0.85, confidence + 0.1)
-        rationale = "Moderate confidence mapping should be deferred for review."
-        risk_flags.append("moderate_confidence")
-
-    return {
-        "recommended_action": recommended_action,
-        "recommendation_confidence": round(float(recommendation_confidence), 3),
-        "recommendation_rationale": rationale,
-        "recommendation_risk_flags": risk_flags,
-        "recommendation_runtime": {
-            "provider": "fitcv_builtin",
-            "model": "synonym_triage_v1",
-            "wire_api": "builtin",
-            "triage_at": now_iso,
-            "triage_version": "synonym_triage_v1",
-        },
-    }
+    return build_builtin_synonym_triage_recommendation(proposal, now_iso=now_iso)
