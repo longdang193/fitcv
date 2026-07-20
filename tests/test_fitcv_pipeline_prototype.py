@@ -43,7 +43,13 @@ def test_run_page_prototype_contract() -> None:
     assert "data-run-page" in html
     assert 'id="runDetailsDrawer"' in html
     assert 'id="runDetailsBody"' in html
-    assert html.count('<details class="setting-section drawer-section" open>') == 3
+    assert html.count('<details class="section-card collapsible-section drawer-section" open>') == 3
+    assert 'class="section-card collapsible-section setting-section"' in html
+    assert 'class="setting-section table-card"' not in html
+    assert '.collapsible-section summary' in html
+    assert html.count('class="section-content drawer-section-content"') == 3
+    assert 'class="section-content settings-card"' in html
+    assert 'class="settings-card drawer-section-content"' not in html
     assert '<section class="drawer-section">' not in html
     assert "event.target===runDetailsDrawer" in html
     assert "clientX<bounds.left" not in html
