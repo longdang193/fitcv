@@ -73,6 +73,17 @@ def test_run_page_prototype_contract() -> None:
     assert 'id="exportRunResults"' in html
     assert "data-interest-rating" in html
     assert "data-clear-interest" in html
+    assert "Job &amp; Actions" in html
+    assert "Application Interest</th>" not in html
+    assert "data-bookmark-job" in html
+    assert 'class="small-action clear-rating"' in html
+    assert '>Clear</button>${bookmarkMarkup(run,job)}' in html
+    assert "data-generated-cv-action" in html
+    assert "Download CV" in html
+    assert "Regenerate CV" in html
+    assert "cv-review" in html
+    assert ".summary-card{display:inline-flex" in html
+    assert ".jobs-table th:first-child,.jobs-table td:first-child{position:sticky" in html
     assert 'id="jobResultsPageSize"' in html
     assert "function exportRunResults" in html
     assert "fetch(" not in html
