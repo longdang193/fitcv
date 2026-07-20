@@ -41,4 +41,28 @@ def test_run_page_prototype_contract() -> None:
     assert 'id="runPageSize"' in html
     assert "function paginationItems" in html
     assert "data-run-page" in html
+    assert 'id="runDetailsDrawer"' in html
+    assert 'id="runDetailsBody"' in html
+    assert html.count('<dl class="details-grid') >= 2
+    assert ".detail-item dt,.job-attribute span" in html
+    assert ".detail-item dd,.job-attribute strong" in html
+    assert "data-run-details" in html
+    assert "Pipeline Results" in html
+    assert "All Jobs" in html
+    assert "CV Generation" in html
+    assert "data-pipeline-stage" in html
+    assert 'aria-label="Pipeline stages"' in html
+    assert ".stage-filter{width:100%" in html
+    assert ".pipeline-stage-tabs .btn{flex:1 0" in html
+    assert html.index('aria-label="Pipeline stages"') < html.index('aria-label="Pipeline result filter"')
+    assert html.index('id="jobResultsSearch"') < html.index('aria-label="Pipeline result filter"')
+    assert "data-pipeline-result" in html
+    assert 'id="pipelineResult"' not in html
+    assert 'id="jobResultsSort"' not in html
+    assert 'id="jobResultsSearch"' in html
+    assert 'id="exportRunResults"' in html
+    assert "data-interest-rating" in html
+    assert "data-clear-interest" in html
+    assert 'id="jobResultsPageSize"' in html
+    assert "function exportRunResults" in html
     assert "fetch(" not in html
