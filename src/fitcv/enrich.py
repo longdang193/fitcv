@@ -33,6 +33,8 @@ from fitcv.config import (
     get_enrich_extraction_model,
     get_prompt_addendum,
     get_prompt_addendum_metadata,
+    get_stage_runtime_batch_size,
+    get_stage_runtime_concurrency,
     load_prompt_task_registry,
     sqlite_mode_enabled,
 )
@@ -2082,9 +2084,8 @@ def enrich_batch(
     immediately — the parallel version does not silently degrade to partial success
     when a chunk raises an exception that the sequential path would have raised.
 
-    Config keys (read at call time with safe defaults):
-        enrichment_batch_size  (int, default 10)
-        enrichment_concurrency (int, default 1)
+    Config keys prefer canonical stage_runtime.enrich values and retain
+    enrichment_batch_size/enrichment_concurrency as read-only fallbacks.
 
     Rate limiting: request-start pacing is shared across chunk workers using a
     global slot scheduler. This preserves global throttling while allowing
@@ -2097,8 +2098,18 @@ def enrich_batch(
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    batch_size = int(config.get("enrichment_batch_size", 10))
-    concurrency = int(config.get("enrichment_concurrency", 1))
+    batch_size = get_stage_runtime_batch_size(
+        config,
+        stage="enrich",
+        default=10,
+        compatibility_fallback_key="enrichment_batch_size",
+    )
+    concurrency = get_stage_runtime_concurrency(
+        config,
+        stage="enrich",
+        default=1,
+        compatibility_fallback_key="enrichment_concurrency",
+    )
 
     # Split into chunks of batch_size
     chunks = [

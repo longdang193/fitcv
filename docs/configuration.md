@@ -194,9 +194,9 @@ Examples:
 - canonical-save-path: settings-save routes persist canonical `stage_runtime.*` throughput keys and ignore compatibility alias inputs in timing-section writes
 - effective-concurrency-contract: `configured_concurrency` is the stage cap; `*_concurrency_effective` is `min(configured_concurrency, runnable_work_items)` and is `0` when reuse or gating leaves no runnable work
 - enrich-pacing-contract: enrich work items are batches, so effective concurrency is capped by `ceil(fresh_jobs / batch_size)`; shared request-start pacing still limits aggregate request rate
-- ranking-pacing-contract: ranking work items are fresh AI-score rows; the submit loop still sleeps `stage_runtime.ranking.sleep_secs` between submissions, so provider timestamps can look sequential when sleep is positive
-- cv-analysis-pacing-contract: CV analysis runs ranked-job work concurrently up to `stage_runtime.cv_analysis.concurrency` while preserving input order
-- cv-generation-pacing-contract: CV generation runs generation-ready rows concurrently up to `stage_runtime.cv_generation.concurrency`, preserves input order, and applies `stage_runtime.cv_generation.sleep_secs` between provider-call submissions
+- ranking-pacing-contract: ranking work items are batches of up to `stage_runtime.ranking.batch_size`; concurrency caps batch workers, input order is preserved, and sleep applies between batch submissions
+- cv-analysis-pacing-contract: CV analysis work items are batches of up to `stage_runtime.cv_analysis.batch_size`; concurrency caps batch workers while preserving input order
+- cv-generation-pacing-contract: CV generation work items are batches of up to `stage_runtime.cv_generation.batch_size`; concurrency caps batch workers, input order is preserved, and sleep applies between batch submissions
 
 ### LLM Runtime Contract
 

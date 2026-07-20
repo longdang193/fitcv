@@ -39,6 +39,7 @@ from fitcv.config import (
     get_cv_generation_model,
     get_cv_generation_prompt_version,
     get_cv_generation_structured_prompt_id,
+    get_stage_runtime_sleep_secs,
 )
 from fitcv.runtime_routing import resolve_cv_generation_routing_snapshot
 from fitcv.cv_generator import (
@@ -691,9 +692,7 @@ def _execute_generation_attempt(
     return structured_cv, markdown, validation, runtime_provenance
 
 def _cv_generation_sleep_secs(config: dict[str, Any]) -> float:
-    stage_runtime = dict(config.get("stage_runtime") or {})
-    generation_runtime = dict(stage_runtime.get("cv_generation") or {})
-    return float(generation_runtime.get("sleep_secs", 0.0))
+    return get_stage_runtime_sleep_secs(config, stage="cv_generation", default=0.0)
 
 
 def _build_fallback_provider_generator(

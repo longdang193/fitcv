@@ -1,1069 +1,432 @@
 {% extends "base.html" %}
-{% block title %}Pipeline Settings — FitCV Admin{% endblock %}
+{% block title %}Pipeline Settings - FitCV Admin{% endblock %}
 {% block content %}
 
-<style>
-  .settings-shell { display: grid; gap: 1.5rem; }
-  .settings-truth-panel {
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--surface-1);
-    padding: 1rem;
-  }
-  .settings-truth-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 0.45rem;
-  }
-  .settings-truth-list {
-    margin: 0;
-    padding-left: 1.1rem;
-    display: grid;
-    gap: 0.35rem;
-    color: var(--text-muted);
-    font-size: 0.82rem;
-  }
-  .settings-mode-strip {
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    background: var(--surface-1);
-    padding: 0.85rem 1rem;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 0.6rem 1rem;
-    font-size: 0.82rem;
-  }
-  .settings-mode-item .k {
-    color: var(--text-muted);
-    margin-right: 0.4rem;
-  }
-  .settings-mode-item .v {
-    color: var(--text-primary);
-    font-weight: 600;
-  }
-  .settings-toolbar {
-    display: grid;
-    gap: 0.75rem;
-  }
-  .settings-readiness {
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    background: var(--surface-1);
-    padding: 0.9rem;
-    display: grid;
-    gap: 0.6rem;
-  }
-  .settings-readiness-head {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .settings-readiness-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-  .settings-readiness-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 0.5rem;
-  }
-  .settings-readiness-cell {
-    border: 1px solid var(--border-soft);
-    border-radius: 10px;
-    background: var(--surface-0);
-    padding: 0.55rem 0.65rem;
-  }
-  .settings-readiness-k {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-  }
-  .settings-readiness-v {
-    font-size: 0.9rem;
-    color: var(--text-primary);
-    font-weight: 700;
-  }
-  .settings-cta-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.45rem;
-  }
-  .settings-decision-board {
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    background: var(--surface-1);
-    padding: 0.9rem;
-    display: grid;
-    gap: 0.65rem;
-  }
-  .settings-decision-item-meta {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-  }
-  .settings-search {
-    width: 100%;
-    max-width: 380px;
-  }
-  .domain-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 0.65rem;
-  }
-  .domain-summary-card {
-    border: 1px solid var(--border-soft);
-    border-radius: 10px;
-    background: var(--surface-1);
-    padding: 0.65rem 0.75rem;
-    display: grid;
-    gap: 0.3rem;
-  }
-  .domain-summary-title { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); }
-  .domain-summary-meta { font-size: 0.75rem; color: var(--text-muted); }
-  .settings-global-summary {
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    background: var(--surface-1);
-    padding: 0.7rem 0.9rem;
-    font-size: 0.82rem;
-    color: var(--text-muted);
-  }
-  .axis-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.45rem;
-  }
-  .axis-label {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    margin-right: 0.2rem;
-  }
-  .axis-chip,
-  .badge-chip {
-    border: 1px solid var(--border-soft);
-    border-radius: 999px;
-    background: var(--surface-0);
-    color: var(--text-primary);
-    font-size: 0.75rem;
-    padding: 0.2rem 0.55rem;
-    line-height: 1.2;
-  }
-  .axis-chip[aria-pressed="true"] {
-    border-color: color-mix(in srgb, var(--accent) 50%, var(--border-soft));
-    background: color-mix(in srgb, var(--accent) 14%, var(--surface-0));
-  }
-  .badge-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    margin-top: 0.35rem;
-  }
-  .badge-chip.badge-risk-high { border-color: var(--badge-error-fg); color: var(--badge-error-fg); }
-  .badge-chip.badge-risk-medium { border-color: var(--badge-warning-fg); color: var(--badge-warning-fg); }
-  .badge-chip.badge-risk-low { border-color: var(--badge-success-fg); color: var(--badge-success-fg); }
-  .is-filter-hidden { display: none !important; }
-  .task-section {
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--surface-1);
-    padding: 1rem;
-  }
-  .task-section-header {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-  }
-  .task-section-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-  .task-section-helper {
-    font-size: 0.86rem;
-    color: var(--text-muted);
-    margin-top: 0.3rem;
-    max-width: 70ch;
-  }
-  .task-section-grid {
-    display: grid;
-    gap: 1rem;
-  }
-  .settings-panel {
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    background: var(--surface-0);
-    overflow: hidden;
-  }
-  .settings-panel-header {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    align-items: flex-start;
-    padding: 1rem 1rem 0.75rem;
-  }
-  .settings-panel-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-  .settings-panel-helper {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    margin-top: 0.25rem;
-    max-width: 64ch;
-  }
-  .settings-card-status {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    white-space: nowrap;
-  }
-  .settings-panel-body {
-    padding: 0 1rem 1rem;
-  }
-  .settings-field-list {
-    display: grid;
-    gap: 0;
-  }
-  .settings-field-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1.25fr) 10.5rem minmax(220px, 260px);
-    gap: 0.9rem;
-    align-items: center;
-    padding: 0.85rem 0;
-    border-top: 1px solid var(--border-soft);
-  }
-  .settings-field-row:first-child {
-    border-top: none;
-  }
-  .settings-field-row.is-dirty {
-    background: color-mix(in srgb, var(--surface-2) 78%, transparent);
-    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 65%, white);
-  }
-  .settings-field-label {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-  .settings-field-description {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    margin-top: 0.25rem;
-    max-width: 64ch;
-  }
-  .settings-field-meta {
-    display: grid;
-    gap: 0.2rem;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-  }
-  .settings-field-help {
-    margin-top: 0.4rem;
-    font-size: 0.74rem;
-    color: var(--text-muted);
-  }
-  .settings-field-help details { border: 1px solid var(--border-soft); border-radius: 8px; padding: 0.25rem 0.45rem; }
-  .settings-field-help summary { cursor: pointer; font-weight: 600; color: var(--text-secondary); }
-  .settings-field-help-body { display: grid; gap: 0.15rem; margin-top: 0.35rem; }
-  .settings-field-meta .current-value {
-    color: var(--text-primary);
-    font-weight: 600;
-  }
-  .settings-field-control select,
-  .settings-field-control input[type="number"],
-  .settings-field-control input[type="text"] {
-    width: 100%;
-  }
-  .settings-field-note {
-    margin-top: 0.35rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-  }
-  .settings-field-note.is-fixed {
-    color: var(--badge-info-fg);
-  }
-  .settings-checkbox-list {
-    display: grid;
-    gap: 0.3rem;
-  }
-  .settings-checkbox-option {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    font-size: 0.84rem;
-    color: var(--text-primary);
-  }
-  .settings-group-title {
-    margin: 0.25rem 0 0.65rem;
-    font-size: 0.86rem;
-    font-weight: 700;
-    color: var(--text-secondary);
-    text-transform: none;
-  }
-  .sub-card-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.6rem;
-    padding: 0 1rem 1rem;
-  }
-  .error-box {
-    margin: 0 1rem 1rem;
-  }
-  .settings-advanced-details {
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    background: var(--surface-0);
-  }
-  .settings-advanced-details summary {
-    list-style: none;
-    cursor: pointer;
-    padding: 1rem;
-  }
-  .settings-advanced-details summary::-webkit-details-marker {
-    display: none;
-  }
-  .settings-advanced-summary-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-  .settings-advanced-summary-helper {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    margin-top: 0.2rem;
-  }
-  .composition-matrix {
-    border: 1px solid var(--border-soft);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  .composition-matrix-header,
-  .composition-matrix-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1.3fr) 8rem minmax(120px, 180px);
-    gap: 0.75rem;
-    align-items: center;
-    padding: 0.75rem 0.9rem;
-  }
-  .composition-matrix-header {
-    background: color-mix(in srgb, var(--surface-2) 80%, transparent);
-    border-bottom: 1px solid var(--border-soft);
-    font-size: 0.74rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-  .composition-matrix-row + .composition-matrix-row {
-    border-top: 1px solid var(--border-soft);
-  }
-  .composition-matrix-row.is-dirty {
-    background: color-mix(in srgb, var(--surface-2) 78%, transparent);
-  }
-  .composition-row-title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-  .composition-row-helper {
-    font-size: 0.77rem;
-    color: var(--text-muted);
-    margin-top: 0.2rem;
-  }
-  .composition-current {
-    font-size: 0.82rem;
-    color: var(--text-primary);
-    font-weight: 600;
-  }
-  .composition-toggle {
-    justify-self: start;
-  }
-  @media (max-width: 980px) {
-    .settings-field-row,
-    .composition-matrix-header,
-    .composition-matrix-row {
-      grid-template-columns: 1fr;
-    }
-    .settings-panel-header,
-    .task-section-header {
-      flex-direction: column;
-    }
-    .settings-card-status {
-      white-space: normal;
-    }
-  }
-</style>
+  <style>
+    :root{color-scheme:light;--accent:#b94d36;--accent-hover:#a64027;--accent-soft:#fdf1ed;--bg:#fdfaf6;--surface:#fff;--surface-2:#f4f4f5;--sidebar:#fff;--border:#e5e7eb;--border-soft:#f1f1f3;--text:#111827;--muted:#6b7280;--subtle:#6b7280;--mirror-bg:#fafafa;--mirror-strong:#4b5563;--mirror-text:#6b7280;--sidebar-w:288px;--header-h:72px;--shadow:0 1px 2px rgba(0,0,0,.04);--font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--display-font:var(--font)}
+    [data-theme="dark"]{color-scheme:dark;--accent:#ee8d6a;--accent-hover:#f3a181;--accent-soft:#3b2119;--bg:#1a1a1a;--surface:#262626;--surface-2:#303030;--sidebar:#202020;--border:#3a3a3a;--border-soft:#303030;--text:#f3f4f6;--muted:#cbd5e1;--subtle:#94a3b8;--mirror-bg:#303030;--mirror-strong:#cbd5e1;--mirror-text:#94a3b8;--shadow:0 1px 2px rgba(0,0,0,.28)}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--font);-webkit-font-smoothing:antialiased}button,input,select{font:inherit}button,a,input,select,summary{outline-offset:2px}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent)}.shell{display:flex;min-height:100vh;background:var(--bg)}
+    .sidebar{width:var(--sidebar-w);flex:0 0 auto;overflow-y:auto;border-right:1px solid var(--border-soft);background:var(--sidebar);transition:transform .2s ease}.brand{display:flex;align-items:center;gap:12px;padding:24px 24px 22px}.brand-mark{display:grid;width:38px;height:38px;place-items:center;border-radius:10px;background:var(--accent);color:#fff}.brand-mark svg{width:21px}.brand strong{display:block;font-family:var(--display-font);font-size:17px;letter-spacing:-.015em}.brand small{color:var(--muted)}nav{padding:0 16px 24px}.nav-group{margin:4px 0 12px}.nav-group summary{display:flex;min-height:40px;align-items:center;gap:10px;padding:8px 12px;border-radius:9px;color:var(--subtle);cursor:pointer;font-size:11px;font-weight:750;letter-spacing:.1em;list-style:none;text-transform:uppercase}.nav-group summary::-webkit-details-marker{display:none}.nav-group summary:hover{background:var(--surface-2);color:var(--text)}[data-theme="dark"] .nav-group summary{color:#dbe4ee}[data-theme="dark"] .nav-group summary:hover{color:#fff}.nav-group summary::after{width:16px;margin-left:auto;content:"›";font-size:18px;transform:rotate(0);transition:transform .15s}.nav-group[open] summary::after{transform:rotate(90deg)}.nav-group svg{width:17px;height:17px}.nav-children{padding:2px 0 0 12px}.nav-link{display:flex;align-items:center;gap:10px;min-height:36px;margin:2px 0;padding:7px 12px;border-radius:9px;color:var(--muted);font-size:13px;font-weight:550;text-decoration:none}.nav-link:hover{background:var(--surface-2);color:var(--text)}.nav-link.active{background:var(--accent-soft);color:var(--accent)}.nav-link svg{width:17px;height:17px;flex:0 0 auto}.nav-link.child{padding-left:14px}.nav-divider{height:1px;margin:14px 12px;background:var(--border-soft)}
+    .main{position:relative;display:flex;min-width:0;flex:1;flex-direction:column;min-height:100vh}
+    header{display:flex;min-height:var(--header-h);align-items:center;justify-content:space-between;gap:16px;padding:0 32px;border-bottom:1px solid var(--border-soft);background:var(--surface)}
+    .title{display:flex;min-width:0;align-items:center;gap:10px}.title-icon{color:var(--accent)}.title h1{margin:0;font-family:var(--display-font);font-size:22px;letter-spacing:-.025em}.title p{margin:2px 0 0;color:var(--muted);font-size:13px}.actions{display:flex;gap:6px}
+    .icon-btn,.menu-btn{display:grid;width:38px;height:38px;place-items:center;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);cursor:pointer}.icon-btn:hover,.menu-btn:hover{border-color:var(--border);background:var(--surface-2);color:var(--text)}.icon-btn svg,.menu-btn svg{width:19px}.menu-btn{display:none}
+    .scroll{flex:1;overflow-y:auto;padding:40px}.content{width:min(960px,100%);margin:auto}.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin:0 0 22px}.eyebrow{margin:0 0 6px;color:var(--accent);font-size:11px;font-weight:750;letter-spacing:.1em;text-transform:uppercase}.page-head h2{margin:0;font-family:var(--display-font);font-size:27px;letter-spacing:-.035em}.page-head p{max-width:560px;margin:6px 0 0;color:var(--muted)}
+    .btn{min-height:38px;padding:0 14px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);cursor:pointer;font-weight:650}.btn:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.btn.primary{border-color:var(--accent);background:var(--accent);color:#fff}.btn.primary:hover{background:var(--accent-hover);color:#fff}
+    .stack{display:grid;gap:14px}.section-card{overflow:hidden;border:1px solid var(--border-soft);border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}.collapsible-section summary{display:flex;align-items:center;gap:10px;padding:18px 22px;cursor:pointer;list-style:none}.collapsible-section summary::-webkit-details-marker{display:none}.collapsible-section summary::before{width:10px;content:"›";font-size:19px;transform:rotate(0);transition:transform .15s}.collapsible-section[open] summary::before{transform:rotate(90deg)}.section-heading strong{display:block;font-family:var(--display-font);font-size:16px;letter-spacing:-.01em}.section-heading span{display:block;margin-top:2px;color:var(--muted);font-size:13px}.section-content{overflow:hidden;border-top:1px solid var(--border-soft)}
+    .row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:20px;min-height:82px;padding:16px 22px;border-top:1px solid var(--border)}.row:first-child{border-top:0}.row strong{display:block;font-weight:650}.row p{margin:3px 0 0;color:var(--muted);font-size:13px}.support-link{display:inline-block;margin-top:5px;color:var(--accent);font-size:12px;font-weight:650;text-decoration:none}.support-link:hover{text-decoration:underline}.control{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+    .field{width:150px;min-height:38px;padding:0 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-variant-numeric:tabular-nums}.field:focus{border-color:var(--accent)}.switch{position:relative;display:inline-flex}.switch input{position:absolute;opacity:0}.track{display:block;width:42px;height:24px;border-radius:999px;background:var(--border);cursor:pointer}.track::after{display:block;width:18px;height:18px;margin:3px;border-radius:50%;background:#fff;content:"";transition:.15s}.switch input:checked+.track{background:var(--accent)}.switch input:checked+.track::after{transform:translateX(18px)}.switch input:focus-visible+.track{outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:2px}
+    .savebar{position:sticky;bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:0 10px 30px -16px rgba(0,0,0,.25)}.status{color:var(--muted)}.status strong{display:block;color:var(--text)}.buttons{display:flex;gap:8px}.search{display:flex;align-items:center;gap:8px;width:220px;padding:0 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface)}.search svg{width:17px;color:var(--muted)}.search input{width:100%;min-height:36px;border:0;outline:0;background:transparent;color:var(--text)}.toast{position:fixed;right:24px;bottom:24px;z-index:50;padding:11px 14px;border-radius:9px;background:var(--text);color:var(--surface);font-weight:650;opacity:0;pointer-events:none;transform:translateY(8px);transition:.18s}.toast.show{opacity:1;transform:none}.scrim{display:none}
+    @media(max-width:760px){.sidebar{position:fixed;inset:0 auto 0 0;z-index:30;transform:translateX(-100%)}.sidebar.open{transform:none}.menu-btn{display:grid}header{padding:0 14px}.title p,.search{display:none}.scroll{padding:24px 16px}.page-head{align-items:stretch;flex-direction:column;gap:14px}.page-head .btn{width:100%}.row{grid-template-columns:1fr;gap:11px}.control{justify-content:flex-start}.field{width:100%}.nav-link,.btn,.icon-btn,.menu-btn{min-height:44px}.icon-btn,.menu-btn{width:44px}.savebar{align-items:stretch;flex-direction:column}.buttons{display:grid;grid-template-columns:1fr 1fr}.scrim{position:fixed;inset:0;z-index:20;display:block;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:.18s}.scrim.show{opacity:1;pointer-events:auto}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
+  </style>
+  <style>
+    dialog{width:min(560px,calc(100vw - 32px));padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);color:var(--text);box-shadow:0 24px 64px -16px rgba(0,0,0,.35)}dialog::backdrop{background:rgba(17,24,39,.34);backdrop-filter:blur(3px)}.dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:24px 24px 18px;border-bottom:1px solid var(--border-soft)}.dialog-head h2{margin:0;font-size:21px;letter-spacing:-.025em}.dialog-head p{margin:4px 0 0;color:var(--muted)}.dialog-close{display:grid;width:36px;height:36px;place-items:center;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;font-size:24px}.dialog-close:hover{background:var(--surface-2);color:var(--text)}.weight-form{padding:8px 24px 0}.weight-row{display:grid;grid-template-columns:minmax(0,1fr) 120px;align-items:center;gap:18px;padding:15px 0;border-bottom:1px solid var(--border-soft)}.weight-row label{font-weight:650}.weight-row span{display:block;margin-top:2px;color:var(--muted);font-size:12px}.weight-row .field{width:100%}.weight-status{margin:18px 24px 0;padding:10px 12px;border-radius:8px;background:var(--surface-2);color:var(--muted);font-size:13px}.weight-status.invalid{background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--accent)}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:20px 24px 24px}.btn:disabled{border-color:var(--border);background:var(--surface-2);color:var(--subtle);cursor:not-allowed}@media(max-width:760px){.weight-row{grid-template-columns:1fr}.dialog-actions{display:grid;grid-template-columns:1fr 1fr}}
+  </style>
+  <style>
+    .supporting-text{margin-top:6px!important;color:var(--muted);font-size:12px!important}.row.is-disabled,.row.is-mirror{background:var(--surface-2)}.row.is-mirror>span:first-child,.row.is-mirror p{color:var(--mirror-text)}.row.is-mirror strong,.mirror-value{color:var(--mirror-strong)}.overview-link{display:grid;width:38px;height:38px;place-items:center;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--accent);text-decoration:none}.overview-link:hover{border-color:var(--accent);background:var(--accent-soft)}.overview-link svg{width:18px}.dialog-detail-link,.dialog-back{display:inline-flex;margin-top:6px;padding:0;border:0;background:transparent;color:var(--accent);cursor:pointer;font-size:12px;font-weight:650}.dialog-detail-link:hover,.dialog-back:hover{text-decoration:underline}.dialog-back{margin:12px 0 2px}.row-status{min-height:18px;margin-top:5px!important;font-size:12px!important}.row-status.error{color:var(--accent)}.field[aria-invalid="true"]{border-color:var(--accent)}.weight-status.warning{background:#fff7df;color:#7a4d00}[data-theme="dark"] .weight-status.warning{background:#3b2e13;color:#f5cf78}.weight-status.valid{background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}[data-theme="dark"] .weight-status.valid{color:#86efac}.transaction-summary{display:block;margin-top:5px;color:var(--muted);font-size:12px}.check-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0;border-bottom:1px solid var(--border-soft)}.check-row:last-child{border-bottom:0}.check-row>label:first-child{font-weight:650}.btn:disabled{pointer-events:none}.badge,.mirror-value{display:inline-flex;min-height:30px;align-items:center;padding:0 10px;border-radius:999px;font-size:12px;font-weight:650;font-variant-numeric:tabular-nums}.badge{background:var(--surface)}.mirror-value{border:1px dashed var(--border);background:transparent}@media(max-width:760px){.check-row{align-items:flex-start}}
+    .row.is-mirror{background:var(--mirror-bg)}
+  </style>
+  <style>
+    :root[data-theme="light"]{color-scheme:light;--accent:#b94d36;--accent-hover:#a64027;--accent-soft:#fdf1ed;--bg:#fdfaf6;--surface:#fff;--surface-2:#f4f4f5;--sidebar:#fff;--border:#e5e7eb;--border-soft:#f1f1f3;--text:#111827;--muted:#6b7280;--subtle:#6b7280;--mirror-bg:#fafafa;--mirror-strong:#4b5563;--mirror-text:#6b7280;--shadow:0 1px 2px rgba(0,0,0,.04)}:root[data-theme="dark"]{color-scheme:dark;--accent:#ee8d6a;--accent-hover:#f3a181;--accent-soft:#3b2119;--bg:#1a1a1a;--surface:#262626;--surface-2:#303030;--sidebar:#202020;--border:#3a3a3a;--border-soft:#303030;--text:#f3f4f6;--muted:#cbd5e1;--subtle:#94a3b8;--mirror-bg:#303030;--mirror-strong:#cbd5e1;--mirror-text:#94a3b8;--shadow:0 1px 2px rgba(0,0,0,.28)}body > nav{display:none}body > .container{max-width:none;margin:0;padding:0}.sidebar nav{display:block;height:auto;padding:0 16px 24px;border:0;background:transparent}.pipeline-notice{margin:0 0 14px;padding:11px 14px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--muted)}.pipeline-notice[hidden]{display:none}.pipeline-error{border-color:var(--accent);color:var(--accent)}.pipeline-warning-list{margin:0;padding-left:18px}.pipeline-empty{padding:40px;text-align:center;color:var(--muted)}.source{display:block;margin-top:5px;color:var(--subtle);font-size:11px}.row .btn:disabled{opacity:.6}.dialog-description{margin:4px 0 0;color:var(--muted)}.dialog-fields{max-height:55vh;overflow:auto;padding:8px 24px 0}.dialog-fields .weight-row,.dialog-fields .check-row{margin:0}.dialog-fields input[type=checkbox]{position:absolute;opacity:0}.nav-link[aria-current=page]{background:var(--accent-soft);color:var(--accent)}
+  </style>
 
-{% macro render_field_control(item, settings_metadata_note) -%}
-  {% set entry = item.entry %}
-  <div class="settings-field-control">
-    {% if item.is_metadata_only %}
-      <div class="settings-field-note is-fixed">{{ item.metadata_note or settings_metadata_note }}</div>
-    {% elif item.compatibility_alias_for %}
-      <input
-        type="text"
-        value="{{ item.effective_display }}"
-        readonly
-        disabled
-        aria-readonly="true"
-        title="Compatibility alias (read-only)"
-      >
-      <div class="settings-field-note is-fixed">
-        Legacy compatibility alias for <code>{{ item.compatibility_alias_for }}</code>. Edit canonical setting only.
-      </div>
-    {% elif entry.type == 'bool' %}
-      <input type="hidden" name="{{ entry.key }}" value="{{ 'true' if item.form_value in [true, 'true', '1', 'yes', 'on'] else 'false' }}" data-default-value="{{ 'true' if entry.default else 'false' }}">
-      <input
-        type="checkbox"
-        name="{{ entry.key }}"
-        value="true"
-        data-value-type="{{ entry.type }}"
-        data-current-value="{{ 'true' if item.effective_value else 'false' }}"
-        data-default-value="{{ 'true' if entry.default else 'false' }}"
-        {% if item.form_value in [true, 'true', '1', 'yes', 'on'] %}checked{% endif %}
-        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
-    {% elif entry.type == 'list[str]' %}
-      {% set current_values = item.form_value if item.form_value is iterable and item.form_value is not string else [] %}
-      <div class="settings-checkbox-list">
-        {% for opt in entry.options %}
-          <label class="settings-checkbox-option">
-            <input
-              type="checkbox"
-              name="{{ entry.key }}"
-              value="{{ opt }}"
-              data-default-checked="{{ 'true' if opt in entry.default else 'false' }}"
-              data-current-checked="{{ 'true' if opt in item.effective_value else 'false' }}"
-              {% if opt in current_values %}checked{% endif %}>
-            <span>{{ opt | replace('_', ' ') | title }}</span>
-          </label>
-        {% endfor %}
-      </div>
-    {% elif entry.options is defined %}
-      <select name="{{ entry.key }}" data-value-type="{{ entry.type }}" data-default-value="{{ entry.default }}" data-current-value="{{ item.effective_value }}">
-        {% for opt in entry.options %}
-          <option value="{{ opt }}" {% if item.form_value == opt %}selected{% endif %}>{{ opt | replace('_', ' ') | title }}</option>
-        {% endfor %}
-      </select>
-    {% elif entry.type in ['int', 'float'] %}
-      <input
-        type="number"
-        name="{{ entry.key }}"
-        value="{{ item.form_value }}"
-        data-value-type="{{ entry.type }}"
-        data-default-value="{{ entry.default }}"
-        data-current-value="{{ item.effective_value }}"
-        {% for attr_name, attr_value in item.native_input_attrs.items() %}{{ attr_name }}="{{ attr_value }}" {% endfor %}>
-    {% else %}
-      <input
-        type="text"
-        name="{{ entry.key }}"
-        value="{{ item.form_value }}"
-        data-value-type="{{ entry.type }}"
-        data-default-value="{{ entry.default }}"
-        data-current-value="{{ item.effective_value }}">
-    {% endif %}
-    {% if entry.key == "enrichment_concurrency" %}
-      <div class="settings-field-note">Higher concurrency enables more overlapping enrich requests, while shared request-start pacing still controls aggregate request rate.</div>
-    {% endif %}
-  </div>
-{%- endmacro %}
-
-{% macro render_settings_row(item, settings_metadata_note) -%}
-{% set entry = item.entry %}
-{% set ia = item.ia_contract %}
-  <div id="entry-{{ entry.key | replace('.', '-') }}" class="settings-field-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-domain="{{ ia.domain }}" data-workflow-stages="{{ ia.workflow_stages | join('|') }}" data-decision-status="{{ item.decision_status }}" data-decision-domain="{{ item.decision_domain }}" data-decision-stage="{{ item.decision_stage }}" data-control-surface="{{ item.decision_control_surface }}" data-decision-area="{{ item.decision_area }}" data-complexity="{{ item.decision_complexity }}" data-default-equal="{{ 'false' if item.is_modified else 'true' }}" data-unused="{{ 'true' if 'unused' in item.decision_reason_codes else 'false' }}">
-    <div>
-      <div class="settings-field-label">{{ entry.label }}</div>
-      <div class="settings-field-description">{{ entry.description }}</div>
-      <div class="badge-row">
-        <span class="badge-chip">Stage: {{ item.decision_stage | replace('_', ' ') | title }}</span>
-            <span class="badge-chip">Control Type: {{ item.decision_control_surface | replace('_', ' ') | title }}</span>
-            <span class="badge-chip">Decision Type: {{ item.decision_area | replace('_', ' ') | title }}</span>
-            <span class="badge-chip">Runtime-used: {{ "Yes" if ia.runtime_used else "No" }}</span>
-            <span class="badge-chip">Metadata-only: {{ "Yes" if ia.metadata_only else "No" }}</span>
-        {% if item.compatibility_alias_for %}
-          <span class="badge-chip">Alias for: {{ item.compatibility_alias_for }}</span>
-          <span class="badge-chip">Migration: read-only alias</span>
-        {% endif %}
-        {% if item.compatibility_aliases %}
-          <span class="badge-chip">Legacy aliases: {{ item.compatibility_aliases | join(', ') }}</span>
-        {% endif %}
-        <span class="badge-chip badge-risk-{{ ia.risk }}">Risk: {{ ia.risk | title }}</span>
-      </div>
-    </div>
-    <div class="settings-field-meta">
-      <span>Current: <span class="current-value">{{ item.effective_display }}</span></span>
-      <span>Source: {{ item.current_source_label }}</span>
-      <span>Active: {{ item.active_label }}</span>
-      <span>Owned by: {{ item.owner_label }}</span>
-      <span>Used in this run: {{ item.active_label }}</span>
-      <div class="settings-field-help">
-        <details>
-          <summary>Why this matters</summary>
-          <div class="settings-field-help-body">
-            <span><strong>Setting:</strong> {{ entry.label }}</span>
-            <span><strong>Impact:</strong> {{ entry.description }}</span>
-            <span><strong>Applies when:</strong> {{ ia.applies_when }}</span>
-            <span><strong>Dependencies:</strong> Related stage rules and runtime guards.</span>
-            <span><strong>Default source:</strong> {{ ia.default_source if ia.default_source is defined else "" }}</span>
-            <span><strong>Observed in:</strong> {{ ia.observed_in if ia.observed_in is defined else "" }}</span>
-            <span><strong>Configured vs runtime:</strong> This is your configured value. Runtime guards may still change effective behavior. Check <strong>Used in this run</strong> and run-scoped <code>settings-used.json</code>.</span>
-            <span><strong>Default key path:</strong> {{ entry.config_path | join('.') }}</span>
-            <span><strong>Used by:</strong> Runtime pipeline stages and settings consumers.</span>
-          </div>
-        </details>
-        {% if item.compatibility_alias_for %}
-        <details>
-          <summary>Legacy Mapping</summary>
-          <div class="settings-field-help-body">
-            <span><strong>Canonical setting:</strong> <code>{{ item.compatibility_alias_for }}</code></span>
-            <span><strong>Status:</strong> Read-only alias</span>
-            <span><strong>Save behavior:</strong> Only canonical setting is saved.</span>
-          </div>
-        </details>
-        {% endif %}
-      </div>
-    </div>
-    {{ render_field_control(item, settings_metadata_note) }}
-  </div>
-{%- endmacro %}
-
-<div class="page-header">
-  <div>
-    <h1>Pipeline Settings</h1>
-    <p class="meta">Changes here affect future runs only. Runtime guards can still adjust effective behavior during execution.</p>
-  </div>
+<div class="shell" id="pipeline-settings-app" aria-busy="true">
+  <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+    <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12a2 2 0 0 1 2 2v14H4V6a2 2 0 0 1 2-2Z"/><path d="M8 9h8M8 13h6M8 17h4"/></svg></div><div><strong>FitCV Control Plane</strong><small>Local workspace</small></div></div>
+    <nav aria-label="Workspace">
+      <a class="nav-link" href="/admin/runs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg>Runs</a>
+      <a class="nav-link" href="/admin/bookmarks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
+      <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children" id="pipeline-page-nav"></div></details>
+      <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children"><a class="nav-link child" href="/admin/settings">Appearance</a><a class="nav-link child" href="/local/onboarding#provider-form">LLM &amp; API</a><a class="nav-link child" href="/local/data">Data &amp; Backup</a><a class="nav-link child" href="/local/system">System</a></div></details>
+      <div class="nav-divider" aria-hidden="true"></div><a class="nav-link" href="/healthz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h4l2-5 4 10 2-5h4"/></svg>Health</a>
+    </nav>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+  <main class="main">
+    <header><div class="title"><button class="menu-btn" id="menu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><svg class="title-icon" width="23" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg><div><h1>Pipeline</h1><p>Configure how each matching run selects and prepares candidates.</p></div></div><div class="actions"><label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="search" type="search" placeholder="Search Pipeline" aria-label="Search Pipeline settings"></label><button class="icon-btn" id="theme" type="button" aria-label="Toggle color theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"/></svg></button><button class="icon-btn" id="pipeline-reload" type="button" aria-label="Reload settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 11a8 8 0 1 0 2 5M20 4v7h-7"/></svg></button></div></header>
+    <div class="scroll"><div class="content">
+      <div class="pipeline-notice" id="pipeline-status" role="status">Loading settings...</div>
+      <div class="pipeline-notice pipeline-error" id="pipeline-error" role="alert"{% if not error and not section_errors and not group_error %} hidden{% endif %}>{% if error %}{{ error }}{% elif section_errors %}{% for message in section_errors.values() %}{{ message }}{% if not loop.last %} {% endif %}{% endfor %}{% elif group_error %}{% for message in group_error.values() %}{{ message }}{% if not loop.last %} {% endif %}{% endfor %}{% endif %}</div>
+      <div class="pipeline-notice" id="pipeline-warnings" role="status" hidden></div>
+      <div class="stack" id="pipeline-page-content"></div>
+    </div></div>
+  </main>
 </div>
 
-<div class="settings-shell">
-  {% if error %}
-    <div class="error-box">
-      <strong>Can’t save yet</strong>
-      <span>{{ error }}</span>
-    </div>
-  {% endif %}
-  <section class="settings-readiness">
-    <div class="settings-readiness-head">
-      <div class="settings-readiness-title">Settings Status</div>
-      <div class="settings-decision-item-meta">
-        {% if settings_readiness_summary.needs_review_count > 0 %}
-          {{ settings_readiness_summary.needs_review_count }} setting(s) need attention before next run.
-        {% else %}
-          No required actions right now.
-        {% endif %}
-      </div>
-    </div>
-  </section>
-  <section class="settings-decision-board">
-    <div class="settings-readiness-title">Decision View</div>
-    <div class="axis-row">
-      <span class="axis-label">View Level</span>
-      <button type="button" class="axis-chip" data-complexity-filter="basic" aria-pressed="true">Basic</button>
-      <button type="button" class="axis-chip" data-complexity-filter="advanced" aria-pressed="false">Advanced</button>
-      <button type="button" class="axis-chip" data-complexity-filter="all" aria-pressed="false">All</button>
-    </div>
-    <div class="axis-row">
-      <span class="axis-label">Pipeline Stage</span>
-      <button type="button" class="axis-chip" data-stage-filter="all" aria-pressed="true">All</button>
-      {% for scope in settings_stage_scopes %}
-        <button type="button" class="axis-chip" data-stage-filter="{{ scope.id }}" aria-pressed="false">{{ scope.title }}</button>
-      {% endfor %}
-    </div>
-    <div class="axis-row">
-      <span class="axis-label">Control Type</span>
-      <button type="button" class="axis-chip" data-control-surface-filter="all" aria-pressed="true">All</button>
-      {% for surface in settings_control_surface_filters %}
-        <button type="button" class="axis-chip" data-control-surface-filter="{{ surface.id }}" aria-pressed="false">{{ surface.title }}</button>
-      {% endfor %}
-    </div>
-    <div class="settings-decision-item-meta">
-      Use filters to narrow settings. Detailed view shows technical fields.
-    </div>
-  </section>
-  <section class="settings-toolbar">
-    <input class="settings-search" type="search" id="settings-search" placeholder="Search by name, effect, or key..." aria-label="Search settings">
-    <div class="settings-global-summary" data-global-dirty-summary="settings-page">All sections saved</div>
-    <div class="settings-decision-item-meta is-filter-hidden" id="empty-filter-state">No matches. Clear filters or search.</div>
-  </section>
-  {% for section in settings_page_task_sections %}
-    <section class="task-section" data-task-section="{{ section.id }}" id="task-{{ section.id }}">
-      <div class="task-section-header">
-        <div>
-          <div class="task-section-title">{{ section.title }}</div>
-          <div class="task-section-helper">{{ section.helper }}</div>
-        </div>
-      </div>
-      <div class="task-section-grid">
-        {% for card in section.cards %}
-          {% if card.is_advanced or card.is_collapsible %}
-            <details class="settings-advanced-details"{% if card.error_message or not card.collapsed_by_default %} open{% endif %}>
-              <summary>
-                <div class="settings-advanced-summary-title">{{ card.title }}</div>
-                <div class="settings-advanced-summary-helper">{{ card.helper }}</div>
-              </summary>
-              <div class="settings-panel" data-card-risk="{{ card.risk }}" data-card-domains="{{ card.domains | join('|') }}" data-card-stages="{{ card.workflow_stages | join('|') }}">
-                {% if card.read_only %}
-                  <div class="settings-panel-body" style="padding-top:1rem">
-                    {% if card.stage_groups %}
-                      {% for stage_group in card.stage_groups %}
-                        <div class="settings-group-title">{{ stage_group.title }}</div>
-                        <div class="settings-field-list">
-                          {% for item in stage_group.entries %}
-                            {{ render_settings_row(item, settings_metadata_note) }}
-                          {% endfor %}
-                        </div>
-                      {% endfor %}
-                    {% else %}
-                      <div class="settings-field-list">
-                        {% for item in card.entries %}
-                          {{ render_settings_row(item, settings_metadata_note) }}
-                        {% endfor %}
-                      </div>
-                    {% endif %}
-                  </div>
-                {% else %}
-                <form id="{{ card.form_id }}" method="post" action="{{ card.action }}" data-dirty-card="{{ card.form_id }}" data-guarded-save="{{ 'true' if card.guarded_save else 'false' }}">
-                  {% if card.error_message %}
-                    <div class="error-box" style="margin-top:1rem">
-                      <strong>Can’t save yet</strong>
-                      <span>{{ card.error_message }}</span>
-                    </div>
-                  {% endif %}
-                  <div class="settings-panel-body" style="padding-top:1rem">
-                    {% if card.stage_groups %}
-                      {% for stage_group in card.stage_groups %}
-                        <div class="settings-group-title">{{ stage_group.title }}</div>
-                        <div class="settings-field-list">
-                          {% for item in stage_group.entries %}
-                            {{ render_settings_row(item, settings_metadata_note) }}
-                          {% endfor %}
-                        </div>
-                      {% endfor %}
-                    {% else %}
-                      <div class="settings-field-list">
-                        {% for item in card.entries %}
-                          {{ render_settings_row(item, settings_metadata_note) }}
-                        {% endfor %}
-                      </div>
-                    {% endif %}
-                  </div>
-                  <div class="sub-card-footer">
-                    <div class="settings-card-status" data-dirty-summary="{{ card.form_id }}">
-                      {% if card.dirty_count == 0 %}No unsaved edits{% elif card.dirty_count == 1 %}1 unsaved edit{% else %}{{ card.dirty_count }} unsaved edits{% endif %}
-                    </div>
-                    <button type="button" class="btn-secondary" data-reset-form="{{ card.form_id }}">Use Defaults</button>
-                    <button type="submit" class="btn-section">{{ card.save_label }}</button>
-                  </div>
-                </form>
-                {% endif %}
-              </div>
-            </details>
-          {% else %}
-            <div class="settings-panel" data-card-risk="{{ card.risk }}" data-card-domains="{{ card.domains | join('|') }}" data-card-stages="{{ card.workflow_stages | join('|') }}">
-              <div class="settings-panel-header">
-                <div>
-                  <div class="settings-panel-title">{{ card.title }}</div>
-                  <div class="settings-panel-helper">{{ card.helper }}</div>
-                </div>
-                <div class="settings-card-status" data-dirty-summary="{{ card.form_id }}">
-                  {% if card.dirty_count == 0 %}No unsaved edits{% elif card.dirty_count == 1 %}1 unsaved edit{% else %}{{ card.dirty_count }} unsaved edits{% endif %}
-                </div>
-              </div>
-              {% if card.error_message %}
-                <div class="error-box">
-                  <strong>Can’t save yet</strong>
-                  <span>{{ card.error_message }}</span>
-                </div>
-              {% endif %}
-              {% if card.read_only %}
-                <div class="settings-panel-body">
-              {% else %}
-              <form id="{{ card.form_id }}" method="post" action="{{ card.action }}" data-dirty-card="{{ card.form_id }}" data-guarded-save="{{ 'true' if card.guarded_save else 'false' }}">
-                <div class="settings-panel-body">
-              {% endif %}
-                  {% if card.layout == "composition_matrix" %}
-                    <div class="composition-matrix">
-                      <div class="composition-matrix-header">
-                        <div>Section</div>
-                        <div>Current value</div>
-                        <div>Change</div>
-                      </div>
-                      {% for item in card.entries %}
-                        {% set entry = item.entry %}
-                        <div class="composition-matrix-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-domain="{{ item.ia_contract.domain }}" data-workflow-stages="{{ item.ia_contract.workflow_stages | join('|') }}" data-decision-status="{{ item.decision_status }}" data-decision-domain="{{ item.decision_domain }}" data-decision-stage="{{ item.decision_stage }}" data-control-surface="{{ item.decision_control_surface }}" data-decision-area="{{ item.decision_area }}" data-complexity="{{ item.decision_complexity }}" data-default-equal="{{ 'false' if item.is_modified else 'true' }}" data-unused="{{ 'true' if 'unused' in item.decision_reason_codes else 'false' }}">
-                          <div>
-                            <div class="composition-row-title">{{ entry.label | replace('Include ', '') }}</div>
-                            <div class="composition-row-helper">{{ entry.description }}</div>
-                          </div>
-                          <div class="composition-current">{{ "Included" if item.effective_value else "Excluded" }}</div>
-                          <div class="composition-toggle">
-                            {{ render_field_control(item, settings_metadata_note) }}
-                          </div>
-                        </div>
-                      {% endfor %}
-                    </div>
-                  {% elif card.stage_groups %}
-                    {% for stage_group in card.stage_groups %}
-                      <div class="settings-group-title">{{ stage_group.title }}</div>
-                      <div class="settings-field-list">
-                        {% for item in stage_group.entries %}
-                          {{ render_settings_row(item, settings_metadata_note) }}
-                        {% endfor %}
-                      </div>
-                    {% endfor %}
-                  {% else %}
-                    <div class="settings-field-list">
-                      {% for item in card.entries %}
-                        {{ render_settings_row(item, settings_metadata_note) }}
-                      {% endfor %}
-                    </div>
-                  {% endif %}
-                </div>
-                {% if card.read_only %}
-                {% else %}
-                <div class="sub-card-footer">
-                  <button type="button" class="btn-secondary" data-reset-form="{{ card.form_id }}">Use Defaults</button>
-                  <button type="submit" class="btn-section">{{ card.save_label }}</button>
-                </div>
-              </form>
-                {% endif %}
-            </div>
-          {% endif %}
-        {% endfor %}
-      </div>
-    </section>
-  {% endfor %}
-  <section class="task-section" data-task-section="danger-zone" id="task-danger-zone">
-    <div class="task-section-header">
-      <div>
-        <div class="task-section-title">High-Impact Settings</div>
-        <div class="task-section-helper">Changes here can strongly affect ranking, filtering, and output quality. Update carefully.</div>
-      </div>
-    </div>
-    <div class="task-section-grid">
-      <div class="settings-global-summary">
-        {{ settings_danger_zone_keys | length }} high-impact setting(s):
-        <code>{{ settings_danger_zone_keys | join(', ') }}</code>
-      </div>
-    </div>
-  </section>
-</div>
+<dialog id="pipeline-manage-dialog" aria-labelledby="pipeline-dialog-title" aria-describedby="pipeline-dialog-description">
+  <div class="dialog-head"><div><h2 id="pipeline-dialog-title">Manage settings</h2><p class="dialog-description" id="pipeline-dialog-description"></p></div><button class="dialog-close" id="pipeline-dialog-close" type="button" aria-label="Close dialog">×</button></div>
+  <form class="weight-form" id="pipeline-dialog-form"><div class="dialog-fields" id="pipeline-dialog-fields"></div><div class="dialog-actions"><button class="btn" id="pipeline-dialog-cancel" type="button">Cancel</button><button class="btn primary" id="pipeline-dialog-save" type="submit">Save</button></div></form>
+</dialog>
 
-<script type="application/json" id="ranking-weight-keys-data">{{ ranking_weight_keys | tojson }}</script>
 <script>
-  function updateWeightsTotal() {
-    const keysNode = document.getElementById('ranking-weight-keys-data');
-    const keys = keysNode ? JSON.parse(keysNode.textContent) : [];
-    let total = 0;
-    keys.forEach(function(k) {
-      const el = document.querySelector('[name="' + k + '"]');
-      if (el) total += parseFloat(el.value) || 0;
+(() => {
+  const app = document.getElementById("pipeline-settings-app");
+  const nav = document.getElementById("pipeline-page-nav");
+  const content = document.getElementById("pipeline-page-content");
+  const statusBox = document.getElementById("pipeline-status");
+  const errorBox = document.getElementById("pipeline-error");
+  const warningsBox = document.getElementById("pipeline-warnings");
+  const dialog = document.getElementById("pipeline-manage-dialog");
+  const dialogForm = document.getElementById("pipeline-dialog-form");
+  const dialogFields = document.getElementById("pipeline-dialog-fields");
+  const dialogTitle = document.getElementById("pipeline-dialog-title");
+  const dialogDescription = document.getElementById("pipeline-dialog-description");
+  const sidebar = document.getElementById("sidebar");
+  const menu = document.getElementById("menu");
+  const scrim = document.getElementById("scrim");
+  const search = document.getElementById("search");
+  let resource = null;
+  let activePageId = location.hash.slice(1) || "overview";
+  let activeManageRow = null;
+  let dialogOpener = null;
+
+  function element(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function errorMessage(payload, fallback) {
+    if (!payload) return fallback;
+    if (typeof payload.detail === "string") return payload.detail;
+    if (Array.isArray(payload.detail)) return payload.detail.map(item => item.msg || String(item)).join("; ");
+    return fallback;
+  }
+
+  async function requestJson(url, options = {}) {
+    const response = await fetch(url, options);
+    let payload = null;
+    try { payload = await response.json(); } catch (_) { payload = null; }
+    if (!response.ok) throw new Error(errorMessage(payload, `Request failed (${response.status})`));
+    return payload;
+  }
+
+  function showError(message) {
+    errorBox.textContent = message || "Unable to save settings.";
+    errorBox.hidden = false;
+  }
+
+  function clearError() {
+    errorBox.hidden = true;
+    errorBox.textContent = "";
+  }
+
+  function setStatus(message) {
+    statusBox.textContent = message;
+    statusBox.hidden = !message;
+  }
+
+  async function loadSettings({ quiet = false } = {}) {
+    clearError();
+    if (!quiet) setStatus("Loading settings...");
+    resource = await requestJson("/settings/pipeline");
+    app.setAttribute("aria-busy", "false");
+    render();
+    setStatus(quiet ? "" : "Settings loaded.");
+    return resource;
+  }
+
+  async function patchSettings(changes) {
+    clearError();
+    setStatus("Saving settings...");
+    resource = await requestJson("/settings/pipeline", {
+      method: "PATCH",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({changes, updated_by: "admin"}),
     });
-    const card = document.getElementById('form-ranking-weights');
-    if (!card) return;
-    let target = card.parentElement.querySelector('.settings-panel-helper');
-    if (target) {
-      const formatted = total.toFixed(3);
-      target.innerHTML = 'All six weights must sum to 1.0 (±0.01). Current total: <strong style="color:' +
-        (Math.abs(total - 1.0) < 0.011 ? 'var(--badge-success-fg)' : 'var(--badge-error-fg)') +
-        ';">' + formatted + '</strong>';
+    render();
+    setStatus("Settings saved.");
+    return resource;
+  }
+
+  async function resetSettings(keys) {
+    clearError();
+    setStatus("Restoring defaults...");
+    resource = await requestJson("/settings/pipeline/actions/reset", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({keys, updated_by: "admin"}),
+    });
+    render();
+    setStatus("Page defaults restored.");
+    return resource;
+  }
+
+  function currentValue(row) {
+    if (row.kind === "membership") {
+      return Array.isArray(resource.values[row.key]) && resource.values[row.key].includes(row.member);
+    }
+    return resource.values[row.key];
+  }
+
+  function sourceText(row) {
+    const source = resource.sources[row.key];
+    return source ? `Source: ${source}` : "";
+  }
+
+  function applyInputAttributes(input, field) {
+    const attrs = field.input_attrs || {};
+    ["min", "max", "step"].forEach(name => {
+      if (attrs[name] !== undefined && attrs[name] !== null) input.setAttribute(name, String(attrs[name]));
+    });
+  }
+
+  function buildInput(field, value) {
+    const input = document.createElement("input");
+    input.dataset.settingKey = field.key;
+    if (field.type !== "bool") input.className = "field";
+    if (field.type === "bool") {
+      input.type = "checkbox";
+      input.checked = Boolean(value);
+    } else if (field.type === "int" || field.type === "float") {
+      input.type = "number";
+      input.value = value ?? "";
+      applyInputAttributes(input, field);
+    } else {
+      input.type = "text";
+      input.value = value ?? "";
+    }
+    return input;
+  }
+
+  function parsedInputValue(input, field) {
+    if (field.type === "bool") return input.checked;
+    if (field.type === "int") return Number.parseInt(input.value, 10);
+    if (field.type === "float") return Number.parseFloat(input.value);
+    return input.value;
+  }
+
+  async function saveDirect(row, value) {
+    try {
+      await patchSettings({[row.key]: value});
+    } catch (error) {
+      render();
+      showError(error.message);
+      setStatus("");
     }
   }
 
-  function applyDefaultToField(field) {
-    const defaultValue = field.dataset.defaultValue;
-    if (field.dataset.defaultChecked !== undefined) {
-      field.checked = field.dataset.defaultChecked === 'true';
-      return;
+  function switchControl(input) {
+    const label = element("label", "switch");
+    label.append(input, element("span", "track"));
+    return label;
+  }
+
+  function renderControl(row) {
+    const control = element("div", "control");
+    if (row.kind === "mirror") {
+      control.append(element("span", "mirror-value", String(currentValue(row) ?? "")));
+      const owner = element("a", "overview-link", "↗");
+      owner.href = `#${row.owner_page}`;
+      owner.setAttribute("aria-label", `Open ${row.owner_page} owner`);
+      control.append(owner);
+      return control;
     }
-    if (defaultValue === undefined) {
-      return;
+    if (row.kind === "manage") {
+      const button = element("button", "btn", "Manage");
+      button.type = "button";
+      const disabledReason = resource.disabled_reasons[row.id];
+      if (disabledReason) {
+        button.disabled = true;
+        button.title = disabledReason;
+        button.setAttribute("aria-describedby", `reason-${row.id}`);
+      }
+      button.addEventListener("click", event => openManageDialog(row, event.currentTarget));
+      control.append(button);
+      return control;
     }
-    if (field.type === 'checkbox') {
-      const checked = defaultValue === 'true';
-      field.checked = checked;
-      const hidden = field.previousElementSibling;
-      if (hidden && hidden.type === 'hidden') {
-        hidden.value = checked ? 'true' : 'false';
-      }
-      return;
+    if (row.kind === "membership") {
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = Boolean(currentValue(row));
+      input.setAttribute("aria-label", row.label);
+      input.addEventListener("change", async () => {
+        const members = new Set(Array.isArray(resource.values[row.key]) ? resource.values[row.key] : []);
+        if (input.checked) members.add(row.member); else members.delete(row.member);
+        await saveDirect(row, Array.from(members));
+      });
+      control.append(switchControl(input));
+      return control;
     }
-    field.value = defaultValue;
-  }
-
-  function isRowDirty(row) {
-    function normalizeComparableValue(field, rawValue) {
-      const valueType = field.dataset.valueType;
-      if (valueType === 'int') {
-        const parsed = parseInt(rawValue, 10);
-        return Number.isNaN(parsed) ? String(rawValue) : String(parsed);
-      }
-      if (valueType === 'float') {
-        const parsed = parseFloat(rawValue);
-        return Number.isNaN(parsed) ? String(rawValue) : String(parsed);
-      }
-      if (valueType === 'bool') {
-        return rawValue === true || rawValue === 'true' ? 'true' : 'false';
-      }
-      return String(rawValue);
+    const input = buildInput(row, currentValue(row));
+    input.setAttribute("aria-label", row.label);
+    if (row.type === "bool") {
+      input.addEventListener("change", () => saveDirect(row, input.checked));
+      control.append(switchControl(input));
+    } else {
+      input.addEventListener("change", () => saveDirect(row, parsedInputValue(input, row)));
+      control.append(input);
     }
+    return control;
+  }
 
-    const fields = row.querySelectorAll('input, select, textarea');
-    for (const field of fields) {
-      if (field.type === 'hidden' && field.dataset.currentValue === undefined) {
-        continue;
-      }
-      if (field.dataset.currentChecked !== undefined) {
-        if ((field.checked ? 'true' : 'false') !== field.dataset.currentChecked) {
-          return true;
-        }
-        continue;
-      }
-      if (field.dataset.currentValue !== undefined) {
-        const current = normalizeComparableValue(field, field.dataset.currentValue);
-        const value = field.type === 'checkbox' ? (field.checked ? 'true' : 'false') : field.value;
-        if (normalizeComparableValue(field, value) !== current) {
-          return true;
-        }
-      }
+  function renderRow(row) {
+    const wrapper = element("div", "row");
+    wrapper.dataset.rowId = row.id;
+    if (row.kind === "mirror") wrapper.classList.add("is-mirror");
+    const copy = element("span");
+    copy.append(element("strong", "", row.label));
+    copy.append(element("p", "", row.description));
+    if (row.kind !== "manage") copy.append(element("span", "source", sourceText(row)));
+    const disabledReason = resource.disabled_reasons[row.id];
+    if (disabledReason) {
+      wrapper.classList.add("is-disabled");
+      const reason = element("p", "supporting-text", disabledReason);
+      reason.id = `reason-${row.id}`;
+      copy.append(reason);
     }
-    return false;
+    wrapper.append(copy, renderControl(row));
+    return wrapper;
   }
 
-  function updateRowDirtyState(row) {
-    const dirty = isRowDirty(row);
-    row.classList.toggle('is-dirty', dirty);
-    row.dataset.dirty = dirty ? 'true' : 'false';
+  function pageResetKeys(page) {
+    const keys = new Set();
+    page.sections.forEach(section => section.rows.forEach(row => {
+      if (row.kind === "mirror") return;
+      if (row.kind === "manage") row.keys.forEach(key => keys.add(key));
+      else keys.add(row.key);
+    }));
+    return Array.from(keys);
   }
 
-  function updateCardDirtyState(form) {
-    const rows = form.querySelectorAll('[data-entry-key]');
-    rows.forEach(updateRowDirtyState);
-    const dirtyCount = Array.from(rows).filter((row) => row.dataset.dirty === 'true').length;
-    const summary = document.querySelector('[data-dirty-summary="' + form.id + '"]');
-    if (summary) {
-      if (dirtyCount === 0) summary.textContent = 'No unsaved edits';
-      else if (dirtyCount === 1) summary.textContent = '1 unsaved edit';
-      else summary.textContent = dirtyCount + ' unsaved edits';
-    }
-    updateGlobalDirtySummary();
-    updateWeightsTotal();
+  function renderWarnings() {
+    warningsBox.replaceChildren();
+    const warnings = Array.isArray(resource.warnings) ? resource.warnings : [];
+    if (!warnings.length) { warningsBox.hidden = true; return; }
+    const list = element("ul", "pipeline-warning-list");
+    warnings.forEach(warning => list.append(element("li", "", warning.message || String(warning))));
+    warningsBox.append(list);
+    warningsBox.hidden = false;
   }
 
-  function updateGlobalDirtySummary() {
-    const summary = document.querySelector('[data-global-dirty-summary="settings-page"]');
-    if (!summary) return;
-    const forms = document.querySelectorAll('form[data-dirty-card]');
-    let dirtyForms = 0;
-    forms.forEach(function(form) {
-      const hasDirtyRow = form.querySelector('[data-entry-key][data-dirty="true"]') !== null;
-      if (hasDirtyRow) dirtyForms += 1;
+  function renderNav(pages) {
+    nav.replaceChildren();
+    pages.forEach(page => {
+      const link = element("a", "nav-link child", page.title);
+      link.href = `#${page.id}`;
+      if (page.id === activePageId) link.setAttribute("aria-current", "page");
+      link.addEventListener("click", closeNavigation);
+      nav.append(link);
     });
-    if (dirtyForms === 0) summary.textContent = 'All changes saved';
-    else if (dirtyForms === 1) summary.textContent = '1 section has unsaved changes';
-    else summary.textContent = dirtyForms + ' sections have unsaved changes';
   }
 
-  function entryMatchesFilters(row) {
-    const activeComplexity = document.body.dataset.activeComplexity || 'basic';
-    const activeStage = document.body.dataset.activeStage || 'all';
-    const activeControlSurface = document.body.dataset.activeControlSurface || 'all';
-    const rowComplexity = row.dataset.complexity || 'basic';
-    const rowStage = row.dataset.decisionStage || '';
-    const rowControlSurface = row.dataset.controlSurface || '';
-    const complexityOk = activeComplexity === 'all' || rowComplexity === activeComplexity;
-    const stageOk = activeStage === 'all' || rowStage === activeStage;
-    const controlSurfaceOk = activeControlSurface === 'all' || rowControlSurface === activeControlSurface;
-    return complexityOk && stageOk && controlSurfaceOk;
+  function renderPage(page) {
+    content.replaceChildren();
+    const head = element("div", "page-head");
+    const copy = element("div");
+    copy.append(element("p", "eyebrow", "Pipeline settings"));
+    copy.append(element("h2", "", page.title));
+    copy.append(element("p", "", page.description));
+    const reset = element("button", "btn", "Restore defaults");
+    reset.type = "button";
+    const resetKeys = pageResetKeys(page);
+    reset.disabled = resetKeys.length === 0;
+    reset.addEventListener("click", async () => {
+      if (!window.confirm(`Restore defaults for ${page.title}?`)) return;
+      try { await resetSettings(resetKeys); } catch (error) { showError(error.message); setStatus(""); }
+    });
+    head.append(copy, reset);
+    content.append(head);
+    page.sections.forEach(section => {
+      const card = element("details", "section-card collapsible-section setting-section");
+      card.open = section.open !== false;
+      const summary = element("summary");
+      const heading = element("span", "section-heading");
+      heading.append(element("strong", "", section.title));
+      summary.append(heading);
+      const rows = element("div", "section-content settings-card");
+      section.rows.forEach(row => rows.append(renderRow(row)));
+      card.append(summary, rows);
+      content.append(card);
+    });
+    filterRows();
   }
 
-  function applyAxisFilters() {
-    document.querySelectorAll('[data-entry-key]').forEach(function(row) {
-      const visible = entryMatchesFilters(row);
-      row.classList.toggle('is-axis-hidden', !visible);
-    });
-    recomputeSettingsVisibility();
+  function render() {
+    if (!resource) return;
+    const pages = resource.schema.pages || [];
+    if (!pages.some(page => page.id === activePageId)) activePageId = pages[0]?.id || "overview";
+    renderNav(pages);
+    const page = pages.find(item => item.id === activePageId);
+    if (page) renderPage(page); else content.replaceChildren(element("div", "pipeline-empty", "No Pipeline settings available."));
+    renderWarnings();
   }
 
-  function applySearchFilter(term) {
-    const q = (term || '').trim().toLowerCase();
-    document.querySelectorAll('[data-entry-key]').forEach(function(row) {
-      const text = row.textContent.toLowerCase();
-      const match = q.length === 0 || text.includes(q);
-      row.classList.toggle('is-search-hidden', !match);
-    });
-    recomputeSettingsVisibility();
-  }
-
-  // ponytail: single owner for combined filter visibility; danger-zone
-  // is hidden only by axis filter, not search
-  function recomputeSettingsVisibility() {
-    document.querySelectorAll('[data-entry-key]').forEach(function(row) {
-      const visible = !row.classList.contains('is-axis-hidden') && !row.classList.contains('is-search-hidden');
-      row.classList.toggle('is-filter-hidden', !visible);
-    });
-    document.querySelectorAll('.settings-panel').forEach(function(panel) {
-      const hasVisible = panel.querySelector('[data-entry-key]:not(.is-filter-hidden)') !== null;
-      panel.classList.toggle('is-filter-hidden', !hasVisible);
-    });
-    document.querySelectorAll('.settings-advanced-details').forEach(function(details) {
-      const panel = details.querySelector('.settings-panel');
-      const hidden = panel ? panel.classList.contains('is-filter-hidden') : false;
-      details.classList.toggle('is-filter-hidden', hidden);
-    });
-    document.querySelectorAll('[data-task-section]').forEach(function(section) {
-      const isDanger = section.getAttribute('data-task-section') === 'danger-zone';
-      if (isDanger) {
-        const hasAxisVisible = section.querySelector('[data-entry-key]:not(.is-axis-hidden)') !== null;
-        section.classList.toggle('is-filter-hidden', !hasAxisVisible);
+  function openManageDialog(row, opener) {
+    activeManageRow = row;
+    dialogOpener = opener;
+    dialogTitle.textContent = row.label;
+    dialogDescription.textContent = row.description;
+    dialogFields.replaceChildren();
+    row.fields.forEach(field => {
+      const input = buildInput(field, resource.values[field.key]);
+      input.name = field.key;
+      if (field.type === "bool") {
+        const wrapper = element("div", "check-row");
+        wrapper.append(element("label", "", field.label), switchControl(input));
+        dialogFields.append(wrapper);
       } else {
-        const hasVisiblePanel = section.querySelector('.settings-panel:not(.is-filter-hidden)') !== null;
-        section.classList.toggle('is-filter-hidden', !hasVisiblePanel);
+        const wrapper = element("div", "weight-row");
+        const copy = element("div");
+        copy.append(element("label", "", field.label));
+        copy.append(element("span", "", field.description));
+        wrapper.append(copy, input);
+        dialogFields.append(wrapper);
       }
     });
-    const emptyState = document.getElementById('empty-filter-state');
-    if (emptyState) {
-      const hasVisibleRow = document.querySelector('[data-entry-key]:not(.is-filter-hidden)') !== null;
-      emptyState.classList.toggle('is-filter-hidden', hasVisibleRow);
+    dialog.showModal();
+    const firstInput = dialogFields.querySelector("input");
+    if (firstInput) firstInput.focus();
+  }
+
+  async function saveDialog() {
+    if (!activeManageRow || !dialogForm.reportValidity()) return;
+    const changes = {};
+    activeManageRow.fields.forEach(field => {
+      const input = dialogFields.querySelector(`[name="${CSS.escape(field.key)}"]`);
+      changes[field.key] = parsedInputValue(input, field);
+    });
+    try {
+      await patchSettings(changes);
+      dialog.close();
+    } catch (error) {
+      showError(error.message);
+      setStatus("");
     }
   }
 
-  function coerceBoolField(form, name) {
-    const field = form.querySelector('[name="' + name + '"]');
-    if (!field) return false;
-    return String(field.value).toLowerCase() === 'true';
+  function closeNavigation() {
+    sidebar.classList.remove("open");
+    scrim.classList.remove("show");
+    menu.setAttribute("aria-expanded", "false");
   }
 
-  function setBoolField(form, name, enabled) {
-    const hidden = form.querySelector('input[type="hidden"][name="' + name + '"]');
-    const checkbox = form.querySelector('input[type="checkbox"][name="' + name + '"]');
-    if (hidden) hidden.value = enabled ? 'true' : 'false';
-    if (checkbox) checkbox.checked = !!enabled;
+  function filterRows() {
+    const query = search.value.trim().toLowerCase();
+    content.querySelectorAll(".row").forEach(row => {
+      row.hidden = Boolean(query) && !row.textContent.toLowerCase().includes(query);
+    });
   }
 
-  function ensureHiddenFlag(form, name, value) {
-    let field = form.querySelector('input[type="hidden"][name="' + name + '"]');
-    if (!field) {
-      field = document.createElement('input');
-      field.type = 'hidden';
-      field.name = name;
-      form.appendChild(field);
-    }
-    field.value = value;
-  }
-
-  function resolveAutomationPrerequisites(form) {
-    if (!form.action.endsWith('/admin/settings/section/agentic-automation')) return true;
-    const autoApplyEnabled = coerceBoolField(form, 'synonym_management.auto_apply_recommendation_enabled');
-    const autoPromoteEnabled = coerceBoolField(form, 'synonym_management.auto_promote_global_enabled');
-    const applyGateChecked = coerceBoolField(document, 'synonym_management.apply_to_run_enabled');
-    const promoteGateChecked = coerceBoolField(document, 'synonym_management.promote_global_enabled');
-
-    if (autoApplyEnabled && !applyGateChecked) {
-      const enablePrereq = window.confirm(
-        'Auto Apply needs Apply-to-Run gate ON.\n\nOK: Enable gate and continue.\nCancel: Keep Auto Apply OFF.'
-      );
-      if (enablePrereq) {
-        ensureHiddenFlag(form, '__enable_prereq_apply_to_run', 'true');
-      } else {
-        setBoolField(form, 'synonym_management.auto_apply_recommendation_enabled', false);
-      }
-    }
-
-    if (autoPromoteEnabled && !promoteGateChecked) {
-      const enablePrereq = window.confirm(
-        'Auto Promote needs Promote-Global gate ON.\n\nOK: Enable gate and continue.\nCancel: Keep Auto Promote OFF.'
-      );
-      if (enablePrereq) {
-        ensureHiddenFlag(form, '__enable_prereq_promote_global', 'true');
-      } else {
-        setBoolField(form, 'synonym_management.auto_promote_global_enabled', false);
-      }
-    }
-    return true;
-  }
-
-  document.addEventListener('DOMContentLoaded', function() {
-    document.body.dataset.activeComplexity = 'basic';
-    document.body.dataset.activeStage = 'all';
-    document.body.dataset.activeControlSurface = 'all';
-    const complexityChips = document.querySelectorAll('[data-complexity-filter]');
-    const stageChips = document.querySelectorAll('[data-stage-filter]');
-    const controlSurfaceChips = document.querySelectorAll('[data-control-surface-filter]');
-
-    complexityChips.forEach(function(chip) {
-      chip.addEventListener('click', function() {
-        const value = chip.getAttribute('data-complexity-filter') || 'basic';
-        document.body.dataset.activeComplexity = value;
-        complexityChips.forEach(function(other) {
-          const pressed = (other.getAttribute('data-complexity-filter') || 'basic') === value;
-          other.setAttribute('aria-pressed', pressed ? 'true' : 'false');
-        });
-        applyAxisFilters();
-      });
-    });
-    stageChips.forEach(function(chip) {
-      chip.addEventListener('click', function() {
-        const value = chip.getAttribute('data-stage-filter') || 'all';
-        document.body.dataset.activeStage = value;
-        stageChips.forEach(function(other) {
-          const pressed = (other.getAttribute('data-stage-filter') || 'all') === value;
-          other.setAttribute('aria-pressed', pressed ? 'true' : 'false');
-        });
-        applyAxisFilters();
-      });
-    });
-    controlSurfaceChips.forEach(function(chip) {
-      chip.addEventListener('click', function() {
-        const value = chip.getAttribute('data-control-surface-filter') || 'all';
-        document.body.dataset.activeControlSurface = value;
-        controlSurfaceChips.forEach(function(other) {
-          const pressed = (other.getAttribute('data-control-surface-filter') || 'all') === value;
-          other.setAttribute('aria-pressed', pressed ? 'true' : 'false');
-        });
-        applyAxisFilters();
-      });
-    });
-    applyAxisFilters();
-
-    const searchInput = document.getElementById('settings-search');
-    if (searchInput) {
-      searchInput.addEventListener('input', function() {
-        applySearchFilter(searchInput.value);
-      });
-    }
-
-    document.querySelectorAll('form[data-dirty-card]').forEach(function(form) {
-      updateCardDirtyState(form);
-      form.querySelectorAll('input, select, textarea').forEach(function(field) {
-        field.addEventListener('input', function() { updateCardDirtyState(form); });
-        field.addEventListener('change', function() { updateCardDirtyState(form); });
-      });
-      form.addEventListener('submit', function(event) {
-        if (!resolveAutomationPrerequisites(form)) {
-          event.preventDefault();
-          return;
-        }
-        if (form.dataset.guardedSave === 'true') {
-          const ok = window.confirm('This section has high-impact settings. Save changes now?');
-          if (!ok) event.preventDefault();
-        }
-      });
-    });
-
-    document.querySelectorAll('[data-reset-form]').forEach(function(button) {
-      button.addEventListener('click', function() {
-        const form = document.getElementById(button.dataset.resetForm);
-        if (!form) return;
-        form.querySelectorAll('input, select, textarea').forEach(applyDefaultToField);
-        updateCardDirtyState(form);
-      });
-    });
+  dialogForm.addEventListener("submit", event => { event.preventDefault(); saveDialog(); });
+  document.getElementById("pipeline-dialog-close").addEventListener("click", () => dialog.close());
+  document.getElementById("pipeline-dialog-cancel").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => { activeManageRow = null; if (dialogOpener) dialogOpener.focus(); });
+  document.getElementById("pipeline-reload").addEventListener("click", () => loadSettings().catch(error => showError(error.message)));
+  document.getElementById("theme").addEventListener("click", () => window.toggleTheme());
+  menu.addEventListener("click", () => {
+    const open = !sidebar.classList.contains("open");
+    sidebar.classList.toggle("open", open);
+    scrim.classList.toggle("show", open);
+    menu.setAttribute("aria-expanded", String(open));
   });
+  scrim.addEventListener("click", closeNavigation);
+  search.addEventListener("input", filterRows);
+  window.addEventListener("hashchange", () => { activePageId = location.hash.slice(1) || "overview"; render(); });
+
+  loadSettings().catch(error => { app.setAttribute("aria-busy", "false"); setStatus(""); showError(error.message); });
+})();
 </script>
 
 {% endblock %}

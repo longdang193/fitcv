@@ -32,6 +32,7 @@ from fitcv.config import (
     get_prompt_addendum_metadata,
     get_ranking_ai_score_model,
     get_ranking_prompt_id,
+    get_stage_runtime_batch_size,
     get_stage_runtime_concurrency,
     get_stage_runtime_sleep_secs,
 )
@@ -324,6 +325,11 @@ def run_ai_scoring(
         stage="ranking",
         default=1,
     )
+    ranking_batch_size = get_stage_runtime_batch_size(
+        config,
+        stage="ranking",
+        default=1,
+    )
     selected_jobs = shortlist[:effective_top_n]
 
     def _score_single(input_index: int, job: dict[str, Any]) -> dict[str, Any]:
@@ -360,21 +366,30 @@ def run_ai_scoring(
                 "parser_status": "runtime_exception",
             }
 
+    indexed_jobs = list(enumerate(selected_jobs))
+    batches = [
+        indexed_jobs[index:index + ranking_batch_size]
+        for index in range(0, len(indexed_jobs), ranking_batch_size)
+    ]
+
+    def _score_batch(batch: list[tuple[int, dict[str, Any]]]) -> list[tuple[int, dict[str, Any]]]:
+        return [(index, _score_single(index, job)) for index, job in batch]
+
     scored_by_index: dict[int, dict[str, Any]] = {}
     if ranking_concurrency <= 1:
-        for i, job in enumerate(selected_jobs):
-            scored_by_index[i] = _score_single(i, job)
-            if i < len(selected_jobs) - 1:
+        for batch_index, batch in enumerate(batches):
+            scored_by_index.update(_score_batch(batch))
+            if batch_index < len(batches) - 1:
                 time.sleep(sleep_secs)
     else:
         with ThreadPoolExecutor(max_workers=ranking_concurrency) as executor:
-            futures: dict[Any, int] = {}
-            for i, job in enumerate(selected_jobs):
-                futures[executor.submit(_score_single, i, job)] = i
-                if i < len(selected_jobs) - 1:
+            futures: list[Any] = []
+            for batch_index, batch in enumerate(batches):
+                futures.append(executor.submit(_score_batch, batch))
+                if batch_index < len(batches) - 1:
                     time.sleep(sleep_secs)
             for future in as_completed(futures):
-                scored_by_index[futures[future]] = future.result()
+                scored_by_index.update(future.result())
 
     scored: list[dict[str, Any]] = []
     for i in range(len(selected_jobs)):

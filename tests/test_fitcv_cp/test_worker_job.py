@@ -2642,6 +2642,17 @@ def test_synonym_management_mode_prefers_canonical_reuse_toggle() -> None:
     )
     assert mode["triage_recommendation_reuse_enabled"] is False
 
+
+def test_synonym_management_defaults_migrate_legacy_reuse_without_dual_write() -> None:
+    from fitcv_cp.synonym_proposals import apply_synonym_management_defaults
+
+    normalized = apply_synonym_management_defaults(
+        {"synonym_management": {"triage_recommendation_reuse_enabled": False}}
+    )
+
+    assert normalized["reuse"]["synonym_triage"]["enabled"] is False
+    assert "triage_recommendation_reuse_enabled" not in normalized["synonym_management"]
+
 def test_build_synonym_overlay_yaml_roundtrips_reserved_scalars() -> None:
     from fitcv.config import parse_skill_synonym_overlay_yaml
     from fitcv_cp.worker_job import _build_synonym_overlay_yaml

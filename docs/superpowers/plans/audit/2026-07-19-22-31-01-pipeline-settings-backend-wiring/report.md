@@ -316,3 +316,95 @@ Residual risk: wiring controls before contract cleanup encodes prototype drift i
 5. Should runtime warnings be advisory API data or one shared policy consumed by API and UI?
 6. Should Overview controls remain immediate-save? If yes, backend must merge candidate value with current effective siblings before relational validation.
 7. Should UI show resolved effective value only, or distinguish saved override from baseline default?
+
+## 8. Post-patch closure — July 19, 2026
+
+### 8.1 Resolution
+
+- **Execution lane:** `codex/pipeline-settings-backend-wiring`, isolated worktree based on `a0f485de`.
+- **Canonical resource:** `GET /settings/pipeline`, `PATCH /settings/pipeline`, and `POST /settings/pipeline/actions/reset`.
+- **Mutation boundary:** one SQLite `BEGIN IMMEDIATE` read-merge-validate-write transaction in `mutate_settings_atomically` for JSON and compatibility writes.
+- **Runtime semantics:** Batch Size means items per worker task; Concurrency means simultaneous batch workers. Ranking, CV Analysis, and CV Generation Batch Size default to `1`.
+- **Removed scope:** `Skip Incomplete Listings` and `Require Manual Review` are absent from prototype and production. Gap Threshold settings, unused helper, constants, and direct tests are deleted.
+- **Preserved ownership:** `cv_generation_model`, `cv_preset`, and `cv_max_pages` remain outside Pipeline with existing compatibility and provenance behavior.
+
+### 8.2 Final production row inventory
+
+All editable rows load effective backend values, write through the serialized mutation boundary, reload from SQLite, and reset by owner-page key. Mirrors are read-only and link to their owner. Membership toggles rewrite the complete `rule_filter.selected_filters` list.
+
+| Page | Setting label | Frontend component | Backend owner | Consumer proof | SSOT / symmetry | Result |
+|---|---|---|---|---|---|---|
+| Overview | Initial Candidate Pool Size | Direct number | `pipeline.vector_search_top_n` | Pipeline candidate selection | Canonical direct key | Verified |
+| Overview | AI Reranking Pool Size | Direct number | `pipeline.ai_score_top_n` | Ranking candidate selection | Canonical direct key | Verified |
+| Overview | Final Output Count | Direct number | `pipeline.final_top_n` | Final pipeline output | Canonical direct key | Verified |
+| Overview | Final Evidence Items Per Job | Direct number | `pipeline.evidence_top_k` | CV evidence scope | Canonical direct key | Verified |
+| Overview | Maximum Applicant Count | Direct number | `global_job_filters.applications_count_max` | Pre-enrichment filtering | Canonical direct key | Verified |
+| Overview | Maximum Posting Age (Days) | Direct number | `global_job_filters.max_age_days` | Pre-enrichment filtering | Canonical direct key | Verified |
+| Enrichment | Maximum Applicant Count | Read-only mirror | `global_job_filters.applications_count_max` | Pre-enrichment filtering | Overview owns reset/write | Verified |
+| Enrichment | Maximum Posting Age (Days) | Read-only mirror | `global_job_filters.max_age_days` | Pre-enrichment filtering | Overview owns reset/write | Verified |
+| Screening | Require Fit Context | Native toggle projection | `rule_filter.selected_filters` member `missing_fit_context` | Existing rule-filter reason | List remains SSOT | Verified |
+| Screening | Location & Work Mode | Native toggle projection | `rule_filter.selected_filters` member `location_type_excluded` | Existing rule-filter reason | No new location rule | Verified |
+| Screening | Seniority Preference | Native toggle projection | `rule_filter.selected_filters` member `seniority_mismatch` | Existing rule-filter reason | List remains SSOT | Verified |
+| Screening | Contract Preference | Native toggle projection | `rule_filter.selected_filters` member `contract_type_excluded` | Existing rule-filter reason | List remains SSOT | Verified |
+| Screening | Experience Preference | Native toggle projection | `rule_filter.selected_filters` member `experience_level_excluded` | Existing rule-filter reason | List remains SSOT | Verified |
+| Shortlisting | Initial Candidate Pool Size | Read-only mirror | `pipeline.vector_search_top_n` | Pipeline candidate selection | Overview owns reset/write | Verified |
+| Ranking | AI Reranking Pool Size | Read-only mirror | `pipeline.ai_score_top_n` | Ranking candidate selection | Overview owns reset/write | Verified |
+| Ranking | Final Output Count | Read-only mirror | `pipeline.final_top_n` | Final pipeline output | Overview owns reset/write | Verified |
+| Ranking | Factor Weights | Managed dialog | `ranking_policy.structured_factor_weights.*` plus preference-fit weights | Ranking score calculation | Complete group atomic save | Verified |
+| Ranking | Threshold: Strong Baseline Fit | Direct number | `ranking_policy.fit_label_thresholds.strong` | Fit-label classification | Merged sibling validation | Verified |
+| Ranking | Threshold: Stretch Baseline Fit | Direct number | `ranking_policy.fit_label_thresholds.stretch` | Fit-label classification | Merged sibling validation | Verified |
+| CV Analysis | Final Evidence Items Per Job | Read-only mirror | `pipeline.evidence_top_k` | CV evidence scope | Overview owns reset/write | Verified |
+| CV Analysis | Semantic Alignment | Native toggle | `cv_analysis.semantic_alignment.enabled` | Agentic CV analysis | Parent dependency SSOT | Verified |
+| CV Analysis | Embedding Model | Read-only value | `cv_analysis.semantic_alignment.model` | Agentic CV analysis | Backend-owned metadata | Verified |
+| CV Analysis | Skills Match | Managed dialog | `required_skill_lexical_weight`, `required_skill_semantic_weight` | Agentic CV analysis | Pair total validated atomically | Verified |
+| CV Analysis | Role Match | Managed dialog | `role_lexical_weight`, `role_semantic_weight` | Agentic CV analysis | Pair total validated atomically | Verified |
+| CV Analysis | Responsibilities Match | Managed dialog | `responsibility_lexical_weight`, `responsibility_semantic_weight` | Agentic CV analysis | Pair total validated atomically | Verified |
+| CV Analysis | Domain Match | Managed dialog | `domain_lexical_weight`, `domain_semantic_weight` | Agentic CV analysis | Pair total validated atomically | Verified |
+| CV Generation | Included Sections | Managed dialog | `cv_*_enabled` composition keys | CV generation composition | Education-or-Experience validated | Verified |
+| Runtime & Limits | Enrichment | Managed dialog | `stage_runtime.enrich.sleep_secs`, `.batch_size`, `.concurrency` | `enrich_batch` | Shared runtime helpers | Verified |
+| Runtime & Limits | Ranking | Managed dialog | `stage_runtime.ranking.sleep_secs`, `.batch_size`, `.concurrency` | `run_ai_scoring` | Batch worker semantics | Verified |
+| Runtime & Limits | CV Analysis | Managed dialog | `stage_runtime.cv_analysis.sleep_secs`, `.batch_size`, `.concurrency` | CV Analysis pipeline executor | Batch worker semantics | Verified |
+| Runtime & Limits | CV Generation | Managed dialog | `stage_runtime.cv_generation.sleep_secs`, `.batch_size`, `.concurrency` | CV Generation pipeline executor | Batch worker semantics | Verified |
+| Automation & Reuse | Reuse Enrichment Results | Native toggle | `reuse.enrich.enabled` | Worker reuse path | Canonical direct key | Verified |
+| Automation & Reuse | Reuse Ranking Scores | Native toggle | `reuse.ranking.enabled` | Worker reuse path | Canonical direct key | Verified |
+| Automation & Reuse | Reuse CV Analysis | Native toggle | `reuse.cv_analysis.enabled` | Worker reuse path | Canonical direct key | Verified |
+| Automation & Reuse | Reuse CV Generation | Native toggle | `reuse.cv_generation.enabled` | Worker reuse path | Canonical direct key | Verified |
+| Automation & Reuse | Reuse Synonym Triage | Native toggle | `reuse.synonym_triage.enabled` | Synonym triage resolver | Legacy key read-only fallback | Verified |
+| Automation & Reuse | Generate Synonym Proposals | Native toggle | `synonym_management.propose_enabled` | Proposal generation | Explicit permission owner | Verified |
+| Automation & Reuse | Apply Approved Synonyms | Native toggle | `synonym_management.apply_to_run_enabled` | Approved synonym application | Explicit permission owner | Verified |
+| Automation & Reuse | Promote Approved Synonyms | Native toggle | `synonym_management.promote_global_enabled` | Approved synonym promotion | Explicit permission owner | Verified |
+
+### 8.3 Exclusions and preserved external owners
+
+| Contract | Pipeline result | Repository result |
+|---|---|---|
+| Skip Incomplete Listings | Absent | Removed from prototype; no speculative predicate added |
+| Require Manual Review | Absent | Removed from prototype; proposal/apply/promote permissions stay explicit |
+| Separate Location Preference rule | Absent | Existing `location_type_excluded` owns combined control |
+| Gap Thresholds | Rejected by Pipeline | Schema, config, helper, constants, and direct tests removed; stale rows clean as unknown |
+| `cv_generation_model` | Absent | Existing control-plane routing and run provenance preserved |
+| `cv_preset` | Absent | Existing non-Pipeline metadata behavior preserved |
+| `cv_max_pages` | Absent | Existing non-Pipeline CV policy behavior preserved |
+
+### 8.4 Fresh verification evidence
+
+- Control-plane suite: `735 passed, 1 skipped`.
+- Runtime consumer suite: `494 passed, 2 skipped`.
+- Browser: direct reload/reset, managed Save and Cancel, no-request Cancel, persisted Batch Size, mirrors and owner links, mobile containment, keyboard focus return, light/dark themes, and reduced motion verified.
+- Lighthouse snapshot accessibility: `100` at desktop and mobile.
+- JavaScript syntax: production settings script parsed successfully with Node.
+- Exclusion scans: no production settings `localStorage`, prototype mock-only controls, Gap Threshold settings, or deleted Gap helper symbols remain in scoped files.
+- Known environment noise: pytest completes successfully, then Windows denies cleanup access to `C:\tmp\pytest-of-HOANG PHI LONG DANG\pytest-current`.
+
+### 8.5 Final audit result
+
+No unresolved required Pipeline wiring defect remains. Supported rows have one canonical backend owner or explicit projection, writes are serialized and atomic, existing consumers observe persisted values, unsupported rows stay absent, and external CV owners remain unchanged.
+
+## 9. Visual SSOT corrective verification — July 20, 2026
+
+- **Root cause:** plan language reduced `docs/fitcv-settings-ui-prototype.html` to a reference, then explicitly directed production to reuse existing template components. API-focused tests did not assert approved visual structure or token ownership.
+- **Correction:** production now uses prototype shell, sidebar, header, page sections, rows, switches, managed dialog components, responsive navigation, search, and light/dark tokens while preserving `/settings/pipeline` contracts.
+- **Regression proof:** `test_admin_settings_uses_approved_prototype_visual_contract` asserts shared prototype tokens and structure plus higher-specificity theme integration selectors.
+- **Browser proof:** desktop computed tokens and layout match the prototype; mobile navigation opens and closes outside the 288px sidebar; search filters rows; theme switch resolves `#b94d36` light and `#ee8d6a` dark; Ranking Batch Size renders `1`; dialog Cancel performs no write.
+- **Fresh verification:** control-plane `735 passed, 1 skipped`; runtime `494 passed, 2 skipped`; Lighthouse accessibility `100` desktop and mobile; scoped exclusion scans and `git diff --check` pass.
+- **Environment note:** successful pytest runs still emit non-fatal Windows cleanup noise for `C:\tmp\pytest-of-HOANG PHI LONG DANG\pytest-current`.

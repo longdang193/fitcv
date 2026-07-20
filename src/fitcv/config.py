@@ -1548,6 +1548,26 @@ def get_stage_runtime_value(
     return default
 
 
+def get_stage_runtime_batch_size(
+    config: dict[str, Any],
+    *,
+    stage: str,
+    default: int = 1,
+    compatibility_fallback_key: str | None = None,
+) -> int:
+    raw_value = get_stage_runtime_value(
+        config,
+        stage=stage,
+        key="batch_size",
+        default=default,
+        compatibility_fallback_key=compatibility_fallback_key,
+    )
+    try:
+        return max(1, int(raw_value))
+    except (TypeError, ValueError):
+        return max(1, int(default))
+
+
 def get_stage_runtime_concurrency(
     config: dict[str, Any],
     *,

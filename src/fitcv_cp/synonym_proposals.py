@@ -254,11 +254,18 @@ def resolve_synonym_management_mode(settings_payload: dict[str, Any] | None) -> 
 
 def apply_synonym_management_defaults(settings_payload: dict[str, Any] | None) -> dict[str, Any]:
     normalized = dict(settings_payload or {})
-    normalized["synonym_management"] = resolve_synonym_management_mode(normalized)
+    synonym_management = resolve_synonym_management_mode(normalized)
+    synonym_triage_reuse_enabled = synonym_management.pop(
+        "triage_recommendation_reuse_enabled"
+    )
+    normalized["synonym_management"] = synonym_management
     reuse = dict(normalized.get("reuse") or {})
     for stage, default_enabled in _REUSE_DEFAULTS.items():
         stage_block = dict(reuse.get(stage) or {})
-        stage_block.setdefault("enabled", default_enabled)
+        stage_block.setdefault(
+            "enabled",
+            synonym_triage_reuse_enabled if stage == "synonym_triage" else default_enabled,
+        )
         reuse[stage] = stage_block
     normalized["reuse"] = reuse
     return normalized

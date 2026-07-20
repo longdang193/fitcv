@@ -23,6 +23,7 @@ from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, cast
 
 from fitcv.candidate import flatten_skills
+from fitcv.config import get_stage_runtime_sleep_secs
 from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.evidence import (
     build_cv_analysis_input_fingerprint,
@@ -425,9 +426,7 @@ def _build_evidence_selection_summary(
 
 
 def _cv_analysis_sleep_secs(config: dict[str, Any]) -> float:
-    stage_runtime = dict(config.get("stage_runtime") or {})
-    cv_analysis_runtime = dict(stage_runtime.get("cv_analysis") or {})
-    return float(cv_analysis_runtime.get("sleep_secs", 0.0))
+    return get_stage_runtime_sleep_secs(config, stage="cv_analysis", default=0.0)
 
 
 _REUSABLE_ANALYSIS_STATUSES = {READY_FOR_GENERATION_STATUS, SKIPPED_FIT_GATE_STATUS}

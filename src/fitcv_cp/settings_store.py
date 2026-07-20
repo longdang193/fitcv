@@ -24,7 +24,12 @@ from typing import Any
 
 from fitcv.persistence import get_local_sqlite_path
 from fitcv_cp.backend_runtime import get_backend_runtime
-from fitcv_cp.settings_schema import canonical_settings_key, coerce_value, editable_settings_keys
+from fitcv_cp.settings_schema import (
+    canonical_settings_key,
+    coerce_value,
+    editable_settings_keys,
+    merge_and_validate_settings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -121,41 +126,6 @@ def _rotate_local_sqlite_family(db_path: Path, *, reason: str) -> Path | None:
     return None
 
 
-def _save_local_settings_rows(rows: list[dict[str, str]]) -> None:
-    db_path = _local_sqlite_path()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    for attempt in (1, 2):
-        try:
-            with sqlite3.connect(db_path, timeout=30) as conn:
-                _ensure_local_pipeline_settings_table(conn)
-                conn.executemany(
-                    """
-                    INSERT INTO pipeline_settings (
-                        setting_key,
-                        setting_value_json,
-                        updated_by,
-                        updated_at
-                    ) VALUES (?, ?, ?, ?)
-                    """,
-                    [
-                        (
-                            str(row["setting_key"]),
-                            str(row["setting_value_json"]),
-                            str(row.get("updated_by") or ""),
-                            str(row["updated_at"]),
-                        )
-                        for row in rows
-                    ],
-                )
-                conn.commit()
-                return
-        except sqlite3.Error as exc:
-            if attempt == 1 and _is_recoverable_sqlite_error(exc):
-                _rotate_local_sqlite_family(db_path, reason=str(exc))
-                continue
-            raise
-
-
 def _load_local_settings_rows() -> list[sqlite3.Row]:
     db_path = _local_sqlite_path()
     if not db_path.exists():
@@ -193,6 +163,49 @@ def _delete_local_settings_rows(rows: list[tuple[str, str]]) -> None:
             rows,
         )
         conn.commit()
+
+
+def _decode_active_settings_rows(
+    rows: list[sqlite3.Row],
+) -> tuple[dict[str, Any], list[tuple[str, str]]]:
+    ordered_rows = sorted(
+        enumerate(rows),
+        key=lambda item: (
+            0 if canonical_settings_key(str(item[1]["setting_key"])) == str(item[1]["setting_key"]) else 1,
+            item[0],
+        ),
+    )
+    seen_valid: set[str] = set()
+    invalid_rows: list[tuple[str, str]] = []
+    result: dict[str, Any] = {}
+    for _, row in ordered_rows:
+        original_key = str(row["setting_key"])
+        canonical_key = canonical_settings_key(original_key)
+        if canonical_key in seen_valid:
+            continue
+        raw_value_json = str(row["setting_value_json"])
+        try:
+            raw = json.loads(raw_value_json)
+            result[canonical_key] = coerce_value(canonical_key, raw)
+            seen_valid.add(canonical_key)
+        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+            invalid_rows.append((original_key, raw_value_json))
+            logger.info("Removing stale invalid setting key=%s: %s", original_key, exc)
+    return result, invalid_rows
+
+
+def _load_active_settings_from_connection(
+    conn: sqlite3.Connection,
+) -> tuple[dict[str, Any], list[tuple[str, str]]]:
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        """
+        SELECT setting_key, setting_value_json
+        FROM pipeline_settings
+        ORDER BY updated_at DESC, rowid DESC
+        """
+    ).fetchall()
+    return _decode_active_settings_rows(rows)
 
 
 def _normalize_bookmark_key(
@@ -480,16 +493,7 @@ def save_setting(
     *,
     updated_by: str,
 ) -> None:
-    """Append a new row for this key. Current value = latest row per key."""
-    canonical_key = canonical_settings_key(key)
-    coerced_value = coerce_value(canonical_key, value)
-    row = {
-        "setting_key": canonical_key,
-        "setting_value_json": json.dumps(coerced_value),
-        "updated_by": updated_by,
-        "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-    }
-    _save_local_settings_rows([row])
+    mutate_settings_atomically(changes={key: value}, updated_by=updated_by)
 
 
 def save_settings_group(
@@ -497,30 +501,74 @@ def save_settings_group(
     *,
     updated_by: str,
 ) -> None:
-    """Write all keys in the group with a shared updated_at timestamp.
+    mutate_settings_atomically(changes=keys_values, updated_by=updated_by)
 
-    All rows are written into local SQLite with one shared timestamp.
-    """
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    canonical_payload: dict[str, Any] = {}
-    for key, value in keys_values.items():
-        canonical_key = canonical_settings_key(key)
-        if canonical_key == key:
-            canonical_payload[canonical_key] = coerce_value(canonical_key, value)
-    for key, value in keys_values.items():
-        canonical_key = canonical_settings_key(key)
-        if canonical_key not in canonical_payload:
-            canonical_payload[canonical_key] = coerce_value(canonical_key, value)
-    rows = [
-        {
-            "setting_key": key,
-            "setting_value_json": json.dumps(value),
-            "updated_by": updated_by,
-            "updated_at": now,
-        }
-        for key, value in canonical_payload.items()
-    ]
-    _save_local_settings_rows(rows)
+
+def mutate_settings_atomically(
+    *,
+    changes: dict[str, Any],
+    updated_by: str,
+    reset_keys: list[str] | tuple[str, ...] = (),
+) -> dict[str, Any]:
+    """Serialize load, merge, validation, writes, and resets in one transaction."""
+    db_path = _local_sqlite_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    canonical_changes: dict[str, Any] = {}
+    for raw_key, raw_value in changes.items():
+        key = canonical_settings_key(raw_key)
+        if key == raw_key or key not in canonical_changes:
+            canonical_changes[key] = raw_value
+    canonical_resets = {canonical_settings_key(key) for key in reset_keys}
+
+    for attempt in (1, 2):
+        try:
+            with sqlite3.connect(db_path, timeout=30, isolation_level=None) as conn:
+                conn.execute("BEGIN IMMEDIATE")
+                _ensure_local_pipeline_settings_table(conn)
+                active, invalid_rows = _load_active_settings_from_connection(conn)
+                if invalid_rows:
+                    conn.executemany(
+                        "DELETE FROM pipeline_settings WHERE setting_key = ? AND setting_value_json = ?",
+                        invalid_rows,
+                    )
+                candidate_overrides = {
+                    key: value for key, value in active.items() if key not in canonical_resets
+                }
+                effective = merge_and_validate_settings(
+                    canonical_changes,
+                    current_settings=candidate_overrides,
+                )
+                if canonical_resets:
+                    conn.executemany(
+                        "DELETE FROM pipeline_settings WHERE setting_key = ?",
+                        [(key,) for key in canonical_resets],
+                    )
+                now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                rows = [
+                    (key, json.dumps(effective[key]), updated_by, now)
+                    for key in canonical_changes
+                ]
+                if rows:
+                    conn.executemany(
+                        """
+                        INSERT INTO pipeline_settings (
+                            setting_key,
+                            setting_value_json,
+                            updated_by,
+                            updated_at
+                        ) VALUES (?, ?, ?, ?)
+                        """,
+                        rows,
+                    )
+                conn.commit()
+                candidate_overrides.update({key: effective[key] for key in canonical_changes})
+                return candidate_overrides
+        except sqlite3.Error as exc:
+            if attempt == 1 and _is_recoverable_sqlite_error(exc):
+                _rotate_local_sqlite_family(db_path, reason=str(exc))
+                continue
+            raise
+    raise RuntimeError("Settings mutation failed")
 
 
 def load_active_settings() -> dict[str, Any]:
@@ -530,29 +578,7 @@ def load_active_settings() -> dict[str, Any]:
     """
     rows = _load_local_settings_rows()
 
-    ordered_rows = sorted(
-        enumerate(rows),
-        key=lambda item: (
-            0 if canonical_settings_key(str(item[1]["setting_key"])) == str(item[1]["setting_key"]) else 1,
-            item[0],
-        ),
-    )
-    seen_valid: set[str] = set()
-    invalid_rows_to_delete: list[tuple[str, str]] = []
-    result: dict[str, Any] = {}
-    for _, row in ordered_rows:
-        original_key = str(row["setting_key"])
-        canonical_key = canonical_settings_key(original_key)
-        if canonical_key in seen_valid:
-            continue
-        raw_value_json = str(row["setting_value_json"])
-        raw = json.loads(raw_value_json)
-        try:
-            result[canonical_key] = coerce_value(canonical_key, raw)
-            seen_valid.add(canonical_key)
-        except (KeyError, ValueError) as exc:
-            invalid_rows_to_delete.append((original_key, raw_value_json))
-            logger.info("Removing stale invalid setting key=%s: %s", original_key, exc)
+    result, invalid_rows_to_delete = _decode_active_settings_rows(rows)
 
     _delete_local_settings_rows(invalid_rows_to_delete)
 

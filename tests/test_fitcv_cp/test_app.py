@@ -1133,6 +1133,73 @@ def test_get_settings_returns_dict():
     assert resp.json()["pipeline.final_top_n"] == 5
 
 
+def test_get_pipeline_settings_returns_effective_resource() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={"pipeline.final_top_n": 5}):
+        resp = TestClient(_app()).get("/settings/pipeline")
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["values"]["pipeline.final_top_n"] == 5
+    assert payload["defaults"]["pipeline.final_top_n"] == 15
+    assert payload["sources"]["pipeline.final_top_n"] == "override"
+    assert payload["schema"]["pages"][0]["id"] == "overview"
+    assert "cv_generation_model" not in payload["values"]
+    assert "gap_thresholds.strong_min_matched_ratio" not in payload["values"]
+
+
+def test_patch_pipeline_settings_uses_atomic_mutation() -> None:
+    changes = {
+        "pipeline.vector_search_top_n": 80,
+        "pipeline.ai_score_top_n": 40,
+        "pipeline.final_top_n": 8,
+    }
+    with patch("fitcv_cp.app.mutate_settings_atomically", return_value=changes) as mutate:
+        resp = TestClient(_app()).patch(
+            "/settings/pipeline",
+            json={"changes": changes, "updated_by": "admin"},
+        )
+
+    assert resp.status_code == 200
+    mutate.assert_called_once_with(changes=changes, updated_by="admin")
+    assert resp.json()["values"]["pipeline.final_top_n"] == 8
+
+
+def test_patch_pipeline_settings_rejects_excluded_key() -> None:
+    resp = TestClient(_app()).patch(
+        "/settings/pipeline",
+        json={"changes": {"cv_generation_model": "cx/gpt-5.5"}},
+    )
+
+    assert resp.status_code == 422
+    assert "not owned by Pipeline settings" in resp.text
+
+
+def test_patch_pipeline_settings_rejects_partial_managed_group() -> None:
+    resp = TestClient(_app()).patch(
+        "/settings/pipeline",
+        json={"changes": {"stage_runtime.ranking.batch_size": 2}},
+    )
+
+    assert resp.status_code == 422
+    assert "runtime-ranking" in resp.text
+
+
+def test_reset_pipeline_settings_uses_atomic_mutation() -> None:
+    with patch("fitcv_cp.app.mutate_settings_atomically", return_value={}) as mutate:
+        resp = TestClient(_app()).post(
+            "/settings/pipeline/actions/reset",
+            json={"keys": ["pipeline.final_top_n"], "updated_by": "admin"},
+        )
+
+    assert resp.status_code == 200
+    mutate.assert_called_once_with(
+        changes={},
+        reset_keys=["pipeline.final_top_n"],
+        updated_by="admin",
+    )
+    assert resp.json()["sources"]["pipeline.final_top_n"] == "default"
+
+
 def test_post_settings_key_saves_and_returns_200():
     with patch("fitcv_cp.app.save_setting") as mock_save:
         resp = TestClient(_app()).post(
@@ -9770,8 +9837,7 @@ def test_grouped_save_weights_dont_sum_to_one_returns_422():
     mock_group_save.assert_not_called()
 
 
-def test_grouped_save_weights_error_preserved_in_response():
-    """Error response must contain the submitted form values (so admin can correct)."""
+def test_grouped_save_weights_error_is_rendered_in_compatibility_response():
     bad_weights = dict(_VALID_WEIGHTS)
     bad_weights["ranking_policy.structured_factor_weights.must_have_match"] = "0.20"
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
@@ -9780,8 +9846,7 @@ def test_grouped_save_weights_error_preserved_in_response():
             data=bad_weights,
         )
     assert resp.status_code == 422
-    # The form values must persist (input elements show the submitted values)
-    assert "0.20" in resp.text
+    assert "sum to 1.0" in resp.text
 
 
 def test_grouped_save_fit_label_thresholds_valid():
@@ -9814,36 +9879,6 @@ def test_grouped_save_fit_label_thresholds_invalid_order():
             data={
                 "ranking_policy.fit_label_thresholds.strong": "0.40",
                 "ranking_policy.fit_label_thresholds.stretch": "0.70",
-            },
-        )
-    assert resp.status_code == 422
-    mock_group_save.assert_not_called()
-
-
-def test_grouped_save_gap_thresholds_valid():
-    """strong_min > stretch_min → 303."""
-    with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
-         patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app(), follow_redirects=False).post(
-            "/admin/settings/group/gap-thresholds",
-            data={
-                "gap_thresholds.strong_min_matched_ratio": "0.80",
-                "gap_thresholds.stretch_min_matched_ratio": "0.50",
-            },
-        )
-    assert resp.status_code == 303
-    mock_group_save.assert_called_once()
-
-
-def test_grouped_save_gap_thresholds_invalid_order():
-    """stretch_min > strong_min → 422; no write."""
-    with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
-         patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).post(
-            "/admin/settings/group/gap-thresholds",
-            data={
-                "gap_thresholds.strong_min_matched_ratio": "0.30",
-                "gap_thresholds.stretch_min_matched_ratio": "0.80",
             },
         )
     assert resp.status_code == 422
@@ -10032,10 +10067,13 @@ def test_post_settings_section_timing_drops_throughput_compatibility_aliases() -
                 "stage_runtime.enrich.batch_size": "8",
                 "stage_runtime.enrich.concurrency": "2",
                 "stage_runtime.ranking.sleep_secs": "0.2",
+                "stage_runtime.ranking.batch_size": "1",
                 "stage_runtime.ranking.concurrency": "4",
                 "stage_runtime.cv_analysis.sleep_secs": "0.1",
+                "stage_runtime.cv_analysis.batch_size": "1",
                 "stage_runtime.cv_analysis.concurrency": "2",
                 "stage_runtime.cv_generation.sleep_secs": "0.1",
+                "stage_runtime.cv_generation.batch_size": "1",
                 "stage_runtime.cv_generation.concurrency": "2",
                 "enrichment_sleep_secs": "0.9",
                 "rerank_sleep_secs": "0.9",
@@ -10065,10 +10103,13 @@ def test_post_settings_section_timing_accepts_canonical_only_payload() -> None:
                 "stage_runtime.enrich.batch_size": "25",
                 "stage_runtime.enrich.concurrency": "8",
                 "stage_runtime.ranking.sleep_secs": "0.0",
+                "stage_runtime.ranking.batch_size": "1",
                 "stage_runtime.ranking.concurrency": "6",
                 "stage_runtime.cv_analysis.sleep_secs": "0.0",
+                "stage_runtime.cv_analysis.batch_size": "1",
                 "stage_runtime.cv_analysis.concurrency": "3",
                 "stage_runtime.cv_generation.sleep_secs": "0.0",
+                "stage_runtime.cv_generation.batch_size": "1",
                 "stage_runtime.cv_generation.concurrency": "3",
             },
             follow_redirects=False,
@@ -10163,49 +10204,6 @@ def test_post_settings_section_agentic_advanced_omits_metadata_only_input() -> N
     assert resp.status_code == 303
     assert "cv_analysis.semantic_alignment.model" not in captured["values"]
     assert "cv_analysis.semantic_alignment.role_semantic_weight" in captured["values"]
-
-
-def test_post_settings_section_agentic_enablement_preserves_current_vs_draft_feedback() -> None:
-    active = {"cv_analysis.semantic_alignment.enabled": False}
-
-    with patch("fitcv_cp.app.load_active_settings", return_value=active):
-        resp = TestClient(_app(), follow_redirects=False).post(
-            "/admin/settings/section/agentic-enablement",
-            data=_agentic_core_section_form(semantic_alignment_enabled="not-a-bool"),
-        )
-
-    assert resp.status_code == 422
-    html = resp.text
-    assert 'data-task-section="agentic"' in html
-    assert 'class="settings-field-row is-dirty"' in html
-
-
-def test_post_settings_section_agentic_advanced_typed_equivalent_values_are_not_marked_dirty() -> None:
-    active = {
-        "cv_analysis.semantic_alignment.required_skill_lexical_weight": 0.7,
-        "cv_analysis.semantic_alignment.required_skill_semantic_weight": 0.3,
-        "cv_analysis.semantic_alignment.role_lexical_weight": 0.6,
-        "cv_analysis.semantic_alignment.role_semantic_weight": 0.4,
-        "cv_analysis.semantic_alignment.responsibility_lexical_weight": 0.25,
-        "cv_analysis.semantic_alignment.responsibility_semantic_weight": 0.75,
-        "cv_analysis.semantic_alignment.domain_lexical_weight": 0.4,
-        "cv_analysis.semantic_alignment.domain_semantic_weight": 0.6,
-        "cv_analysis.semantic_alignment.channel_pool_size": 4,
-    }
-
-    with patch("fitcv_cp.app.load_active_settings", return_value=active):
-        resp = TestClient(_app(), follow_redirects=False).post(
-            "/admin/settings/section/agentic-advanced",
-            data=_agentic_advanced_section_form(role_semantic_weight="0.10"),
-        )
-
-    assert resp.status_code == 422
-    html = resp.text
-    assert 'data-task-section="agentic"' in html
-    assert 'data-entry-key="cv_analysis.semantic_alignment.required_skill_lexical_weight"' in html
-    assert 'data-entry-key="cv_analysis.semantic_alignment.required_skill_lexical_weight" data-dirty="true"' not in html
-    assert 'data-entry-key="cv_analysis.semantic_alignment.role_semantic_weight" data-dirty="true"' in html
-    assert "1 unsaved edit" in html
 
 
 def test_post_settings_section_agentic_automation_does_not_mutate_enablement_keys() -> None:
@@ -10316,16 +10314,6 @@ def test_post_settings_section_invalid_value_returns_422():
     assert resp.status_code == 422
 
 
-def test_post_settings_section_agentic_advanced_opens_details_on_validation_error():
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app(), follow_redirects=False).post(
-            "/admin/settings/section/agentic-advanced",
-            data=_agentic_advanced_section_form(role_semantic_weight="0.10"),
-        )
-    assert resp.status_code == 422
-    assert '<details class="settings-advanced-details" open>' in resp.text
-
-
 def test_post_settings_section_rule_filter_uses_list_values() -> None:
     captured = {}
 
@@ -10349,30 +10337,6 @@ def test_post_settings_section_rule_filter_uses_list_values() -> None:
         "seniority_mismatch",
         "must_have_skill_missing",
     ]
-
-
-def test_get_settings_renders_rule_filter_section_and_checkboxes() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-
-    assert resp.status_code == 200
-    body = resp.text
-    assert "Rule Filter Settings" in body
-    assert 'action="/admin/settings/section/rule-filter"' in body
-    assert 'name="rule_filter.selected_filters"' in body
-    assert 'value="must_have_skill_missing"' in body
-
-
-def test_get_settings_renders_section_save_actions():
-    """GET /admin/settings renders section-level save labels, not per-row Save buttons."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    body = resp.text
-    assert "Save Retrieval Settings" in body
-    assert "Save Timing Settings" in body
-    assert "Save Global Job Filters" in body
-    assert "Save Rule Filter Settings" in body
 
 
 # ── Lifecycle API routes ─────────────────────────────────────────────────────
@@ -10871,31 +10835,6 @@ def test_runs_list_upload_jobs_path_shows_merged_from_filenames():
     ) in resp.text
 
 
-def test_settings_page_renders_run_lifecycle_section() -> None:
-    """@proves settings_system.run-safety-settings"""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Run Lifecycle Settings" in html
-    assert 'name="run_lifecycle.max_runtime_minutes"' in html
-
-
-
-def test_settings_page_uses_runtime_overlay_defaults_for_baseline_values() -> None:
-    runtime_config = {
-        "run_lifecycle": {"max_runtime_minutes": 321},
-        "pipeline": {"final_top_n": 7},
-    }
-    with patch("fitcv_cp.app.load_config", return_value=runtime_config), \
-         patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'name="run_lifecycle.max_runtime_minutes"' in html
-    assert 'data-default-value="321"' in html
-    assert 'name="pipeline.final_top_n"' in html
-    assert 'data-default-value="7"' in html
 def test_admin_runs_timeouts_running_runs_to_failed() -> None:
     """@proves run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
     @proves run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
@@ -13314,58 +13253,6 @@ def test_run_detail_enriched_pagination_fragment_url_matches_href():
     assert f'data-tab-fragment-url="{next_url}"' in resp.text
 # ── Task 6: Composition consistency tests ──────────────────────────────────────
 
-def test_settings_ranking_section_has_no_tailwind_classes():
-    """The ranking section must not contain Tailwind class names in the rendered HTML."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    # Find the ranking section
-    ranking_start = html.index("Structured Factor Weights")
-    section_slice = html[ranking_start:ranking_start + 3000]
-    tailwind_prefixes = ("text-gray-", "bg-slate-", "bg-indigo-", "text-indigo-", "rounded-", "px-", "py-", "mb-", "mt-", "mr-", "ml-", "gap-", "border-")
-    for prefix in tailwind_prefixes:
-        assert prefix not in section_slice, f"Tailwind class '{prefix}' found in ranking section"
-
-
-def test_settings_ranking_contains_group_forms():
-    """The ranking section keeps the four grouped ranking forms in the task-first layout."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    for form_id in (
-        "form-ranking-weights",
-        "form-preference-fit-weights",
-        "form-ranking-missing-defaults",
-        "form-fit-label-thresholds",
-        "form-gap-thresholds",
-    ):
-        assert f'<form id="{form_id}"' in html
-
-
-def test_settings_ranking_group_forms_have_save_buttons_with_correct_form_targets():
-    """Each ranking grouped form keeps its nested submit button in the new layout."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    for form_id in (
-        "form-ranking-weights",
-        "form-preference-fit-weights",
-        "form-ranking-missing-defaults",
-        "form-fit-label-thresholds",
-        "form-gap-thresholds",
-    ):
-        # Locate the form element
-        form_open = f'<form id="{form_id}"'
-        form_start = html.index(form_open)
-        form_end = html.index("</form>", form_start)
-        form_body = html[form_start:form_end]
-        # The submit button must be nested inside the form (not using form= attribute)
-        assert '<button type="submit"' in form_body, f"Submit button inside form '{form_id}' not found"
-
-
 def test_run_detail_inspection_area_wrapped_in_inspection_card():
     """@proves ui_consistency_theming.attached-tab-inspection-card-pattern
 
@@ -14015,192 +13902,7 @@ def test_grouped_save_unknown_cv_group_returns_404():
     assert resp.status_code == 404
 
 
-def test_get_settings_page_includes_cv_groups():
-    """GET /admin/settings renders cv_groups in context (used by template)."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    # Template receives cv_groups from context
-    assert "CV Output" in resp.text
-
-
 # ── CV settings page rendering ────────────────────────────────────────────────
-
-def test_settings_page_renders_task_first_sections():
-    """@proves settings_system.task-first-settings-ui
-    @proves ui_consistency_theming.consistent-action-hierarchy-primary-secondary-section
-    @proves ui_consistency_theming.human-readable-section-headings
-
-    Settings page is organized around operator tasks, not only raw schema buckets.
-    """
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Selection" in html
-    assert "Ranking" in html
-    assert "CV Output" in html
-    assert "Run Safety" in html
-    assert "Legacy Compatibility" in html
-
-
-def test_settings_page_renders_cv_sub_cards():
-    """@proves settings_system.compact-cv-visibility-controls
-
-    CV Output keeps the meaningful output-focused sub-surfaces.
-    """
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Template" in html
-    assert "Model" in html
-    assert "Section Visibility" in html
-    assert "Validation" in html
-
-
-def test_settings_page_renders_single_option_controls_as_metadata():
-    """@proves settings_system.metadata-only-fixed-controls
-
-    Single-option pseudo-choice controls are shown as metadata, not editable inputs.
-    """
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Currently fixed by the active runtime contract" in html
-    assert "europass" in html.lower()
-    assert "text-embedding-005" in html
-    assert 'name="cv_preset"' not in html
-    assert 'name="cv_analysis.semantic_alignment.model"' not in html
-    assert 'name="cv_generation_model"' not in html
-    assert 'name="cv_prompt_version"' not in html
-
-
-def test_settings_page_uses_advanced_disclosure_for_expert_controls() -> None:
-    """@proves settings_system.advanced-settings-disclosure"""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Diagnostics" in html
-    assert "Legacy Compatibility" in html
-    assert "metadata-only semantic runtime contract details" in html.lower()
-    assert "Collapsed read-only mapping of legacy aliases to canonical runtime throughput keys." in html
-    assert "<details" in html
-    assert 'name="cv_analysis.semantic_alignment.required_skill_lexical_weight"' in html
-    assert 'name="cv_analysis.semantic_alignment.role_semantic_weight"' in html
-
-
-def test_settings_page_renders_dedicated_agentic_section() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'data-task-section="agentic"' in html
-    assert "Agentic Processing" in html
-    assert "Enablement" in html
-    assert "Automation" in html
-
-def test_settings_page_surfaces_late_stage_stage_runtime_controls_in_agentic_section() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Runtime Throughput" in html
-    assert "Enrichment" in html
-    assert "Ranking" in html
-    assert "CV Analysis" in html
-    assert "CV Generation" in html
-    assert "API Delay: CV Analysis Stage" in html
-    assert "Concurrency: CV Analysis Stage" in html
-    assert "API Delay: CV Generation Stage" in html
-    assert "Concurrency: CV Generation Stage" in html
-    assert "Quality Targets" in html
-    assert "Throughput" in html
-    assert "Advanced Agentic Tuning" not in html
-    assert "Advanced Runtime Tuning" not in html
-    assert 'action="/admin/settings/section/agentic-enablement"' in html
-    assert 'action="/admin/settings/section/agentic-reuse"' in html
-    assert 'action="/admin/settings/section/agentic-automation"' in html
-    assert 'action="/admin/settings/section/agentic-advanced"' in html
-
-
-def test_settings_page_agentic_controls_hide_setup_only_and_metadata_only_inputs() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'name="cv.agentic_late_stage.enabled"' not in html
-    assert 'name="cv_analysis.semantic_alignment.enabled"' in html
-    assert 'name="cv_analysis.semantic_alignment.model"' not in html
-    assert 'name="cv_prompt_version"' not in html
-
-
-def test_settings_page_semantic_alignment_toggle_has_single_agentic_owner() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'action="/admin/settings/section/agentic-enablement"' in html
-    assert 'action="/admin/settings/section/retrieval-core"' in html
-    assert html.count('name="cv_analysis.semantic_alignment.enabled"') == 2
-
-    retrieval_form = html.split('action="/admin/settings/section/retrieval-core"', 1)[1].split("</form>", 1)[0]
-    agentic_form = html.split('action="/admin/settings/section/agentic-enablement"', 1)[1].split("</form>", 1)[0]
-
-    assert 'name="cv_analysis.semantic_alignment.enabled"' not in retrieval_form
-    assert agentic_form.count('name="cv_analysis.semantic_alignment.enabled"') == 2
-
-def test_settings_page_active_labels_reflect_semantic_and_synonym_dependency_gates() -> None:
-    import re
-
-    with patch(
-        "fitcv_cp.app.load_active_settings",
-        return_value={
-            "cv_analysis.semantic_alignment.enabled": False,
-            "synonym_management.apply_to_run_enabled": False,
-            "synonym_management.promote_global_enabled": False,
-            "synonym_management.auto_apply_recommendation_enabled": True,
-            "synonym_management.auto_promote_global_enabled": True,
-        },
-    ):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-
-    semantic_weight_row = re.search(
-        r'data-entry-key="cv_analysis\.semantic_alignment\.role_semantic_weight".*?</div>\s*</div>\s*</div>',
-        html,
-        flags=re.DOTALL,
-    )
-    assert semantic_weight_row is not None
-    assert "Active: No (semantic alignment OFF)" in semantic_weight_row.group(0)
-
-    auto_apply_row = re.search(
-        r'data-entry-key="synonym_management\.auto_apply_recommendation_enabled".*?</div>\s*</div>\s*</div>',
-        html,
-        flags=re.DOTALL,
-    )
-    assert auto_apply_row is not None
-    assert "Active: No (requires Apply-to-Run Enabled)" in auto_apply_row.group(0)
-
-    auto_promote_row = re.search(
-        r'data-entry-key="synonym_management\.auto_promote_global_enabled".*?</div>\s*</div>\s*</div>',
-        html,
-        flags=re.DOTALL,
-    )
-    assert auto_promote_row is not None
-    assert "Active: No (requires Promote-Global Enabled)" in auto_promote_row.group(0)
-
-
-def test_settings_page_agentic_truth_copy_points_to_run_detail_and_settings_used() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "settings-used.json" in html
-    assert "run detail" not in html.lower()
 
 def test_settings_page_shows_mode_summary_strip_for_agentic_runtime() -> None:
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
@@ -14240,59 +13942,6 @@ def test_control_plane_artifact_registry_stays_aligned_with_pipeline_contract() 
     assert [spec.filename for spec in bundle_specs] == list(PIPELINE_BUNDLE_ARTIFACT_FILENAMES)
     assert len({spec.filename for spec in bundle_specs}) == len(bundle_specs)
     assert {spec.artifact_filename for spec in stage_specs} <= {spec.filename for spec in bundle_specs}
-def test_settings_page_marks_dirty_rows_when_draft_differs_from_effective() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={"enrichment_sleep_secs": 1.0}):
-        resp = TestClient(_app()).post(
-            "/admin/settings/section/timing",
-            data={
-                "enrichment_sleep_secs": "2.0",
-                "rerank_sleep_secs": "0.5",
-                "enrichment_batch_size": "10",
-                "enrichment_concurrency": "0",
-            },
-        )
-    assert resp.status_code == 422
-    html = resp.text
-    assert 'class="settings-field-row is-dirty"' in html
-    assert "1 unsaved edit" in html or "2 unsaved edits" in html
-    assert "Current:" in html
-    assert "1.0" in html
-
-
-def test_settings_page_explains_future_defaults_per_run_overrides_and_settings_used_truth() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "future runs only" in html.lower()
-    assert "Per-run overrides" not in html
-    assert "settings-used.json" in html
-
-
-def test_settings_page_labels_when_current_value_comes_from_baseline_default() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    assert "Source: Baseline default" in resp.text
-
-def test_settings_page_renders_global_unsaved_changes_summary_strip() -> None:
-    """Task 2 Step 1: expect page-level unsaved summary in addition to per-card status."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    assert 'data-global-dirty-summary="settings-page"' in resp.text
-    assert "All sections saved" in resp.text
-
-def test_settings_page_renders_quick_nav_for_task_sections() -> None:
-    """Decision-first cleanup: quick-nav removed, readiness summary remains primary navigation aid."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    assert 'data-settings-quick-nav="true"' not in resp.text
-    assert "Settings Status" in resp.text
-    assert "Decision View" in resp.text
-
-
 def test_settings_page_cv_sections_no_raw_yaml():
     """required_cv_sections no longer exists in the schema (replaced by toggle fields)."""
     # The new UI does not expose a textarea for required_cv_sections
@@ -14314,76 +13963,7 @@ def test_runs_list_candidate_profile_controls_accept_json_and_yaml() -> None:
     assert '.json,.yaml,.yml,application/json,text/yaml,application/x-yaml' in html
 
 
-def test_settings_page_cv_max_pages_is_numeric_input():
-    """@proves settings_system.warning-only-cv-max-pages-validation-setting
-
-    cv_max_pages renders as a numeric input.
-    """
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    assert 'type="number"' in resp.text or '<input' in resp.text
-    assert 'name="cv_max_pages"' in resp.text
-
-
 # ── Preset-based CV settings page rendering ──────────────────────────────────────
-
-def test_settings_page_renders_cv_preset_section():
-    """@proves ui_consistency_theming.human-readable-section-headings
-
-    CV Output includes the template/model card.
-    """
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Template" in html
-    assert "Model" in html
-
-
-def test_settings_page_renders_cv_composition_section():
-    """@proves ui_consistency_theming.human-readable-section-headings
-
-    CV Output includes the visibility-focused composition block.
-    """
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Section Visibility" in html
-
-
-def test_settings_page_renders_cv_visibility_matrix() -> None:
-    """@proves settings_system.cv-composition-visibility-settings
-
-    Composition settings render in a denser visibility matrix.
-    """
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'class="composition-matrix"' in html
-    for label in (
-        "Summary",
-        "Education",
-        "Experience",
-        "Skills",
-        "Certifications",
-        "Projects",
-        "Publications",
-        "Languages",
-    ):
-        assert f'<div class="composition-row-title">{label}</div>' in html
-
-
-def test_settings_page_renders_summary_visibility_toggle() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'name="cv_summary_enabled"' in html
-    assert "Included" in html or "Hidden" in html
-
 
 def test_settings_page_hides_deprecated_cv_generation_model_input() -> None:
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
@@ -14394,42 +13974,12 @@ def test_settings_page_hides_deprecated_cv_generation_model_input() -> None:
     assert '<option value="cx/gpt-5.4-mini"' not in html
 
 
-def test_settings_page_uses_shared_cv_setting_row_class_across_blocks() -> None:
-    """@proves settings_system.compact-cv-visibility-controls"""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'class="settings-field-row"' in html
-    assert html.count('class="settings-field-row"') >= 10
-
-
 def test_settings_page_hides_default_column_for_settings_blocks() -> None:
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
     assert "<th>Default</th>" not in html
-
-
-def test_settings_page_renders_use_defaults_button_per_cv_block() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert html.count("Use Defaults") >= 3
-    assert 'data-reset-form="form-cv-preset"' in html
-    assert 'data-reset-form="form-cv-composition"' in html
-    assert 'data-reset-form="form-cv-validation"' in html
-
-
-def test_settings_page_exposes_default_values_for_browser_reset() -> None:
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'data-default-value="true"' in html
-    assert 'data-default-value="concise"' not in html
 
 
 def test_settings_page_hides_legacy_required_controls() -> None:
@@ -14441,18 +13991,6 @@ def test_settings_page_hides_legacy_required_controls() -> None:
     html = resp.text
     assert 'name="cv_education_required"' not in html
     assert 'name="cv_projects_required"' not in html
-
-
-def test_settings_page_shows_effective_current_values_for_composition_defaults() -> None:
-    """Current column should show effective default-backed values, not blanks."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Current:" in html
-    assert "Included" in html or "Hidden" in html
-    assert '<span class="current-value">compact</span>' not in html
-    assert '<span class="current-value">concise</span>' not in html
 
 
 def test_settings_page_does_not_render_cv_content_rules_section():
@@ -14473,25 +14011,6 @@ def test_settings_page_hides_deprecated_cv_model_and_keeps_cv_preset_metadata_on
     assert 'name="cv_preset"' not in html
     assert 'name="cv_generation_model"' not in html
     assert 'name="cv_prompt_version"' not in html
-
-
-def test_settings_page_renders_cv_composition_inputs():
-    """Settings page includes inputs only for active composition fields."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    for name in (
-        "cv_summary_enabled",
-        "cv_education_enabled",
-        "cv_experience_enabled",
-        "cv_skills_enabled",
-        "cv_certifications_enabled",
-        "cv_projects_enabled",
-        "cv_publications_enabled",
-        "cv_languages_enabled",
-    ):
-        assert f'name="{name}"' in html, f"Missing input for {name}"
 
 
 def test_settings_page_does_not_render_retired_cv_composition_formatting_inputs():
@@ -14521,45 +14040,12 @@ def test_settings_page_does_not_render_removed_cv_content_rules_inputs():
         assert f'name="{name}"' not in html, f"Unexpected input for removed field {name}"
 
 
-def test_settings_page_renders_cv_validation_inputs():
-    """Settings page includes input for cv_max_pages."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'name="cv_max_pages"' in html
-
-
-def test_settings_page_cv_preset_save_button():
-    """Settings page has 'Save Preset Settings' button for cv-preset group."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    assert "Save Preset Settings" in resp.text
-
-
-def test_settings_page_cv_composition_save_button():
-    """Settings page has 'Save Composition Settings' button for cv-composition group."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    assert "Save Composition Settings" in resp.text
-
-
 def test_settings_page_does_not_render_cv_content_rules_save_button():
     """Settings page no longer renders a save button for the removed content-rules group."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     assert "Save Content Rules Settings" not in resp.text
-
-
-def test_settings_page_cv_validation_new_save_button():
-    """Settings page has 'Save Validation Settings' button for cv-validation group."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    assert "Save Validation Settings" in resp.text
 
 
 def test_settings_page_no_raw_template_path_input():
@@ -14771,63 +14257,6 @@ tags:
   - ci-safe
 """
 
-def test_admin_settings_renders_two_axis_filter_controls() -> None:
-    resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'data-domain-filter=' not in html
-    assert 'data-stage-filter=' in html
-    assert 'data-control-surface-filter=' in html
-    assert 'id="toggle-only-actionable"' not in html
-    assert 'data-stage-filter="normalize"' in html
-    assert 'data-stage-filter="enrich"' in html
-    assert 'data-stage-filter="rule_filter"' in html
-    assert 'data-stage-filter="shortlist"' in html
-    assert 'data-stage-filter="ranking"' in html
-    assert 'data-stage-filter="cv_analysis"' in html
-    assert 'data-stage-filter="cv_generation"' in html
-    assert 'data-stage-filter="cross_stage"' in html
-
-
-def test_admin_settings_renders_ia_contract_fields_and_badges() -> None:
-    resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Runtime-used:" in html
-    assert "Metadata-only:" in html
-    assert "Applies when:" in html
-    assert "Dependencies:" in html
-    assert "Default source:" in html
-    assert "Observed in:" in html
-
-
-def test_admin_settings_renders_legacy_alias_keys_as_compatibility_surface() -> None:
-    resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Legacy Compatibility" in html
-    assert "Legacy aliases: enrichment_sleep_secs" in html
-    assert "Read-only compatibility mapping. Edit canonical Runtime Throughput settings instead." in html
-    assert "Save Runtime Compatibility Settings" not in html
-
-def test_admin_settings_has_guarded_save_preflight_script() -> None:
-    resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "high-impact settings" in html
-
-
-def test_admin_settings_preflight_script_drops_duplicate_blocking_rules() -> None:
-    resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'ranking_policy.structured_factor_weights total must equal 1.0 (±0.01).' not in html
-    assert 'ranking_policy.declared_preference_component_weights total must equal 1.0 (±0.01).' not in html
-    assert 'ranking_policy.fit_label_thresholds.strong must be greater than ranking_policy.fit_label_thresholds.stretch.' not in html
-    assert 'gap_thresholds.strong_min_matched_ratio must be greater than gap_thresholds.stretch_min_matched_ratio.' not in html
-    assert '__enable_prereq_promote_global' in html
-
-
 def test_admin_settings_source_normalizes_composition_matrix_shell() -> None:
     source = open("src/fitcv_cp/app.py", encoding="utf-8").read()
     assert 'use_standard_shell = layout == "composition_matrix"' in source
@@ -14843,74 +14272,6 @@ def test_admin_settings_source_uses_schema_owned_page_contract() -> None:
     assert "decision_domain_filters = [" not in source
 
 
-def test_admin_settings_renders_number_attrs_from_schema_conventions() -> None:
-    resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-
-    def _input_tag(name: str) -> str:
-        match = re.search(rf'<input[^>]*name="{re.escape(name)}"[^>]*>', html)
-        assert match is not None
-        return match.group(0)
-
-    cv_max_pages = _input_tag("cv_max_pages")
-    assert 'type="number"' in cv_max_pages
-    assert 'min="1"' in cv_max_pages
-    assert 'step="1"' in cv_max_pages
-
-    ai_score = _input_tag("ranking_policy.structured_factor_weights.must_have_match")
-    assert 'type="number"' in ai_score
-    assert 'min="0"' in ai_score
-    assert 'max="1"' in ai_score
-    assert 'step="any"' in ai_score
-
-    sleep_secs = _input_tag("stage_runtime.enrich.sleep_secs")
-    assert 'type="number"' in sleep_secs
-    assert 'min="0"' in sleep_secs
-    assert 'step="any"' in sleep_secs
-
-def test_admin_settings_renders_decision_focused_readiness_summary_and_ctas() -> None:
-    resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Settings Status" in html
-    assert "Go to Runs" not in html
-    assert "Run Truth Check" not in html
-    assert "Live Provider:" not in html
-    assert "Decision View" in html
-    assert "Basic" in html
-    assert "Advanced" in html
-    assert "All" in html
-
-def test_admin_settings_rows_expose_decision_metadata_attrs() -> None:
-    resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'data-decision-status="' in html
-    assert 'data-decision-domain="' in html
-    assert 'data-default-equal="' in html
-    assert 'data-unused="' in html
-    assert 'data-entry-key="cv_summary_enabled"' in html
-    assert 'data-decision-stage="cv_generation"' in html
-
-def test_admin_settings_late_stage_runtime_rows_have_truthful_stage_and_runtime_badges() -> None:
-    resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    html = resp.text
-
-    analysis_row = html.split('id="entry-stage_runtime-cv_analysis-sleep_secs"', 1)[1].split('id="entry-', 1)[0]
-    generation_row = html.split('id="entry-stage_runtime-cv_generation-sleep_secs"', 1)[1].split('id="entry-', 1)[0]
-
-    assert 'data-decision-stage="cv_analysis"' in analysis_row
-    assert 'data-control-surface="shared"' in analysis_row
-    assert "Stage: Cv Analysis" in analysis_row
-    assert "Runtime-used: Yes" in analysis_row
-
-    assert 'data-decision-stage="cv_generation"' in generation_row
-    assert 'data-control-surface="shared"' in generation_row
-    assert "Stage: Cv Generation" in generation_row
-    assert "Runtime-used: Yes" in generation_row
-
 def test_admin_settings_has_visibility_toggles_and_recommendation_preview_script() -> None:
     resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
@@ -14918,6 +14279,50 @@ def test_admin_settings_has_visibility_toggles_and_recommendation_preview_script
     assert 'id="toggle-only-actionable"' not in html
     assert 'data-accept-recommended' not in html
     assert 'data-review-required' not in html
+
+
+def test_admin_settings_uses_pipeline_resource_ui() -> None:
+    resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'id="pipeline-settings-app"' in html
+    assert 'id="pipeline-manage-dialog"' in html
+    assert 'requestJson("/settings/pipeline"' in html
+    assert "async function loadSettings" in html
+    assert "async function patchSettings" in html
+    assert "async function resetSettings" in html
+    assert 'input.type = "checkbox"' in html
+    template_source = open("src/fitcv_cp/templates/settings.html", encoding="utf-8").read()
+    assert "localStorage" not in template_source
+    assert "Skip Incomplete Listings" not in html
+    assert "Require Manual Review" not in html
+    assert "Gap Threshold" not in html
+
+
+def test_admin_settings_uses_approved_prototype_visual_contract() -> None:
+    prototype = Path("docs/fitcv-settings-ui-prototype.html").read_text(encoding="utf-8")
+    template = Path("src/fitcv_cp/templates/settings.html").read_text(encoding="utf-8")
+
+    for fragment in (
+        "--accent:#b94d36",
+        "--sidebar-w:288px",
+        ".shell{display:flex;min-height:100vh",
+        ".sidebar{width:var(--sidebar-w)",
+        ".section-card{overflow:hidden",
+        ".collapsible-section summary{display:flex",
+        ".section-content{overflow:hidden",
+        ".row{display:grid;grid-template-columns:minmax(0,1fr) auto",
+        ".switch{position:relative",
+        '<aside class="sidebar"',
+        '<div class="scroll"><div class="content">',
+    ):
+        assert fragment in prototype
+        assert fragment in template
+
+    assert ':root[data-theme="light"]{color-scheme:light;--accent:#b94d36' in template
+    assert ':root[data-theme="dark"]{color-scheme:dark;--accent:#ee8d6a' in template
+
+    assert "pipeline-settings__layout" not in template
 
 
 

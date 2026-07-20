@@ -149,15 +149,19 @@ from fitcv_cp.settings_schema import (
     coerce_value,
     decision_status_sort_key,
     derive_settings_decision_state,
+    derive_settings_warnings,
     danger_zone_settings_keys,
     editable_settings_keys,
     hidden_deprecated_settings_keys,
     metadata_only_settings_keys,
+    merge_and_validate_settings,
+    pipeline_settings_projection,
     canonical_settings_key,
     settings_ia_contract_for_key,
     settings_ia_metadata_by_key,
     settings_keys_for_domain,
     settings_native_input_attrs,
+    settings_disabled_reasons,
     settings_schema_with_runtime_defaults,
     timing_compatibility_runtime_alias_keys,
     validate_settings,
@@ -173,6 +177,7 @@ from fitcv_cp.settings_store import (
     is_job_bookmarked,
     list_bookmarked_jobs,
     load_active_settings,
+    mutate_settings_atomically,
     set_bookmarked_job_status,
     save_setting,
     save_settings_group,
@@ -5509,6 +5514,16 @@ class SettingUpdate(BaseModel):
     updated_by: str = "admin"
 
 
+class PipelineSettingsPatch(BaseModel):
+    changes: dict[str, Any]
+    updated_by: str = "admin"
+
+
+class PipelineSettingsReset(BaseModel):
+    keys: list[str]
+    updated_by: str = "admin"
+
+
 class BulkRunActionRequest(BaseModel):
     run_ids: list[str]
 
@@ -5869,7 +5884,8 @@ def create_app(
             return RedirectResponse(target, status_code=307)
 
         app.include_router(build_local_router(templates))
-    runtime_settings_schema = settings_schema_with_runtime_defaults(load_config())
+    baseline_config = load_config()
+    runtime_settings_schema = settings_schema_with_runtime_defaults(baseline_config)
     schema_by_key = {entry["key"]: entry for entry in runtime_settings_schema}
     metadata_only_keys = metadata_only_settings_keys()
     editable_keys = editable_settings_keys()
@@ -5881,6 +5897,76 @@ def create_app(
         if canonical_key and legacy_key:
             canonical_compatibility_aliases.setdefault(canonical_key, []).append(legacy_key)
     settings_page_spec = build_settings_page_spec()
+    pipeline_projection = pipeline_settings_projection(baseline_config)
+
+    def _pipeline_rows() -> list[dict[str, Any]]:
+        return [
+            row
+            for page in pipeline_projection["pages"]
+            for section in page["sections"]
+            for row in section["rows"]
+        ]
+
+    pipeline_rows = _pipeline_rows()
+    pipeline_owned_keys = {
+        str(key)
+        for row in pipeline_rows
+        for key in ([row["key"]] if row.get("key") else row.get("keys", []))
+    }
+    pipeline_managed_groups = {
+        str(row["id"]): set(str(key) for key in row["keys"])
+        for row in pipeline_rows
+        if row.get("kind") == "manage"
+    }
+    for row in pipeline_rows:
+        for group in row.get("details_groups", []):
+            pipeline_owned_keys.update(str(key) for key in group["keys"])
+            pipeline_managed_groups[str(group["id"])] = set(str(key) for key in group["keys"])
+
+    def _pipeline_settings_resource(active: dict[str, Any]) -> dict[str, Any]:
+        effective = merge_and_validate_settings(
+            {}, current_settings=active, baseline_config=baseline_config
+        )
+        defaults = {
+            str(entry["key"]): entry["default"]
+            for entry in runtime_settings_schema
+            if str(entry["key"]) in pipeline_owned_keys
+        }
+        values = {key: effective[key] for key in pipeline_owned_keys}
+        return {
+            "schema": pipeline_projection,
+            "values": values,
+            "defaults": defaults,
+            "sources": {
+                key: "override" if key in active else "default"
+                for key in pipeline_owned_keys
+            },
+            "disabled_reasons": settings_disabled_reasons(effective),
+            "warnings": derive_settings_warnings(effective),
+        }
+
+    def _pipeline_changes(changes: dict[str, Any]) -> dict[str, Any]:
+        canonical = {canonical_settings_key(key): value for key, value in changes.items()}
+        invalid = sorted(set(canonical) - pipeline_owned_keys)
+        if invalid:
+            raise HTTPException(
+                status_code=422,
+                detail="Settings not owned by Pipeline settings: " + ", ".join(invalid),
+            )
+        read_only = sorted(set(canonical) & metadata_only_keys)
+        if read_only:
+            raise HTTPException(
+                status_code=422,
+                detail="Read-only Pipeline settings: " + ", ".join(read_only),
+            )
+        changed_keys = set(canonical)
+        for group_id, group_keys in pipeline_managed_groups.items():
+            if changed_keys & group_keys and not group_keys <= changed_keys:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Managed group '{group_id}' must be saved as a complete group",
+                )
+        return canonical
 
     def _section_submit_keys_from_page_spec() -> dict[str, list[str]]:
         merged: dict[str, list[str]] = {}
@@ -7262,6 +7348,54 @@ def create_app(
     def get_settings_view() -> dict:
         return load_active_settings()
 
+    @app.get("/settings/pipeline")
+    def get_pipeline_settings() -> dict:
+        try:
+            return _pipeline_settings_resource(load_active_settings())
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.patch("/settings/pipeline")
+    def patch_pipeline_settings(body: PipelineSettingsPatch) -> dict:
+        changes = _pipeline_changes(body.changes)
+        try:
+            active = mutate_settings_atomically(
+                changes=changes,
+                updated_by=body.updated_by,
+            )
+            return _pipeline_settings_resource(active)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.post("/settings/pipeline/actions/reset")
+    def reset_pipeline_settings(body: PipelineSettingsReset) -> dict:
+        reset_keys = [canonical_settings_key(key) for key in body.keys]
+        invalid = sorted(set(reset_keys) - pipeline_owned_keys)
+        if invalid:
+            raise HTTPException(
+                status_code=422,
+                detail="Settings not owned by Pipeline settings: " + ", ".join(invalid),
+            )
+        read_only = sorted(set(reset_keys) & metadata_only_keys)
+        if read_only:
+            raise HTTPException(
+                status_code=422,
+                detail="Read-only Pipeline settings: " + ", ".join(read_only),
+            )
+        try:
+            active = mutate_settings_atomically(
+                changes={},
+                reset_keys=reset_keys,
+                updated_by=body.updated_by,
+            )
+            return _pipeline_settings_resource(active)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
     def _coerce_and_validate_single_setting(
         key: str,
         raw_value: Any,
@@ -7318,6 +7452,8 @@ def create_app(
         coerced = _coerce_and_validate_single_setting(canonical_key, body.value)
         try:
             save_setting(canonical_key, coerced, updated_by=body.updated_by)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
         return {"key": canonical_key, "value": coerced}

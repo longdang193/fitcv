@@ -81,6 +81,7 @@ from fitcv.config import (
     get_prompt_addendum_metadata,
     get_cv_generation_prompt_version,
     get_ranking_ai_score_model,
+    get_stage_runtime_batch_size,
     get_stage_runtime_concurrency,
     get_stage_runtime_sleep_secs,
     load_config,
@@ -3779,6 +3780,11 @@ def run_pipeline(
         cv_prompt_template_path_value = cv_generation_prompt_runtime["template_path"]
         cv_prompt_version_value = get_cv_generation_prompt_version(config)
         enabled_cv_sections = _cv_generation_enabled_sections(config)
+        cv_analysis_batch_size = get_stage_runtime_batch_size(
+            config,
+            stage="cv_analysis",
+            default=1,
+        )
         cv_analysis_concurrency = _cv_analysis_stage_concurrency(config)
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("cv_analysis"):
             with observe_span(
@@ -3788,7 +3794,8 @@ def run_pipeline(
                 cv_analysis_started_monotonic = time.monotonic()
                 cv_analysis_effective_concurrency = _effective_stage_concurrency(
                     cv_analysis_concurrency,
-                    len(ranked_jobs_for_cv),
+                    (len(ranked_jobs_for_cv) + cv_analysis_batch_size - 1)
+                    // cv_analysis_batch_size,
                 )
                 if reporter is not None:
                     reporter.emit(
@@ -3848,11 +3855,29 @@ def run_pipeline(
                         )
                     )
 
+                analysis_batches = [
+                    analysis_inputs[index:index + cv_analysis_batch_size]
+                    for index in range(0, len(analysis_inputs), cv_analysis_batch_size)
+                ]
+
+                def _analyze_cv_batch(
+                    batch: list[tuple[dict[str, Any], dict[str, Any] | None]],
+                ) -> list[dict[str, Any]]:
+                    return [_analyze_cv_job(item) for item in batch]
+
                 if cv_analysis_effective_concurrency > 1:
                     with ThreadPoolExecutor(max_workers=cv_analysis_effective_concurrency) as executor:
-                        analyzed_records = list(executor.map(_analyze_cv_job, analysis_inputs))
+                        analyzed_records = [
+                            record
+                            for batch_records in executor.map(_analyze_cv_batch, analysis_batches)
+                            for record in batch_records
+                        ]
                 else:
-                    analyzed_records = [_analyze_cv_job(item) for item in analysis_inputs]
+                    analyzed_records = [
+                        record
+                        for batch in analysis_batches
+                        for record in _analyze_cv_batch(batch)
+                    ]
 
                 for (job, reusable_record), analysis_record in zip(analysis_inputs, analyzed_records):
                     cv_analysis_results.append(analysis_record)
@@ -4085,6 +4110,11 @@ def run_pipeline(
             stage="cv_generation",
             default=1,
         )
+        cv_generation_batch_size = get_stage_runtime_batch_size(
+            config,
+            stage="cv_generation",
+            default=1,
+        )
         cv_generation_sleep_secs = get_stage_runtime_sleep_secs(
             config,
             stage="cv_generation",
@@ -4093,7 +4123,8 @@ def run_pipeline(
         generation_total = len(indexed_generation_ready_records)
         cv_generation_effective_concurrency = _effective_stage_concurrency(
             configured_cv_generation_concurrency,
-            generation_total,
+            (generation_total + cv_generation_batch_size - 1)
+            // cv_generation_batch_size,
         )
         cv_generation_reuse_enabled = _reuse_stage_enabled(config, "cv_generation")
         cv_generation_fingerprint_by_index: dict[int, str] = {}
@@ -4797,14 +4828,29 @@ def run_pipeline(
         if generation_runtime_by_index:
             with ThreadPoolExecutor(max_workers=cv_generation_effective_concurrency) as executor:
                 generation_indexes = sorted(generation_runtime_by_index)
-                future_to_generation_index: dict[Future[dict[str, Any]], int] = {}
-                for position, generation_index in enumerate(generation_indexes):
-                    future_to_generation_index[
-                        executor.submit(_compute_for_index, generation_index)
-                    ] = generation_index
-                    if position < len(generation_indexes) - 1 and cv_generation_sleep_secs > 0:
+                generation_batches = [
+                    generation_indexes[index:index + cv_generation_batch_size]
+                    for index in range(0, len(generation_indexes), cv_generation_batch_size)
+                ]
+
+                def _compute_batch(
+                    batch: list[int],
+                ) -> list[tuple[int, dict[str, Any]]]:
+                    outcomes: list[tuple[int, dict[str, Any]]] = []
+                    for generation_index in batch:
+                        try:
+                            outcome = _compute_for_index(generation_index)
+                        except Exception as exc:
+                            outcome = {"_compute_exception": exc}
+                        outcomes.append((generation_index, outcome))
+                    return outcomes
+
+                future_to_generation_indexes: dict[Future[list[tuple[int, dict[str, Any]]]], list[int]] = {}
+                for position, batch in enumerate(generation_batches):
+                    future_to_generation_indexes[executor.submit(_compute_batch, batch)] = batch
+                    if position < len(generation_batches) - 1 and cv_generation_sleep_secs > 0:
                         time.sleep(cv_generation_sleep_secs)
-                pending_futures = set(future_to_generation_index)
+                pending_futures = set(future_to_generation_indexes)
                 heartbeat_count = 0
                 heartbeat_started_monotonic = time.monotonic()
                 while pending_futures:
@@ -4824,7 +4870,10 @@ def run_pipeline(
                                     "phase": "batch_progress",
                                     "generation_total": generation_total,
                                     "completed_items": len(compute_outcomes_by_index),
-                                    "pending_items": len(pending_futures),
+                                    "pending_items": sum(
+                                        len(future_to_generation_indexes[future])
+                                        for future in pending_futures
+                                    ),
                                     "heartbeat_count": heartbeat_count,
                                     "elapsed_secs": int(
                                         time.monotonic() - heartbeat_started_monotonic
@@ -4840,11 +4889,11 @@ def run_pipeline(
                             )
                         continue
                     for future in completed_futures:
-                        generation_index = future_to_generation_index[future]
                         try:
-                            compute_outcomes_by_index[generation_index] = future.result()
+                            compute_outcomes_by_index.update(future.result())
                         except Exception as exc:
-                            compute_outcomes_by_index[generation_index] = {"_compute_exception": exc}
+                            for generation_index in future_to_generation_indexes[future]:
+                                compute_outcomes_by_index[generation_index] = {"_compute_exception": exc}
 
         for generation_index in sorted(generation_work_items_by_index):
             runtime = generation_runtime_by_index[generation_index]

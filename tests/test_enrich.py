@@ -1757,6 +1757,35 @@ def test_enrich_batch_uses_configured_batch_size_and_concurrency() -> None:
     # Each chunk had at most batch_size=2 jobs
     assert all(s <= 2 for s in call_sizes), f"Chunk sizes: {call_sizes}"
 
+
+def test_enrich_batch_prefers_canonical_stage_runtime() -> None:
+    from fitcv.enrich import enrich_batch
+    import fitcv.enrich as enrich_mod
+
+    call_sizes: list[int] = []
+
+    def capture_chunk(chunk, config, *, job_event_callback=None):
+        call_sizes.append(len(chunk))
+        return [{**job, "enriched": True} for job in chunk]
+
+    original = enrich_mod._enrich_chunk
+    enrich_mod._enrich_chunk = capture_chunk
+    try:
+        result = enrich_batch(
+            [{"job_url": f"canonical-{i}"} for i in range(4)],
+            config={
+                "enrichment_batch_size": 4,
+                "enrichment_concurrency": 1,
+                "stage_runtime": {"enrich": {"batch_size": 2, "concurrency": 2}},
+            },
+        )
+    finally:
+        enrich_mod._enrich_chunk = original
+
+    assert len(result) == 4
+    assert call_sizes == [2, 2]
+
+
 def test_enrich_batch_calls_on_chunk_complete_for_each_chunk() -> None:
     """on_chunk_complete callback is invoked once per chunk with that chunk's results."""
     from unittest.mock import patch

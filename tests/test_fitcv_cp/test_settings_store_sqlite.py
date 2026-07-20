@@ -45,13 +45,18 @@ def test_local_settings_group_save_without_bq(tmp_path, monkeypatch):
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
 
     ss.save_settings_group(
-        {"pipeline.vector_search_top_n": 25, "pipeline.final_top_n": 10},
+        {
+            "pipeline.vector_search_top_n": 25,
+            "pipeline.ai_score_top_n": 20,
+            "pipeline.final_top_n": 10,
+        },
         updated_by="local",
     )
 
     active = ss.load_active_settings()
 
     assert active["pipeline.vector_search_top_n"] == 25
+    assert active["pipeline.ai_score_top_n"] == 20
     assert active["pipeline.final_top_n"] == 10
 
 

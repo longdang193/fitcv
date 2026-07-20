@@ -156,9 +156,9 @@
       ]
     },
     'runtime-enrichment':runtime('Enrichment Runtime','Controls request pacing while job listings are prepared.',.5,10,6),
-    'runtime-ranking':runtime('Ranking Runtime','Controls request pacing while shortlisted listings are scored.',0,20,8),
-    'runtime-cv-analysis':runtime('CV Analysis Runtime','Controls request pacing while CV evidence is compared with jobs.',.2,10,6),
-    'runtime-cv-generation':runtime('CV Generation Runtime','Controls request pacing while tailored CVs are generated.',1,5,4)
+    'runtime-ranking':runtime('Ranking Runtime','Controls request pacing while shortlisted listings are scored.',0,1,8),
+    'runtime-cv-analysis':runtime('CV Analysis Runtime','Controls request pacing while CV evidence is compared with jobs.',.2,1,6),
+    'runtime-cv-generation':runtime('CV Generation Runtime','Controls request pacing while tailored CVs are generated.',1,1,4)
   };
 
   const pages=[
@@ -178,9 +178,6 @@
       {title:'Pre-enrichment Filter',open:true,rows:[
         mirror('overview.maxApplications'),
         mirror('overview.maxPostingAge')
-      ]},
-      {title:'Listing Quality',open:true,rows:[
-        b('enrichment.skipIncomplete','Skip Incomplete Listings','Skip listings missing information needed for a reliable fit decision.',true)
       ]}
     ]},
     {id:'screening',title:'Screening',description:'Choose which listings qualify before ranking.',sections:[
@@ -188,8 +185,7 @@
         b('screening.requireFitContext','Require Fit Context','Continue only when the listing has enough role context for a reliable fit decision.',true),
       ]},
       {title:'Preferences',open:true,rows:[
-        b('screening.locationPreference','Location Preference','Prefer selected locations when screening listings.',true),
-        b('screening.workModePreference','Work Mode Preference','Prefer selected work modes when screening listings.',true),
+        b('screening.locationWorkMode','Location & Work Mode','Apply selected location and remote-work exclusions.',true),
         b('screening.seniority','Seniority Preference','Exclude roles clearly outside the target seniority.',true),
         b('screening.contract','Contract Preference','Exclude contract types outside declared preferences.',true),
         b('screening.experienceLevel','Experience Preference','Exclude roles clearly outside the target experience level.',true)
@@ -250,8 +246,7 @@
         b('reuse.synonymReview','Reuse Synonym Review Results','Reuse matching synonym proposals and review decisions from an earlier run.',true)
       ]},
       {title:'Synonym Proposal & Review',open:true,rows:[
-        b('synonyms.generateProposals','Generate Synonym Proposals','Suggest alternate terms when different wording may represent the same skill, role, or domain.',true),
-        b('synonyms.requireManualReview','Require Manual Review','Require approval before a new synonym proposal can affect matching.',true)
+        b('synonyms.generateProposals','Generate Synonym Proposals','Suggest alternate terms when different wording may represent the same skill, role, or domain.',true)
       ]},
       {title:'Approved Synonym Use',open:true,rows:[
         b('synonyms.applyApproved','Apply Approved Synonyms','Use approved synonym decisions when matching jobs in the current pipeline run.',true),
@@ -908,7 +903,11 @@
     if(new Set(pages.map(page=>page.id)).size!==pages.length)throw new Error('Pipeline page IDs must be unique');
     if(!pages.some(page=>page.id==='shortlisting'))throw new Error('Shortlisting must be a standalone page');
     if(/gap thresholds?/i.test(JSON.stringify({pages,transactions})))throw new Error('Gap Thresholds must not exist in prototype contract');
-    if(defaults['enrichment.skipIncomplete']!==true)throw new Error('Skip Incomplete Listings must default On');
+    const removedPrototypeControls=['Skip Incomplete'+' Listings','Require Manual'+' Review','skip'+'Incomplete','manual'+'Review'];
+    if(removedPrototypeControls.some(value=>JSON.stringify({pages,transactions}).includes(value)))throw new Error('Removed prototype-only controls must not exist');
+    const screeningRows=pages.find(page=>page.id==='screening').sections.flatMap(section=>section.rows);
+    if(!screeningRows.some(row=>row.key==='screening.locationWorkMode')||screeningRows.some(row=>['screening.locationPreference','screening.workModePreference'].includes(row.key)))throw new Error('Screening must expose one Location & Work Mode control');
+    if(transactions['runtime-ranking'].fields.find(field=>field.key==='batch')?.value!==1||transactions['runtime-cv-analysis'].fields.find(field=>field.key==='batch')?.value!==1||transactions['runtime-cv-generation'].fields.find(field=>field.key==='batch')?.value!==1)throw new Error('Ranking, CV Analysis, and CV Generation Batch Size must default to 1');
     const generation=pages.find(page=>page.id==='cv-generation');
     if(generation.sections.flatMap(section=>section.rows).some(row=>row.label!=='Included Sections'))throw new Error('CV Generation must expose only Included Sections');
     const runtimeRows=pages.find(page=>page.id==='runtime-limits').sections.flatMap(section=>section.rows);

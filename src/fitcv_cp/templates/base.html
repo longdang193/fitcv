@@ -119,7 +119,7 @@ canonical: true
       transition: color 0.15s;
     }
     nav a:hover { color: var(--text-primary); }
-    .brand { color: var(--accent); font-weight: 700; font-size: 1.05rem; }
+    .brand { color: var(--accent-text); font-weight: 700; font-size: 1.05rem; }
     .nav-actions {
       margin-left: auto;
       display: flex;
@@ -528,7 +528,7 @@ canonical: true
     <a href="/local/system#change-log">Change Log</a>
     {% endif %}
     <div class="nav-actions">
-      <button class="btn-secondary" id="theme-toggle" aria-label="Toggle theme" onclick="toggleTheme()">
+      <button class="btn-secondary" id="theme-toggle" aria-label="Switch to Light theme" onclick="toggleTheme()">
         <span id="theme-icon">☀️</span> <span id="theme-label">Light</span>
       </button>
     </div>
@@ -542,9 +542,11 @@ canonical: true
     localStorage.setItem('fitcv-theme', t);
     var icon  = document.getElementById('theme-icon');
     var label = document.getElementById('theme-label');
-    if (icon && label) {
+    var toggle = document.getElementById('theme-toggle');
+    if (icon && label && toggle) {
       icon.textContent  = t === 'dark' ? '☀️' : '🌙';
       label.textContent = t === 'dark' ? 'Light' : 'Dark';
+      toggle.setAttribute('aria-label', t === 'dark' ? 'Switch to Light theme' : 'Switch to Dark theme');
     }
   }
   function toggleTheme() {

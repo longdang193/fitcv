@@ -7,7 +7,6 @@ covers:
   - normalise_raw_skill: light normalisation for raw comparison
   - classify_skill_match: two-level matching (raw → matched, synonym → partial, none → missing)
   - compute_gap: matched/partial/missing classification, years_risk, overclaim_risk
-  - classify_fit: config-driven strong/stretch/skip thresholds
 excludes:
 tags:
   - fast
@@ -17,7 +16,7 @@ tags:
 import pytest
 from pathlib import Path
 
-from fitcv.gap_analysis import classify_fit, classify_skill_match, compute_gap, normalise_raw_skill
+from fitcv.gap_analysis import classify_skill_match, compute_gap, normalise_raw_skill
 
 
 # ── normalise_raw_skill ───────────────────────────────────────────────────────
@@ -293,56 +292,6 @@ def test_compute_gap_does_not_emit_leadership_overclaim_from_candidate_evidence_
         candidate_evidence=["Built pipelines and dashboards"],
     )
     assert result["overclaim_risk"] == []
-
-
-# ── classify_fit ──────────────────────────────────────────────────────────────
-
-def test_classify_fit_uses_config_thresholds() -> None:
-    """classify_fit must derive strong/stretch/skip from config, not hardcoded values."""
-    gap_strong = {
-        "matched": ["SQL", "Python"], "partial": [], "missing": [],
-        "years_risk": False, "overclaim_risk": [],
-    }
-    gap_skip = {
-        "matched": [], "partial": [], "missing": ["SQL", "Python", "Terraform"],
-        "years_risk": True, "overclaim_risk": [],
-    }
-    config = {"gap_thresholds": {"strong_min_matched_ratio": 0.8, "stretch_min_matched_ratio": 0.5}}
-    assert classify_fit(gap_strong, required_count=2, config=config) == "strong"
-    assert classify_fit(gap_skip, required_count=3, config=config) == "skip"
-
-
-def test_classify_fit_partial_does_not_count_as_matched() -> None:
-    """Synonym-only partial matches must not lift the matched ratio."""
-    gap = {
-        "matched": [],
-        "partial": [{"required": "Google Cloud", "candidate": "GCP", "canonical": "google cloud"}],
-        "missing": ["SQL"],
-        "years_risk": False, "overclaim_risk": [],
-    }
-    config = {"gap_thresholds": {"strong_min_matched_ratio": 0.8, "stretch_min_matched_ratio": 0.5}}
-    # 0 matched out of 2 required → ratio 0.0 → skip
-    assert classify_fit(gap, required_count=2, config=config) == "skip"
-
-
-def test_classify_fit_stretch_band() -> None:
-    """matched_ratio between stretch and strong thresholds → stretch."""
-    gap = {
-        "matched": ["SQL"], "partial": [], "missing": ["Python"],
-        "years_risk": False, "overclaim_risk": [],
-    }
-    config = {"gap_thresholds": {"strong_min_matched_ratio": 0.8, "stretch_min_matched_ratio": 0.5}}
-    assert classify_fit(gap, required_count=2, config=config) == "stretch"
-
-
-def test_classify_fit_default_thresholds_when_no_config() -> None:
-    """classify_fit works with no config (uses built-in defaults)."""
-    gap_strong = {
-        "matched": ["A", "B", "C", "D", "E"],
-        "partial": [], "missing": [], "years_risk": False, "overclaim_risk": [],
-    }
-    result = classify_fit(gap_strong, required_count=5, config=None)
-    assert result in ("strong", "stretch", "skip")
 
 
 # ── store_gap_analysis ─────────────────────────────────────────────────────────

@@ -511,6 +511,37 @@ def test_run_ai_scoring_parallel_path_still_paces_submission_when_sleep_positive
 # ── store_ai_scores ───────────────────────────────────────────────────────────
 
 
+def test_run_ai_scoring_paces_batch_worker_submissions() -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    shortlist = [{"job_url": f"https://example.com/{index}"} for index in range(4)]
+    sleep_calls: list[float] = []
+
+    with patch("fitcv.ai_score.score_job") as mock_score_job, patch.object(time, "sleep") as mock_sleep:
+        mock_score_job.side_effect = lambda **kwargs: {
+            "job_url": kwargs["job"]["job_url"],
+            "ai_score": 0.5,
+            "fit_label": "stretch",
+            "score_reasoning": "ok",
+            "matched_strengths": [],
+            "key_risks": [],
+        }
+        mock_sleep.side_effect = lambda secs: sleep_calls.append(float(secs))
+        results = run_ai_scoring(
+            shortlist=shortlist,
+            candidate_summary="candidate",
+            config={
+                "pipeline": {"ai_score_top_n": 4},
+                "stage_runtime": {
+                    "ranking": {"batch_size": 2, "concurrency": 2, "sleep_secs": 0.2}
+                },
+            },
+        )
+
+    assert [row["job_url"] for row in results] == [job["job_url"] for job in shortlist]
+    assert sleep_calls == [0.2]
+
+
 def test_store_ai_scores_writes_sqlite_rows(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -4495,6 +4495,7 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
     config = _minimal_config()
     config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
     cv_generation_runtime = config.setdefault("stage_runtime", {}).setdefault("cv_generation", {})
+    cv_generation_runtime["batch_size"] = 2
     cv_generation_runtime["concurrency"] = 4
     cv_generation_runtime["sleep_secs"] = 0.25
 
@@ -4584,8 +4585,8 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
     assert heartbeat[3]["completed_items"] == 0
     assert heartbeat[3]["pending_items"] == 2
     assert heartbeat[3]["configured_concurrency"] == 4
-    assert heartbeat[3]["cv_generation_concurrency_effective"] == 2
-    mock_generation_sleep.assert_any_call(0.25)
+    assert heartbeat[3]["cv_generation_concurrency_effective"] == 1
+    assert all(item.args != (0.25,) for item in mock_generation_sleep.call_args_list)
     debug_urls = [str(r.get("job_url") or "") for r in result["cv_generation_debug_records"]]
     assert debug_urls == [job_a["job_url"], job_b["job_url"]]
     assert result["export_results"][0]["cv"]["provider"] == "openai_compatible"
@@ -7559,7 +7560,7 @@ def test_run_pipeline_cv_analysis_concurrency_preserves_result_order(
 
     cfg = _minimal_config()
     cfg.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
-    cfg["stage_runtime"] = {"cv_analysis": {"concurrency": 2}}
+    cfg["stage_runtime"] = {"cv_analysis": {"batch_size": 2, "concurrency": 2}}
     mock_config.return_value = cfg
     mock_parse.return_value = [job_a, job_b]
     mock_norm.return_value = [job_a, job_b]
@@ -7613,7 +7614,7 @@ def test_run_pipeline_cv_analysis_concurrency_preserves_result_order(
         job_a["job_url"],
         job_b["job_url"],
     ]
-    assert max_active_calls == 2
+    assert max_active_calls == 1
 
 
 def test_normalize_late_stage_reuse_snapshots_skips_poisoned_runtime_exception_rows() -> None:

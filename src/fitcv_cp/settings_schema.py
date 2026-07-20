@@ -185,16 +185,6 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "agentic_section": _AGENTIC_SECTION_CORE,
     },
     {
-        "key": "synonym_management.triage_recommendation_reuse_enabled",
-        "type": "bool",
-        "default": True,
-        "label": "Reuse Triage Recommendation",
-        "description": "Reuse compatible prior triage recommendations; disable to force fresh recompute.",
-        "group": "agentic",
-        "config_path": ["synonym_management", "triage_recommendation_reuse_enabled"],
-        "agentic_section": _AGENTIC_SECTION_CORE,
-    },
-    {
         "key": "reuse.enrich.enabled",
         "type": "bool",
         "default": True,
@@ -426,6 +416,15 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "config_path": ["stage_runtime", "ranking", "sleep_secs"],
     },
     {
+        "key": "stage_runtime.ranking.batch_size",
+        "type": "int",
+        "default": 1,
+        "label": "Batch Size: Ranking Stage",
+        "description": "Maximum items processed by each ranking worker task.",
+        "group": "timing",
+        "config_path": ["stage_runtime", "ranking", "batch_size"],
+    },
+    {
         "key": "stage_runtime.ranking.concurrency",
         "type": "int",
         "default": 4,
@@ -445,6 +444,15 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "config_path": ["stage_runtime", "cv_analysis", "sleep_secs"],
     },
     {
+        "key": "stage_runtime.cv_analysis.batch_size",
+        "type": "int",
+        "default": 1,
+        "label": "Batch Size: CV Analysis Stage",
+        "description": "Maximum items processed by each CV analysis worker task.",
+        "group": "timing",
+        "config_path": ["stage_runtime", "cv_analysis", "batch_size"],
+    },
+    {
         "key": "stage_runtime.cv_analysis.concurrency",
         "type": "int",
         "default": 4,
@@ -462,6 +470,15 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Canonical delay between cv_generation stage AI calls when enabled.",
         "group": "timing",
         "config_path": ["stage_runtime", "cv_generation", "sleep_secs"],
+    },
+    {
+        "key": "stage_runtime.cv_generation.batch_size",
+        "type": "int",
+        "default": 1,
+        "label": "Batch Size: CV Generation Stage",
+        "description": "Maximum items processed by each CV generation worker task.",
+        "group": "timing",
+        "config_path": ["stage_runtime", "cv_generation", "batch_size"],
     },
     {
         "key": "stage_runtime.cv_generation.concurrency",
@@ -548,24 +565,6 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
             ("fit_label_thresholds", "stretch", "Threshold: Stretch Baseline Fit", "Minimum unrounded baseline_fit classified as stretch."),
         )
     ],
-    {
-        "key": "gap_thresholds.strong_min_matched_ratio",
-        "type": "float",
-        "default": 0.80,
-        "label": "Skill Ratio Limit: Strong Match",
-        "description": "The minimum percentage of required skills a candidate must possess to avoid a 'Strong' gap penalty.",
-        "group": "ranking",
-        "config_path": ["gap_thresholds", "strong_min_matched_ratio"],
-    },
-    {
-        "key": "gap_thresholds.stretch_min_matched_ratio",
-        "type": "float",
-        "default": 0.50,
-        "label": "Skill Ratio Limit: Stretch Match",
-        "description": "The minimum percentage of required skills a candidate must possess to avoid a 'Stretch' gap penalty.",
-        "group": "ranking",
-        "config_path": ["gap_thresholds", "stretch_min_matched_ratio"],
-    },
     # ── Global Job Filters ──────────────────────────────────────────────────────────────────────
     {
         "key": "global_job_filters.applications_count_max",
@@ -801,10 +800,6 @@ def _derive_ranking_groups() -> dict[str, list[str]]:
             "ranking_policy.fit_label_thresholds.strong",
             "ranking_policy.fit_label_thresholds.stretch",
         ]),
-        "gap-thresholds": _ordered_key_projection([
-            "gap_thresholds.strong_min_matched_ratio",
-            "gap_thresholds.stretch_min_matched_ratio",
-        ]),
     }
 
 
@@ -821,10 +816,13 @@ def _derive_settings_sections() -> dict[str, list[str]]:
             "stage_runtime.enrich.batch_size",
             "stage_runtime.enrich.concurrency",
             "stage_runtime.ranking.sleep_secs",
+            "stage_runtime.ranking.batch_size",
             "stage_runtime.ranking.concurrency",
             "stage_runtime.cv_analysis.sleep_secs",
+            "stage_runtime.cv_analysis.batch_size",
             "stage_runtime.cv_analysis.concurrency",
             "stage_runtime.cv_generation.sleep_secs",
+            "stage_runtime.cv_generation.batch_size",
             "stage_runtime.cv_generation.concurrency",
             "enrichment_sleep_secs",
             "rerank_sleep_secs",
@@ -866,7 +864,6 @@ def _derive_agentic_settings_sections() -> dict[str, list[str]]:
         ]),
         "agentic-automation": _ordered_key_projection([
             "synonym_management.auto_triage_recommendation_enabled",
-            "synonym_management.triage_recommendation_reuse_enabled",
             "synonym_management.auto_apply_recommendation_enabled",
             "synonym_management.auto_promote_global_enabled",
             "synonym_management.auto_accept_ai_action_enabled",
@@ -959,26 +956,24 @@ _PREFERENCE_WEIGHT_KEYS: frozenset[str] = frozenset(
 )
 
 # Declarative constraint registry (Task 4 Step 1): behavior still enforced by legacy checks below.
-_RELATIONAL_ORDER_CONSTRAINTS: tuple[tuple[str, str, str], ...] = (
+_RELATIONAL_ORDER_CONSTRAINTS: tuple[tuple[str, str, bool, str], ...] = (
     (
         "pipeline.vector_search_top_n",
         "pipeline.ai_score_top_n",
+        False,
         "pipeline.ai_score_top_n ({rhs}) must be <= pipeline.vector_search_top_n ({lhs})",
     ),
     (
         "pipeline.ai_score_top_n",
         "pipeline.final_top_n",
+        False,
         "pipeline.final_top_n ({rhs}) must be <= pipeline.ai_score_top_n ({lhs})",
     ),
     (
         "ranking_policy.fit_label_thresholds.strong",
         "ranking_policy.fit_label_thresholds.stretch",
+        True,
         "ranking_policy.fit_label_thresholds.strong ({lhs}) must be > stretch ({rhs})",
-    ),
-    (
-        "gap_thresholds.strong_min_matched_ratio",
-        "gap_thresholds.stretch_min_matched_ratio",
-        "gap_thresholds.strong_min_matched_ratio ({lhs}) must be > stretch ({rhs})",
     ),
 )
 
@@ -1585,7 +1580,7 @@ def build_settings_page_spec() -> dict[str, Any]:
         {
             "id": "ranking",
             "title": "Ranking",
-            "helper": "Tune the versioned baseline policy, stable defaults, labels, and downstream gap thresholds.",
+            "helper": "Tune the versioned baseline policy, stable defaults, and fit labels.",
             "cards": [
                 {
                     "id": "ranking-weights",
@@ -1621,15 +1616,6 @@ def build_settings_page_spec() -> dict[str, Any]:
                     "submit_slug": "fit-label-thresholds",
                     "form_id": "form-fit-label-thresholds",
                     "keys": RANKING_GROUPS["fit-label-thresholds"],
-                },
-                {
-                    "id": "ranking-gap-thresholds",
-                    "title": "Gap Thresholds",
-                    "helper": "Control when missing-skill ratios start degrading Strong and Stretch classifications.",
-                    "submit_kind": "group",
-                    "submit_slug": "gap-thresholds",
-                    "form_id": "form-gap-thresholds",
-                    "keys": RANKING_GROUPS["gap-thresholds"],
                 },
             ],
         },
@@ -1908,10 +1894,13 @@ def validate_settings(settings: dict[str, Any]) -> None:
                     )
 
     # ── relational constraints ────────────────────────────────────────────────
-    for lhs_key, rhs_key, message_template in _RELATIONAL_ORDER_CONSTRAINTS:
+    for lhs_key, rhs_key, strict, message_template in _RELATIONAL_ORDER_CONSTRAINTS:
         lhs = normalized.get(lhs_key)
         rhs = normalized.get(rhs_key)
-        if isinstance(lhs, (int, float)) and isinstance(rhs, (int, float)) and rhs > lhs:
+        if not isinstance(lhs, (int, float)) or not isinstance(rhs, (int, float)):
+            continue
+        invalid = rhs >= lhs if strict else rhs > lhs
+        if invalid:
             raise ValidationError(message_template.format(lhs=lhs, rhs=rhs))
 
     # Weight-family sum-to-1 checks only run when each full family is present.
@@ -1922,6 +1911,298 @@ def validate_settings(settings: dict[str, Any]) -> None:
                 raise ValidationError(
                     f"{label} must sum to 1.0 (± 0.01), got {total:.4f}"
                 )
+
+
+def merge_and_validate_settings(
+    changes: dict[str, Any],
+    *,
+    current_settings: dict[str, Any] | None = None,
+    baseline_config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Merge changes with effective defaults and validate the complete state."""
+    effective = {
+        str(entry["key"]): _copy_default_value(entry["default"])
+        for entry in settings_schema_with_runtime_defaults(baseline_config)
+    }
+    for source in (current_settings or {}, changes):
+        for raw_key, raw_value in source.items():
+            key = canonical_settings_key(raw_key)
+            if key not in _ALL_SCHEMA_BY_KEY:
+                raise ValidationError(f"Unknown setting key: '{raw_key}'")
+            try:
+                effective[key] = coerce_value(key, raw_value)
+            except (TypeError, ValueError) as exc:
+                raise ValidationError(str(exc)) from exc
+
+    changed_keys = {canonical_settings_key(key) for key in changes}
+    if changed_keys & _AGENTIC_ADVANCED_QUALITY_TARGET_KEYS and not effective[
+        "cv_analysis.semantic_alignment.enabled"
+    ]:
+        raise ValidationError("Turn on Semantic Alignment before changing semantic match weights.")
+
+    validate_settings(effective)
+
+    if not effective["cv_education_enabled"] and not effective["cv_experience_enabled"]:
+        raise ValidationError("Select Education or Experience. Every CV must include at least one.")
+
+    if (
+        effective["synonym_management.auto_apply_recommendation_enabled"]
+        and not effective["synonym_management.apply_to_run_enabled"]
+    ):
+        raise ValidationError("Auto Apply Recommendation requires Synonym Apply-to-Run enabled.")
+    if (
+        effective["synonym_management.auto_promote_global_enabled"]
+        and not effective["synonym_management.promote_global_enabled"]
+    ):
+        raise ValidationError("Auto Promote to Global requires Synonym Promote-Global enabled.")
+    return effective
+
+
+def derive_settings_warnings(settings: dict[str, Any]) -> list[dict[str, Any]]:
+    warnings: list[dict[str, Any]] = []
+    for stage in ("enrich", "ranking", "cv_analysis", "cv_generation"):
+        prefix = f"stage_runtime.{stage}"
+        delay = float(settings.get(f"{prefix}.sleep_secs", 0.0))
+        batch_size = int(settings.get(f"{prefix}.batch_size", 1))
+        concurrency = int(settings.get(f"{prefix}.concurrency", 1))
+        if delay == 0 and concurrency > 8:
+            warnings.append({
+                "code": "runtime-no-delay-high-concurrency",
+                "stage": stage,
+                "keys": [f"{prefix}.sleep_secs", f"{prefix}.concurrency"],
+                "message": "No request delay with concurrency above 8 may trigger rate limits.",
+            })
+        if concurrency > 16:
+            warnings.append({
+                "code": "runtime-high-concurrency",
+                "stage": stage,
+                "keys": [f"{prefix}.concurrency"],
+                "message": "Concurrency above 16 may overload external services.",
+            })
+        if batch_size > 50:
+            warnings.append({
+                "code": "runtime-large-batch",
+                "stage": stage,
+                "keys": [f"{prefix}.batch_size"],
+                "message": "Batch Size above 50 may increase memory use and retry cost.",
+            })
+    return warnings
+
+
+def settings_disabled_reasons(settings: dict[str, Any]) -> dict[str, str]:
+    if bool(settings.get("cv_analysis.semantic_alignment.enabled")):
+        return {}
+    return {
+        "cv-skills": "Turn on Semantic Alignment to configure Skills Match.",
+        "cv-role": "Turn on Semantic Alignment to configure Role Match.",
+        "cv-responsibilities": "Turn on Semantic Alignment to configure Responsibilities Match.",
+        "cv-domain": "Turn on Semantic Alignment to configure Domain Match.",
+    }
+
+
+def pipeline_settings_projection(
+    baseline_config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return Pipeline page layout backed only by schema keys and projections."""
+    schema_by_key = {
+        str(entry["key"]): entry
+        for entry in settings_schema_with_runtime_defaults(baseline_config)
+    }
+
+    def row(
+        key: str,
+        *,
+        kind: str = "direct",
+        row_id: str | None = None,
+        label: str | None = None,
+        description: str | None = None,
+        **extra: Any,
+    ) -> dict[str, Any]:
+        entry = schema_by_key[key]
+        return {
+            "id": row_id or key,
+            "kind": kind,
+            "key": key,
+            "label": label or str(entry["label"]),
+            "description": description or str(entry["description"]),
+            "type": entry["type"],
+            "default": _copy_default_value(entry["default"]),
+            "input_attrs": settings_native_input_attrs(key),
+            **extra,
+        }
+
+    def membership(member: str, label: str, description: str) -> dict[str, Any]:
+        entry = schema_by_key["rule_filter.selected_filters"]
+        return {
+            "id": f"screening-{member}",
+            "kind": "membership",
+            "key": "rule_filter.selected_filters",
+            "member": member,
+            "label": label,
+            "description": description,
+            "type": "bool",
+            "default": member in entry["default"],
+        }
+
+    def managed(
+        row_id: str,
+        label: str,
+        description: str,
+        keys: list[str],
+        **extra: Any,
+    ) -> dict[str, Any]:
+        return {
+            "id": row_id,
+            "kind": "manage",
+            "label": label,
+            "description": description,
+            "keys": list(keys),
+            "fields": [row(key) for key in keys],
+            **extra,
+        }
+
+    pages = [
+        {
+            "id": "overview",
+            "title": "Overview",
+            "description": "Set the most important pipeline volumes and output limits.",
+            "sections": [
+                {"title": "Candidate Scope", "rows": [
+                    row("pipeline.vector_search_top_n"),
+                    row("pipeline.ai_score_top_n"),
+                    row("pipeline.final_top_n"),
+                    row("pipeline.evidence_top_k"),
+                ]},
+                {"title": "Pre-enrichment Filter", "rows": [
+                    row("global_job_filters.applications_count_max"),
+                    row("global_job_filters.max_age_days"),
+                ]},
+            ],
+        },
+        {
+            "id": "enrichment",
+            "title": "Enrichment",
+            "description": "Control how listing information is prepared before screening.",
+            "sections": [{"title": "Pre-enrichment Filter", "rows": [
+                row("global_job_filters.applications_count_max", kind="mirror", owner_page="overview"),
+                row("global_job_filters.max_age_days", kind="mirror", owner_page="overview"),
+            ]}],
+        },
+        {
+            "id": "screening",
+            "title": "Screening",
+            "description": "Choose which listings qualify before ranking.",
+            "sections": [
+                {"title": "Fit Context", "rows": [membership(
+                    "missing_fit_context",
+                    "Require Fit Context",
+                    "Continue only when the listing has enough role context for a reliable fit decision.",
+                )]},
+                {"title": "Preferences", "rows": [
+                    membership("location_type_excluded", "Location & Work Mode", "Apply selected location and remote-work exclusions."),
+                    membership("seniority_mismatch", "Seniority Preference", "Exclude roles clearly outside the target seniority."),
+                    membership("contract_type_excluded", "Contract Preference", "Exclude contract types outside declared preferences."),
+                    membership("experience_level_excluded", "Experience Preference", "Exclude roles clearly outside the target experience level."),
+                ]},
+            ],
+        },
+        {
+            "id": "shortlisting",
+            "title": "Shortlisting",
+            "description": "Control how many screened listings continue to ranking.",
+            "sections": [{"title": "Candidate Scope", "rows": [
+                row("pipeline.vector_search_top_n", kind="mirror", owner_page="overview"),
+            ]}],
+        },
+        {
+            "id": "ranking",
+            "title": "Ranking",
+            "description": "Control how shortlisted listings receive their final fit score.",
+            "sections": [
+                {"title": "Candidate Scope", "rows": [
+                    row("pipeline.ai_score_top_n", kind="mirror", owner_page="overview"),
+                    row("pipeline.final_top_n", kind="mirror", owner_page="overview"),
+                ]},
+                {"title": "Scoring", "rows": [managed(
+                    "factor-weights",
+                    "Factor Weights",
+                    "Set how strongly each fit factor influences the final ranking score.",
+                    RANKING_GROUPS["ranking-weights"],
+                    details_groups=[{
+                        "id": "preference-fit",
+                        "label": "Preference Fit Balance",
+                        "keys": RANKING_GROUPS["preference-fit-weights"],
+                    }],
+                )]},
+                {"title": "Fit Labels", "rows": [
+                    row("ranking_policy.fit_label_thresholds.strong"),
+                    row("ranking_policy.fit_label_thresholds.stretch"),
+                ]},
+            ],
+        },
+        {
+            "id": "cv-analysis",
+            "title": "CV Analysis",
+            "description": "Control how CV evidence is compared with each job.",
+            "sections": [
+                {"title": "Evidence Scope", "rows": [
+                    row("pipeline.evidence_top_k", kind="mirror", owner_page="overview"),
+                ]},
+                {"title": "Semantic Alignment", "rows": [
+                    row("cv_analysis.semantic_alignment.enabled", label="Semantic Alignment"),
+                    row("cv_analysis.semantic_alignment.model", kind="readonly", label="Embedding Model"),
+                ]},
+                {"title": "Match Methods", "rows": [
+                    managed("cv-skills", "Skills Match", "Balance exact skill wording against semantic similarity.", sorted(_REQUIRED_SKILL_ALIGNMENT_WEIGHT_KEYS)),
+                    managed("cv-role", "Role Match", "Balance exact role wording against semantic similarity.", sorted(_ROLE_ALIGNMENT_WEIGHT_KEYS)),
+                    managed("cv-responsibilities", "Responsibilities Match", "Balance exact responsibility wording against semantic similarity.", sorted(_RESPONSIBILITY_ALIGNMENT_WEIGHT_KEYS)),
+                    managed("cv-domain", "Domain Match", "Balance exact domain wording against semantic similarity.", sorted(_DOMAIN_ALIGNMENT_WEIGHT_KEYS)),
+                ]},
+            ],
+        },
+        {
+            "id": "cv-generation",
+            "title": "CV Generation",
+            "description": "Choose content included in generated CVs.",
+            "sections": [{"title": "Composition", "rows": [managed(
+                "included-sections",
+                "Included Sections",
+                "Choose which CV sections are included.",
+                CV_GROUPS["cv-composition"],
+            )]}],
+        },
+        {
+            "id": "runtime-limits",
+            "title": "Runtime & Limits",
+            "description": "Set request pacing for each pipeline stage from one place.",
+            "sections": [{"title": "Stage Runtime", "rows": [
+                managed("runtime-enrichment", "Enrichment", "Manage request delay, batch size, and concurrency.", SETTINGS_SECTIONS["timing"][0:3]),
+                managed("runtime-ranking", "Ranking", "Manage request delay, batch size, and concurrency.", SETTINGS_SECTIONS["timing"][3:6]),
+                managed("runtime-cv-analysis", "CV Analysis", "Manage request delay, batch size, and concurrency.", SETTINGS_SECTIONS["timing"][6:9]),
+                managed("runtime-cv-generation", "CV Generation", "Manage request delay, batch size, and concurrency.", SETTINGS_SECTIONS["timing"][9:12]),
+            ]}],
+        },
+        {
+            "id": "automation-reuse",
+            "title": "Automation & Reuse",
+            "description": "Control approved synonym actions and reuse of previous results.",
+            "sections": [
+                {"title": "Reuse Results", "rows": [
+                    row("reuse.enrich.enabled"), row("reuse.ranking.enabled"),
+                    row("reuse.cv_analysis.enabled"), row("reuse.cv_generation.enabled"),
+                    row("reuse.synonym_triage.enabled"),
+                ]},
+                {"title": "Synonym Proposal & Review", "rows": [
+                    row("synonym_management.propose_enabled", label="Generate Synonym Proposals"),
+                ]},
+                {"title": "Approved Synonym Use", "rows": [
+                    row("synonym_management.apply_to_run_enabled", label="Apply Approved Synonyms"),
+                    row("synonym_management.promote_global_enabled", label="Promote Approved Synonyms"),
+                ]},
+            ],
+        },
+    ]
+    return {"pages": pages}
 
 # ── config application ────────────────────────────────────────────────────────
 

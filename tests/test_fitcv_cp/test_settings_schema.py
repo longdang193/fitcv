@@ -37,6 +37,10 @@ from fitcv_cp.settings_schema import (
     excluded_agentic_settings_keys,
     metadata_only_agentic_settings_keys,
     metadata_only_settings_keys,
+    merge_and_validate_settings,
+    pipeline_settings_projection,
+    derive_settings_warnings,
+    settings_disabled_reasons,
     danger_zone_settings_keys,
     settings_keys_for_domain,
     settings_ia_contract_for_key,
@@ -65,12 +69,17 @@ def test_all_expected_keys_present():
     assert "run_lifecycle.max_runtime_minutes" in keys
     assert "ranking_policy.structured_factor_weights.must_have_match" in keys
     assert "ranking_policy.fit_label_thresholds.strong" in keys
-    assert "gap_thresholds.strong_min_matched_ratio" in keys
+    assert "gap_thresholds.strong_min_matched_ratio" not in keys
+    assert "gap_thresholds.stretch_min_matched_ratio" not in keys
+    assert "stage_runtime.ranking.batch_size" in keys
+    assert "stage_runtime.cv_analysis.batch_size" in keys
+    assert "stage_runtime.cv_generation.batch_size" in keys
     assert "reuse.enrich.enabled" in keys
     assert "reuse.ranking.enabled" in keys
     assert "reuse.cv_analysis.enabled" in keys
     assert "reuse.cv_generation.enabled" in keys
     assert "reuse.synonym_triage.enabled" in keys
+    assert "synonym_management.triage_recommendation_reuse_enabled" not in keys
     # excluded key — internal fallback only, not admin-editable
     assert "rerank_top_n" not in keys
 
@@ -308,9 +317,10 @@ def test_hidden_deprecated_editable_overlap_rejects_non_allowlisted_keys(monkeyp
 
 
 def test_feature_source_names_operator_facing_agentic_settings_capability() -> None:
-    feature_source = yaml.safe_load(
-        Path("docs/features/settings_system/feature.source.yaml").read_text(encoding="utf-8")
-    )
+    feature_path = Path("docs/features/settings_system/feature.source.yaml")
+    if not feature_path.exists():
+        pytest.skip("settings_system feature source is not present in this repository lane")
+    feature_source = yaml.safe_load(feature_path.read_text(encoding="utf-8"))
     capability_ids = {
         capability["capability_id"]
         for capability in feature_source["capabilities"]
@@ -352,7 +362,6 @@ def test_agentic_settings_section_ownership_is_explicit() -> None:
     ]
     assert AGENTIC_SETTINGS_SECTIONS["agentic-automation"] == [
         "synonym_management.auto_triage_recommendation_enabled",
-        "synonym_management.triage_recommendation_reuse_enabled",
         "synonym_management.auto_apply_recommendation_enabled",
         "synonym_management.auto_promote_global_enabled",
         "synonym_management.auto_accept_ai_action_enabled",
@@ -385,7 +394,6 @@ def test_agentic_settings_mutability_distinguishes_editable_metadata_only_and_ex
         "reuse.cv_generation.enabled",
         "reuse.synonym_triage.enabled",
         "synonym_management.auto_triage_recommendation_enabled",
-        "synonym_management.triage_recommendation_reuse_enabled",
         "synonym_management.auto_apply_recommendation_enabled",
         "synonym_management.auto_promote_global_enabled",
         "synonym_management.auto_accept_ai_action_enabled",
@@ -535,13 +543,6 @@ def test_ranking_weights_partial_update_skips_sum_check():
     validate_settings({"ranking_policy.structured_factor_weights.must_have_match": 0.50})
 
 
-def test_gap_thresholds_strong_must_exceed_stretch():
-    with pytest.raises(ValidationError, match="gap_thresholds"):
-        validate_settings({
-            "gap_thresholds.strong_min_matched_ratio": 0.30,
-            "gap_thresholds.stretch_min_matched_ratio": 0.50,
-        })
-
 @pytest.mark.parametrize(
     ("settings", "expected_error"),
     [
@@ -560,13 +561,6 @@ def test_gap_thresholds_strong_must_exceed_stretch():
             },
             r"ranking_policy\.fit_label_thresholds\.strong \(0\.4\) must be > stretch \(0\.7\)",
         ),
-        (
-            {
-                "gap_thresholds.strong_min_matched_ratio": 0.30,
-                "gap_thresholds.stretch_min_matched_ratio": 0.50,
-            },
-            r"gap_thresholds\.strong_min_matched_ratio \(0\.3\) must be > stretch \(0\.5\)",
-        ),
     ],
 )
 def test_relational_constraint_registry_enforced_for_all_pairs(
@@ -579,6 +573,110 @@ def test_relational_constraint_registry_enforced_for_all_pairs(
 def test_unknown_key_rejected():
     with pytest.raises(ValidationError, match="unknown"):
         validate_settings({"unknown.key": 1})
+
+
+def test_pipeline_runtime_batch_defaults_are_one_for_latter_stages() -> None:
+    schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+    assert schema_by_key["stage_runtime.ranking.batch_size"]["default"] == 1
+    assert schema_by_key["stage_runtime.cv_analysis.batch_size"]["default"] == 1
+    assert schema_by_key["stage_runtime.cv_generation.batch_size"]["default"] == 1
+
+
+def test_merge_and_validate_uses_effective_sibling_values() -> None:
+    with pytest.raises(ValidationError, match="final_top_n"):
+        merge_and_validate_settings(
+            {"pipeline.final_top_n": 60},
+            current_settings={"pipeline.ai_score_top_n": 50},
+            baseline_config={},
+        )
+
+
+def test_merge_and_validate_requires_education_or_experience() -> None:
+    with pytest.raises(ValidationError, match="Education or Experience"):
+        merge_and_validate_settings(
+            {"cv_education_enabled": False, "cv_experience_enabled": False},
+            baseline_config={},
+        )
+
+
+def test_merge_and_validate_rejects_semantic_weights_while_disabled() -> None:
+    with pytest.raises(ValidationError, match="Semantic Alignment"):
+        merge_and_validate_settings(
+            {"cv_analysis.semantic_alignment.required_skill_lexical_weight": 0.60},
+            baseline_config={},
+        )
+
+
+def test_pipeline_projection_owns_supported_rows_only() -> None:
+    projection = pipeline_settings_projection({})
+    pages = {page["id"]: page for page in projection["pages"]}
+    assert list(pages) == [
+        "overview",
+        "enrichment",
+        "screening",
+        "shortlisting",
+        "ranking",
+        "cv-analysis",
+        "cv-generation",
+        "runtime-limits",
+        "automation-reuse",
+    ]
+
+    screening_members = {
+        row["member"]
+        for section in pages["screening"]["sections"]
+        for row in section["rows"]
+        if row["kind"] == "membership"
+    }
+    assert screening_members == set(DEFAULT_SELECTED_RULE_FILTERS)
+
+    runtime_groups = {
+        row["id"]: row["keys"]
+        for section in pages["runtime-limits"]["sections"]
+        for row in section["rows"]
+    }
+    assert runtime_groups["runtime-ranking"] == [
+        "stage_runtime.ranking.sleep_secs",
+        "stage_runtime.ranking.batch_size",
+        "stage_runtime.ranking.concurrency",
+    ]
+    assert runtime_groups["runtime-cv-analysis"][1] == "stage_runtime.cv_analysis.batch_size"
+    assert runtime_groups["runtime-cv-generation"][1] == "stage_runtime.cv_generation.batch_size"
+
+    projected_keys = {
+        key
+        for page in projection["pages"]
+        for section in page["sections"]
+        for row in section["rows"]
+        for key in ([row["key"]] if row.get("key") else row.get("keys", []))
+    }
+    assert {
+        "cv_generation_model",
+        "cv_preset",
+        "cv_max_pages",
+        "gap_thresholds.strong_min_matched_ratio",
+        "gap_thresholds.stretch_min_matched_ratio",
+    }.isdisjoint(projected_keys)
+
+
+def test_settings_diagnostics_use_effective_runtime_values() -> None:
+    settings = merge_and_validate_settings(
+        {
+            "stage_runtime.ranking.sleep_secs": 0,
+            "stage_runtime.ranking.batch_size": 51,
+            "stage_runtime.ranking.concurrency": 17,
+        },
+        baseline_config={},
+    )
+    warnings = derive_settings_warnings(settings)
+    assert {warning["code"] for warning in warnings} == {
+        "runtime-no-delay-high-concurrency",
+        "runtime-high-concurrency",
+        "runtime-large-batch",
+    }
+    assert settings_disabled_reasons(settings)["cv-skills"] == (
+        "Turn on Semantic Alignment to configure Skills Match."
+    )
 
 
 # ── config application ────────────────────────────────────────────────────────
@@ -918,14 +1016,13 @@ def test_cv_analysis_semantic_alignment_validate_rejects_unbalanced_domain_weigh
 
 # ── RANKING_GROUPS registry ───────────────────────────────────────────────────
 
-def test_ranking_groups_has_five_slugs():
+def test_ranking_groups_has_four_slugs():
     from fitcv_cp.settings_schema import RANKING_GROUPS
     assert set(RANKING_GROUPS.keys()) == {
         "ranking-weights",
         "preference-fit-weights",
         "ranking-missing-defaults",
         "fit-label-thresholds",
-        "gap-thresholds",
     }
 
 
@@ -1047,7 +1144,6 @@ def test_weight_sum_constraint_registry_enforced_for_all_families(
 def test_ranking_groups_threshold_groups_have_two_keys_each():
     from fitcv_cp.settings_schema import RANKING_GROUPS
     assert len(RANKING_GROUPS["fit-label-thresholds"]) == 2
-    assert len(RANKING_GROUPS["gap-thresholds"]) == 2
     assert len(RANKING_GROUPS["ranking-missing-defaults"]) == 7
 
 

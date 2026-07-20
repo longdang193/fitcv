@@ -25,6 +25,7 @@ from fitcv.config import (
     get_cv_generation_structured_prompt_id,
     get_ranking_ai_score_model,
     get_ranking_prompt_id,
+    get_stage_runtime_batch_size,
     get_stage_runtime_concurrency,
     get_stage_runtime_sleep_secs,
     load_config,
@@ -305,6 +306,40 @@ def test_get_stage_runtime_concurrency_falls_back_to_compatibility_key() -> None
         default=1,
         compatibility_fallback_key="enrichment_concurrency",
     ) == 7
+
+
+def test_get_stage_runtime_batch_size_prefers_canonical_stage_runtime() -> None:
+    cfg = {
+        "enrichment_batch_size": 9,
+        "stage_runtime": {"enrich": {"batch_size": 4}},
+    }
+    assert get_stage_runtime_batch_size(
+        cfg,
+        stage="enrich",
+        default=1,
+        compatibility_fallback_key="enrichment_batch_size",
+    ) == 4
+
+
+def test_get_stage_runtime_batch_size_falls_back_to_compatibility_key() -> None:
+    cfg = {"enrichment_batch_size": 7, "stage_runtime": {"enrich": {}}}
+    assert get_stage_runtime_batch_size(
+        cfg,
+        stage="enrich",
+        default=1,
+        compatibility_fallback_key="enrichment_batch_size",
+    ) == 7
+
+
+def test_get_stage_runtime_batch_size_clamps_and_defaults() -> None:
+    assert get_stage_runtime_batch_size(
+        {"stage_runtime": {"ranking": {"batch_size": 0}}},
+        stage="ranking",
+    ) == 1
+    assert get_stage_runtime_batch_size(
+        {"stage_runtime": {"ranking": {"batch_size": "bad"}}},
+        stage="ranking",
+    ) == 1
 
 
 def test_load_config_defaults_to_repo_config_shape() -> None:

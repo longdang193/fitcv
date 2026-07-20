@@ -32,9 +32,6 @@ from fitcv.semantic_snapshot import (
 
 # ── config defaults ───────────────────────────────────────────────────────────
 
-_DEFAULT_STRONG_RATIO: float = 0.80
-_DEFAULT_STRETCH_RATIO: float = 0.50
-
 _NON_SKILL_REQUIREMENT_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\b(master'?s|phd|bachelor|degree|stud(y|ies)|university)\b"),
     re.compile(r"\b\d+\+?\s+years?\b|\byears? of\b|\bprofessional experience\b|\bhands[- ]on\b"),
@@ -329,40 +326,6 @@ def compute_gap(
         "years_risk": years_risk,
         "overclaim_risk": overclaim_risk,
     }
-
-
-# ── fit classification ────────────────────────────────────────────────────────
-
-def classify_fit(
-    gap: dict[str, Any],
-    required_count: int,
-    config: dict[str, Any] | None = None,
-) -> str:
-    """Map a gap result to a fit label.
-
-    Reads thresholds from ``config["gap_thresholds"]`` with built-in defaults:
-    - strong_min_matched_ratio: 0.80  (≥80% matched → strong)
-    - stretch_min_matched_ratio: 0.50 (50–79% → stretch; <50% → skip)
-
-    Only ``matched`` (raw exact) counts toward the ratio.
-    ``partial`` (synonym-only) does not count as a strong match.
-
-    Returns "strong", "stretch", or "skip".
-    """
-    thresholds = (config or {}).get("gap_thresholds", {})
-    strong_min: float = float(thresholds.get("strong_min_matched_ratio", _DEFAULT_STRONG_RATIO))
-    stretch_min: float = float(thresholds.get("stretch_min_matched_ratio", _DEFAULT_STRETCH_RATIO))
-
-    if required_count == 0:
-        return "strong"
-
-    matched_ratio = len(gap.get("matched") or []) / required_count
-
-    if matched_ratio >= strong_min:
-        return "strong"
-    if matched_ratio >= stretch_min:
-        return "stretch"
-    return "skip"
 
 
 # ── integration: persist results ─────────────────────────────────────────────
