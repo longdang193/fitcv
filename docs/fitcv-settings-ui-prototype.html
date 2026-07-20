@@ -28,13 +28,19 @@
     .supporting-text{margin-top:6px!important;color:var(--muted);font-size:12px!important}.row.is-disabled,.row.is-mirror{background:var(--surface-2)}.row.is-mirror>span:first-child,.row.is-mirror p{color:var(--mirror-text)}.row.is-mirror strong,.mirror-value{color:var(--mirror-strong)}.overview-link{display:grid;width:38px;height:38px;place-items:center;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--accent);text-decoration:none}.overview-link:hover{border-color:var(--accent);background:var(--accent-soft)}.overview-link svg{width:18px}.dialog-detail-link,.dialog-back{display:inline-flex;margin-top:6px;padding:0;border:0;background:transparent;color:var(--accent);cursor:pointer;font-size:12px;font-weight:650}.dialog-detail-link:hover,.dialog-back:hover{text-decoration:underline}.dialog-back{margin:12px 0 2px}.row-status{min-height:18px;margin-top:5px!important;font-size:12px!important}.row-status.error{color:var(--accent)}.field[aria-invalid="true"]{border-color:var(--accent)}.weight-status.warning{background:#fff7df;color:#7a4d00}[data-theme="dark"] .weight-status.warning{background:#3b2e13;color:#f5cf78}.weight-status.valid{background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}[data-theme="dark"] .weight-status.valid{color:#86efac}.transaction-summary{display:block;margin-top:5px;color:var(--muted);font-size:12px}.check-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0;border-bottom:1px solid var(--border-soft)}.check-row:last-child{border-bottom:0}.check-row>label:first-child{font-weight:650}.btn:disabled{pointer-events:none}.badge,.mirror-value{display:inline-flex;min-height:30px;align-items:center;padding:0 10px;border-radius:999px;font-size:12px;font-weight:650;font-variant-numeric:tabular-nums}.badge{background:var(--surface)}.mirror-value{border:1px dashed var(--border);background:transparent}@media(max-width:760px){.check-row{align-items:flex-start}}
     .row.is-mirror{background:var(--mirror-bg)}
   </style>
+  <style>
+    .search[hidden]{display:none}.run-dialog{width:min(620px,calc(100vw - 32px))}.run-form{display:grid;gap:20px;padding:22px 24px 4px}.run-field{display:grid;gap:7px}.run-field>label{font-weight:650}.run-field small{color:var(--muted)}.run-field .field{width:100%;min-height:42px}.file-input{padding-block:8px}.run-empty-profile{padding:12px;border:1px dashed var(--border);border-radius:9px;background:var(--surface-2);color:var(--muted)}.run-empty-profile strong{display:block;margin-bottom:3px;color:var(--text)}.run-dialog-status{min-height:20px;margin:0 24px;color:var(--muted);font-size:13px}.run-panel{display:grid;gap:14px}.run-panel,#runTablePanel,.table-card,.table-scroll{min-width:0}.run-tabs{display:flex;gap:8px}.run-tabs .btn[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.run-tab-count{margin-left:5px;color:var(--subtle);font-size:12px}.run-selection{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}.run-selection-copy{display:grid;gap:2px}.run-selection-copy span{color:var(--muted);font-size:12px}.run-selection-actions{display:flex;gap:8px}.table-card{overflow:hidden}.table-scroll{width:100%;max-width:100%;overflow-x:auto}.run-table{width:100%;min-width:720px;border-collapse:collapse}.run-table th,.run-table td{padding:14px 16px;border-bottom:1px solid var(--border-soft);text-align:left;vertical-align:middle}.run-table th{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}.run-table tbody tr:last-child td{border-bottom:0}.run-table tbody tr:hover{background:var(--surface-2)}.run-table tbody tr.is-selected{background:var(--accent-soft)}.run-table input[type="checkbox"]{width:17px;height:17px;accent-color:var(--accent)}.run-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;font-weight:700}.run-job{font-weight:650}.run-created,.run-duration{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}.run-status{border:1px solid var(--border);background:var(--surface-2)}.run-status[data-status="Failed"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.run-status-detail{display:block;margin-top:4px;color:var(--muted);font-size:11px}.empty-state{display:grid;justify-items:center;gap:8px;padding:56px 24px;text-align:center}.empty-state svg{width:34px;color:var(--accent)}.empty-state h3{margin:4px 0 0;font-size:17px}.empty-state p{max-width:430px;margin:0;color:var(--muted)}@media(max-width:760px){.run-selection{align-items:stretch;flex-direction:column}.run-selection-actions{display:grid;grid-template-columns:1fr 1fr}.run-selection-actions .btn{width:100%}.run-tabs .btn{flex:1}.run-form{padding-inline:18px}.run-dialog-status{margin-inline:18px}}
+  </style>
+  <style>
+    .run-pagination{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border-top:1px solid var(--border-soft);color:var(--muted)}.run-pagination-controls,.run-page-numbers,.run-page-size{display:flex;align-items:center;gap:8px}.run-page-size .field{width:auto;min-width:68px}.run-page-numbers .btn{min-width:38px;padding-inline:10px}.run-page-numbers .btn[aria-current="page"]{border-color:var(--accent);background:var(--accent);color:#fff}.run-page-gap{padding:0 3px;color:var(--muted)}@media(max-width:760px){.run-pagination{align-items:flex-start;flex-direction:column}.run-pagination-controls{width:100%;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}.run-page-numbers{flex-wrap:wrap}}
+  </style>
 </head>
 <body>
   <div class="shell">
     <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
       <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12a2 2 0 0 1 2 2v14H4V6a2 2 0 0 1 2-2Z"/><path d="M8 9h8M8 13h6M8 17h4"/></svg></div><div><strong>FitCV Control Plane</strong><small>Local workspace</small></div></div>
       <nav aria-label="Workspace">
-        <a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg>Runs</a>
+        <a class="nav-link" id="runsNav" href="#runs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg>Runs</a>
         <a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
         <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening">Screening</a><a class="nav-link child" href="#shortlisting">Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a></div></details>
         <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children"><a class="nav-link child" href="#" data-prototype-link>Appearance</a><a class="nav-link child" href="#" data-prototype-link>LLM &amp; API</a><a class="nav-link child" href="#" data-prototype-link>Data &amp; Backup</a><a class="nav-link child" href="#" data-prototype-link>System</a></div></details>
@@ -43,16 +49,31 @@
     </aside>
     <div class="scrim" id="scrim"></div>
     <main class="main">
-      <header><div class="title"><button class="menu-btn" id="menu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><svg class="title-icon" width="23" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg><div><h1>Pipeline</h1><p>Configure how each matching run selects and prepares candidates.</p></div></div><div class="actions"><label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="search" type="search" placeholder="Search Pipeline" aria-label="Search Pipeline Overview"></label><button class="icon-btn" id="theme" type="button" aria-label="Use dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"/></svg></button></div></header>
+      <header><div class="title"><button class="menu-btn" id="menu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><svg class="title-icon" id="titleIcon" width="23" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg><div><h1 id="headerTitle">Pipeline</h1><p id="headerDescription">Configure how each matching run selects and prepares candidates.</p></div></div><div class="actions"><label class="search" id="searchBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="search" type="search" placeholder="Search Pipeline" aria-label="Search Pipeline Overview"></label><button class="icon-btn" id="theme" type="button" aria-label="Use dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"/></svg></button></div></header>
       <div class="scroll"><div class="content"><form id="form"></form></div></div>
     </main>
   </div>
   <dialog id="weightsDialog" aria-labelledby="weightsTitle" aria-describedby="weightsDescription"><div class="dialog-head"><div><h2 id="weightsTitle"></h2><p id="weightsDescription"></p></div><button class="dialog-close" id="closeWeights" type="button" aria-label="Close weight configuration">×</button></div><form class="weight-form" id="weightForm"></form><p class="weight-status" id="weightStatus" role="status" aria-live="polite"></p><div class="dialog-actions"><button class="btn" id="cancelWeights" type="button">Cancel</button><button class="btn primary" id="saveWeights" type="button">Save weights</button></div></dialog>
+  <dialog class="run-dialog" id="runDialog" aria-labelledby="runDialogTitle" aria-describedby="runDialogDescription"><div class="dialog-head"><div><h2 id="runDialogTitle">Trigger Run</h2><p id="runDialogDescription">Upload one job file and choose the Candidate Profile to use.</p></div><button class="dialog-close" id="closeRunDialog" type="button" aria-label="Close Trigger Run dialog">×</button></div><form class="run-form" id="runForm"><div class="run-field"><label for="jobFile">Job Input</label><input class="field file-input" id="jobFile" type="file" accept=".json,.jsonl,application/json,application/x-ndjson" required><small>Supported: JSON and JSONL. One file per run.</small></div><div class="run-field"><label for="candidateProfile">Candidate Profile</label><select class="field" id="candidateProfile" required><option value="">Select a Candidate Profile</option></select><div class="run-empty-profile" id="candidateProfileEmpty" hidden><strong>No Candidate Profiles yet</strong>Create a Candidate Profile before triggering a run. <a class="support-link" href="#" data-prototype-link>Create Candidate Profile</a></div></div><div class="run-field"><label for="runName">Run Name <span class="supporting-text">Optional</span></label><input class="field" id="runName" type="text" maxlength="120" placeholder="Uses uploaded file name when empty"><small>Shown as Job Name in the run table.</small></div></form><p class="run-dialog-status" id="runDialogStatus" role="status" aria-live="polite">Select a file and Candidate Profile to enable Trigger.</p><div class="dialog-actions"><button class="btn" id="cancelRunDialog" type="button">Cancel</button><button class="btn primary" id="triggerRun" type="button" disabled>Trigger</button></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite">Ranking changes saved in prototype</div>
   <script>
   (()=>{
   'use strict';
   const STORAGE_KEY='fitcv-pipeline-settings-prototype-v4';
+  const RUN_STORAGE_KEY='fitcv-run-prototype-v1';
+  const RUN_STATUSES=new Set(['Running','Succeeded','Failed']);
+  const prototypeNow=Date.now();
+  const DEFAULT_CANDIDATE_PROFILES=[
+    {id:'candidate-product-data',name:'Product Data Specialist'},
+    {id:'candidate-analytics',name:'Analytics & Operations'},
+    {id:'candidate-platform',name:'Data Platform Engineer'}
+  ];
+  const DEFAULT_RUNS=[
+    {id:'RUN-7E4A92C1',status:'Running',jobName:'senior-data-product-manager.pdf',profileId:'candidate-product-data',createdAt:prototypeNow-94000,completeAt:prototypeNow+12000,endedAt:null,archived:false,statusDetail:''},
+    {id:'RUN-3B18D6F4',status:'Succeeded',jobName:'analytics-lead-berlin.txt',profileId:'candidate-analytics',createdAt:prototypeNow-3660000,completeAt:null,endedAt:prototypeNow-3544000,archived:false,statusDetail:''},
+    {id:'RUN-A94F210B',status:'Failed',jobName:'platform-engineer.json',profileId:'candidate-platform',createdAt:prototypeNow-9010000,completeAt:null,endedAt:prototypeNow-8927000,archived:false,statusDetail:'Prototype validation failed'},
+    {id:'RUN-54C0E83D',status:'Succeeded',jobName:'data-operations-manager.pdf',profileId:'candidate-analytics',createdAt:prototypeNow-86400000,completeAt:null,endedAt:prototypeNow-86236000,archived:true,statusDetail:''}
+  ];
   const n=(key,label,description,value,min,max,step=1)=>({type:'number',key,label,description,value,min,max,step});
   const b=(key,label,description,value)=>({type:'boolean',key,label,description,value});
   const s=(key,label,description,value,options)=>({type:'select',key,label,description,value,options});
@@ -118,7 +139,7 @@
   const pages=[
     {id:'overview',title:'Overview',description:'Set the most important pipeline volumes and output limits.',sections:[
       {title:'Candidate Scope',open:true,rows:[
-        n('pipeline.initialPool','Initial Candidate Pool Size','Listings collected before screening begins.',100,1,1000),
+        n('pipeline.initialPool','Initial Candidate Pool Size','Listings collected before shortlisting begins.',100,1,1000),
         n('pipeline.aiPool','AI Reranking Pool Size','Top screened listings sent for deeper AI ranking.',40,1,500),
         n('pipeline.finalCount','Final Output Count','Best-fit listings returned when the pipeline finishes.',10,1,100),
         n('pipeline.evidenceItems','Final Evidence Items Per Job','Strongest CV evidence items retained for each final job.',5,1,20)
@@ -149,7 +170,7 @@
         b('screening.experienceLevel','Experience Preference','Exclude roles clearly outside the target experience level.',true)
       ]},
     ]},
-    {id:'shortlisting',title:'Shortlisting',description:'Control how many screened listings continue to ranking.',sections:[
+    {id:'shortlisting',title:'Shortlisting',description:'Control how many shortlisted listings continue to ranking.',sections:[
       {title:'Candidate Scope',open:true,rows:[
         mirror('pipeline.initialPool')
       ]}
@@ -257,6 +278,19 @@
   const dialogStatus=document.querySelector('#weightStatus');
   const dialogSave=document.querySelector('#saveWeights');
   const pipelineNav=document.querySelector('#sidebar .nav-group .nav-children');
+  const runsNav=document.querySelector('#runsNav');
+  const searchBox=document.querySelector('#searchBox');
+  const headerTitle=document.querySelector('#headerTitle');
+  const headerDescription=document.querySelector('#headerDescription');
+  const titleIcon=document.querySelector('#titleIcon');
+  const runDialog=document.querySelector('#runDialog');
+  const runForm=document.querySelector('#runForm');
+  const jobFile=document.querySelector('#jobFile');
+  const candidateProfile=document.querySelector('#candidateProfile');
+  const candidateProfileEmpty=document.querySelector('#candidateProfileEmpty');
+  const runName=document.querySelector('#runName');
+  const runDialogStatus=document.querySelector('#runDialogStatus');
+  const triggerRunButton=document.querySelector('#triggerRun');
   const defaults={};
   const directRows=new Map();
   let activeGroup=null;
@@ -316,11 +350,247 @@
   write();
   function get(key){return state[key]??defaults[key]}
   function write(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
+  function readRunStored(){
+    try{
+      const parsed=JSON.parse(localStorage.getItem(RUN_STORAGE_KEY)||'{}');
+      return parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed:{};
+    }catch{
+      localStorage.removeItem(RUN_STORAGE_KEY);
+      return {};
+    }
+  }
+  function normaliseRunState(stored){
+    const profiles=(Array.isArray(stored.candidateProfiles)?stored.candidateProfiles:DEFAULT_CANDIDATE_PROFILES)
+      .filter(profile=>profile&&typeof profile.id==='string'&&typeof profile.name==='string');
+    const seen=new Set();
+    const runs=(Array.isArray(stored.runs)?stored.runs:DEFAULT_RUNS).filter(run=>{
+      if(!run||typeof run.id!=='string'||seen.has(run.id)||!RUN_STATUSES.has(run.status))return false;
+      seen.add(run.id);
+      return typeof run.jobName==='string'&&Number.isFinite(run.createdAt)&&typeof run.archived==='boolean';
+    });
+    return {candidateProfiles:clone(profiles),runs:clone(runs),activeTab:stored.activeTab==='archived'?'archived':'active'};
+  }
+  let runState=normaliseRunState(readRunStored());
+  const selectedRunIds=new Set();
+  const RUN_PAGE_SIZES=[10,20,50];
+  let runPage=1;
+  let runPageSize=20;
+  function writeRunState(){localStorage.setItem(RUN_STORAGE_KEY,JSON.stringify(runState))}
+  writeRunState();
   function notify(message){
     toast.textContent=message;
     toast.classList.add('show');
     clearTimeout(notify.timer);
     notify.timer=setTimeout(()=>toast.classList.remove('show'),1800);
+  }
+  function escapeHtml(value){
+    const span=document.createElement('span');
+    span.textContent=String(value);
+    return span.innerHTML;
+  }
+  function formatCreated(value){
+    return new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value));
+  }
+  function formatDuration(value){
+    const seconds=Math.max(0,Math.floor(value/1000));
+    const hours=Math.floor(seconds/3600);
+    const minutes=Math.floor((seconds%3600)/60);
+    const remainder=seconds%60;
+    if(hours)return `${hours}h ${minutes}m`;
+    if(minutes)return `${minutes}m ${remainder}s`;
+    return `${remainder}s`;
+  }
+  function runDuration(run){return Math.max(0,(run.endedAt||Date.now())-run.createdAt)}
+  function refreshRunStatuses(){
+    const now=Date.now();
+    let changed=false;
+    for(const run of runState.runs){
+      if(run.status==='Running'&&Number.isFinite(run.completeAt)&&run.completeAt<=now){
+        run.status='Succeeded';
+        run.endedAt=run.completeAt;
+        run.completeAt=null;
+        run.statusDetail='';
+        changed=true;
+      }
+    }
+    if(changed)writeRunState();
+    return changed;
+  }
+  function uniqueRunId(){
+    let id;
+    do{
+      const token=typeof crypto.randomUUID==='function'?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(4)),value=>value.toString(16).padStart(2,'0')).join('');
+      id='RUN-'+token.slice(0,8).toUpperCase();
+    }while(runState.runs.some(run=>run.id===id));
+    return id;
+  }
+  function visibleRuns(){return runState.runs.filter(run=>run.archived===(runState.activeTab==='archived'))}
+  function statusMarkup(run){
+    const detail=run.statusDetail?`<span class="run-status-detail">${escapeHtml(run.statusDetail)}</span>`:'';
+    return `<span class="badge run-status" data-status="${run.status}">${run.status}</span>${detail}`;
+  }
+  function runRowMarkup(run){
+    const checked=selectedRunIds.has(run.id);
+    return `<tr class="${checked?'is-selected':''}" data-run-row="${run.id}"><td><input type="checkbox" data-run-select="${run.id}" aria-label="Select run ${escapeHtml(run.id)}" ${checked?'checked':''}></td><td><span class="run-id">${escapeHtml(run.id)}</span></td><td>${statusMarkup(run)}</td><td><span class="run-job">${escapeHtml(run.jobName)}</span></td><td><span class="run-created">${formatCreated(run.createdAt)}</span></td><td><span class="run-duration" data-run-duration="${run.id}">${formatDuration(runDuration(run))}</span></td></tr>`;
+  }
+  function emptyRunsMarkup(){
+    const archived=runState.activeTab==='archived';
+    return `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg><h3>${archived?'No archived runs':'No active runs yet'}</h3><p>${archived?'Archived runs will appear here after they are moved from Active.':'Trigger a run to process a job file with one of your Candidate Profiles.'}</p>${archived?'':'<button class="btn" type="button" data-open-run-dialog>Trigger Run</button>'}</div>`;
+  }
+  function selectionMarkup(runs){
+    const selected=runs.filter(run=>selectedRunIds.has(run.id));
+    if(!selected.length)return '';
+    if(runState.activeTab==='archived')return `<div class="run-selection"><div class="run-selection-copy"><strong>${selected.length} archived run${selected.length===1?'':'s'} selected</strong><span>Delete permanently removes selected runs from this prototype.</span></div><div class="run-selection-actions"><button class="btn primary" id="deleteSelectedRuns" type="button">Delete Run</button></div></div>`;
+    const runningCount=selected.filter(run=>run.status==='Running').length;
+    return `<div class="run-selection"><div class="run-selection-copy"><strong>${selected.length} run${selected.length===1?'':'s'} selected</strong><span>${runningCount?`Cancel Run applies to ${runningCount} Running selection${runningCount===1?'':'s'}.`:'Cancel Run is disabled because no selected run is Running.'}</span></div><div class="run-selection-actions"><button class="btn" id="cancelSelectedRuns" type="button" ${runningCount?'':'disabled'}>Cancel Run</button><button class="btn" id="archiveSelectedRuns" type="button">Archive Run</button></div></div>`;
+  }
+  function paginationItems(current,total){
+    if(total<=7)return Array.from({length:total},(_,index)=>index+1);
+    if(current<=4)return [1,2,3,4,5,'…',total];
+    if(current>=total-3)return [1,'…',total-4,total-3,total-2,total-1,total];
+    return [1,'…',current-1,current,current+1,'…',total];
+  }
+  function paginationMarkup(total){
+    const totalPages=Math.max(1,Math.ceil(total/runPageSize));
+    const start=(runPage-1)*runPageSize+1;
+    const end=Math.min(total,runPage*runPageSize);
+    const pages=paginationItems(runPage,totalPages).map(item=>item==='…'?'<span class="run-page-gap" aria-hidden="true">…</span>':`<button class="btn" type="button" data-run-page="${item}" ${item===runPage?'aria-current="page"':''} aria-label="Page ${item}">${item}</button>`).join('');
+    return `<div class="run-pagination"><span>Showing <strong>${start}</strong> to <strong>${end}</strong> of <strong>${total}</strong> results</span><div class="run-pagination-controls"><label class="run-page-size" for="runPageSize">Rows:<select class="field" id="runPageSize">${RUN_PAGE_SIZES.map(size=>`<option value="${size}" ${size===runPageSize?'selected':''}>${size}</option>`).join('')}</select></label><div class="run-page-numbers" aria-label="Run table pagination"><button class="btn" type="button" data-run-page="previous" aria-label="Previous page" ${runPage===1?'disabled':''}>‹</button>${pages}<button class="btn" type="button" data-run-page="next" aria-label="Next page" ${runPage===totalPages?'disabled':''}>›</button></div></div></div>`;
+  }
+  function runsTableMarkup(runs,total){
+    if(!runs.length)return `<div class="setting-section table-card">${emptyRunsMarkup()}</div>`;
+    const allSelected=runs.every(run=>selectedRunIds.has(run.id));
+    const someSelected=!allSelected&&runs.some(run=>selectedRunIds.has(run.id));
+    return `<div class="setting-section table-card"><div class="table-scroll"><table class="run-table"><thead><tr><th><input id="selectAllRuns" type="checkbox" aria-label="Select all visible runs" ${allSelected?'checked':''} data-indeterminate="${someSelected}"></th><th>Run ID</th><th>Status</th><th>Job Name</th><th>Created Time</th><th>Duration</th></tr></thead><tbody>${runs.map(runRowMarkup).join('')}</tbody></table></div>${paginationMarkup(total)}</div>`;
+  }
+  function renderRunsPage(){
+    refreshRunStatuses();
+    const runs=visibleRuns();
+    selectedRunIds.forEach(id=>{if(!runs.some(run=>run.id===id))selectedRunIds.delete(id)});
+    const totalPages=Math.max(1,Math.ceil(runs.length/runPageSize));
+    runPage=Math.min(runPage,totalPages);
+    const pageRuns=runs.slice((runPage-1)*runPageSize,runPage*runPageSize);
+    const activeCount=runState.runs.filter(run=>!run.archived).length;
+    const archivedCount=runState.runs.filter(run=>run.archived).length;
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Workspace</p><h2>Runs</h2><p>Trigger and monitor local prototype runs. No backend requests are made.</p></div><button class="btn" type="button" data-open-run-dialog>Trigger Run</button></div><div class="run-panel"><div class="run-tabs" role="tablist" aria-label="Run views"><button class="btn" id="activeRunsTab" type="button" role="tab" aria-controls="runTablePanel" data-run-tab="active" aria-selected="${runState.activeTab==='active'}" tabindex="${runState.activeTab==='active'?'0':'-1'}">Active<span class="run-tab-count">${activeCount}</span></button><button class="btn" id="archivedRunsTab" type="button" role="tab" aria-controls="runTablePanel" data-run-tab="archived" aria-selected="${runState.activeTab==='archived'}" tabindex="${runState.activeTab==='archived'?'0':'-1'}">Archived<span class="run-tab-count">${archivedCount}</span></button></div><div id="runTablePanel" role="tabpanel" aria-labelledby="${runState.activeTab==='active'?'activeRunsTab':'archivedRunsTab'}">${selectionMarkup(runs)}${runsTableMarkup(pageRuns,runs.length)}</div></div>`;
+    bindRunsPage(pageRuns);
+  }
+  function setRunTab(tab){
+    runState.activeTab=tab;
+    runPage=1;
+    selectedRunIds.clear();
+    writeRunState();
+    renderRunsPage();
+  }
+  function bindRunsPage(runs){
+    form.querySelectorAll('[data-open-run-dialog]').forEach(button=>button.addEventListener('click',openRunDialog));
+    form.querySelectorAll('[data-run-tab]').forEach(button=>{
+      button.addEventListener('click',()=>setRunTab(button.dataset.runTab));
+      button.addEventListener('keydown',event=>{
+        if(!['ArrowLeft','ArrowRight'].includes(event.key))return;
+        event.preventDefault();
+        setRunTab(button.dataset.runTab==='active'?'archived':'active');
+        form.querySelector(`[data-run-tab="${runState.activeTab}"]`)?.focus();
+      });
+    });
+    form.querySelectorAll('[data-run-select]').forEach(checkbox=>checkbox.addEventListener('change',()=>{
+      checkbox.checked?selectedRunIds.add(checkbox.dataset.runSelect):selectedRunIds.delete(checkbox.dataset.runSelect);
+      renderRunsPage();
+    }));
+    const selectAll=form.querySelector('#selectAllRuns');
+    if(selectAll){
+      selectAll.indeterminate=selectAll.dataset.indeterminate==='true';
+      selectAll.addEventListener('change',()=>{
+        for(const run of runs)selectAll.checked?selectedRunIds.add(run.id):selectedRunIds.delete(run.id);
+        renderRunsPage();
+      });
+    }
+    form.querySelector('#runPageSize')?.addEventListener('change',event=>{
+      runPageSize=Number(event.currentTarget.value);
+      runPage=1;
+      renderRunsPage();
+    });
+    form.querySelectorAll('[data-run-page]').forEach(button=>button.addEventListener('click',()=>{
+      const totalPages=Math.max(1,Math.ceil(visibleRuns().length/runPageSize));
+      runPage=button.dataset.runPage==='previous'?runPage-1:button.dataset.runPage==='next'?runPage+1:Number(button.dataset.runPage);
+      runPage=Math.max(1,Math.min(runPage,totalPages));
+      renderRunsPage();
+    }));
+    form.querySelector('#cancelSelectedRuns')?.addEventListener('click',cancelSelectedRuns);
+    form.querySelector('#archiveSelectedRuns')?.addEventListener('click',archiveSelectedRuns);
+    form.querySelector('#deleteSelectedRuns')?.addEventListener('click',deleteSelectedRuns);
+  }
+  function populateCandidateProfiles(){
+    candidateProfile.innerHTML='<option value="">Select a Candidate Profile</option>'+runState.candidateProfiles.map(profile=>`<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>`).join('');
+    const empty=!runState.candidateProfiles.length;
+    candidateProfile.disabled=empty;
+    candidateProfileEmpty.hidden=!empty;
+  }
+  function validateRunDialog(){
+    const hasFile=Boolean(jobFile.files?.[0]);
+    const hasProfile=runState.candidateProfiles.some(profile=>profile.id===candidateProfile.value);
+    triggerRunButton.disabled=!(hasFile&&hasProfile);
+    runDialogStatus.textContent=hasFile&&hasProfile?'Ready to trigger. Latest Synonym Overlay will be used automatically.':!runState.candidateProfiles.length?'Create a Candidate Profile before triggering a run.':'Select a file and Candidate Profile to enable Trigger.';
+  }
+  function openRunDialog(){
+    runForm.reset();
+    populateCandidateProfiles();
+    validateRunDialog();
+    runDialog.showModal();
+    jobFile.focus();
+  }
+  function triggerPrototypeRun(){
+    const file=jobFile.files?.[0];
+    const profile=runState.candidateProfiles.find(item=>item.id===candidateProfile.value);
+    if(!file||!profile)return validateRunDialog();
+    const now=Date.now();
+    runState.runs.unshift({id:uniqueRunId(),status:'Running',jobName:runName.value.trim()||file.name,profileId:profile.id,createdAt:now,completeAt:now+8000,endedAt:null,archived:false,statusDetail:''});
+    runState.activeTab='active';
+    runPage=1;
+    selectedRunIds.clear();
+    writeRunState();
+    runDialog.close();
+    if(location.hash!=='#runs')location.hash='runs';
+    else renderPage();
+    notify('Run triggered in prototype');
+  }
+  function cancelSelectedRuns(){
+    const running=runState.runs.filter(run=>selectedRunIds.has(run.id)&&!run.archived&&run.status==='Running');
+    if(!running.length)return;
+    if(!confirm(`Cancel ${running.length} Running run${running.length===1?'':'s'}?\n\nThis stops prototype status simulation for the selected run${running.length===1?'':'s'}.`))return;
+    const now=Date.now();
+    for(const run of running){run.status='Failed';run.endedAt=now;run.completeAt=null;run.statusDetail='Cancelled by user'}
+    selectedRunIds.clear();
+    writeRunState();
+    renderRunsPage();
+    notify(`${running.length} run${running.length===1?'':'s'} cancelled`);
+  }
+  function archiveSelectedRuns(){
+    const selected=runState.runs.filter(run=>selectedRunIds.has(run.id)&&!run.archived);
+    if(!selected.length)return;
+    if(!confirm(`Archive ${selected.length} selected run${selected.length===1?'':'s'}?\n\nArchived runs move out of Active and remain available in Archived.`))return;
+    for(const run of selected)run.archived=true;
+    selectedRunIds.clear();
+    writeRunState();
+    renderRunsPage();
+    notify(`${selected.length} run${selected.length===1?'':'s'} archived`);
+  }
+  function deleteSelectedRuns(){
+    const selected=runState.runs.filter(run=>selectedRunIds.has(run.id)&&run.archived);
+    if(!selected.length)return;
+    if(!confirm(`Delete ${selected.length} archived run${selected.length===1?'':'s'}?\n\nThis permanently removes the selected run${selected.length===1?'':'s'} from prototype state. This cannot be undone.`))return;
+    const deletedIds=new Set(selected.map(run=>run.id));
+    runState.runs=runState.runs.filter(run=>!deletedIds.has(run.id));
+    selectedRunIds.clear();
+    writeRunState();
+    renderRunsPage();
+    notify(`${selected.length} archived run${selected.length===1?'':'s'} deleted`);
+  }
+  function updateRunningDurations(){
+    for(const run of visibleRuns().filter(item=>item.status==='Running')){
+      const cell=form.querySelector(`[data-run-duration="${run.id}"]`);
+      if(cell)cell.textContent=formatDuration(runDuration(run));
+    }
   }
   function setTheme(value){
     document.documentElement.dataset.theme=value;
@@ -362,10 +632,28 @@
     if(row.type==='select')return `<label class="row" data-row>${copy}${status}</span><span class="control"><select class="field" data-key="${row.key}" aria-label="${row.label}">${row.options.map(option=>`<option value="${option}" ${option===current?'selected':''}>${option}</option>`).join('')}</select></span></label>`;
     return `<label class="row" data-row>${copy}${status}</span><span class="control"><input class="field" type="number" data-key="${row.key}" value="${current}" min="${row.min}" max="${row.max}" step="${row.step}" aria-label="${row.label}"></span></label>`;
   }
+  function isRunsPage(){return location.hash==='#runs'}
   function currentPage(){return pages.find(page=>page.id===location.hash.slice(1))||pages[0]}
   function renderPage(){
+    if(isRunsPage()){
+      headerTitle.textContent='Runs';
+      headerDescription.textContent='Trigger, monitor, cancel, and archive local prototype runs.';
+      titleIcon.innerHTML='<path d="M4 5h16v5H4zM4 14h16v5H4z"/>';
+      searchBox.hidden=true;
+      runsNav.classList.add('active');
+      runsNav.setAttribute('aria-current','page');
+      pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+      renderRunsPage();
+      return;
+    }
     const page=currentPage();
     if(location.hash!==`#${page.id}`)history.replaceState(null,'',`#${page.id}`);
+    headerTitle.textContent='Pipeline';
+    headerDescription.textContent='Configure how each matching run selects and prepares candidates.';
+    titleIcon.innerHTML='<path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/>';
+    searchBox.hidden=false;
+    runsNav.classList.remove('active');
+    runsNav.removeAttribute('aria-current');
     pipelineNav.replaceChildren(...pages.map(item=>{
       const link=document.createElement('a');
       link.className=`nav-link child${item.id===page.id?' active':''}`;
@@ -376,6 +664,7 @@
     }));
     const sections=page.sections.filter(section=>section.rows.length);
     form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Pipeline</p><h2>${page.title}</h2><p>${page.description}</p></div><button class="btn" id="restore" type="button">Restore Defaults</button></div><div class="stack">${sections.map(section=>`<details class="setting-section" data-section ${section.open?'open':''}><summary><span class="section-heading"><strong>${section.title}</strong></span></summary><div class="settings-card">${section.rows.map(rowMarkup).join('')}</div></details>`).join('')}</div>`;
+    search.placeholder='Search Pipeline';
     search.setAttribute('aria-label',`Search ${page.title}`);
     bindPage(page);
     filterRows();
@@ -512,11 +801,23 @@
     const mirrors=pages.flatMap(page=>page.sections.flatMap(section=>section.rows)).filter(row=>row.type==='mirror');
     if(mirrors.length!==6||mirrors.some(row=>!directRows.has(row.key)))throw new Error('Every stage mirror must reference an Overview-owned setting');
     if(/synonym triage/i.test(JSON.stringify(pages)))throw new Error('Internal synonym triage wording must not appear');
+    if(new Set(DEFAULT_CANDIDATE_PROFILES.map(profile=>profile.id)).size!==DEFAULT_CANDIDATE_PROFILES.length)throw new Error('Candidate Profile IDs must be unique');
+    if(new Set(DEFAULT_RUNS.map(run=>run.id)).size!==DEFAULT_RUNS.length)throw new Error('Run IDs must be unique');
+    if(DEFAULT_RUNS.some(run=>!RUN_STATUSES.has(run.status)))throw new Error('Prototype runs must use supported statuses');
+    if(jobFile.multiple)throw new Error('Run dialog must accept one Job Input file');
+    if(paginationItems(1,10).join(',')!=='1,2,3,4,5,…,10')throw new Error('Pagination must compact trailing pages');
+    if(paginationItems(5,10).join(',')!=='1,…,4,5,6,…,10')throw new Error('Pagination must compact pages around current page');
     return true;
   }
 
   document.querySelector('#closeWeights').addEventListener('click',()=>dialog.close());
   document.querySelector('#cancelWeights').addEventListener('click',()=>dialog.close());
+  document.querySelector('#closeRunDialog').addEventListener('click',()=>runDialog.close());
+  document.querySelector('#cancelRunDialog').addEventListener('click',()=>runDialog.close());
+  jobFile.addEventListener('change',validateRunDialog);
+  candidateProfile.addEventListener('change',validateRunDialog);
+  runForm.addEventListener('submit',event=>{event.preventDefault();if(!triggerRunButton.disabled)triggerPrototypeRun()});
+  triggerRunButton.addEventListener('click',triggerPrototypeRun);
   dialog.addEventListener('close',()=>{activeGroup=null;dialogParentGroup=null;dialogDrafts.clear();dialogForm.replaceChildren();dialogStatus.textContent=''});
   dialogSave.addEventListener('click',()=>{
     const group=activeGroup,result=validateTransaction();
@@ -542,12 +843,17 @@
   menu.addEventListener('click',()=>openNav(!sidebar.classList.contains('open')));
   scrim.addEventListener('click',()=>openNav(false));
   pipelineNav.addEventListener('click',()=>openNav(false));
+  runsNav.addEventListener('click',()=>openNav(false));
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!dialog.open)openNav(false)});
   document.querySelectorAll('[data-prototype-link]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();notify(`${link.textContent.trim()} is navigation-only in this prototype`);openNav(false)}));
   search.addEventListener('input',filterRows);
   addEventListener('hashchange',renderPage);
+  setInterval(()=>{
+    if(refreshRunStatuses()&&isRunsPage())renderRunsPage();
+    else if(isRunsPage())updateRunningDurations();
+  },1000);
   setTheme(localStorage.getItem(`${STORAGE_KEY}:theme`)||'light');
-  window.fitcvPipelineContract={pages,transactions,defaults,selfCheck,validateTransaction};
+  window.fitcvPipelineContract={pages,transactions,defaults,runState,RUN_STATUSES,selfCheck,validateTransaction,triggerPrototypeRun};
   console.assert(selfCheck(),'Pipeline prototype self-check failed');
   renderPage();
   })();
