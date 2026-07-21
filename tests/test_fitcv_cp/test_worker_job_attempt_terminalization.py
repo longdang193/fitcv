@@ -49,13 +49,14 @@ def test_worker_appends_success_attempt_event_before_marking_run_succeeded() -> 
             with patch("fitcv_cp.worker_job.run_pipeline", return_value={"summary": {}}):
                 with patch("fitcv_cp.worker_job.append_event", side_effect=_append_event):
                     with patch("fitcv_cp.worker_job.update_run_status", side_effect=_update_run_status):
-                        execute_pipeline_run(
-                            run_id="r1",
-                            jobs_path="data/jobs.json",
-                            config_path=".env.yaml",
-                            attempt_id="a1",
-                            queue_job_id="job-1",
-                        )
+                        with patch("fitcv_cp.worker_job.persist_pipeline_snapshot"):
+                            execute_pipeline_run(
+                                run_id="r1",
+                                jobs_path="data/jobs.json",
+                                config_path=".env.yaml",
+                                attempt_id="a1",
+                                queue_job_id="job-1",
+                            )
 
     attempt_finished_idx = next(
         (

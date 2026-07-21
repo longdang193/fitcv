@@ -16,6 +16,7 @@ lifecycle:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Iterator
 from typing import Any, Protocol, cast
 
 from fitcv.inverse_optimization import InverseOptimizationRequest
@@ -26,8 +27,24 @@ from fitcv_cp.run_artifact_contracts import decode_run_attempt_payload_or_none
 
 
 class RunStore(Protocol):
+    def list_candidate_profiles(self) -> list[dict[str, Any]]: ...
+    def get_candidate_profile(self, candidate_profile_id: str) -> dict[str, Any] | None: ...
     def insert_run(self, run: PipelineRun) -> None: ...
-    def update_run_queue_job_id(self, run_id: str, queue_job_id: str) -> dict[str, str]: ...
+    def create_run_bundle(self, run: PipelineRun, *, input_resource: dict[str, Any], jobs: list[dict[str, Any]]) -> dict[str, Any]: ...
+    def query_runs(self, **kwargs: Any) -> dict[str, Any]: ...
+    def list_run_stages(self, run_id: str) -> list[dict[str, Any]]: ...
+    def query_run_jobs(self, run_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def get_run_job(self, run_id: str, run_job_id: str) -> dict[str, Any] | None: ...
+    def iter_run_jobs_for_export(self, run_id: str, **kwargs: Any) -> Iterator[dict[str, Any]]: ...
+    def get_run_detail(self, run_id: str) -> dict[str, Any] | None: ...
+    def set_bookmark(self, run_job_id: str) -> dict[str, Any]: ...
+    def clear_bookmark(self, run_job_id: str) -> dict[str, Any]: ...
+    def list_bookmarks(self) -> list[dict[str, Any]]: ...
+    def set_run_job_interest(self, run_job_id: str, rating: int, **kwargs: Any) -> dict[str, Any]: ...
+    def clear_run_job_interest(self, run_job_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def reserve_idempotent_action(self, scope: str, key: str, fingerprint: str) -> dict[str, Any]: ...
+    def complete_idempotent_action(self, action_id: str, response: dict[str, Any]) -> None: ...
+    def update_run_queue_job_id(self, run_id: str, queue_job_id: str, **kwargs: Any) -> dict[str, str]: ...
     def update_run_orchestration_binding(
         self,
         run_id: str,
@@ -45,7 +62,7 @@ class RunStore(Protocol):
         archived_only: bool = False,
     ) -> list[PipelineRun]: ...
     def get_events(self, run_id: str) -> list[RunEvent]: ...
-    def get_process_events(self, process_type: str, process_id: str, *, limit: int = 200) -> dict[str, Any]: ...
+    def get_process_events(self, process_type: str, process_id: str, *, limit: int = 200, cursor: str | None = None) -> dict[str, Any]: ...
     def update_run_status(self, run_id: str, status: Any, **kwargs: Any) -> dict[str, str]: ...
     def update_run_checkpoint(self, run_id: str, **kwargs: Any) -> dict[str, str]: ...
     def request_run_cancel(
@@ -58,7 +75,15 @@ class RunStore(Protocol):
     def unarchive_run(self, run_id: str) -> None: ...
     def delete_archived_runs(self, older_than_days: int | str, run_ids: list[str] | None = None) -> dict[str, Any]: ...
     def list_cvs_for_run(self, run_id: str) -> list[dict[str, Any]]: ...
+    def list_cv_versions(self, run_job_id: str) -> list[dict[str, Any]]: ...
+    def reserve_cv_regeneration(self, run_job_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def update_cv_version(self, version_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def update_cv_evaluation(self, evaluation_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def insert_cv_evaluation_row(self, row: dict[str, Any]) -> dict[str, Any]: ...
+    def insert_cv_review_event(self, row: dict[str, Any]) -> dict[str, Any]: ...
+    def get_cv_download(self, version_id: str) -> dict[str, Any] | None: ...
     def get_cv_markdown(self, version_id: str) -> str | None: ...
+    def get_debug_bundle_availability(self, run_id: str) -> dict[str, Any]: ...
     def list_run_structured_jobs(self, run_id: str) -> list[dict[str, Any]]: ...
     def list_filter_results_for_run(self, run_id: str) -> list[dict[str, Any]]: ...
     def get_pipeline_runs_schema_status(self) -> dict[str, Any]: ...
@@ -92,6 +117,8 @@ class RunStore(Protocol):
 @dataclass
 class ControlPlaneStore:
     backend_runtime: BackendRuntime | None = None
+    list_candidate_profiles_fn: Any | None = None
+    get_candidate_profile_fn: Any | None = None
     insert_run_fn: Any | None = None
     update_run_queue_job_id_fn: Any | None = None
     update_run_orchestration_binding_fn: Any | None = None
@@ -99,6 +126,8 @@ class ControlPlaneStore:
     list_runs_fn: Any | None = None
     get_events_fn: Any | None = None
     get_process_events_fn: Any | None = None
+    get_run_detail_fn: Any | None = None
+    iter_run_jobs_for_export_fn: Any | None = None
     update_run_status_fn: Any | None = None
     update_run_checkpoint_fn: Any | None = None
     request_run_cancel_fn: Any | None = None
@@ -106,7 +135,15 @@ class ControlPlaneStore:
     unarchive_run_fn: Any | None = None
     delete_archived_runs_fn: Any | None = None
     list_cvs_for_run_fn: Any | None = None
+    list_cv_versions_fn: Any | None = None
+    reserve_cv_regeneration_fn: Any | None = None
+    update_cv_version_fn: Any | None = None
+    update_cv_evaluation_fn: Any | None = None
+    insert_cv_evaluation_row_fn: Any | None = None
+    insert_cv_review_event_fn: Any | None = None
+    get_cv_download_fn: Any | None = None
     get_cv_markdown_fn: Any | None = None
+    get_debug_bundle_availability_fn: Any | None = None
     list_run_structured_jobs_fn: Any | None = None
     list_filter_results_for_run_fn: Any | None = None
     get_pipeline_runs_schema_status_fn: Any | None = None
@@ -128,6 +165,18 @@ class ControlPlaneStore:
     resolve_active_ranking_policy_fn: Any | None = None
     inspect_ranking_policy_lifecycle_fn: Any | None = None
     insert_cv_version_row_fn: Any | None = None
+    create_run_bundle_fn: Any | None = None
+    query_runs_fn: Any | None = None
+    list_run_stages_fn: Any | None = None
+    query_run_jobs_fn: Any | None = None
+    get_run_job_fn: Any | None = None
+    set_bookmark_fn: Any | None = None
+    clear_bookmark_fn: Any | None = None
+    list_bookmarks_fn: Any | None = None
+    set_run_job_interest_fn: Any | None = None
+    clear_run_job_interest_fn: Any | None = None
+    reserve_idempotent_action_fn: Any | None = None
+    complete_idempotent_action_fn: Any | None = None
 
     def __post_init__(self) -> None:
         if self.backend_runtime is not None:
@@ -159,12 +208,120 @@ class ControlPlaneStore:
             run,
         )
 
-    def update_run_queue_job_id(self, run_id: str, queue_job_id: str) -> dict[str, str]:
+    def list_candidate_profiles(self) -> list[dict[str, Any]]:
+        return self._call_list(
+            self.list_candidate_profiles_fn,
+            sqlite_store.list_candidate_profiles,
+        )
+
+    def get_candidate_profile(self, candidate_profile_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(
+                self.get_candidate_profile_fn,
+                sqlite_store.get_candidate_profile,
+                candidate_profile_id,
+            ),
+        )
+
+    def create_run_bundle(
+        self,
+        run: PipelineRun,
+        *,
+        input_resource: dict[str, Any],
+        jobs: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        return self._call_dict(
+            self.create_run_bundle_fn,
+            sqlite_store.create_run_bundle,
+            run,
+            input_resource=input_resource,
+            jobs=jobs,
+        )
+
+    def query_runs(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.query_runs_fn, sqlite_store.query_runs, **kwargs)
+
+    def list_run_stages(self, run_id: str) -> list[dict[str, Any]]:
+        return self._call_list(self.list_run_stages_fn, sqlite_store.list_run_stages, run_id)
+
+    def query_run_jobs(self, run_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.query_run_jobs_fn, sqlite_store.query_run_jobs, run_id, **kwargs)
+
+    def get_run_job(self, run_id: str, run_job_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(self.get_run_job_fn, sqlite_store.get_run_job, run_id, run_job_id),
+        )
+
+    def iter_run_jobs_for_export(self, run_id: str, **kwargs: Any) -> Iterator[dict[str, Any]]:
+        return iter(
+            self._call(
+                self.iter_run_jobs_for_export_fn,
+                sqlite_store.iter_run_jobs_for_export,
+                run_id,
+                **kwargs,
+            )
+        )
+
+    def get_run_detail(self, run_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(self.get_run_detail_fn, sqlite_store.get_run_detail, run_id),
+        )
+
+    def set_bookmark(self, run_job_id: str) -> dict[str, Any]:
+        return self._call_dict(self.set_bookmark_fn, sqlite_store.set_bookmark, run_job_id)
+
+    def clear_bookmark(self, run_job_id: str) -> dict[str, Any]:
+        return self._call_dict(self.clear_bookmark_fn, sqlite_store.clear_bookmark, run_job_id)
+
+    def list_bookmarks(self) -> list[dict[str, Any]]:
+        return self._call_list(self.list_bookmarks_fn, sqlite_store.list_bookmarks)
+
+    def set_run_job_interest(self, run_job_id: str, rating: int, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.set_run_job_interest_fn,
+            sqlite_store.set_run_job_interest,
+            run_job_id,
+            rating,
+            **kwargs,
+        )
+
+    def clear_run_job_interest(self, run_job_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.clear_run_job_interest_fn,
+            sqlite_store.clear_run_job_interest,
+            run_job_id,
+            **kwargs,
+        )
+
+    def reserve_idempotent_action(self, scope: str, key: str, fingerprint: str) -> dict[str, Any]:
+        return self._call_dict(
+            self.reserve_idempotent_action_fn,
+            sqlite_store.reserve_idempotent_action,
+            scope,
+            key,
+            fingerprint,
+        )
+
+    def complete_idempotent_action(self, action_id: str, response: dict[str, Any]) -> None:
+        self._call(
+            self.complete_idempotent_action_fn,
+            sqlite_store.complete_idempotent_action,
+            action_id,
+            response,
+        )
+
+    def update_run_queue_job_id(
+        self, run_id: str, queue_job_id: str, **kwargs: Any
+    ) -> dict[str, str]:
         return self._call_dict(
             self.update_run_queue_job_id_fn,
             sqlite_store.update_run_queue_job_id,
             run_id,
             queue_job_id,
+            **kwargs,
         )
 
     def update_run_orchestration_binding(
@@ -214,7 +371,12 @@ class ControlPlaneStore:
         )
 
     def get_process_events(
-        self, process_type: str, process_id: str, *, limit: int = 200
+        self,
+        process_type: str,
+        process_id: str,
+        *,
+        limit: int = 200,
+        cursor: str | None = None,
     ) -> dict[str, Any]:
         return self._call_dict(
             self.get_process_events_fn,
@@ -222,6 +384,7 @@ class ControlPlaneStore:
             process_type,
             process_id,
             limit=limit,
+            cursor=cursor,
         )
 
     def update_run_status(self, run_id: str, status: Any, **kwargs: Any) -> dict[str, str]:
@@ -287,6 +450,57 @@ class ControlPlaneStore:
             run_id,
         )
 
+    def list_cv_versions(self, run_job_id: str) -> list[dict[str, Any]]:
+        return self._call_list(
+            self.list_cv_versions_fn,
+            sqlite_store.list_cv_versions,
+            run_job_id,
+        )
+
+    def reserve_cv_regeneration(self, run_job_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.reserve_cv_regeneration_fn,
+            sqlite_store.reserve_cv_regeneration,
+            run_job_id,
+            **kwargs,
+        )
+
+    def update_cv_version(self, version_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.update_cv_version_fn,
+            sqlite_store.update_cv_version,
+            version_id,
+            **kwargs,
+        )
+
+    def update_cv_evaluation(self, evaluation_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.update_cv_evaluation_fn,
+            sqlite_store.update_cv_evaluation,
+            evaluation_id,
+            **kwargs,
+        )
+
+    def insert_cv_evaluation_row(self, row: dict[str, Any]) -> dict[str, Any]:
+        return self._call_dict(
+            self.insert_cv_evaluation_row_fn,
+            sqlite_store.insert_cv_evaluation_row,
+            row,
+        )
+
+    def insert_cv_review_event(self, row: dict[str, Any]) -> dict[str, Any]:
+        return self._call_dict(
+            self.insert_cv_review_event_fn,
+            sqlite_store.insert_cv_review_event,
+            row,
+        )
+
+    def get_cv_download(self, version_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(self.get_cv_download_fn, sqlite_store.get_cv_download, version_id),
+        )
+
     def get_cv_markdown(self, version_id: str) -> str | None:
         return cast(
             str | None,
@@ -295,6 +509,13 @@ class ControlPlaneStore:
             sqlite_store.get_cv_markdown,
             version_id,
             ),
+        )
+
+    def get_debug_bundle_availability(self, run_id: str) -> dict[str, Any]:
+        return self._call_dict(
+            self.get_debug_bundle_availability_fn,
+            sqlite_store.get_debug_bundle_availability,
+            run_id,
         )
 
     def list_run_structured_jobs(self, run_id: str) -> list[dict[str, Any]]:

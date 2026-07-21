@@ -25,6 +25,59 @@ FitCV uses layered configuration with clear ownership boundaries.
 - per-run trigger overrides (`config_overrides` in `/runs`)
 - process environment variables for backend/provider credentials and runtime toggles
 
+## Fresh Control-Plane Database
+
+FitCV Local supports one explicit fresh-database cutover command:
+
+```powershell
+fitcv-local --reset-database
+```
+
+The flag writes versioned `operation=reset_database` state to
+`%APPDATA%\FitCV\pending-operation.json`. On startup, before normal application
+construction, FitCV Local:
+
+1. requires the current SQLite file to exist;
+2. creates a normal `fitcv-reset-<UTC timestamp>.fitcv.zip` backup;
+3. copies the matched `fitcv.sqlite3`, `fitcv.sqlite3-wal`, and
+   `fitcv.sqlite3-shm` set when present;
+4. retires that matched set under
+   `<data-root>\backups\database-reset-<UTC timestamp>`;
+5. removes the active matched set only after backup succeeds;
+6. creates control-plane schema version `2`, seeds Candidate Profiles, and
+   starts with empty Runs.
+
+If backup fails, the active database remains in place. If an existing database
+has an unversioned populated schema or any version other than `2`, startup
+raises `database_schema_incompatible` and opens recovery mode instead of
+mutating, migrating, or dual-reading it. There is no database-reset HTTP route
+and no reset control in Data & Backup UI.
+
+Rollback requires stopping FitCV and restoring a matched old application and
+database set. New code does not promise compatibility with retired schema.
+
+### Candidate Profile Seeds
+
+Fresh initialization reads `<data-root>\candidate_profile.yaml` as base profile
+and transactionally creates seed manifest `candidate-profile-seeds.v1`:
+
+| ID | Name | Default |
+| --- | --- | --- |
+| `candidate-product-data` | Product Data Specialist | yes |
+| `candidate-analytics` | Analytics & Operations | no |
+| `candidate-platform` | Data Platform Engineer | no |
+
+Each row stores a validated profile snapshot, revision, checksum, sort order,
+active/default flags, and seed-manifest revision. The first row is the only
+default. Profile IDs are stable API identifiers; display names are not keys.
+
+If base profile is missing, unreadable, or invalid, schema creation still
+commits with no selectable profiles and persists
+`candidate_profile_setup_required`. Operator action is to fix
+`candidate_profile.yaml`, then run `fitcv-local --reset-database`. Seed rows are
+created only during fresh initialization; editing base file does not silently
+rewrite an existing catalog.
+
 ## FitCV Local Configuration Ownership
 
 FitCV Local keeps application defaults read-only and user configuration narrow:

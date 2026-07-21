@@ -171,6 +171,10 @@ def _run_inline_cv_regenerate_once(
     job_url: str,
     actor: str,
     note: str | None,
+    cv_version_id: str | None,
+    parent_cv_version_id: str | None,
+    idempotency_key: str | None,
+    action_id: str | None,
 ) -> None:
     from fitcv_cp import worker_job  # noqa: F401
 
@@ -181,6 +185,10 @@ def _run_inline_cv_regenerate_once(
             job_url=job_url,
             actor=actor,
             note=note,
+            cv_version_id=cv_version_id,
+            parent_cv_version_id=parent_cv_version_id,
+            idempotency_key=idempotency_key,
+            action_id=action_id,
         )
         _INLINE_JOB_STATUS[job_id] = "finished"
     except ValueError as exc:
@@ -201,6 +209,10 @@ def _run_inline_cv_regenerate_once_after_delay(
     job_url: str,
     actor: str,
     note: str | None,
+    cv_version_id: str | None,
+    parent_cv_version_id: str | None,
+    idempotency_key: str | None,
+    action_id: str | None,
 ) -> None:
     delay_seconds = _inline_start_delay_seconds()
     if delay_seconds > 0:
@@ -211,6 +223,10 @@ def _run_inline_cv_regenerate_once_after_delay(
         job_url=job_url,
         actor=actor,
         note=note,
+        cv_version_id=cv_version_id,
+        parent_cv_version_id=parent_cv_version_id,
+        idempotency_key=idempotency_key,
+        action_id=action_id,
     )
 
 
@@ -287,13 +303,26 @@ def enqueue_cv_regenerate_once_with_job_id(
     job_url: str,
     actor: str,
     note: str | None = None,
+    cv_version_id: str | None = None,
+    parent_cv_version_id: str | None = None,
+    idempotency_key: str | None = None,
+    action_id: str | None = None,
     redis_url: str = "redis://redis:6379/0",
 ) -> str:
     """Enqueue a bounded regenerate-once CV review job. Returns rq_job_id."""
     if _inline_execution_enabled():
         queue_job_id = _enqueue_inline_after_delay(
             _run_inline_cv_regenerate_once_after_delay,
-            (run_id, job_url, actor, note),
+            (
+                run_id,
+                job_url,
+                actor,
+                note,
+                cv_version_id,
+                parent_cv_version_id,
+                idempotency_key,
+                action_id,
+            ),
         )
         return queue_job_id
     from fitcv_cp import worker_job  # noqa: F401
@@ -305,6 +334,10 @@ def enqueue_cv_regenerate_once_with_job_id(
         job_url=job_url,
         actor=actor,
         note=note,
+        cv_version_id=cv_version_id,
+        parent_cv_version_id=parent_cv_version_id,
+        idempotency_key=idempotency_key,
+        action_id=action_id,
         job_timeout=1800,
     )
     return str(job.id)

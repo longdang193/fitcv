@@ -643,6 +643,15 @@ def test_pipeline_projection_owns_supported_rows_only() -> None:
     assert runtime_groups["runtime-cv-analysis"][1] == "stage_runtime.cv_analysis.batch_size"
     assert runtime_groups["runtime-cv-generation"][1] == "stage_runtime.cv_generation.batch_size"
 
+    ranking_rows = {
+        row["id"]: row
+        for section in pages["ranking"]["sections"]
+        for row in section["rows"]
+    }
+    preference_details = ranking_rows["factor-weights"]["details_groups"][0]
+    assert preference_details["id"] == "preference-fit"
+    assert [field["key"] for field in preference_details["fields"]] == preference_details["keys"]
+
     projected_keys = {
         key
         for page in projection["pages"]

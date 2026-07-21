@@ -30,6 +30,139 @@ def _make_run(run_id: str = "run-1") -> PipelineRun:
     )
 
 
+def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -> None:
+    with sqlite3.connect(":memory:") as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+
+        tables = {
+            str(row[0])
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+        assert {
+            "candidate_profiles",
+            "pipeline_runs",
+            "run_inputs",
+            "run_stage_executions",
+            "run_jobs",
+            "run_job_stage_results",
+            "cv_versions",
+            "cv_evaluations",
+            "cv_review_events",
+            "bookmarks",
+            "run_job_interest",
+            "idempotent_actions",
+        } <= tables
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == sqlite_store.CONTROL_PLANE_SCHEMA_VERSION
+        assert any(row[2] == "pipeline_runs" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(run_inputs)"))
+        assert any(row[2] == "run_jobs" and row[6] == "SET NULL" for row in conn.execute("PRAGMA foreign_key_list(bookmarks)"))
+
+
+def test_control_plane_schema_enforces_single_active_default_profile() -> None:
+    with sqlite3.connect(":memory:") as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+        row = (
+            "candidate-one", "Candidate One", "", "{}", 1, "sha", 1, 1, 1, "seed-v1", "now", "now",
+        )
+        conn.execute(
+            """
+            INSERT INTO candidate_profiles (
+                candidate_profile_id, name, description, profile_json, revision, checksum,
+                is_active, is_default, sort_order, seed_manifest_revision, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            row,
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                """
+                INSERT INTO candidate_profiles (
+                    candidate_profile_id, name, description, profile_json, revision, checksum,
+                    is_active, is_default, sort_order, seed_manifest_revision, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                ("candidate-two", "Candidate Two", "", "{}", 1, "sha2", 1, 1, 2, "seed-v1", "now", "now"),
+            )
+
+
+def test_control_plane_schema_rejects_unversioned_existing_database() -> None:
+    with sqlite3.connect(":memory:") as conn:
+        conn.execute("CREATE TABLE local_pipeline_runs (run_id TEXT PRIMARY KEY, run_json TEXT NOT NULL, created_at TEXT NOT NULL)")
+
+        with pytest.raises(sqlite_store.DatabaseSchemaIncompatibleError) as exc_info:
+            sqlite_store._ensure_control_plane_schema(conn)
+
+        assert exc_info.value.code == "database_schema_incompatible"
+
+
+def test_control_plane_schema_rejects_previous_version_database() -> None:
+    with sqlite3.connect(":memory:") as conn:
+        conn.execute(
+            "CREATE TABLE cv_evaluations (cv_evaluation_id TEXT PRIMARY KEY)"
+        )
+        conn.execute("PRAGMA user_version = 1")
+
+        with pytest.raises(sqlite_store.DatabaseSchemaIncompatibleError) as exc_info:
+            sqlite_store._ensure_control_plane_schema(conn)
+
+        assert exc_info.value.found_version == 1
+
+def test_initialize_control_plane_database_seeds_profile_catalog(tmp_path: Path) -> None:
+    profile_path = tmp_path / "candidate_profile.yaml"
+    profile_path.write_text(
+        """
+name: Ada Candidate
+headline: Data leader
+contact:
+  email: ada@example.com
+experiences:
+  - id: exp-1
+    role: Data Analyst
+    company: Example
+    bullets: []
+education: []
+skills:
+  - name: SQL
+projects: []
+achievements: []
+preferences:
+  seniority_target: senior
+  location_types: [remote]
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    database_path = tmp_path / "fitcv.sqlite3"
+
+    sqlite_store.initialize_control_plane_database(database_path, profile_path)
+
+    rows = sqlite_store.list_candidate_profiles(database_path=database_path)
+    assert [row["candidate_profile_id"] for row in rows] == [
+        "candidate-product-data",
+        "candidate-analytics",
+        "candidate-platform",
+    ]
+    assert rows[0]["is_default"] is True
+    assert all("profile_json" not in row and row["revision"] == 1 for row in rows)
+    assert sqlite_store.list_startup_warnings(database_path=database_path) == []
+
+def test_initialize_control_plane_database_keeps_empty_catalog_with_setup_warning(
+    tmp_path: Path,
+) -> None:
+    profile_path = tmp_path / "candidate_profile.yaml"
+    profile_path.write_text("name: invalid\n", encoding="utf-8")
+    database_path = tmp_path / "fitcv.sqlite3"
+
+    sqlite_store.initialize_control_plane_database(database_path, profile_path)
+
+    assert sqlite_store.list_candidate_profiles(database_path=database_path) == []
+    warnings = sqlite_store.list_startup_warnings(database_path=database_path)
+    assert [warning["code"] for warning in warnings] == ["candidate_profile_setup_required"]
+    assert "candidate profile" in warnings[0]["message"].lower()
+    assert warnings[0]["action"] == "Update candidate_profile.yaml, then reset the database."
+
+
 def test_insert_run_round_trips_from_sqlite() -> None:
     run = _make_run()
 
@@ -102,34 +235,15 @@ def test_run_json_updates_and_schema_status_use_sqlite_only_terms() -> None:
 
 
 def test_list_filter_results_for_run_decodes_marks_and_reasons() -> None:
-    db_path = Path(sqlite_store._local_sqlite_path())
-    with sqlite_store._sqlite_connection(db_path) as conn:
-        sqlite_store._ensure_local_rule_filter_results_table(conn)
-        conn.execute(
-            """
-            INSERT INTO rule_filter_results (
-                run_id,
-                job_url,
-                passed,
-                reasons,
-                filtered_at,
-                marks_json,
-                raw_job_fingerprint,
-                source_job_url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                "run-filter",
-                "https://example.com/job-1",
-                1,
-                json.dumps(["matched_required_skills"]),
-                datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                json.dumps([{"code": "required_skill"}]),
-                "fp-1",
-                "https://example.com/job-1",
-            ),
-        )
-        conn.commit()
+    sqlite_store.create_run_bundle(
+        _make_run("run-filter"),
+        input_resource={"candidate_profile_name": "Profile", "candidate_profile_json": "{}"},
+        jobs=[{"title": "Job", "job_url": "https://example.com/job-1"}],
+    )
+    sqlite_store.replace_filter_results("run-filter", [{
+        "job_url": "https://example.com/job-1", "passed": True,
+        "reasons": ["matched_required_skills"], "marks": [{"code": "required_skill"}],
+    }])
 
     rows = sqlite_store.list_filter_results_for_run("run-filter")
 
@@ -548,8 +662,10 @@ def test_delete_archived_runs_prunes_old_rows_only() -> None:
     now = datetime.datetime.now(datetime.timezone.utc)
     old_run.archived_at = now - datetime.timedelta(days=10)
     old_run.archived_by = "admin"
+    old_run.status = RunStatus.SUCCEEDED
     recent_run.archived_at = now - datetime.timedelta(days=1)
     recent_run.archived_by = "admin"
+    recent_run.status = RunStatus.SUCCEEDED
 
     for run in (old_run, recent_run, active_run):
         sqlite_store.insert_run(run)
@@ -560,6 +676,91 @@ def test_delete_archived_runs_prunes_old_rows_only() -> None:
     assert sqlite_store.get_run("run-old") is None
     assert sqlite_store.get_run("run-recent") is not None
     assert sqlite_store.get_run("run-active") is not None
+
+def test_insert_run_uses_normalized_pipeline_runs_without_legacy_json_table() -> None:
+    run = _make_run("run-normalized")
+
+    sqlite_store.insert_run(run)
+
+    database_path = Path(sqlite_store._local_sqlite_path())
+    with sqlite3.connect(database_path) as connection:
+        tables = {
+            row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        assert "pipeline_runs" in tables
+        assert "local_pipeline_runs" not in tables
+        assert connection.execute(
+            "SELECT backend_status FROM pipeline_runs WHERE run_id = ?", (run.run_id,)
+        ).fetchone() == ("queued",)
+
+def test_create_run_bundle_is_atomic_and_creates_six_stages_and_stable_jobs() -> None:
+    run = _make_run("run-bundle")
+    jobs = [
+        {"title": "zeta", "company": "Z", "job_url": "https://example.com/z"},
+        {"title": "Alpha", "company": "A", "job_url": "https://example.com/a"},
+    ]
+
+    result = sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "original_filename": "jobs.json",
+            "media_type": "application/json",
+            "jobs_snapshot_json": json.dumps(jobs),
+            "jobs_manifest_json": "{}",
+            "candidate_profile_id": "candidate-product-data",
+            "candidate_profile_revision": 1,
+            "candidate_profile_name": "Product Data Specialist",
+            "candidate_profile_json": json.dumps({"preferences": {}}),
+            "settings_revision": "settings-1",
+            "settings_snapshot_json": "{}",
+        },
+        jobs=jobs,
+    )
+
+    assert result["run_id"] == run.run_id
+    assert len(result["run_job_ids"]) == 2
+    assert len(set(result["run_job_ids"])) == 2
+    assert [row["stage_id"] for row in sqlite_store.list_run_stages(run.run_id)] == [
+        "enrichment", "screening", "shortlisting", "ranking", "cv-analysis", "cv-generation"
+    ]
+    assert [row["title"] for row in sqlite_store.query_run_jobs(run.run_id)["items"]] == [
+        "Alpha", "zeta"
+    ]
+
+def test_idempotent_action_replays_same_fingerprint_and_rejects_conflict() -> None:
+    first = sqlite_store.reserve_idempotent_action("runs:create", "key-1", "fingerprint-1")
+    sqlite_store.complete_idempotent_action(first["action_id"], {"run_id": "run-1"})
+
+    replay = sqlite_store.reserve_idempotent_action("runs:create", "key-1", "fingerprint-1")
+
+    assert replay["replayed"] is True
+    assert replay["response"] == {"run_id": "run-1"}
+    with pytest.raises(ValueError, match="idempotency_conflict"):
+        sqlite_store.reserve_idempotent_action("runs:create", "key-1", "fingerprint-2")
+
+def test_bookmark_snapshot_survives_archived_run_deletion() -> None:
+    run = _make_run("run-bookmark")
+    run.status = RunStatus.SUCCEEDED
+    run.archived_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=10)
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "original_filename": "jobs.json", "media_type": "application/json",
+            "jobs_snapshot_json": '[{"title":"Alpha"}]', "jobs_manifest_json": "{}",
+            "candidate_profile_name": "Profile", "candidate_profile_json": "{}",
+            "settings_revision": "settings-1", "settings_snapshot_json": "{}",
+        },
+        jobs=[{"title": "Alpha", "job_url": "https://example.com/a"}],
+    )
+    run_job_id = sqlite_store.query_run_jobs(run.run_id)["items"][0]["run_job_id"]
+    bookmark = sqlite_store.set_bookmark(run_job_id)
+
+    sqlite_store.delete_archived_runs("all", run_ids=[run.run_id])
+
+    stored = sqlite_store.list_bookmarks()[0]
+    assert stored["bookmark_id"] == bookmark["bookmark_id"]
+    assert stored["run_id"] is None and stored["run_job_id"] is None
+    assert stored["display_snapshot"]["title"] == "Alpha"
 
 
 
@@ -619,6 +820,11 @@ def test_replace_filter_results_round_trips_explicit_eligibility_columns() -> No
             },
         }
     }
+    sqlite_store.create_run_bundle(
+        _make_run("run-eligibility"),
+        input_resource={"candidate_profile_name": "Profile", "candidate_profile_json": "{}"},
+        jobs=[{"title": "Job", "job_url": "https://example.com/job-1"}],
+    )
     sqlite_store.replace_filter_results(
         "run-eligibility",
         [
@@ -648,27 +854,17 @@ def test_replace_filter_results_round_trips_explicit_eligibility_columns() -> No
     assert "fit_factor_results" not in rows[0]["marks"][0]
 
 
-def test_list_filter_results_for_run_defaults_legacy_eligibility_columns() -> None:
-    db_path = Path(sqlite_store._local_sqlite_path())
-    with sqlite_store._sqlite_connection(db_path) as conn:
-        sqlite_store._ensure_local_rule_filter_results_table(conn)
-        conn.execute(
-            """
-            INSERT INTO rule_filter_results (
-                run_id, job_url, passed, reasons, filtered_at
-            ) VALUES (?, ?, ?, ?, ?)
-            """,
-            (
-                "run-legacy-filter",
-                "https://example.com/legacy",
-                1,
-                "[]",
-                datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            ),
-        )
-        conn.commit()
+def test_list_filter_results_for_run_defaults_optional_eligibility_fields() -> None:
+    sqlite_store.create_run_bundle(
+        _make_run("run-minimal-filter"),
+        input_resource={"candidate_profile_name": "Profile", "candidate_profile_json": "{}"},
+        jobs=[{"title": "Job", "job_url": "https://example.com/minimal"}],
+    )
+    sqlite_store.replace_filter_results("run-minimal-filter", [{
+        "job_url": "https://example.com/minimal", "passed": True, "reasons": [], "marks": [],
+    }])
 
-    rows = sqlite_store.list_filter_results_for_run("run-legacy-filter")
+    rows = sqlite_store.list_filter_results_for_run("run-minimal-filter")
 
     assert rows[0]["fit_factor_results"] == {}
     assert rows[0]["eligibility_reason_codes"] == []
@@ -983,3 +1179,476 @@ def test_candidate_attempt_process_event_is_atomic(monkeypatch: pytest.MonkeyPat
     lifecycle = sqlite_store.inspect_ranking_policy_lifecycle("ranking_v1")
     assert len(lifecycle["training_runs"]) == 1
     assert len(lifecycle["snapshots"]) == 1
+
+
+def _create_normalized_run_with_jobs(run_id: str, jobs: list[dict[str, object]]) -> list[str]:
+    run = _make_run(run_id)
+    result = sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "original_filename": "jobs.json",
+            "media_type": "application/json",
+            "jobs_snapshot_json": json.dumps(jobs),
+            "jobs_manifest_json": "{}",
+            "candidate_profile_id": "candidate-product-data",
+            "candidate_profile_revision": 1,
+            "candidate_profile_name": "Product Data Specialist",
+            "candidate_profile_json": "{}",
+            "settings_revision": "settings-1",
+            "settings_snapshot_json": "{}",
+        },
+        jobs=jobs,
+    )
+    return list(result["run_job_ids"])
+
+
+def test_run_detail_projects_input_capabilities_and_integrity_warning() -> None:
+    run_job_ids = _create_normalized_run_with_jobs(
+        "run-detail",
+        [{"title": "Analyst", "company": "Example", "job_url": "https://example.com/1"}],
+    )
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        conn.execute(
+            "UPDATE pipeline_runs SET passed_jobs=1, rejected_jobs=0 WHERE run_id='run-detail'"
+        )
+        conn.execute(
+            """UPDATE run_stage_executions SET status='succeeded', passed_count=1,
+                      progress_completed=1, progress_total=1 WHERE run_id='run-detail' AND stage_id='screening'"""
+        )
+        conn.execute(
+            """INSERT INTO run_job_stage_results
+               (run_job_id, stage_id, status, outcome_code, reason_code, evidence_json)
+               VALUES (?, 'screening', 'rejected', 'screened_out', 'missing_skill', '{}')""",
+            (run_job_ids[0],),
+        )
+        conn.commit()
+
+    detail = sqlite_store.get_run_detail("run-detail")
+
+    assert detail is not None
+    assert detail["input"]["original_filename"] == "jobs.json"
+    assert detail["input"]["candidate_profile_name"] == "Product Data Specialist"
+    assert detail["capabilities"]["inspect"] is True
+    assert len(detail["stages"]) == 6
+    screening = next(stage for stage in detail["stages"] if stage["stage_id"] == "screening")
+    assert screening["results_available"] is True
+    assert detail["integrity_warnings"][0]["code"] == "run_count_mismatch"
+
+
+def test_job_query_and_export_share_exhaustive_result_predicate() -> None:
+    run_job_ids = _create_normalized_run_with_jobs(
+        "run-results",
+        [
+            {"title": "beta", "company": "Z", "job_url": "https://example.com/2"},
+            {"title": "Alpha", "company": "A", "job_url": "https://example.com/1"},
+            {"title": "Gamma", "company": "G", "job_url": "https://example.com/3"},
+            {"title": "Delta", "company": "D", "job_url": "https://example.com/4"},
+        ],
+    )
+    statuses = ["passed", "rejected", "pending", "skipped"]
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        for run_job_id, status in zip(run_job_ids, statuses):
+            evidence = {"skip_is_terminal_rejection": status == "skipped"}
+            conn.execute(
+                """INSERT INTO run_job_stage_results
+                   (run_job_id, stage_id, status, outcome_code, reason_code, evidence_json)
+                   VALUES (?, 'screening', ?, ?, ?, ?)""",
+                (run_job_id, status, f"outcome-{status}", f"reason-{status}", json.dumps(evidence)),
+            )
+        conn.commit()
+
+    page = sqlite_store.query_run_jobs(
+        "run-results", stage="screening", result_bucket="all", page=1, page_size=10
+    )
+    rejected = sqlite_store.query_run_jobs(
+        "run-results", stage="screening", result_bucket="rejected", page=1, page_size=10
+    )
+    exported = list(
+        sqlite_store.iter_run_jobs_for_export(
+            "run-results", stage="screening", result_bucket="rejected"
+        )
+    )
+
+    assert [row["title"] for row in page["items"]] == ["Alpha", "beta", "Delta"]
+    assert page["total_evaluated"] == 3
+    assert page["passed"] == 1 and page["rejected"] == 2
+    assert [row["run_job_id"] for row in rejected["items"]] == [
+        row["run_job_id"] for row in exported
+    ]
+    assert all(row["result_bucket"] == "rejected" for row in exported)
+
+
+def test_list_run_structured_jobs_is_not_truncated_at_fifty() -> None:
+    jobs = [{"title": f"Job {index:03d}"} for index in range(55)]
+    _create_normalized_run_with_jobs("run-many", jobs)
+
+    assert len(sqlite_store.list_run_structured_jobs("run-many")) == 55
+
+
+def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-normalized", [{"title": "CV Job"}])[0]
+    content = b"# Generated CV\n"
+    checksum = __import__("hashlib").sha256(content).hexdigest()
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-1",
+            "run_job_id": run_job_id,
+            "ordinal": 1,
+            "generation_status": "generated",
+            "filename": "cv.md",
+            "media_type": "text/markdown; charset=utf-8",
+            "content_blob": content,
+            "content_length": len(content),
+            "content_checksum": checksum,
+            "created_at": "2026-07-20T10:00:00+00:00",
+        }
+    )
+    sqlite_store.insert_cv_evaluation_row(
+        {
+            "cv_evaluation_id": "eval-1",
+            "cv_version_id": "cv-1",
+            "status": "succeeded",
+            "fit_classification": "stretch",
+            "reason": "Close fit",
+            "is_current": True,
+        }
+    )
+    sqlite_store.insert_cv_review_event(
+        {
+            "review_event_id": "review-1",
+            "cv_version_id": "cv-1",
+            "cv_evaluation_id": "eval-1",
+            "from_state": "none",
+            "to_state": "stretch",
+            "actor": "system",
+            "created_at": "2026-07-20T10:01:00+00:00",
+        }
+    )
+
+    versions = sqlite_store.list_cv_versions(run_job_id)
+    download = sqlite_store.get_cv_download("cv-1")
+
+    assert versions[0]["evaluation"]["fit_classification"] == "stretch"
+    assert versions[0]["review_state"] == "stretch"
+    assert download is not None and download["content"] == content
+    with pytest.raises(sqlite3.IntegrityError):
+        sqlite_store.insert_cv_version_row(
+            {"version_id": "cv-1", "generation_status": "pending"}
+        )
+
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        conn.execute("UPDATE cv_versions SET content_blob=? WHERE version_id='cv-1'", (b"tampered",))
+        conn.commit()
+    with pytest.raises(ValueError, match="artifact_integrity_mismatch"):
+        sqlite_store.get_cv_download("cv-1")
+
+
+def test_cv_regeneration_reservation_is_idempotent_and_blocks_concurrent_action() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-reserve", [{"title": "CV Job"}])[0]
+    snapshot = {"job": {"title": "CV Job"}, "profile": {"name": "Candidate"}, "settings": {}}
+
+    reserved = sqlite_store.reserve_cv_regeneration(
+        run_job_id,
+        version_id="cv-reserved-1",
+        idempotency_key="idem-1",
+        action_id="action-1",
+        input_snapshot=snapshot,
+    )
+    replayed = sqlite_store.reserve_cv_regeneration(
+        run_job_id,
+        version_id="cv-reserved-other",
+        idempotency_key="idem-1",
+        action_id="action-other",
+        input_snapshot=snapshot,
+    )
+
+    assert reserved["generation_status"] == "pending"
+    assert replayed["version_id"] == "cv-reserved-1"
+    assert replayed["idempotent_replay"] is True
+    with pytest.raises(ValueError, match="cv_regeneration_not_allowed:cv-reserved-1"):
+        sqlite_store.reserve_cv_regeneration(
+            run_job_id,
+            version_id="cv-reserved-2",
+            idempotency_key="idem-2",
+            action_id="action-2",
+            input_snapshot=snapshot,
+        )
+
+
+def test_cv_regeneration_completion_preserves_parent_and_creates_new_checksum() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-complete", [{"title": "CV Job"}])[0]
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-parent",
+            "run_job_id": run_job_id,
+            "generation_status": "generated",
+            "content_blob": b"# Parent\n",
+            "created_at": "2026-07-20T10:00:00+00:00",
+        }
+    )
+    sqlite_store.reserve_cv_regeneration(
+        run_job_id,
+        version_id="cv-child",
+        parent_cv_version_id="cv-parent",
+        idempotency_key="idem-child",
+        action_id="action-child",
+        input_snapshot={"job": {"title": "CV Job"}},
+    )
+
+    sqlite_store.update_cv_version(
+        "cv-child",
+        generation_status="generated",
+        content=b"# Child\n",
+        metadata={"fit_classification": "strong", "generator_id": "canonical"},
+    )
+
+    versions = sqlite_store.list_cv_versions(run_job_id)
+    child = next(row for row in versions if row["version_id"] == "cv-child")
+    parent = next(row for row in versions if row["version_id"] == "cv-parent")
+    assert child["parent_cv_version_id"] == "cv-parent"
+    assert child["content_checksum"] != parent["content_checksum"]
+    assert sqlite_store.get_cv_download("cv-parent")["content"] == b"# Parent\n"
+    assert sqlite_store.get_cv_download("cv-child")["content"] == b"# Child\n"
+
+
+def test_process_event_cursor_pages_forward_without_deletion() -> None:
+    from fitcv_cp.models import build_process_event
+
+    for index in range(3):
+        sqlite_store.append_process_event(
+            build_process_event(
+                process_type="pipeline",
+                process_id="run-cursor",
+                operation=f"step-{index}",
+                state="progress",
+                level="info",
+                message=f"event {index}",
+                event_id=f"event-{index}",
+                recorded_at=datetime.datetime(2026, 7, 20, 10, index, tzinfo=datetime.timezone.utc),
+            )
+        )
+
+    first = sqlite_store.get_process_events("pipeline", "run-cursor", limit=2)
+    second = sqlite_store.get_process_events(
+        "pipeline", "run-cursor", limit=2, cursor=first["next_cursor"]
+    )
+    reloaded = sqlite_store.get_process_events("pipeline", "run-cursor", limit=10)
+
+    assert [event.event_id for event in first["events"]] == ["event-0", "event-1"]
+    assert [event.event_id for event in second["events"]] == ["event-2"]
+    assert second["next_cursor"] is None
+    assert len(reloaded["events"]) == 3
+
+
+def test_debug_bundle_availability_uses_persisted_run_evidence() -> None:
+    run = _make_run("run-debug")
+    sqlite_store.insert_run(run)
+    assert sqlite_store.get_debug_bundle_availability(run.run_id)["status"] == "not_ready"
+
+    sqlite_store.update_run_cv_generation_debug(run.run_id, '{"debug_records": []}')
+    available = sqlite_store.get_debug_bundle_availability(run.run_id)
+    assert available["status"] == "available"
+
+
+def test_insert_run_with_snapshot_creates_atomic_normalized_bundle() -> None:
+    run = _make_run("run-trigger-bundle")
+    run.jobs_input_json = json.dumps(
+        [{"title": "One", "job_url": "https://example.com/one"}]
+    )
+    run.jobs_input_manifest_json = json.dumps({"source_filenames": ["jobs.json"]})
+    run.candidate_profile_json = json.dumps({"name": "Candidate"})
+    run.candidate_profile_source = "candidate-product-data"
+    run.effective_settings_json = json.dumps({"pipeline": {"final_top_n": 10}})
+
+    sqlite_store.insert_run(run)
+
+    detail = sqlite_store.get_run_detail(run.run_id)
+    assert detail is not None
+    assert detail["input"]["record_count"] == 1
+    assert len(detail["stages"]) == 6
+    assert sqlite_store.query_run_jobs(run.run_id)["total"] == 1
+
+
+def test_insert_run_persists_explicit_run_name() -> None:
+    run = _make_run("run-named")
+    run.run_name = "Senior data product search"
+    run.jobs_input_json = json.dumps(
+        [{"title": "One", "job_url": "https://example.com/one"}]
+    )
+    run.jobs_input_manifest_json = json.dumps({"source_filenames": ["jobs.json"]})
+    run.candidate_profile_json = json.dumps({"name": "Candidate"})
+    run.effective_settings_json = "{}"
+
+    sqlite_store.insert_run(run)
+
+    assert sqlite_store.get_run_detail(run.run_id)["run_name"] == "Senior data product search"
+
+
+def test_insert_run_uses_original_upload_metadata_from_manifest() -> None:
+    run = _make_run("run-upload-metadata")
+    run.jobs_input_json = json.dumps(
+        [{"title": "One", "job_url": "https://example.com/one"}]
+    )
+    run.jobs_input_manifest_json = json.dumps(
+        {
+            "source_filenames": ["original.jsonl"],
+            "media_type": "application/x-ndjson",
+            "byte_length": 123,
+            "sha256": "original-sha256",
+        }
+    )
+    run.candidate_profile_json = json.dumps({"name": "Candidate"})
+    run.effective_settings_json = "{}"
+
+    sqlite_store.insert_run(run)
+
+    input_resource = sqlite_store.get_run_detail(run.run_id)["input"]
+    assert input_resource["original_filename"] == "original.jsonl"
+    assert input_resource["media_type"] == "application/x-ndjson"
+    assert input_resource["byte_length"] == 123
+    assert input_resource["sha256"] == "original-sha256"
+
+
+def test_insert_run_rejects_empty_snapshot_without_creating_run() -> None:
+    run = _make_run("run-empty")
+    run.jobs_input_json = "[]"
+    run.candidate_profile_json = "{}"
+    run.effective_settings_json = "{}"
+
+    with pytest.raises(ValueError, match="jobs_input_empty"):
+        sqlite_store.insert_run(run)
+
+    assert sqlite_store.get_run(run.run_id) is None
+
+
+def test_persist_pipeline_snapshot_maps_stage_aliases_and_job_outcomes() -> None:
+    run_job_id = _create_normalized_run_with_jobs(
+        "run-snapshot", [{"title": "Analyst", "job_url": "https://example.com/1"}]
+    )[0]
+    summary = {
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 0,
+        "completed_stages": ["normalize", "enrich", "rule_filter", "shortlist"],
+        "last_completed_stage": "shortlist",
+        "stage_transition_artifacts": {
+            "stages": {
+                "enrich": {"status": "completed", "output_counts": {"enriched_jobs": 1}},
+                "rule_filter": {"status": "completed", "output_counts": {"passed": 1}},
+                "shortlist": {"status": "completed", "output_counts": {"shortlisted": 1}},
+            }
+        },
+        "export_results": [
+            {
+                "job_url": "https://example.com/1",
+                "job_outcome": {
+                    "job_key": "input:0",
+                    "stage": "ranking",
+                    "outcome": "skipped",
+                    "reason_code": "not_selected_in_final_ranking",
+                    "evidence_ref": {"artifact": "ranking.json"},
+                },
+            }
+        ],
+    }
+
+    sqlite_store.persist_pipeline_snapshot(
+        "run-snapshot",
+        summary,
+        run_status=RunStatus.RUNNING,
+        snapshot_at=datetime.datetime(2026, 7, 20, 12, tzinfo=datetime.timezone.utc),
+    )
+
+    stages = {row["stage_id"]: row for row in sqlite_store.list_run_stages("run-snapshot")}
+    assert stages["enrichment"]["status"] == "succeeded"
+    assert stages["screening"]["status"] == "succeeded"
+    assert stages["shortlisting"]["status"] == "succeeded"
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        rows = conn.execute(
+            "SELECT stage_id, status FROM run_job_stage_results WHERE run_job_id=? ORDER BY stage_id",
+            (run_job_id,),
+        ).fetchall()
+    assert ("ranking", "skipped") in rows
+
+
+def test_insert_run_with_snapshot_creates_atomic_normalized_bundle() -> None:
+    run = _make_run("run-trigger-bundle")
+    run.jobs_input_json = json.dumps(
+        [{"title": "One", "job_url": "https://example.com/one"}]
+    )
+    run.jobs_input_manifest_json = json.dumps({"source_filenames": ["jobs.json"]})
+    run.candidate_profile_json = json.dumps({"name": "Candidate"})
+    run.candidate_profile_source = "candidate-product-data"
+    run.effective_settings_json = json.dumps({"pipeline": {"final_top_n": 10}})
+
+    sqlite_store.insert_run(run)
+
+    detail = sqlite_store.get_run_detail(run.run_id)
+    assert detail is not None
+    assert detail["input"]["record_count"] == 1
+    assert len(detail["stages"]) == 6
+    assert sqlite_store.query_run_jobs(run.run_id)["total"] == 1
+
+
+def test_insert_run_rejects_empty_snapshot_without_creating_run() -> None:
+    run = _make_run("run-empty")
+    run.jobs_input_json = "[]"
+    run.candidate_profile_json = "{}"
+    run.effective_settings_json = "{}"
+
+    with pytest.raises(ValueError, match="jobs_input_empty"):
+        sqlite_store.insert_run(run)
+
+    assert sqlite_store.get_run(run.run_id) is None
+
+
+def test_persist_pipeline_snapshot_maps_stage_aliases_and_job_outcomes() -> None:
+    run_job_id = _create_normalized_run_with_jobs(
+        "run-snapshot", [{"title": "Analyst", "job_url": "https://example.com/1"}]
+    )[0]
+    summary = {
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 0,
+        "completed_stages": ["normalize", "enrich", "rule_filter", "shortlist"],
+        "last_completed_stage": "shortlist",
+        "stage_transition_artifacts": {
+            "stages": {
+                "enrich": {"status": "completed", "output_counts": {"enriched_jobs": 1}},
+                "rule_filter": {"status": "completed", "output_counts": {"passed": 1}},
+                "shortlist": {"status": "completed", "output_counts": {"shortlisted": 1}},
+            }
+        },
+        "export_results": [
+            {
+                "job_url": "https://example.com/1",
+                "job_outcome": {
+                    "job_key": "input:0",
+                    "stage": "ranking",
+                    "outcome": "skipped",
+                    "reason_code": "not_selected_in_final_ranking",
+                    "evidence_ref": {"artifact": "ranking.json"},
+                },
+            }
+        ],
+    }
+
+    sqlite_store.persist_pipeline_snapshot(
+        "run-snapshot",
+        summary,
+        run_status=RunStatus.RUNNING,
+        snapshot_at=datetime.datetime(2026, 7, 20, 12, tzinfo=datetime.timezone.utc),
+    )
+
+    stages = {row["stage_id"]: row for row in sqlite_store.list_run_stages("run-snapshot")}
+    assert stages["enrichment"]["status"] == "succeeded"
+    assert stages["screening"]["status"] == "succeeded"
+    assert stages["shortlisting"]["status"] == "succeeded"
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        rows = conn.execute(
+            "SELECT stage_id, status FROM run_job_stage_results WHERE run_job_id=? ORDER BY stage_id",
+            (run_job_id,),
+        ).fetchall()
+    assert ("ranking", "skipped") in rows

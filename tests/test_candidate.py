@@ -1,5 +1,7 @@
 """Tests for fitcv.candidate — all pure unit tests."""
 
+import hashlib
+import json
 import uuid
 from pathlib import Path
 
@@ -15,6 +17,11 @@ from fitcv.candidate import (
 )
 import fitcv.candidate as candidate_module
 import fitcv.evidence as evidence_module
+from fitcv_cp.candidate_profile_seeds import (
+    CANDIDATE_PROFILE_SEEDS,
+    SEED_MANIFEST_REVISION,
+    build_candidate_profile_seeds,
+)
 
 
 _VALID_PROFILE_DICT: dict = {
@@ -48,6 +55,47 @@ def test_load_profile_yaml_validates_required_sections(tmp_path: Path) -> None:
     profile_path.write_text("skills: []\nprojects: []\nachievements: []\npreferences: {}\n", encoding="utf-8")
     with pytest.raises(ValueError, match="validation failed"):
         load_profile_yaml(profile_path)
+
+def test_candidate_profile_seed_manifest_builds_exact_validated_overlays(
+    sample_profile_path: Path,
+) -> None:
+    base_profile = load_profile_yaml(sample_profile_path)
+
+    rows = build_candidate_profile_seeds(base_profile)
+
+    assert SEED_MANIFEST_REVISION == "candidate-profile-seeds.v1"
+    assert [seed["candidate_profile_id"] for seed in CANDIDATE_PROFILE_SEEDS] == [
+        "candidate-product-data",
+        "candidate-analytics",
+        "candidate-platform",
+    ]
+    assert [row["name"] for row in rows] == [
+        "Product Data Specialist",
+        "Analytics & Operations",
+        "Data Platform Engineer",
+    ]
+    assert [row["sort_order"] for row in rows] == [10, 20, 30]
+    assert [row["is_default"] for row in rows] == [True, False, False]
+    assert all(row["is_active"] is True and row["revision"] == 1 for row in rows)
+    assert all(row["seed_manifest_revision"] == SEED_MANIFEST_REVISION for row in rows)
+
+    expected_preferences = [
+        ("Product Data Specialist", ["analytics"], ["product"]),
+        ("Analytics & Operations", ["analytics"], ["operations"]),
+        ("Data Platform Engineer", ["data_engineering"], ["data platform"]),
+    ]
+    preserved = {key: value for key, value in base_profile.items() if key != "preferences"}
+    for row, (target_role, role_families, domains) in zip(rows, expected_preferences):
+        profile = json.loads(row["profile_json"])
+        assert {key: value for key, value in profile.items() if key != "preferences"} == preserved
+        assert profile["preferences"] == {
+            **base_profile["preferences"],
+            "target_role": target_role,
+            "role_families": role_families,
+            "domains": domains,
+        }
+        assert validate_profile(profile) == []
+        assert row["checksum"] == hashlib.sha256(row["profile_json"].encode("utf-8")).hexdigest()
 
 
 # ── validate_profile ────────────────────────────────────────────────────────────

@@ -36,7 +36,13 @@ from fitcv_cp.local_app import (
     prepare_local_environment,
     process_pending_storage_operation,
 )
-from fitcv_cp.local_storage import LocalStoragePaths, write_bootstrap, write_pending_operation
+from fitcv_cp.local_storage import (
+    LocalStoragePaths,
+    load_pending_operation,
+    write_bootstrap,
+    write_pending_operation,
+)
+from fitcv_cp.sqlite_store import CONTROL_PLANE_SCHEMA_VERSION
 
 LOCAL_ENVIRONMENT_KEYS = (
     "FITCV_LOCAL_MODE",
@@ -141,14 +147,18 @@ def test_second_launch_opens_existing_url_and_exits(tmp_path: Path) -> None:
         '{"url": "http://127.0.0.1:12345/", "pid": 123}\n', encoding="utf-8"
     )
     mutex = MagicMock(already_exists=True)
+    ensure_database = MagicMock()
     with patch.object(local_app, "activate_local_storage", return_value=paths), patch.object(
         local_app, "_WindowsMutex", return_value=mutex
     ), patch.object(local_app, "_bundle_root", return_value=tmp_path), patch.object(
         local_app.os, "chdir"
+    ), patch.object(
+        local_app, "ensure_control_plane_database", ensure_database
     ), patch.object(local_app.webbrowser, "open") as browser_open:
         result = local_app.main()
 
     assert result == 0
+    ensure_database.assert_called_once_with(paths.sqlite_path, paths.candidate_profile_path)
     browser_open.assert_called_once_with("http://127.0.0.1:12345/")
     mutex.close.assert_called_once()
 
@@ -244,6 +254,74 @@ def test_process_pending_relocation_switches_bootstrap_and_keeps_source(
     assert source.exists()
     assert json.loads(bootstrap_path.read_text(encoding="utf-8"))["data_root"] == str(destination)
     assert not pending_path.exists()
+
+def test_process_pending_database_reset_archives_old_database_and_seeds_new_one(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    appdata = tmp_path / "roaming"
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "backups").mkdir()
+    (source / "tmp").mkdir()
+    (source / "candidate_profile.yaml").write_text(
+        """
+experiences: []
+skills: []
+projects: []
+achievements: []
+preferences: {}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("APPDATA", str(appdata))
+    connection = sqlite3.connect(source / "fitcv.sqlite3")
+    connection.execute("CREATE TABLE local_pipeline_runs (run_id TEXT PRIMARY KEY)")
+    connection.commit()
+    connection.close()
+    Path(f"{source / 'fitcv.sqlite3'}-wal").write_bytes(b"wal")
+    Path(f"{source / 'fitcv.sqlite3'}-shm").write_bytes(b"shm")
+    bootstrap_path = appdata / "FitCV" / "bootstrap.json"
+    write_bootstrap(bootstrap_path, source, "1")
+    pending_path = appdata / "FitCV" / "pending-operation.json"
+    write_pending_operation(pending_path, {"operation": "reset_database"})
+
+    previous = process_pending_storage_operation(app_version="2")
+
+    assert previous is None
+    assert not pending_path.exists()
+    with sqlite3.connect(source / "fitcv.sqlite3") as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == CONTROL_PLANE_SCHEMA_VERSION
+        assert connection.execute("SELECT COUNT(*) FROM candidate_profiles").fetchone()[0] == 3
+        assert connection.execute("SELECT COUNT(*) FROM pipeline_runs").fetchone()[0] == 0
+    retired = next((source / "backups").glob("database-reset-*"))
+    assert (retired / "fitcv.sqlite3-wal").read_bytes() == b"wal"
+    assert (retired / "fitcv.sqlite3-shm").read_bytes() == b"shm"
+    assert next((source / "backups").glob("fitcv-reset-*.fitcv.zip")).exists()
+
+def test_main_reset_database_writes_versioned_pending_operation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv_cp import local_app
+
+    appdata = tmp_path / "roaming"
+    monkeypatch.setenv("APPDATA", str(appdata))
+    monkeypatch.setattr(local_app, "_bundle_root", lambda: tmp_path)
+    monkeypatch.setattr(local_app.os, "chdir", lambda _path: None)
+    monkeypatch.setattr(
+        local_app,
+        "process_pending_storage_operation",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("stop after queue")),
+    )
+    monkeypatch.setattr(local_app, "_run_recovery", lambda _error: 1)
+
+    assert local_app.main(["--reset-database"]) == 1
+    assert load_pending_operation(appdata / "FitCV" / "pending-operation.json") == {
+        "version": 1,
+        "operation": "reset_database",
+    }
 
 def test_recovery_app_hides_exception_details() -> None:
     app = build_recovery_app(RuntimeError("secret path and key"))

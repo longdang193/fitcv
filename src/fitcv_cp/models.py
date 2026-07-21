@@ -32,6 +32,53 @@ class RunStatus(str, Enum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
 
+class RunStageStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    WARNING = "warning"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    SKIPPED = "skipped"
+
+class JobStageStatus(str, Enum):
+    PENDING = "pending"
+    PASSED = "passed"
+    REJECTED = "rejected"
+    BLOCKED = "blocked"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+    REVIEW_REQUIRED = "review_required"
+    GENERATED = "generated"
+
+class ResultBucket(str, Enum):
+    PASSED = "passed"
+    REJECTED = "rejected"
+
+class CvGenerationStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    GENERATED = "generated"
+    REVIEW_REQUIRED = "review_required"
+    VALIDATION_FAILED = "validation_failed"
+    GENERATION_FAILED = "generation_failed"
+    PERSISTENCE_FAILED = "persistence_failed"
+    CANCELLED = "cancelled"
+
+class CvEvaluationStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+class CvReviewState(str, Enum):
+    NONE = "none"
+    STRETCH = "stretch"
+    MANUAL_REQUIRED = "manual_required"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
 
 class EventLevel(str, Enum):
     INFO = "info"
@@ -60,6 +107,7 @@ class PipelineRun:
     jobs_path: str
     config_path: str
     created_at: datetime.datetime
+    run_name: Optional[str] = None
     started_at: Optional[datetime.datetime] = None
     finished_at: Optional[datetime.datetime] = None
     total_jobs: Optional[int] = None
@@ -96,6 +144,16 @@ class PipelineRun:
     archived_at: Optional[datetime.datetime] = None
     archived_by: Optional[str] = None
     raw_status: Optional[str] = None
+    status_detail: Optional[str] = None
+    warning_json: Optional[str] = None
+    partial_completion: bool = False
+    progress_completed: int = 0
+    progress_total: int = 0
+    status_detail: Optional[str] = None
+    warning_json: Optional[str] = None
+    partial_completion: bool = False
+    progress_completed: int = 0
+    progress_total: int = 0
 
 
 @dataclasses.dataclass

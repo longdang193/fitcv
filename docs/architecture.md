@@ -109,6 +109,76 @@ Shortlist ownership:
 - below-cutoff audit rows exist only in the versioned shortlist stage artifact. They never enter checkpoints, shortlist persistence, AI scoring, ranking, exports, or fit labels.
 - full-run and continuation paths share the same production row contract; continuation preserves prior completed stage artifacts without persisting audit rows in checkpoint state.
 
+## Prototype Control-Plane Contract
+
+`docs/fitcv-settings-ui-prototype.html` is the non-navigation frontend contract
+for Settings, Runs, Run Details, and Pipeline Results. Backend ownership is
+normalized so the browser consumes resources instead of reconstructing state
+from HTML, JSON blobs, exports, or artifacts.
+
+### Normalized SQLite Ownership
+
+Control-plane schema version `2` owns query-critical state in constrained
+tables:
+
+- `candidate_profiles`: selectable profile catalog and seed provenance
+- `pipeline_runs`: lifecycle, display detail, archive state, partial-completion
+  marker, and capabilities source
+- `run_inputs`: immutable uploaded job/profile/settings snapshots
+- `run_stage_executions`: exactly six prototype stage rows per Run
+- `run_jobs`: stable per-input job identity and current stage/CV/evaluation refs
+- `run_job_stage_results`: one job-stage outcome projection per stage
+- `cv_versions`: versioned generation state, input fingerprint, metadata, and
+  persisted file/content evidence
+- `cv_evaluations`: LLM evaluation status, score, classification, and evidence
+- `cv_review_events`: immutable transitions including independent `stretch`
+  review state
+- `bookmarks`: durable bookmark plus display snapshot
+- `run_job_interest`: current 1–5 Application Interest projection
+- `idempotent_actions`: durable request reservation and replay result
+
+`src/fitcv_cp/run_lifecycle.py` is the public stage/status registry. It owns the
+six IDs/order/labels, alias normalization, result-bucket projection, Run display
+projection, capabilities, and terminal decision rules used by list, detail,
+stage, job, CSV, action, and worker paths.
+
+### Runtime Transition Flow
+
+1. Prototype upload trigger validates one JSON/JSONL file and one active
+   Candidate Profile, then reserves `runs.trigger` by `Idempotency-Key`.
+2. One transaction persists Run, immutable input snapshots, six pending stages,
+   and stable `run_job_id` rows before queue submission.
+3. Queue failure changes the persisted Run to inspectable failure state; it does
+   not erase the Run or report false success.
+4. Worker and reporter transitions update Run, stage, job-stage, CV, evaluation,
+   and process-event owners at their actual execution boundaries.
+5. Terminal projection uses persisted required failures, unresolved jobs,
+   partial stages, cancellation, and usable-result count. Partial outputs remain
+   queryable after failed/cancelled completion.
+
+CV regeneration follows the same reservation rule: a child `cv_versions` row is
+persisted before enqueue, queue failure becomes `generation_failed`, successful
+generation stores downloadable content, and evaluation/review transitions occur
+separately. A generated CV therefore does not imply `strong`, `stretch`, or
+approval.
+
+### Console, Artifacts, And Retention
+
+`process_events` is the immutable Console chronology SSOT. Cursor APIs project
+it without creating a second UI ledger; Clear View is browser-local only.
+Artifacts and debug bundles remain downloadable/redacted evidence. They never
+override normalized lifecycle, counts, capabilities, or review state.
+
+Permanent archived-Run deletion is atomic. Run input, stage, job, job-stage,
+CV, evaluation, review, and interest rows cascade through foreign keys.
+Bookmarks use `ON DELETE SET NULL` and retain their source fingerprint/display
+snapshot. Immutable process events remain audit evidence rather than becoming a
+mutable child collection.
+
+Existing `/admin/runs` and historical export/review routes remain compatibility
+surfaces. `/admin/settings` and its canonical JSON routes own prototype behavior;
+legacy routes may delegate to shared owners but may not create divergent truth.
+
 ## Portability and Routing
 
 - backend portability: sqlite execution path is selected through control-plane backend runtime resolution

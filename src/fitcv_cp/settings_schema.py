@@ -2051,6 +2051,13 @@ def pipeline_settings_projection(
         keys: list[str],
         **extra: Any,
     ) -> dict[str, Any]:
+        details_groups = [
+            {
+                **group,
+                "fields": [row(key) for key in group["keys"]],
+            }
+            for group in extra.pop("details_groups", [])
+        ]
         return {
             "id": row_id,
             "kind": "manage",
@@ -2058,6 +2065,7 @@ def pipeline_settings_projection(
             "description": description,
             "keys": list(keys),
             "fields": [row(key) for key in keys],
+            "details_groups": details_groups,
             **extra,
         }
 

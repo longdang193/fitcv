@@ -123,6 +123,53 @@ def test_control_plane_store_uses_injected_cv_read_fns() -> None:
     assert store.get_cv_markdown("v1") == "# CV"
 
 
+def test_control_plane_store_uses_injected_cv_regeneration_write_fns() -> None:
+    calls: list[tuple[str, object]] = []
+
+    def _reserve(run_job_id, **kwargs):
+        calls.append(("reserve", (run_job_id, kwargs)))
+        return {"version_id": kwargs["version_id"]}
+
+    def _update_version(version_id, **kwargs):
+        calls.append(("version", (version_id, kwargs)))
+        return {"version_id": version_id, "generation_status": kwargs["generation_status"]}
+
+    def _update_evaluation(evaluation_id, **kwargs):
+        calls.append(("evaluation", (evaluation_id, kwargs)))
+        return {"cv_evaluation_id": evaluation_id, "status": kwargs["status"]}
+
+    store = ControlPlaneStore(
+        reserve_cv_regeneration_fn=_reserve,
+        update_cv_version_fn=_update_version,
+        update_cv_evaluation_fn=_update_evaluation,
+    )
+
+    assert store.reserve_cv_regeneration(
+        "job-1",
+        version_id="cv-2",
+        idempotency_key="key-1",
+        action_id="action-1",
+        input_snapshot={},
+    )["version_id"] == "cv-2"
+    assert store.update_cv_version("cv-2", generation_status="running")["generation_status"] == "running"
+    assert store.update_cv_evaluation("eval-1", status="running")["status"] == "running"
+    assert [name for name, _payload in calls] == ["reserve", "version", "evaluation"]
+
+
+def test_control_plane_store_uses_injected_run_job_lookup_fn() -> None:
+    store = ControlPlaneStore(
+        get_run_job_fn=lambda run_id, run_job_id: {
+            "run_id": run_id,
+            "run_job_id": run_job_id,
+        }
+    )
+
+    assert store.get_run_job("run-1", "job-1") == {
+        "run_id": "run-1",
+        "run_job_id": "job-1",
+    }
+
+
 def test_control_plane_store_uses_injected_pipeline_runs_schema_status_fn() -> None:
     def _schema_status():
         return {"status": "complete", "missing_columns": [], "warning": None}
@@ -303,3 +350,67 @@ def test_control_plane_store_delegates_inverse_optimization_request_and_lifecycl
         "inspect_domain_id": "ranking_v1",
         "limit": 25,
     }
+
+def test_control_plane_store_delegates_prototype_resources_and_actions() -> None:
+    store = ControlPlaneStore(
+        create_run_bundle_fn=lambda run, **kwargs: {"run_id": run.run_id, **kwargs},
+        query_runs_fn=lambda **kwargs: {"items": [kwargs]},
+        list_run_stages_fn=lambda run_id: [{"run_id": run_id}],
+        query_run_jobs_fn=lambda run_id, **kwargs: {"items": [{"run_id": run_id, **kwargs}]},
+        set_bookmark_fn=lambda run_job_id: {"run_job_id": run_job_id},
+        clear_bookmark_fn=lambda run_job_id: {"cleared": run_job_id},
+        set_run_job_interest_fn=lambda run_job_id, rating, **kwargs: {
+            "run_job_id": run_job_id, "rating": rating, **kwargs
+        },
+        reserve_idempotent_action_fn=lambda scope, key, fingerprint: {
+            "scope": scope, "key": key, "fingerprint": fingerprint
+        },
+    )
+    run = _run()
+
+    assert store.create_run_bundle(run, input_resource={}, jobs=[])["run_id"] == "rid-1"
+    assert store.query_runs(view="active", page=1, page_size=20)["items"][0]["view"] == "active"
+    assert store.list_run_stages("run-1")[0]["run_id"] == "run-1"
+    assert store.query_run_jobs("run-1", page=1, page_size=10)["items"][0]["page_size"] == 10
+    assert store.set_bookmark("job-1")["run_job_id"] == "job-1"
+    assert store.clear_bookmark("job-1")["cleared"] == "job-1"
+    assert store.set_run_job_interest(
+        "job-1", 4, rating_contract_revision="interest-v1", action_id="action-1"
+    )["rating"] == 4
+    assert store.reserve_idempotent_action("runs:create", "key", "fp")["fingerprint"] == "fp"
+
+
+def test_control_plane_store_delegates_remaining_prototype_store_contracts() -> None:
+    captured: dict[str, object] = {}
+    store = ControlPlaneStore(
+        list_candidate_profiles_fn=lambda: [{"candidate_profile_id": "candidate-1"}],
+        get_candidate_profile_fn=lambda profile_id: {"candidate_profile_id": profile_id},
+        get_run_detail_fn=lambda run_id: {"run_id": run_id},
+        iter_run_jobs_for_export_fn=lambda run_id, **kwargs: iter([{"run_id": run_id, **kwargs}]),
+        list_bookmarks_fn=lambda: [{"bookmark_id": "bookmark-1"}],
+        clear_run_job_interest_fn=lambda run_job_id, **kwargs: {
+            "run_job_id": run_job_id, **kwargs
+        },
+        complete_idempotent_action_fn=lambda action_id, response: captured.update(
+            {"action_id": action_id, "response": response}
+        ),
+        list_cv_versions_fn=lambda run_job_id: [{"run_job_id": run_job_id}],
+        insert_cv_evaluation_row_fn=lambda row: {**row, "stored": True},
+        insert_cv_review_event_fn=lambda row: {**row, "stored": True},
+        get_cv_download_fn=lambda version_id: {"version_id": version_id, "content": b"# CV"},
+        get_debug_bundle_availability_fn=lambda run_id: {"run_id": run_id, "status": "available"},
+    )
+
+    assert store.list_candidate_profiles()[0]["candidate_profile_id"] == "candidate-1"
+    assert store.get_candidate_profile("candidate-1")["candidate_profile_id"] == "candidate-1"
+    assert store.get_run_detail("run-1")["run_id"] == "run-1"
+    assert list(store.iter_run_jobs_for_export("run-1", stage="screening"))[0]["stage"] == "screening"
+    assert store.list_bookmarks()[0]["bookmark_id"] == "bookmark-1"
+    assert store.clear_run_job_interest("job-1", action_id="action-1")["action_id"] == "action-1"
+    store.complete_idempotent_action("action-1", {"ok": True})
+    assert captured == {"action_id": "action-1", "response": {"ok": True}}
+    assert store.list_cv_versions("job-1")[0]["run_job_id"] == "job-1"
+    assert store.insert_cv_evaluation_row({"cv_evaluation_id": "eval-1"})["stored"] is True
+    assert store.insert_cv_review_event({"review_event_id": "review-1"})["stored"] is True
+    assert store.get_cv_download("cv-1")["content"] == b"# CV"
+    assert store.get_debug_bundle_availability("run-1")["status"] == "available"

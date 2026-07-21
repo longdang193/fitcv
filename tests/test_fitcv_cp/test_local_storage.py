@@ -30,6 +30,7 @@ from fitcv_cp.local_storage import (
     activate_local_storage,
     create_backup_archive,
     load_pending_operation,
+    reset_local_database,
     relocate_data_root,
     restore_backup_archive,
     load_bootstrap,
@@ -100,6 +101,13 @@ def test_load_bootstrap_rejects_malformed_json(tmp_path: Path) -> None:
 
     with pytest.raises(BootstrapError, match="malformed"):
         load_bootstrap(bootstrap_path)
+
+def test_pending_operation_accepts_database_reset(tmp_path: Path) -> None:
+    path = tmp_path / "pending-operation.json"
+
+    write_pending_operation(path, {"operation": "reset_database"})
+
+    assert load_pending_operation(path) == {"version": 1, "operation": "reset_database"}
 
 
 def test_validate_controller_overlay_rejects_unsupported_keys() -> None:
@@ -191,6 +199,55 @@ def test_backup_archive_restores_sqlite_and_user_configuration(tmp_path: Path) -
     assert manifest["app_version"] == "1.2.3"
     assert "logs/secret.log" not in names
     assert all(not name.endswith(("-wal", "-shm")) for name in names)
+
+def test_reset_local_database_archives_then_retires_matched_sqlite_set(tmp_path: Path) -> None:
+    paths = __import__("fitcv_cp.local_storage", fromlist=["_paths"])._paths(
+        tmp_path / "bootstrap.json", tmp_path / "data"
+    )
+    paths.data_root.mkdir()
+    paths.backups_path.mkdir()
+    paths.temporary_path.mkdir()
+    paths.candidate_profile_path.write_text("name: User\n", encoding="utf-8")
+    connection = sqlite3.connect(paths.sqlite_path)
+    connection.execute("CREATE TABLE sample (value TEXT)")
+    connection.execute("INSERT INTO sample VALUES ('kept')")
+    connection.commit()
+    connection.close()
+    Path(f"{paths.sqlite_path}-wal").write_bytes(b"wal-evidence")
+    Path(f"{paths.sqlite_path}-shm").write_bytes(b"shm-evidence")
+
+    evidence = reset_local_database(paths, app_version="1.2.3")
+
+    assert evidence.archive_path.exists()
+    assert not paths.sqlite_path.exists()
+    assert not Path(f"{paths.sqlite_path}-wal").exists()
+    assert not Path(f"{paths.sqlite_path}-shm").exists()
+    assert (evidence.retired_directory / "fitcv.sqlite3").exists()
+    assert (evidence.retired_directory / "fitcv.sqlite3-wal").read_bytes() == b"wal-evidence"
+    assert (evidence.retired_directory / "fitcv.sqlite3-shm").read_bytes() == b"shm-evidence"
+
+def test_reset_local_database_stops_before_retirement_when_backup_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths = __import__("fitcv_cp.local_storage", fromlist=["_paths"])._paths(
+        tmp_path / "bootstrap.json", tmp_path / "data"
+    )
+    paths.data_root.mkdir()
+    paths.backups_path.mkdir()
+    paths.temporary_path.mkdir()
+    connection = sqlite3.connect(paths.sqlite_path)
+    connection.execute("CREATE TABLE sample (value TEXT)")
+    connection.commit()
+    connection.close()
+    monkeypatch.setattr(
+        "fitcv_cp.local_storage.create_backup_archive",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("backup failed")),
+    )
+
+    with pytest.raises(OSError, match="backup failed"):
+        reset_local_database(paths, app_version="1.2.3")
+
+    assert paths.sqlite_path.exists()
 
 def test_restore_rejects_path_traversal(tmp_path: Path) -> None:
     archive = tmp_path / "bad.zip"

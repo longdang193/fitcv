@@ -15,6 +15,7 @@ lifecycle:
 
 import dataclasses
 import datetime
+import csv
 import hashlib
 import html
 import io
@@ -35,9 +36,10 @@ from zoneinfo import ZoneInfo
 
 import yaml
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ValidationError as PydanticValidationError, field_validator
 
 from fitcv.config import (
     apply_cv_compatibility_projection,
@@ -172,6 +174,7 @@ insert_run = sqlite_store_module.insert_run
 update_run_queue_job_id = sqlite_store_module.update_run_queue_job_id
 update_run_orchestration_binding = sqlite_store_module.update_run_orchestration_binding
 from fitcv_cp.settings_store import (
+    SettingsRevisionConflict,
     bookmark_key_for_job,
     delete_bookmarked_job,
     is_job_bookmarked,
@@ -181,6 +184,7 @@ from fitcv_cp.settings_store import (
     set_bookmarked_job_status,
     save_setting,
     save_settings_group,
+    settings_revision,
     upsert_bookmarked_job,
 )
 from fitcv_cp.synonym_proposals import (
@@ -496,12 +500,25 @@ def _persist_run_queue_job_id(
     run_id: str,
     queue_job_id: str,
     *,
+    orchestration_backend: str | None = None,
+    orchestration_run_id: str | None = None,
     client: Any,
 ) -> None:
     if _CP_STORE is not None:
-        _CP_STORE.update_run_queue_job_id(run_id, queue_job_id)
+        _CP_STORE.update_run_queue_job_id(
+            run_id,
+            queue_job_id,
+            orchestration_backend=orchestration_backend,
+            orchestration_run_id=orchestration_run_id,
+        )
         return
-    update_run_queue_job_id(run_id, queue_job_id, client=client)
+    update_run_queue_job_id(
+        run_id,
+        queue_job_id,
+        orchestration_backend=orchestration_backend,
+        orchestration_run_id=orchestration_run_id,
+        client=client,
+    )
 
 
 def enqueue_run_with_job_id(
@@ -5429,11 +5446,42 @@ class SettingUpdate(BaseModel):
 class PipelineSettingsPatch(BaseModel):
     changes: dict[str, Any]
     updated_by: str = "admin"
+    expected_revision: str | None = None
 
 
 class PipelineSettingsReset(BaseModel):
     keys: list[str]
     updated_by: str = "admin"
+    expected_revision: str | None = None
+
+
+class DeleteArchivedRunsRequest(BaseModel):
+    run_ids: list[str]
+
+    @field_validator("run_ids")
+    @classmethod
+    def run_ids_required(cls, values: list[str]) -> list[str]:
+        run_ids = list(dict.fromkeys(str(value or "").strip() for value in values))
+        run_ids = [run_id for run_id in run_ids if run_id]
+        if not run_ids:
+            raise ValueError("run_ids must include at least one run id")
+        return run_ids
+
+
+class InterestRequest(BaseModel):
+    rating: int
+    rating_contract_revision: str
+
+    @field_validator("rating")
+    @classmethod
+    def rating_in_range(cls, value: int) -> int:
+        if value not in range(1, 6):
+            raise ValueError("rating must be between 1 and 5")
+        return value
+
+
+class CvRegenerateRequest(BaseModel):
+    parent_cv_version_id: str | None = None
 
 
 class BulkRunActionRequest(BaseModel):
@@ -5448,6 +5496,154 @@ class BulkRunActionRequest(BaseModel):
             raise ValueError("run_ids must include at least one run id")
         deduped = list(dict.fromkeys(filtered))
         return deduped
+
+
+class ApiError(Exception):
+    def __init__(
+        self,
+        status_code: int,
+        code: str,
+        message: str,
+        *,
+        field_errors: list[dict[str, str]] | None = None,
+        retryable: bool = False,
+        action: str | None = None,
+    ) -> None:
+        self.status_code = status_code
+        self.payload = {
+            "error": {
+                "code": code,
+                "message": message,
+                "field_errors": list(field_errors or []),
+                "retryable": retryable,
+                "action": action,
+            }
+        }
+        super().__init__(message)
+
+
+def _data_response(data: Any) -> dict[str, Any]:
+    return {"data": data}
+
+
+def _run_enqueue_failure_response(data: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "data": data,
+        "error": {
+            "code": "run_enqueue_failed",
+            "message": "Run was created but could not be queued.",
+            "field_errors": [],
+            "retryable": True,
+            "action": "Check queue connectivity, then trigger a new Run.",
+        },
+    }
+
+
+def _collection_response(
+    data: list[Any],
+    *,
+    page: int,
+    page_size: int,
+    total_items: int,
+    meta: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return {
+        "data": data,
+        "page": {
+            "number": page,
+            "size": page_size,
+            "total_items": total_items,
+            "total_pages": (total_items + page_size - 1) // page_size if total_items else 0,
+        },
+        "meta": dict(meta or {}),
+    }
+
+
+def _validated_page(page: int, page_size: int) -> tuple[int, int]:
+    field_errors: list[dict[str, str]] = []
+    if page < 1:
+        field_errors.append(
+            {"field": "page", "code": "invalid_value", "message": "Use 1 or greater."}
+        )
+    if page_size not in {10, 20, 50}:
+        field_errors.append(
+            {
+                "field": "page_size",
+                "code": "invalid_value",
+                "message": "Use 10, 20, or 50.",
+            }
+        )
+    if field_errors:
+        raise ApiError(
+            422,
+            "validation_failed",
+            "Request validation failed.",
+            field_errors=field_errors,
+            action="Fix highlighted fields and retry.",
+        )
+    return page, page_size
+
+
+def _required_idempotency_key(request: Request) -> str:
+    key = str(request.headers.get("Idempotency-Key") or "").strip()
+    if not key:
+        raise ApiError(
+            422,
+            "validation_failed",
+            "Idempotency-Key header is required.",
+            field_errors=[
+                {
+                    "field": "Idempotency-Key",
+                    "code": "required",
+                    "message": "Provide a stable idempotency key.",
+                }
+            ],
+            action="Retry with an Idempotency-Key header.",
+        )
+    return key
+
+
+def _request_fingerprint(payload: Any) -> str:
+    encoded = _json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _csv_cell(value: Any) -> str:
+    if isinstance(value, (list, tuple)):
+        text = "; ".join(str(item) for item in value)
+    else:
+        text = "" if value is None else str(value)
+    return f"'{text}" if text.startswith(("=", "+", "-", "@")) else text
+
+
+def _redact_debug_bundle_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        redacted: dict[str, Any] = {}
+        for raw_key, item in value.items():
+            key = str(raw_key)
+            normalized_key = re.sub(r"[^a-z0-9]+", "_", key.casefold()).strip("_")
+            is_secret = any(
+                token in normalized_key
+                for token in ("api_key", "authorization", "credential", "password", "secret", "token")
+            )
+            is_raw_snapshot = normalized_key in {
+                "candidate_profile_json",
+                "candidate_profile_snapshot",
+                "input_snapshot",
+                "jobs_input_json",
+                "jobs_snapshot",
+                "profile_json",
+            }
+            redacted[key] = "[redacted]" if is_secret or is_raw_snapshot else _redact_debug_bundle_value(item)
+        return redacted
+    if isinstance(value, list):
+        return [_redact_debug_bundle_value(item) for item in value]
+    return value
 
 class BulkDeleteArchivedRunsRequest(BaseModel):
     older_than_days: int | str
@@ -5726,6 +5922,32 @@ def create_app(
     )
     app = FastAPI(title="FitCV Admin Control Plane")
     app.state.run_store = _CP_STORE
+
+    @app.exception_handler(ApiError)
+    async def api_error_handler(_request: Request, exc: ApiError) -> JSONResponse:
+        return JSONResponse(status_code=exc.status_code, content=exc.payload)
+
+    @app.exception_handler(RequestValidationError)
+    async def api_validation_error_handler(
+        _request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        field_errors = [
+            {
+                "field": ".".join(str(part) for part in error["loc"] if part not in {"body", "query"}),
+                "code": "invalid_value",
+                "message": str(error["msg"]),
+            }
+            for error in exc.errors()
+        ]
+        error = ApiError(
+            422,
+            "validation_failed",
+            "Request validation failed.",
+            field_errors=field_errors,
+            action="Fix highlighted fields and retry.",
+        )
+        return JSONResponse(status_code=error.status_code, content=error.payload)
+
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     from fitcv_cp.local_storage import is_local_mode
 
@@ -5836,9 +6058,26 @@ def create_app(
             pipeline_managed_groups[str(group["id"])] = set(str(key) for key in group["keys"])
 
     def _pipeline_settings_resource(active: dict[str, Any]) -> dict[str, Any]:
-        effective = merge_and_validate_settings(
-            {}, current_settings=active, baseline_config=baseline_config
-        )
+        validation_errors: list[str] = []
+        try:
+            effective = merge_and_validate_settings(
+                {}, current_settings=active, baseline_config=baseline_config
+            )
+        except ValidationError as exc:
+            validation_errors.append(str(exc))
+            effective = {
+                str(entry["key"]): entry["default"]
+                for entry in runtime_settings_schema
+            }
+            for raw_key, raw_value in active.items():
+                key = canonical_settings_key(raw_key)
+                if key not in effective:
+                    validation_errors.append(f"Unknown setting key: '{raw_key}'")
+                    continue
+                try:
+                    effective[key] = coerce_value(key, raw_value)
+                except (TypeError, ValueError) as value_error:
+                    validation_errors.append(str(value_error))
         defaults = {
             str(entry["key"]): entry["default"]
             for entry in runtime_settings_schema
@@ -5846,6 +6085,7 @@ def create_app(
         }
         values = {key: effective[key] for key in pipeline_owned_keys}
         return {
+            "revision": settings_revision(active),
             "schema": pipeline_projection,
             "values": values,
             "defaults": defaults,
@@ -5855,28 +6095,59 @@ def create_app(
             },
             "disabled_reasons": settings_disabled_reasons(effective),
             "warnings": derive_settings_warnings(effective),
+            "validation_errors": validation_errors,
         }
 
     def _pipeline_changes(changes: dict[str, Any]) -> dict[str, Any]:
         canonical = {canonical_settings_key(key): value for key, value in changes.items()}
         invalid = sorted(set(canonical) - pipeline_owned_keys)
         if invalid:
-            raise HTTPException(
-                status_code=422,
-                detail="Settings not owned by Pipeline settings: " + ", ".join(invalid),
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Settings contain unsupported fields.",
+                field_errors=[
+                    {
+                        "field": key,
+                        "code": "unsupported_field",
+                        "message": "Setting is not owned by Pipeline settings.",
+                    }
+                    for key in invalid
+                ],
+                action="Remove unsupported fields and retry.",
             )
         read_only = sorted(set(canonical) & metadata_only_keys)
         if read_only:
-            raise HTTPException(
-                status_code=422,
-                detail="Read-only Pipeline settings: " + ", ".join(read_only),
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Settings contain read-only fields.",
+                field_errors=[
+                    {
+                        "field": key,
+                        "code": "read_only",
+                        "message": "Setting is read-only.",
+                    }
+                    for key in read_only
+                ],
+                action="Remove read-only fields and retry.",
             )
         changed_keys = set(canonical)
         for group_id, group_keys in pipeline_managed_groups.items():
             if changed_keys & group_keys and not group_keys <= changed_keys:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Managed group '{group_id}' must be saved as a complete group",
+                raise ApiError(
+                    422,
+                    "validation_failed",
+                    f"Managed group '{group_id}' must be saved as a complete group.",
+                    field_errors=[
+                        {
+                            "field": key,
+                            "code": "managed_group_incomplete",
+                            "message": f"Include every field in managed group '{group_id}'.",
+                        }
+                        for key in sorted(group_keys - changed_keys)
+                    ],
+                    action="Submit the complete managed group and retry.",
                 )
         return canonical
 
@@ -6746,23 +7017,35 @@ def create_app(
             completed_stages=[],
         )
         _persist_run_initial(run, client=client)
-        submission = submit_run(
-            jobs_path=actual_jobs_path,
-            config_path=config_path,
-            triggered_by=triggered_by,
-            redis_url=redis_url,
-            run_id=run_id,
-        )
-        _persist_run_orchestration_binding(
-            run_id,
-            queue_job_id=submission.queue_job_id,
-            orchestration_backend=submission.backend,
-            orchestration_run_id=submission.backend_run_id,
-            client=client,
-        )
+        try:
+            submission = submit_run(
+                jobs_path=actual_jobs_path,
+                config_path=config_path,
+                triggered_by=triggered_by,
+                redis_url=redis_url,
+                run_id=run_id,
+            )
+        except Exception as exc:
+            update_run_status(
+                run_id,
+                RunStatus.FAILED,
+                client=client,
+                finished_at=datetime.datetime.now(datetime.timezone.utc),
+                error_message=str(exc),
+                error_stage="orchestration_enqueue",
+            )
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "message": "Run was persisted but could not be queued. Retry from Runs.",
+                    "run_id": run_id,
+                },
+            ) from exc
         _persist_run_queue_job_id(
             run_id,
             submission.queue_job_id,
+            orchestration_backend=submission.backend,
+            orchestration_run_id=submission.backend_run_id,
             client=client,
         )
         return {"run_id": run_id, "warnings": []}
@@ -6773,6 +7056,7 @@ def create_app(
         triggered_by: str,
         config_overrides: dict[str, Any],
         *,
+        run_name: str | None = None,
         jobs_input_source: str | None = None,
         jobs_input_json: str | None = None,
         jobs_input_manifest_json: str | None = None,
@@ -6884,6 +7168,7 @@ def create_app(
             jobs_path=jobs_path,
             config_path=config_path,
             created_at=datetime.datetime.now(datetime.timezone.utc),
+            run_name=run_name,
             effective_settings_json=_json.dumps(effective_config),
             jobs_input_source=jobs_input_source,
             jobs_input_json=jobs_input_json,
@@ -6896,36 +7181,276 @@ def create_app(
             completed_stages=[],
         )
         _persist_run_initial(run, client=client)
-        submission = submit_run(
-            jobs_path=jobs_path,
-            config_path=config_path,
-            triggered_by=triggered_by,
-            redis_url=redis_url,
-            run_id=run_id,
-        )
-        _persist_run_orchestration_binding(
-            run_id,
-            queue_job_id=submission.queue_job_id,
-            orchestration_backend=submission.backend,
-            orchestration_run_id=submission.backend_run_id,
-            client=client,
-        )
+        try:
+            submission = submit_run(
+                jobs_path=jobs_path,
+                config_path=config_path,
+                triggered_by=triggered_by,
+                redis_url=redis_url,
+                run_id=run_id,
+            )
+        except Exception as exc:
+            update_run_status(
+                run_id,
+                RunStatus.FAILED,
+                client=client,
+                finished_at=datetime.datetime.now(datetime.timezone.utc),
+                error_message=str(exc),
+                error_stage="orchestration_enqueue",
+            )
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "message": "Run was persisted but could not be queued. Retry from Runs.",
+                    "run_id": run_id,
+                },
+            ) from exc
         _persist_run_queue_job_id(
             run_id,
             submission.queue_job_id,
+            orchestration_backend=submission.backend,
+            orchestration_run_id=submission.backend_run_id,
             client=client,
         )
         return {"run_id": run_id, "warnings": []}
 
     @app.post("/runs", status_code=201)
-    def trigger_run(req: TriggerRequest) -> dict:
-        return _execute_trigger(
-            jobs_path=req.jobs_path,
-            config_path=req.config_path,
-            triggered_by=req.triggered_by,
-            config_overrides=req.config_overrides,
-            run_mode=req.run_mode,
-        )
+    async def trigger_run(request: Request) -> dict[str, Any]:
+        content_type = str(request.headers.get("content-type") or "").lower()
+        if "application/json" in content_type:
+            try:
+                req = TriggerRequest.model_validate(await request.json())
+            except PydanticValidationError as exc:
+                raise ApiError(
+                    422,
+                    "validation_failed",
+                    "Request validation failed.",
+                    field_errors=[
+                        {
+                            "field": ".".join(str(part) for part in error["loc"]),
+                            "code": "invalid_value",
+                            "message": str(error["msg"]),
+                        }
+                        for error in exc.errors()
+                    ],
+                    action="Fix highlighted fields and retry.",
+                ) from exc
+            return _execute_trigger(
+                jobs_path=req.jobs_path,
+                config_path=req.config_path,
+                triggered_by=req.triggered_by,
+                config_overrides=req.config_overrides,
+                run_mode=req.run_mode,
+            )
+
+        key = _required_idempotency_key(request)
+        form = await request.form()
+        uploads = [item for item in form.getlist("jobs_file") if getattr(item, "filename", None)]
+        if len(uploads) != 1:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Exactly one jobs file is required.",
+                field_errors=[
+                    {
+                        "field": "jobs_file",
+                        "code": "invalid_count",
+                        "message": "Upload exactly one JSON or JSONL file.",
+                    }
+                ],
+                action="Choose one job file and retry.",
+            )
+        upload = uploads[0]
+        filename = Path(str(upload.filename)).name
+        extension = Path(filename).suffix.lower()
+        if extension not in {".json", ".jsonl"}:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Job file type is not supported.",
+                field_errors=[
+                    {
+                        "field": "jobs_file",
+                        "code": "unsupported_file_type",
+                        "message": "Use .json or .jsonl.",
+                    }
+                ],
+                action="Choose a JSON or JSONL file and retry.",
+            )
+        raw_bytes = await upload.read()
+        if not raw_bytes or len(raw_bytes) > 50 * 1024 * 1024:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Job file size is invalid.",
+                field_errors=[
+                    {
+                        "field": "jobs_file",
+                        "code": "invalid_size",
+                        "message": "File must be non-empty and no larger than 50 MB.",
+                    }
+                ],
+                action="Choose a valid file and retry.",
+            )
+        try:
+            text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Job file must use UTF-8.",
+                field_errors=[
+                    {"field": "jobs_file", "code": "invalid_encoding", "message": "Use UTF-8."}
+                ],
+                action="Save the file as UTF-8 and retry.",
+            ) from exc
+        try:
+            if extension == ".json":
+                parsed_jobs = _json.loads(text)
+            else:
+                parsed_jobs = []
+                for line_number, line in enumerate(text.splitlines(), start=1):
+                    if not line.strip():
+                        continue
+                    row = _json.loads(line)
+                    if not isinstance(row, dict):
+                        raise ValueError(f"line {line_number} must be an object")
+                    parsed_jobs.append(row.get("raw_job") if isinstance(row.get("raw_job"), dict) else row)
+        except (_json.JSONDecodeError, ValueError) as exc:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Job file contains invalid JSON.",
+                field_errors=[
+                    {"field": "jobs_file", "code": "invalid_json", "message": str(exc)}
+                ],
+                action="Fix the file and retry.",
+            ) from exc
+        if not isinstance(parsed_jobs, list) or not parsed_jobs or any(
+            not isinstance(job, dict) for job in parsed_jobs
+        ):
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Job file must contain one or more job objects.",
+                field_errors=[
+                    {
+                        "field": "jobs_file",
+                        "code": "invalid_record_grain",
+                        "message": "Use a JSON array of objects or one JSON object per JSONL line.",
+                    }
+                ],
+                action="Fix the file and retry.",
+            )
+        candidate_profile_id = str(form.get("candidate_profile_id") or "").strip()
+        if not candidate_profile_id:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Candidate Profile is required.",
+                field_errors=[
+                    {"field": "candidate_profile_id", "code": "required", "message": "Select a Candidate Profile."}
+                ],
+                action="Select a Candidate Profile and retry.",
+            )
+        profile = _resolve_run_store().get_candidate_profile(candidate_profile_id)
+        if profile is None:
+            raise ApiError(
+                404,
+                "candidate_profile_not_found",
+                "Candidate Profile not found.",
+                action="Refresh Candidate Profiles and select an existing profile.",
+            )
+        if not bool(profile.get("is_active")):
+            raise ApiError(
+                409,
+                "candidate_profile_inactive",
+                "Candidate Profile is inactive.",
+                action="Select an active Candidate Profile.",
+            )
+        run_name = str(form.get("run_name") or "").strip() or Path(filename).stem
+        if len(run_name) > 120:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Run Name is too long.",
+                field_errors=[
+                    {"field": "run_name", "code": "max_length", "message": "Use 120 characters or fewer."}
+                ],
+                action="Shorten Run Name and retry.",
+            )
+        canonical_jobs = _json.dumps(parsed_jobs, ensure_ascii=False, indent=2)
+        profile_snapshot = dict(profile.get("profile") or {})
+        profile_snapshot.setdefault("name", profile.get("name"))
+        profile_snapshot["revision"] = profile.get("revision")
+        profile_snapshot["candidate_profile_id"] = candidate_profile_id
+        fingerprint_payload = {
+            "jobs_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+            "candidate_profile_id": candidate_profile_id,
+            "candidate_profile_revision": profile.get("revision"),
+            "run_name": run_name,
+        }
+        try:
+            action = _resolve_run_store().reserve_idempotent_action(
+                "runs.trigger",
+                key,
+                _request_fingerprint(fingerprint_payload),
+            )
+        except ValueError as exc:
+            raise ApiError(
+                409,
+                "idempotency_conflict",
+                "Idempotency key was already used for a different request.",
+                action="Retry with a new Idempotency-Key.",
+            ) from exc
+        if action.get("replayed") and action.get("response") is not None:
+            replay = dict(action["response"])
+            if replay.get("backend_status") == "failed" and replay.get("error_code") == "orchestration_enqueue":
+                return JSONResponse(status_code=503, content=_run_enqueue_failure_response(replay))
+            return _data_response(replay)
+        upload_dir = Path("data/uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        jobs_path = upload_dir / f"{uuid.uuid4().hex}_jobs.json"
+        jobs_path.write_text(canonical_jobs, encoding="utf-8")
+        try:
+            result = _execute_trigger_with_inputs(
+                jobs_path=str(jobs_path),
+                config_path=str(form.get("config_path") or ".env.yaml"),
+                triggered_by=str(form.get("triggered_by") or "admin"),
+                config_overrides={},
+                run_name=run_name,
+                jobs_input_source="upload",
+                jobs_input_json=canonical_jobs,
+                jobs_input_manifest_json=_json.dumps(
+                    {
+                        "source_filenames": [filename],
+                        "media_type": str(getattr(upload, "content_type", None) or "application/json"),
+                        "byte_length": len(raw_bytes),
+                        "sha256": fingerprint_payload["jobs_sha256"],
+                    },
+                    sort_keys=True,
+                ),
+                candidate_profile_source=candidate_profile_id,
+                candidate_profile_json=_json.dumps(profile_snapshot, ensure_ascii=False),
+            )
+        except HTTPException as exc:
+            detail = exc.detail if isinstance(exc.detail, dict) else {}
+            failed_run_id = str(detail.get("run_id") or "")
+            if exc.status_code != 503 or not failed_run_id:
+                raise
+            resource = _resolve_run_store().get_run_detail(failed_run_id) or {
+                "run_id": failed_run_id,
+                "backend_status": "failed",
+                "error_code": "orchestration_enqueue",
+                "error_message": str(detail.get("message") or "Run could not be queued."),
+            }
+            response = {**resource, "action_id": action["action_id"]}
+            _resolve_run_store().complete_idempotent_action(str(action["action_id"]), response)
+            return JSONResponse(status_code=503, content=_run_enqueue_failure_response(response))
+        resource = _resolve_run_store().get_run_detail(str(result["run_id"])) or result
+        response = {**resource, "action_id": action["action_id"]}
+        _resolve_run_store().complete_idempotent_action(str(action["action_id"]), response)
+        return _data_response(response)
 
     @app.post("/admin/upload-trigger", status_code=201)
     async def upload_trigger(
@@ -7143,33 +7668,679 @@ def create_app(
             run_mode=run_mode,
         )
 
+    @app.get("/candidate-profiles")
+    def get_candidate_profiles(active: bool = True) -> dict[str, Any]:
+        profiles = _resolve_run_store().list_candidate_profiles()
+        if active:
+            profiles = [profile for profile in profiles if bool(profile.get("is_active", True))]
+        total = len(profiles)
+        return _collection_response(
+            profiles,
+            page=1,
+            page_size=total,
+            total_items=total,
+            meta={"active": active},
+        )
+
     @app.get("/runs")
-    def get_runs_list() -> list:
-        runs = list_runs(client=client)
-        runs = [_reconcile_orphaned_run(run) for run in runs]
-        return [_run_to_dict(r) for r in runs]
+    def get_runs_list(
+        view: str = "active",
+        search: str = "",
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        page, page_size = _validated_page(page, page_size)
+        if view not in {"active", "archived", "all"}:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[
+                    {
+                        "field": "view",
+                        "code": "invalid_value",
+                        "message": "Use active, archived, or all.",
+                    }
+                ],
+                action="Fix highlighted fields and retry.",
+            )
+        store = _resolve_run_store()
+        result = store.query_runs(view=view, search=search, page=page, page_size=page_size)
+        if int(result.get("total") or 0) == 0 and store.query_runs_fn is None:
+            legacy_runs = list_runs(client=client, include_archived=True, limit=500)
+            normalized_search = search.strip().casefold()
+            if normalized_search:
+                legacy_runs = [
+                    run
+                    for run in legacy_runs
+                    if normalized_search
+                    in " ".join(
+                        [
+                            run.run_id,
+                            str(getattr(run, "run_name", "") or ""),
+                            str(run.jobs_path or ""),
+                            str(run.candidate_profile_source or ""),
+                        ]
+                    ).casefold()
+                ]
+            active_count = sum(run.archived_at is None for run in legacy_runs)
+            archived_count = sum(run.archived_at is not None for run in legacy_runs)
+            legacy_runs = [
+                run
+                for run in legacy_runs
+                if (view == "all")
+                or (view == "active" and run.archived_at is None)
+                or (view == "archived" and run.archived_at is not None)
+            ]
+            legacy_runs.sort(key=lambda run: (run.created_at, run.run_id), reverse=True)
+            offset = (page - 1) * page_size
+            result = {
+                "items": legacy_runs[offset:offset + page_size],
+                "total": len(legacy_runs),
+                "active_count": active_count,
+                "archived_count": archived_count,
+            }
+        resources: list[dict[str, Any]] = []
+        for run in result.get("items", []):
+            if isinstance(run, PipelineRun):
+                run = _reconcile_orphaned_run(run)
+            run_id = run.run_id if isinstance(run, PipelineRun) else str(run.get("run_id") or "")
+            detail = store.get_run_detail(run_id) if run_id else None
+            if detail is not None:
+                detail.pop("stages", None)
+                resources.append(detail)
+            elif isinstance(run, PipelineRun):
+                resources.append(_run_to_dict(run))
+            else:
+                resources.append(dict(run))
+        return _collection_response(
+            resources,
+            page=page,
+            page_size=page_size,
+            total_items=int(result.get("total") or 0),
+            meta={
+                "active_count": int(result.get("active_count") or 0),
+                "archived_count": int(result.get("archived_count") or 0),
+                "view": view,
+                "search": search,
+                "server_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            },
+        )
 
     @app.get("/runs/{run_id}")
     def get_run_detail(run_id: str) -> dict:
-        run = require_run_or_404(run_id)
-        run = _reconcile_orphaned_run(run)
-        return _run_to_dict(run)
+        detail = _resolve_run_store().get_run_detail(run_id)
+        if detail is None:
+            legacy_run = get_run(run_id, client=client)
+            if legacy_run is None:
+                raise ApiError(
+                    404,
+                    "run_not_found",
+                    "Run not found.",
+                    action="Return to Runs and select an existing Run.",
+                )
+            detail = _run_to_dict(_reconcile_orphaned_run(legacy_run))
+        return _data_response(detail)
+
+    @app.get("/runs/{run_id}/stages")
+    def get_run_stages(run_id: str) -> dict[str, Any]:
+        detail = _resolve_run_store().get_run_detail(run_id)
+        if detail is None:
+            raise ApiError(
+                404,
+                "run_not_found",
+                "Run not found.",
+                action="Return to Runs and select an existing Run.",
+            )
+        return _data_response(list(detail.get("stages") or []))
+
+    @app.get("/runs/{run_id}/jobs")
+    def get_run_jobs(
+        run_id: str,
+        page: int = 1,
+        page_size: int = 10,
+        search: str = "",
+        stage: str = "all",
+        result_bucket: str = "all",
+    ) -> dict[str, Any]:
+        page, page_size = _validated_page(page, page_size)
+        store = _resolve_run_store()
+        if store.get_run_detail(run_id) is None:
+            raise ApiError(
+                404,
+                "run_not_found",
+                "Run not found.",
+                action="Return to Runs and select an existing Run.",
+            )
+        try:
+            result = store.query_run_jobs(
+                run_id,
+                page=page,
+                page_size=page_size,
+                search=search,
+                stage=stage,
+                result_bucket=result_bucket,
+            )
+        except ValueError as exc:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[
+                    {"field": "filters", "code": "invalid_value", "message": str(exc)}
+                ],
+                action="Fix highlighted fields and retry.",
+            ) from exc
+        return _collection_response(
+            list(result.get("items") or []),
+            page=page,
+            page_size=page_size,
+            total_items=int(result.get("total") or 0),
+            meta={
+                "run_id": run_id,
+                "stage": stage,
+                "result_bucket": result_bucket,
+                "search": search,
+                "total_evaluated": int(result.get("total_evaluated") or 0),
+                "passed": int(result.get("passed") or 0),
+                "rejected": int(result.get("rejected") or 0),
+            },
+        )
+
+    def _require_canonical_run_job(run_id: str, run_job_id: str) -> dict[str, Any]:
+        job = _resolve_run_store().get_run_job(run_id, run_job_id)
+        if job is None:
+            raise ApiError(
+                404,
+                "job_not_found",
+                "Job not found in this Run.",
+                action="Refresh Pipeline Results and select an existing job.",
+            )
+        return job
+
+    def _refreshed_run(run_id: str) -> dict[str, Any]:
+        detail = _resolve_run_store().get_run_detail(run_id)
+        if detail is None:
+            raise ApiError(
+                404,
+                "run_not_found",
+                "Run not found.",
+                action="Return to Runs and select an existing Run.",
+            )
+        return detail
+
+    @app.post("/runs/{run_id}/actions/cancel")
+    def cancel_canonical_run(run_id: str) -> dict[str, Any]:
+        store = _resolve_run_store()
+        run = store.get_run(run_id)
+        if run is None:
+            raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
+        if not can_cancel_run(run):
+            if run.status in {RunStatus.CANCELLED, RunStatus.FAILED, RunStatus.SUCCEEDED}:
+                return _data_response(_refreshed_run(run_id))
+            raise ApiError(
+                409,
+                "run_action_not_allowed",
+                f"Run cannot be cancelled from status '{run.status.value}'.",
+                action="Refresh Run status and retry only if Cancel is available.",
+            )
+        store.request_run_cancel(
+            run_id,
+            "admin",
+            cancel_request_target_status(run).value,
+        )
+        return _data_response(_refreshed_run(run_id))
+
+    @app.post("/runs/{run_id}/actions/archive")
+    def archive_canonical_run(run_id: str) -> dict[str, Any]:
+        store = _resolve_run_store()
+        run = store.get_run(run_id)
+        if run is None:
+            raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
+        if run.archived_at is not None:
+            return _data_response(_refreshed_run(run_id))
+        if not can_archive_run(run):
+            raise ApiError(
+                409,
+                "run_action_not_allowed",
+                f"Run cannot be archived from status '{run.status.value}'.",
+                action="Wait for Run completion, then retry.",
+            )
+        store.archive_run(run_id, "admin")
+        return _data_response(_refreshed_run(run_id))
+
+    @app.post("/runs/{run_id}/actions/unarchive")
+    def unarchive_canonical_run(run_id: str) -> dict[str, Any]:
+        store = _resolve_run_store()
+        run = store.get_run(run_id)
+        if run is None:
+            raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
+        if run.archived_at is None:
+            return _data_response(_refreshed_run(run_id))
+        if not can_unarchive_run(run):
+            raise ApiError(
+                409,
+                "run_action_not_allowed",
+                "Run cannot be unarchived.",
+                action="Refresh Run status and retry.",
+            )
+        store.unarchive_run(run_id)
+        return _data_response(_refreshed_run(run_id))
+
+    @app.post("/runs/actions/delete-archived")
+    def delete_canonical_archived_runs(
+        body: DeleteArchivedRunsRequest,
+        request: Request,
+    ) -> dict[str, Any]:
+        store = _resolve_run_store()
+        key = _required_idempotency_key(request)
+        fingerprint = _request_fingerprint({"run_ids": body.run_ids})
+        try:
+            action = store.reserve_idempotent_action("runs.delete_archived", key, fingerprint)
+        except ValueError as exc:
+            raise ApiError(
+                409,
+                "idempotency_conflict",
+                "Idempotency key was already used for a different request.",
+                action="Retry with a new Idempotency-Key.",
+            ) from exc
+        if action.get("replayed") and action.get("response") is not None:
+            return _data_response(action["response"])
+        try:
+            result = store.delete_archived_runs("all", body.run_ids)
+        except ValueError as exc:
+            raise ApiError(
+                409,
+                "run_state_conflict",
+                "Every selected Run must exist and be archived.",
+                action="Refresh Runs, select archived Runs only, and retry.",
+            ) from exc
+        response = {
+            "action_id": action["action_id"],
+            "deleted_count": int(result.get("deleted_count") or 0),
+            "deleted_run_ids": list(result.get("deleted_run_ids") or []),
+        }
+        store.complete_idempotent_action(str(action["action_id"]), response)
+        return _data_response(response)
+
+    @app.put("/runs/{run_id}/jobs/{run_job_id}/bookmark")
+    def set_canonical_bookmark(run_id: str, run_job_id: str) -> dict[str, Any]:
+        _require_canonical_run_job(run_id, run_job_id)
+        result = _resolve_run_store().set_bookmark(run_job_id)
+        return _data_response({**result, "run_job_id": run_job_id, "bookmarked": True})
+
+    @app.delete("/runs/{run_id}/jobs/{run_job_id}/bookmark")
+    def clear_canonical_bookmark(run_id: str, run_job_id: str) -> dict[str, Any]:
+        _require_canonical_run_job(run_id, run_job_id)
+        _resolve_run_store().clear_bookmark(run_job_id)
+        return _data_response({"run_job_id": run_job_id, "bookmarked": False, "bookmark_id": None})
+
+    @app.put("/runs/{run_id}/jobs/{run_job_id}/interest")
+    def set_canonical_interest(
+        run_id: str,
+        run_job_id: str,
+        body: InterestRequest,
+    ) -> dict[str, Any]:
+        _require_canonical_run_job(run_id, run_job_id)
+        if body.rating_contract_revision != "application-interest-v1":
+            raise ApiError(
+                409,
+                "rating_contract_stale",
+                "Application Interest contract is stale.",
+                action="Refresh Pipeline Results and retry.",
+            )
+        result = _resolve_run_store().set_run_job_interest(
+            run_job_id,
+            body.rating,
+            rating_contract_revision=body.rating_contract_revision,
+            action_id=str(uuid.uuid4()),
+        )
+        return _data_response(result)
+
+    @app.delete("/runs/{run_id}/jobs/{run_job_id}/interest")
+    def clear_canonical_interest(run_id: str, run_job_id: str) -> dict[str, Any]:
+        _require_canonical_run_job(run_id, run_job_id)
+        result = _resolve_run_store().clear_run_job_interest(
+            run_job_id,
+            action_id=str(uuid.uuid4()),
+        )
+        return _data_response({**result, "rating": None})
+
+    @app.get("/runs/{run_id}/jobs/export.csv")
+    def export_canonical_run_jobs(
+        run_id: str,
+        search: str = "",
+        stage: str = "all",
+        result_bucket: str = "all",
+    ) -> Response:
+        store = _resolve_run_store()
+        legacy_run = None
+        if store.get_run_detail(run_id) is None:
+            legacy_run = get_run(run_id, client=client)
+            if legacy_run is None:
+                raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
+        try:
+            rows = store.iter_run_jobs_for_export(
+                run_id,
+                search=search,
+                stage=stage,
+                result_bucket=result_bucket,
+            )
+            output = io.StringIO(newline="")
+            writer = csv.writer(output, lineterminator="\n")
+            writer.writerow(
+                [
+                    "Job Title", "Listing URL", "Location", "Work Mode", "Language",
+                    "Seniority", "Job Family", "Domain", "Required Skills", "Result",
+                    "Pipeline Outcome", "Reason", "Application Interest",
+                ]
+            )
+            for row in rows:
+                writer.writerow(
+                    [
+                        _csv_cell(row.get("title")),
+                        _csv_cell(row.get("source_url")),
+                        _csv_cell(row.get("location")),
+                        _csv_cell(row.get("work_mode")),
+                        _csv_cell(row.get("language")),
+                        _csv_cell(row.get("seniority")),
+                        _csv_cell(row.get("role_family")),
+                        _csv_cell(row.get("domain")),
+                        _csv_cell(row.get("skills")),
+                        _csv_cell(row.get("result_bucket")),
+                        _csv_cell(row.get("outcome_code")),
+                        _csv_cell(row.get("reason_code")),
+                        _csv_cell(row.get("rating")),
+                    ]
+                )
+        except ValueError as exc:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[{"field": "filters", "code": "invalid_value", "message": str(exc)}],
+                action="Fix highlighted fields and retry.",
+            ) from exc
+        safe_run_id = re.sub(r"[^A-Za-z0-9._-]+", "-", run_id).strip("-") or "run"
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f'attachment; filename="{safe_run_id}-pipeline-results.csv"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @app.get("/runs/{run_id}/jobs/{run_job_id}/cvs")
+    def get_canonical_cv_versions(run_id: str, run_job_id: str) -> dict[str, Any]:
+        _require_canonical_run_job(run_id, run_job_id)
+        return _data_response(_resolve_run_store().list_cv_versions(run_job_id))
+
+    @app.get("/cv-versions/{cv_version_id}/download")
+    def download_canonical_cv(cv_version_id: str) -> Response:
+        try:
+            download = _resolve_run_store().get_cv_download(cv_version_id)
+        except ValueError as exc:
+            raise ApiError(
+                409,
+                "artifact_not_available",
+                "CV file failed integrity verification.",
+                action="Regenerate CV or inspect Console.",
+            ) from exc
+        if download is None:
+            raise ApiError(404, "cv_not_found", "CV version not found.", action="Refresh CV history.")
+        filename = re.sub(
+            r"[^A-Za-z0-9._-]+",
+            "-",
+            str(download.get("filename") or f"{cv_version_id}.md"),
+        )
+        return Response(
+            content=bytes(download["content"]),
+            media_type=str(download["media_type"]),
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(download["content_length"]),
+                "ETag": f'"{download["content_checksum"]}"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @app.post("/runs/{run_id}/jobs/{run_job_id}/cvs/actions/regenerate")
+    def regenerate_canonical_cv(
+        run_id: str,
+        run_job_id: str,
+        body: CvRegenerateRequest,
+        request: Request,
+    ) -> JSONResponse:
+        job = _require_canonical_run_job(run_id, run_job_id)
+        store = _resolve_run_store()
+        key = _required_idempotency_key(request)
+        fingerprint = _request_fingerprint(
+            {
+                "run_id": run_id,
+                "run_job_id": run_job_id,
+                "parent_cv_version_id": body.parent_cv_version_id,
+            }
+        )
+        try:
+            action = store.reserve_idempotent_action(
+                f"cv.regenerate:{run_job_id}", key, fingerprint
+            )
+        except ValueError as exc:
+            raise ApiError(
+                409,
+                "idempotency_conflict",
+                "Idempotency key was already used for a different request.",
+                action="Retry with a new Idempotency-Key.",
+            ) from exc
+        if action.get("replayed") and action.get("response") is not None:
+            if action["response"].get("status") == "failed":
+                raise ApiError(
+                    503,
+                    "cv_regeneration_failed",
+                    "CV regeneration could not be queued.",
+                    retryable=True,
+                    action="Retry with a new Idempotency-Key when queue service is available.",
+                )
+            return JSONResponse(status_code=202, content=_data_response(action["response"]))
+        version_id = str(uuid.uuid4())
+        try:
+            version = store.reserve_cv_regeneration(
+                run_job_id,
+                version_id=version_id,
+                idempotency_key=key,
+                action_id=str(action["action_id"]),
+                input_snapshot=job,
+                parent_cv_version_id=body.parent_cv_version_id,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            code = "cv_regeneration_not_allowed" if message.startswith("cv_regeneration_not_allowed") else "cv_regeneration_failed"
+            raise ApiError(
+                409,
+                code,
+                "CV regeneration could not be started.",
+                action="Refresh CV history and retry when Regenerate is available.",
+            ) from exc
+        reserved_version_id = str(version.get("version_id") or version_id)
+        try:
+            queue_job_id = enqueue_cv_regenerate_once_with_job_id(
+                run_id=run_id,
+                job_url=str(job.get("source_url") or ""),
+                actor="admin",
+                redis_url=redis_url,
+                cv_version_id=reserved_version_id,
+                parent_cv_version_id=body.parent_cv_version_id,
+                idempotency_key=key,
+                action_id=str(action["action_id"]),
+            )
+        except Exception as exc:
+            failed_version = store.update_cv_version(
+                reserved_version_id,
+                generation_status="generation_failed",
+                error_code="enqueue_failed",
+                error_message=str(exc),
+            )
+            store.complete_idempotent_action(
+                str(action["action_id"]),
+                {
+                    "action_id": action["action_id"],
+                    "status": "failed",
+                    "queue_job_id": None,
+                    "cv_version": failed_version,
+                },
+            )
+            raise ApiError(
+                503,
+                "cv_regeneration_failed",
+                "CV regeneration could not be queued.",
+                retryable=True,
+                action="Retry with a new Idempotency-Key when queue service is available.",
+            ) from exc
+        response = {
+            "action_id": action["action_id"],
+            "status": "queued",
+            "queue_job_id": queue_job_id,
+            "cv_version": version,
+        }
+        store.complete_idempotent_action(str(action["action_id"]), response)
+        return JSONResponse(status_code=202, content=_data_response(response))
 
     @app.get("/runs/{run_id}/events")
-    def get_run_events_list(run_id: str) -> list:
-        _ = require_run_or_404(run_id)
-        events = get_events(run_id, client=client)
-        return [
-            {
-                "event_id": e.event_id,
-                "stage": e.stage,
-                "level": e.level,
-                "message": e.message,
-                "payload_json": e.payload_json,
-                "created_at": e.created_at.isoformat() if hasattr(e.created_at, "isoformat") else str(e.created_at),
+    def get_run_events_list(
+        run_id: str,
+        cursor: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        store = _resolve_run_store()
+        legacy_run = None
+        if store.get_run_detail(run_id) is None:
+            legacy_run = get_run(run_id, client=client)
+            if legacy_run is None:
+                raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
+        if limit < 1 or limit > 500:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[
+                    {"field": "limit", "code": "invalid_value", "message": "Use 1 through 500."}
+                ],
+                action="Fix highlighted fields and retry.",
+            )
+        try:
+            result = store.get_process_events("run", run_id, limit=limit, cursor=cursor)
+        except ValueError as exc:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Event cursor is invalid.",
+                field_errors=[{"field": "cursor", "code": "invalid_value", "message": "Refresh Console."}],
+                action="Clear the cursor and reload Console.",
+            ) from exc
+        if legacy_run is not None and not result.get("events"):
+            legacy_events = get_events(run_id, client=client)
+            events = [
+                {
+                    "event_id": str(event.event_id),
+                    "time": event.created_at.isoformat(),
+                    "stage_id": str(event.stage),
+                    "level": str(event.level),
+                    "operation": str(event.stage),
+                    "state": "recorded",
+                    "message": str(event.message),
+                    "payload": _load_json_object(str(event.payload_json or "")),
+                    "diagnostic_refs": {},
+                }
+                for event in legacy_events
+            ]
+            result = {
+                "integrity_conflicts": [],
+                "total_count": len(legacy_events),
+                "next_cursor": None,
             }
-            for e in events
-        ]
+        else:
+            events = [
+                {
+                    "event_id": str(event.event_id),
+                    "time": event.recorded_at.isoformat(),
+                    "stage_id": str(event.operation),
+                    "level": str(event.level),
+                    "operation": str(event.operation),
+                    "state": str(event.state),
+                    "message": str(event.message),
+                    "payload": _load_json_object(str(event.payload_json or "")),
+                    "diagnostic_refs": _load_json_object(str(event.diagnostic_refs_json or "")),
+                }
+                for event in result.get("events", [])
+            ]
+        return _collection_response(
+            events,
+            page=1,
+            page_size=limit,
+            total_items=int(result.get("total_count") or 0),
+            meta={
+                "run_id": run_id,
+                "cursor": cursor,
+                "next_cursor": result.get("next_cursor"),
+                "integrity_conflicts": len(result.get("integrity_conflicts") or []),
+            },
+        )
+
+    @app.get("/runs/{run_id}/debug-bundle")
+    def download_canonical_debug_bundle(run_id: str) -> Response:
+        store = _resolve_run_store()
+        detail = store.get_run_detail(run_id)
+        if detail is None:
+            raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
+        availability = store.get_debug_bundle_availability(run_id)
+        if availability.get("status") != "available":
+            raise ApiError(
+                409,
+                "artifact_not_available",
+                "Debug bundle is not available.",
+                retryable=availability.get("status") == "not_ready",
+                action="Wait for Run completion or inspect Console.",
+            )
+        buffer = io.BytesIO()
+        generated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            run_payload = _json.dumps(
+                _redact_debug_bundle_value(detail),
+                sort_keys=True,
+                default=str,
+                indent=2,
+            ).encode("utf-8")
+            checksum = hashlib.sha256(run_payload).hexdigest()
+            bundle.writestr("run.json", run_payload)
+            bundle.writestr(
+                "manifest.json",
+                _json.dumps(
+                    {
+                        "run_id": run_id,
+                        "generated_at": generated_at,
+                        "included_artifacts": [
+                            {"path": "run.json", "sha256": checksum}
+                        ],
+                        "redactions": ["credentials", "secrets", "raw uploaded files"],
+                        "missing_optional_artifacts": [],
+                    },
+                    sort_keys=True,
+                    indent=2,
+                ),
+            )
+        content = buffer.getvalue()
+        safe_run_id = re.sub(r"[^A-Za-z0-9._-]+", "-", run_id).strip("-") or "run"
+        return Response(
+            content=content,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{safe_run_id}-debug-bundle.zip"',
+                "Content-Length": str(len(content)),
+                "ETag": f'"{hashlib.sha256(content).hexdigest()}"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     @app.get("/admin/process-events.json")
     def get_process_event_export(
@@ -7195,52 +8366,128 @@ def create_app(
         return load_active_settings()
 
     @app.get("/settings/pipeline")
-    def get_pipeline_settings() -> dict:
+    def get_pipeline_settings(response: Response) -> dict:
         try:
-            return _pipeline_settings_resource(load_active_settings())
+            resource = _pipeline_settings_resource(load_active_settings())
+            response.headers["ETag"] = f'"{resource["revision"]}"'
+            return _data_response(resource)
         except ValidationError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Pipeline settings are invalid.",
+                field_errors=[],
+                action="Fix invalid settings and retry.",
+            ) from exc
 
     @app.patch("/settings/pipeline")
-    def patch_pipeline_settings(body: PipelineSettingsPatch) -> dict:
+    def patch_pipeline_settings(body: PipelineSettingsPatch, response: Response) -> dict:
         changes = _pipeline_changes(body.changes)
         try:
-            active = mutate_settings_atomically(
-                changes=changes,
-                updated_by=body.updated_by,
-            )
-            return _pipeline_settings_resource(active)
+            mutation_args: dict[str, Any] = {
+                "changes": changes,
+                "updated_by": body.updated_by,
+            }
+            if body.expected_revision is not None:
+                mutation_args["expected_revision"] = body.expected_revision
+            active = mutate_settings_atomically(**mutation_args)
+            resource = _pipeline_settings_resource(active)
+            response.headers["ETag"] = f'"{resource["revision"]}"'
+            return _data_response(resource)
+        except SettingsRevisionConflict as exc:
+            raise ApiError(
+                409,
+                "settings_revision_conflict",
+                "Pipeline settings changed since last read.",
+                action="Reload Settings, review current values, and retry.",
+            ) from exc
         except ValidationError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise ApiError(
+                422,
+                "validation_failed",
+                str(exc),
+                field_errors=[],
+                action="Fix invalid settings and retry.",
+            ) from exc
         except RuntimeError as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+            raise ApiError(
+                500,
+                "settings_persistence_failed",
+                "Pipeline settings could not be saved.",
+                retryable=True,
+                action="Retry. If failure continues, inspect local storage health.",
+            ) from exc
 
     @app.post("/settings/pipeline/actions/reset")
-    def reset_pipeline_settings(body: PipelineSettingsReset) -> dict:
+    def reset_pipeline_settings(body: PipelineSettingsReset, response: Response) -> dict:
         reset_keys = [canonical_settings_key(key) for key in body.keys]
         invalid = sorted(set(reset_keys) - pipeline_owned_keys)
         if invalid:
-            raise HTTPException(
-                status_code=422,
-                detail="Settings not owned by Pipeline settings: " + ", ".join(invalid),
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Settings contain unsupported fields.",
+                field_errors=[
+                    {
+                        "field": key,
+                        "code": "unsupported_field",
+                        "message": "Setting is not owned by Pipeline settings.",
+                    }
+                    for key in invalid
+                ],
+                action="Remove unsupported fields and retry.",
             )
         read_only = sorted(set(reset_keys) & metadata_only_keys)
         if read_only:
-            raise HTTPException(
-                status_code=422,
-                detail="Read-only Pipeline settings: " + ", ".join(read_only),
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Settings contain read-only fields.",
+                field_errors=[
+                    {
+                        "field": key,
+                        "code": "read_only",
+                        "message": "Setting is read-only.",
+                    }
+                    for key in read_only
+                ],
+                action="Remove read-only fields and retry.",
             )
         try:
-            active = mutate_settings_atomically(
-                changes={},
-                reset_keys=reset_keys,
-                updated_by=body.updated_by,
-            )
-            return _pipeline_settings_resource(active)
+            mutation_args: dict[str, Any] = {
+                "changes": {},
+                "reset_keys": reset_keys,
+                "updated_by": body.updated_by,
+            }
+            if body.expected_revision is not None:
+                mutation_args["expected_revision"] = body.expected_revision
+            active = mutate_settings_atomically(**mutation_args)
+            resource = _pipeline_settings_resource(active)
+            response.headers["ETag"] = f'"{resource["revision"]}"'
+            return _data_response(resource)
+        except SettingsRevisionConflict as exc:
+            raise ApiError(
+                409,
+                "settings_revision_conflict",
+                "Pipeline settings changed since last read.",
+                action="Reload Settings, review current values, and retry.",
+            ) from exc
         except ValidationError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise ApiError(
+                422,
+                "validation_failed",
+                str(exc),
+                field_errors=[],
+                action="Fix invalid settings and retry.",
+            ) from exc
         except RuntimeError as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+            raise ApiError(
+                500,
+                "settings_persistence_failed",
+                "Pipeline settings could not be reset.",
+                retryable=True,
+                action="Retry. If failure continues, inspect local storage health.",
+            ) from exc
 
     def _coerce_and_validate_single_setting(
         key: str,
@@ -11068,9 +12315,14 @@ def create_app(
 
 
 def _run_to_dict(run: PipelineRun) -> dict:
+    status = run_status_projection(run)
     return {
         "run_id": run.run_id,
         "status": run.status.value,
+        "backend_status": run.status.value,
+        "display_status": status["display_status"],
+        "status_detail": getattr(run, "status_detail", None),
+        "run_name": str(getattr(run, "run_name", None) or Path(run.jobs_path).stem),
         "run_mode": run.run_mode,
         "checkpoint_status": run.checkpoint_status,
         "next_stage": run.next_stage,
@@ -11078,15 +12330,44 @@ def _run_to_dict(run: PipelineRun) -> dict:
         "completed_stages": list(run.completed_stages or []),
         "triggered_by": run.triggered_by,
         "jobs_path": run.jobs_path,
+        "jobs_input_source": run.jobs_input_source,
+        "jobs_input_manifest_json": run.jobs_input_manifest_json,
+        "candidate_profile_source": run.candidate_profile_source,
         "created_at": run.created_at.isoformat() if run.created_at else None,
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+        "archived_at": run.archived_at.isoformat() if run.archived_at else None,
         "total_jobs": run.total_jobs,
         "passed_filter": run.passed_filter,
         "ranked": run.ranked,
         "cvs_generated": run.cvs_generated,
+        "counts": {
+            "total": int(run.total_jobs or 0),
+            "passed": int(run.passed_filter or 0),
+            "rejected": max(0, int(run.total_jobs or 0) - int(run.passed_filter or 0)),
+            "cvs_generated": int(run.cvs_generated or 0),
+        },
+        "progress": {
+            "completed": int(run.progress_completed or 0),
+            "total": int(run.progress_total or run.total_jobs or 0),
+        },
         "error_message": run.error_message,
         "error_stage": run.error_stage,
+        "errors": {
+            "code": run.error_stage,
+            "message": run.error_message,
+        },
+        "warnings": _load_json_object(str(getattr(run, "warning_json", None) or "")),
+        "partial_completion": bool(getattr(run, "partial_completion", False)),
+        "capabilities": {
+            "inspect": True,
+            "cancel": can_cancel_run(run),
+            "archive": can_archive_run(run),
+            "unarchive": can_unarchive_run(run),
+            "delete": can_unarchive_run(run),
+            "export": int(run.total_jobs or 0) > 0,
+        },
+        "links": {},
         "queue_job_id": run.queue_job_id,
         "orchestration_backend": run.orchestration_backend,
         "orchestration_run_id": run.orchestration_run_id,

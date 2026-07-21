@@ -25,7 +25,7 @@ import pytest
 from fastapi.testclient import TestClient
 from fitcv.pipeline_contracts import PIPELINE_BUNDLE_ARTIFACT_FILENAMES, PIPELINE_STAGE_SEQUENCE, timeline_stage_download_for_event, timeline_stage_label
 from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _control_plane_bundle_artifact_specs, _control_plane_stage_specs, _timeline_semantic_outcome, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, _normalize_hitl_resolution_status, create_app
-from fitcv_cp.models import RunEvent, RunStatus
+from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission
 
 def _app():
@@ -586,8 +586,7 @@ def test_post_runs_persists_backend_binding_from_submission(tmp_path):
 
     with patch("fitcv_cp.app.insert_run"), \
          patch("fitcv_cp.app.submit_run", side_effect=_submit_stub), \
-         patch("fitcv_cp.app.update_run_queue_job_id"), \
-         patch("fitcv_cp.app.update_run_orchestration_binding") as binding_mock, \
+         patch("fitcv_cp.app.update_run_queue_job_id") as binding_mock, \
          patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p","pipeline": {"final_top_n": 10},
@@ -596,7 +595,7 @@ def test_post_runs_persists_backend_binding_from_submission(tmp_path):
         resp = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
     assert resp.status_code == 201, resp.text
     kwargs = binding_mock.call_args.kwargs
-    assert kwargs["queue_job_id"] == "rq-job-abc"
+    assert binding_mock.call_args.args == (resp.json()["run_id"], "rq-job-abc")
     assert kwargs["orchestration_backend"] == "queue"
     assert kwargs["orchestration_run_id"] == "flow-run-xyz"
 
@@ -638,7 +637,7 @@ def test_get_run_detail_reconciles_orphaned_running_run_when_queue_job_missing()
         resp = TestClient(_app()).get("/runs/run-orphaned-1")
 
     assert resp.status_code == 200
-    assert resp.json()["status"] == "failed"
+    assert resp.json()["data"]["status"] == "failed"
     assert mock_update_status.called
 
 def test_get_run_detail_keeps_running_for_inline_started_job_status() -> None:
@@ -665,7 +664,7 @@ def test_get_run_detail_keeps_running_for_inline_started_job_status() -> None:
         resp = TestClient(_app()).get("/runs/run-inline-1")
 
     assert resp.status_code == 200
-    assert resp.json()["status"] == "running"
+    assert resp.json()["data"]["status"] == "running"
     assert not mock_update_status.called
     assert not mock_append_event.called
 
@@ -693,7 +692,7 @@ def test_get_run_detail_keeps_running_for_inline_missing_job_status() -> None:
         resp = TestClient(_app()).get("/runs/run-inline-missing-1")
 
     assert resp.status_code == 200
-    assert resp.json()["status"] == "running"
+    assert resp.json()["data"]["status"] == "running"
     assert not mock_update_status.called
     assert not mock_append_event.called
 
@@ -734,7 +733,7 @@ def test_get_run_detail_reconciles_orphaned_queued_run_when_queue_job_ended() ->
         resp = TestClient(_app()).get("/runs/run-orphaned-queued-1")
 
     assert resp.status_code == 200
-    assert resp.json()["status"] == "failed"
+    assert resp.json()["data"]["status"] == "failed"
     assert mock_update_status.called
 
 def test_get_runs_list_reconciles_orphaned_running_run_when_queue_job_missing() -> None:
@@ -767,17 +766,21 @@ def test_get_runs_list_reconciles_orphaned_running_run_when_queue_job_missing() 
         run_mode="run_all",
     )
 
-    with patch("fitcv_cp.app.list_runs", return_value=[running]), \
-         patch("fitcv_cp.app.get_run", return_value=failed), \
+    app = _app()
+    app.state.run_store.query_runs_fn = lambda **_kwargs: {
+        "items": [running], "total": 1, "active_count": 1, "archived_count": 0
+    }
+    app.state.run_store.get_run_detail_fn = lambda _run_id: None
+    with patch("fitcv_cp.app.get_run", return_value=failed), \
          patch("fitcv_cp.app.update_run_status") as mock_update_status, \
          patch("fitcv_cp.app.append_event"), \
          patch("fitcv_cp.app.get_queue_job_status", return_value="missing"):
-        resp = TestClient(_app()).get("/runs")
+        resp = TestClient(app).get("/runs")
 
     assert resp.status_code == 200
-    payload = resp.json()
+    payload = resp.json()["data"]
     assert isinstance(payload, list) and payload
-    assert payload[0]["status"] == "failed"
+    assert payload[0]["backend_status"] == "failed"
     assert mock_update_status.called
 
 def test_get_runs_list_keeps_running_for_inline_missing_job_status() -> None:
@@ -797,16 +800,20 @@ def test_get_runs_list_keeps_running_for_inline_missing_job_status() -> None:
         run_mode="run_all",
     )
 
-    with patch("fitcv_cp.app.list_runs", return_value=[running]), \
-         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+    app = _app()
+    app.state.run_store.query_runs_fn = lambda **_kwargs: {
+        "items": [running], "total": 1, "active_count": 1, "archived_count": 0
+    }
+    app.state.run_store.get_run_detail_fn = lambda _run_id: None
+    with patch("fitcv_cp.app.update_run_status") as mock_update_status, \
          patch("fitcv_cp.app.append_event") as mock_append_event, \
          patch("fitcv_cp.app.get_queue_job_status", return_value="missing"):
-        resp = TestClient(_app()).get("/runs")
+        resp = TestClient(app).get("/runs")
 
     assert resp.status_code == 200
-    payload = resp.json()
+    payload = resp.json()["data"]
     assert isinstance(payload, list) and payload
-    assert payload[0]["status"] == "running"
+    assert payload[0]["backend_status"] == "running"
     assert not mock_update_status.called
     assert not mock_append_event.called
 
@@ -889,6 +896,179 @@ def test_post_runs_rejects_empty_jobs_path():
     assert resp.status_code == 422
 
 
+def test_post_runs_multipart_uses_profile_run_name_and_idempotency() -> None:
+    captured: dict[str, Any] = {}
+    app = _app()
+    app.state.run_store.get_candidate_profile_fn = lambda profile_id: {
+        "candidate_profile_id": profile_id,
+        "name": "Product Data Specialist",
+        "profile": {"name": "Candidate", "experiences": [], "education": []},
+        "revision": 3,
+        "checksum": "profile-checksum",
+        "is_active": True,
+    }
+    app.state.run_store.reserve_idempotent_action_fn = lambda scope, key, fingerprint: {
+        "action_id": "action-trigger-1",
+        "status": "queued",
+        "replayed": False,
+        "response": None,
+    }
+    app.state.run_store.complete_idempotent_action_fn = lambda _action_id, _response: None
+    app.state.run_store.insert_run_fn = lambda run: captured.setdefault("run", run)
+    app.state.run_store.update_run_queue_job_id_fn = lambda *_args, **_kwargs: {}
+    app.state.run_store.get_run_detail_fn = lambda run_id: {
+        "run_id": run_id,
+        "run_name": captured["run"].run_name,
+        "backend_status": "queued",
+        "input": {
+            "original_filename": "jobs.json",
+            "candidate_profile_id": "candidate-product-data",
+        },
+    }
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), patch(
+        "fitcv_cp.app.load_config",
+        return_value={"pipeline": {"final_top_n": 10}},
+    ), patch(
+        "fitcv_cp.app.submit_run",
+        return_value=RunSubmission(
+            run_id="ignored",
+            queue_job_id="queue-1",
+            backend_run_id="queue-1",
+            backend="default_queue",
+        ),
+    ):
+        resp = TestClient(app).post(
+            "/runs",
+            headers={"Idempotency-Key": "trigger-1"},
+            files={
+                "jobs_file": (
+                    "jobs.json",
+                    '[{"title":"Analyst","job_url":"https://example.com/job"}]',
+                    "application/json",
+                )
+            },
+            data={
+                "candidate_profile_id": "candidate-product-data",
+                "run_name": "Senior data product search",
+            },
+        )
+
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["data"]["run_name"] == "Senior data product search"
+    assert captured["run"].candidate_profile_source == "candidate-product-data"
+    assert json.loads(captured["run"].jobs_input_json)[0]["title"] == "Analyst"
+
+
+@pytest.mark.parametrize(
+    ("filename", "content", "profile", "expected_status", "expected_code"),
+    [
+        ("jobs.txt", '[{"title":"Analyst"}]', None, 422, "validation_failed"),
+        ("jobs.json", b"", None, 422, "validation_failed"),
+        ("jobs.json", "{", None, 422, "validation_failed"),
+        (
+            "jobs.json",
+            '[{"title":"Analyst"}]',
+            {"candidate_profile_id": "candidate-1", "is_active": False},
+            409,
+            "candidate_profile_inactive",
+        ),
+    ],
+)
+def test_post_runs_multipart_rejects_invalid_boundary_inputs(
+    filename: str,
+    content: str | bytes,
+    profile: dict[str, Any] | None,
+    expected_status: int,
+    expected_code: str,
+) -> None:
+    app = _app()
+    app.state.run_store.get_candidate_profile_fn = lambda _profile_id: profile
+
+    resp = TestClient(app).post(
+        "/runs",
+        headers={"Idempotency-Key": "trigger-invalid-1"},
+        files={"jobs_file": (filename, content, "application/json")},
+        data={"candidate_profile_id": "candidate-1"},
+    )
+
+    assert resp.status_code == expected_status
+    assert resp.json()["error"]["code"] == expected_code
+
+
+def test_post_runs_multipart_replays_original_resource_without_enqueue() -> None:
+    app = _app()
+    app.state.run_store.get_candidate_profile_fn = lambda profile_id: {
+        "candidate_profile_id": profile_id,
+        "name": "Product Data Specialist",
+        "profile": {"name": "Candidate"},
+        "revision": 1,
+        "is_active": True,
+    }
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "action-trigger-1",
+        "replayed": True,
+        "response": {"run_id": "run-1", "backend_status": "queued", "action_id": "action-trigger-1"},
+    }
+
+    with patch("fitcv_cp.app.submit_run") as submit:
+        resp = TestClient(app).post(
+            "/runs",
+            headers={"Idempotency-Key": "trigger-1"},
+            files={"jobs_file": ("jobs.json", '[{"title":"Analyst"}]', "application/json")},
+            data={"candidate_profile_id": "candidate-1"},
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["data"]["run_id"] == "run-1"
+    submit.assert_not_called()
+
+
+def test_post_runs_multipart_enqueue_failure_returns_persisted_failed_run() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), patch(
+        "fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}
+    ), patch("fitcv_cp.app.submit_run", side_effect=RuntimeError("queue unavailable")):
+        app = _app()
+        app.state.run_store.get_candidate_profile_fn = lambda profile_id: {
+            "candidate_profile_id": profile_id,
+            "name": "Product Data Specialist",
+            "profile": {"name": "Candidate"},
+            "revision": 1,
+            "is_active": True,
+        }
+        app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+            "action_id": "action-trigger-1",
+            "replayed": False,
+            "response": None,
+        }
+        app.state.run_store.insert_run_fn = lambda _run: None
+        app.state.run_store.update_run_status_fn = lambda *_args, **_kwargs: {}
+        app.state.run_store.get_run_detail_fn = lambda run_id: {
+            "run_id": run_id,
+            "backend_status": "failed",
+            "error_code": "orchestration_enqueue",
+            "error_message": "queue unavailable",
+        }
+
+        resp = TestClient(app).post(
+            "/runs",
+            headers={"Idempotency-Key": "trigger-1"},
+            files={"jobs_file": ("jobs.json", '[{"title":"Analyst"}]', "application/json")},
+            data={"candidate_profile_id": "candidate-1"},
+        )
+
+    assert resp.status_code == 503
+    assert resp.json()["data"]["backend_status"] == "failed"
+    assert resp.json()["data"]["error_code"] == "orchestration_enqueue"
+    assert resp.json()["error"] == {
+        "code": "run_enqueue_failed",
+        "message": "Run was created but could not be queued.",
+        "field_errors": [],
+        "retryable": True,
+        "action": "Check queue connectivity, then trigger a new Run.",
+    }
+
+
 def test_post_runs_persists_manual_staged_mode(tmp_path) -> None:
     """@proves trigger_run_management.execution-mode-selection"""
     captured = {}
@@ -955,6 +1135,30 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
     assert synonym_settings.get("auto_apply_recommendation_enabled") is False
     assert synonym_settings.get("auto_promote_global_enabled") is False
     assert synonym_settings.get("auto_accept_ai_action_enabled") is True
+
+
+def test_post_runs_queue_failure_terminalizes_existing_run(tmp_path) -> None:
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run"), \
+         patch("fitcv_cp.app.submit_run", side_effect=RuntimeError("queue unavailable")), \
+         patch("fitcv_cp.app.update_run_status") as update_status, \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
+         }):
+        response = TestClient(_app(), raise_server_exceptions=False).post(
+            "/runs", json={"jobs_path": str(jobs_file)}
+        )
+
+    assert response.status_code == 503
+    assert update_status.call_args.args[1] == RunStatus.FAILED
+    assert update_status.call_args.kwargs["error_stage"] == "orchestration_enqueue"
 
 def test_post_runs_path_trigger_captures_cv_generation_runtime_expectation(tmp_path) -> None:
     captured = {}
@@ -1046,16 +1250,627 @@ def test_post_runs_run_all_and_manual_staged_share_canonical_runtime_envelope(tm
 
 def test_get_runs_returns_list():
     """@proves trigger_run_management.runs-list-management"""
-    with patch("fitcv_cp.app.list_runs", return_value=[]):
-        resp = TestClient(_app()).get("/runs")
+    app = _app()
+    app.state.run_store.query_runs_fn = lambda **_kwargs: {
+        "items": [],
+        "total": 0,
+        "active_count": 0,
+        "archived_count": 0,
+        "page": 1,
+        "page_size": 20,
+    }
+    resp = TestClient(app).get("/runs")
     assert resp.status_code == 200
-    assert isinstance(resp.json(), list)
+    payload = resp.json()
+    assert payload["data"] == []
+    assert payload["page"] == {"number": 1, "size": 20, "total_items": 0, "total_pages": 0}
+    assert payload["meta"]["active_count"] == 0
+    assert payload["meta"]["archived_count"] == 0
+    assert payload["meta"]["view"] == "active"
+    assert payload["meta"]["search"] == ""
+    assert datetime.datetime.fromisoformat(payload["meta"]["server_time"]).tzinfo is not None
+
+
+def test_get_runs_returns_frontend_run_metadata() -> None:
+    from fitcv_cp.models import PipelineRun
+
+    archived_at = datetime.datetime.now(datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="run-frontend-metadata-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/uploads/generated.json",
+        config_path=".env.yaml",
+        created_at=archived_at,
+        jobs_input_source="upload",
+        jobs_input_manifest_json='{"source_filenames":["named-run.json"]}',
+        candidate_profile_source="default_config",
+        archived_at=archived_at,
+    )
+    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+        resp = TestClient(_app()).get("/runs?view=archived")
+
+    assert resp.status_code == 200
+    payload = resp.json()["data"][0]
+    assert payload["jobs_input_manifest_json"] == run.jobs_input_manifest_json
+    assert payload["candidate_profile_source"] == "default_config"
+    assert payload["archived_at"] == archived_at.isoformat()
+
+
+def test_get_runs_legacy_fallback_preserves_tab_counts_and_server_time() -> None:
+    from fitcv_cp.models import PipelineRun
+
+    created_at = datetime.datetime.now(datetime.timezone.utc)
+    active = PipelineRun(
+        run_id="run-active-count-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/active.json",
+        config_path=".env.yaml",
+        created_at=created_at,
+    )
+    archived = PipelineRun(
+        run_id="run-archived-count-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/archived.json",
+        config_path=".env.yaml",
+        created_at=created_at,
+        archived_at=created_at,
+    )
+
+    with patch("fitcv_cp.app.list_runs", return_value=[active, archived]):
+        resp = TestClient(_app()).get("/runs?view=archived")
+
+    assert resp.status_code == 200
+    assert [item["run_id"] for item in resp.json()["data"]] == ["run-archived-count-1"]
+    assert resp.json()["meta"]["active_count"] == 1
+    assert resp.json()["meta"]["archived_count"] == 1
+    assert datetime.datetime.fromisoformat(resp.json()["meta"]["server_time"]).tzinfo is not None
 
 
 def test_get_run_detail_not_found():
-    with patch("fitcv_cp.app.get_run", return_value=None):
-        resp = TestClient(_app()).get("/runs/missing-id")
+    app = _app()
+    app.state.run_store.get_run_detail_fn = lambda _run_id: None
+    resp = TestClient(app).get("/runs/missing-id")
     assert resp.status_code == 404
+    assert resp.json() == {
+        "error": {
+            "code": "run_not_found",
+            "message": "Run not found.",
+            "field_errors": [],
+            "retryable": False,
+            "action": "Return to Runs and select an existing Run.",
+        }
+    }
+
+
+def test_candidate_profiles_returns_collection_envelope() -> None:
+    app = _app()
+    app.state.run_store.list_candidate_profiles_fn = lambda: [
+        {
+            "candidate_profile_id": "candidate-product-data",
+            "name": "Product Data Specialist",
+            "description": "Product analytics profile",
+            "is_active": True,
+            "is_default": True,
+            "updated_at": "2026-07-20T12:00:00+00:00",
+            "revision": 1,
+        }
+    ]
+
+    resp = TestClient(app).get("/candidate-profiles?active=true")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"][0]["candidate_profile_id"] == "candidate-product-data"
+    assert resp.json()["page"] == {
+        "number": 1,
+        "size": 1,
+        "total_items": 1,
+        "total_pages": 1,
+    }
+
+
+def test_runs_rejects_invalid_page_size_with_machine_error() -> None:
+    resp = TestClient(_app()).get("/runs?page_size=25")
+
+    assert resp.status_code == 422
+    assert resp.json()["error"] == {
+        "code": "validation_failed",
+        "message": "Request validation failed.",
+        "field_errors": [
+            {
+                "field": "page_size",
+                "code": "invalid_value",
+                "message": "Use 10, 20, or 50.",
+            }
+        ],
+        "retryable": False,
+        "action": "Fix highlighted fields and retry.",
+    }
+
+
+def test_run_stages_and_jobs_use_canonical_envelopes() -> None:
+    app = _app()
+    app.state.run_store.get_run_detail_fn = lambda run_id: {
+        "run_id": run_id,
+        "stages": [{"stage_id": "enrichment", "label": "Enrichment", "ordinal": 1}],
+    }
+    app.state.run_store.query_run_jobs_fn = lambda run_id, **kwargs: {
+        "items": [{"run_job_id": "job-1", "run_id": run_id, "title": "Analyst"}],
+        "total": 1,
+        "total_evaluated": 1,
+        "passed": 1,
+        "rejected": 0,
+        "page": kwargs["page"],
+        "page_size": kwargs["page_size"],
+    }
+
+    stages = TestClient(app).get("/runs/run-1/stages")
+    jobs = TestClient(app).get("/runs/run-1/jobs?page=1&page_size=10")
+
+    assert stages.status_code == 200
+    assert stages.json()["data"][0]["stage_id"] == "enrichment"
+    assert jobs.status_code == 200
+    assert jobs.json()["page"] == {
+        "number": 1,
+        "size": 10,
+        "total_items": 1,
+        "total_pages": 1,
+    }
+    assert jobs.json()["meta"] == {
+        "run_id": "run-1",
+        "stage": "all",
+        "result_bucket": "all",
+        "search": "",
+        "total_evaluated": 1,
+        "passed": 1,
+        "rejected": 0,
+    }
+
+
+def test_run_archive_action_returns_refreshed_resource() -> None:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="run-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        finished_at=now,
+    )
+    archived: list[tuple[str, str]] = []
+    app = _app()
+    app.state.run_store.get_run_fn = lambda _run_id: run
+    app.state.run_store.archive_run_fn = lambda run_id, actor: archived.append((run_id, actor))
+    app.state.run_store.get_run_detail_fn = lambda run_id: {
+        "run_id": run_id,
+        "backend_status": "succeeded",
+        "archived_at": now.isoformat(),
+    }
+
+    resp = TestClient(app).post("/runs/run-1/actions/archive")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"]["archived_at"] == now.isoformat()
+    assert archived == [("run-1", "admin")]
+
+
+def test_delete_archived_runs_requires_idempotency_key() -> None:
+    resp = TestClient(_app()).post(
+        "/runs/actions/delete-archived",
+        json={"run_ids": ["run-1"]},
+    )
+
+    assert resp.status_code == 422
+    assert resp.json()["error"]["field_errors"][0]["field"] == "Idempotency-Key"
+
+
+def test_delete_archived_runs_is_idempotent_and_returns_deleted_ids() -> None:
+    completed: list[dict[str, Any]] = []
+    app = _app()
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "delete-action-1",
+        "replayed": False,
+        "response": None,
+    }
+    app.state.run_store.delete_archived_runs_fn = lambda _age, run_ids: {
+        "deleted_count": len(run_ids),
+        "deleted_run_ids": run_ids,
+    }
+    app.state.run_store.complete_idempotent_action_fn = lambda _action_id, response: completed.append(response)
+
+    resp = TestClient(app).post(
+        "/runs/actions/delete-archived",
+        headers={"Idempotency-Key": "delete-1"},
+        json={"run_ids": ["run-1", "run-2"]},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["data"]["deleted_run_ids"] == ["run-1", "run-2"]
+    assert completed == [resp.json()["data"]]
+
+
+def test_delete_archived_runs_reports_all_or_nothing_conflict() -> None:
+    app = _app()
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "delete-action-1",
+        "replayed": False,
+        "response": None,
+    }
+    app.state.run_store.delete_archived_runs_fn = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+        ValueError("blocked:run-2")
+    )
+
+    resp = TestClient(app).post(
+        "/runs/actions/delete-archived",
+        headers={"Idempotency-Key": "delete-1"},
+        json={"run_ids": ["run-1", "run-2"]},
+    )
+
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "run_state_conflict"
+
+
+def test_cancel_and_unarchive_repeats_are_idempotent() -> None:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    cancelled = PipelineRun(
+        run_id="run-cancelled-1",
+        status=RunStatus.CANCELLED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        finished_at=now,
+    )
+    active = PipelineRun(
+        run_id="run-active-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        finished_at=now,
+    )
+    app = _app()
+    app.state.run_store.get_run_fn = lambda run_id: cancelled if run_id == cancelled.run_id else active
+    app.state.run_store.get_run_detail_fn = lambda run_id: {"run_id": run_id}
+    request_cancel = MagicMock()
+    unarchive = MagicMock()
+    app.state.run_store.request_run_cancel_fn = request_cancel
+    app.state.run_store.unarchive_run_fn = unarchive
+
+    cancel_resp = TestClient(app).post("/runs/run-cancelled-1/actions/cancel")
+    unarchive_resp = TestClient(app).post("/runs/run-active-1/actions/unarchive")
+
+    assert cancel_resp.status_code == 200
+    assert unarchive_resp.status_code == 200
+    request_cancel.assert_not_called()
+    unarchive.assert_not_called()
+
+
+def test_bookmark_and_interest_actions_use_run_job_identity() -> None:
+    app = _app()
+    app.state.run_store.get_run_job_fn = lambda run_id, run_job_id: {
+        "run_id": run_id,
+        "run_job_id": run_job_id,
+    }
+    app.state.run_store.set_bookmark_fn = lambda run_job_id: {
+        "run_job_id": run_job_id,
+        "bookmark_id": "bookmark-1",
+    }
+    app.state.run_store.set_run_job_interest_fn = lambda run_job_id, rating, **kwargs: {
+        "run_job_id": run_job_id,
+        "rating": rating,
+        "rating_contract_revision": kwargs["rating_contract_revision"],
+    }
+
+    bookmark = TestClient(app).put("/runs/run-1/jobs/job-1/bookmark")
+    interest = TestClient(app).put(
+        "/runs/run-1/jobs/job-1/interest",
+        json={"rating": 5, "rating_contract_revision": "application-interest-v1"},
+    )
+
+    assert bookmark.status_code == 200
+    assert bookmark.json()["data"]["bookmarked"] is True
+    assert interest.status_code == 200
+    assert interest.json()["data"]["rating"] == 5
+
+
+def test_bookmark_interest_clear_and_stale_rating_contract() -> None:
+    app = _app()
+    app.state.run_store.get_run_job_fn = lambda run_id, run_job_id: {
+        "run_id": run_id,
+        "run_job_id": run_job_id,
+    }
+    cleared_bookmarks: list[str] = []
+    app.state.run_store.clear_bookmark_fn = cleared_bookmarks.append
+    app.state.run_store.clear_run_job_interest_fn = lambda run_job_id, **_kwargs: {
+        "run_job_id": run_job_id,
+        "rating_contract_revision": "application-interest-v1",
+    }
+
+    bookmark = TestClient(app).delete("/runs/run-1/jobs/job-1/bookmark")
+    interest = TestClient(app).delete("/runs/run-1/jobs/job-1/interest")
+    stale = TestClient(app).put(
+        "/runs/run-1/jobs/job-1/interest",
+        json={"rating": 4, "rating_contract_revision": "application-interest-v0"},
+    )
+
+    assert bookmark.json()["data"]["bookmarked"] is False
+    assert interest.json()["data"]["rating"] is None
+    assert cleared_bookmarks == ["job-1"]
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "rating_contract_stale"
+
+
+def test_jobs_export_uses_full_filtered_rows_and_escapes_formulas() -> None:
+    app = _app()
+    app.state.run_store.get_run_detail_fn = lambda run_id: {"run_id": run_id}
+    app.state.run_store.iter_run_jobs_for_export_fn = lambda run_id, **_kwargs: iter(
+        [
+            {
+                "run_job_id": "job-1",
+                "title": "=SUM(1,1)",
+                "source_url": "https://example.com/job-1",
+                "location": "Berlin",
+                "work_mode": "Hybrid",
+                "language": "English",
+                "seniority": "Senior",
+                "role_family": "Analytics",
+                "domain": "Product",
+                "skills": ["SQL", "Python"],
+                "result_bucket": "passed",
+                "outcome_code": "accepted",
+                "reason_code": "eligible",
+                "rating": 5,
+            }
+        ]
+    )
+
+    resp = TestClient(app).get("/runs/run-1/jobs/export.csv?stage=all&result_bucket=all")
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    assert resp.text.splitlines()[0] == (
+        "Job Title,Listing URL,Location,Work Mode,Language,Seniority,Job Family,Domain,"
+        "Required Skills,Result,Pipeline Outcome,Reason,Application Interest"
+    )
+    assert "'=SUM(1,1)" in resp.text
+
+
+def test_cv_history_download_and_regenerate_contract() -> None:
+    app = _app()
+    app.state.run_store.get_run_job_fn = lambda run_id, run_job_id: {
+        "run_id": run_id,
+        "run_job_id": run_job_id,
+        "source_url": "https://example.com/job-1",
+    }
+    app.state.run_store.list_cv_versions_fn = lambda _run_job_id: [
+        {"version_id": "cv-1", "generation_status": "generated"}
+    ]
+    app.state.run_store.get_cv_download_fn = lambda _version_id: {
+        "content": b"# CV\n",
+        "content_length": 5,
+        "content_checksum": "checksum-1",
+        "media_type": "text/markdown; charset=utf-8",
+        "filename": "cv-1.md",
+    }
+    app.state.run_store.reserve_idempotent_action_fn = lambda scope, key, fingerprint: {
+        "action_id": "action-1",
+        "status": "queued",
+        "replayed": False,
+        "response": None,
+    }
+    app.state.run_store.reserve_cv_regeneration_fn = lambda run_job_id, **kwargs: {
+        "version_id": kwargs["version_id"],
+        "run_job_id": run_job_id,
+        "generation_status": "pending",
+    }
+
+    with patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1"):
+        history = TestClient(app).get("/runs/run-1/jobs/job-1/cvs")
+        download = TestClient(app).get("/cv-versions/cv-1/download")
+        regenerate = TestClient(app).post(
+            "/runs/run-1/jobs/job-1/cvs/actions/regenerate",
+            headers={"Idempotency-Key": "regen-1"},
+            json={"parent_cv_version_id": "cv-1"},
+        )
+
+    assert history.status_code == 200
+    assert history.json()["data"][0]["version_id"] == "cv-1"
+    assert download.status_code == 200
+    assert download.headers["etag"] == '"checksum-1"'
+    assert download.headers["content-length"] == "5"
+    assert regenerate.status_code == 202
+    assert regenerate.json()["data"]["action_id"] == "action-1"
+    assert regenerate.json()["data"]["status"] == "queued"
+
+
+def test_cv_regeneration_replays_completed_action_without_enqueue() -> None:
+    app = _app()
+    app.state.run_store.get_run_job_fn = lambda run_id, run_job_id: {
+        "run_id": run_id,
+        "run_job_id": run_job_id,
+        "source_url": "https://example.com/job-1",
+    }
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "action-1",
+        "status": "succeeded",
+        "replayed": True,
+        "response": {
+            "action_id": "action-1",
+            "status": "queued",
+            "queue_job_id": "queue-1",
+            "cv_version": {"version_id": "cv-2"},
+        },
+    }
+
+    with patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id") as enqueue:
+        resp = TestClient(app).post(
+            "/runs/run-1/jobs/job-1/cvs/actions/regenerate",
+            headers={"Idempotency-Key": "regen-1"},
+            json={"parent_cv_version_id": "cv-1"},
+        )
+
+    assert resp.status_code == 202
+    assert resp.json()["data"]["cv_version"]["version_id"] == "cv-2"
+    enqueue.assert_not_called()
+
+
+def test_cv_regeneration_idempotency_conflict_is_actionable() -> None:
+    app = _app()
+    app.state.run_store.get_run_job_fn = lambda run_id, run_job_id: {
+        "run_id": run_id,
+        "run_job_id": run_job_id,
+    }
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: (_ for _ in ()).throw(
+        ValueError("idempotency_conflict")
+    )
+
+    resp = TestClient(app).post(
+        "/runs/run-1/jobs/job-1/cvs/actions/regenerate",
+        headers={"Idempotency-Key": "regen-1"},
+        json={"parent_cv_version_id": "cv-1"},
+    )
+
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "idempotency_conflict"
+
+
+def test_cv_regeneration_enqueue_failure_persists_failed_version() -> None:
+    updates: list[tuple[str, dict[str, Any]]] = []
+    completed_actions: list[dict[str, Any]] = []
+    app = _app()
+    app.state.run_store.get_run_job_fn = lambda run_id, run_job_id: {
+        "run_id": run_id,
+        "run_job_id": run_job_id,
+        "source_url": "https://example.com/job-1",
+    }
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "action-1",
+        "status": "queued",
+        "replayed": False,
+        "response": None,
+    }
+    app.state.run_store.reserve_cv_regeneration_fn = lambda run_job_id, **kwargs: {
+        "version_id": kwargs["version_id"],
+        "run_job_id": run_job_id,
+        "generation_status": "pending",
+    }
+    app.state.run_store.update_cv_version_fn = lambda version_id, **kwargs: (
+        updates.append((version_id, kwargs))
+        or {"version_id": version_id, "generation_status": kwargs["generation_status"]}
+    )
+    app.state.run_store.complete_idempotent_action_fn = lambda _action_id, response: completed_actions.append(response)
+
+    with patch(
+        "fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id",
+        side_effect=RuntimeError("queue unavailable"),
+    ):
+        resp = TestClient(app).post(
+            "/runs/run-1/jobs/job-1/cvs/actions/regenerate",
+            headers={"Idempotency-Key": "regen-1"},
+            json={"parent_cv_version_id": "cv-1"},
+        )
+
+    assert resp.status_code == 503
+    assert resp.json()["error"]["code"] == "cv_regeneration_failed"
+    assert resp.json()["error"]["retryable"] is True
+    assert updates[0][1]["generation_status"] == "generation_failed"
+    assert updates[0][1]["error_code"] == "enqueue_failed"
+    assert completed_actions[0]["status"] == "failed"
+
+
+def test_events_and_debug_bundle_not_ready_contract() -> None:
+    event = MagicMock(
+        event_id="event-1",
+        recorded_at=datetime.datetime(2026, 7, 20, 12, tzinfo=datetime.timezone.utc),
+        operation="ranking",
+        state="progress",
+        level="info",
+        message="Ranking jobs",
+        payload_json='{"count":1}',
+        diagnostic_refs_json=None,
+    )
+    app = _app()
+    app.state.run_store.get_run_detail_fn = lambda run_id: {"run_id": run_id}
+    app.state.run_store.get_process_events_fn = lambda *_args, **_kwargs: {
+        "events": [event],
+        "integrity_conflicts": [],
+        "deliveries": [],
+        "total_count": 1,
+        "next_cursor": None,
+    }
+    app.state.run_store.get_debug_bundle_availability_fn = lambda run_id: {
+        "run_id": run_id,
+        "status": "not_ready",
+        "reason": "run_in_progress",
+        "action": "wait",
+    }
+
+    events = TestClient(app).get("/runs/run-1/events?limit=100")
+    bundle = TestClient(app).get("/runs/run-1/debug-bundle")
+
+    assert events.status_code == 200
+    assert events.json()["data"][0]["event_id"] == "event-1"
+    assert events.json()["meta"]["next_cursor"] is None
+    assert bundle.status_code == 409
+    assert bundle.json()["error"]["code"] == "artifact_not_available"
+
+
+def test_run_events_rejects_invalid_cursor_and_limit() -> None:
+    app = _app()
+    app.state.run_store.get_run_detail_fn = lambda run_id: {"run_id": run_id}
+    app.state.run_store.get_process_events_fn = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+        ValueError("invalid_cursor")
+    )
+
+    cursor = TestClient(app).get("/runs/run-1/events?cursor=not-a-cursor")
+    limit = TestClient(app).get("/runs/run-1/events?limit=501")
+
+    assert cursor.status_code == 422
+    assert cursor.json()["error"]["field_errors"][0]["field"] == "cursor"
+    assert limit.status_code == 422
+    assert limit.json()["error"]["field_errors"][0]["field"] == "limit"
+
+
+def test_debug_bundle_redacts_secrets_and_raw_snapshots() -> None:
+    app = _app()
+    app.state.run_store.get_run_detail_fn = lambda run_id: {
+        "run_id": run_id,
+        "status": "succeeded",
+        "provider": {"api_key": "top-secret", "name": "provider"},
+        "input": {
+            "original_filename": "jobs.json",
+            "jobs_snapshot": [{"title": "Private job"}],
+            "candidate_profile_snapshot": {"name": "Private candidate"},
+        },
+    }
+    app.state.run_store.get_debug_bundle_availability_fn = lambda run_id: {
+        "run_id": run_id,
+        "status": "available",
+    }
+
+    resp = TestClient(app).get("/runs/run-1/debug-bundle")
+
+    assert resp.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
+        run_payload = archive.read("run.json").decode("utf-8")
+        manifest = json.loads(archive.read("manifest.json"))
+    assert "top-secret" not in run_payload
+    assert "Private job" not in run_payload
+    assert "Private candidate" not in run_payload
+    assert "[redacted]" in run_payload
+    assert manifest["included_artifacts"][0]["sha256"]
+    assert manifest["redactions"] == ["credentials", "secrets", "raw uploaded files"]
 
 
 def test_get_run_events():
@@ -1072,9 +1887,9 @@ def test_get_run_events():
          patch("fitcv_cp.app.get_events", return_value=[event]):
         resp = TestClient(_app()).get("/runs/some-id/events")
     assert resp.status_code == 200
-    body = resp.json()
+    body = resp.json()["data"]
     assert len(body) == 1
-    assert body[0]["payload_json"] == '{"telemetry_export":{"status":"degraded"}}'
+    assert body[0]["payload"] == {"telemetry_export": {"status": "degraded"}}
 
 
 def test_get_run_events_preserves_langfuse_rich_payload_json() -> None:
@@ -1103,9 +1918,9 @@ def test_get_run_events_preserves_langfuse_rich_payload_json() -> None:
          patch("fitcv_cp.app.get_events", return_value=[event]):
         resp = TestClient(_app()).get("/runs/some-id/events")
     assert resp.status_code == 200
-    body = resp.json()
+    body = resp.json()["data"]
     assert len(body) == 1
-    parsed = json.loads(str(body[0]["payload_json"]))
+    parsed = body[0]["payload"]
     assert parsed["langfuse_rich_io"]["status"] == "ready"
     assert parsed["langfuse_rich_io_native"]["status"] == "sent:abc123"
 
@@ -1190,13 +2005,34 @@ def test_get_pipeline_settings_returns_effective_resource() -> None:
         resp = TestClient(_app()).get("/settings/pipeline")
 
     assert resp.status_code == 200
-    payload = resp.json()
+    payload = resp.json()["data"]
     assert payload["values"]["pipeline.final_top_n"] == 5
     assert payload["defaults"]["pipeline.final_top_n"] == 15
     assert payload["sources"]["pipeline.final_top_n"] == "override"
     assert payload["schema"]["pages"][0]["id"] == "overview"
     assert "cv_generation_model" not in payload["values"]
     assert "gap_thresholds.strong_min_matched_ratio" not in payload["values"]
+    assert payload["revision"]
+    assert resp.headers["etag"] == f'"{payload["revision"]}"'
+
+
+def test_get_pipeline_settings_returns_repairable_invalid_state() -> None:
+    with patch(
+        "fitcv_cp.app.load_active_settings",
+        return_value={
+            "pipeline.vector_search_top_n": 25,
+            "pipeline.ai_score_top_n": 50,
+        },
+    ):
+        resp = TestClient(_app()).get("/settings/pipeline")
+
+    assert resp.status_code == 200
+    payload = resp.json()["data"]
+    assert payload["values"]["pipeline.vector_search_top_n"] == 25
+    assert payload["values"]["pipeline.ai_score_top_n"] == 50
+    assert payload["validation_errors"] == [
+        "pipeline.ai_score_top_n (50) must be <= pipeline.vector_search_top_n (25)"
+    ]
 
 
 def test_patch_pipeline_settings_uses_atomic_mutation() -> None:
@@ -1213,7 +2049,7 @@ def test_patch_pipeline_settings_uses_atomic_mutation() -> None:
 
     assert resp.status_code == 200
     mutate.assert_called_once_with(changes=changes, updated_by="admin")
-    assert resp.json()["values"]["pipeline.final_top_n"] == 8
+    assert resp.json()["data"]["values"]["pipeline.final_top_n"] == 8
 
 
 def test_patch_pipeline_settings_rejects_excluded_key() -> None:
@@ -1223,7 +2059,28 @@ def test_patch_pipeline_settings_rejects_excluded_key() -> None:
     )
 
     assert resp.status_code == 422
-    assert "not owned by Pipeline settings" in resp.text
+    assert resp.json()["error"]["code"] == "validation_failed"
+    assert resp.json()["error"]["field_errors"][0]["field"] == "cv_generation_model"
+
+
+def test_patch_pipeline_settings_rejects_stale_revision() -> None:
+    from fitcv_cp.settings_store import SettingsRevisionConflict
+
+    with patch(
+        "fitcv_cp.app.mutate_settings_atomically",
+        side_effect=SettingsRevisionConflict("stale"),
+    ):
+        resp = TestClient(_app()).patch(
+            "/settings/pipeline",
+            json={
+                "changes": {"pipeline.final_top_n": 8},
+                "expected_revision": "stale-revision",
+            },
+        )
+
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "settings_revision_conflict"
+    assert resp.json()["error"]["retryable"] is False
 
 
 def test_patch_pipeline_settings_rejects_partial_managed_group() -> None:
@@ -1249,7 +2106,7 @@ def test_reset_pipeline_settings_uses_atomic_mutation() -> None:
         reset_keys=["pipeline.final_top_n"],
         updated_by="admin",
     )
-    assert resp.json()["sources"]["pipeline.final_top_n"] == "default"
+    assert resp.json()["data"]["sources"]["pipeline.final_top_n"] == "default"
 
 
 def test_post_settings_key_saves_and_returns_200():
@@ -14406,10 +15263,53 @@ def test_admin_settings_uses_pipeline_resource_ui() -> None:
     assert "async function resetSettings" in html
     assert 'input.type = "checkbox"' in html
     template_source = open("src/fitcv_cp/templates/settings.html", encoding="utf-8").read()
-    assert "localStorage" not in template_source
+    assert "localStorage" in template_source
     assert "Skip Incomplete Listings" not in html
     assert "Require Manual Review" not in html
     assert "Gap Threshold" not in html
+
+
+def test_admin_settings_wires_prototype_runs_actions() -> None:
+    resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'id="runsNav" href="#runs"' in html
+    assert 'id="runDialog"' in html
+    assert 'id="runDetailsDrawer"' in html
+    assert 'requestJson("/candidate-profiles?active=true")' in html
+    assert 'requestEnvelope(`/runs?${params}`)' in html
+    assert 'fetch("/runs", {method: "POST"' in html
+    assert 'requestJson(`/runs/${runId}/actions/cancel`' in html
+    assert 'requestJson(`/runs/${runId}/actions/archive`' in html
+    assert 'requestJson(`/runs/${runId}/actions/unarchive`' in html
+    assert 'requestJson("/runs/actions/delete-archived"' in html
+    assert 'requestEnvelope(`/runs/${runId}/jobs?' in html
+    assert 'requestEnvelope(`/runs/${runId}/events?' in html
+    assert 'requestJson(`/runs/${runId}/jobs/${runJobId}/cvs`' in html
+    assert 'requestJson(`/runs/${runId}/jobs/${runJobId}/bookmark`' in html
+    assert 'requestJson(`/runs/${runId}/jobs/${runJobId}/interest`' in html
+    assert '`/runs/${runId}/jobs/export.csv?${params}`' in html
+    assert '`/runs/${runId}/debug-bundle`' in html
+    assert 'Promise.all([loadSettings(), loadCandidateProfiles(), loadRuns({quiet: true})])' in html
+    assert 'runForm.addEventListener("submit"' in html
+    assert 'runDetailsDrawer.addEventListener("click"' in html
+    assert 'loadRuns({quiet: true}).catch(error => showError(error.message))' in html
+    assert 'if (selectedRunDetailId && runDetailsDrawer.open) openRunDetails' not in html
+    assert 'latest?.capabilities?.download' in html
+    assert 'latest?.capabilities?.regenerate' in html
+    assert 'catch (error) { runDetailsBody.insertAdjacentHTML("afterbegin", `<div class="pipeline-notice pipeline-error" role="alert">${escapeHtml(error.message)}</div>`); }' in html
+    assert 'settings_revision_conflict' in html
+    assert 'result_bucket: pipelineResult' in html
+    assert 'next_cursor' in html
+    assert 'const loadMoreButton = event.currentTarget;' in html
+    assert '.btn{display:inline-flex;min-height:38px;align-items:center;justify-content:center;' in html
+    assert '.summary-card span{display:block;color:var(--mirror-strong);font-size:11px}' in html
+    assert '<ol class="console-log" id="runConsoleEvents" aria-live="polite" aria-label="Run console events">' in html
+    assert '<option value="default_config">Default Candidate Profile</option>' not in html
+    assert '"/admin/upload-trigger"' not in html
+    assert 'if (dialog.open) dialog.close();' in html
+    assert 'requestId !== runDetailsRequestId || activePageId !== "runs"' in html
+    assert 'id="pipeline-dialog-status"' in html
 
 
 def test_admin_settings_uses_approved_prototype_visual_contract() -> None:

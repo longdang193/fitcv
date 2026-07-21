@@ -14,7 +14,8 @@ tags:
 
 import dataclasses
 
-from fitcv_cp.models import RunStatus, EventLevel, PipelineRun, RunEvent
+from fitcv_cp import models
+from fitcv_cp.models import EventLevel, PipelineRun, RunEvent, RunStatus
 
 
 def test_run_status_values():
@@ -36,6 +37,23 @@ def test_run_status_cancelling_value():
 
 def test_run_status_cancelled_value():
     assert RunStatus.CANCELLED.value == "cancelled"
+
+def test_prototype_pipeline_status_values() -> None:
+    assert [status.value for status in models.RunStageStatus] == [
+        "pending", "running", "succeeded", "warning", "partial", "failed", "cancelled", "skipped",
+    ]
+    assert [status.value for status in models.JobStageStatus] == [
+        "pending", "passed", "rejected", "blocked", "skipped", "failed", "review_required", "generated",
+    ]
+    assert [status.value for status in models.ResultBucket] == ["passed", "rejected"]
+    assert [status.value for status in models.CvGenerationStatus] == [
+        "pending", "running", "generated", "review_required", "validation_failed", "generation_failed",
+        "persistence_failed", "cancelled",
+    ]
+    assert [status.value for status in models.CvEvaluationStatus] == ["pending", "running", "succeeded", "failed"]
+    assert [status.value for status in models.CvReviewState] == [
+        "none", "stretch", "manual_required", "approved", "rejected",
+    ]
 
 
 def test_event_level_values():

@@ -57,7 +57,7 @@ def test_worker_entrypoints_retry_pending_process_event_deliveries(
     assert calls == [20, 20]
 
 
-def test_execute_cv_regenerate_once_updates_target_record_and_emits_success() -> None:
+def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_stretch() -> None:
     from fitcv_cp.worker_job import execute_cv_regenerate_once
 
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -69,6 +69,8 @@ def test_execute_cv_regenerate_once_updates_target_record_and_emits_success() ->
         jobs_path="data/sample_jobs.json",
         config_path=".env.yaml",
         created_at=now,
+        candidate_profile_json=json.dumps({"name": "Candidate"}),
+        effective_settings_json="{}",
         cv_generation_debug_json=json.dumps(
             {
                 "cv_generation_debug_records": [
@@ -87,30 +89,55 @@ def test_execute_cv_regenerate_once_updates_target_record_and_emits_success() ->
             ensure_ascii=False,
         ),
     )
+    analysis = {
+        "status": "ready_for_generation",
+        "fit_classification": "stretch",
+        "job_url": "https://example.com/job-1",
+        "gap_summary": {"summary": "Close fit"},
+        "requirement_coverage": [{"requirement": "Python", "status": "covered"}],
+    }
+    generation = {
+        "status": "review_required",
+        "fit_classification": "stretch",
+        "markdown_final": "# Fresh generated CV",
+        "structured_cv_final": {"name": "Candidate"},
+        "cv_generation_input_fingerprint": "fresh-fingerprint",
+        "cv_generation_reuse_status": "fresh_compute",
+        "model": "model-1",
+    }
     with patch("fitcv_cp.worker_job.get_run", return_value=run), \
-         patch("fitcv_cp.worker_job._get_bq", return_value=MagicMock()), \
-         patch("fitcv_cp.worker_job.update_run_cv_generation_debug") as mock_update, \
+         patch("fitcv_cp.worker_job.list_run_structured_jobs", return_value=[{
+             "run_job_id": "run-job-1", "job_url": "https://example.com/job-1", "title": "Role"
+         }]), \
+         patch("fitcv_cp.worker_job.reserve_cv_regeneration", return_value={
+             "version_id": "cv-new", "generation_status": "pending", "idempotent_replay": False
+         }) as reserve_version, \
+         patch("fitcv_cp.worker_job.update_cv_version", return_value={
+             "generation_status": "review_required", "content_checksum": "checksum-1"
+         }) as update_version, \
+         patch("fitcv_cp.worker_job.insert_cv_evaluation_row") as insert_evaluation, \
+         patch("fitcv_cp.worker_job.update_cv_evaluation") as update_evaluation, \
+         patch("fitcv_cp.worker_job.insert_cv_review_event") as insert_review, \
+         patch("fitcv_cp.worker_job.analyze_ranked_job", return_value=analysis) as analyze_job, \
+         patch("fitcv_cp.worker_job.generate_from_analysis", return_value=generation) as generate_cv, \
          patch("fitcv_cp.worker_job.append_event") as mock_append:
         execute_cv_regenerate_once(
             run_id="run-regen-1",
             job_url="https://example.com/job-1",
             actor="operator",
             note="retry",
+            idempotency_key="idem-1",
         )
 
-    saved_payload = json.loads(mock_update.call_args.args[1])
-    target = next(
-        row for row in saved_payload["cv_generation_debug_records"]
-        if row.get("job_url") == "https://example.com/job-1"
-    )
-    untouched = next(
-        row for row in saved_payload["cv_generation_debug_records"]
-        if row.get("job_url") == "https://example.com/job-2"
-    )
-    assert target["last_regenerated_at"]
-    assert target["regenerated_draft_fingerprint"]
-    assert target["regeneration_attempt_count"] == 1
-    assert untouched.get("last_regenerated_at") is None
+    reserve_version.assert_called_once()
+    analyze_job.assert_called_once()
+    generate_cv.assert_called_once_with(analysis, {"name": "Candidate"}, {})
+    assert update_version.call_args_list[-1].kwargs["generation_status"] == "review_required"
+    assert update_version.call_args_list[-1].kwargs["content"] == b"# Fresh generated CV"
+    assert insert_evaluation.call_args.kwargs["row"]["status"] == "pending"
+    assert update_evaluation.call_args.kwargs["status"] == "succeeded"
+    assert update_evaluation.call_args.kwargs["fit_classification"] == "stretch"
+    assert insert_review.call_args.kwargs["row"]["to_state"] == "stretch"
     stages = [call.args[0].stage for call in mock_append.call_args_list]
     assert stages == ["cv_regenerate_once_started", "cv_regenerate_once_succeeded"]
 
@@ -172,6 +199,71 @@ def test_execute_cv_regenerate_once_emits_failed_event_for_invalid_json_payload(
     assert stages == ["cv_regenerate_once_started", "cv_regenerate_once_failed"]
 
 
+@pytest.mark.parametrize(
+    ("fit_classification", "generation_status", "has_content", "expected"),
+    [
+        ("strong", "generated", True, "approved"),
+        ("stretch", "review_required", True, "stretch"),
+        ("strong", "review_required", True, "manual_required"),
+        ("skip", "validation_failed", False, "none"),
+        (None, "generation_failed", False, "none"),
+    ],
+)
+def test_cv_review_state_uses_structured_fit_only(
+    fit_classification: str | None,
+    generation_status: str,
+    has_content: bool,
+    expected: str,
+) -> None:
+    from fitcv_cp.worker_job import _cv_review_state
+
+    assert _cv_review_state(
+        fit_classification=fit_classification,
+        generation_status=generation_status,
+        has_content=has_content,
+    ) == expected
+
+
+def test_execute_cv_regenerate_once_persists_provider_failure() -> None:
+    from fitcv_cp.worker_job import execute_cv_regenerate_once
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="run-regen-failed",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        candidate_profile_json=json.dumps({"name": "Candidate"}),
+        effective_settings_json="{}",
+        cv_generation_debug_json=json.dumps({
+            "debug_records": [{"job_url": "https://example.com/job-1", "status": "review_required"}]
+        }),
+    )
+    with patch("fitcv_cp.worker_job.get_run", return_value=run), \
+         patch("fitcv_cp.worker_job.list_run_structured_jobs", return_value=[{
+             "run_job_id": "run-job-1", "job_url": "https://example.com/job-1", "title": "Role"
+         }]), \
+         patch("fitcv_cp.worker_job.reserve_cv_regeneration", return_value={
+             "version_id": "cv-failed", "generation_status": "pending", "idempotent_replay": False
+         }), \
+         patch("fitcv_cp.worker_job.update_cv_version", return_value={}) as update_version, \
+         patch("fitcv_cp.worker_job.insert_cv_evaluation_row"), \
+         patch("fitcv_cp.worker_job.update_cv_evaluation") as update_evaluation, \
+         patch("fitcv_cp.worker_job.analyze_ranked_job", return_value={
+             "status": "ready_for_generation", "fit_classification": "strong"
+         }), \
+         patch("fitcv_cp.worker_job.generate_from_analysis", side_effect=RuntimeError("provider down")), \
+         patch("fitcv_cp.worker_job.append_event"):
+        with pytest.raises(RuntimeError, match="provider down"):
+            execute_cv_regenerate_once(run_id="run-regen-failed", job_url="https://example.com/job-1")
+
+    assert update_evaluation.call_args_list[-1].kwargs["status"] == "failed"
+    assert update_version.call_args_list[-1].kwargs["generation_status"] == "generation_failed"
+
+
 def test_worker_synonym_policy_defaults_when_effective_settings_json_invalid() -> None:
     from fitcv_cp.worker_job import _auto_accept_ai_action_enabled_from_run_record
 
@@ -205,7 +297,16 @@ def test_worker_marks_succeeded_on_success():
     assert "running" in statuses and "succeeded" in statuses
 
 def test_worker_persists_terminal_artifact_mirror_for_succeeded_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import fitcv_cp.app as app_module
+
+    repo_root = Path(__file__).resolve().parents[2]
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "fitcv_cp.retry_settings.load_retry_settings",
+        lambda: MagicMock(lease_seconds=60, error_details_max_chars=2000),
+    )
+    monkeypatch.setattr("fitcv_cp.worker_job.persist_pipeline_snapshot", lambda *args, **kwargs: {})
+    monkeypatch.setattr(app_module, "load_config", lambda *args, **kwargs: {})
     client = MagicMock()
     client.query.return_value.result.return_value = iter([])
     now = datetime.datetime(2026, 5, 17, 16, 31, 28, tzinfo=datetime.timezone.utc)
@@ -215,7 +316,7 @@ def test_worker_persists_terminal_artifact_mirror_for_succeeded_run(tmp_path: Pa
         triggered_by="admin",
         trigger_source="ui",
         jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
+        config_path=str(repo_root / ".env.yaml"),
         created_at=now,
         started_at=now,
         finished_at=now,
@@ -252,7 +353,11 @@ def test_worker_persists_terminal_artifact_mirror_for_succeeded_run(tmp_path: Pa
             patch("fitcv_cp.worker_job.update_run_settings_used"), \
             patch("fitcv_cp.worker_job.update_run_mapping_suggestions"), \
             patch("fitcv_cp.worker_job.update_run_synonym_proposals"):
-            execute_pipeline_run(run_id="r-mirror-1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+            execute_pipeline_run(
+                run_id="r-mirror-1",
+                jobs_path="data/sample_jobs.json",
+                config_path=str(repo_root / ".env.yaml"),
+            )
 
     _run_once()
 
@@ -1150,6 +1255,8 @@ def test_execute_cv_regenerate_once_loads_dotenv_defaults_before_work(monkeypatc
         jobs_path="data/sample_jobs.json",
         config_path=".env.yaml",
         created_at=now,
+        candidate_profile_json=json.dumps({"name": "Candidate"}),
+        effective_settings_json="{}",
         cv_generation_debug_json=json.dumps(
             {
                 "cv_generation_debug_records": [
@@ -1164,9 +1271,9 @@ def test_execute_cv_regenerate_once_loads_dotenv_defaults_before_work(monkeypatc
         ),
     )
 
-    def _capture_update(*args, **kwargs):
+    def _capture_reserve(*args, **kwargs):
         assert os.environ.get("FITCV_LLM_API_KEY") == "test-dotenv-key"
-        return None
+        return {"version_id": "cv-dotenv", "generation_status": "pending", "idempotent_replay": False}
 
     with patch("fitcv_cp.worker_job.get_run", return_value=run), \
          patch(
@@ -1176,8 +1283,22 @@ def test_execute_cv_regenerate_once_loads_dotenv_defaults_before_work(monkeypatc
                  sqlite_path="data/fitcv_cp.sqlite3",
              ),
          ), \
-         patch("fitcv_cp.worker_job._get_bq", return_value=MagicMock()), \
-         patch("fitcv_cp.worker_job.update_run_cv_generation_debug", side_effect=_capture_update), \
+         patch("fitcv_cp.worker_job.list_run_structured_jobs", return_value=[{
+             "run_job_id": "run-job-dotenv", "job_url": "https://example.com/job-1", "title": "Role"
+         }]), \
+         patch("fitcv_cp.worker_job.reserve_cv_regeneration", side_effect=_capture_reserve), \
+         patch("fitcv_cp.worker_job.update_cv_version", return_value={
+             "generation_status": "generated", "content_checksum": "checksum"
+         }), \
+         patch("fitcv_cp.worker_job.insert_cv_evaluation_row"), \
+         patch("fitcv_cp.worker_job.update_cv_evaluation"), \
+         patch("fitcv_cp.worker_job.insert_cv_review_event"), \
+         patch("fitcv_cp.worker_job.analyze_ranked_job", return_value={
+             "status": "ready_for_generation", "fit_classification": "strong"
+         }), \
+         patch("fitcv_cp.worker_job.generate_from_analysis", return_value={
+             "status": "accepted", "fit_classification": "strong", "markdown_final": "# CV"
+         }), \
          patch("fitcv_cp.worker_job.append_event"), \
          patch("fitcv_cp.worker_job.load_dotenv_defaults", wraps=_real_load_dotenv_defaults) as mock_load_dotenv_defaults:
         execute_cv_regenerate_once(
@@ -1990,6 +2111,30 @@ def test_worker_marks_failed_on_exception():
     append_mock.assert_called()
 
 
+def test_worker_failure_terminalizes_normalized_stages_without_progress_summary() -> None:
+    now = datetime.datetime(2026, 7, 20, 12, tzinfo=datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="r1",
+        status=RunStatus.RUNNING,
+        triggered_by="tester",
+        trigger_source="test",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        cancel_requested_at=None,
+    )
+    with patch("fitcv_cp.worker_job.get_run", return_value=run), \
+         patch("fitcv_cp.worker_job.run_pipeline", side_effect=RuntimeError("boom")), \
+         patch("fitcv_cp.worker_job.update_run_status"), \
+         patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}), \
+         patch("fitcv_cp.worker_job.persist_terminal_run_artifact_mirror"), \
+         patch("fitcv_cp.worker_job.persist_pipeline_snapshot") as persist_snapshot:
+        execute_pipeline_run(run_id="r1", jobs_path="data/jobs.json", config_path=".env.yaml")
+
+    assert persist_snapshot.call_args.args == ("r1", {})
+    assert persist_snapshot.call_args.kwargs["run_status"] == RunStatus.FAILED
+
+
 def test_worker_error_event_has_correct_level():
     client = MagicMock()
     client.query.return_value.result.return_value = iter([])
@@ -2720,6 +2865,28 @@ def test_worker_marks_cancelled_when_cancel_already_requested():
     assert RunStatus.CANCELLED in status_updates
 
 
+def test_worker_early_cancellation_terminalizes_normalized_stages() -> None:
+    now = datetime.datetime(2026, 7, 20, 12, tzinfo=datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="r1",
+        status=RunStatus.CANCELLING,
+        triggered_by="tester",
+        trigger_source="test",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        cancel_requested_at=now,
+    )
+    with patch("fitcv_cp.worker_job.get_run", return_value=run), \
+         patch("fitcv_cp.worker_job.update_run_status"), \
+         patch("fitcv_cp.worker_job.append_event"), \
+         patch("fitcv_cp.worker_job.persist_pipeline_snapshot") as persist_snapshot:
+        execute_pipeline_run(run_id="r1", jobs_path="data/jobs.json", config_path=".env.yaml")
+
+    assert persist_snapshot.call_args.args == ("r1", {})
+    assert persist_snapshot.call_args.kwargs["run_status"] == RunStatus.CANCELLED
+
+
 def test_worker_cancellation_event_appended_on_early_exit():
     """@proves run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
     @proves run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
@@ -3100,6 +3267,44 @@ def test_stage_transition_payload_preserves_prior_shortlist_audit_outside_execut
     stages = payload["artifacts"]["stages"]
     assert stages["shortlist"] == prior_payload["artifacts"]["stages"]["shortlist"]
     assert stages["ranking"]["output_counts"] == {"ranked_jobs": 1}
+
+
+def test_shared_progress_snapshot_persists_normalized_pipeline_state() -> None:
+    from fitcv_cp.worker_job import _persist_shared_progress_snapshot
+
+    snapshot_at = datetime.datetime(2026, 7, 20, 12, tzinfo=datetime.timezone.utc)
+    from fitcv_cp.models import PipelineRun
+
+    run_record = PipelineRun(
+        run_id="run-1",
+        status=RunStatus.RUNNING,
+        triggered_by="tester",
+        trigger_source="test",
+        jobs_path="jobs.json",
+        config_path=".env.yaml",
+        created_at=snapshot_at,
+        stage_transition_artifacts_json=None,
+        completed_stages=[],
+    )
+    summary = {"completed_stages": ["normalize", "enrich"], "last_completed_stage": "enrich"}
+    with patch("fitcv_cp.worker_job.update_run_status"), \
+         patch("fitcv_cp.worker_job.update_run_progress"), \
+         patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts"), \
+         patch("fitcv_cp.worker_job._persist_mapping_suggestions_snapshot"), \
+         patch("fitcv_cp.worker_job._synonym_propose_enabled_from_run_record", return_value=False), \
+         patch("fitcv_cp.worker_job.persist_pipeline_snapshot") as persist_snapshot:
+        _persist_shared_progress_snapshot(
+            run_id="run-1",
+            run_record=run_record,
+            summary=summary,
+            snapshot_at=snapshot_at,
+            client=None,
+            run_status=RunStatus.RUNNING,
+        )
+
+    persist_snapshot.assert_called_once_with(
+        "run-1", summary, run_status=RunStatus.RUNNING, snapshot_at=snapshot_at
+    )
 
 
 

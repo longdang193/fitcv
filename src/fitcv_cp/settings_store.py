@@ -14,6 +14,7 @@ lifecycle:
 """
 
 import datetime
+import hashlib
 import json
 import logging
 import os
@@ -32,6 +33,15 @@ from fitcv_cp.settings_schema import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class SettingsRevisionConflict(RuntimeError):
+    pass
+
+
+def settings_revision(active: dict[str, Any]) -> str:
+    payload = json.dumps(active, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _local_sqlite_path() -> Path:
@@ -509,6 +519,7 @@ def mutate_settings_atomically(
     changes: dict[str, Any],
     updated_by: str,
     reset_keys: list[str] | tuple[str, ...] = (),
+    expected_revision: str | None = None,
 ) -> dict[str, Any]:
     """Serialize load, merge, validation, writes, and resets in one transaction."""
     db_path = _local_sqlite_path()
@@ -531,6 +542,8 @@ def mutate_settings_atomically(
                         "DELETE FROM pipeline_settings WHERE setting_key = ? AND setting_value_json = ?",
                         invalid_rows,
                     )
+                if expected_revision is not None and expected_revision != settings_revision(active):
+                    raise SettingsRevisionConflict("Pipeline settings changed since last read")
                 candidate_overrides = {
                     key: value for key, value in active.items() if key not in canonical_resets
                 }

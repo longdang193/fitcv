@@ -136,10 +136,17 @@ def test_enqueue_cv_regenerate_once_with_job_id_returns_job_id() -> None:
                 job_url="https://example.com/job",
                 actor="admin",
                 note="retry",
+                cv_version_id="cv-2",
+                parent_cv_version_id="cv-1",
+                idempotency_key="regen-1",
+                action_id="action-1",
                 redis_url="redis://localhost:6379/0",
             )
     assert queue_job_id == "rq-regenerate-1"
-    mock_q.enqueue.assert_called_once()
+    assert mock_q.enqueue.call_args.kwargs["cv_version_id"] == "cv-2"
+    assert mock_q.enqueue.call_args.kwargs["parent_cv_version_id"] == "cv-1"
+    assert mock_q.enqueue.call_args.kwargs["idempotency_key"] == "regen-1"
+    assert mock_q.enqueue.call_args.kwargs["action_id"] == "action-1"
 
 def test_enqueue_cv_regenerate_once_with_job_id_inline_marks_queued() -> None:
     from fitcv_cp.queue import enqueue_cv_regenerate_once_with_job_id

@@ -65,14 +65,14 @@ def load_pending_operation(path: Path) -> dict[str, Any] | None:
         raise BootstrapError("FitCV Local pending operation is malformed") from exc
     if not isinstance(payload, dict) or payload.get("version") != PENDING_OPERATION_VERSION:
         raise BootstrapError("FitCV Local pending operation has unsupported schema")
-    if payload.get("operation") not in {"relocate", "import"}:
+    if payload.get("operation") not in {"relocate", "import", "reset_database"}:
         raise BootstrapError("FitCV Local pending operation type is unsupported")
     return payload
 
 def write_pending_operation(path: Path, payload: dict[str, Any]) -> None:
     operation = str(payload.get("operation") or "")
-    if operation not in {"relocate", "import"}:
-        raise ValueError("pending operation must be relocate or import")
+    if operation not in {"relocate", "import", "reset_database"}:
+        raise ValueError("pending operation must be relocate, import, or reset_database")
     persisted = {"version": PENDING_OPERATION_VERSION, **payload, "operation": operation}
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary: Path | None = None
@@ -104,6 +104,12 @@ class LocalStoragePaths:
     backups_path: Path
     uploads_path: Path
     temporary_path: Path
+
+
+@dataclass(frozen=True)
+class DatabaseResetEvidence:
+    archive_path: Path
+    retired_directory: Path
 
 
 def is_local_mode() -> bool:
@@ -383,6 +389,46 @@ def create_backup_archive(
         finally:
             temporary.unlink(missing_ok=True)
     return destination
+
+
+def reset_local_database(paths: LocalStoragePaths, *, app_version: str) -> DatabaseResetEvidence:
+    if not paths.sqlite_path.exists():
+        raise FileNotFoundError(f"FitCV Local database does not exist: {paths.sqlite_path}")
+    paths.backups_path.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%fZ")
+    archive_path = paths.backups_path / f"fitcv-reset-{stamp}.fitcv.zip"
+    sources = (
+        paths.sqlite_path,
+        Path(f"{paths.sqlite_path}-wal"),
+        Path(f"{paths.sqlite_path}-shm"),
+    )
+    with tempfile.TemporaryDirectory(
+        dir=paths.temporary_path if paths.temporary_path.exists() else None
+    ) as raw:
+        snapshot_directory = Path(raw)
+        snapshots: list[tuple[Path, Path]] = []
+        for source in sources:
+            if source.exists():
+                snapshot = snapshot_directory / source.name
+                shutil.copy2(source, snapshot)
+                snapshots.append((source, snapshot))
+
+        create_backup_archive(paths, archive_path, app_version=app_version)
+        retired_directory = paths.backups_path / f"database-reset-{stamp}"
+        retired_directory.mkdir()
+        for _source, snapshot in snapshots:
+            os.replace(snapshot, retired_directory / snapshot.name)
+        for source in sources:
+            source.unlink(missing_ok=True)
+
+    return DatabaseResetEvidence(
+        archive_path=archive_path,
+        retired_directory=retired_directory,
+    )
+
+
+def local_storage_paths(bootstrap_path: Path, data_root: Path) -> LocalStoragePaths:
+    return _paths(bootstrap_path, data_root)
 
 def _validated_backup_members(bundle: zipfile.ZipFile) -> tuple[dict[str, Any], dict[str, zipfile.ZipInfo]]:
     members: dict[str, zipfile.ZipInfo] = {}

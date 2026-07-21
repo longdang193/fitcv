@@ -23,11 +23,13 @@ import pytest
 from fitcv_cp.backend_runtime import set_backend_runtime
 
 from fitcv_cp.settings_store import (
+    SettingsRevisionConflict,
     load_active_editable_settings,
     load_active_settings,
     mutate_settings_atomically,
     save_setting,
     save_settings_group,
+    settings_revision,
 )
 
 
@@ -149,6 +151,25 @@ def test_mutate_settings_atomically_resets_only_requested_key() -> None:
 
     assert "pipeline.final_top_n" not in active
     assert active["pipeline.ai_score_top_n"] == 40
+
+
+def test_mutate_settings_atomically_rejects_stale_revision_without_writing() -> None:
+    save_setting("pipeline.final_top_n", 10, updated_by="admin")
+    current_revision = settings_revision(load_active_settings())
+    mutate_settings_atomically(
+        changes={"pipeline.final_top_n": 8},
+        updated_by="admin",
+        expected_revision=current_revision,
+    )
+
+    with pytest.raises(SettingsRevisionConflict):
+        mutate_settings_atomically(
+            changes={"pipeline.final_top_n": 6},
+            updated_by="admin",
+            expected_revision=current_revision,
+        )
+
+    assert load_active_settings()["pipeline.final_top_n"] == 8
 
 
 def test_mutate_settings_atomically_serializes_relational_updates() -> None:

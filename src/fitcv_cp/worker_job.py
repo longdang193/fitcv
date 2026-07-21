@@ -28,6 +28,8 @@ from typing import Any
 import yaml
 
 from fitcv.decision_feedback import build_decision_feedback_source
+from fitcv.agentic_cv_analysis import analyze_ranked_job
+from fitcv.agentic_cv_generation import generate_from_analysis
 from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
     get_stage_runtime_concurrency,
@@ -62,7 +64,14 @@ from fitcv_cp.sqlite_store import (
     append_event,
     get_events,
     get_run,
+    insert_cv_evaluation_row,
+    insert_cv_review_event,
     list_runs,
+    list_run_structured_jobs,
+    persist_pipeline_snapshot,
+    reserve_cv_regeneration,
+    update_cv_evaluation,
+    update_cv_version,
     update_run_checkpoint,
     update_run_progress,
     update_run_cv_generation_debug,
@@ -75,7 +84,7 @@ from fitcv_cp.sqlite_store import (
     update_run_status,
     resolve_active_ranking_policy,
 )
-from fitcv_cp.models import RunEvent, RunStatus
+from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.data_plane import data_plane_contract_payload
 from fitcv_cp.env_defaults import load_dotenv_defaults
 from fitcv_cp.run_artifact_mirror import persist_terminal_run_artifact_mirror
@@ -137,6 +146,21 @@ _SETTINGS_COMPATIBILITY_KEYS = {
     "cv_max_pages",
     "required_cv_sections",
 }
+
+
+def _cv_review_state(
+    *,
+    fit_classification: str | None,
+    generation_status: str,
+    has_content: bool,
+) -> str:
+    if fit_classification == "stretch" and has_content:
+        return "stretch"
+    if generation_status == "review_required" and has_content:
+        return "manual_required"
+    if generation_status == "generated" and has_content:
+        return "approved"
+    return "none"
 
 
 def _resolve_worker_preference_policy(
@@ -271,6 +295,10 @@ def execute_cv_regenerate_once(
     job_url: str,
     actor: str = "admin",
     note: str | None = None,
+    cv_version_id: str | None = None,
+    parent_cv_version_id: str | None = None,
+    idempotency_key: str | None = None,
+    action_id: str | None = None,
 ) -> None:
     load_dotenv_defaults()
     from fitcv_cp.reporter import retry_pending_process_event_deliveries
@@ -283,6 +311,8 @@ def execute_cv_regenerate_once(
     set_backend_runtime(runtime)
     client = None
     now = datetime.datetime.now(datetime.timezone.utc)
+    reserved_version_id: str | None = None
+    evaluation_id: str | None = None
 
     append_event(
         RunEvent(
@@ -327,29 +357,119 @@ def execute_cv_regenerate_once(
             break
         if target_record is None:
             raise ValueError("review_required_record_not_found")
-        source_markdown = (
-            str(target_record.get("markdown_full") or "").strip()
-            or str(target_record.get("markdown_preview") or "").strip()
-            or str(target_record.get("markdown_final") or "").strip()
+        normalized_job_url = str(job_url or "").strip()
+        job = next(
+            (
+                dict(item)
+                for item in list_run_structured_jobs(run_id)
+                if str(item.get("job_url") or item.get("jobUrl") or item.get("url") or "").strip()
+                == normalized_job_url
+            ),
+            None,
         )
-        if not source_markdown:
-            raise ValueError("missing_draft_for_regeneration")
-        preview = _bounded_markdown_preview(source_markdown)
-        fingerprint = hashlib.sha256(source_markdown.encode("utf-8")).hexdigest()
-        attempts = int(target_record.get("regeneration_attempt_count") or 0) + 1
-        target_record["markdown_full"] = source_markdown
-        target_record["markdown_preview"] = preview
-        target_record["markdown_final"] = preview
-        target_record["last_regenerated_at"] = now.isoformat()
-        target_record["regenerated_draft_fingerprint"] = fingerprint
-        target_record["regeneration_attempt_count"] = attempts
-        target_record["last_regeneration_actor"] = str(actor or "admin").strip() or "admin"
-        payload[records_key] = records
-        update_run_cv_generation_debug(
-            run_id,
-            json.dumps(payload, ensure_ascii=False),
-            client=client,
+        if job is None:
+            raise ValueError("job_not_found")
+        run_job_id = str(job.get("run_job_id") or "").strip()
+        if not run_job_id:
+            raise ValueError("run_job_id_missing")
+        profile = decode_json_object_or_raise(str(getattr(run, "candidate_profile_json", "") or "{}"))
+        config = decode_json_object_or_raise(str(getattr(run, "effective_settings_json", "") or "{}"))
+        input_snapshot = {"job": job, "profile": profile, "settings": config}
+        normalized_key = str(idempotency_key or "").strip() or f"legacy:{run_id}:{normalized_job_url}"
+        normalized_action_id = str(action_id or "").strip() or str(uuid.uuid4())
+        reservation = reserve_cv_regeneration(
+            run_job_id,
+            version_id=str(cv_version_id or uuid.uuid4()),
+            parent_cv_version_id=parent_cv_version_id,
+            idempotency_key=normalized_key,
+            action_id=normalized_action_id,
+            input_snapshot=input_snapshot,
+            source_profile_revision=stable_sha256_fingerprint(profile),
+            source_settings_revision=stable_sha256_fingerprint(config),
         )
+        reserved_version_id = str(reservation["version_id"])
+        if bool(reservation.get("idempotent_replay")) and str(
+            reservation.get("generation_status") or ""
+        ) not in {"pending", "running"}:
+            return
+        update_cv_version(reserved_version_id, generation_status="running")
+        evaluation_id = f"{reserved_version_id}:evaluation:1"
+        insert_cv_evaluation_row(
+            row={
+                "cv_evaluation_id": evaluation_id,
+                "cv_version_id": reserved_version_id,
+                "status": "pending",
+                "evaluator_id": "fitcv.agentic_cv_analysis.analyze_ranked_job",
+                "started_at": now.isoformat(),
+                "is_current": True,
+            }
+        )
+        update_cv_evaluation(evaluation_id, status="running")
+        analysis = dict(analyze_ranked_job(job, profile, config))
+        generation = dict(generate_from_analysis(analysis, profile, config))
+        fit_classification = str(
+            analysis.get("fit_classification") or generation.get("fit_classification") or ""
+        ).strip()
+        update_cv_evaluation(
+            evaluation_id,
+            status="succeeded",
+            fit_classification=fit_classification,
+            reason=json.dumps(analysis.get("gap_summary"), sort_keys=True)
+            if analysis.get("gap_summary") is not None else None,
+            evidence={
+                "requirement_coverage": analysis.get("requirement_coverage") or [],
+                "evidence_selection_summary": analysis.get("evidence_selection_summary") or {},
+            },
+        )
+        generation_status = {
+            "accepted": "generated",
+            "review_required": "review_required",
+            "validation_failed": "validation_failed",
+            "generation_failed": "generation_failed",
+            "persistence_failed": "persistence_failed",
+        }.get(str(generation.get("status") or ""), "generation_failed")
+        markdown = str(generation.get("markdown_final") or "")
+        content = markdown.encode("utf-8") if generation_status in {"generated", "review_required"} else None
+        terminal = update_cv_version(
+            reserved_version_id,
+            generation_status=generation_status,
+            content=content,
+            metadata={
+                "generator_id": "fitcv.agentic_cv_generation.generate_from_analysis",
+                "model_id": generation.get("model") or config.get("cv_generation_model"),
+                "prompt_id": config.get("cv_generation_prompt_version") or config.get("cv_prompt_version"),
+                "schema_id": generation.get("result_contract_version"),
+                "fit_classification": fit_classification or None,
+                "cv_generation_model": generation.get("model") or config.get("cv_generation_model"),
+                "cv_prompt_version": config.get("cv_generation_prompt_version") or config.get("cv_prompt_version"),
+                "cv_schema_version": generation.get("result_contract_version"),
+                "cv_structured_json": generation.get("structured_cv_final"),
+                "cv_generation_input_fingerprint": generation.get("cv_generation_input_fingerprint"),
+                "cv_generation_reuse_status": generation.get("cv_generation_reuse_status"),
+            },
+            error_code=(str((generation.get("error") or {}).get("stage") or "") or None),
+            error_message=(str((generation.get("error") or {}).get("message") or "") or None),
+        )
+        review_state = _cv_review_state(
+            fit_classification=fit_classification or None,
+            generation_status=generation_status,
+            has_content=content is not None,
+        )
+        if review_state != "none":
+            insert_cv_review_event(
+                row={
+                    "review_event_id": str(uuid.uuid4()),
+                    "cv_version_id": reserved_version_id,
+                    "cv_evaluation_id": evaluation_id,
+                    "from_state": "none",
+                    "to_state": review_state,
+                    "actor": "system",
+                    "note": note,
+                    "action_id": normalized_action_id,
+                    "idempotency_key": normalized_key,
+                    "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                }
+            )
         append_event(
             RunEvent(
                 run_id=run_id,
@@ -363,8 +483,10 @@ def execute_cv_regenerate_once(
                         "job_url": job_url,
                         "actor": actor,
                         "note": note,
-                        "regeneration_attempt_count": attempts,
-                        "regenerated_draft_fingerprint": fingerprint,
+                        "cv_version_id": reserved_version_id,
+                        "generation_status": terminal.get("generation_status"),
+                        "content_checksum": terminal.get("content_checksum"),
+                        "review_state": review_state,
                     },
                     ensure_ascii=False,
                 ),
@@ -372,6 +494,27 @@ def execute_cv_regenerate_once(
             client=client,
         )
     except Exception as exc:
+        if evaluation_id is not None:
+            try:
+                update_cv_evaluation(
+                    evaluation_id,
+                    status="failed",
+                    error_code="provider_or_generation_failure",
+                    error_message=str(exc),
+                    retry_count=1,
+                )
+            except Exception:
+                pass
+        if reserved_version_id is not None:
+            try:
+                update_cv_version(
+                    reserved_version_id,
+                    generation_status="generation_failed",
+                    error_code="cv_regeneration_failed",
+                    error_message=str(exc),
+                )
+            except Exception:
+                pass
         append_event(
             RunEvent(
                 run_id=run_id,
@@ -1339,6 +1482,13 @@ def _persist_shared_progress_snapshot(
         last_completed_stage=str(summary.get("last_completed_stage") or "").strip() or None,
         completed_stages=list(summary.get("completed_stages") or []),
     )
+    if isinstance(run_record, PipelineRun):
+        persist_pipeline_snapshot(
+            run_id,
+            summary,
+            run_status=run_status,
+            snapshot_at=snapshot_at,
+        )
     update_run_stage_transition_artifacts(
         run_id,
         _build_stage_transition_artifacts_payload(
@@ -1359,15 +1509,32 @@ def _persist_shared_progress_snapshot(
             created_at=snapshot_at,
             client=client,
         )
-        if _synonym_propose_enabled_from_run_record(run_record):
-            _persist_synonym_proposals_snapshot(
+    if _synonym_propose_enabled_from_run_record(run_record):
+        _persist_synonym_proposals_snapshot(
                 run_id=run_id,
                 run_record=run_record,
                 summary=summary,
                 created_at=snapshot_at,
                 run_status=run_status,
-                client=client,
-            )
+            client=client,
+        )
+
+
+def _persist_terminal_pipeline_snapshot(
+    *,
+    run_id: str,
+    run_record: Any,
+    summary: dict[str, Any],
+    run_status: RunStatus,
+    snapshot_at: datetime.datetime,
+) -> None:
+    if isinstance(run_record, PipelineRun):
+        persist_pipeline_snapshot(
+            run_id,
+            summary,
+            run_status=run_status,
+            snapshot_at=snapshot_at,
+        )
 
 
 def _persist_mapping_suggestions_snapshot(
@@ -1542,9 +1709,17 @@ def execute_pipeline_run(
             current_run_record = get_run(run_id, client=client)
             if current_run_record and current_run_record.cancel_requested_at is not None:
                 logger.info("[run_id=%s] Cancellation already requested — exiting early", run_id)
+                cancelled_at = datetime.datetime.now(datetime.timezone.utc)
                 update_run_status(
                     run_id, RunStatus.CANCELLED, client=client,
-                    finished_at=datetime.datetime.now(datetime.timezone.utc),
+                    finished_at=cancelled_at,
+                )
+                _persist_terminal_pipeline_snapshot(
+                    run_id=run_id,
+                    run_record=current_run_record,
+                    summary={},
+                    run_status=RunStatus.CANCELLED,
+                    snapshot_at=cancelled_at,
                 )
                 append_event(
                     _run_cancelled_event(run_id, "Run cancelled before pipeline execution started"),
@@ -1703,9 +1878,17 @@ def execute_pipeline_run(
             # ── Step 3: Early-exit if cancellation already requested ──────────────
             if run_record and run_record.cancel_requested_at is not None:
                 logger.info("[run_id=%s] Cancellation already requested — exiting early", run_id)
+                cancelled_at = datetime.datetime.now(datetime.timezone.utc)
                 update_run_status(
                     run_id, RunStatus.CANCELLED, client=client,
-                    finished_at=datetime.datetime.now(datetime.timezone.utc),
+                    finished_at=cancelled_at,
+                )
+                _persist_terminal_pipeline_snapshot(
+                    run_id=run_id,
+                    run_record=run_record,
+                    summary={},
+                    run_status=RunStatus.CANCELLED,
+                    snapshot_at=cancelled_at,
                 )
                 append_event(
                     _run_cancelled_event(run_id, "Run cancelled before pipeline execution started"),
@@ -1827,6 +2010,13 @@ def execute_pipeline_run(
                         replay_context=replay_context,
                     ),
                 )
+                if isinstance(run_record, PipelineRun):
+                    persist_pipeline_snapshot(
+                        run_id,
+                        summary,
+                        run_status=RunStatus.AWAITING_CONTINUE,
+                        snapshot_at=checkpoint_time,
+                    )
                 try:
                     update_run_stage_transition_artifacts(
                         run_id,
@@ -2098,6 +2288,13 @@ def execute_pipeline_run(
                     )
                     raise RuntimeError("attempt_terminal_event_persist_failed")
 
+                if isinstance(run_record, PipelineRun):
+                    persist_pipeline_snapshot(
+                        run_id,
+                        summary,
+                        run_status=terminal_status,
+                        snapshot_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
+                    )
                 update_run_status(
                     run_id,
                     terminal_status,
@@ -2445,6 +2642,21 @@ def execute_pipeline_run(
                         run_id,
                         persist_exc,
                     )
+            else:
+                try:
+                    _persist_terminal_pipeline_snapshot(
+                        run_id=run_id,
+                        run_record=run_record,
+                        summary={},
+                        run_status=RunStatus.CANCELLED,
+                        snapshot_at=cancelled_at,
+                    )
+                except Exception as persist_exc:
+                    logger.warning(
+                        "[run_id=%s] Failed to terminalize normalized cancelled run: %s",
+                        run_id,
+                        persist_exc,
+                    )
             try:
                 append_event(
                     _run_cancelled_event(run_id, f"Run cancelled at pipeline checkpoint: {exc}"),
@@ -2514,6 +2726,21 @@ def execute_pipeline_run(
                 except Exception as persist_exc:
                     logger.warning(
                         "[run_id=%s] Failed to persist partial progress snapshot for failed run: %s",
+                        run_id,
+                        persist_exc,
+                    )
+            else:
+                try:
+                    _persist_terminal_pipeline_snapshot(
+                        run_id=run_id,
+                        run_record=run_record,
+                        summary={},
+                        run_status=RunStatus.FAILED,
+                        snapshot_at=failed_at,
+                    )
+                except Exception as persist_exc:
+                    logger.warning(
+                        "[run_id=%s] Failed to terminalize normalized failed run: %s",
                         run_id,
                         persist_exc,
                     )

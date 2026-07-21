@@ -18,6 +18,7 @@ lifecycle:
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import os
@@ -38,11 +39,15 @@ from fitcv_cp.local_storage import (
     default_pending_operation_path,
     load_bootstrap,
     load_pending_operation,
+    local_storage_paths,
     relocate_data_root,
+    reset_local_database,
     restore_backup_archive,
     sqlite_schema_version,
     write_bootstrap,
+    write_pending_operation,
 )
+from fitcv_cp.sqlite_store import ensure_control_plane_database, initialize_control_plane_database
 from fitcv_cp.windows_tray import WindowsTray
 
 
@@ -101,6 +106,13 @@ def process_pending_storage_operation(*, app_version: str) -> Path | None:
     if bootstrap is None:
         raise RuntimeError("FitCV Local cannot apply pending storage operation without bootstrap")
     previous_root = Path(str(bootstrap["data_root"])).resolve()
+    if pending["operation"] == "reset_database":
+        paths = local_storage_paths(bootstrap_path, previous_root)
+        reset_local_database(paths, app_version=app_version)
+        initialize_control_plane_database(paths.sqlite_path, paths.candidate_profile_path)
+        pending_path.unlink()
+        return None
+
     destination = Path(str(pending.get("destination") or ""))
     if pending["operation"] == "relocate":
         new_root = relocate_data_root(previous_root, destination)
@@ -114,6 +126,14 @@ def process_pending_storage_operation(*, app_version: str) -> Path | None:
     write_bootstrap(bootstrap_path, new_root, app_version)
     pending_path.unlink()
     return previous_root
+
+
+def _parse_local_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="fitcv-local")
+    parser.add_argument("--reset-database", action="store_true")
+    parser.add_argument("--change-log", action="store_true")
+    args, _unknown = parser.parse_known_args(argv)
+    return args
 
 
 def _bundle_root() -> Path:
@@ -201,14 +221,21 @@ class _WindowsMutex:
         self._handle = None
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     prepare_local_environment()
+    args = _parse_local_args(sys.argv[1:] if argv is None else argv)
+    if args.reset_database:
+        write_pending_operation(
+            default_pending_operation_path(),
+            {"operation": "reset_database"},
+        )
     bundle_root = _bundle_root()
     os.chdir(bundle_root)
     previous_root: Path | None = None
     try:
         previous_root = process_pending_storage_operation(app_version=LOCAL_APP_VERSION)
         paths = activate_local_storage(app_version=LOCAL_APP_VERSION, bundle_root=bundle_root)
+        ensure_control_plane_database(paths.sqlite_path, paths.candidate_profile_path)
     except Exception as exc:
         if previous_root is not None:
             write_bootstrap(
@@ -218,7 +245,7 @@ def main() -> int:
             )
         return _run_recovery(exc)
     metadata_path = _runtime_metadata_path(paths)
-    launch_path = "/local/system#change-log" if "--change-log" in sys.argv[1:] else "/"
+    launch_path = "/local/system#change-log" if args.change_log else "/"
     mutex = _WindowsMutex("Local\\FitCV.Local")
     if mutex.already_exists:
         try:

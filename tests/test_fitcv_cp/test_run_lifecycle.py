@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import datetime
 
-from fitcv_cp.models import PipelineRun, RunStatus
+from fitcv_cp import run_lifecycle
+from fitcv_cp.models import JobStageStatus, PipelineRun, ResultBucket, RunStatus
 from fitcv_cp.run_lifecycle import (
     can_archive_run,
     can_cancel_run,
@@ -28,6 +29,61 @@ from fitcv_cp.run_lifecycle import (
     timeout_reference_timestamp,
     timeout_transition_for_run,
 )
+
+def test_prototype_stage_registry_owns_order_labels_and_aliases() -> None:
+    assert [(stage.stage_id, stage.label, stage.ordinal) for stage in run_lifecycle.PROTOTYPE_STAGES] == [
+        ("enrichment", "Enrichment", 1),
+        ("screening", "Screening", 2),
+        ("shortlisting", "Shortlisting", 3),
+        ("ranking", "Ranking", 4),
+        ("cv-analysis", "CV Analysis", 5),
+        ("cv-generation", "CV Generation", 6),
+    ]
+    assert run_lifecycle.canonical_stage_id("normalize") == "enrichment"
+    assert run_lifecycle.canonical_stage_id("enrich") == "enrichment"
+    assert run_lifecycle.canonical_stage_id("rule_filter") == "screening"
+    assert run_lifecycle.canonical_stage_id("shortlist") == "shortlisting"
+    assert run_lifecycle.canonical_stage_id("ranking") == "ranking"
+    assert run_lifecycle.canonical_stage_id("cv_analysis") == "cv-analysis"
+    assert run_lifecycle.canonical_stage_id("cv_generation") == "cv-generation"
+    assert run_lifecycle.canonical_stage_id("unknown") is None
+
+def test_run_display_status_uses_prototype_labels() -> None:
+    for status in (RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.AWAITING_CONTINUE, RunStatus.CANCELLING):
+        assert run_lifecycle.run_display_status(status) == "Running"
+    assert run_lifecycle.run_display_status(RunStatus.SUCCEEDED) == "Succeeded"
+    assert run_lifecycle.run_display_status(RunStatus.CANCELLED) == "Failed"
+    assert run_lifecycle.run_display_status(RunStatus.FAILED) == "Failed"
+
+def test_job_result_bucket_is_exhaustive_only_for_evaluated_rows() -> None:
+    assert run_lifecycle.result_bucket_for_job_stage(JobStageStatus.PASSED) == ResultBucket.PASSED
+    assert run_lifecycle.result_bucket_for_job_stage(JobStageStatus.GENERATED) == ResultBucket.PASSED
+    assert run_lifecycle.result_bucket_for_job_stage(JobStageStatus.REVIEW_REQUIRED, has_usable_output=True) == ResultBucket.PASSED
+    assert run_lifecycle.result_bucket_for_job_stage(JobStageStatus.REJECTED) == ResultBucket.REJECTED
+    assert run_lifecycle.result_bucket_for_job_stage(JobStageStatus.BLOCKED) == ResultBucket.REJECTED
+    assert run_lifecycle.result_bucket_for_job_stage(JobStageStatus.FAILED) == ResultBucket.REJECTED
+    assert run_lifecycle.result_bucket_for_job_stage(JobStageStatus.REVIEW_REQUIRED) == ResultBucket.REJECTED
+    assert run_lifecycle.result_bucket_for_job_stage(JobStageStatus.SKIPPED, skip_is_terminal_rejection=True) == ResultBucket.REJECTED
+    assert run_lifecycle.result_bucket_for_job_stage(JobStageStatus.SKIPPED) is None
+    assert run_lifecycle.result_bucket_for_job_stage(JobStageStatus.PENDING) is None
+
+def test_terminal_run_decision_preserves_partial_results() -> None:
+    assert run_lifecycle.decide_terminal_run(
+        orchestration_completed=True, cancelled=False, required_failure=False,
+        unresolved_jobs=0, partial_stages=0, usable_results=3,
+    ) == (RunStatus.SUCCEEDED, False, "succeeded")
+    assert run_lifecycle.decide_terminal_run(
+        orchestration_completed=False, cancelled=False, required_failure=True,
+        unresolved_jobs=0, partial_stages=0, usable_results=2,
+    ) == (RunStatus.FAILED, True, "partial_completion")
+    assert run_lifecycle.decide_terminal_run(
+        orchestration_completed=True, cancelled=False, required_failure=False,
+        unresolved_jobs=1, partial_stages=0, usable_results=0,
+    ) == (RunStatus.FAILED, False, "failed")
+    assert run_lifecycle.decide_terminal_run(
+        orchestration_completed=True, cancelled=True, required_failure=False,
+        unresolved_jobs=0, partial_stages=0, usable_results=1,
+    ) == (RunStatus.CANCELLED, True, "partial_completion")
 
 
 def _run(status: RunStatus, **overrides: object) -> PipelineRun:

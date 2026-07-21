@@ -537,9 +537,36 @@ def test_domain_preference_matches_job_family_when_domains_use_role_taxonomy() -
 
 # ── integration ────────────────────────────────────────────────────────────────
 
-@pytest.mark.integration
-def test_store_filter_results_integration(config: dict) -> None:
+def test_store_filter_results_integration(
+    config: dict,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv_cp.sqlite3"))
     from fitcv.rule_filter import store_filter_results
+    from fitcv_cp import sqlite_store
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    monkeypatch.setattr(sqlite_store, "get_backend_runtime", lambda: None)
+    sqlite_store.create_run_bundle(
+        PipelineRun(
+            run_id="run-integration-test",
+            status=RunStatus.QUEUED,
+            triggered_by="test",
+            trigger_source="test",
+            jobs_path="data/jobs.json",
+            config_path=".env.yaml",
+            created_at=datetime.now(tz=timezone.utc),
+        ),
+        input_resource={
+            "candidate_profile_name": "Profile",
+            "candidate_profile_json": "{}",
+        },
+        jobs=[
+            {"title": "Passed", "job_url": "http://example.com/job/1"},
+            {"title": "Rejected", "job_url": "http://example.com/job/2"},
+        ],
+    )
     result = {
         "passed": ["http://example.com/job/1"],
         "rejected": [{"job_url": "http://example.com/job/2", "reasons": ["seniority_mismatch"]}],
@@ -555,7 +582,30 @@ def test_store_filter_results_integration(config: dict) -> None:
 def test_store_filter_results_persists_sqlite_rows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv_cp.sqlite3"))
     from fitcv.rule_filter import store_filter_results
-    from fitcv_cp.sqlite_store import list_filter_results_for_run
+    from fitcv_cp import sqlite_store
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    monkeypatch.setattr(sqlite_store, "get_backend_runtime", lambda: None)
+
+    sqlite_store.create_run_bundle(
+        PipelineRun(
+            run_id="run-sqlite",
+            status=RunStatus.QUEUED,
+            triggered_by="test",
+            trigger_source="test",
+            jobs_path="data/jobs.json",
+            config_path=".env.yaml",
+            created_at=datetime.now(tz=timezone.utc),
+        ),
+        input_resource={
+            "candidate_profile_name": "Profile",
+            "candidate_profile_json": "{}",
+        },
+        jobs=[
+            {"title": "Passed", "job_url": "https://x.com/1"},
+            {"title": "Rejected", "job_url": "https://x.com/2"},
+        ],
+    )
 
     result = {
         "passed": ["https://x.com/1"],
@@ -587,7 +637,7 @@ def test_store_filter_results_persists_sqlite_rows(monkeypatch: pytest.MonkeyPat
         },
     )
 
-    rows = list_filter_results_for_run("run-sqlite", None, project="p", dataset="d")
+    rows = sqlite_store.list_filter_results_for_run("run-sqlite", None, project="p", dataset="d")
     assert len(rows) == 2
     assert rows[0]["job_url"] == "https://x.com/1"
     assert rows[0]["raw_job_fingerprint"] == "raw-pass-1"
