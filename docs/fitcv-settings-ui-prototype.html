@@ -25,23 +25,26 @@
     dialog{width:min(560px,calc(100vw - 32px));padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);color:var(--text);box-shadow:0 24px 64px -16px rgba(0,0,0,.35)}dialog::backdrop{background:rgba(17,24,39,.34);backdrop-filter:blur(3px)}.dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:24px 24px 18px;border-bottom:1px solid var(--border-soft)}.dialog-head h2{margin:0;font-size:21px;letter-spacing:-.025em}.dialog-head p{margin:4px 0 0;color:var(--muted)}.dialog-close{display:grid;width:36px;height:36px;place-items:center;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;font-size:24px}.dialog-close:hover{background:var(--surface-2);color:var(--text)}.weight-form{padding:8px 24px 0}.weight-row{display:grid;grid-template-columns:minmax(0,1fr) 120px;align-items:center;gap:18px;padding:15px 0;border-bottom:1px solid var(--border-soft)}.weight-row label{font-weight:650}.weight-row span{display:block;margin-top:2px;color:var(--muted);font-size:12px}.weight-row .field{width:100%}.weight-status{margin:18px 24px 0;padding:10px 12px;border-radius:8px;background:var(--surface-2);color:var(--muted);font-size:13px}.weight-status.invalid{background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--accent)}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:20px 24px 24px}.btn:disabled{border-color:var(--border);background:var(--surface-2);color:var(--subtle);cursor:not-allowed}@media(max-width:760px){.weight-row{grid-template-columns:1fr}.dialog-actions{display:grid;grid-template-columns:1fr 1fr}}
   </style>
   <style>
-    .supporting-text{margin-top:6px!important;color:var(--muted);font-size:12px!important}.row.is-disabled,.row.is-mirror{background:var(--surface-2)}.row.is-mirror>span:first-child,.row.is-mirror p{color:var(--mirror-text)}.row.is-mirror strong,.mirror-value{color:var(--mirror-strong)}.overview-link{display:grid;width:38px;height:38px;place-items:center;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--accent);text-decoration:none}.overview-link:hover{border-color:var(--accent);background:var(--accent-soft)}.overview-link svg{width:18px}.dialog-detail-link,.dialog-back{display:inline-flex;margin-top:6px;padding:0;border:0;background:transparent;color:var(--accent);cursor:pointer;font-size:12px;font-weight:650}.dialog-detail-link:hover,.dialog-back:hover{text-decoration:underline}.dialog-back{margin:12px 0 2px}.row-status{min-height:18px;margin-top:5px!important;font-size:12px!important}.row-status.error{color:var(--accent)}.field[aria-invalid="true"]{border-color:var(--accent)}.weight-status.warning{background:#fff7df;color:#7a4d00}[data-theme="dark"] .weight-status.warning{background:#3b2e13;color:#f5cf78}.weight-status.valid{background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}[data-theme="dark"] .weight-status.valid{color:#86efac}.transaction-summary{display:block;margin-top:5px;color:var(--muted);font-size:12px}.check-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0;border-bottom:1px solid var(--border-soft)}.check-row:last-child{border-bottom:0}.check-row>label:first-child{font-weight:650}.btn:disabled{pointer-events:none}.badge,.mirror-value{display:inline-flex;min-height:30px;align-items:center;padding:0 10px;border-radius:999px;font-size:12px;font-weight:650;font-variant-numeric:tabular-nums}.badge{background:var(--surface)}.mirror-value{border:1px dashed var(--border);background:transparent}@media(max-width:760px){.check-row{align-items:flex-start}}
+    .supporting-text{margin-top:6px!important;color:var(--muted);font-size:12px!important}.row.is-disabled,.row.is-mirror{background:var(--surface-2)}.row.is-mirror>span:first-child,.row.is-mirror p{color:var(--mirror-text)}.row.is-mirror strong,.mirror-value{color:var(--mirror-strong)}.overview-link{display:grid;width:38px;height:38px;place-items:center;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--accent);text-decoration:none}.overview-link:hover{border-color:var(--accent);background:var(--accent-soft)}.overview-link svg{width:18px}.inline-link{padding:0;border:0;background:transparent;color:var(--accent);cursor:pointer;font:inherit;font-weight:650;text-decoration:none}.inline-link:hover{text-decoration:underline}.dialog-detail-link,.dialog-back{display:inline-flex;margin-top:6px;font-size:12px}.dialog-back{margin:12px 0 2px}.row-status{min-height:18px;margin-top:5px!important;font-size:12px!important}.row-status.error{color:var(--accent)}.field[aria-invalid="true"]{border-color:var(--accent)}.weight-status.warning{background:#fff7df;color:#7a4d00}[data-theme="dark"] .weight-status.warning{background:#3b2e13;color:#f5cf78}.weight-status.valid{background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}[data-theme="dark"] .weight-status.valid{color:#86efac}.transaction-summary{display:block;margin-top:5px;color:var(--muted);font-size:12px}.check-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0;border-bottom:1px solid var(--border-soft)}.check-row:last-child{border-bottom:0}.check-row>label:first-child{font-weight:650}.btn:disabled{pointer-events:none}.badge,.mirror-value{display:inline-flex;min-height:30px;align-items:center;padding:0 10px;border-radius:999px;font-size:12px;font-weight:650;font-variant-numeric:tabular-nums}.badge{background:var(--surface)}.mirror-value{border:1px dashed var(--border);background:transparent}@media(max-width:760px){.check-row{align-items:flex-start}}
     .row.is-mirror{background:var(--mirror-bg)}
   </style>
   <style>
     .search[hidden]{display:none}.run-dialog{width:min(620px,calc(100vw - 32px))}.run-form{display:grid;gap:20px;padding:22px 24px 4px}.run-field{display:grid;gap:7px}.run-field>label{font-weight:650}.run-field small{color:var(--muted)}.run-field .field{width:100%;min-height:42px}.file-input{padding-block:8px}.run-empty-profile{padding:12px;border:1px dashed var(--border);border-radius:9px;background:var(--surface-2);color:var(--muted)}.run-empty-profile strong{display:block;margin-bottom:3px;color:var(--text)}.run-dialog-status{min-height:20px;margin:0 24px;color:var(--muted);font-size:13px}.run-panel{display:grid;gap:14px}.run-panel,#runTablePanel,.table-card,.table-scroll{min-width:0}.run-tabs{display:flex;gap:8px}.run-tabs .btn[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.run-tab-count{margin-left:5px;color:var(--subtle);font-size:12px}.run-selection{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}.run-selection-copy{display:grid;gap:2px}.run-selection-copy span{color:var(--muted);font-size:12px}.run-selection-actions{display:flex;gap:8px}.table-card{overflow:hidden}.table-scroll{width:100%;max-width:100%;overflow-x:auto}.run-table{width:100%;min-width:720px;border-collapse:collapse}.run-table th,.run-table td{padding:14px 16px;border-bottom:1px solid var(--border-soft);text-align:left;vertical-align:middle}.run-table th{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}.run-table tbody tr:last-child td{border-bottom:0}.run-table tbody tr:hover{background:var(--surface-2)}.run-table tbody tr.is-selected{background:var(--accent-soft)}.run-table input[type="checkbox"]{width:17px;height:17px;accent-color:var(--accent)}.run-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;font-weight:700}.run-job{font-weight:650}.run-created,.run-duration{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}.run-status{border:1px solid var(--border);background:var(--surface-2)}.run-status[data-status="Failed"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.run-status-detail{display:block;margin-top:4px;color:var(--muted);font-size:11px}.empty-state{display:grid;justify-items:center;gap:8px;padding:56px 24px;text-align:center}.empty-state svg{width:34px;color:var(--accent)}.empty-state h3{margin:4px 0 0;font-size:17px}.empty-state p{max-width:430px;margin:0;color:var(--muted)}@media(max-width:760px){.run-selection{align-items:stretch;flex-direction:column}.run-selection-actions{display:grid;grid-template-columns:1fr 1fr}.run-selection-actions .btn{width:100%}.run-tabs .btn{flex:1}.run-form{padding-inline:18px}.run-dialog-status{margin-inline:18px}}
   </style>
   <style>
-    .profile-table{min-width:720px}.profile-name{font-weight:650}.run-status[data-status="Succeeded"]{border-color:color-mix(in srgb,#15803d 30%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}[data-theme="dark"] .run-status[data-status="Succeeded"]{color:#86efac}
+    .profile-table{min-width:720px}.profile-name{font-weight:650}.run-status[data-status="Succeeded"]{border-color:color-mix(in srgb,#15803d 30%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}[data-theme="dark"] .run-status[data-status="Succeeded"]{color:#86efac}.synonym-review-status{display:inline-flex;align-items:center;min-height:26px;padding:0 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:12px;font-weight:650;text-transform:capitalize}.synonym-review-status[data-status="approved"]{border-color:color-mix(in srgb,#15803d 30%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}.synonym-review-status[data-status="declined"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.synonym-import{display:none}
   </style>
   <style>
     .run-pagination{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border-top:1px solid var(--border-soft);color:var(--muted)}.run-pagination-controls,.run-page-numbers,.run-page-size{display:flex;align-items:center;gap:8px}.run-page-size .field{width:auto;min-width:68px}.run-page-numbers .btn{min-width:38px;padding-inline:10px}.run-page-numbers .btn[aria-current="page"]{border-color:var(--accent);background:var(--accent);color:#fff}.run-page-gap{padding:0 3px;color:var(--muted)}@media(max-width:760px){.run-pagination{align-items:flex-start;flex-direction:column}.run-pagination-controls{width:100%;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}.run-page-numbers{flex-wrap:wrap}}
   </style>
   <style>
-    .run-id-link{padding:0;border:0;background:transparent;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px}.details-drawer{position:fixed;inset:0 0 0 auto;width:min(1180px,calc(100vw - 24px));max-width:none;height:100dvh;max-height:100dvh;margin:0;padding:0;border:0;border-left:1px solid var(--border);border-radius:16px 0 0 16px;background:var(--bg);color:var(--text);box-shadow:-20px 0 54px rgba(0,0,0,.22)}.details-drawer[open]{animation:drawer-in .2s ease-out}.details-drawer::backdrop{background:rgba(17,24,39,.42);backdrop-filter:blur(2px)}@keyframes drawer-in{from{transform:translateX(24px);opacity:.7}to{transform:none;opacity:1}}.drawer-scroll{height:100%;overflow-x:hidden;overflow-y:auto}.drawer-head{position:sticky;top:0;z-index:2;display:flex;min-height:auto;align-items:flex-start;justify-content:space-between;gap:16px;padding:24px 28px;border-bottom:1px solid var(--border-soft);background:var(--surface)}.drawer-head h2{margin:0;font-size:23px;letter-spacing:-.03em}.drawer-head p{margin:4px 0 0;color:var(--muted)}.drawer-body{display:grid;gap:18px;padding:24px 28px 36px}.drawer-section{min-width:0}.drawer-section .section-heading{min-width:0;flex:1}.drawer-section-content{padding:20px 22px}.drawer-status{display:grid;justify-items:end}.details-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.detail-item{min-width:0}.detail-item dt{color:var(--muted);font-size:11px;font-weight:750;letter-spacing:.06em;text-transform:uppercase}.detail-item dd{margin:5px 0 0;font-weight:650;overflow-wrap:anywhere}.pipeline-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}.summary-card{padding:14px;border:1px solid var(--border-soft);border-radius:10px;background:var(--surface-2)}.summary-card span{display:block;color:var(--muted);font-size:12px}.summary-card strong{display:block;margin-top:3px;font-size:22px;font-variant-numeric:tabular-nums}.results-filters,.results-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}.results-filters{margin-bottom:12px}.results-filter-group{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}.compact-field{display:grid;gap:5px;color:var(--muted);font-size:11px;font-weight:700}.compact-field .field{min-width:150px}.results-toolbar{margin-bottom:14px}.results-search{min-width:min(320px,100%)}.jobs-table{width:100%;min-width:1240px;border-collapse:collapse}.jobs-table th,.jobs-table td{padding:14px 16px;border-bottom:1px solid var(--border-soft);text-align:left;vertical-align:top}.jobs-table td{font-size:14px}.jobs-table th{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}.jobs-table th:first-child,.jobs-table td:first-child{position:sticky;left:0;min-width:300px;max-width:320px;background:var(--surface);box-shadow:1px 0 0 var(--border-soft)}.jobs-table th:first-child{z-index:2}.jobs-table td:first-child{z-index:1}.jobs-table tbody tr:hover,.jobs-table tbody tr:hover td:first-child{background:var(--surface-2)}.jobs-table tbody tr:last-child td{border-bottom:0}.job-primary{display:grid;gap:10px;min-width:0}.job-title-row{min-width:0}.job-title-link{min-width:0;color:var(--accent);font-size:14px;font-weight:600}.small-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:30px;padding:0 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;font-weight:600;line-height:1;white-space:nowrap}.small-action svg{width:14px;height:14px;flex:none}.small-action.icon-only{width:30px;padding:0}.bookmark-btn svg{fill:none;stroke:currentColor;stroke-width:1.8}.bookmark-btn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.bookmark-btn[aria-pressed="true"] svg{fill:currentColor}.job-action-row{display:flex;flex-wrap:wrap;gap:6px}.job-attributes{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:7px 14px}.job-attribute{display:grid}.job-attribute span{color:var(--muted);font-size:10px;font-weight:750;text-transform:uppercase}.skill-list{display:flex;max-width:310px;gap:6px;flex-wrap:wrap}.skill-chip{padding:3px 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:14px;white-space:nowrap}.pipeline-outcome{display:grid;gap:8px}.outcome-reason{display:block;max-width:260px;color:var(--muted);font-size:13px;line-height:1.3}.cv-review{display:inline-flex;align-items:center;width:max-content;min-height:24px;padding:0 8px;border:1px solid var(--accent);border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:600;line-height:1}.interest-rating{display:flex;align-items:center;gap:2px;white-space:nowrap}.star-btn{padding:2px;border:0;background:transparent;color:var(--border);cursor:pointer;font-size:21px;line-height:1}.star-btn[aria-pressed="true"]{color:#d99720}.clear-rating{margin-left:7px}.small-action:disabled{opacity:.45;cursor:not-allowed}.small-action:not(:disabled):hover{border-color:var(--accent);color:var(--accent)}.console-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}.console-toolbar p{max-width:620px;margin:0;color:var(--muted);font-size:12px;line-height:1.4}.console-actions{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}.console-log{min-height:220px;max-height:360px;padding:14px 16px;overflow:auto;border:1px solid #1f2937;border-radius:10px;background:#080b10;color:#d6deeb;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;overscroll-behavior:contain}.console-line{display:grid;grid-template-columns:max-content max-content max-content minmax(220px,1fr);gap:12px;min-width:760px}.console-time{color:#7f8ea3;font-variant-numeric:tabular-nums}.console-level{color:#9ccfd8;font-weight:700}.console-level[data-level="error"]{color:#ff7b72}.console-operation{color:#79c0ff}.console-message{white-space:pre-wrap;overflow-wrap:anywhere}.console-empty{color:#8b949e}.jobs-empty{padding:44px 20px;color:var(--muted);text-align:center}@media(max-width:760px){.details-drawer{width:100vw;border-radius:0}.drawer-head,.drawer-body{padding-inline:18px}.details-grid{grid-template-columns:1fr 1fr}.pipeline-summary{grid-template-columns:1fr}.results-filters,.results-toolbar{align-items:stretch;flex-direction:column}.results-filter-group{display:grid;grid-template-columns:1fr 1fr;width:100%}.compact-field .field,.results-search{width:100%;min-width:0}}@media(prefers-reduced-motion:reduce){.details-drawer[open]{animation:none}}
+    .run-id-link{padding:0;border:0;background:transparent;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px}.details-drawer{position:fixed;inset:0 0 0 auto;width:min(1180px,calc(100vw - 24px));max-width:none;height:100dvh;max-height:100dvh;margin:0;padding:0;border:0;border-left:1px solid var(--border);border-radius:16px 0 0 16px;background:var(--bg);color:var(--text);box-shadow:-20px 0 54px rgba(0,0,0,.22)}.details-drawer[open]{animation:drawer-in .2s ease-out}.details-drawer::backdrop{background:rgba(17,24,39,.42);backdrop-filter:blur(2px)}@keyframes drawer-in{from{transform:translateX(24px);opacity:.7}to{transform:none;opacity:1}}.drawer-scroll{height:100%;overflow-x:hidden;overflow-y:auto}.drawer-head{position:sticky;top:0;z-index:2;display:flex;min-height:auto;align-items:flex-start;justify-content:space-between;gap:16px;padding:24px 28px;border-bottom:1px solid var(--border-soft);background:var(--surface)}.drawer-head h2{margin:0;font-size:23px;letter-spacing:-.03em}.drawer-head p{margin:4px 0 0;color:var(--muted)}.drawer-body{display:grid;gap:18px;padding:24px 28px 36px}.drawer-section{min-width:0}.drawer-section .section-heading{min-width:0;flex:1}.drawer-section-content{padding:20px 22px}.drawer-status{display:grid;justify-items:end}.details-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.detail-item{min-width:0}.detail-item dt{color:var(--muted);font-size:11px;font-weight:750;letter-spacing:.06em;text-transform:uppercase}.detail-item dd{margin:5px 0 0;font-weight:650;overflow-wrap:anywhere}.pipeline-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}.summary-card{padding:14px;border:1px solid var(--border-soft);border-radius:10px;background:var(--surface-2)}.summary-card span{display:block;color:var(--muted);font-size:12px}.summary-card strong{display:block;margin-top:3px;font-size:22px;font-variant-numeric:tabular-nums}.results-filters,.results-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}.results-filters{margin-bottom:12px}.results-filter-group{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}.compact-field{display:grid;gap:5px;color:var(--muted);font-size:11px;font-weight:700}.compact-field .field{min-width:150px}.results-toolbar{margin-bottom:14px}.results-search{min-width:min(320px,100%)}.jobs-table{min-width:1240px}.jobs-table th,.jobs-table td{vertical-align:top}.jobs-table td{font-size:14px}.jobs-table th:first-child,.jobs-table td:first-child{position:sticky;left:0;min-width:300px;max-width:320px;background:var(--surface);box-shadow:1px 0 0 var(--border-soft)}.jobs-table th:first-child{z-index:2}.jobs-table td:first-child{z-index:1}.jobs-table tbody tr:hover td:first-child{background:var(--surface-2)}.job-primary{display:grid;gap:10px;min-width:0}.job-title-row{min-width:0}.job-title-link{min-width:0;color:var(--accent);font-size:14px;font-weight:600}.small-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:30px;padding:0 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;font-weight:600;line-height:1;white-space:nowrap}.small-action svg{width:14px;height:14px;flex:none}.small-action.icon-only{width:30px;padding:0}.bookmark-btn svg{fill:none;stroke:currentColor;stroke-width:1.8}.bookmark-btn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.bookmark-btn[aria-pressed="true"] svg{fill:currentColor}.job-action-row{display:flex;flex-wrap:wrap;gap:6px}.job-attributes{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:7px 14px}.job-attribute{display:grid}.job-attribute span{color:var(--muted);font-size:10px;font-weight:750;text-transform:uppercase}.skill-list{display:flex;max-width:310px;gap:6px;flex-wrap:wrap}.skill-chip{padding:3px 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:14px;white-space:nowrap}.pipeline-outcome{display:grid;gap:8px}.outcome-reason{display:block;max-width:260px;color:var(--muted);font-size:13px;line-height:1.3}.cv-review{display:inline-flex;align-items:center;width:max-content;min-height:24px;padding:0 8px;border:1px solid var(--accent);border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:600;line-height:1}.interest-rating{display:flex;align-items:center;gap:2px;white-space:nowrap}.star-btn{padding:2px;border:0;background:transparent;color:var(--border);cursor:pointer;font-size:21px;line-height:1}.star-btn[aria-pressed="true"]{color:#d99720}.clear-rating{margin-left:7px}.small-action:disabled{opacity:.45;cursor:not-allowed}.small-action:not(:disabled):hover{border-color:var(--accent);color:var(--accent)}.console-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}.console-toolbar p{max-width:620px;margin:0;color:var(--muted);font-size:12px;line-height:1.4}.console-actions{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}.console-log{min-height:220px;max-height:360px;padding:14px 16px;overflow:auto;border:1px solid #1f2937;border-radius:10px;background:#080b10;color:#d6deeb;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;overscroll-behavior:contain}.console-line{display:grid;grid-template-columns:max-content max-content max-content minmax(220px,1fr);gap:12px;min-width:760px}.console-time{color:#7f8ea3;font-variant-numeric:tabular-nums}.console-level{color:#9ccfd8;font-weight:700}.console-level[data-level="error"]{color:#ff7b72}.console-operation{color:#79c0ff}.console-message{white-space:pre-wrap;overflow-wrap:anywhere}.console-empty{color:#8b949e}.jobs-empty{padding:44px 20px;color:var(--muted);text-align:center}@media(max-width:760px){.details-drawer{width:100vw;border-radius:0}.drawer-head,.drawer-body{padding-inline:18px}.details-grid{grid-template-columns:1fr 1fr}.pipeline-summary{grid-template-columns:1fr}.results-filters,.results-toolbar{align-items:stretch;flex-direction:column}.results-filter-group{display:grid;grid-template-columns:1fr 1fr;width:100%}.compact-field .field,.results-search{width:100%;min-width:0}}@media(prefers-reduced-motion:reduce){.details-drawer[open]{animation:none}}
   </style>
   <style>
     .run-id{font-weight:600}.run-job,.run-status{font-weight:500}.detail-item dt,.job-attribute span{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.06em;line-height:1.3;text-transform:uppercase}.detail-item dd,.job-attribute strong{font-size:14px;font-weight:400;line-height:1.4}.run-input-details{grid-template-columns:repeat(2,minmax(0,1fr))}.summary-card{display:inline-flex;min-height:34px;appearance:none;width:auto;flex:0 0 auto;align-items:center;justify-content:center;gap:8px;padding:0 10px;color:var(--text);cursor:pointer;text-align:left;line-height:1.1}.summary-card[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.summary-card span{font-size:11px;line-height:1}.summary-card strong{display:block;margin:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}.results-filters{display:block;min-width:0;margin-bottom:12px}.stage-filter{width:100%;min-width:0}.pipeline-stage-tabs{display:flex;width:100%;max-width:100%;gap:4px;padding:4px;overflow-x:auto;overflow-y:hidden;border-radius:12px;background:var(--surface-2);white-space:nowrap}.pipeline-stage-tabs .btn{flex:1 0 110px;min-width:110px;border-color:transparent;background:transparent;font-weight:500}.pipeline-stage-tabs .btn[aria-selected="true"]{border-color:var(--border);background:var(--surface);color:var(--text);box-shadow:var(--shadow)}.pipeline-summary{display:flex;width:max-content;max-width:100%;gap:4px;margin:0;padding:4px;overflow-x:auto;border-radius:10px;background:var(--surface-2)}.results-search{width:min(560px,100%);min-width:min(560px,100%);flex:1}.results-toolbar{align-items:center;flex-wrap:wrap}.results-toolbar-actions{display:flex;max-width:100%;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}@media(max-width:760px){.results-search{width:100%;min-width:0}.results-toolbar-actions{width:100%;margin-left:0}}
+  </style>
+  <style>
+    .synonym-editor-shell{display:grid;gap:12px}.synonym-editor-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.synonym-editor-actions,.synonym-editor-search{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.synonym-editor-search .field{width:min(340px,70vw)}.synonym-editor{width:100%;min-height:360px;max-height:70vh;padding:16px;resize:vertical;overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2;white-space:pre}.synonym-editor[readonly]{background:var(--surface-2);color:var(--muted)}.synonym-editor:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:2px}.synonym-editor-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.synonym-issue{display:inline-flex;min-height:32px;align-items:center;justify-content:center;padding:0 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);color:var(--text);font-size:12px;font-weight:650;line-height:1}.synonym-issue[data-kind="valid"]{border-color:color-mix(in srgb,#15803d 30%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}.synonym-issue[data-kind="warning"]{border-color:color-mix(in srgb,#b45309 35%,var(--border));background:#fff7df;color:#8a5d00;cursor:pointer}[data-theme="dark"] .synonym-issue[data-kind="valid"]{color:#86efac}[data-theme="dark"] .synonym-issue[data-kind="warning"]{background:#34270f;color:#f5cf78}.synonym-editor-message{margin:0;color:var(--muted);font-size:12px}.synonym-table{min-width:840px}.synonym-table th,.synonym-table td{white-space:nowrap}.synonym-table .synonym-sources{max-width:260px;overflow:hidden;color:var(--muted);text-overflow:ellipsis}.page-head .btn,.run-selection-actions .btn{white-space:nowrap}@media(max-width:760px){.synonym-editor-toolbar,.synonym-editor-actions,.synonym-editor-search{align-items:stretch;flex-direction:column}.synonym-editor-search .field,.synonym-editor-actions .btn{width:100%}.synonym-editor{min-height:300px}}
   </style>
 </head>
 <body>
@@ -49,6 +52,7 @@
     <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
       <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12a2 2 0 0 1 2 2v14H4V6a2 2 0 0 1 2-2Z"/><path d="M8 9h8M8 13h6M8 17h4"/></svg></div><div><strong>FitCV Control Plane</strong><small>Local workspace</small></div></div>
       <nav aria-label="Workspace">
+        <a class="nav-link" id="synonymsNav" href="#synonyms"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 7h10M7 12h10M7 17h6"/><path d="M5 5h14v14H5z"/></svg>Synonyms</a>
         <a class="nav-link" id="candidateProfilesNav" href="#candidate-profiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Candidate Profiles</a>
         <a class="nav-link" id="runsNav" href="#runs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg>Runs</a>
         <a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
@@ -67,6 +71,7 @@
   <dialog class="run-dialog" id="profileDialog" aria-labelledby="profileDialogTitle" aria-describedby="profileDialogDescription"><div class="dialog-head"><div><h2 id="profileDialogTitle">Create Profile</h2><p id="profileDialogDescription">Upload a candidate profile and optionally give it a name.</p></div><button class="dialog-close" id="closeProfileDialog" type="button" aria-label="Close Create Profile dialog">×</button></div><form class="run-form" id="profileForm"><div class="run-field"><label for="profileFile">Profile File</label><input class="field file-input" id="profileFile" type="file" accept=".yaml" aria-describedby="profileFileHelp" required><small id="profileFileHelp">Supported: YAML (.yaml). One file per profile.</small></div><div class="run-field"><label for="profileName">Profile Name <span class="supporting-text">Optional</span></label><input class="field" id="profileName" type="text" maxlength="120" placeholder="Uses uploaded file name when empty"></div></form><p class="run-dialog-status" id="profileDialogStatus" role="status" aria-live="polite">Choose a .yaml profile file to enable Create.</p><div class="dialog-actions"><button class="btn" id="cancelProfileDialog" type="button">Cancel</button><button class="btn primary" id="createProfile" type="submit" form="profileForm" disabled>Create</button></div></dialog>
   <dialog class="run-dialog" id="runDialog" aria-labelledby="runDialogTitle" aria-describedby="runDialogDescription"><div class="dialog-head"><div><h2 id="runDialogTitle">Trigger Run</h2><p id="runDialogDescription">Upload one job file and choose the Candidate Profile to use.</p></div><button class="dialog-close" id="closeRunDialog" type="button" aria-label="Close Trigger Run dialog">×</button></div><form class="run-form" id="runForm"><div class="run-field"><label for="jobFile">Job Input</label><input class="field file-input" id="jobFile" type="file" accept=".json,.jsonl,application/json,application/x-ndjson" required><small>Supported: JSON and JSONL. One file per run.</small></div><div class="run-field"><label for="candidateProfile">Candidate Profile</label><select class="field" id="candidateProfile" required><option value="">Select a Candidate Profile</option></select><div class="run-empty-profile" id="candidateProfileEmpty" hidden><strong>No Candidate Profiles yet</strong>Create a Candidate Profile before triggering a run. <a class="support-link" href="#candidate-profiles" data-open-profile-page>Create Candidate Profile</a></div></div><div class="run-field"><label for="runName">Run Name <span class="supporting-text">Optional</span></label><input class="field" id="runName" type="text" maxlength="120" placeholder="Uses uploaded file name when empty"><small>Shown as Job Name in the run table.</small></div></form><p class="run-dialog-status" id="runDialogStatus" role="status" aria-live="polite">Select a file and Candidate Profile to enable Trigger.</p><div class="dialog-actions"><button class="btn" id="cancelRunDialog" type="button">Cancel</button><button class="btn primary" id="triggerRun" type="button" disabled>Trigger</button></div></dialog>
   <dialog class="details-drawer" id="profileDetailsDrawer" aria-labelledby="profileDetailsTitle"><div class="drawer-scroll"><div class="drawer-head"><div><p class="eyebrow">Candidate Profile</p><h2 id="profileDetailsTitle">Profile Details</h2><p>Review created profile information.</p></div><button class="dialog-close" id="closeProfileDetails" type="button" aria-label="Close Candidate Profile Details">×</button></div><div class="drawer-body" id="profileDetailsBody"></div></div></dialog>
+  <dialog class="details-drawer" id="synonymDetailsDrawer" aria-labelledby="synonymDetailsTitle"><div class="drawer-scroll"><div class="drawer-head"><div><p class="eyebrow">Synonym Review</p><h2 id="synonymDetailsTitle">Suggestion Details</h2><p>Review suggestion evidence before deciding.</p></div><button class="dialog-close" id="closeSynonymDetails" type="button" aria-label="Close Synonym Suggestion Details">×</button></div><div class="drawer-body" id="synonymDetailsBody"></div></div></dialog>
   <dialog class="details-drawer" id="runDetailsDrawer" aria-labelledby="runDetailsTitle"><div class="drawer-scroll"><div class="drawer-head"><div><p class="eyebrow">Run Details</p><h2 id="runDetailsTitle">Run Details</h2><p>Review run inputs and pipeline results.</p></div><button class="dialog-close" id="closeRunDetails" type="button" aria-label="Close Run Details">×</button></div><div class="drawer-body" id="runDetailsBody"></div></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite">Ranking changes saved in prototype</div>
   <script>
@@ -74,8 +79,12 @@
   'use strict';
   const STORAGE_KEY='fitcv-pipeline-settings-prototype-v4';
   const RUN_STORAGE_KEY='fitcv-run-prototype-v1';
+  const SYNONYM_STORAGE_KEY='fitcv-synonym-prototype-v1';
   const RUN_STATUSES=new Set(['Running','Succeeded','Failed']);
   const PROFILE_STATUSES=new Set(['Succeeded','Failed']);
+  const SYNONYM_TYPES=['skill','domain','role_family'];
+  const SYNONYM_REVIEW_STATUSES=['pending','approved','declined'];
+  const SYNONYM_TYPE_LABELS={skill:'Skills',domain:'Domain',role_family:'Role Family'};
   const prototypeNow=Date.now();
   const DEFAULT_CANDIDATE_PROFILES=[
     {id:'candidate-product-data',status:'Succeeded',name:'Product Data Specialist',inputFileName:'product-data-specialist.yaml',createdAt:prototypeNow-5400000,archived:false},
@@ -105,6 +114,33 @@
     {id:'JOB-010',title:'AI Product Manager',url:'https://example.com/jobs/ai-product-manager',location:'Paris, France',workMode:'Hybrid',language:'English',seniority:'Senior',jobFamily:'Product Management',domain:'Artificial Intelligence',skills:['AI Strategy','Product Discovery','Machine Learning','Roadmapping','Analytics','Responsible AI'],rejectedAt:null,rejectReason:''},
     {id:'JOB-011',title:'Staff Data Analyst',url:'https://example.com/jobs/staff-data-analyst',location:'London, United Kingdom',workMode:'Remote',language:'English',seniority:'Staff',jobFamily:'Analytics',domain:'Marketplace',skills:['SQL','Python','Causal Inference','Experimentation','Data Storytelling','Mentoring'],rejectedAt:'ranking',rejectReason:'Final fit score ranked below available candidates.'},
     {id:'JOB-012',title:'Data Platform Product Manager',url:'https://example.com/jobs/data-platform-product-manager',location:'Copenhagen, Denmark',workMode:'Hybrid',language:'English',seniority:'Senior',jobFamily:'Product Management',domain:'Developer Tools',skills:['Platform Product Management','APIs','Data Infrastructure','Roadmapping','Developer Experience','SQL'],rejectedAt:null,rejectReason:''}
+  ];
+  const DEFAULT_SYNONYM_DATABASE={
+    skill:[
+      {alias:'advanced excel',canonical:'microsoft excel'},
+      {alias:'ad hoc analysis',canonical:'ad hoc analysis'},
+      {alias:'data modeling',canonical:'data modeling'},
+      {alias:'sql modeling',canonical:'data modeling'}
+    ],
+    domain:[
+      {alias:'ecommerce',canonical:'ecommerce'},
+      {alias:'marketplace platforms',canonical:'marketplace'},
+      {alias:'banking technology',canonical:'banking technology'}
+    ],
+    role_family:[
+      {alias:'business intelligence',canonical:'data analytics'},
+      {alias:'product management',canonical:'product management'},
+      {alias:'talent acquisition',canonical:'talent acquisition'}
+    ]
+  };
+  const DEFAULT_SYNONYM_REVIEW_QUEUE=[
+    {id:'synprop-skill-1',type:'skill',alias:'advanced excel',proposedCanonical:'microsoft excel',candidateCanonicals:['microsoft excel'],confidence:0.96,sourceRuns:['RUN-3B18D6F4','RUN-54C0E83D'],status:'pending',note:'Repeated alias mapping across 2 runs.'},
+    {id:'synprop-skill-2',type:'skill',alias:'sql modeling',proposedCanonical:'data modeling',candidateCanonicals:['data modeling','database modeling'],confidence:0.81,sourceRuns:['RUN-7E4A92C1'],status:'pending',note:'Conflicting canonicals need manual review.'},
+    {id:'synprop-domain-1',type:'domain',alias:'marketplace platforms',proposedCanonical:'marketplace',candidateCanonicals:['marketplace'],confidence:0.93,sourceRuns:['RUN-54C0E83D'],status:'pending',note:'Strong match across recent runs.'},
+    {id:'synprop-role-1',type:'role_family',alias:'business intelligence',proposedCanonical:'data analytics',candidateCanonicals:['data analytics'],confidence:0.89,sourceRuns:['RUN-A94F210B','RUN-3B18D6F4'],status:'pending',note:'Role family alias repeated in multiple runs.'}
+  ];
+  const DEFAULT_SYNONYM_PROCESSING_LOG=[
+    {processedAt:prototypeNow-3600000,total:4,approved:0,declined:0,pending:4,added:0}
   ];
   const n=(key,label,description,value,min,max,step=1)=>({type:'number',key,label,description,value,min,max,step});
   const b=(key,label,description,value)=>({type:'boolean',key,label,description,value});
@@ -253,7 +289,8 @@
         b('reuse.synonymReview','Reuse Synonym Review Results','Reuse matching synonym proposals and review decisions from an earlier run.',true)
       ]},
       {title:'Synonym Proposal & Review',open:true,rows:[
-        b('synonyms.generateProposals','Generate Synonym Proposals','Suggest alternate terms when different wording may represent the same skill, role, or domain.',true)
+        b('synonyms.generateProposals','Generate Synonym Proposals','Suggest alternate terms when different wording may represent the same skill, role, or domain.',true),
+        b('synonyms.autoAccept','Auto-accept Synonym Suggestions','Automatically accept conflict-free suggestions. When off, every suggestion enters the review queue as Pending.',false)
       ]},
       {title:'Approved Synonym Use',open:true,rows:[
         b('synonyms.applyApproved','Apply Approved Synonyms','Use approved synonym decisions when matching jobs in the current pipeline run.',true),
@@ -305,6 +342,7 @@
   const dialogStatus=document.querySelector('#weightStatus');
   const dialogSave=document.querySelector('#saveWeights');
   const pipelineNav=document.querySelector('#sidebar .nav-group .nav-children');
+  const synonymsNav=document.querySelector('#synonymsNav');
   const candidateProfilesNav=document.querySelector('#candidateProfilesNav');
   const runsNav=document.querySelector('#runsNav');
   const searchBox=document.querySelector('#searchBox');
@@ -320,6 +358,9 @@
   const profileDetailsDrawer=document.querySelector('#profileDetailsDrawer');
   const profileDetailsBody=document.querySelector('#profileDetailsBody');
   const profileDetailsTitle=document.querySelector('#profileDetailsTitle');
+  const synonymDetailsDrawer=document.querySelector('#synonymDetailsDrawer');
+  const synonymDetailsBody=document.querySelector('#synonymDetailsBody');
+  const synonymDetailsTitle=document.querySelector('#synonymDetailsTitle');
   const runDialog=document.querySelector('#runDialog');
   const runForm=document.querySelector('#runForm');
   const jobFile=document.querySelector('#jobFile');
@@ -399,6 +440,26 @@
       return {};
     }
   }
+  function readSynonymStored(){
+    try{
+      const parsed=JSON.parse(localStorage.getItem(SYNONYM_STORAGE_KEY)||'{}');
+      return parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed:{};
+    }catch{
+      localStorage.removeItem(SYNONYM_STORAGE_KEY);
+      return {};
+    }
+  }
+  function normaliseSynonymState(stored){
+    const database={};
+    for(const type of SYNONYM_TYPES){
+      const sourceList=Array.isArray(stored.database?.[type])?stored.database[type]:DEFAULT_SYNONYM_DATABASE[type];
+      const seen=new Set();
+      database[type]=sourceList.filter(item=>item&&typeof item.alias==='string'&&typeof item.canonical==='string').map(item=>({alias:item.alias.trim().toLowerCase(),canonical:item.canonical.trim().toLowerCase()})).filter(item=>{const key=`${item.alias}:${item.canonical}`; if(seen.has(key))return false; seen.add(key); return true;});
+    }
+    const reviewQueue=(Array.isArray(stored.reviewQueue)?stored.reviewQueue:DEFAULT_SYNONYM_REVIEW_QUEUE).filter(item=>item&&typeof item.id==='string'&&SYNONYM_TYPES.includes(item.type)).map(item=>({...item,status:item.status==='approved'||item.status==='declined'?item.status:'pending'}));
+    const processingLog=(Array.isArray(stored.processingLog)?stored.processingLog:DEFAULT_SYNONYM_PROCESSING_LOG).filter(item=>item&&Number.isFinite(item.processedAt)&&['total','approved','declined','pending','added'].every(key=>Number.isFinite(item[key]))).slice(-50);
+    return {activeTab:SYNONYM_TYPES.includes(stored.activeTab)?stored.activeTab:'skill',reviewActiveTab:SYNONYM_REVIEW_STATUSES.includes(stored.reviewActiveTab)?stored.reviewActiveTab:'pending',database,reviewQueue:clone(reviewQueue),processingLog:clone(processingLog)};
+  }
   function normaliseRunState(stored){
     const profiles=(Array.isArray(stored.candidateProfiles)?stored.candidateProfiles:DEFAULT_CANDIDATE_PROFILES)
       .filter(profile=>profile&&typeof profile.id==='string'&&typeof profile.name==='string')
@@ -416,6 +477,12 @@
     return {candidateProfiles:clone(profiles),runs:clone(runs),runActiveTab:stored.runActiveTab==='archived'||stored.activeTab==='archived'?'archived':'active',profileActiveTab:stored.profileActiveTab==='archived'?'archived':'active'};
   }
   let runState=normaliseRunState(readRunStored());
+  let synonymState=normaliseSynonymState(readSynonymStored());
+  const selectedSynonymReviewIds=new Set();
+  let synonymEditorEditing=false;
+  let synonymEditorDraft='';
+  let synonymEditorSearch='';
+  let synonymProcessingLogStart=0;
   const selectedProfileIds=new Set();
   const selectedRunIds=new Set();
   const RUN_PAGE_SIZES=[10,20,50];
@@ -432,7 +499,9 @@
   const bookmarkedJobs=new Set();
   const clearedConsoleRuns=new Set();
   function writeRunState(){localStorage.setItem(RUN_STORAGE_KEY,JSON.stringify(runState))}
+  function writeSynonymState(){localStorage.setItem(SYNONYM_STORAGE_KEY,JSON.stringify(synonymState))}
   writeRunState();
+  writeSynonymState();
   function notify(message){
     toast.textContent=message;
     toast.classList.add('show');
@@ -487,6 +556,251 @@
       id='PROFILE-'+token.slice(0,8).toUpperCase();
     }while(runState.candidateProfiles.some(profile=>profile.id===id));
     return id;
+  }
+  function uniqueSynonymReviewId(){
+    let id;
+    do{
+      const token=typeof crypto.randomUUID==='function'?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(4)),value=>value.toString(16).padStart(2,'0')).join('');
+      id='SYNPROP-'+token.slice(0,8).toUpperCase();
+    }while(synonymState.reviewQueue.some(item=>item.id===id));
+    return id;
+  }
+  function synonymListForTab(type){return synonymState.database[type]||[]}
+  function synonymEditorText(type){return synonymListForTab(type).map(item=>`${item.alias}: ${item.canonical}`).join('\n')}
+  function parseSynonymEditor(text){
+    const entries=[],syntaxIssues=[],targetsByAlias=new Map(),lines=String(text||'').split(/\r?\n/);
+    lines.forEach((raw,index)=>{
+      const value=raw.trim(),line=index+1;
+      if(!value||value.startsWith('#'))return;
+      const separator=raw.indexOf(':');
+      if(separator<0){syntaxIssues.push({line,message:/\s-\s/.test(raw)?'Use ":" between alias and canonical, not "-".':'Use "alias: canonical" syntax.'});return}
+      const alias=raw.slice(0,separator).trim().toLowerCase(),canonical=raw.slice(separator+1).trim().toLowerCase();
+      if(!alias||!canonical){syntaxIssues.push({line,message:'Both alias and canonical are required. Use "alias: canonical".'});return}
+      entries.push({alias,canonical,line});
+      if(!targetsByAlias.has(alias))targetsByAlias.set(alias,new Map());
+      const targetLines=targetsByAlias.get(alias);
+      if(!targetLines.has(canonical))targetLines.set(canonical,[]);
+      targetLines.get(canonical).push(line);
+    });
+    const conflictIssues=[...targetsByAlias].filter(([,targets])=>targets.size>1).map(([alias,targets])=>({alias,lines:[...targets.values()].flat().sort((a,b)=>a-b)}));
+    const targetByAlias=new Map([...targetsByAlias].filter(([,targets])=>targets.size===1).map(([alias,targets])=>[alias,[...targets.keys()][0]]).filter(([alias,canonical])=>alias!==canonical));
+    const cycleAliases=new Set();
+    for(const alias of targetByAlias.keys()){
+      const path=[],positions=new Map();
+      let current=alias;
+      while(targetByAlias.has(current)&&!positions.has(current)){
+        positions.set(current,path.length);
+        path.push(current);
+        current=targetByAlias.get(current);
+      }
+      if(positions.has(current))path.slice(positions.get(current)).forEach(item=>cycleAliases.add(item));
+    }
+    const cycleIssues=[...cycleAliases].map(alias=>({alias,lines:entries.filter(entry=>entry.alias===alias).map(entry=>entry.line)}));
+    const seen=new Set(),cleanEntries=entries.filter(entry=>{const key=`${entry.alias}:${entry.canonical}`;if(seen.has(key))return false;seen.add(key);return true}).map(({alias,canonical})=>({alias,canonical}));
+    return {entries:cleanEntries,syntaxIssues,conflictIssues,cycleIssues,hasIssues:Boolean(syntaxIssues.length||conflictIssues.length||cycleIssues.length)};
+  }
+  function synonymEditorValidation(){return parseSynonymEditor(synonymEditorEditing?synonymEditorDraft:synonymEditorText(synonymState.activeTab))}
+  function synonymEditorStatusMarkup(validation){
+    if(!validation.hasIssues)return `<div class="synonym-editor-status" role="status"><span class="synonym-issue" data-kind="valid">No conflicts detected</span></div><p class="synonym-editor-message">Only saved, valid mappings are intended for pipeline use.</p>`;
+    const statuses=[];
+    if(validation.syntaxIssues.length)statuses.push(`<button class="synonym-issue" data-kind="warning" type="button" data-synonym-issue-lines="${validation.syntaxIssues.map(issue=>issue.line).join(',')}">${validation.syntaxIssues.length} syntax issue${validation.syntaxIssues.length===1?'':'s'} found</button>`);
+    if(validation.conflictIssues.length)statuses.push(`<button class="synonym-issue" data-kind="warning" type="button" data-synonym-issue-lines="${validation.conflictIssues.flatMap(issue=>issue.lines).join(',')}">${validation.conflictIssues.length} synonym conflict${validation.conflictIssues.length===1?'':'s'} found</button>`);
+    if(validation.cycleIssues.length)statuses.push(`<button class="synonym-issue" data-kind="warning" type="button" data-synonym-issue-lines="${validation.cycleIssues.flatMap(issue=>issue.lines).join(',')}">${validation.cycleIssues.length} cyclic mapping${validation.cycleIssues.length===1?'':'s'} found</button>`);
+    const syntaxMessage=validation.syntaxIssues[0]?` Line ${validation.syntaxIssues[0].line}: ${validation.syntaxIssues[0].message}`:'';
+    return `<div class="synonym-editor-status" role="status">${statuses.join('')}</div><p class="synonym-editor-message">Fix issues before saving. Impacted mappings will not be used; last valid configuration remains active.${escapeHtml(syntaxMessage)}</p>`;
+  }
+  function synonymEditorMarkup(type){
+    const value=synonymEditorEditing?synonymEditorDraft:synonymEditorText(type),validation=parseSynonymEditor(value);
+    return `<div class="synonym-editor-shell"><div class="synonym-editor-toolbar"><div class="synonym-editor-search"><input class="field" id="synonymEditorSearch" type="search" value="${escapeHtml(synonymEditorSearch)}" placeholder="Find alias or canonical" aria-label="Search synonym entries"><button class="btn" id="findNextSynonym" type="button">Find next</button></div><div class="synonym-editor-actions">${synonymEditorEditing?'<button class="btn" id="cancelSynonymEdit" type="button">Cancel</button><button class="btn primary" id="saveSynonymEdit" type="button">Save changes</button>':'<button class="btn" id="editSynonymList" type="button">Edit list</button>'}</div></div><textarea class="synonym-editor" id="synonymEditor" aria-label="${SYNONYM_TYPE_LABELS[type]} synonym configuration" aria-describedby="synonymEditorFeedback" spellcheck="false" wrap="off" ${synonymEditorEditing?'':'readonly'}>${escapeHtml(value)}</textarea><div id="synonymEditorFeedback">${synonymEditorStatusMarkup(validation)}</div></div>`;
+  }
+  function focusSynonymEditorLine(line){
+    const editor=form.querySelector('#synonymEditor');
+    if(!editor)return;
+    const lines=editor.value.split(/\r?\n/),target=Math.max(1,Math.min(Number(line)||1,lines.length));
+    const start=lines.slice(0,target-1).reduce((total,value)=>total+value.length+1,0),end=start+(lines[target-1]?.length||0);
+    editor.focus();editor.setSelectionRange(start,end);
+    const lineHeight=parseFloat(getComputedStyle(editor).lineHeight)||20;
+    editor.scrollTop=Math.max(0,(target-3)*lineHeight);
+  }
+  function bindSynonymIssueButtons(){
+    form.querySelectorAll('[data-synonym-issue-lines]').forEach(button=>button.addEventListener('click',()=>{
+      const lines=button.dataset.synonymIssueLines.split(',').map(Number).filter(Number.isFinite),cursor=Number(button.dataset.cursor||0)%lines.length;
+      if(lines.length){focusSynonymEditorLine(lines[cursor]);button.dataset.cursor=String(cursor+1)}
+    }));
+  }
+  function findNextSynonymMatch(){
+    const editor=form.querySelector('#synonymEditor'),searchInput=form.querySelector('#synonymEditorSearch'),query=searchInput?.value.trim();
+    synonymEditorSearch=query||'';
+    if(!editor||!query){searchInput?.focus();return}
+    const haystack=editor.value.toLowerCase(),needle=query.toLowerCase();
+    let index=haystack.indexOf(needle,editor.selectionEnd);
+    if(index<0)index=haystack.indexOf(needle);
+    if(index<0){notify(`No synonym entry matches "${query}"`);return}
+    editor.focus();editor.setSelectionRange(index,index+query.length);
+    const line=editor.value.slice(0,index).split(/\r?\n/).length,lineHeight=parseFloat(getComputedStyle(editor).lineHeight)||20;
+    editor.scrollTop=Math.max(0,(line-3)*lineHeight);
+  }
+  function currentSynonymCounts(){return Object.fromEntries(SYNONYM_TYPES.map(type=>[type,synonymListForTab(type).length]))}
+  function activeSynonymReviewQueue(){return synonymState.reviewQueue.filter(item=>synonymReviewStatus(item)===synonymState.reviewActiveTab)}
+  function synonymReviewStatus(item){return item.status==='approved'||item.status==='declined'?item.status:'pending'}
+  function synonymReviewStatusLabel(item){const status=synonymReviewStatus(item);return status[0].toUpperCase()+status.slice(1)}
+  function synonymReviewRowMarkup(item){
+    const checked=selectedSynonymReviewIds.has(item.id);
+    return `<tr class="${checked?'is-selected':''}" data-synonym-row="${escapeHtml(item.id)}"><td><input type="checkbox" data-synonym-select="${escapeHtml(item.id)}" aria-label="Select synonym ${escapeHtml(item.alias)}" ${checked?'checked':''}></td><td>${SYNONYM_TYPE_LABELS[item.type]}</td><td><button class="run-id run-id-link" type="button" data-synonym-details="${escapeHtml(item.id)}" aria-label="Open suggestion details for ${escapeHtml(item.alias)}">${escapeHtml(item.alias)}</button></td><td>${escapeHtml(item.proposedCanonical)}</td><td><span class="run-created">${(item.confidence*100).toFixed(0)}%</span></td><td><span class="synonym-sources" title="${escapeHtml(item.sourceRuns.join(', '))}">${escapeHtml(item.sourceRuns.join(', '))}</span></td></tr>`;
+  }
+  function synonymReviewTabsMarkup(){
+    const counts={pending:synonymState.reviewQueue.filter(item=>synonymReviewStatus(item)==='pending').length,approved:synonymState.reviewQueue.filter(item=>synonymReviewStatus(item)==='approved').length,declined:synonymState.reviewQueue.filter(item=>synonymReviewStatus(item)==='declined').length};
+    return `<div class="run-tabs" role="tablist" aria-label="Synonym review status">${SYNONYM_REVIEW_STATUSES.map(status=>`<button class="btn" id="review-${status}-tab" type="button" role="tab" aria-controls="synonymReviewPanel" data-synonym-review-tab="${status}" aria-selected="${synonymState.reviewActiveTab===status}" tabindex="${synonymState.reviewActiveTab===status?'0':'-1'}">${status[0].toUpperCase()+status.slice(1)}<span class="run-tab-count">${counts[status]}</span></button>`).join('')}</div>`;
+  }
+  function synonymReviewMarkup(queue){
+    const label=synonymState.reviewActiveTab[0].toUpperCase()+synonymState.reviewActiveTab.slice(1);
+    if(!queue.length)return `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v18M3 12h18"/></svg><h3>No ${label.toLowerCase()} entries</h3><p>${synonymState.reviewActiveTab==='pending'?'New suggestions appear here when Auto-accept is off.':`${label} review entries appear here until cleared.`}</p></div>`;
+    return `<div class="table-card section-card"><div class="table-scroll"><table class="run-table synonym-table"><thead><tr><th><input id="selectAllSynonymReviews" type="checkbox" aria-label="Select all ${label.toLowerCase()} synonym entries"></th><th scope="col">Type</th><th scope="col">Alias</th><th scope="col">Proposed Canonical</th><th scope="col">Confidence</th><th scope="col">Source Runs</th></tr></thead><tbody>${queue.map(synonymReviewRowMarkup).join('')}</tbody></table></div></div>`;
+  }
+  function renderSynonymDetails(){
+    const item=synonymState.reviewQueue.find(entry=>entry.id===synonymDetailsDrawer.dataset.synonymId);
+    if(!item){synonymDetailsDrawer.close();return}
+    synonymDetailsTitle.textContent=`${SYNONYM_TYPE_LABELS[item.type]} Suggestion`;
+    synonymDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Suggestion Overview</strong><span>Current review information for this suggestion.</span></span><span class="drawer-status"><span class="synonym-review-status" data-status="${item.status}">${escapeHtml(synonymReviewStatusLabel(item))}</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid"><div class="detail-item"><dt>Type</dt><dd>${SYNONYM_TYPE_LABELS[item.type]}</dd></div><div class="detail-item"><dt>Alias</dt><dd>${escapeHtml(item.alias)}</dd></div><div class="detail-item"><dt>Proposed Canonical</dt><dd>${escapeHtml(item.proposedCanonical)}</dd></div><div class="detail-item"><dt>Confidence</dt><dd>${(item.confidence*100).toFixed(1)}%</dd></div><div class="detail-item"><dt>Source Runs</dt><dd>${escapeHtml(item.sourceRuns.join(', '))}</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Evidence</strong><span>Signals supporting the proposed canonical.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid"><div class="detail-item"><dt>Evidence Note</dt><dd>${escapeHtml(item.note||'No additional note.')}</dd></div><div class="detail-item"><dt>Candidate Canonicals</dt><dd>${item.candidateCanonicals.map(canonical=>`<code>${escapeHtml(canonical)}</code>`).join(', ')}</dd></div></dl></div></details>`;
+  }
+  function openSynonymDetails(reviewId){
+    synonymDetailsDrawer.dataset.synonymId=reviewId;
+    renderSynonymDetails();
+    synonymDetailsDrawer.showModal();
+  }
+  function applySynonymReviewAction(action){
+    if(synonymEditorEditing){notify('Save or cancel synonym list edits first');return}
+    const allowed=action==='approve'?['pending','declined']:['pending'];
+    const selected=synonymState.reviewQueue.filter(item=>selectedSynonymReviewIds.has(item.id)&&allowed.includes(synonymReviewStatus(item)));
+    if(!selected.length)return;
+    if(action==='approve'&&!confirm(`Approve ${selected.length} selected synonym suggestion${selected.length===1?'':'s'}?\n\nApproved suggestions will be added to shared synonym database.`))return;
+    if(action==='decline'&&!confirm(`Decline ${selected.length} selected synonym suggestion${selected.length===1?'':'s'}?`))return;
+    let added=0;
+    for(const item of selected){
+      item.status=action==='approve'?'approved':'declined';
+      if(action==='approve'){
+        const list=synonymListForTab(item.type);
+        const entry={alias:item.alias,canonical:item.proposedCanonical};
+        if(!list.some(existing=>existing.alias===entry.alias&&existing.canonical===entry.canonical)){list.unshift(entry);added++}
+      }
+    }
+    synonymState.processingLog.push({processedAt:Date.now(),total:selected.length,approved:action==='approve'?selected.length:0,declined:action==='decline'?selected.length:0,pending:synonymState.reviewQueue.filter(item=>synonymReviewStatus(item)==='pending').length,added});
+    synonymState.processingLog=synonymState.processingLog.slice(-50);
+    selectedSynonymReviewIds.clear();
+    writeSynonymState();
+    renderSynonymsPage();
+    notify(`${selected.length} synonym suggestion${selected.length===1?'':'s'} ${action==='approve'?'approved':'declined'}`);
+  }
+  function clearSynonymReviews(){
+    const selected=synonymState.reviewQueue.filter(item=>selectedSynonymReviewIds.has(item.id));
+    if(!selected.length||!confirm('Remove the selected entries from the review queue? Approved synonyms will remain active.'))return;
+    const ids=new Set(selected.map(item=>item.id));
+    synonymState.reviewQueue=synonymState.reviewQueue.filter(item=>!ids.has(item.id));
+    selectedSynonymReviewIds.clear();writeSynonymState();renderSynonymsPage();notify(`${selected.length} review entr${selected.length===1?'y':'ies'} cleared`);
+  }
+  function downloadSynonymBackup(){
+    const backup={database:synonymState.database,reviewQueue:synonymState.reviewQueue.map(item=>({id:item.id,type:item.type,alias:item.alias,proposedCanonical:item.proposedCanonical,candidateCanonicals:item.candidateCanonicals,confidence:item.confidence,sourceRuns:item.sourceRuns,status:synonymReviewStatus(item),note:item.note||''})),processingLog:synonymState.processingLog};
+    const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/yaml;charset=utf-8'})),link=document.createElement('a');
+    link.href=url;link.download='synonym-backup.yaml';link.click();URL.revokeObjectURL(url);notify('Synonym backup downloaded');
+  }
+  function isSynonymBackup(value){return Boolean(value&&typeof value==='object'&&!Array.isArray(value)&&value.database&&SYNONYM_TYPES.every(type=>Array.isArray(value.database[type]))&&Array.isArray(value.reviewQueue))}
+  function importSynonymBackup(file){
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+      try{
+        const parsed=JSON.parse(String(reader.result||'{}'));
+        if(!isSynonymBackup(parsed))throw new Error('Invalid synonym backup');
+        const imported=normaliseSynonymState(parsed);
+        synonymState=imported;synonymProcessingLogStart=0;
+        synonymEditorEditing=false;synonymEditorDraft='';synonymEditorSearch='';
+        selectedSynonymReviewIds.clear();
+        writeSynonymState();
+        renderSynonymsPage();
+        notify('Synonym backup imported');
+      }catch{
+        notify('Import failed: backup must match exported synonym format');
+      }
+    };
+    reader.readAsText(file);
+  }
+  function synonymReviewSelectionMarkup(queue){
+    const selected=queue.filter(item=>selectedSynonymReviewIds.has(item.id));
+    if(!selected.length)return '';
+    const status=synonymState.reviewActiveTab,label=status[0].toUpperCase()+status.slice(1),actions=status==='pending'?'<button class="btn primary" id="approveSynonyms" type="button">Approve</button><button class="btn" id="declineSynonyms" type="button">Decline</button><button class="btn" id="clearSynonymReviews" type="button">Clear</button>':status==='approved'?'<button class="btn" id="clearSynonymReviews" type="button">Clear</button>':'<button class="btn primary" id="approveSynonyms" type="button">Approve</button><button class="btn" id="clearSynonymReviews" type="button">Clear</button>';
+    return `<div class="run-selection"><div class="run-selection-copy"><strong>${selected.length} ${label} entr${selected.length===1?'y':'ies'} selected</strong><span>${status==='approved'?'Clear removes queue history only; active synonyms remain unchanged.':status==='declined'?'Approve moves selected entries to Approved. Clear removes queue history.':'Apply a review decision or clear selected entries from the queue.'}</span></div><div class="run-selection-actions">${actions}</div></div>`;
+  }
+  function synonymProcessingLogMarkup(){
+    const visible=synonymState.processingLog.slice(synonymProcessingLogStart),lines=[...visible].reverse().map(item=>`<div class="console-line"><span class="console-time">${escapeHtml(formatCreated(item.processedAt))}</span><span class="console-level" data-level="info">INFO</span><span class="console-operation">SYNONYM_REVIEW</span><span class="console-message">processed=${item.total} approved=${item.approved} declined=${item.declined} pending=${item.pending} successfully_added=${item.added}</span></div>`).join('');
+    return `<div class="console-toolbar"><p>Clear hides loaded entries locally without deleting canonical processing history.</p><div class="console-actions"><button class="small-action" id="clearSynonymProcessingLog" type="button" ${visible.length?'':'disabled'}>Clear</button></div></div><div class="console-log" role="log" aria-live="polite" aria-label="Synonym processing summary log">${lines||'<div class="console-empty">No synonym processing activity in current view.</div>'}</div>`;
+  }
+  function renderSynonymsPage(){
+    const queue=activeSynonymReviewQueue();
+    selectedSynonymReviewIds.forEach(id=>{if(!queue.some(item=>item.id===id))selectedSynonymReviewIds.delete(id)});
+    const counts=currentSynonymCounts();
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Workspace</p><h2>Synonyms</h2><p>Manage shared mappings and suggestions across runs. <a class="inline-link" href="#automation-reuse">Open Synonym Settings</a>.</p></div><div class="run-selection-actions"><button class="btn" id="downloadSynonymBackup" type="button">Download Backup Synonym</button><button class="btn" id="importSynonymBackup" type="button">Import Backup</button><input class="synonym-import" id="synonymBackupFile" type="file" accept=".yaml,.yml,application/yaml,text/yaml" aria-label="Choose synonym backup file"></div></div><div class="stack"><details class="section-card collapsible-section" open><summary><span class="section-heading"><strong>Current Synonym List</strong><span>Edit flat YAML mappings using <code>alias: canonical</code>.</span></span></summary><div class="section-content drawer-section-content run-panel"><div class="run-tabs synonym-tabs" role="tablist" aria-label="Synonym types">${SYNONYM_TYPES.map(type=>`<button class="btn" id="synonym-${type}-tab" type="button" role="tab" aria-controls="synonymDatabasePanel" data-synonym-tab="${type}" aria-selected="${synonymState.activeTab===type}" tabindex="${synonymState.activeTab===type?'0':'-1'}">${SYNONYM_TYPE_LABELS[type]}<span class="run-tab-count">${counts[type]}</span></button>`).join('')}</div><div id="synonymDatabasePanel" role="tabpanel" aria-labelledby="synonym-${synonymState.activeTab}-tab">${synonymEditorMarkup(synonymState.activeTab)}</div></div></details><details class="section-card collapsible-section" open><summary><span class="section-heading"><strong>Synonyms to Review</strong><span>When Auto-accept is off, every suggestion enters this queue as Pending.</span></span></summary><div class="section-content drawer-section-content run-panel">${synonymReviewTabsMarkup()}<div class="run-panel" id="synonymReviewPanel" role="tabpanel" aria-labelledby="review-${synonymState.reviewActiveTab}-tab">${synonymReviewSelectionMarkup(queue)}${synonymReviewMarkup(queue)}</div></div></details><details class="section-card collapsible-section"><summary><span class="section-heading"><strong>Processing Summary Log</strong><span>Review totals and successfully added mappings for each processing action.</span></span></summary><div class="section-content drawer-section-content">${synonymProcessingLogMarkup()}</div></details></div>`;
+    bindSynonymsPage(queue);
+  }
+  function setSynonymTab(type){
+    if(synonymEditorEditing&&synonymEditorDraft!==synonymEditorText(synonymState.activeTab)&&!confirm('Discard unsaved synonym changes?'))return;
+    synonymState.activeTab=type;
+    synonymEditorEditing=false;synonymEditorDraft='';synonymEditorSearch='';
+    writeSynonymState();
+    renderSynonymsPage();
+    form.querySelector(`[data-synonym-tab="${type}"]`)?.focus();
+  }
+  function setSynonymReviewTab(status){
+    if(!SYNONYM_REVIEW_STATUSES.includes(status))return;
+    synonymState.reviewActiveTab=status;selectedSynonymReviewIds.clear();writeSynonymState();renderSynonymsPage();form.querySelector(`[data-synonym-review-tab="${status}"]`)?.focus();
+  }
+  function bindSynonymsPage(queue){
+    bindSynonymIssueButtons();
+    const editor=form.querySelector('#synonymEditor'),searchInput=form.querySelector('#synonymEditorSearch');
+    editor?.addEventListener('input',()=>{synonymEditorDraft=editor.value;form.querySelector('#synonymEditorFeedback').innerHTML=synonymEditorStatusMarkup(parseSynonymEditor(synonymEditorDraft));bindSynonymIssueButtons()});
+    searchInput?.addEventListener('input',()=>{synonymEditorSearch=searchInput.value});
+    searchInput?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();findNextSynonymMatch()}});
+    form.querySelector('#findNextSynonym')?.addEventListener('click',findNextSynonymMatch);
+    form.querySelector('#editSynonymList')?.addEventListener('click',()=>{synonymEditorEditing=true;synonymEditorDraft=synonymEditorText(synonymState.activeTab);renderSynonymsPage();form.querySelector('#synonymEditor')?.focus()});
+    form.querySelector('#cancelSynonymEdit')?.addEventListener('click',()=>{if(synonymEditorDraft!==synonymEditorText(synonymState.activeTab)&&!confirm('Discard unsaved synonym changes?'))return;synonymEditorEditing=false;synonymEditorDraft='';renderSynonymsPage()});
+    form.querySelector('#saveSynonymEdit')?.addEventListener('click',()=>{const validation=parseSynonymEditor(synonymEditorDraft);if(validation.hasIssues){notify('Fix synonym syntax and conflicts before saving');const first=validation.syntaxIssues[0]?.line||validation.conflictIssues[0]?.lines[0]||validation.cycleIssues[0]?.lines[0];focusSynonymEditorLine(first);return}synonymState.database[synonymState.activeTab]=validation.entries;synonymEditorEditing=false;synonymEditorDraft='';writeSynonymState();renderSynonymsPage();notify(`${SYNONYM_TYPE_LABELS[synonymState.activeTab]} synonyms saved`)});
+    form.querySelectorAll('[data-synonym-tab]').forEach(button=>{
+      button.addEventListener('click',()=>setSynonymTab(button.dataset.synonymTab));
+      button.addEventListener('keydown',event=>{
+        if(!['ArrowLeft','ArrowRight'].includes(event.key))return;
+        event.preventDefault();
+        const index=SYNONYM_TYPES.indexOf(button.dataset.synonymTab);
+        const offset=event.key==='ArrowRight'?1:-1;
+        setSynonymTab(SYNONYM_TYPES[(index+offset+SYNONYM_TYPES.length)%SYNONYM_TYPES.length]);
+      });
+    });
+    form.querySelectorAll('[data-synonym-review-tab]').forEach(button=>{
+      button.addEventListener('click',()=>setSynonymReviewTab(button.dataset.synonymReviewTab));
+      button.addEventListener('keydown',event=>{
+        if(!['ArrowLeft','ArrowRight'].includes(event.key))return;
+        event.preventDefault();
+        const index=SYNONYM_REVIEW_STATUSES.indexOf(button.dataset.synonymReviewTab),offset=event.key==='ArrowRight'?1:-1;
+        setSynonymReviewTab(SYNONYM_REVIEW_STATUSES[(index+offset+SYNONYM_REVIEW_STATUSES.length)%SYNONYM_REVIEW_STATUSES.length]);
+      });
+    });
+    form.querySelectorAll('[data-synonym-details]').forEach(button=>button.addEventListener('click',()=>openSynonymDetails(button.dataset.synonymDetails)));
+    form.querySelectorAll('[data-synonym-select]').forEach(checkbox=>checkbox.addEventListener('change',()=>{
+      checkbox.checked?selectedSynonymReviewIds.add(checkbox.dataset.synonymSelect):selectedSynonymReviewIds.delete(checkbox.dataset.synonymSelect);
+      renderSynonymsPage();
+    }));
+    const selectAll=form.querySelector('#selectAllSynonymReviews');
+    if(selectAll){
+      selectAll.checked=queue.length>0&&queue.every(item=>selectedSynonymReviewIds.has(item.id));
+      selectAll.indeterminate=!selectAll.checked&&queue.some(item=>selectedSynonymReviewIds.has(item.id));
+      selectAll.addEventListener('change',()=>{queue.forEach(item=>selectAll.checked?selectedSynonymReviewIds.add(item.id):selectedSynonymReviewIds.delete(item.id));renderSynonymsPage()});
+    }
+    form.querySelector('#approveSynonyms')?.addEventListener('click',()=>applySynonymReviewAction('approve'));
+    form.querySelector('#declineSynonyms')?.addEventListener('click',()=>applySynonymReviewAction('decline'));
+    form.querySelector('#clearSynonymReviews')?.addEventListener('click',clearSynonymReviews);
+    form.querySelector('#clearSynonymProcessingLog')?.addEventListener('click',event=>{synonymProcessingLogStart=synonymState.processingLog.length;form.querySelector('.console-log').innerHTML='<div class="console-empty">No synonym processing activity in current view.</div>';event.currentTarget.disabled=true});
+    form.querySelector('#downloadSynonymBackup')?.addEventListener('click',downloadSynonymBackup);
+    const backupFile=form.querySelector('#synonymBackupFile');
+    form.querySelector('#importSynonymBackup')?.addEventListener('click',()=>{if(synonymEditorEditing&&synonymEditorDraft!==synonymEditorText(synonymState.activeTab)&&!confirm('Discard unsaved changes and import backup?'))return;backupFile.click()});
+    backupFile?.addEventListener('change',()=>{importSynonymBackup(backupFile.files?.[0]);backupFile.value=''});
   }
   function profileRowMarkup(profile){
     const checked=selectedProfileIds.has(profile.id);
@@ -791,7 +1105,7 @@
     jobResultsPage=Math.min(jobResultsPage,totalPages);
     const pageRows=filtered.slice((jobResultsPage-1)*jobResultsPageSize,jobResultsPage*jobResultsPageSize);
     runDetailsTitle.textContent=`Run ${run.id}`;
-    runDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Overview</strong><span>Current lifecycle information for this run.</span></span><span class="drawer-status">${statusMarkup(run)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid">${[['Run ID',run.id],['Run Name',run.runName||run.jobName],['Created',formatCreated(run.createdAt)],['Started',formatCreated(run.startedAt||run.createdAt)],['Finished',run.endedAt?formatCreated(run.endedAt):'—']].map(([label,value])=>`<div class="detail-item"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Input</strong><span>Read-only inputs used when this run was triggered.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details"><div class="detail-item"><dt>Job Input</dt><dd>${escapeHtml(run.inputFileName||run.jobName)}</dd></div><div class="detail-item"><dt>Candidate Profile</dt><dd>${escapeHtml(selectedProfileName(run))}</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Pipeline Results</strong><span>Includes passed and rejected jobs evaluated at the selected stage.</span></span></summary><div class="section-content drawer-section-content"><div class="results-filters"><div class="stage-filter"><div class="pipeline-stage-tabs" role="tablist" aria-label="Pipeline stages">${PIPELINE_STAGES.map(stage=>`<button class="btn" type="button" role="tab" data-pipeline-stage="${stage.id}" aria-selected="${stage.id===pipelineStage}" tabindex="${stage.id===pipelineStage?'0':'-1'}">${stage.label}</button>`).join('')}</div></div></div><div class="results-toolbar"><input class="field results-search" id="jobResultsSearch" type="search" value="${escapeHtml(jobResultsSearch)}" placeholder="Search jobs, attributes, skills, or outcomes" aria-label="Search pipeline results"><div class="results-toolbar-actions"><div class="pipeline-summary" role="tablist" aria-label="Pipeline result filter"><button class="summary-card" type="button" role="tab" data-pipeline-result="all" aria-selected="${pipelineResult==='all'}" tabindex="${pipelineResult==='all'?'0':'-1'}"><span>Total Evaluated</span><strong>${evaluated.length}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="passed" aria-selected="${pipelineResult==='passed'}" tabindex="${pipelineResult==='passed'?'0':'-1'}"><span>Passed</span><strong>${passed}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="rejected" aria-selected="${pipelineResult==='rejected'}" tabindex="${pipelineResult==='rejected'?'0':'-1'}"><span>Rejected</span><strong>${rejected}</strong></button></div><button class="btn" id="exportRunResults" type="button" ${filtered.length?'':'disabled'}>Export</button></div></div><div class="table-card"><div class="table-scroll">${pageRows.length?`<table class="jobs-table"><thead><tr><th>Job &amp; Actions</th><th>Job Attributes</th><th>Required Skills</th><th>Pipeline Outcome</th></tr></thead><tbody>${pageRows.map(item=>jobRowMarkup(run,item)).join('')}</tbody></table>`:'<div class="jobs-empty">No jobs match current filters.</div>'}</div>${jobPaginationMarkup(filtered.length)}</div></div></details><details class="section-card collapsible-section drawer-section"><summary><span class="section-heading"><strong>Console Log</strong><span>Canonical run events for troubleshooting. Clear View hides loaded events locally without deleting backend evidence.</span></span></summary><div class="section-content drawer-section-content">${consoleLogMarkup(run)}</div></details>`;
+    runDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Overview</strong><span>Current lifecycle information for this run.</span></span><span class="drawer-status">${statusMarkup(run)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid">${[['Run ID',run.id],['Run Name',run.runName||run.jobName],['Created',formatCreated(run.createdAt)],['Started',formatCreated(run.startedAt||run.createdAt)],['Finished',run.endedAt?formatCreated(run.endedAt):'—']].map(([label,value])=>`<div class="detail-item"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Input</strong><span>Read-only inputs used when this run was triggered.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details"><div class="detail-item"><dt>Job Input</dt><dd>${escapeHtml(run.inputFileName||run.jobName)}</dd></div><div class="detail-item"><dt>Candidate Profile</dt><dd>${escapeHtml(selectedProfileName(run))}</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Pipeline Results</strong><span>Includes passed and rejected jobs evaluated at the selected stage.</span></span></summary><div class="section-content drawer-section-content"><div class="results-filters"><div class="stage-filter"><div class="pipeline-stage-tabs" role="tablist" aria-label="Pipeline stages">${PIPELINE_STAGES.map(stage=>`<button class="btn" type="button" role="tab" data-pipeline-stage="${stage.id}" aria-selected="${stage.id===pipelineStage}" tabindex="${stage.id===pipelineStage?'0':'-1'}">${stage.label}</button>`).join('')}</div></div></div><div class="results-toolbar"><input class="field results-search" id="jobResultsSearch" type="search" value="${escapeHtml(jobResultsSearch)}" placeholder="Search jobs, attributes, skills, or outcomes" aria-label="Search pipeline results"><div class="results-toolbar-actions"><div class="pipeline-summary" role="tablist" aria-label="Pipeline result filter"><button class="summary-card" type="button" role="tab" data-pipeline-result="all" aria-selected="${pipelineResult==='all'}" tabindex="${pipelineResult==='all'?'0':'-1'}"><span>Total Evaluated</span><strong>${evaluated.length}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="passed" aria-selected="${pipelineResult==='passed'}" tabindex="${pipelineResult==='passed'?'0':'-1'}"><span>Passed</span><strong>${passed}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="rejected" aria-selected="${pipelineResult==='rejected'}" tabindex="${pipelineResult==='rejected'?'0':'-1'}"><span>Rejected</span><strong>${rejected}</strong></button></div><button class="btn" id="exportRunResults" type="button" ${filtered.length?'':'disabled'}>Export</button></div></div><div class="table-card"><div class="table-scroll">${pageRows.length?`<table class="run-table jobs-table"><thead><tr><th>Job &amp; Actions</th><th>Job Attributes</th><th>Required Skills</th><th>Pipeline Outcome</th></tr></thead><tbody>${pageRows.map(item=>jobRowMarkup(run,item)).join('')}</tbody></table>`:'<div class="jobs-empty">No jobs match current filters.</div>'}</div>${jobPaginationMarkup(filtered.length)}</div></div></details><details class="section-card collapsible-section drawer-section"><summary><span class="section-heading"><strong>Console Log</strong><span>Canonical run events for troubleshooting. Clear View hides loaded events locally without deleting backend evidence.</span></span></summary><div class="section-content drawer-section-content">${consoleLogMarkup(run)}</div></details>`;
     bindRunDetails(run);
   }
   function bindConsoleControls(run,root=runDetailsBody){
@@ -946,15 +1260,33 @@
     if(row.type==='select')return `<label class="row" data-row>${copy}${status}</span><span class="control"><select class="field" data-key="${row.key}" aria-label="${row.label}">${row.options.map(option=>`<option value="${option}" ${option===current?'selected':''}>${option}</option>`).join('')}</select></span></label>`;
     return `<label class="row" data-row>${copy}${status}</span><span class="control"><input class="field" type="number" data-key="${row.key}" value="${current}" min="${row.min}" max="${row.max}" step="${row.step}" aria-label="${row.label}"></span></label>`;
   }
+  function isSynonymsPage(){return location.hash==='#synonyms'}
   function isCandidateProfilesPage(){return location.hash==='#candidate-profiles'}
   function isRunsPage(){return location.hash==='#runs'}
   function currentPage(){return pages.find(page=>page.id===location.hash.slice(1))||pages[0]}
   function renderPage(){
+    if(isSynonymsPage()){
+      headerTitle.textContent='Synonyms';
+      headerDescription.textContent='Manage shared mappings and review suggestions across runs.';
+      titleIcon.innerHTML='<path d="M7 7h10M7 12h10M7 17h6"/><path d="M5 5h14v14H5z"/>';
+      searchBox.hidden=true;
+      synonymsNav.classList.add('active');
+      synonymsNav.setAttribute('aria-current','page');
+      candidateProfilesNav.classList.remove('active');
+      candidateProfilesNav.removeAttribute('aria-current');
+      runsNav.classList.remove('active');
+      runsNav.removeAttribute('aria-current');
+      pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+      renderSynonymsPage();
+      return;
+    }
     if(isCandidateProfilesPage()){
       headerTitle.textContent='Candidate Profiles';
       headerDescription.textContent='Create and review profiles used by matching runs.';
       titleIcon.innerHTML='<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>';
       searchBox.hidden=true;
+      synonymsNav.classList.remove('active');
+      synonymsNav.removeAttribute('aria-current');
       candidateProfilesNav.classList.add('active');
       candidateProfilesNav.setAttribute('aria-current','page');
       runsNav.classList.remove('active');
@@ -968,6 +1300,8 @@
       headerDescription.textContent='Trigger, monitor, cancel, and archive local prototype runs.';
       titleIcon.innerHTML='<path d="M4 5h16v5H4zM4 14h16v5H4z"/>';
       searchBox.hidden=true;
+      synonymsNav.classList.remove('active');
+      synonymsNav.removeAttribute('aria-current');
       candidateProfilesNav.classList.remove('active');
       candidateProfilesNav.removeAttribute('aria-current');
       runsNav.classList.add('active');
@@ -982,6 +1316,8 @@
     headerDescription.textContent='Configure how each matching run selects and prepares candidates.';
     titleIcon.innerHTML='<path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/>';
     searchBox.hidden=false;
+    synonymsNav.classList.remove('active');
+    synonymsNav.removeAttribute('aria-current');
     candidateProfilesNav.classList.remove('active');
     candidateProfilesNav.removeAttribute('aria-current');
     runsNav.classList.remove('active');
@@ -995,7 +1331,8 @@
       return link;
     }));
     const sections=page.sections.filter(section=>section.rows.length);
-    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Pipeline</p><h2>${page.title}</h2><p>${page.description}</p></div><button class="btn" id="restore" type="button">Restore Defaults</button></div><div class="stack">${sections.map(section=>`<details class="section-card collapsible-section setting-section" data-section ${section.open?'open':''}><summary><span class="section-heading"><strong>${section.title}</strong></span></summary><div class="section-content settings-card">${section.rows.map(rowMarkup).join('')}</div></details>`).join('')}</div>`;
+    const pageActions=`<div class="run-selection-actions">${page.id==='automation-reuse'?'<a class="btn" href="#synonyms">Manage Synonyms</a>':''}<button class="btn" id="restore" type="button">Restore Defaults</button></div>`;
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Pipeline</p><h2>${page.title}</h2><p>${page.description}</p></div>${pageActions}</div><div class="stack">${sections.map(section=>`<details class="section-card collapsible-section setting-section" data-section ${section.open?'open':''}><summary><span class="section-heading"><strong>${section.title}</strong></span></summary><div class="section-content settings-card">${section.rows.map(rowMarkup).join('')}</div></details>`).join('')}</div>`;
     search.placeholder='Search Pipeline';
     search.setAttribute('aria-label',`Search ${page.title}`);
     bindPage(page);
@@ -1059,12 +1396,12 @@
     notify(`${page.title} defaults restored`);
   }
   function renderDialogFields(definition,draft){
-    const back=dialogParentGroup?`<button class="dialog-back" type="button" data-dialog-back>← Back to ${transactions[dialogParentGroup].title}</button>`:'';
+    const back=dialogParentGroup?`<button class="inline-link dialog-back" type="button" data-dialog-back>← Back to ${transactions[dialogParentGroup].title}</button>`:'';
     if(definition.type==='checks'){
       dialogForm.innerHTML=back+definition.fields.map(field=>`<div class="check-row"><label for="dialog-${field.key}">${field.label}</label><label class="switch"><input id="dialog-${field.key}" type="checkbox" data-field="${field.key}" ${draft[field.key]?'checked':''} aria-label="${field.label}"><span class="track"></span></label></div>`).join('');
       return;
     }
-    dialogForm.innerHTML=back+definition.fields.map(field=>`<div class="weight-row"><div><label for="dialog-${field.key}">${field.label}<span>${field.description}</span></label>${field.detailsGroup?`<button class="dialog-detail-link" type="button" data-dialog-details="${field.detailsGroup}">${field.detailsLabel}</button>`:''}</div><input class="field" id="dialog-${field.key}" data-field="${field.key}" type="number" min="${field.min??0}" ${definition.type==='runtime'?'':`max="1"`} step="${field.step??.01}" value="${draft[field.key]}" aria-label="${field.label}"></div>`).join('');
+    dialogForm.innerHTML=back+definition.fields.map(field=>`<div class="weight-row"><div><label for="dialog-${field.key}">${field.label}<span>${field.description}</span></label>${field.detailsGroup?`<button class="inline-link dialog-detail-link" type="button" data-dialog-details="${field.detailsGroup}">${field.detailsLabel}</button>`:''}</div><input class="field" id="dialog-${field.key}" data-field="${field.key}" type="number" min="${field.min??0}" ${definition.type==='runtime'?'':`max="1"`} step="${field.step??.01}" value="${draft[field.key]}" aria-label="${field.label}"></div>`).join('');
   }
   function showTransaction(group){
     activeGroup=group;
@@ -1119,6 +1456,14 @@
   }
   function selfCheck(){
     if(pages.length!==9)throw new Error('Expected nine Pipeline pages');
+    if(SYNONYM_TYPES.join(',')!=='skill,domain,role_family')throw new Error('Synonym types must match global taxonomy owners');
+    if(SYNONYM_REVIEW_STATUSES.join(',')!=='pending,approved,declined')throw new Error('Synonym review statuses must have one canonical lifecycle');
+    if(synonymReviewMarkup(synonymState.reviewQueue).includes('>Conflict<')||!synonymProcessingLogMarkup().includes('id="clearSynonymProcessingLog"'))throw new Error('Synonym review table and processing log controls must match approved UI intent');
+    if(!isSynonymBackup({database:DEFAULT_SYNONYM_DATABASE,reviewQueue:DEFAULT_SYNONYM_REVIEW_QUEUE}))throw new Error('Default synonym backup shape must remain importable');
+    const synonymParserCheck=parseSynonymEditor('wrong - syntax\nempty:\na: b\nb: a\nshared: one\nshared: two');
+    if(synonymParserCheck.syntaxIssues.length!==2||synonymParserCheck.conflictIssues.length!==1||synonymParserCheck.cycleIssues.length!==2)throw new Error('Synonym editor validation must detect syntax, conflicts, and cycles');
+    const normalisedSynonyms=normaliseSynonymState({reviewActiveTab:'deferred',reviewQueue:[{id:'legacy',type:'skill',status:'deferred'}]});
+    if(normalisedSynonyms.reviewActiveTab!=='pending'||normalisedSynonyms.reviewQueue[0].status!=='pending')throw new Error('Deferred synonym state must normalize to Pending');
     if(new Set(pages.map(page=>page.id)).size!==pages.length)throw new Error('Pipeline page IDs must be unique');
     if(!pages.some(page=>page.id==='shortlisting'))throw new Error('Shortlisting must be a standalone page');
     if(/gap thresholds?/i.test(JSON.stringify({pages,transactions})))throw new Error('Gap Thresholds must not exist in prototype contract');
@@ -1160,6 +1505,7 @@
   document.querySelector('#closeProfileDialog').addEventListener('click',()=>profileDialog.close());
   document.querySelector('#cancelProfileDialog').addEventListener('click',()=>profileDialog.close());
   document.querySelector('#closeProfileDetails').addEventListener('click',()=>profileDetailsDrawer.close());
+  document.querySelector('#closeSynonymDetails').addEventListener('click',()=>synonymDetailsDrawer.close());
   document.querySelector('#closeRunDialog').addEventListener('click',()=>runDialog.close());
   document.querySelector('#cancelRunDialog').addEventListener('click',()=>runDialog.close());
   document.querySelector('#closeRunDetails').addEventListener('click',()=>runDetailsDrawer.close());
@@ -1167,6 +1513,8 @@
   runDetailsDrawer.addEventListener('close',()=>{selectedRunDetailId=null});
   profileDetailsDrawer.addEventListener('click',event=>{if(event.target===profileDetailsDrawer)profileDetailsDrawer.close()});
   profileDetailsDrawer.addEventListener('close',()=>{selectedProfileDetailId=null});
+  synonymDetailsDrawer.addEventListener('click',event=>{if(event.target===synonymDetailsDrawer)synonymDetailsDrawer.close()});
+  synonymDetailsDrawer.addEventListener('close',()=>{delete synonymDetailsDrawer.dataset.synonymId});
   profileFile.addEventListener('change',validateProfileDialog);
   profileForm.addEventListener('submit',createPrototypeProfile);
   jobFile.addEventListener('change',validateRunDialog);
@@ -1199,6 +1547,7 @@
   menu.addEventListener('click',()=>openNav(!sidebar.classList.contains('open')));
   scrim.addEventListener('click',()=>openNav(false));
   pipelineNav.addEventListener('click',()=>openNav(false));
+  synonymsNav.addEventListener('click',()=>openNav(false));
   candidateProfilesNav.addEventListener('click',()=>openNav(false));
   runsNav.addEventListener('click',()=>openNav(false));
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!dialog.open)openNav(false)});
@@ -1212,7 +1561,7 @@
     if(changed&&runDetailsDrawer.open)renderRunDetails();
   },1000);
   setTheme(localStorage.getItem(`${STORAGE_KEY}:theme`)||'light');
-  window.fitcvPipelineContract={pages,transactions,defaults,runState,RUN_STATUSES,PROFILE_STATUSES,PIPELINE_STAGES,selfCheck,validateTransaction,createPrototypeProfile,triggerPrototypeRun,openProfileDetails,openRunDetails,exportRunResults};
+  window.fitcvPipelineContract={pages,transactions,defaults,runState,synonymState,RUN_STATUSES,PROFILE_STATUSES,SYNONYM_TYPES,SYNONYM_REVIEW_STATUSES,PIPELINE_STAGES,selfCheck,validateTransaction,parseSynonymEditor,createPrototypeProfile,triggerPrototypeRun,openProfileDetails,openSynonymDetails,openRunDetails,exportRunResults};
   console.assert(selfCheck(),'Pipeline prototype self-check failed');
   renderPage();
   })();
