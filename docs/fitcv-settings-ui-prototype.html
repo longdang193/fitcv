@@ -44,6 +44,9 @@
     .run-id{font-weight:600}.run-job,.run-status{font-weight:500}.detail-item dt,.job-attribute span{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.06em;line-height:1.3;text-transform:uppercase}.detail-item dd,.job-attribute strong{font-size:14px;font-weight:400;line-height:1.4}.run-input-details{grid-template-columns:repeat(2,minmax(0,1fr))}.summary-card{display:inline-flex;min-height:34px;appearance:none;width:auto;flex:0 0 auto;align-items:center;justify-content:center;gap:8px;padding:0 10px;color:var(--text);cursor:pointer;text-align:left;line-height:1.1}.summary-card[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.summary-card span{font-size:11px;line-height:1}.summary-card strong{display:block;margin:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}.results-filters{display:block;min-width:0;margin-bottom:12px}.stage-filter{width:100%;min-width:0}.pipeline-stage-tabs{display:flex;width:100%;max-width:100%;gap:4px;padding:4px;overflow-x:auto;overflow-y:hidden;border-radius:12px;background:var(--surface-2);white-space:nowrap}.pipeline-stage-tabs .btn{flex:1 0 110px;min-width:110px;border-color:transparent;background:transparent;font-weight:500}.pipeline-stage-tabs .btn[aria-selected="true"]{border-color:var(--border);background:var(--surface);color:var(--text);box-shadow:var(--shadow)}.pipeline-summary{display:flex;width:max-content;max-width:100%;gap:4px;margin:0;padding:4px;overflow-x:auto;border-radius:10px;background:var(--surface-2)}.results-search{width:min(560px,100%);min-width:min(560px,100%);flex:1}.results-toolbar{align-items:center;flex-wrap:wrap}.results-toolbar-actions{display:flex;max-width:100%;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}@media(max-width:760px){.results-search{width:100%;min-width:0}.results-toolbar-actions{width:100%;margin-left:0}}
   </style>
   <style>
+    .run-panel>*{min-width:0}.run-panel>[role="tabpanel"]{display:grid;gap:14px}.job-title-row{display:flex;align-items:flex-start;gap:8px;min-width:0}.jobs-table tbody tr.is-selected td:first-child{background:var(--accent-soft)}.bookmark-table{min-width:1390px}.bookmark-table th:first-child,.bookmark-table td:first-child{min-width:150px;max-width:150px}
+  </style>
+  <style>
     .synonym-editor-shell{display:grid;gap:12px}.synonym-editor-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.synonym-editor-actions,.synonym-editor-search{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.synonym-editor-search .field{width:min(340px,70vw)}.synonym-editor{width:100%;min-height:360px;max-height:70vh;padding:16px;resize:vertical;overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2;white-space:pre}.synonym-editor[readonly]{background:var(--surface-2);color:var(--muted)}.synonym-editor:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:2px}.synonym-editor-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.synonym-issue{display:inline-flex;min-height:32px;align-items:center;justify-content:center;padding:0 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);color:var(--text);font-size:12px;font-weight:650;line-height:1}.synonym-issue[data-kind="valid"]{border-color:color-mix(in srgb,#15803d 30%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}.synonym-issue[data-kind="warning"]{border-color:color-mix(in srgb,#b45309 35%,var(--border));background:#fff7df;color:#8a5d00;cursor:pointer}[data-theme="dark"] .synonym-issue[data-kind="valid"]{color:#86efac}[data-theme="dark"] .synonym-issue[data-kind="warning"]{background:#34270f;color:#f5cf78}.synonym-editor-message{margin:0;color:var(--muted);font-size:12px}.synonym-table{min-width:840px}.synonym-table th,.synonym-table td{white-space:nowrap}.synonym-table .synonym-sources{max-width:260px;overflow:hidden;color:var(--muted);text-overflow:ellipsis}.page-head .btn,.run-selection-actions .btn{white-space:nowrap}@media(max-width:760px){.synonym-editor-toolbar,.synonym-editor-actions,.synonym-editor-search{align-items:stretch;flex-direction:column}.synonym-editor-search .field,.synonym-editor-actions .btn{width:100%}.synonym-editor{min-height:300px}}
   </style>
 </head>
@@ -55,7 +58,7 @@
         <a class="nav-link" id="synonymsNav" href="#synonyms"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 7h10M7 12h10M7 17h6"/><path d="M5 5h14v14H5z"/></svg>Synonyms</a>
         <a class="nav-link" id="candidateProfilesNav" href="#candidate-profiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Candidate Profiles</a>
         <a class="nav-link" id="runsNav" href="#runs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg>Runs</a>
-        <a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
+        <a class="nav-link" id="bookmarksNav" href="#bookmarks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
         <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening">Screening</a><a class="nav-link child" href="#shortlisting">Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a></div></details>
         <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children"><a class="nav-link child" href="#" data-prototype-link>Appearance</a><a class="nav-link child" href="#" data-prototype-link>LLM &amp; API</a><a class="nav-link child" href="#" data-prototype-link>Data &amp; Backup</a><a class="nav-link child" href="#" data-prototype-link>System</a></div></details>
         <div class="nav-divider" aria-hidden="true"></div><a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h4l2-5 4 10 2-5h4"/></svg>Health</a>
@@ -115,6 +118,7 @@
     {id:'JOB-011',title:'Staff Data Analyst',url:'https://example.com/jobs/staff-data-analyst',location:'London, United Kingdom',workMode:'Remote',language:'English',seniority:'Staff',jobFamily:'Analytics',domain:'Marketplace',skills:['SQL','Python','Causal Inference','Experimentation','Data Storytelling','Mentoring'],rejectedAt:'ranking',rejectReason:'Final fit score ranked below available candidates.'},
     {id:'JOB-012',title:'Data Platform Product Manager',url:'https://example.com/jobs/data-platform-product-manager',location:'Copenhagen, Denmark',workMode:'Hybrid',language:'English',seniority:'Senior',jobFamily:'Product Management',domain:'Developer Tools',skills:['Platform Product Management','APIs','Data Infrastructure','Roadmapping','Developer Experience','SQL'],rejectedAt:null,rejectReason:''}
   ];
+  const DEFAULT_BOOKMARK_KEYS=['RUN-3B18D6F4:JOB-002','RUN-A94F210B:JOB-004','RUN-54C0E83D:JOB-005','RUN-7E4A92C1:JOB-006'];
   const DEFAULT_SYNONYM_DATABASE={
     skill:[
       {alias:'advanced excel',canonical:'microsoft excel'},
@@ -345,6 +349,7 @@
   const synonymsNav=document.querySelector('#synonymsNav');
   const candidateProfilesNav=document.querySelector('#candidateProfilesNav');
   const runsNav=document.querySelector('#runsNav');
+  const bookmarksNav=document.querySelector('#bookmarksNav');
   const searchBox=document.querySelector('#searchBox');
   const headerTitle=document.querySelector('#headerTitle');
   const headerDescription=document.querySelector('#headerDescription');
@@ -474,7 +479,9 @@
       seen.add(run.id);
       return typeof run.jobName==='string'&&Number.isFinite(run.createdAt)&&typeof run.archived==='boolean';
     });
-    return {candidateProfiles:clone(profiles),runs:clone(runs),runActiveTab:stored.runActiveTab==='archived'||stored.activeTab==='archived'?'archived':'active',profileActiveTab:stored.profileActiveTab==='archived'?'archived':'active'};
+    const validBookmarkKeys=new Set(runs.flatMap(run=>runJobs(run).map(job=>bookmarkKey(run,job))));
+    const bookmarks=[...new Set((Array.isArray(stored.bookmarks)?stored.bookmarks:DEFAULT_BOOKMARK_KEYS).filter(key=>typeof key==='string'&&validBookmarkKeys.has(key)))];
+    return {candidateProfiles:clone(profiles),runs:clone(runs),bookmarks,runActiveTab:stored.runActiveTab==='archived'||stored.activeTab==='archived'?'archived':'active',profileActiveTab:stored.profileActiveTab==='archived'?'archived':'active'};
   }
   let runState=normaliseRunState(readRunStored());
   let synonymState=normaliseSynonymState(readSynonymStored());
@@ -485,6 +492,8 @@
   let synonymProcessingLogStart=0;
   const selectedProfileIds=new Set();
   const selectedRunIds=new Set();
+  const selectedJobResultKeys=new Set();
+  const selectedBookmarkKeys=new Set();
   const RUN_PAGE_SIZES=[10,20,50];
   let runPage=1;
   let runPageSize=20;
@@ -495,10 +504,15 @@
   let jobResultsSearch='';
   let jobResultsPage=1;
   let jobResultsPageSize=10;
+  let bookmarkStage='shortlisting';
+  let bookmarkSearch='';
+  let bookmarkPage=1;
+  let bookmarkPageSize=10;
   const interestRatings=new Map();
-  const bookmarkedJobs=new Set();
+  const bookmarkedJobs=new Set(runState.bookmarks);
   const clearedConsoleRuns=new Set();
   function writeRunState(){localStorage.setItem(RUN_STORAGE_KEY,JSON.stringify(runState))}
+  function writeBookmarks(){runState.bookmarks=[...bookmarkedJobs];writeRunState()}
   function writeSynonymState(){localStorage.setItem(SYNONYM_STORAGE_KEY,JSON.stringify(synonymState))}
   writeRunState();
   writeSynonymState();
@@ -1049,34 +1063,100 @@
     return {result:'Passed',label:`Passed ${stageLabel(stageId)}`,reason:`Met ${stageLabel(stageId)} requirements.`};
   }
   function evaluatedJobResults(run){return runJobs(run).map(job=>({job,outcome:jobOutcome(job,pipelineStage,run)})).filter(item=>item.outcome)}
+  function jobMatchesSearch(run,job,outcome,term){return !term||[run.id,job.title,job.location,job.workMode,job.language,job.seniority,job.jobFamily,job.domain,job.skills.join(' '),outcome.label,outcome.reason].some(value=>value.toLowerCase().includes(term))}
   function filteredJobResults(run){
     const searchTerm=jobResultsSearch.trim().toLowerCase();
-    return evaluatedJobResults(run).filter(item=>pipelineResult==='all'||item.outcome.result.toLowerCase()===pipelineResult).filter(({job,outcome})=>!searchTerm||[job.title,job.location,job.workMode,job.language,job.seniority,job.jobFamily,job.domain,job.skills.join(' '),outcome.label,outcome.reason].some(value=>value.toLowerCase().includes(searchTerm))).sort((left,right)=>left.job.title.localeCompare(right.job.title));
+    return evaluatedJobResults(run).filter(item=>pipelineResult==='all'||item.outcome.result.toLowerCase()===pipelineResult).filter(({job,outcome})=>jobMatchesSearch(run,job,outcome,searchTerm)).sort((left,right)=>left.job.title.localeCompare(right.job.title));
   }
   function bookmarkKey(run,job){return `${run.id}:${typeof job==='string'?job:job.id}`}
   function bookmarkMarkup(run,job){
     const bookmarked=bookmarkedJobs.has(bookmarkKey(run,job)),label=`${bookmarked?'Remove':'Add'} bookmark for ${job.title}`;
     return `<button class="small-action icon-only bookmark-btn" type="button" data-bookmark-job="${job.id}" aria-pressed="${bookmarked}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-3.75L6 21V4.5Z"/></svg></button>`;
   }
-  function cvActionMarkup(job,outcome){
-    if(pipelineStage!=='cv-generation'||outcome.result!=='Passed')return '';
+  function cvActionMarkup(job,outcome,stageId=pipelineStage){
+    if(stageId!=='cv-generation'||outcome.result!=='Passed')return '';
     return `<div class="job-action-row"><button class="small-action" type="button" data-generated-cv-action="download" data-generated-cv-job="${job.id}" aria-label="Download generated CV for ${escapeHtml(job.title)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg><span>Download CV</span></button><button class="small-action" type="button" data-generated-cv-action="regenerate" data-generated-cv-job="${job.id}" aria-label="Regenerate CV for ${escapeHtml(job.title)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M6.1 8A7 7 0 0 1 18 6l2 2M17.9 16A7 7 0 0 1 6 18l-2-2"/></svg><span>Regenerate CV</span></button></div>`;
   }
   function cvReviewMarkup(outcome){return outcome.review==='stretch'?'<span class="cv-review" data-review="stretch">Stretch review</span>':''}
-  function ratingMarkup(run,job){
+  function ratingMarkup(run,job,showBookmark=true){
     const key=`${run.id}:${job.id}`,rating=interestRatings.get(key)||0;
-    return `<div class="interest-rating" aria-label="Application Interest for ${escapeHtml(job.title)}">${[1,2,3,4,5].map(value=>`<button class="star-btn" type="button" data-interest-rating="${value}" data-interest-job="${job.id}" aria-label="Rate ${value} of 5" aria-pressed="${value<=rating}">★</button>`).join('')}<button class="small-action clear-rating" type="button" data-clear-interest="${job.id}" ${rating?'':'disabled'}>Clear</button>${bookmarkMarkup(run,job)}</div>`;
+    return `<div class="interest-rating" aria-label="Application Interest for ${escapeHtml(job.title)}">${[1,2,3,4,5].map(value=>`<button class="star-btn" type="button" data-interest-rating="${value}" data-interest-job="${job.id}" data-interest-run="${run.id}" aria-label="Rate ${value} of 5" aria-pressed="${value<=rating}">★</button>`).join('')}<button class="small-action clear-rating" type="button" data-clear-interest="${job.id}" data-interest-run="${run.id}" ${rating?'':'disabled'}>Clear</button>${showBookmark?bookmarkMarkup(run,job):''}</div>`;
   }
-  function jobRowMarkup(run,item){
+  function jobRowMarkup(run,item,mode='run'){
     const {job,outcome}=item,visibleSkills=job.skills.slice(0,5),extra=job.skills.length-visibleSkills.length;
-    return `<tr><td><div class="job-primary"><div class="job-title-row"><a class="job-title-link" href="${escapeHtml(job.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(job.title)}</a></div>${ratingMarkup(run,job)}${cvActionMarkup(job,outcome)}</div></td><td><div class="job-attributes">${[['Location',job.location],['Work Mode',job.workMode],['Language',job.language],['Seniority',job.seniority],['Job Family',job.jobFamily],['Domain',job.domain]].map(([label,value])=>`<div class="job-attribute"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}</div></td><td><div class="skill-list">${visibleSkills.map(skill=>`<span class="skill-chip">${escapeHtml(skill)}</span>`).join('')}${extra?`<span class="skill-chip">+${extra} more</span>`:''}</div></td><td><div class="pipeline-outcome"><span class="badge run-status" data-status="${outcome.result==='Rejected'?'Failed':'Succeeded'}">${outcome.label}</span><span class="outcome-reason">${escapeHtml(outcome.reason)}</span>${cvReviewMarkup(outcome)}</div></td></tr>`;
+    const key=bookmarkKey(run,job),bookmarksMode=mode==='bookmark',selected=bookmarksMode?selectedBookmarkKeys:selectedJobResultKeys,selectAttribute=bookmarksMode?'data-bookmark-select':'data-job-result-select';
+    const runCell=bookmarksMode?`<td><button class="run-id run-id-link" type="button" data-bookmark-run-details="${run.id}" aria-label="Open details for ${run.id}">${run.id}</button></td>`:'';
+    return `<tr class="${selected.has(key)?'is-selected':''}">${runCell}<td><div class="job-primary"><div class="job-title-row"><input type="checkbox" ${selectAttribute}="${key}" aria-label="Select ${escapeHtml(job.title)} from ${run.id}" ${selected.has(key)?'checked':''}><a class="job-title-link" href="${escapeHtml(job.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(job.title)}</a></div>${ratingMarkup(run,job,!bookmarksMode)}${cvActionMarkup(job,outcome,bookmarksMode?bookmarkStage:pipelineStage)}</div></td><td><div class="job-attributes">${[['Location',job.location],['Work Mode',job.workMode],['Language',job.language],['Seniority',job.seniority],['Job Family',job.jobFamily],['Domain',job.domain]].map(([label,value])=>`<div class="job-attribute"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}</div></td><td><div class="skill-list">${visibleSkills.map(skill=>`<span class="skill-chip">${escapeHtml(skill)}</span>`).join('')}${extra?`<span class="skill-chip">+${extra} more</span>`:''}</div></td><td><div class="pipeline-outcome"><span class="badge run-status" data-status="${outcome.result==='Rejected'?'Failed':'Succeeded'}">${outcome.label}</span><span class="outcome-reason">${escapeHtml(outcome.reason)}</span>${cvReviewMarkup(outcome)}</div></td></tr>`;
   }
-  function jobPaginationMarkup(total){
-    const totalPages=Math.max(1,Math.ceil(total/jobResultsPageSize));
-    jobResultsPage=Math.min(jobResultsPage,totalPages);
-    const start=total?(jobResultsPage-1)*jobResultsPageSize+1:0,end=Math.min(total,jobResultsPage*jobResultsPageSize);
-    const pages=paginationItems(jobResultsPage,totalPages).map(item=>item==='…'?'<span class="run-page-gap" aria-hidden="true">…</span>':`<button class="btn" type="button" data-job-page="${item}" ${item===jobResultsPage?'aria-current="page"':''} aria-label="Page ${item}">${item}</button>`).join('');
-    return `<div class="run-pagination"><span>Showing <strong>${start}</strong> to <strong>${end}</strong> of <strong>${total}</strong> results</span><div class="run-pagination-controls"><label class="run-page-size" for="jobResultsPageSize">Rows:<select class="field" id="jobResultsPageSize">${RUN_PAGE_SIZES.map(size=>`<option value="${size}" ${size===jobResultsPageSize?'selected':''}>${size}</option>`).join('')}</select></label><div class="run-page-numbers" aria-label="Job results pagination"><button class="btn" type="button" data-job-page="previous" aria-label="Previous page" ${jobResultsPage===1?'disabled':''}>‹</button>${pages}<button class="btn" type="button" data-job-page="next" aria-label="Next page" ${jobResultsPage===totalPages?'disabled':''}>›</button></div></div></div>`;
+  function jobPaginationMarkup(total,mode='run'){
+    const bookmarksMode=mode==='bookmark',page=bookmarksMode?bookmarkPage:jobResultsPage,pageSize=bookmarksMode?bookmarkPageSize:jobResultsPageSize,totalPages=Math.max(1,Math.ceil(total/pageSize)),currentPage=Math.min(page,totalPages),pageData=bookmarksMode?'bookmark-page':'job-page',sizeId=bookmarksMode?'bookmarkPageSize':'jobResultsPageSize';
+    if(bookmarksMode)bookmarkPage=currentPage;else jobResultsPage=currentPage;
+    const start=total?(currentPage-1)*pageSize+1:0,end=Math.min(total,currentPage*pageSize);
+    const pages=paginationItems(currentPage,totalPages).map(item=>item==='…'?'<span class="run-page-gap" aria-hidden="true">…</span>':`<button class="btn" type="button" data-${pageData}="${item}" ${item===currentPage?'aria-current="page"':''} aria-label="Page ${item}">${item}</button>`).join('');
+    return `<div class="run-pagination"><span>Showing <strong>${start}</strong> to <strong>${end}</strong> of <strong>${total}</strong> results</span><div class="run-pagination-controls"><label class="run-page-size" for="${sizeId}">Rows:<select class="field" id="${sizeId}">${RUN_PAGE_SIZES.map(size=>`<option value="${size}" ${size===pageSize?'selected':''}>${size}</option>`).join('')}</select></label><div class="run-page-numbers" aria-label="${bookmarksMode?'Bookmark':'Job results'} pagination"><button class="btn" type="button" data-${pageData}="previous" aria-label="Previous page" ${currentPage===1?'disabled':''}>‹</button>${pages}<button class="btn" type="button" data-${pageData}="next" aria-label="Next page" ${currentPage===totalPages?'disabled':''}>›</button></div></div></div>`;
+  }
+  function bookmarkedJobResults(){
+    const results=[];
+    for(const key of bookmarkedJobs){
+      const [runId,jobId]=key.split(':'),run=runState.runs.find(item=>item.id===runId),job=run&&runJobs(run).find(item=>item.id===jobId);
+      if(!run||!job)continue;
+      const outcome=jobOutcome(job,bookmarkStage,run);
+      if(outcome)results.push({run,job,outcome});
+    }
+    return results.sort((left,right)=>left.job.title.localeCompare(right.job.title)||left.run.id.localeCompare(right.run.id));
+  }
+  function filteredBookmarkedJobResults(){
+    const searchTerm=bookmarkSearch.trim().toLowerCase();
+    return bookmarkedJobResults().filter(({run,job,outcome})=>jobMatchesSearch(run,job,outcome,searchTerm));
+  }
+  function bookmarkSelectionMarkup(filtered){
+    const selected=filtered.filter(({run,job})=>selectedBookmarkKeys.has(bookmarkKey(run,job)));
+    if(!selected.length)return '';
+    return `<div class="run-selection"><div class="run-selection-copy"><strong>${selected.length} bookmarked job${selected.length===1?'':'s'} selected</strong><span>Export and Remove Bookmarks apply only to selected jobs in the current stage and search.</span></div><div class="run-selection-actions"><button class="btn" id="removeSelectedBookmarks" type="button">Remove Bookmarks</button></div></div>`;
+  }
+  function bookmarkTableMarkup(items,total){
+    if(!items.length){
+      const empty=bookmarkedJobs.size?'<div class="empty-state"><h3>No bookmarks match this view</h3><p>Change the pipeline stage or search to see other bookmarked jobs.</p></div>':'<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M6 4h12v17l-6-4-6 4z"/></svg><h3>No bookmarked jobs yet</h3><p>Add bookmarks from Run Details to collect jobs here.</p></div>';
+      return `<div class="section-card table-card">${empty}</div>`;
+    }
+    const allSelected=items.every(({run,job})=>selectedBookmarkKeys.has(bookmarkKey(run,job))),someSelected=!allSelected&&items.some(({run,job})=>selectedBookmarkKeys.has(bookmarkKey(run,job)));
+    return `<div class="section-card table-card"><div class="table-scroll"><table class="run-table jobs-table bookmark-table"><thead><tr><th>Run ID</th><th><input id="selectAllBookmarks" type="checkbox" aria-label="Select all visible bookmarked jobs" ${allSelected?'checked':''} data-indeterminate="${someSelected}"> Job &amp; Actions</th><th>Job Attributes</th><th>Required Skills</th><th>Pipeline Outcome</th></tr></thead><tbody>${items.map(item=>jobRowMarkup(item.run,item,'bookmark')).join('')}</tbody></table></div>${jobPaginationMarkup(total,'bookmark')}</div>`;
+  }
+  function renderBookmarksPage(){
+    const filtered=filteredBookmarkedJobResults();
+    selectedBookmarkKeys.forEach(key=>{if(!filtered.some(({run,job})=>bookmarkKey(run,job)===key))selectedBookmarkKeys.delete(key)});
+    const totalPages=Math.max(1,Math.ceil(filtered.length/bookmarkPageSize));
+    bookmarkPage=Math.min(bookmarkPage,totalPages);
+    const pageItems=filtered.slice((bookmarkPage-1)*bookmarkPageSize,bookmarkPage*bookmarkPageSize),selectedCount=filtered.filter(({run,job})=>selectedBookmarkKeys.has(bookmarkKey(run,job))).length;
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Workspace</p><h2>Bookmarks</h2><p>Review bookmarked jobs across runs using the same pipeline evidence as Run Details.</p></div></div><div class="run-panel"><div class="pipeline-stage-tabs" role="tablist" aria-label="Bookmark pipeline stages">${PIPELINE_STAGES.map(stage=>`<button class="btn" type="button" role="tab" data-bookmark-stage="${stage.id}" aria-selected="${stage.id===bookmarkStage}" tabindex="${stage.id===bookmarkStage?'0':'-1'}">${stage.label}</button>`).join('')}</div><div class="results-toolbar"><input class="field results-search" id="bookmarkSearch" type="search" value="${escapeHtml(bookmarkSearch)}" placeholder="Search bookmarked jobs, runs, attributes, skills, or outcomes" aria-label="Search bookmarked jobs"><div class="results-toolbar-actions"><button class="btn" id="exportBookmarks" type="button" ${selectedCount?'':'disabled'}>Export</button></div></div>${bookmarkSelectionMarkup(filtered)}<div id="bookmarkTablePanel">${bookmarkTableMarkup(pageItems,filtered.length)}</div></div>`;
+    bindBookmarksPage(pageItems,filtered);
+  }
+  function setBookmarkStage(stage){
+    bookmarkStage=stage;bookmarkPage=1;selectedBookmarkKeys.clear();renderBookmarksPage();form.querySelector(`[data-bookmark-stage="${stage}"]`)?.focus();
+  }
+  function removeSelectedBookmarks(){
+    const selected=filteredBookmarkedJobResults().filter(({run,job})=>selectedBookmarkKeys.has(bookmarkKey(run,job)));
+    if(!selected.length||!confirm(`Remove bookmarks from ${selected.length} selected job${selected.length===1?'':'s'}?\n\nJobs will remain available in their runs.`))return;
+    for(const {run,job} of selected)bookmarkedJobs.delete(bookmarkKey(run,job));
+    selectedBookmarkKeys.clear();writeBookmarks();renderBookmarksPage();notify(`${selected.length} bookmark${selected.length===1?'':'s'} removed`);
+  }
+  function bindBookmarksPage(pageItems,filtered){
+    form.querySelectorAll('[data-bookmark-stage]').forEach(button=>{
+      button.addEventListener('click',()=>setBookmarkStage(button.dataset.bookmarkStage));
+      button.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight'].includes(event.key))return;event.preventDefault();const index=PIPELINE_STAGES.findIndex(stage=>stage.id===button.dataset.bookmarkStage),offset=event.key==='ArrowRight'?1:-1;setBookmarkStage(PIPELINE_STAGES[(index+offset+PIPELINE_STAGES.length)%PIPELINE_STAGES.length].id)});
+    });
+    form.querySelector('#bookmarkSearch')?.addEventListener('input',event=>{bookmarkSearch=event.currentTarget.value;bookmarkPage=1;renderBookmarksPage();const input=form.querySelector('#bookmarkSearch');input.focus();input.setSelectionRange(bookmarkSearch.length,bookmarkSearch.length)});
+    form.querySelectorAll('[data-bookmark-select]').forEach(checkbox=>checkbox.addEventListener('change',()=>{checkbox.checked?selectedBookmarkKeys.add(checkbox.dataset.bookmarkSelect):selectedBookmarkKeys.delete(checkbox.dataset.bookmarkSelect);renderBookmarksPage()}));
+    const selectAll=form.querySelector('#selectAllBookmarks');
+    if(selectAll){selectAll.indeterminate=selectAll.dataset.indeterminate==='true';selectAll.addEventListener('change',()=>{pageItems.forEach(({run,job})=>selectAll.checked?selectedBookmarkKeys.add(bookmarkKey(run,job)):selectedBookmarkKeys.delete(bookmarkKey(run,job)));renderBookmarksPage()})}
+    form.querySelectorAll('[data-bookmark-run-details]').forEach(button=>button.addEventListener('click',()=>openRunDetails(button.dataset.bookmarkRunDetails,bookmarkStage)));
+    form.querySelectorAll('[data-interest-rating]').forEach(button=>button.addEventListener('click',()=>{interestRatings.set(`${button.dataset.interestRun}:${button.dataset.interestJob}`,Number(button.dataset.interestRating));renderBookmarksPage()}));
+    form.querySelectorAll('[data-clear-interest]').forEach(button=>button.addEventListener('click',()=>{interestRatings.delete(`${button.dataset.interestRun}:${button.dataset.clearInterest}`);renderBookmarksPage()}));
+    form.querySelectorAll('[data-generated-cv-action]').forEach(button=>button.addEventListener('click',()=>notify(`${button.dataset.generatedCvAction==='download'?'Download':'Regenerate'} CV for ${button.dataset.generatedCvJob}`)));
+    form.querySelector('#bookmarkPageSize')?.addEventListener('change',event=>{bookmarkPageSize=Number(event.currentTarget.value);bookmarkPage=1;renderBookmarksPage()});
+    form.querySelectorAll('[data-bookmark-page]').forEach(button=>button.addEventListener('click',()=>{const totalPages=Math.max(1,Math.ceil(filtered.length/bookmarkPageSize));bookmarkPage=button.dataset.bookmarkPage==='previous'?bookmarkPage-1:button.dataset.bookmarkPage==='next'?bookmarkPage+1:Number(button.dataset.bookmarkPage);bookmarkPage=Math.max(1,Math.min(bookmarkPage,totalPages));renderBookmarksPage()}));
+    form.querySelector('#exportBookmarks')?.addEventListener('click',exportBookmarkedJobs);
+    form.querySelector('#removeSelectedBookmarks')?.addEventListener('click',removeSelectedBookmarks);
   }
   function runConsoleEntries(run){
     const started=run.startedAt||run.createdAt,count=runJobs(run).length;
@@ -1097,15 +1177,26 @@
     const url=URL.createObjectURL(new Blob([JSON.stringify(bundle,null,2)],{type:'application/json;charset=utf-8'})),link=document.createElement('a');
     link.href=url;link.download=`${run.id}-debug-bundle.json`;link.click();URL.revokeObjectURL(url);notify('Debug bundle downloaded');
   }
+  function jobResultSelectionMarkup(run,filtered){
+    const selected=filtered.filter(({job})=>selectedJobResultKeys.has(bookmarkKey(run,job)));
+    if(!selected.length)return '';
+    return `<div class="run-selection"><div class="run-selection-copy"><strong>${selected.length} job${selected.length===1?'':'s'} selected</strong><span>Export applies only to selected jobs in the current stage and filters.</span></div></div>`;
+  }
+  function jobResultsTableMarkup(run,pageRows,total){
+    if(!pageRows.length)return `<div class="table-card"><div class="jobs-empty">No jobs match current filters.</div></div>`;
+    const allSelected=pageRows.every(({job})=>selectedJobResultKeys.has(bookmarkKey(run,job))),someSelected=!allSelected&&pageRows.some(({job})=>selectedJobResultKeys.has(bookmarkKey(run,job)));
+    return `<div class="table-card"><div class="table-scroll"><table class="run-table jobs-table"><thead><tr><th><input id="selectAllJobResults" type="checkbox" aria-label="Select all visible job results" ${allSelected?'checked':''} data-indeterminate="${someSelected}"> Job &amp; Actions</th><th>Job Attributes</th><th>Required Skills</th><th>Pipeline Outcome</th></tr></thead><tbody>${pageRows.map(item=>jobRowMarkup(run,item)).join('')}</tbody></table></div>${jobPaginationMarkup(total)}</div>`;
+  }
   function renderRunDetails(){
     const run=runState.runs.find(item=>item.id===selectedRunDetailId);
     if(!run){runDetailsDrawer.close();return}
     const evaluated=evaluatedJobResults(run),passed=evaluated.filter(item=>item.outcome.result==='Passed').length,rejected=evaluated.length-passed;
     const filtered=filteredJobResults(run),totalPages=Math.max(1,Math.ceil(filtered.length/jobResultsPageSize));
+    selectedJobResultKeys.forEach(key=>{if(!filtered.some(({job})=>bookmarkKey(run,job)===key))selectedJobResultKeys.delete(key)});
     jobResultsPage=Math.min(jobResultsPage,totalPages);
-    const pageRows=filtered.slice((jobResultsPage-1)*jobResultsPageSize,jobResultsPage*jobResultsPageSize);
+    const pageRows=filtered.slice((jobResultsPage-1)*jobResultsPageSize,jobResultsPage*jobResultsPageSize),selectedCount=filtered.filter(({job})=>selectedJobResultKeys.has(bookmarkKey(run,job))).length;
     runDetailsTitle.textContent=`Run ${run.id}`;
-    runDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Overview</strong><span>Current lifecycle information for this run.</span></span><span class="drawer-status">${statusMarkup(run)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid">${[['Run ID',run.id],['Run Name',run.runName||run.jobName],['Created',formatCreated(run.createdAt)],['Started',formatCreated(run.startedAt||run.createdAt)],['Finished',run.endedAt?formatCreated(run.endedAt):'—']].map(([label,value])=>`<div class="detail-item"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Input</strong><span>Read-only inputs used when this run was triggered.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details"><div class="detail-item"><dt>Job Input</dt><dd>${escapeHtml(run.inputFileName||run.jobName)}</dd></div><div class="detail-item"><dt>Candidate Profile</dt><dd>${escapeHtml(selectedProfileName(run))}</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Pipeline Results</strong><span>Includes passed and rejected jobs evaluated at the selected stage.</span></span></summary><div class="section-content drawer-section-content"><div class="results-filters"><div class="stage-filter"><div class="pipeline-stage-tabs" role="tablist" aria-label="Pipeline stages">${PIPELINE_STAGES.map(stage=>`<button class="btn" type="button" role="tab" data-pipeline-stage="${stage.id}" aria-selected="${stage.id===pipelineStage}" tabindex="${stage.id===pipelineStage?'0':'-1'}">${stage.label}</button>`).join('')}</div></div></div><div class="results-toolbar"><input class="field results-search" id="jobResultsSearch" type="search" value="${escapeHtml(jobResultsSearch)}" placeholder="Search jobs, attributes, skills, or outcomes" aria-label="Search pipeline results"><div class="results-toolbar-actions"><div class="pipeline-summary" role="tablist" aria-label="Pipeline result filter"><button class="summary-card" type="button" role="tab" data-pipeline-result="all" aria-selected="${pipelineResult==='all'}" tabindex="${pipelineResult==='all'?'0':'-1'}"><span>Total Evaluated</span><strong>${evaluated.length}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="passed" aria-selected="${pipelineResult==='passed'}" tabindex="${pipelineResult==='passed'?'0':'-1'}"><span>Passed</span><strong>${passed}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="rejected" aria-selected="${pipelineResult==='rejected'}" tabindex="${pipelineResult==='rejected'?'0':'-1'}"><span>Rejected</span><strong>${rejected}</strong></button></div><button class="btn" id="exportRunResults" type="button" ${filtered.length?'':'disabled'}>Export</button></div></div><div class="table-card"><div class="table-scroll">${pageRows.length?`<table class="run-table jobs-table"><thead><tr><th>Job &amp; Actions</th><th>Job Attributes</th><th>Required Skills</th><th>Pipeline Outcome</th></tr></thead><tbody>${pageRows.map(item=>jobRowMarkup(run,item)).join('')}</tbody></table>`:'<div class="jobs-empty">No jobs match current filters.</div>'}</div>${jobPaginationMarkup(filtered.length)}</div></div></details><details class="section-card collapsible-section drawer-section"><summary><span class="section-heading"><strong>Console Log</strong><span>Canonical run events for troubleshooting. Clear View hides loaded events locally without deleting backend evidence.</span></span></summary><div class="section-content drawer-section-content">${consoleLogMarkup(run)}</div></details>`;
+    runDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Overview</strong><span>Current lifecycle information for this run.</span></span><span class="drawer-status">${statusMarkup(run)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid">${[['Run ID',run.id],['Run Name',run.runName||run.jobName],['Created',formatCreated(run.createdAt)],['Started',formatCreated(run.startedAt||run.createdAt)],['Finished',run.endedAt?formatCreated(run.endedAt):'—']].map(([label,value])=>`<div class="detail-item"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Input</strong><span>Read-only inputs used when this run was triggered.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details"><div class="detail-item"><dt>Job Input</dt><dd>${escapeHtml(run.inputFileName||run.jobName)}</dd></div><div class="detail-item"><dt>Candidate Profile</dt><dd>${escapeHtml(selectedProfileName(run))}</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Pipeline Results</strong><span>Includes passed and rejected jobs evaluated at the selected stage.</span></span></summary><div class="section-content drawer-section-content"><div class="results-filters"><div class="stage-filter"><div class="pipeline-stage-tabs" role="tablist" aria-label="Pipeline stages">${PIPELINE_STAGES.map(stage=>`<button class="btn" type="button" role="tab" data-pipeline-stage="${stage.id}" aria-selected="${stage.id===pipelineStage}" tabindex="${stage.id===pipelineStage?'0':'-1'}">${stage.label}</button>`).join('')}</div></div></div><div class="results-toolbar"><input class="field results-search" id="jobResultsSearch" type="search" value="${escapeHtml(jobResultsSearch)}" placeholder="Search jobs, attributes, skills, or outcomes" aria-label="Search pipeline results"><div class="results-toolbar-actions"><div class="pipeline-summary" role="tablist" aria-label="Pipeline result filter"><button class="summary-card" type="button" role="tab" data-pipeline-result="all" aria-selected="${pipelineResult==='all'}" tabindex="${pipelineResult==='all'?'0':'-1'}"><span>Total Evaluated</span><strong>${evaluated.length}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="passed" aria-selected="${pipelineResult==='passed'}" tabindex="${pipelineResult==='passed'?'0':'-1'}"><span>Passed</span><strong>${passed}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="rejected" aria-selected="${pipelineResult==='rejected'}" tabindex="${pipelineResult==='rejected'?'0':'-1'}"><span>Rejected</span><strong>${rejected}</strong></button></div><button class="btn" id="exportRunResults" type="button" ${selectedCount?'':'disabled'}>Export</button></div></div><div class="run-panel">${jobResultSelectionMarkup(run,filtered)}${jobResultsTableMarkup(run,pageRows,filtered.length)}</div></div></details><details class="section-card collapsible-section drawer-section"><summary><span class="section-heading"><strong>Console Log</strong><span>Canonical run events for troubleshooting. Clear View hides loaded events locally without deleting backend evidence.</span></span></summary><div class="section-content drawer-section-content">${consoleLogMarkup(run)}</div></details>`;
     bindRunDetails(run);
   }
   function bindConsoleControls(run,root=runDetailsBody){
@@ -1121,29 +1212,47 @@
         button.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight'].includes(event.key))return;event.preventDefault();const next=(index+(event.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;buttons[next].click();runDetailsBody.querySelectorAll(selector)[next]?.focus()});
       });
     };
-    bindTabs('[data-pipeline-stage]','pipelineStage',value=>{pipelineStage=value;pipelineResult='all';jobResultsPage=1;renderRunDetails()});
+    bindTabs('[data-pipeline-stage]','pipelineStage',value=>{pipelineStage=value;pipelineResult='all';jobResultsPage=1;selectedJobResultKeys.clear();renderRunDetails()});
     bindTabs('[data-pipeline-result]','pipelineResult',value=>{pipelineResult=value;jobResultsPage=1;renderRunDetails()});
     runDetailsBody.querySelector('#jobResultsSearch').addEventListener('input',event=>{jobResultsSearch=event.currentTarget.value;jobResultsPage=1;renderRunDetails();const input=runDetailsBody.querySelector('#jobResultsSearch');input.focus();input.setSelectionRange(jobResultsSearch.length,jobResultsSearch.length)});
     runDetailsBody.querySelector('#jobResultsPageSize').addEventListener('change',event=>{jobResultsPageSize=Number(event.currentTarget.value);jobResultsPage=1;renderRunDetails()});
     runDetailsBody.querySelectorAll('[data-job-page]').forEach(button=>button.addEventListener('click',()=>{const totalPages=Math.max(1,Math.ceil(filteredJobResults(run).length/jobResultsPageSize));jobResultsPage=button.dataset.jobPage==='previous'?jobResultsPage-1:button.dataset.jobPage==='next'?jobResultsPage+1:Number(button.dataset.jobPage);jobResultsPage=Math.max(1,Math.min(jobResultsPage,totalPages));renderRunDetails()}));
+    runDetailsBody.querySelectorAll('[data-job-result-select]').forEach(checkbox=>checkbox.addEventListener('change',()=>{checkbox.checked?selectedJobResultKeys.add(checkbox.dataset.jobResultSelect):selectedJobResultKeys.delete(checkbox.dataset.jobResultSelect);renderRunDetails()}));
+    const selectAll=runDetailsBody.querySelector('#selectAllJobResults');
+    if(selectAll){selectAll.indeterminate=selectAll.dataset.indeterminate==='true';selectAll.addEventListener('change',()=>{const filtered=filteredJobResults(run),pageRows=filtered.slice((jobResultsPage-1)*jobResultsPageSize,jobResultsPage*jobResultsPageSize);pageRows.forEach(({job})=>selectAll.checked?selectedJobResultKeys.add(bookmarkKey(run,job)):selectedJobResultKeys.delete(bookmarkKey(run,job)));renderRunDetails()})}
     runDetailsBody.querySelectorAll('[data-generated-cv-action]').forEach(button=>button.addEventListener('click',()=>notify(`${button.dataset.generatedCvAction==='download'?'Download':'Regenerate'} CV for ${button.dataset.generatedCvJob}`)));
-    runDetailsBody.querySelectorAll('[data-bookmark-job]').forEach(button=>button.addEventListener('click',()=>{const key=bookmarkKey(run,button.dataset.bookmarkJob);bookmarkedJobs.has(key)?bookmarkedJobs.delete(key):bookmarkedJobs.add(key);renderRunDetails()}));
+    runDetailsBody.querySelectorAll('[data-bookmark-job]').forEach(button=>button.addEventListener('click',()=>{const key=bookmarkKey(run,button.dataset.bookmarkJob);bookmarkedJobs.has(key)?bookmarkedJobs.delete(key):bookmarkedJobs.add(key);writeBookmarks();renderRunDetails()}));
     runDetailsBody.querySelectorAll('[data-interest-rating]').forEach(button=>button.addEventListener('click',()=>{interestRatings.set(`${run.id}:${button.dataset.interestJob}`,Number(button.dataset.interestRating));renderRunDetails()}));
     runDetailsBody.querySelectorAll('[data-clear-interest]').forEach(button=>button.addEventListener('click',()=>{interestRatings.delete(`${run.id}:${button.dataset.clearInterest}`);renderRunDetails()}));
     runDetailsBody.querySelector('#exportRunResults').addEventListener('click',()=>exportRunResults(run));
     bindConsoleControls(run);
   }
-  function openRunDetails(runId){
+  function openRunDetails(runId,stage='shortlisting'){
     if(!runState.runs.some(run=>run.id===runId))return;
-    selectedRunDetailId=runId;pipelineStage='shortlisting';pipelineResult='all';jobResultsSearch='';jobResultsPage=1;jobResultsPageSize=10;
+    selectedRunDetailId=runId;pipelineStage=PIPELINE_STAGES.some(item=>item.id===stage)?stage:'shortlisting';pipelineResult='all';jobResultsSearch='';jobResultsPage=1;jobResultsPageSize=10;selectedJobResultKeys.clear();
     renderRunDetails();runDetailsDrawer.showModal();
   }
-  function exportRunResults(run){
-    const csvCell=value=>`"${String(value??'').replaceAll('"','""')}"`;
-    const rows=filteredJobResults(run).map(({job,outcome})=>[job.title,job.url,job.location,job.workMode,job.language,job.seniority,job.jobFamily,job.domain,job.skills.join('; '),outcome.result,outcome.label,outcome.reason,interestRatings.get(`${run.id}:${job.id}`)||'']);
-    const csv=[['Job Title','Listing URL','Location','Work Mode','Language','Seniority','Job Family','Domain','Required Skills','Result','Pipeline Outcome','Reason','Application Interest'],...rows].map(row=>row.map(csvCell).join(',')).join('\n');
+  function downloadJobCsv(fileName,headers,rows){
+    const csvCell=value=>`"${String(value??'').replaceAll('"','""')}"`,csv=[headers,...rows].map(row=>row.map(csvCell).join(',')).join('\n');
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');
-    link.href=url;link.download=`${run.id}-${pipelineStage}-results.csv`;link.click();URL.revokeObjectURL(url);notify(`${rows.length} filtered result${rows.length===1?'':'s'} exported`);
+    link.href=url;link.download=fileName;link.click();URL.revokeObjectURL(url);
+  }
+  function jobExportRow(run,{job,outcome},includeRunId=false){
+    const row=[job.title,job.url,job.location,job.workMode,job.language,job.seniority,job.jobFamily,job.domain,job.skills.join('; '),outcome.result,outcome.label,outcome.reason,interestRatings.get(`${run.id}:${job.id}`)||''];
+    return includeRunId?[run.id,...row]:row;
+  }
+  function exportNotice(count,stage,search,label){notify(`Exported ${count} selected ${label} from ${stageLabel(stage)}${search.trim()?` matching "${search.trim()}"`:''}`)}
+  function exportRunResults(run){
+    const selected=filteredJobResults(run).filter(({job})=>selectedJobResultKeys.has(bookmarkKey(run,job)));
+    if(!selected.length)return;
+    downloadJobCsv(`${run.id}-${pipelineStage}-results.csv`,['Job Title','Listing URL','Location','Work Mode','Language','Seniority','Job Family','Domain','Required Skills','Result','Pipeline Outcome','Reason','Application Interest'],selected.map(item=>jobExportRow(run,item)));
+    exportNotice(selected.length,pipelineStage,jobResultsSearch,'job results');
+  }
+  function exportBookmarkedJobs(){
+    const selected=filteredBookmarkedJobResults().filter(({run,job})=>selectedBookmarkKeys.has(bookmarkKey(run,job)));
+    if(!selected.length)return;
+    downloadJobCsv(`bookmarked-jobs-${bookmarkStage}.csv`,['Run ID','Job Title','Listing URL','Location','Work Mode','Language','Seniority','Job Family','Domain','Required Skills','Result','Pipeline Outcome','Reason','Application Interest'],selected.map(item=>jobExportRow(item.run,item,true)));
+    exportNotice(selected.length,bookmarkStage,bookmarkSearch,'bookmarked jobs');
   }
   function availableCandidateProfiles(){return runState.candidateProfiles.filter(profile=>!profile.archived&&profile.status==='Succeeded')}
   function populateCandidateProfiles(){
@@ -1209,8 +1318,11 @@
     if(!confirm(`Delete ${selected.length} archived run${selected.length===1?'':'s'}?\n\nThis permanently removes the selected run${selected.length===1?'':'s'} from prototype state. This cannot be undone.`))return;
     const deletedIds=new Set(selected.map(run=>run.id));
     runState.runs=runState.runs.filter(run=>!deletedIds.has(run.id));
+    for(const key of bookmarkedJobs){
+      if(deletedIds.has(key.split(':')[0]))bookmarkedJobs.delete(key);
+    }
     selectedRunIds.clear();
-    writeRunState();
+    writeBookmarks();
     renderRunsPage();
     notify(`${selected.length} archived run${selected.length===1?'':'s'} deleted`);
   }
@@ -1263,6 +1375,7 @@
   function isSynonymsPage(){return location.hash==='#synonyms'}
   function isCandidateProfilesPage(){return location.hash==='#candidate-profiles'}
   function isRunsPage(){return location.hash==='#runs'}
+  function isBookmarksPage(){return location.hash==='#bookmarks'}
   function currentPage(){return pages.find(page=>page.id===location.hash.slice(1))||pages[0]}
   function renderPage(){
     if(isSynonymsPage()){
@@ -1276,6 +1389,8 @@
       candidateProfilesNav.removeAttribute('aria-current');
       runsNav.classList.remove('active');
       runsNav.removeAttribute('aria-current');
+      bookmarksNav.classList.remove('active');
+      bookmarksNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderSynonymsPage();
       return;
@@ -1291,6 +1406,8 @@
       candidateProfilesNav.setAttribute('aria-current','page');
       runsNav.classList.remove('active');
       runsNav.removeAttribute('aria-current');
+      bookmarksNav.classList.remove('active');
+      bookmarksNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderCandidateProfilesPage();
       return;
@@ -1306,8 +1423,27 @@
       candidateProfilesNav.removeAttribute('aria-current');
       runsNav.classList.add('active');
       runsNav.setAttribute('aria-current','page');
+      bookmarksNav.classList.remove('active');
+      bookmarksNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderRunsPage();
+      return;
+    }
+    if(isBookmarksPage()){
+      headerTitle.textContent='Bookmarks';
+      headerDescription.textContent='Review selected jobs across runs and pipeline stages.';
+      titleIcon.innerHTML='<path d="M6 4h12v17l-6-4-6 4z"/>';
+      searchBox.hidden=true;
+      synonymsNav.classList.remove('active');
+      synonymsNav.removeAttribute('aria-current');
+      candidateProfilesNav.classList.remove('active');
+      candidateProfilesNav.removeAttribute('aria-current');
+      runsNav.classList.remove('active');
+      runsNav.removeAttribute('aria-current');
+      bookmarksNav.classList.add('active');
+      bookmarksNav.setAttribute('aria-current','page');
+      pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+      renderBookmarksPage();
       return;
     }
     const page=currentPage();
@@ -1322,6 +1458,8 @@
     candidateProfilesNav.removeAttribute('aria-current');
     runsNav.classList.remove('active');
     runsNav.removeAttribute('aria-current');
+    bookmarksNav.classList.remove('active');
+    bookmarksNav.removeAttribute('aria-current');
     pipelineNav.replaceChildren(...pages.map(item=>{
       const link=document.createElement('a');
       link.className=`nav-link child${item.id===page.id?' active':''}`;
@@ -1491,8 +1629,10 @@
     if(!['active','archived'].includes(runState.runActiveTab)||!['active','archived'].includes(runState.profileActiveTab))throw new Error('Run and Candidate Profile tabs must use independent valid states');
     if(new Set(DEFAULT_RUNS.map(run=>run.id)).size!==DEFAULT_RUNS.length)throw new Error('Run IDs must be unique');
     if(DEFAULT_RUNS.some(run=>!RUN_STATUSES.has(run.status)))throw new Error('Prototype runs must use supported statuses');
+    if(normaliseRunState({}).bookmarks.length!==DEFAULT_BOOKMARK_KEYS.length)throw new Error('Default bookmarks must reference valid run jobs');
     if(new Set(PROTOTYPE_JOB_CATALOG.map(job=>job.id)).size!==PROTOTYPE_JOB_CATALOG.length)throw new Error('Prototype Job IDs must be unique');
     if(!PIPELINE_STAGES.some(stage=>stage.id==='shortlisting'))throw new Error('Run Details must support Shortlisting');
+    if(!jobResultsTableMarkup(DEFAULT_RUNS[0],[evaluatedJobResults(DEFAULT_RUNS[0])[0]],1).includes('selectAllJobResults')||!bookmarkTableMarkup([],0).includes('No bookmarked jobs'))throw new Error('Run Details and Bookmarks must expose shared selection and empty states');
     if(jobFile.multiple)throw new Error('Run dialog must accept one Job Input file');
     if(profileFile.accept!=='.yaml'||profileFile.multiple||!isYamlProfileFile({name:'profile.yaml'})||isYamlProfileFile({name:'profile.yml'})||isYamlProfileFile({name:'profile.pdf'}))throw new Error('Candidate Profile dialog must accept one .yaml file');
     if(paginationItems(1,10).join(',')!=='1,2,3,4,5,…,10')throw new Error('Pagination must compact trailing pages');
@@ -1550,6 +1690,7 @@
   synonymsNav.addEventListener('click',()=>openNav(false));
   candidateProfilesNav.addEventListener('click',()=>openNav(false));
   runsNav.addEventListener('click',()=>openNav(false));
+  bookmarksNav.addEventListener('click',()=>openNav(false));
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!dialog.open)openNav(false)});
   document.querySelectorAll('[data-prototype-link]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();notify(`${link.textContent.trim()} is navigation-only in this prototype`);openNav(false)}));
   search.addEventListener('input',filterRows);
@@ -1558,10 +1699,11 @@
     const changed=refreshRunStatuses();
     if(changed&&isRunsPage())renderRunsPage();
     else if(isRunsPage())updateRunningDurations();
+    if(changed&&isBookmarksPage())renderBookmarksPage();
     if(changed&&runDetailsDrawer.open)renderRunDetails();
   },1000);
   setTheme(localStorage.getItem(`${STORAGE_KEY}:theme`)||'light');
-  window.fitcvPipelineContract={pages,transactions,defaults,runState,synonymState,RUN_STATUSES,PROFILE_STATUSES,SYNONYM_TYPES,SYNONYM_REVIEW_STATUSES,PIPELINE_STAGES,selfCheck,validateTransaction,parseSynonymEditor,createPrototypeProfile,triggerPrototypeRun,openProfileDetails,openSynonymDetails,openRunDetails,exportRunResults};
+  window.fitcvPipelineContract={pages,transactions,defaults,runState,synonymState,bookmarkedJobs,RUN_STATUSES,PROFILE_STATUSES,SYNONYM_TYPES,SYNONYM_REVIEW_STATUSES,PIPELINE_STAGES,selfCheck,validateTransaction,parseSynonymEditor,createPrototypeProfile,triggerPrototypeRun,openProfileDetails,openSynonymDetails,openRunDetails,renderBookmarksPage,exportRunResults,exportBookmarkedJobs};
   console.assert(selfCheck(),'Pipeline prototype self-check failed');
   renderPage();
   })();

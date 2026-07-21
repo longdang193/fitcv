@@ -30,3 +30,25 @@ Status: pending backend aggregation and draft-validation contract
 
 - Existing review approval is run-scoped (`approve_for_run_overlay`). Central Approve needs a backend operation combining review decision, candidate global promotion, validation, and atomic activation.
 - Existing backend supports `defer`; central UI intentionally collapses Deferred into Pending. Backend contract must expose one canonical Pending state or map Deferred at boundary.
+
+# Bookmark Management Integration
+
+Operation: central bookmark listing, removal, and selected filtered export
+Contract owner: pending backend bookmark resource and export operation
+Status: pending backend persistence and authorization contract
+
+## UI Behavior
+
+- Bookmark identity is Run ID plus Job ID. Pipeline stage is derived view state, not stored bookmark state.
+- Bookmarks aggregates active and archived runs and reuses Run Details pipeline outcomes, job table, pagination, and Run Details navigation.
+- Selection is pruned to current stage and search. Export requires selection and exports only selected rows in the current stage and filters.
+- Run Details Export uses the same selection intersection contract: selected jobs ∩ current stage ∩ result filter ∩ search.
+- Removing bookmarks never deletes jobs or runs. Deleting an archived run removes its orphaned bookmark records.
+- The same job may appear once per run because outcomes and evidence are run-specific.
+
+## Required Evidence
+
+- Backend authorization scopes bookmark list, create, remove, and export to the current user.
+- Backend validates selected Run ID and Job ID pairs and recomputes filtered export rows server-side.
+- Frontend tests cover persistence, duplicate Run ID and Job ID identity, stage and search pruning, batch removal, export summaries, empty states, and archived-run bookmarks.
+- Browser evidence confirms keyboard operation and supported light, dark, narrow, and zoomed layouts.
