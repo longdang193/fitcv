@@ -32,6 +32,9 @@
     .search[hidden]{display:none}.run-dialog{width:min(620px,calc(100vw - 32px))}.run-form{display:grid;gap:20px;padding:22px 24px 4px}.run-field{display:grid;gap:7px}.run-field>label{font-weight:650}.run-field small{color:var(--muted)}.run-field .field{width:100%;min-height:42px}.file-input{padding-block:8px}.run-empty-profile{padding:12px;border:1px dashed var(--border);border-radius:9px;background:var(--surface-2);color:var(--muted)}.run-empty-profile strong{display:block;margin-bottom:3px;color:var(--text)}.run-dialog-status{min-height:20px;margin:0 24px;color:var(--muted);font-size:13px}.run-panel{display:grid;gap:14px}.run-panel,#runTablePanel,.table-card,.table-scroll{min-width:0}.run-tabs{display:flex;gap:8px}.run-tabs .btn[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.run-tab-count{margin-left:5px;color:var(--subtle);font-size:12px}.run-selection{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}.run-selection-copy{display:grid;gap:2px}.run-selection-copy span{color:var(--muted);font-size:12px}.run-selection-actions{display:flex;gap:8px}.table-card{overflow:hidden}.table-scroll{width:100%;max-width:100%;overflow-x:auto}.run-table{width:100%;min-width:720px;border-collapse:collapse}.run-table th,.run-table td{padding:14px 16px;border-bottom:1px solid var(--border-soft);text-align:left;vertical-align:middle}.run-table th{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}.run-table tbody tr:last-child td{border-bottom:0}.run-table tbody tr:hover{background:var(--surface-2)}.run-table tbody tr.is-selected{background:var(--accent-soft)}.run-table input[type="checkbox"]{width:17px;height:17px;accent-color:var(--accent)}.run-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;font-weight:700}.run-job{font-weight:650}.run-created,.run-duration{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}.run-status{border:1px solid var(--border);background:var(--surface-2)}.run-status[data-status="Failed"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.run-status-detail{display:block;margin-top:4px;color:var(--muted);font-size:11px}.empty-state{display:grid;justify-items:center;gap:8px;padding:56px 24px;text-align:center}.empty-state svg{width:34px;color:var(--accent)}.empty-state h3{margin:4px 0 0;font-size:17px}.empty-state p{max-width:430px;margin:0;color:var(--muted)}@media(max-width:760px){.run-selection{align-items:stretch;flex-direction:column}.run-selection-actions{display:grid;grid-template-columns:1fr 1fr}.run-selection-actions .btn{width:100%}.run-tabs .btn{flex:1}.run-form{padding-inline:18px}.run-dialog-status{margin-inline:18px}}
   </style>
   <style>
+    .profile-table{min-width:720px}.profile-name{font-weight:650}.run-status[data-status="Succeeded"]{border-color:color-mix(in srgb,#15803d 30%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}[data-theme="dark"] .run-status[data-status="Succeeded"]{color:#86efac}
+  </style>
+  <style>
     .run-pagination{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border-top:1px solid var(--border-soft);color:var(--muted)}.run-pagination-controls,.run-page-numbers,.run-page-size{display:flex;align-items:center;gap:8px}.run-page-size .field{width:auto;min-width:68px}.run-page-numbers .btn{min-width:38px;padding-inline:10px}.run-page-numbers .btn[aria-current="page"]{border-color:var(--accent);background:var(--accent);color:#fff}.run-page-gap{padding:0 3px;color:var(--muted)}@media(max-width:760px){.run-pagination{align-items:flex-start;flex-direction:column}.run-pagination-controls{width:100%;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}.run-page-numbers{flex-wrap:wrap}}
   </style>
   <style>
@@ -46,6 +49,7 @@
     <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
       <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12a2 2 0 0 1 2 2v14H4V6a2 2 0 0 1 2-2Z"/><path d="M8 9h8M8 13h6M8 17h4"/></svg></div><div><strong>FitCV Control Plane</strong><small>Local workspace</small></div></div>
       <nav aria-label="Workspace">
+        <a class="nav-link" id="candidateProfilesNav" href="#candidate-profiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Candidate Profiles</a>
         <a class="nav-link" id="runsNav" href="#runs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg>Runs</a>
         <a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
         <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening">Screening</a><a class="nav-link child" href="#shortlisting">Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a></div></details>
@@ -60,7 +64,9 @@
     </main>
   </div>
   <dialog id="weightsDialog" aria-labelledby="weightsTitle" aria-describedby="weightsDescription"><div class="dialog-head"><div><h2 id="weightsTitle"></h2><p id="weightsDescription"></p></div><button class="dialog-close" id="closeWeights" type="button" aria-label="Close weight configuration">×</button></div><form class="weight-form" id="weightForm"></form><p class="weight-status" id="weightStatus" role="status" aria-live="polite"></p><div class="dialog-actions"><button class="btn" id="cancelWeights" type="button">Cancel</button><button class="btn primary" id="saveWeights" type="button">Save weights</button></div></dialog>
-  <dialog class="run-dialog" id="runDialog" aria-labelledby="runDialogTitle" aria-describedby="runDialogDescription"><div class="dialog-head"><div><h2 id="runDialogTitle">Trigger Run</h2><p id="runDialogDescription">Upload one job file and choose the Candidate Profile to use.</p></div><button class="dialog-close" id="closeRunDialog" type="button" aria-label="Close Trigger Run dialog">×</button></div><form class="run-form" id="runForm"><div class="run-field"><label for="jobFile">Job Input</label><input class="field file-input" id="jobFile" type="file" accept=".json,.jsonl,application/json,application/x-ndjson" required><small>Supported: JSON and JSONL. One file per run.</small></div><div class="run-field"><label for="candidateProfile">Candidate Profile</label><select class="field" id="candidateProfile" required><option value="">Select a Candidate Profile</option></select><div class="run-empty-profile" id="candidateProfileEmpty" hidden><strong>No Candidate Profiles yet</strong>Create a Candidate Profile before triggering a run. <a class="support-link" href="#" data-prototype-link>Create Candidate Profile</a></div></div><div class="run-field"><label for="runName">Run Name <span class="supporting-text">Optional</span></label><input class="field" id="runName" type="text" maxlength="120" placeholder="Uses uploaded file name when empty"><small>Shown as Job Name in the run table.</small></div></form><p class="run-dialog-status" id="runDialogStatus" role="status" aria-live="polite">Select a file and Candidate Profile to enable Trigger.</p><div class="dialog-actions"><button class="btn" id="cancelRunDialog" type="button">Cancel</button><button class="btn primary" id="triggerRun" type="button" disabled>Trigger</button></div></dialog>
+  <dialog class="run-dialog" id="profileDialog" aria-labelledby="profileDialogTitle" aria-describedby="profileDialogDescription"><div class="dialog-head"><div><h2 id="profileDialogTitle">Create Profile</h2><p id="profileDialogDescription">Upload a candidate profile and optionally give it a name.</p></div><button class="dialog-close" id="closeProfileDialog" type="button" aria-label="Close Create Profile dialog">×</button></div><form class="run-form" id="profileForm"><div class="run-field"><label for="profileFile">Profile File</label><input class="field file-input" id="profileFile" type="file" accept=".yaml" aria-describedby="profileFileHelp" required><small id="profileFileHelp">Supported: YAML (.yaml). One file per profile.</small></div><div class="run-field"><label for="profileName">Profile Name <span class="supporting-text">Optional</span></label><input class="field" id="profileName" type="text" maxlength="120" placeholder="Uses uploaded file name when empty"></div></form><p class="run-dialog-status" id="profileDialogStatus" role="status" aria-live="polite">Choose a .yaml profile file to enable Create.</p><div class="dialog-actions"><button class="btn" id="cancelProfileDialog" type="button">Cancel</button><button class="btn primary" id="createProfile" type="submit" form="profileForm" disabled>Create</button></div></dialog>
+  <dialog class="run-dialog" id="runDialog" aria-labelledby="runDialogTitle" aria-describedby="runDialogDescription"><div class="dialog-head"><div><h2 id="runDialogTitle">Trigger Run</h2><p id="runDialogDescription">Upload one job file and choose the Candidate Profile to use.</p></div><button class="dialog-close" id="closeRunDialog" type="button" aria-label="Close Trigger Run dialog">×</button></div><form class="run-form" id="runForm"><div class="run-field"><label for="jobFile">Job Input</label><input class="field file-input" id="jobFile" type="file" accept=".json,.jsonl,application/json,application/x-ndjson" required><small>Supported: JSON and JSONL. One file per run.</small></div><div class="run-field"><label for="candidateProfile">Candidate Profile</label><select class="field" id="candidateProfile" required><option value="">Select a Candidate Profile</option></select><div class="run-empty-profile" id="candidateProfileEmpty" hidden><strong>No Candidate Profiles yet</strong>Create a Candidate Profile before triggering a run. <a class="support-link" href="#candidate-profiles" data-open-profile-page>Create Candidate Profile</a></div></div><div class="run-field"><label for="runName">Run Name <span class="supporting-text">Optional</span></label><input class="field" id="runName" type="text" maxlength="120" placeholder="Uses uploaded file name when empty"><small>Shown as Job Name in the run table.</small></div></form><p class="run-dialog-status" id="runDialogStatus" role="status" aria-live="polite">Select a file and Candidate Profile to enable Trigger.</p><div class="dialog-actions"><button class="btn" id="cancelRunDialog" type="button">Cancel</button><button class="btn primary" id="triggerRun" type="button" disabled>Trigger</button></div></dialog>
+  <dialog class="details-drawer" id="profileDetailsDrawer" aria-labelledby="profileDetailsTitle"><div class="drawer-scroll"><div class="drawer-head"><div><p class="eyebrow">Candidate Profile</p><h2 id="profileDetailsTitle">Profile Details</h2><p>Review created profile information.</p></div><button class="dialog-close" id="closeProfileDetails" type="button" aria-label="Close Candidate Profile Details">×</button></div><div class="drawer-body" id="profileDetailsBody"></div></div></dialog>
   <dialog class="details-drawer" id="runDetailsDrawer" aria-labelledby="runDetailsTitle"><div class="drawer-scroll"><div class="drawer-head"><div><p class="eyebrow">Run Details</p><h2 id="runDetailsTitle">Run Details</h2><p>Review run inputs and pipeline results.</p></div><button class="dialog-close" id="closeRunDetails" type="button" aria-label="Close Run Details">×</button></div><div class="drawer-body" id="runDetailsBody"></div></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite">Ranking changes saved in prototype</div>
   <script>
@@ -69,11 +75,12 @@
   const STORAGE_KEY='fitcv-pipeline-settings-prototype-v4';
   const RUN_STORAGE_KEY='fitcv-run-prototype-v1';
   const RUN_STATUSES=new Set(['Running','Succeeded','Failed']);
+  const PROFILE_STATUSES=new Set(['Succeeded','Failed']);
   const prototypeNow=Date.now();
   const DEFAULT_CANDIDATE_PROFILES=[
-    {id:'candidate-product-data',name:'Product Data Specialist'},
-    {id:'candidate-analytics',name:'Analytics & Operations'},
-    {id:'candidate-platform',name:'Data Platform Engineer'}
+    {id:'candidate-product-data',status:'Succeeded',name:'Product Data Specialist',inputFileName:'product-data-specialist.yaml',createdAt:prototypeNow-5400000,archived:false},
+    {id:'candidate-analytics',status:'Succeeded',name:'Analytics & Operations',inputFileName:'analytics-operations.yaml',createdAt:prototypeNow-97200000,archived:false},
+    {id:'candidate-platform',status:'Succeeded',name:'Data Platform Engineer',inputFileName:'data-platform-engineer.yaml',createdAt:prototypeNow-185400000,archived:true}
   ];
   const DEFAULT_RUNS=[
     {id:'RUN-7E4A92C1',status:'Running',runName:'Senior data product search',jobName:'senior-data-product-manager.jsonl',inputFileName:'senior-data-product-manager.jsonl',profileId:'candidate-product-data',createdAt:prototypeNow-94000,startedAt:prototypeNow-91000,completeAt:prototypeNow+12000,endedAt:null,archived:false,statusDetail:''},
@@ -298,11 +305,21 @@
   const dialogStatus=document.querySelector('#weightStatus');
   const dialogSave=document.querySelector('#saveWeights');
   const pipelineNav=document.querySelector('#sidebar .nav-group .nav-children');
+  const candidateProfilesNav=document.querySelector('#candidateProfilesNav');
   const runsNav=document.querySelector('#runsNav');
   const searchBox=document.querySelector('#searchBox');
   const headerTitle=document.querySelector('#headerTitle');
   const headerDescription=document.querySelector('#headerDescription');
   const titleIcon=document.querySelector('#titleIcon');
+  const profileDialog=document.querySelector('#profileDialog');
+  const profileForm=document.querySelector('#profileForm');
+  const profileFile=document.querySelector('#profileFile');
+  const profileName=document.querySelector('#profileName');
+  const profileDialogStatus=document.querySelector('#profileDialogStatus');
+  const createProfileButton=document.querySelector('#createProfile');
+  const profileDetailsDrawer=document.querySelector('#profileDetailsDrawer');
+  const profileDetailsBody=document.querySelector('#profileDetailsBody');
+  const profileDetailsTitle=document.querySelector('#profileDetailsTitle');
   const runDialog=document.querySelector('#runDialog');
   const runForm=document.querySelector('#runForm');
   const jobFile=document.querySelector('#jobFile');
@@ -384,20 +401,27 @@
   }
   function normaliseRunState(stored){
     const profiles=(Array.isArray(stored.candidateProfiles)?stored.candidateProfiles:DEFAULT_CANDIDATE_PROFILES)
-      .filter(profile=>profile&&typeof profile.id==='string'&&typeof profile.name==='string');
+      .filter(profile=>profile&&typeof profile.id==='string'&&typeof profile.name==='string')
+      .map((profile,index)=>{
+        const fallback=DEFAULT_CANDIDATE_PROFILES.find(item=>item.id===profile.id);
+        const candidateInputFileName=typeof profile.inputFileName==='string'?profile.inputFileName:typeof profile.fileName==='string'&&profile.fileName!=='Imported profile'?profile.fileName:null;
+        return {id:profile.id,status:PROFILE_STATUSES.has(profile.status)?profile.status:'Succeeded',name:profile.name,inputFileName:isYamlProfileFile({name:candidateInputFileName})?candidateInputFileName:fallback?.inputFileName||null,createdAt:Number.isFinite(profile.createdAt)?profile.createdAt:fallback?.createdAt??prototypeNow-index*3600000,archived:typeof profile.archived==='boolean'?profile.archived:fallback?.archived??false};
+      });
     const seen=new Set();
     const runs=(Array.isArray(stored.runs)?stored.runs:DEFAULT_RUNS).filter(run=>{
       if(!run||typeof run.id!=='string'||seen.has(run.id)||!RUN_STATUSES.has(run.status))return false;
       seen.add(run.id);
       return typeof run.jobName==='string'&&Number.isFinite(run.createdAt)&&typeof run.archived==='boolean';
     });
-    return {candidateProfiles:clone(profiles),runs:clone(runs),activeTab:stored.activeTab==='archived'?'archived':'active'};
+    return {candidateProfiles:clone(profiles),runs:clone(runs),runActiveTab:stored.runActiveTab==='archived'||stored.activeTab==='archived'?'archived':'active',profileActiveTab:stored.profileActiveTab==='archived'?'archived':'active'};
   }
   let runState=normaliseRunState(readRunStored());
+  const selectedProfileIds=new Set();
   const selectedRunIds=new Set();
   const RUN_PAGE_SIZES=[10,20,50];
   let runPage=1;
   let runPageSize=20;
+  let selectedProfileDetailId=null;
   let selectedRunDetailId=null;
   let pipelineStage='shortlisting';
   let pipelineResult='all';
@@ -456,7 +480,137 @@
     }while(runState.runs.some(run=>run.id===id));
     return id;
   }
-  function visibleRuns(){return runState.runs.filter(run=>run.archived===(runState.activeTab==='archived'))}
+  function uniqueProfileId(){
+    let id;
+    do{
+      const token=typeof crypto.randomUUID==='function'?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(4)),value=>value.toString(16).padStart(2,'0')).join('');
+      id='PROFILE-'+token.slice(0,8).toUpperCase();
+    }while(runState.candidateProfiles.some(profile=>profile.id===id));
+    return id;
+  }
+  function profileRowMarkup(profile){
+    const checked=selectedProfileIds.has(profile.id);
+    return `<tr class="${checked?'is-selected':''}" data-profile-row="${escapeHtml(profile.id)}"><td><input type="checkbox" data-profile-select="${escapeHtml(profile.id)}" aria-label="Select profile ${escapeHtml(profile.id)}" ${checked?'checked':''}></td><td><button class="run-id run-id-link" type="button" data-profile-details="${escapeHtml(profile.id)}" aria-label="Open details for ${escapeHtml(profile.id)}">${escapeHtml(profile.id)}</button></td><td>${statusMarkup(profile)}</td><td><span class="profile-name">${escapeHtml(profile.name)}</span></td><td><span class="run-created">${formatCreated(profile.createdAt)}</span></td></tr>`;
+  }
+  function visibleProfiles(){return runState.candidateProfiles.filter(profile=>profile.archived===(runState.profileActiveTab==='archived'))}
+  function emptyProfilesMarkup(){
+    const archived=runState.profileActiveTab==='archived';
+    return `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><h3>${archived?'No archived profiles':'No active profiles yet'}</h3><p>${archived?'Archived Candidate Profiles will appear here.':'Create a profile from a CV or resume file before triggering a run.'}</p>${archived?'':'<button class="btn" type="button" data-open-profile-dialog>Create Profile</button>'}</div>`;
+  }
+  function profileSelectionMarkup(profiles){
+    const selected=profiles.filter(profile=>selectedProfileIds.has(profile.id));
+    if(!selected.length)return '';
+    if(runState.profileActiveTab==='active')return `<div class="run-selection"><div class="run-selection-copy"><strong>${selected.length} profile${selected.length===1?'':'s'} selected</strong><span>Archived profiles remain available to historical runs.</span></div><div class="run-selection-actions"><button class="btn" id="archiveSelectedProfiles" type="button">Archive Profile</button></div></div>`;
+    const referenced=selected.filter(profile=>runState.runs.some(run=>run.profileId===profile.id));
+    return `<div class="run-selection"><div class="run-selection-copy"><strong>${selected.length} archived profile${selected.length===1?'':'s'} selected</strong><span>${referenced.length?'Delete is disabled because selected profiles are used by existing runs.':'Delete permanently removes selected profiles from this prototype.'}</span></div><div class="run-selection-actions"><button class="btn primary" id="deleteSelectedProfiles" type="button" ${referenced.length?'disabled':''}>Delete Profile</button></div></div>`;
+  }
+  function profilesTableMarkup(profiles){
+    if(!profiles.length)return `<div class="table-card section-card">${emptyProfilesMarkup()}</div>`;
+    const allSelected=profiles.every(profile=>selectedProfileIds.has(profile.id));
+    const someSelected=!allSelected&&profiles.some(profile=>selectedProfileIds.has(profile.id));
+    return `<div class="table-card section-card"><div class="table-scroll"><table class="run-table profile-table"><thead><tr><th><input id="selectAllProfiles" type="checkbox" aria-label="Select all visible profiles" ${allSelected?'checked':''} data-indeterminate="${someSelected}"></th><th scope="col">Profile ID</th><th scope="col">Status</th><th scope="col">Profile Name</th><th scope="col">Created Time</th></tr></thead><tbody>${profiles.map(profileRowMarkup).join('')}</tbody></table></div></div>`;
+  }
+  function renderCandidateProfilesPage(){
+    const profiles=visibleProfiles();
+    selectedProfileIds.forEach(id=>{if(!profiles.some(profile=>profile.id===id))selectedProfileIds.delete(id)});
+    const activeCount=runState.candidateProfiles.filter(profile=>!profile.archived).length;
+    const archivedCount=runState.candidateProfiles.filter(profile=>profile.archived).length;
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Workspace</p><h2>Candidate Profiles</h2><p>Create and review candidate profiles used by matching runs. Files stay in this local prototype.</p></div><button class="btn" type="button" data-open-profile-dialog>Create Profile</button></div><div class="run-panel"><div class="run-tabs" role="tablist" aria-label="Candidate Profile views"><button class="btn" id="activeProfilesTab" type="button" role="tab" aria-controls="profileTablePanel" data-profile-tab="active" aria-selected="${runState.profileActiveTab==='active'}" tabindex="${runState.profileActiveTab==='active'?'0':'-1'}">Active<span class="run-tab-count">${activeCount}</span></button><button class="btn" id="archivedProfilesTab" type="button" role="tab" aria-controls="profileTablePanel" data-profile-tab="archived" aria-selected="${runState.profileActiveTab==='archived'}" tabindex="${runState.profileActiveTab==='archived'?'0':'-1'}">Archived<span class="run-tab-count">${archivedCount}</span></button></div><div id="profileTablePanel" role="tabpanel" aria-labelledby="${runState.profileActiveTab==='active'?'activeProfilesTab':'archivedProfilesTab'}">${profileSelectionMarkup(profiles)}${profilesTableMarkup(profiles)}</div></div>`;
+    bindCandidateProfilesPage(profiles);
+  }
+  function setProfileTab(tab){
+    runState.profileActiveTab=tab;
+    selectedProfileIds.clear();
+    writeRunState();
+    renderCandidateProfilesPage();
+  }
+  function bindCandidateProfilesPage(profiles){
+    form.querySelectorAll('[data-open-profile-dialog]').forEach(button=>button.addEventListener('click',openProfileDialog));
+    form.querySelectorAll('[data-profile-details]').forEach(button=>button.addEventListener('click',()=>openProfileDetails(button.dataset.profileDetails)));
+    form.querySelectorAll('[data-profile-tab]').forEach(button=>{
+      button.addEventListener('click',()=>setProfileTab(button.dataset.profileTab));
+      button.addEventListener('keydown',event=>{
+        if(!['ArrowLeft','ArrowRight'].includes(event.key))return;
+        event.preventDefault();
+        setProfileTab(button.dataset.profileTab==='active'?'archived':'active');
+        form.querySelector(`[data-profile-tab="${runState.profileActiveTab}"]`)?.focus();
+      });
+    });
+    form.querySelectorAll('[data-profile-select]').forEach(checkbox=>checkbox.addEventListener('change',()=>{
+      checkbox.checked?selectedProfileIds.add(checkbox.dataset.profileSelect):selectedProfileIds.delete(checkbox.dataset.profileSelect);
+      renderCandidateProfilesPage();
+    }));
+    const selectAll=form.querySelector('#selectAllProfiles');
+    if(selectAll){
+      selectAll.indeterminate=selectAll.dataset.indeterminate==='true';
+      selectAll.addEventListener('change',()=>{
+        for(const profile of profiles)selectAll.checked?selectedProfileIds.add(profile.id):selectedProfileIds.delete(profile.id);
+        renderCandidateProfilesPage();
+      });
+    }
+    form.querySelector('#archiveSelectedProfiles')?.addEventListener('click',archiveSelectedProfiles);
+    form.querySelector('#deleteSelectedProfiles')?.addEventListener('click',deleteSelectedProfiles);
+  }
+  function isYamlProfileFile(file){return Boolean(file&&typeof file.name==='string'&&file.name.toLowerCase().endsWith('.yaml'))}
+  function validateProfileDialog(){
+    const file=profileFile.files?.[0],valid=isYamlProfileFile(file);
+    createProfileButton.disabled=!valid;
+    file&&!valid?profileFile.setAttribute('aria-invalid','true'):profileFile.removeAttribute('aria-invalid');
+    profileDialogStatus.textContent=valid?'Ready to create profile.':file?'Only .yaml profile files are supported.':'Choose a .yaml profile file to enable Create.';
+  }
+  function openProfileDialog(){
+    profileForm.reset();
+    validateProfileDialog();
+    profileDialog.showModal();
+    profileFile.focus();
+  }
+  function createPrototypeProfile(event){
+    event.preventDefault();
+    const file=profileFile.files?.[0];
+    if(!isYamlProfileFile(file))return validateProfileDialog();
+    const fallbackName=file.name.replace(/\.[^.]+$/,'')||'Untitled Profile';
+    const profile={id:uniqueProfileId(),status:'Succeeded',name:profileName.value.trim()||fallbackName,inputFileName:file.name,createdAt:Date.now(),archived:false};
+    runState.candidateProfiles.unshift(profile);
+    runState.profileActiveTab='active';
+    selectedProfileIds.clear();
+    writeRunState();
+    profileDialog.close();
+    renderCandidateProfilesPage();
+    notify('Candidate Profile created');
+  }
+  function archiveSelectedProfiles(){
+    const selected=runState.candidateProfiles.filter(profile=>selectedProfileIds.has(profile.id)&&!profile.archived);
+    if(!selected.length)return;
+    if(!confirm(`Archive ${selected.length} selected profile${selected.length===1?'':'s'}?\n\nArchived profiles remain available to historical runs but cannot be selected for new runs.`))return;
+    for(const profile of selected)profile.archived=true;
+    selectedProfileIds.clear();
+    writeRunState();
+    renderCandidateProfilesPage();
+    notify(`${selected.length} profile${selected.length===1?'':'s'} archived`);
+  }
+  function deleteSelectedProfiles(){
+    const selected=runState.candidateProfiles.filter(profile=>selectedProfileIds.has(profile.id)&&profile.archived);
+    if(!selected.length||selected.some(profile=>runState.runs.some(run=>run.profileId===profile.id)))return;
+    if(!confirm(`Delete ${selected.length} archived profile${selected.length===1?'':'s'}?\n\nThis permanently removes selected profiles from prototype state. This cannot be undone.`))return;
+    const deletedIds=new Set(selected.map(profile=>profile.id));
+    runState.candidateProfiles=runState.candidateProfiles.filter(profile=>!deletedIds.has(profile.id));
+    selectedProfileIds.clear();
+    writeRunState();
+    renderCandidateProfilesPage();
+    notify(`${selected.length} profile${selected.length===1?'':'s'} deleted`);
+  }
+  function renderProfileDetails(){
+    const profile=runState.candidateProfiles.find(item=>item.id===selectedProfileDetailId);
+    if(!profile){profileDetailsDrawer.close();return}
+    profileDetailsTitle.textContent=profile.name;
+    profileDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Profile Overview</strong><span>Current lifecycle information for this Candidate Profile.</span></span><span class="drawer-status">${statusMarkup(profile)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid"><div class="detail-item"><dt>Profile ID</dt><dd>${escapeHtml(profile.id)}</dd></div><div class="detail-item"><dt>Profile Name</dt><dd>${escapeHtml(profile.name)}</dd></div><div class="detail-item"><dt>Created</dt><dd>${formatCreated(profile.createdAt)}</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Profile Input</strong><span>Read-only input used to create this Candidate Profile.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details"><div class="detail-item"><dt>Profile Input</dt><dd>${profile.inputFileName?escapeHtml(profile.inputFileName):'—'}</dd></div></dl></div></details>`;
+  }
+  function openProfileDetails(profileId){
+    selectedProfileDetailId=profileId;
+    renderProfileDetails();
+    profileDetailsDrawer.showModal();
+  }
+  function visibleRuns(){return runState.runs.filter(run=>run.archived===(runState.runActiveTab==='archived'))}
   function statusMarkup(run){
     const detail=run.statusDetail?`<span class="run-status-detail">${escapeHtml(run.statusDetail)}</span>`:'';
     return `<span class="badge run-status" data-status="${run.status}">${run.status}</span>${detail}`;
@@ -466,13 +620,13 @@
     return `<tr class="${checked?'is-selected':''}" data-run-row="${run.id}"><td><input type="checkbox" data-run-select="${run.id}" aria-label="Select run ${escapeHtml(run.id)}" ${checked?'checked':''}></td><td><button class="run-id run-id-link" type="button" data-run-details="${run.id}" aria-label="Open details for ${escapeHtml(run.id)}">${escapeHtml(run.id)}</button></td><td>${statusMarkup(run)}</td><td><span class="run-job">${escapeHtml(run.jobName)}</span></td><td><span class="run-created">${formatCreated(run.createdAt)}</span></td><td><span class="run-duration" data-run-duration="${run.id}">${formatDuration(runDuration(run))}</span></td></tr>`;
   }
   function emptyRunsMarkup(){
-    const archived=runState.activeTab==='archived';
+    const archived=runState.runActiveTab==='archived';
     return `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg><h3>${archived?'No archived runs':'No active runs yet'}</h3><p>${archived?'Archived runs will appear here after they are moved from Active.':'Trigger a run to process a job file with one of your Candidate Profiles.'}</p>${archived?'':'<button class="btn" type="button" data-open-run-dialog>Trigger Run</button>'}</div>`;
   }
   function selectionMarkup(runs){
     const selected=runs.filter(run=>selectedRunIds.has(run.id));
     if(!selected.length)return '';
-    if(runState.activeTab==='archived')return `<div class="run-selection"><div class="run-selection-copy"><strong>${selected.length} archived run${selected.length===1?'':'s'} selected</strong><span>Delete permanently removes selected runs from this prototype.</span></div><div class="run-selection-actions"><button class="btn primary" id="deleteSelectedRuns" type="button">Delete Run</button></div></div>`;
+    if(runState.runActiveTab==='archived')return `<div class="run-selection"><div class="run-selection-copy"><strong>${selected.length} archived run${selected.length===1?'':'s'} selected</strong><span>Delete permanently removes selected runs from this prototype.</span></div><div class="run-selection-actions"><button class="btn primary" id="deleteSelectedRuns" type="button">Delete Run</button></div></div>`;
     const runningCount=selected.filter(run=>run.status==='Running').length;
     return `<div class="run-selection"><div class="run-selection-copy"><strong>${selected.length} run${selected.length===1?'':'s'} selected</strong><span>${runningCount?`Cancel Run applies to ${runningCount} Running selection${runningCount===1?'':'s'}.`:'Cancel Run is disabled because no selected run is Running.'}</span></div><div class="run-selection-actions"><button class="btn" id="cancelSelectedRuns" type="button" ${runningCount?'':'disabled'}>Cancel Run</button><button class="btn" id="archiveSelectedRuns" type="button">Archive Run</button></div></div>`;
   }
@@ -504,11 +658,11 @@
     const pageRuns=runs.slice((runPage-1)*runPageSize,runPage*runPageSize);
     const activeCount=runState.runs.filter(run=>!run.archived).length;
     const archivedCount=runState.runs.filter(run=>run.archived).length;
-    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Workspace</p><h2>Runs</h2><p>Trigger and monitor local prototype runs. No backend requests are made.</p></div><button class="btn" type="button" data-open-run-dialog>Trigger Run</button></div><div class="run-panel"><div class="run-tabs" role="tablist" aria-label="Run views"><button class="btn" id="activeRunsTab" type="button" role="tab" aria-controls="runTablePanel" data-run-tab="active" aria-selected="${runState.activeTab==='active'}" tabindex="${runState.activeTab==='active'?'0':'-1'}">Active<span class="run-tab-count">${activeCount}</span></button><button class="btn" id="archivedRunsTab" type="button" role="tab" aria-controls="runTablePanel" data-run-tab="archived" aria-selected="${runState.activeTab==='archived'}" tabindex="${runState.activeTab==='archived'?'0':'-1'}">Archived<span class="run-tab-count">${archivedCount}</span></button></div><div id="runTablePanel" role="tabpanel" aria-labelledby="${runState.activeTab==='active'?'activeRunsTab':'archivedRunsTab'}">${selectionMarkup(runs)}${runsTableMarkup(pageRuns,runs.length)}</div></div>`;
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Workspace</p><h2>Runs</h2><p>Trigger and monitor local prototype runs. No backend requests are made.</p></div><button class="btn" type="button" data-open-run-dialog>Trigger Run</button></div><div class="run-panel"><div class="run-tabs" role="tablist" aria-label="Run views"><button class="btn" id="activeRunsTab" type="button" role="tab" aria-controls="runTablePanel" data-run-tab="active" aria-selected="${runState.runActiveTab==='active'}" tabindex="${runState.runActiveTab==='active'?'0':'-1'}">Active<span class="run-tab-count">${activeCount}</span></button><button class="btn" id="archivedRunsTab" type="button" role="tab" aria-controls="runTablePanel" data-run-tab="archived" aria-selected="${runState.runActiveTab==='archived'}" tabindex="${runState.runActiveTab==='archived'?'0':'-1'}">Archived<span class="run-tab-count">${archivedCount}</span></button></div><div id="runTablePanel" role="tabpanel" aria-labelledby="${runState.runActiveTab==='active'?'activeRunsTab':'archivedRunsTab'}">${selectionMarkup(runs)}${runsTableMarkup(pageRuns,runs.length)}</div></div>`;
     bindRunsPage(pageRuns);
   }
   function setRunTab(tab){
-    runState.activeTab=tab;
+    runState.runActiveTab=tab;
     runPage=1;
     selectedRunIds.clear();
     writeRunState();
@@ -523,7 +677,7 @@
         if(!['ArrowLeft','ArrowRight'].includes(event.key))return;
         event.preventDefault();
         setRunTab(button.dataset.runTab==='active'?'archived':'active');
-        form.querySelector(`[data-run-tab="${runState.activeTab}"]`)?.focus();
+        form.querySelector(`[data-run-tab="${runState.runActiveTab}"]`)?.focus();
       });
     });
     form.querySelectorAll('[data-run-select]').forEach(checkbox=>checkbox.addEventListener('change',()=>{
@@ -677,17 +831,20 @@
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');
     link.href=url;link.download=`${run.id}-${pipelineStage}-results.csv`;link.click();URL.revokeObjectURL(url);notify(`${rows.length} filtered result${rows.length===1?'':'s'} exported`);
   }
+  function availableCandidateProfiles(){return runState.candidateProfiles.filter(profile=>!profile.archived&&profile.status==='Succeeded')}
   function populateCandidateProfiles(){
-    candidateProfile.innerHTML='<option value="">Select a Candidate Profile</option>'+runState.candidateProfiles.map(profile=>`<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>`).join('');
-    const empty=!runState.candidateProfiles.length;
+    const available=availableCandidateProfiles();
+    candidateProfile.innerHTML='<option value="">Select a Candidate Profile</option>'+available.map(profile=>`<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>`).join('');
+    const empty=!available.length;
     candidateProfile.disabled=empty;
     candidateProfileEmpty.hidden=!empty;
   }
   function validateRunDialog(){
     const hasFile=Boolean(jobFile.files?.[0]);
-    const hasProfile=runState.candidateProfiles.some(profile=>profile.id===candidateProfile.value);
+    const available=availableCandidateProfiles();
+    const hasProfile=available.some(profile=>profile.id===candidateProfile.value);
     triggerRunButton.disabled=!(hasFile&&hasProfile);
-    runDialogStatus.textContent=hasFile&&hasProfile?'Ready to trigger. Latest Synonym Overlay will be used automatically.':!runState.candidateProfiles.length?'Create a Candidate Profile before triggering a run.':'Select a file and Candidate Profile to enable Trigger.';
+    runDialogStatus.textContent=hasFile&&hasProfile?'Ready to trigger. Latest Synonym Overlay will be used automatically.':!available.length?'Create an active, successful Candidate Profile before triggering a run.':'Select a file and Candidate Profile to enable Trigger.';
   }
   function openRunDialog(){
     runForm.reset();
@@ -698,11 +855,11 @@
   }
   function triggerPrototypeRun(){
     const file=jobFile.files?.[0];
-    const profile=runState.candidateProfiles.find(item=>item.id===candidateProfile.value);
+    const profile=availableCandidateProfiles().find(item=>item.id===candidateProfile.value);
     if(!file||!profile)return validateRunDialog();
     const now=Date.now();
     runState.runs.unshift({id:uniqueRunId(),status:'Running',runName:runName.value.trim()||file.name,jobName:runName.value.trim()||file.name,inputFileName:file.name,profileId:profile.id,createdAt:now,startedAt:now+1000,completeAt:now+8000,endedAt:null,archived:false,statusDetail:''});
-    runState.activeTab='active';
+    runState.runActiveTab='active';
     runPage=1;
     selectedRunIds.clear();
     writeRunState();
@@ -789,14 +946,30 @@
     if(row.type==='select')return `<label class="row" data-row>${copy}${status}</span><span class="control"><select class="field" data-key="${row.key}" aria-label="${row.label}">${row.options.map(option=>`<option value="${option}" ${option===current?'selected':''}>${option}</option>`).join('')}</select></span></label>`;
     return `<label class="row" data-row>${copy}${status}</span><span class="control"><input class="field" type="number" data-key="${row.key}" value="${current}" min="${row.min}" max="${row.max}" step="${row.step}" aria-label="${row.label}"></span></label>`;
   }
+  function isCandidateProfilesPage(){return location.hash==='#candidate-profiles'}
   function isRunsPage(){return location.hash==='#runs'}
   function currentPage(){return pages.find(page=>page.id===location.hash.slice(1))||pages[0]}
   function renderPage(){
+    if(isCandidateProfilesPage()){
+      headerTitle.textContent='Candidate Profiles';
+      headerDescription.textContent='Create and review profiles used by matching runs.';
+      titleIcon.innerHTML='<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>';
+      searchBox.hidden=true;
+      candidateProfilesNav.classList.add('active');
+      candidateProfilesNav.setAttribute('aria-current','page');
+      runsNav.classList.remove('active');
+      runsNav.removeAttribute('aria-current');
+      pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+      renderCandidateProfilesPage();
+      return;
+    }
     if(isRunsPage()){
       headerTitle.textContent='Runs';
       headerDescription.textContent='Trigger, monitor, cancel, and archive local prototype runs.';
       titleIcon.innerHTML='<path d="M4 5h16v5H4zM4 14h16v5H4z"/>';
       searchBox.hidden=true;
+      candidateProfilesNav.classList.remove('active');
+      candidateProfilesNav.removeAttribute('aria-current');
       runsNav.classList.add('active');
       runsNav.setAttribute('aria-current','page');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
@@ -809,6 +982,8 @@
     headerDescription.textContent='Configure how each matching run selects and prepares candidates.';
     titleIcon.innerHTML='<path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/>';
     searchBox.hidden=false;
+    candidateProfilesNav.classList.remove('active');
+    candidateProfilesNav.removeAttribute('aria-current');
     runsNav.classList.remove('active');
     runsNav.removeAttribute('aria-current');
     pipelineNav.replaceChildren(...pages.map(item=>{
@@ -963,11 +1138,18 @@
     if(mirrors.length!==6||mirrors.some(row=>!directRows.has(row.key)))throw new Error('Every stage mirror must reference an Overview-owned setting');
     if(/synonym triage/i.test(JSON.stringify(pages)))throw new Error('Internal synonym triage wording must not appear');
     if(new Set(DEFAULT_CANDIDATE_PROFILES.map(profile=>profile.id)).size!==DEFAULT_CANDIDATE_PROFILES.length)throw new Error('Candidate Profile IDs must be unique');
+    if(DEFAULT_CANDIDATE_PROFILES.some(profile=>!PROFILE_STATUSES.has(profile.status)||!Number.isFinite(profile.createdAt)||typeof profile.archived!=='boolean'||!isYamlProfileFile({name:profile.inputFileName}))||!DEFAULT_CANDIDATE_PROFILES.some(profile=>profile.archived)||!DEFAULT_CANDIDATE_PROFILES.some(profile=>!profile.archived))throw new Error('Candidate Profiles must include valid YAML input and lifecycle state');
+    const migratedDefaultProfile=normaliseRunState({candidateProfiles:[{id:'candidate-analytics',name:'Analytics & Operations',inputFileName:'analytics-operations.docx'}],runs:[]}).candidateProfiles[0];
+    if(migratedDefaultProfile.inputFileName!=='analytics-operations.yaml')throw new Error('Known legacy profile input must migrate to YAML fixture');
+    const migratedProfile=normaliseRunState({candidateProfiles:[{id:'legacy-profile',name:'Legacy Profile',fileName:'Imported profile'}],runs:[]}).candidateProfiles[0];
+    if(migratedProfile.inputFileName!==null||migratedProfile.archived)throw new Error('Unknown legacy profile input must remain unavailable and active');
+    if(!['active','archived'].includes(runState.runActiveTab)||!['active','archived'].includes(runState.profileActiveTab))throw new Error('Run and Candidate Profile tabs must use independent valid states');
     if(new Set(DEFAULT_RUNS.map(run=>run.id)).size!==DEFAULT_RUNS.length)throw new Error('Run IDs must be unique');
     if(DEFAULT_RUNS.some(run=>!RUN_STATUSES.has(run.status)))throw new Error('Prototype runs must use supported statuses');
     if(new Set(PROTOTYPE_JOB_CATALOG.map(job=>job.id)).size!==PROTOTYPE_JOB_CATALOG.length)throw new Error('Prototype Job IDs must be unique');
     if(!PIPELINE_STAGES.some(stage=>stage.id==='shortlisting'))throw new Error('Run Details must support Shortlisting');
     if(jobFile.multiple)throw new Error('Run dialog must accept one Job Input file');
+    if(profileFile.accept!=='.yaml'||profileFile.multiple||!isYamlProfileFile({name:'profile.yaml'})||isYamlProfileFile({name:'profile.yml'})||isYamlProfileFile({name:'profile.pdf'}))throw new Error('Candidate Profile dialog must accept one .yaml file');
     if(paginationItems(1,10).join(',')!=='1,2,3,4,5,…,10')throw new Error('Pagination must compact trailing pages');
     if(paginationItems(5,10).join(',')!=='1,…,4,5,6,…,10')throw new Error('Pagination must compact pages around current page');
     return true;
@@ -975,13 +1157,21 @@
 
   document.querySelector('#closeWeights').addEventListener('click',()=>dialog.close());
   document.querySelector('#cancelWeights').addEventListener('click',()=>dialog.close());
+  document.querySelector('#closeProfileDialog').addEventListener('click',()=>profileDialog.close());
+  document.querySelector('#cancelProfileDialog').addEventListener('click',()=>profileDialog.close());
+  document.querySelector('#closeProfileDetails').addEventListener('click',()=>profileDetailsDrawer.close());
   document.querySelector('#closeRunDialog').addEventListener('click',()=>runDialog.close());
   document.querySelector('#cancelRunDialog').addEventListener('click',()=>runDialog.close());
   document.querySelector('#closeRunDetails').addEventListener('click',()=>runDetailsDrawer.close());
   runDetailsDrawer.addEventListener('click',event=>{if(event.target===runDetailsDrawer)runDetailsDrawer.close()});
   runDetailsDrawer.addEventListener('close',()=>{selectedRunDetailId=null});
+  profileDetailsDrawer.addEventListener('click',event=>{if(event.target===profileDetailsDrawer)profileDetailsDrawer.close()});
+  profileDetailsDrawer.addEventListener('close',()=>{selectedProfileDetailId=null});
+  profileFile.addEventListener('change',validateProfileDialog);
+  profileForm.addEventListener('submit',createPrototypeProfile);
   jobFile.addEventListener('change',validateRunDialog);
   candidateProfile.addEventListener('change',validateRunDialog);
+  document.querySelector('[data-open-profile-page]').addEventListener('click',()=>runDialog.close());
   runForm.addEventListener('submit',event=>{event.preventDefault();if(!triggerRunButton.disabled)triggerPrototypeRun()});
   triggerRunButton.addEventListener('click',triggerPrototypeRun);
   dialog.addEventListener('close',()=>{activeGroup=null;dialogParentGroup=null;dialogDrafts.clear();dialogForm.replaceChildren();dialogStatus.textContent=''});
@@ -1009,6 +1199,7 @@
   menu.addEventListener('click',()=>openNav(!sidebar.classList.contains('open')));
   scrim.addEventListener('click',()=>openNav(false));
   pipelineNav.addEventListener('click',()=>openNav(false));
+  candidateProfilesNav.addEventListener('click',()=>openNav(false));
   runsNav.addEventListener('click',()=>openNav(false));
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!dialog.open)openNav(false)});
   document.querySelectorAll('[data-prototype-link]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();notify(`${link.textContent.trim()} is navigation-only in this prototype`);openNav(false)}));
@@ -1021,7 +1212,7 @@
     if(changed&&runDetailsDrawer.open)renderRunDetails();
   },1000);
   setTheme(localStorage.getItem(`${STORAGE_KEY}:theme`)||'light');
-  window.fitcvPipelineContract={pages,transactions,defaults,runState,RUN_STATUSES,PIPELINE_STAGES,selfCheck,validateTransaction,triggerPrototypeRun,openRunDetails,exportRunResults};
+  window.fitcvPipelineContract={pages,transactions,defaults,runState,RUN_STATUSES,PROFILE_STATUSES,PIPELINE_STAGES,selfCheck,validateTransaction,createPrototypeProfile,triggerPrototypeRun,openProfileDetails,openRunDetails,exportRunResults};
   console.assert(selfCheck(),'Pipeline prototype self-check failed');
   renderPage();
   })();
