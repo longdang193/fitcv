@@ -105,7 +105,7 @@ related_stages:
 ### Non-Goals
 
 - central Bookmarks and Candidate Profile management behavior owned by `2026-07-21-19-02-fitcv-central-workspace-frontend-backend-integration-spec.md`.
-- Appearance, LLM & API, Data & Backup, System, and Health areas marked navigation-only.
+- System and Health remain navigation-only. Appearance is removed; the global theme toggle owns light/dark preference. API Providers, LLM Configuration, and Data & Backup UI intent are owned by `docs/fitcv-settings-ui-prototype.integration.md`; current backend provider constraints remain authoritative until dedicated contracts are approved.
 - frontend redesign, replacement component system, changed labels, hierarchy, or navigation.
 - PDF/DOCX generation; Markdown download is sufficient when metadata is complete.
 - legacy DB migration, backfill, dual-read, or mixed old/new schema support.

@@ -45,10 +45,22 @@
     .run-id{font-weight:600}.run-job,.run-status{font-weight:500}.detail-item dt,.job-attribute span{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.06em;line-height:1.3;text-transform:uppercase}.detail-item dd,.job-attribute strong{font-size:14px;font-weight:400;line-height:1.4}.run-input-details{grid-template-columns:repeat(2,minmax(0,1fr))}.summary-card{display:inline-flex;min-height:34px;appearance:none;width:auto;flex:0 0 auto;align-items:center;justify-content:center;gap:8px;padding:0 10px;color:var(--text);cursor:pointer;text-align:left;line-height:1.1}.summary-card[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.summary-card span{font-size:11px;line-height:1}.summary-card strong{display:block;margin:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}.results-filters{display:block;min-width:0;margin-bottom:12px}.stage-filter{width:100%;min-width:0}.pipeline-stage-tabs{display:flex;width:100%;max-width:100%;gap:4px;padding:4px;overflow-x:auto;overflow-y:hidden;border-radius:12px;background:var(--surface-2);white-space:nowrap}.pipeline-stage-tabs .btn{flex:1 0 110px;min-width:110px;border-color:transparent;background:transparent;font-weight:500}.pipeline-stage-tabs .btn[aria-selected="true"]{border-color:var(--border);background:var(--surface);color:var(--text);box-shadow:var(--shadow)}.pipeline-summary{display:flex;width:max-content;max-width:100%;gap:4px;margin:0;padding:4px;overflow-x:auto;border-radius:10px;background:var(--surface-2)}.results-search{width:min(560px,100%);min-width:min(560px,100%);flex:1}.results-toolbar{align-items:center;flex-wrap:wrap}.results-toolbar-actions{display:flex;max-width:100%;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}@media(max-width:760px){.results-search{width:100%;min-width:0}.results-toolbar-actions{width:100%;margin-left:0}}
   </style>
   <style>
+    .details-page-head{display:grid;gap:16px;margin-bottom:18px}.details-page-head .page-head{margin-bottom:0}.details-page-back{display:inline-flex;width:max-content;align-items:center;gap:7px;color:var(--muted);font-size:14px;font-weight:600;text-decoration:none}.details-page-back:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.details-page-back:focus-visible{border-radius:6px;outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:4px}@media(max-width:760px){.page-head>div:first-child{flex-basis:auto}}
+  </style>
+  <style>
+    .data-backup-card{padding:24px}.local-mode-heading{display:flex;align-items:center;gap:16px}.local-mode-icon{display:grid;width:48px;height:48px;place-items:center;border-radius:11px;background:color-mix(in srgb,#22c55e 12%,var(--surface));color:#16a34a}.local-mode-icon svg{width:24px;height:24px}.local-mode-heading h3{margin:0;font-size:20px}.local-mode-heading p{margin:4px 0 0;color:var(--muted)}.data-backup-divider{height:1px;margin:20px 0 16px;background:var(--border-soft)}.database-location{padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}.database-location span{display:block;margin-bottom:7px;font-weight:650}.database-location code{color:var(--muted);overflow-wrap:anywhere}.backup-actions{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}.backup-actions .btn{display:inline-flex;align-items:center;gap:8px}.backup-actions .btn[hidden]{display:none}.backup-actions svg{width:17px;height:17px}.backup-status{min-height:20px;margin:12px 0 0;color:var(--muted);font-size:13px}.backup-status.error{color:var(--accent)}.backup-file{display:none}@media(max-width:760px){.data-backup-card{padding:18px}.backup-actions{align-items:stretch;flex-direction:column}.backup-actions .btn{width:100%}}
+  </style>
+  <style>
     .run-panel>*{min-width:0}.run-panel>[role="tabpanel"]{display:grid;gap:14px}.job-title-row{display:flex;align-items:flex-start;gap:8px;min-width:0}.jobs-table tbody tr.is-selected td:first-child{background:var(--accent-soft)}.bookmark-table{min-width:1390px}.bookmark-table th:first-child,.bookmark-table td:first-child{min-width:150px;max-width:150px}
   </style>
   <style>
     .synonym-editor-shell{display:grid;gap:12px}.synonym-editor-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.synonym-editor-actions,.synonym-editor-search{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.synonym-editor-search .field{width:min(340px,70vw)}.synonym-editor{width:100%;min-height:360px;max-height:70vh;padding:16px;resize:vertical;overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2;white-space:pre}.synonym-editor[readonly]{background:var(--surface-2);color:var(--muted)}.synonym-editor:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:2px}.synonym-editor-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.synonym-issue{display:inline-flex;min-height:32px;align-items:center;justify-content:center;padding:0 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);color:var(--text);font-size:12px;font-weight:650;line-height:1}.synonym-issue[data-kind="valid"]{border-color:color-mix(in srgb,#15803d 30%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}.synonym-issue[data-kind="warning"]{border-color:color-mix(in srgb,#b45309 35%,var(--border));background:#fff7df;color:#8a5d00;cursor:pointer}[data-theme="dark"] .synonym-issue[data-kind="valid"]{color:#86efac}[data-theme="dark"] .synonym-issue[data-kind="warning"]{background:#34270f;color:#f5cf78}.synonym-editor-message{margin:0;color:var(--muted);font-size:12px}.synonym-table{min-width:840px}.synonym-table th,.synonym-table td{white-space:nowrap}.synonym-table .synonym-sources{max-width:260px;overflow:hidden;color:var(--muted);text-overflow:ellipsis}.page-head .btn,.run-selection-actions .btn{white-space:nowrap}@media(max-width:760px){.synonym-editor-toolbar,.synonym-editor-actions,.synonym-editor-search{align-items:stretch;flex-direction:column}.synonym-editor-search .field,.synonym-editor-actions .btn{width:100%}.synonym-editor{min-height:300px}}
+  </style>
+  <style>
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;border:0;clip:rect(0,0,0,0);white-space:nowrap}.btn.danger{border-color:color-mix(in srgb,#b91c1c 36%,var(--border));color:#b91c1c}.btn.danger:hover{background:color-mix(in srgb,#b91c1c 8%,var(--surface))}[data-theme="dark"] .btn.danger{color:#fca5a5}[data-theme="dark"] .model-state.verified{color:#86efac}.provider-page-actions,.provider-toolbar,.provider-card-head,.provider-connection-head,.model-card-head,.llm-route-row{display:flex;align-items:center;gap:12px}.provider-page-actions,.provider-toolbar,.provider-connection-head,.model-card-head{justify-content:space-between}.provider-page-actions,.provider-toolbar{flex-wrap:wrap}.provider-search{width:min(360px,100%)}.provider-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.provider-card{display:flex;min-height:104px;align-items:center;gap:14px;padding:18px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);box-shadow:var(--shadow);text-decoration:none}.provider-card:hover{border-color:color-mix(in srgb,var(--accent) 42%,var(--border));transform:translateY(-1px)}.provider-card[hidden]{display:none}.provider-monogram{display:grid;width:44px;height:44px;flex:0 0 44px;place-items:center;border-radius:11px;background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:800;letter-spacing:.04em}.provider-card-copy{min-width:0;flex:1}.provider-card-copy strong{display:block;font-size:16px}.provider-card-copy span{display:block;margin-top:4px;color:var(--muted);font-size:13px}.provider-status{display:inline-flex!important;width:max-content;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted)!important;font-size:11px!important;font-weight:700}.provider-status.connected{background:color-mix(in srgb,#22c55e 13%,var(--surface));color:#15803d!important}.provider-status::before{width:7px;height:7px;border-radius:50%;background:currentColor;content:""}.provider-section{display:grid;gap:14px}.provider-empty{padding:22px;border:1px dashed var(--border);border-radius:12px;color:var(--muted);text-align:center}.provider-detail-stack{display:grid;gap:16px}.provider-connection-card{padding:22px}.provider-connection-copy h3,.provider-models-head h3{margin:0;font-size:18px}.provider-connection-copy p,.provider-models-head p{margin:4px 0 0;color:var(--muted)}.provider-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}.provider-field{display:grid;gap:6px}.provider-field.full{grid-column:1/-1}.provider-field label{font-weight:650}.provider-field small{color:var(--muted)}.provider-field .field{width:100%}.provider-advanced{grid-column:1/-1;padding:12px;border:1px solid var(--border);border-radius:10px}.provider-advanced summary{cursor:pointer;font-weight:650}.provider-advanced .provider-field{margin-top:12px}.provider-helper{margin:14px 0 0;color:var(--muted);font-size:13px}.provider-helper strong{color:var(--text)}.provider-form-status{min-height:20px;margin:12px 0 0;color:var(--muted);font-size:13px}.provider-form-status.error{color:var(--accent)}.provider-models{padding:22px}.provider-models-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}.provider-model-add{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}.provider-model-add .provider-field{min-width:min(320px,100%);flex:1}.model-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.model-card{display:grid;gap:12px;padding:16px;border:1px solid var(--border);border-radius:11px;background:var(--surface)}.model-card code{overflow-wrap:anywhere}.model-card-actions{display:flex;gap:8px;flex-wrap:wrap}.model-state{color:var(--muted);font-size:12px}.model-state.verified{color:#15803d}.llm-config-grid{display:grid;gap:16px}.llm-config-card{padding:22px}.llm-config-card h3{margin:0 0 4px;font-size:18px}.llm-config-card>p{margin:0 0 18px;color:var(--muted)}.llm-route-list{display:grid;gap:0}.llm-route-row{justify-content:space-between;padding:14px 0;border-top:1px solid var(--border-soft)}.llm-route-row:first-child{border-top:0}.llm-route-copy strong{display:block}.llm-route-copy span{display:block;margin-top:3px;color:var(--muted);font-size:12px}.llm-route-row .field{width:min(360px,100%)}@media(max-width:760px){.provider-grid,.model-grid,.provider-form-grid{grid-template-columns:1fr}.provider-field.full{grid-column:auto}.provider-card{min-height:88px;padding:15px}.provider-page-actions,.provider-toolbar,.provider-models-head,.provider-model-add,.llm-route-row{align-items:stretch;flex-direction:column}.provider-page-actions .btn,.provider-toolbar .btn,.provider-model-add .btn,.llm-route-row .field{width:100%}.provider-connection-card,.provider-models,.llm-config-card{padding:18px}}
+  </style>
+  <style>
+    .provider-grid{display:grid;grid-template-columns:1fr;gap:0;overflow:hidden;border:1px solid var(--border);border-radius:11px}.provider-card{min-height:72px;padding:14px 16px;border:0;border-bottom:1px solid var(--border-soft);border-radius:0;box-shadow:none}.provider-card:last-child{border-bottom:0}.provider-card:hover{background:var(--surface-2);transform:none}.provider-card-copy{display:grid;gap:2px}.provider-card-copy span{margin:0}.provider-chevron{color:var(--muted);font-size:22px}.field:disabled{background:var(--surface-2);color:var(--subtle);cursor:not-allowed;opacity:.8}.provider-models.is-disabled{background:var(--surface-2);color:var(--subtle)}.provider-models.is-disabled .provider-models-head p,.provider-models.is-disabled .provider-empty{color:var(--subtle)}.model-grid{grid-template-columns:1fr;gap:0;overflow:hidden;border:1px solid var(--border);border-radius:11px}.model-card{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:0;border-bottom:1px solid var(--border-soft);border-radius:0}.model-card:last-child{border-bottom:0}.model-card-actions{justify-content:flex-end}.model-test-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}.model-test-row .btn{min-width:104px}.provider-model-preview{margin-top:6px;color:var(--muted)}.provider-model-status.valid{color:#15803d}.provider-model-status.error{color:var(--accent)}@media(max-width:760px){.provider-card,.model-card{align-items:flex-start}.provider-status{margin-left:auto}.model-card{flex-direction:column}.model-card-actions{width:100%}.model-card-actions .btn{flex:1}.model-test-row{grid-template-columns:1fr}.model-test-row .btn{width:100%}}
   </style>
 </head>
 <body>
@@ -61,22 +73,21 @@
         <a class="nav-link" id="bookmarksNav" href="#bookmarks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
         <a class="nav-link" id="synonymsNav" href="#synonyms"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 7h10M7 12h10M7 17h6"/><path d="M5 5h14v14H5z"/></svg>Synonyms</a>
         <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening">Screening</a><a class="nav-link child" href="#shortlisting">Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a></div></details>
-        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children"><a class="nav-link child" href="#" data-prototype-link>Appearance</a><a class="nav-link child" href="#" data-prototype-link>LLM &amp; API</a><a class="nav-link child" href="#" data-prototype-link>Data &amp; Backup</a><a class="nav-link child" href="#" data-prototype-link>System</a></div></details>
+        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children"><a class="nav-link child" id="apiProvidersNav" href="#api-providers">API Providers</a><a class="nav-link child" id="llmConfigurationNav" href="#llm-configuration">LLM Configuration</a><a class="nav-link child" id="dataBackupNav" href="#data-backup">Data &amp; Backup</a><a class="nav-link child" href="#" data-prototype-link>System</a></div></details>
         <div class="nav-divider" aria-hidden="true"></div><a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h4l2-5 4 10 2-5h4"/></svg>Health</a>
       </nav>
     </aside>
     <div class="scrim" id="scrim"></div>
     <main class="main">
-      <header><div class="title"><button class="menu-btn" id="menu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><svg class="title-icon" id="titleIcon" width="23" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg><div><h1 id="headerTitle">Pipeline</h1><p id="headerDescription">Configure how each matching run selects and prepares candidates.</p></div></div><div class="actions"><label class="search" id="searchBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="search" type="search" placeholder="Search Pipeline" aria-label="Search Pipeline Overview"></label><button class="icon-btn" id="theme" type="button" aria-label="Use dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"/></svg></button></div></header>
+      <header><div class="title"><button class="menu-btn" id="menu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><svg class="title-icon" id="titleIcon" width="23" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg><div><h1 id="headerTitle">Pipeline</h1><p id="headerDescription">Configure how each matching run selects and prepares candidates.</p></div></div><div class="actions"><label class="search" id="searchBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="search" type="search" placeholder="Search Pipeline" aria-label="Search Pipeline Overview"></label><button class="icon-btn" id="theme" type="button" aria-label="Switch to dark theme" title="Switch to dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"/></svg></button></div></header>
       <div class="scroll"><div class="content"><form id="form"></form></div></div>
     </main>
   </div>
   <dialog id="weightsDialog" aria-labelledby="weightsTitle" aria-describedby="weightsDescription"><div class="dialog-head"><div><h2 id="weightsTitle"></h2><p id="weightsDescription"></p></div><button class="dialog-close" id="closeWeights" type="button" aria-label="Close weight configuration">×</button></div><form class="weight-form" id="weightForm"></form><p class="weight-status" id="weightStatus" role="status" aria-live="polite"></p><div class="dialog-actions"><button class="btn" id="cancelWeights" type="button">Cancel</button><button class="btn primary" id="saveWeights" type="button">Save weights</button></div></dialog>
   <dialog class="run-dialog" id="profileDialog" aria-labelledby="profileDialogTitle" aria-describedby="profileDialogDescription"><div class="dialog-head"><div><h2 id="profileDialogTitle">Create Profile</h2><p id="profileDialogDescription">Upload a candidate profile and optionally give it a name.</p></div><button class="dialog-close" id="closeProfileDialog" type="button" aria-label="Close Create Profile dialog">×</button></div><form class="run-form" id="profileForm"><div class="run-field"><label for="profileFile">Profile File</label><input class="field file-input" id="profileFile" type="file" accept=".yaml" aria-describedby="profileFileHelp" required><small id="profileFileHelp">Supported: YAML (.yaml). One file per profile.</small></div><div class="run-field"><label for="profileName">Profile Name <span class="supporting-text">Optional</span></label><input class="field" id="profileName" type="text" maxlength="120" placeholder="Uses uploaded file name when empty"></div></form><p class="run-dialog-status" id="profileDialogStatus" role="status" aria-live="polite">Choose a .yaml profile file to enable Create.</p><div class="dialog-actions"><button class="btn" id="cancelProfileDialog" type="button">Cancel</button><button class="btn primary" id="createProfile" type="submit" form="profileForm" disabled>Create</button></div></dialog>
   <dialog class="run-dialog" id="runDialog" aria-labelledby="runDialogTitle" aria-describedby="runDialogDescription"><div class="dialog-head"><div><h2 id="runDialogTitle">Trigger Run</h2><p id="runDialogDescription">Upload one job file and choose the Candidate Profile to use.</p></div><button class="dialog-close" id="closeRunDialog" type="button" aria-label="Close Trigger Run dialog">×</button></div><form class="run-form" id="runForm"><div class="run-field"><label for="jobFile">Job Input</label><input class="field file-input" id="jobFile" type="file" accept=".json,.jsonl,application/json,application/x-ndjson" required><small>Supported: JSON and JSONL. One file per run.</small></div><div class="run-field"><label for="candidateProfile">Candidate Profile</label><select class="field" id="candidateProfile" aria-describedby="candidateProfileHelp" required><option value="">Select a Candidate Profile</option></select><small id="candidateProfileHelp">Shows Active, Succeeded profiles from Candidate Profiles. <a class="support-link" href="#candidate-profiles" data-open-profile-page>Manage Candidate Profiles</a></small><div class="run-empty-profile" id="candidateProfileEmpty" hidden><strong>No available Candidate Profiles</strong>Create or restore an Active, Succeeded profile before triggering a run.</div></div><div class="run-field"><label for="runName">Run Name <span class="supporting-text">Optional</span></label><input class="field" id="runName" type="text" maxlength="120" placeholder="Uses uploaded file name when empty"><small>Shown as Job Name in the run table.</small></div></form><p class="run-dialog-status" id="runDialogStatus" role="status" aria-live="polite">Select a file and Candidate Profile to enable Trigger.</p><div class="dialog-actions"><button class="btn" id="cancelRunDialog" type="button">Cancel</button><button class="btn primary" id="triggerRun" type="button" disabled>Trigger</button></div></dialog>
-  <dialog class="details-drawer" id="profileDetailsDrawer" aria-labelledby="profileDetailsTitle"><div class="drawer-scroll"><div class="drawer-head"><div><p class="eyebrow">Candidate Profile</p><h2 id="profileDetailsTitle">Profile Details</h2><p>Review created profile information.</p></div><button class="dialog-close" id="closeProfileDetails" type="button" aria-label="Close Candidate Profile Details">×</button></div><div class="drawer-body" id="profileDetailsBody"></div></div></dialog>
+  <dialog class="run-dialog provider-model-dialog" id="providerModelDialog" aria-labelledby="providerModelDialogTitle" aria-describedby="providerModelDialogDescription"><div class="dialog-head"><div><h2 id="providerModelDialogTitle">Add Model</h2><p id="providerModelDialogDescription">Test one model identifier before adding it.</p></div><button class="dialog-close" id="closeProviderModelDialog" type="button" aria-label="Close Add Model dialog">×</button></div><form class="run-form" id="providerModelForm"><div class="run-field"><label for="providerModelIdentifier">Model ID</label><div class="model-test-row"><input class="field" id="providerModelIdentifier" type="text" maxlength="160" autocomplete="off" spellcheck="false" placeholder="model-id" required><button class="btn" id="testProviderModel" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6A2 2 0 0 0 19 18l-5-9V3"/><path d="M8 15h8"/></svg>Test</button></div><small class="provider-model-preview">Sent to provider as: <code id="providerModelPreview">—</code></small></div></form><p class="run-dialog-status provider-model-status" id="providerModelStatus" role="status" aria-live="polite">Add Model saves only after a successful test.</p><div class="dialog-actions"><button class="btn" id="cancelProviderModelDialog" type="button">Cancel</button><button class="btn primary" id="saveProviderModel" type="button" disabled>Add Model</button></div></dialog>
   <dialog class="details-drawer" id="synonymDetailsDrawer" aria-labelledby="synonymDetailsTitle"><div class="drawer-scroll"><div class="drawer-head"><div><p class="eyebrow">Synonym Review</p><h2 id="synonymDetailsTitle">Suggestion Details</h2><p>Review suggestion evidence before deciding.</p></div><button class="dialog-close" id="closeSynonymDetails" type="button" aria-label="Close Synonym Suggestion Details">×</button></div><div class="drawer-body" id="synonymDetailsBody"></div></div></dialog>
-  <dialog class="details-drawer" id="runDetailsDrawer" aria-labelledby="runDetailsTitle"><div class="drawer-scroll"><div class="drawer-head"><div><p class="eyebrow">Run Details</p><h2 id="runDetailsTitle">Run Details</h2><p>Review run inputs and pipeline results.</p></div><button class="dialog-close" id="closeRunDetails" type="button" aria-label="Close Run Details">×</button></div><div class="drawer-body" id="runDetailsBody"></div></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite">Ranking changes saved in prototype</div>
   <script>
   (()=>{
@@ -84,11 +95,19 @@
   const STORAGE_KEY='fitcv-pipeline-settings-prototype-v4';
   const RUN_STORAGE_KEY='fitcv-run-prototype-v1';
   const SYNONYM_STORAGE_KEY='fitcv-synonym-prototype-v1';
+  const PROVIDER_STORAGE_KEY='fitcv-provider-prototype-v1';
   const RUN_STATUSES=new Set(['Running','Succeeded','Failed']);
   const PROFILE_STATUSES=new Set(['Succeeded','Failed']);
   const SYNONYM_TYPES=['skill','domain','role_family'];
   const SYNONYM_REVIEW_STATUSES=['pending','approved','declined'];
   const SYNONYM_TYPE_LABELS={skill:'Skills',domain:'Domain',role_family:'Role Family'};
+  const LLM_TASKS=[['screening','Screening'],['ranking','Ranking'],['cv-analysis','CV Analysis'],['cv-generation','CV Generation']];
+  const DEFAULT_PROVIDER_STATE={providers:[
+    {id:'openai',name:'OpenAI',type:'shared',protocol:'openai-compatible',baseUrl:'https://api.openai.com/v1',apiStyle:'responses',credentialConfigured:true,connectionStatus:'verified',models:[{id:'gpt-4.1-mini',verified:true}]},
+    {id:'anthropic',name:'Anthropic',type:'shared',protocol:'anthropic-compatible',baseUrl:'https://api.anthropic.com',apiStyle:'messages',credentialConfigured:false,connectionStatus:'not-configured',models:[]},
+    {id:'deepseek',name:'DeepSeek',type:'shared',protocol:'openai-compatible',baseUrl:'https://api.deepseek.com/v1',apiStyle:'chat-completions',credentialConfigured:false,connectionStatus:'not-configured',models:[]},
+    {id:'groq',name:'Groq',type:'shared',protocol:'openai-compatible',baseUrl:'https://api.groq.com/openai/v1',apiStyle:'chat-completions',credentialConfigured:false,connectionStatus:'not-configured',models:[]}
+  ],routing:{defaultModel:'openai::gpt-4.1-mini',overrides:{screening:'',ranking:'',"cv-analysis":'',"cv-generation":''}}};
   const prototypeNow=Date.now();
   const DEFAULT_CANDIDATE_PROFILES=[
     {id:'candidate-product-data',status:'Succeeded',name:'Product Data Specialist',inputFileName:'product-data-specialist.yaml',createdAt:prototypeNow-5400000,archived:false},
@@ -348,6 +367,9 @@
   const candidateProfilesNav=document.querySelector('#candidateProfilesNav');
   const runsNav=document.querySelector('#runsNav');
   const bookmarksNav=document.querySelector('#bookmarksNav');
+  const apiProvidersNav=document.querySelector('#apiProvidersNav');
+  const llmConfigurationNav=document.querySelector('#llmConfigurationNav');
+  const dataBackupNav=document.querySelector('#dataBackupNav');
   const searchBox=document.querySelector('#searchBox');
   const headerTitle=document.querySelector('#headerTitle');
   const headerDescription=document.querySelector('#headerDescription');
@@ -358,9 +380,7 @@
   const profileName=document.querySelector('#profileName');
   const profileDialogStatus=document.querySelector('#profileDialogStatus');
   const createProfileButton=document.querySelector('#createProfile');
-  const profileDetailsDrawer=document.querySelector('#profileDetailsDrawer');
-  const profileDetailsBody=document.querySelector('#profileDetailsBody');
-  const profileDetailsTitle=document.querySelector('#profileDetailsTitle');
+  const profileDetailsBody=form;
   const synonymDetailsDrawer=document.querySelector('#synonymDetailsDrawer');
   const synonymDetailsBody=document.querySelector('#synonymDetailsBody');
   const synonymDetailsTitle=document.querySelector('#synonymDetailsTitle');
@@ -372,9 +392,14 @@
   const runName=document.querySelector('#runName');
   const runDialogStatus=document.querySelector('#runDialogStatus');
   const triggerRunButton=document.querySelector('#triggerRun');
-  const runDetailsDrawer=document.querySelector('#runDetailsDrawer');
-  const runDetailsBody=document.querySelector('#runDetailsBody');
-  const runDetailsTitle=document.querySelector('#runDetailsTitle');
+  const providerModelDialog=document.querySelector('#providerModelDialog');
+  const providerModelForm=document.querySelector('#providerModelForm');
+  const providerModelIdentifier=document.querySelector('#providerModelIdentifier');
+  const providerModelPreview=document.querySelector('#providerModelPreview');
+  const providerModelStatus=document.querySelector('#providerModelStatus');
+  const testProviderModelButton=document.querySelector('#testProviderModel');
+  const saveProviderModelButton=document.querySelector('#saveProviderModel');
+  const runDetailsBody=form;
   const defaults={};
   const directRows=new Map();
   let activeGroup=null;
@@ -393,6 +418,38 @@
   }
 
   function clone(value){return structuredClone(value)}
+  function readProviderStored(){
+    try{
+      const parsed=JSON.parse(localStorage.getItem(PROVIDER_STORAGE_KEY)||'{}');
+      return parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed:{};
+    }catch{
+      localStorage.removeItem(PROVIDER_STORAGE_KEY);
+      return {};
+    }
+  }
+  function normaliseProviderState(stored){
+    const source=Array.isArray(stored.providers)?stored.providers:DEFAULT_PROVIDER_STATE.providers;
+    const providers=[],seenProviders=new Set();
+    for(const candidate of source){
+      if(!candidate||typeof candidate.id!=='string'||!/^[a-z0-9][a-z0-9._-]*$/i.test(candidate.id)||typeof candidate.name!=='string'||seenProviders.has(candidate.id))continue;
+      const type=candidate.type==='custom'?'custom':'shared';
+      const protocol=candidate.protocol==='anthropic-compatible'?'anthropic-compatible':'openai-compatible';
+      const apiStyle=protocol==='anthropic-compatible'?'messages':candidate.apiStyle==='chat-completions'?'chat-completions':'responses';
+      const seenModels=new Set(),models=[];
+      for(const model of Array.isArray(candidate.models)?candidate.models:[]){
+        if(!model||typeof model.id!=='string'||!model.id.trim()||seenModels.has(model.id)||model.enabled===false)continue;
+        seenModels.add(model.id);
+        models.push({id:model.id.trim(),verified:Boolean(model.verified)});
+      }
+      seenProviders.add(candidate.id);
+      providers.push({id:candidate.id,name:candidate.name.trim()||'Unnamed Provider',type,protocol,baseUrl:typeof candidate.baseUrl==='string'?candidate.baseUrl:'',apiStyle,credentialConfigured:Boolean(candidate.credentialConfigured),connectionStatus:['not-configured','configured','verified'].includes(candidate.connectionStatus)?candidate.connectionStatus:'not-configured',models});
+    }
+    const cleanProviders=providers.length?providers:clone(DEFAULT_PROVIDER_STATE.providers);
+    const validModelKeys=new Set(cleanProviders.flatMap(provider=>provider.credentialConfigured?provider.models.filter(model=>model.verified).map(model=>`${provider.id}::${model.id}`):[]));
+    const defaultModel=validModelKeys.has(stored.routing?.defaultModel)?stored.routing.defaultModel:[...validModelKeys][0]||'';
+    const overrides=Object.fromEntries(LLM_TASKS.map(([task])=>[task,validModelKeys.has(stored.routing?.overrides?.[task])?stored.routing.overrides[task]:'']));
+    return {providers:cleanProviders,routing:{defaultModel,overrides}};
+  }
   function readStored(){
     try{
       const parsed=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
@@ -483,6 +540,7 @@
   }
   let runState=normaliseRunState(readRunStored());
   let synonymState=normaliseSynonymState(readSynonymStored());
+  let providerState=normaliseProviderState(readProviderStored());
   const selectedSynonymReviewIds=new Set();
   let synonymEditorEditing=false;
   let synonymEditorDraft='';
@@ -497,6 +555,8 @@
   let runPageSize=20;
   let selectedProfileDetailId=null;
   let selectedRunDetailId=null;
+  let activeModelProviderId=null;
+  let testedProviderModelId='';
   let pipelineStage='shortlisting';
   let pipelineResult='all';
   let jobResultsSearch='';
@@ -512,8 +572,17 @@
   function writeRunState(){localStorage.setItem(RUN_STORAGE_KEY,JSON.stringify(runState))}
   function writeBookmarks(){runState.bookmarks=[...bookmarkedJobs];writeRunState()}
   function writeSynonymState(){localStorage.setItem(SYNONYM_STORAGE_KEY,JSON.stringify(synonymState))}
+  function providerModelKey(providerId,modelId){return `${providerId}::${modelId}`}
+  function enabledProviderModels(){return providerState.providers.flatMap(provider=>provider.credentialConfigured?provider.models.filter(model=>model.verified).map(model=>({provider,model,key:providerModelKey(provider.id,model.id)})):[])}
+  function repairProviderRouting(){
+    const validKeys=new Set(enabledProviderModels().map(item=>item.key));
+    if(!validKeys.has(providerState.routing.defaultModel))providerState.routing.defaultModel=[...validKeys][0]||'';
+    for(const [task] of LLM_TASKS)if(!validKeys.has(providerState.routing.overrides[task]))providerState.routing.overrides[task]='';
+  }
+  function writeProviderState(){repairProviderRouting();localStorage.setItem(PROVIDER_STORAGE_KEY,JSON.stringify(providerState))}
   writeRunState();
   writeSynonymState();
+  writeProviderState();
   function notify(message){
     toast.textContent=message;
     toast.classList.add('show');
@@ -525,6 +594,7 @@
     span.textContent=String(value);
     return span.innerHTML;
   }
+  function escapeAttribute(value){return escapeHtml(value).replaceAll('"','&quot;').replaceAll("'",'&#39;')}
   function runReferenceMarkup(runIds,dataAttribute){
     if(!runIds.length)return '—';
     return runIds.map(runId=>runState.runs.some(run=>run.id===runId)?`<button class="run-id run-id-link" type="button" ${dataAttribute}="${escapeHtml(runId)}">${escapeHtml(runId)}</button>`:`<span class="run-id">${escapeHtml(runId)}</span>`).join(', ');
@@ -917,16 +987,146 @@
   }
   function renderProfileDetails(){
     const profile=runState.candidateProfiles.find(item=>item.id===selectedProfileDetailId);
-    if(!profile){profileDetailsDrawer.close();return}
+    if(!profile){location.hash='candidate-profiles';return}
     const relatedRuns=runState.runs.filter(run=>run.profileId===profile.id);
-    profileDetailsTitle.textContent=profile.name;
     profileDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Profile Overview</strong><span>Current lifecycle information for this Candidate Profile.</span></span><span class="drawer-status">${statusMarkup(profile)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid"><div class="detail-item"><dt>Profile ID</dt><dd>${escapeHtml(profile.id)}</dd></div><div class="detail-item"><dt>Profile Name</dt><dd>${escapeHtml(profile.name)}</dd></div><div class="detail-item"><dt>Created</dt><dd>${formatCreated(profile.createdAt)}</dd></div><div class="detail-item"><dt>Availability</dt><dd>${profile.archived?'Archived · historical runs only':'Available for new runs'}</dd></div><div class="detail-item"><dt>Used by Runs</dt><dd>${runReferenceMarkup(relatedRuns.map(run=>run.id),'data-profile-run-details')}</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Profile Input</strong><span>Read-only input used to create this Candidate Profile.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details"><div class="detail-item"><dt>Profile Input</dt><dd>${profile.inputFileName?escapeHtml(profile.inputFileName):'—'}</dd></div></dl></div></details>`;
-    profileDetailsBody.querySelectorAll('[data-profile-run-details]').forEach(button=>button.addEventListener('click',()=>{profileDetailsDrawer.close();openRunDetails(button.dataset.profileRunDetails)}));
+    profileDetailsBody.insertAdjacentHTML('afterbegin',`<div class="details-page-head"><a class="details-page-back" href="#candidate-profiles">← Back to Candidate Profiles</a><div class="page-head"><div><p class="eyebrow">Candidate Profile</p><h2>${escapeHtml(profile.name)}</h2><p>Review profile identity, lifecycle state, source input, and related runs.</p></div><span class="drawer-status">${statusMarkup(profile)}</span></div></div>`);
+    profileDetailsBody.querySelectorAll('[data-profile-run-details]').forEach(button=>button.addEventListener('click',()=>openRunDetails(button.dataset.profileRunDetails)));
   }
   function openProfileDetails(profileId){
+    if(!runState.candidateProfiles.some(profile=>profile.id===profileId))return;
     selectedProfileDetailId=profileId;
-    renderProfileDetails();
-    profileDetailsDrawer.showModal();
+    const nextHash=`#candidate-profiles/${encodeURIComponent(profileId)}`;
+    if(location.hash===nextHash)renderPage();else location.hash=nextHash;
+  }
+  function providerById(providerId){return providerState.providers.find(provider=>provider.id===providerId)}
+  function providerInitials(name){return name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase()||'AI'}
+  function providerCardMarkup(provider){
+    const connected=provider.credentialConfigured;
+    return `<a class="provider-card" href="#api-providers/${encodeURIComponent(provider.id)}" data-provider-card data-provider-search="${escapeAttribute(`${provider.name} ${provider.protocol}`.toLowerCase())}"><span class="provider-monogram" aria-hidden="true">${escapeHtml(providerInitials(provider.name))}</span><span class="provider-card-copy"><strong>${escapeHtml(provider.name)}</strong><span>${provider.protocol==='anthropic-compatible'?'Anthropic-compatible':'OpenAI-compatible'}</span></span><span class="provider-status${connected?' connected':''}">${connected?'Connected':'No connection'}</span><span class="provider-chevron" aria-hidden="true">›</span></a>`;
+  }
+  function createCustomProvider(protocol){
+    let providerId=`custom-${protocol==='anthropic-compatible'?'anthropic':'openai'}-${Date.now().toString(36)}`;
+    while(providerById(providerId))providerId+='x';
+    providerState.providers.push({id:providerId,name:protocol==='anthropic-compatible'?'New Anthropic-compatible provider':'New OpenAI-compatible provider',type:'custom',protocol,baseUrl:'',apiStyle:protocol==='anthropic-compatible'?'messages':'responses',credentialConfigured:false,connectionStatus:'not-configured',models:[]});
+    writeProviderState();
+    location.hash=`#api-providers/${encodeURIComponent(providerId)}`;
+  }
+  function renderApiProvidersPage(){
+    const predefined=providerState.providers.filter(provider=>provider.type==='shared'),custom=providerState.providers.filter(provider=>provider.type==='custom');
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Application</p><h2>API Providers</h2><p>Manage predefined and custom AI provider connections. Each provider supports one connection.</p></div></div><div class="provider-section"><div class="provider-page-actions"><label class="provider-field provider-search"><span class="sr-only">Search providers</span><input class="field" id="providerSearch" type="search" placeholder="Search providers" aria-label="Search API providers"></label><div class="provider-page-actions"><button class="btn" type="button" data-add-custom-provider="openai-compatible">Add OpenAI-compatible</button><button class="btn" type="button" data-add-custom-provider="anthropic-compatible">Add Anthropic-compatible</button></div></div><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>Custom Providers</strong><span>Connect OpenAI-compatible or Anthropic-compatible endpoints.</span></span></summary><div class="section-content settings-card">${custom.length?`<div class="provider-grid">${custom.map(providerCardMarkup).join('')}</div>`:'<div class="provider-empty">No custom providers yet. Add one from buttons above.</div>'}</div></details><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>API Key Providers</strong><span>Predefined API-key providers supplied by FitCV.</span></span></summary><div class="section-content settings-card"><div class="provider-grid">${predefined.map(providerCardMarkup).join('')}</div></div></details></div>`;
+    const providerSearch=form.querySelector('#providerSearch');
+    providerSearch.addEventListener('input',()=>{const query=providerSearch.value.trim().toLowerCase();form.querySelectorAll('[data-provider-card]').forEach(card=>{card.hidden=Boolean(query&&!card.dataset.providerSearch.includes(query))})});
+    form.querySelectorAll('[data-add-custom-provider]').forEach(button=>button.addEventListener('click',()=>createCustomProvider(button.dataset.addCustomProvider)));
+  }
+  function modelCardMarkup(provider,model){
+    const connected=provider.credentialConfigured;
+    return `<article class="model-card"><div><code>${escapeHtml(model.id)}</code><div class="model-state${model.verified?' verified':''}">${model.verified?'Validated':'Needs retest'}</div></div><div class="model-card-actions"><button class="btn" type="button" data-test-model="${escapeAttribute(model.id)}" ${connected?'':'disabled'}>Test</button><button class="btn danger" type="button" data-remove-model="${escapeAttribute(model.id)}" ${connected?'':'disabled'}>Remove</button></div></article>`;
+  }
+  function resetProviderModelTest(message='Add Model saves only after a successful test.'){
+    testedProviderModelId='';
+    saveProviderModelButton.disabled=true;
+    providerModelStatus.textContent=message;
+    providerModelStatus.className='run-dialog-status provider-model-status';
+    providerModelIdentifier.removeAttribute('aria-invalid');
+    providerModelPreview.textContent=providerModelIdentifier.value.trim()||'—';
+  }
+  function openProviderModelDialog(providerId){
+    const provider=providerById(providerId);
+    if(!provider?.credentialConfigured)return;
+    activeModelProviderId=providerId;
+    providerModelIdentifier.value='';
+    resetProviderModelTest();
+    providerModelDialog.showModal();
+    providerModelIdentifier.focus();
+  }
+  function testProviderModel(){
+    const provider=providerById(activeModelProviderId),modelId=providerModelIdentifier.value.trim();
+    if(!provider?.credentialConfigured){resetProviderModelTest('Configure a provider connection before testing models.');providerModelStatus.classList.add('error');return}
+    if(!modelId){resetProviderModelTest('Enter a Model ID before testing.');providerModelIdentifier.setAttribute('aria-invalid','true');providerModelStatus.classList.add('error');return}
+    if(provider.models.some(model=>model.id===modelId)){resetProviderModelTest('This model is already available for the provider.');providerModelIdentifier.setAttribute('aria-invalid','true');providerModelStatus.classList.add('error');return}
+    testedProviderModelId=modelId;
+    saveProviderModelButton.disabled=false;
+    providerModelStatus.textContent='Model validation succeeded in prototype. Add Model is ready.';
+    providerModelStatus.className='run-dialog-status provider-model-status valid';
+  }
+  function saveProviderModel(){
+    const provider=providerById(activeModelProviderId),modelId=providerModelIdentifier.value.trim();
+    if(!provider?.credentialConfigured||!modelId||testedProviderModelId!==modelId||provider.models.some(model=>model.id===modelId)){resetProviderModelTest('Test this Model ID successfully before adding it.');providerModelStatus.classList.add('error');return}
+    provider.models.push({id:modelId,verified:true});
+    writeProviderState();
+    providerModelDialog.close();
+    if(providerDetailsId()===provider.id)renderProviderDetailsPage();
+    notify(`${modelId} added`);
+  }
+  function renderProviderDetailsPage(){
+    const provider=providerById(providerDetailsId());
+    if(!provider)return;
+    const custom=provider.type==='custom',connected=provider.credentialConfigured,fixedApiType=provider.protocol==='anthropic-compatible';
+    const displayNameField=custom?`<div class="provider-field full"><label for="providerDisplayName">Display Name</label><input class="field" id="providerDisplayName" type="text" maxlength="80" value="${escapeAttribute(provider.name)}" required></div>`:'';
+    const apiTypeOptions=fixedApiType?'<option value="messages" selected>Messages API</option>':`<option value="chat-completions" ${provider.apiStyle==='chat-completions'?'selected':''}>Chat Completions</option><option value="responses" ${provider.apiStyle==='responses'?'selected':''}>Responses API</option>`;
+    form.innerHTML=`<div class="details-page-head"><a class="details-page-back" href="#api-providers">← Back to API Providers</a><div class="page-head"><div><p class="eyebrow">API Provider</p><h2>${escapeHtml(provider.name)}</h2><p>${provider.protocol==='anthropic-compatible'?'Anthropic-compatible provider using Messages API.':'OpenAI-compatible provider.'}</p></div>${custom?'<button class="btn danger" id="deleteCustomProvider" type="button">Delete Provider</button>':''}</div></div><div class="provider-detail-stack"><section class="section-card provider-connection-card" aria-labelledby="connectionTitle"><div class="provider-connection-head"><div class="provider-connection-copy"><h3 id="connectionTitle">Connection</h3><p>${connected?'Credential and connection settings are configured.':'No connection configured.'}</p></div><span class="provider-status${connected?' connected':''}">${connected?'Connected':'No connection'}</span></div><div class="provider-form-grid">${displayNameField}<div class="provider-field full"><label for="providerBaseUrl">Base URL</label><input class="field" id="providerBaseUrl" type="url" value="${escapeAttribute(provider.baseUrl)}" placeholder="https://api.example.com/v1" ${custom?'':'disabled'} required><small>${custom?'Configure provider endpoint.':'Defined by FitCV for this provider.'}</small></div><div class="provider-field"><label for="providerApiKey">API Key</label><input class="field" id="providerApiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="${connected?'••••••••••••':'Enter API key'}"><small>${connected?'Saved as a credential. Enter a new key only to replace it.':'Required to create connection.'}</small></div><div class="provider-field"><label for="providerApiType">API Type</label><select class="field" id="providerApiType" ${fixedApiType?'disabled':''}>${apiTypeOptions}</select><small>${fixedApiType?'Fixed by provider protocol.':'Choose provider request format.'}</small></div></div><p class="provider-helper"><strong>Credential safety:</strong> API keys are never saved in browser storage. Later backend integration stores credentials in Windows Credential Manager.</p><p class="provider-form-status" id="providerConnectionStatus" role="status" aria-live="polite">${provider.connectionStatus==='verified'?'Connection verified in prototype.':connected?'Connection configured.':'Enter connection details to continue.'}</p><div class="backup-actions"><button class="btn primary" id="saveProviderConnection" type="button">${connected?'Update Connection':'Add Connection'}</button><button class="btn" id="verifyProviderConnection" type="button" ${connected?'':'disabled'}>Verify Connection</button>${connected?'<button class="btn danger" id="removeProviderConnection" type="button">Remove Connection</button>':''}</div></section><section class="section-card provider-models${connected?'':' is-disabled'}" aria-labelledby="modelsTitle" aria-disabled="${!connected}"><div class="provider-models-head"><div><h3 id="modelsTitle">Available Models</h3><p>${connected?'Models become available after successful validation.':'Connection required before adding or testing models.'}</p></div><button class="btn" id="openProviderModelDialog" type="button" ${connected?'':'disabled'}>Add Model</button></div>${provider.models.length?`<div class="model-grid">${provider.models.map(model=>modelCardMarkup(provider,model)).join('')}</div>`:`<div class="provider-empty">${connected?'No models added yet.':'Configure a connection to manage models.'}</div>`}</section></div>`;
+    bindProviderDetailsPage(provider);
+  }
+  function bindProviderDetailsPage(provider){
+    const status=form.querySelector('#providerConnectionStatus');
+    const showError=message=>{status.textContent=message;status.className='provider-form-status error'};
+    form.querySelector('#saveProviderConnection').addEventListener('click',()=>{
+      const displayName=form.querySelector('#providerDisplayName'),baseUrl=form.querySelector('#providerBaseUrl').value.trim(),apiKey=form.querySelector('#providerApiKey').value.trim(),apiType=provider.protocol==='anthropic-compatible'?'messages':form.querySelector('#providerApiType').value;
+      if(displayName&&!displayName.value.trim()){showError('Display Name is required.');return}
+      try{const parsed=new URL(baseUrl);if(!['http:','https:'].includes(parsed.protocol))throw new Error()}catch{showError('Base URL must be a valid HTTP or HTTPS URL.');return}
+      if(!provider.credentialConfigured&&!apiKey){showError('API Key is required for first connection.');return}
+      const connectionChanged=!provider.credentialConfigured||provider.baseUrl!==baseUrl||provider.apiStyle!==apiType||Boolean(apiKey);
+      if(displayName)provider.name=displayName.value.trim();
+      provider.baseUrl=baseUrl;
+      provider.apiStyle=apiType;
+      provider.credentialConfigured=true;
+      provider.connectionStatus='configured';
+      if(connectionChanged)provider.models.forEach(model=>{model.verified=false});
+      writeProviderState();
+      renderProviderDetailsPage();
+      notify(`${provider.name} connection saved`);
+    });
+    form.querySelector('#verifyProviderConnection').addEventListener('click',()=>{provider.connectionStatus='verified';writeProviderState();renderProviderDetailsPage();notify(`${provider.name} verification complete in prototype`)});
+    form.querySelector('#removeProviderConnection')?.addEventListener('click',()=>{provider.credentialConfigured=false;provider.connectionStatus='not-configured';provider.models.forEach(model=>{model.verified=false});writeProviderState();renderProviderDetailsPage();notify(`${provider.name} connection removed`)});
+    form.querySelector('#deleteCustomProvider')?.addEventListener('click',()=>{providerState.providers=providerState.providers.filter(item=>item.id!==provider.id);writeProviderState();location.hash='#api-providers';notify('Custom provider deleted')});
+    form.querySelector('#openProviderModelDialog').addEventListener('click',()=>openProviderModelDialog(provider.id));
+    form.querySelectorAll('[data-test-model]').forEach(button=>button.addEventListener('click',()=>{const model=provider.models.find(item=>item.id===button.dataset.testModel);if(!provider.credentialConfigured||!model)return;model.verified=true;writeProviderState();renderProviderDetailsPage();notify(`${model.id} validated in prototype`)}));
+    form.querySelectorAll('[data-remove-model]').forEach(button=>button.addEventListener('click',()=>{if(!provider.credentialConfigured)return;provider.models=provider.models.filter(model=>model.id!==button.dataset.removeModel);writeProviderState();renderProviderDetailsPage();notify('Model removed')}));
+  }
+  function llmModelOptions(selected,includeDefault=false){
+    const options=enabledProviderModels().map(({provider,model,key})=>`<option value="${escapeAttribute(key)}" ${key===selected?'selected':''}>${escapeHtml(provider.name)} · ${escapeHtml(model.id)}</option>`).join('');
+    return `${includeDefault?'<option value="">Use default model</option>':''}${options}`;
+  }
+  function renderLlmConfigurationPage(){
+    const models=enabledProviderModels();
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Application</p><h2>LLM Configuration</h2><p>Choose one default model and optional task-specific overrides from validated provider models.</p></div><a class="btn" href="#api-providers">Manage API Providers</a></div>${models.length?`<div class="llm-config-grid"><section class="section-card llm-config-card"><h3>Default Route</h3><p>Used when a task has no override.</p><label class="provider-field" for="defaultLlmModel"><span>Default Model</span><select class="field" id="defaultLlmModel">${llmModelOptions(providerState.routing.defaultModel)}</select></label></section><section class="section-card llm-config-card"><h3>Task Overrides</h3><p>Keep Use default model unless a task needs a different provider or model.</p><div class="llm-route-list">${LLM_TASKS.map(([task,label])=>`<label class="llm-route-row"><span class="llm-route-copy"><strong>${label}</strong><span>Optional provider and model override</span></span><select class="field" data-llm-task="${task}" aria-label="${label} model override">${llmModelOptions(providerState.routing.overrides[task],true)}</select></label>`).join('')}</div></section></div>`:'<div class="section-card provider-empty"><strong>No validated models available.</strong><p>Add a provider connection and validate at least one model first.</p><a class="btn" href="#api-providers">Manage API Providers</a></div>'}`;
+    form.querySelector('#defaultLlmModel')?.addEventListener('change',event=>{providerState.routing.defaultModel=event.currentTarget.value;writeProviderState();notify('Default LLM route saved')});
+    form.querySelectorAll('[data-llm-task]').forEach(select=>select.addEventListener('change',()=>{providerState.routing.overrides[select.dataset.llmTask]=select.value;writeProviderState();notify('Task override saved')}));
+  }
+  function renderDataBackupPage(){
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Application</p><h2>Data &amp; Backup</h2><p>Inspect local storage and create or restore a portable FitCV backup.</p></div></div><section class="section-card data-backup-card" aria-labelledby="localModeTitle"><div class="local-mode-heading"><span class="local-mode-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="16" height="13" rx="2"/><path d="M2 20h20"/></svg></span><div><h3 id="localModeTitle">Local Mode</h3><p>Running on your machine</p></div></div><div class="data-backup-divider" aria-hidden="true"></div><div class="database-location"><span>Database Location</span><code>~/.fitcv/data/fitcv.sqlite3</code></div><div class="backup-actions"><button class="btn primary" id="downloadWorkspaceBackup" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v3h16v-3"/></svg>Download Backup</button><button class="btn" id="chooseWorkspaceBackup" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 21V9m0 0 4 4m-4-4-4 4M4 7V4h16v3"/></svg>Import Backup</button><button class="btn" id="restoreWorkspaceBackup" type="button" hidden>Restore Backup</button><input class="backup-file" id="workspaceBackupFile" type="file" accept=".fitcv.zip,.zip,application/zip" aria-label="Choose FitCV backup archive"></div><p class="backup-status" id="workspaceBackupStatus" role="status" aria-live="polite">Backup operations require an idle local workspace.</p></section>`;
+    bindDataBackupPage();
+  }
+  function bindDataBackupPage(){
+    const fileInput=form.querySelector('#workspaceBackupFile'),restoreButton=form.querySelector('#restoreWorkspaceBackup'),status=form.querySelector('#workspaceBackupStatus');
+    let selectedFile=null;
+    form.querySelector('#downloadWorkspaceBackup').addEventListener('click',()=>{status.textContent='Backend integration will stream a fitcv-backup.v1 archive without credentials or active-run data.';status.className='backup-status';notify('Backup download requires backend integration')});
+    form.querySelector('#chooseWorkspaceBackup').addEventListener('click',()=>fileInput.click());
+    fileInput.addEventListener('change',()=>{
+      selectedFile=fileInput.files?.[0]||null;
+      const valid=Boolean(selectedFile&&selectedFile.name.toLowerCase().endsWith('.fitcv.zip'));
+      restoreButton.hidden=!valid;
+      status.textContent=!selectedFile?'Choose a .fitcv.zip backup archive.':valid?`${selectedFile.name} selected. Restore validates checksums, schema compatibility, and SQLite integrity before replacement.`:'Backup must use the .fitcv.zip format.';
+      status.className=`backup-status${selectedFile&&!valid?' error':''}`;
+    });
+    restoreButton.addEventListener('click',()=>{
+      if(!selectedFile||!confirm(`Restore ${selectedFile.name}?\n\nFitCV must be idle. The application will restart only after the archive passes integrity and compatibility checks.`))return;
+      restoreButton.disabled=true;
+      status.textContent='Prototype only: backend integration will stage, validate, atomically restore, and restart FitCV.';
+      status.className='backup-status';
+      notify('Backup restore requires backend integration');
+    });
   }
   function visibleRuns(){return runState.runs.filter(run=>run.archived===(runState.runActiveTab==='archived'))}
   function statusMarkup(run){
@@ -1180,15 +1380,15 @@
   }
   function renderRunDetails(){
     const run=runState.runs.find(item=>item.id===selectedRunDetailId);
-    if(!run){runDetailsDrawer.close();return}
+    if(!run){location.hash='runs';return}
     const profile=selectedProfile(run);
     const evaluated=evaluatedJobResults(run),passed=evaluated.filter(item=>item.outcome.result==='Passed').length,rejected=evaluated.length-passed;
     const filtered=filteredJobResults(run),totalPages=Math.max(1,Math.ceil(filtered.length/jobResultsPageSize));
     selectedJobResultKeys.forEach(key=>{if(!filtered.some(({job})=>bookmarkKey(run,job)===key))selectedJobResultKeys.delete(key)});
     jobResultsPage=Math.min(jobResultsPage,totalPages);
     const pageRows=filtered.slice((jobResultsPage-1)*jobResultsPageSize,jobResultsPage*jobResultsPageSize),selectedCount=filtered.filter(({job})=>selectedJobResultKeys.has(bookmarkKey(run,job))).length;
-    runDetailsTitle.textContent=`Run ${run.id}`;
     runDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Overview</strong><span>Current lifecycle information for this run.</span></span><span class="drawer-status">${statusMarkup(run)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid">${[['Run ID',run.id],['Run Name',run.runName||run.jobName],['Created',formatCreated(run.createdAt)],['Started',formatCreated(run.startedAt||run.createdAt)],['Finished',run.endedAt?formatCreated(run.endedAt):'—']].map(([label,value])=>`<div class="detail-item"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Input</strong><span>Read-only inputs used when this run was triggered.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details"><div class="detail-item"><dt>Job Input</dt><dd>${escapeHtml(run.inputFileName||run.jobName)}</dd></div><div class="detail-item"><dt>Candidate Profile</dt><dd>${profile?`<button class="run-id run-id-link" type="button" data-run-profile-details="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</button>`:'Profile unavailable'}</dd></div><div class="detail-item"><dt>Profile ID</dt><dd>${profile?escapeHtml(profile.id):'—'}</dd></div><div class="detail-item"><dt>Profile State</dt><dd>${profile?(profile.archived?'Archived · historical reference':'Active'):'Unavailable'}</dd></div><div class="detail-item"><dt>Configuration Snapshot</dt><dd>Pipeline Settings and Synonyms captured when this run was triggered.</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Pipeline Results</strong><span>Includes passed and rejected jobs evaluated at the selected stage.</span></span></summary><div class="section-content drawer-section-content"><div class="results-filters"><div class="stage-filter"><div class="pipeline-stage-tabs" role="tablist" aria-label="Pipeline stages">${PIPELINE_STAGES.map(stage=>`<button class="btn" type="button" role="tab" data-pipeline-stage="${stage.id}" aria-selected="${stage.id===pipelineStage}" tabindex="${stage.id===pipelineStage?'0':'-1'}">${stage.label}</button>`).join('')}</div></div></div><div class="results-toolbar"><input class="field results-search" id="jobResultsSearch" type="search" value="${escapeHtml(jobResultsSearch)}" placeholder="Search jobs, attributes, skills, or outcomes" aria-label="Search pipeline results"><div class="results-toolbar-actions"><div class="pipeline-summary" role="tablist" aria-label="Pipeline result filter"><button class="summary-card" type="button" role="tab" data-pipeline-result="all" aria-selected="${pipelineResult==='all'}" tabindex="${pipelineResult==='all'?'0':'-1'}"><span>Total Evaluated</span><strong>${evaluated.length}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="passed" aria-selected="${pipelineResult==='passed'}" tabindex="${pipelineResult==='passed'?'0':'-1'}"><span>Passed</span><strong>${passed}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="rejected" aria-selected="${pipelineResult==='rejected'}" tabindex="${pipelineResult==='rejected'?'0':'-1'}"><span>Rejected</span><strong>${rejected}</strong></button></div><button class="btn" id="exportRunResults" type="button" ${selectedCount?'':'disabled'}>Export</button></div></div><div class="run-panel">${jobResultSelectionMarkup(run,filtered)}${jobResultsTableMarkup(run,pageRows,filtered.length)}</div></div></details><details class="section-card collapsible-section drawer-section"><summary><span class="section-heading"><strong>Console Log</strong><span>Canonical run events for troubleshooting. Clear View hides loaded events locally without deleting backend evidence.</span></span></summary><div class="section-content drawer-section-content">${consoleLogMarkup(run)}</div></details>`;
+    runDetailsBody.insertAdjacentHTML('afterbegin',`<div class="details-page-head"><a class="details-page-back" href="#runs">← Back to Runs</a><div class="page-head"><div><p class="eyebrow">Run Details</p><h2>Run ${escapeHtml(run.id)}</h2><p>Review run inputs and pipeline results.</p></div><span class="drawer-status">${statusMarkup(run)}</span></div></div>`);
     bindRunDetails(run);
   }
   function bindConsoleControls(run,root=runDetailsBody){
@@ -1216,14 +1416,15 @@
     runDetailsBody.querySelectorAll('[data-bookmark-job]').forEach(button=>button.addEventListener('click',()=>{const key=bookmarkKey(run,button.dataset.bookmarkJob);bookmarkedJobs.has(key)?bookmarkedJobs.delete(key):bookmarkedJobs.add(key);writeBookmarks();renderRunDetails()}));
     runDetailsBody.querySelectorAll('[data-interest-rating]').forEach(button=>button.addEventListener('click',()=>{interestRatings.set(`${run.id}:${button.dataset.interestJob}`,Number(button.dataset.interestRating));renderRunDetails()}));
     runDetailsBody.querySelectorAll('[data-clear-interest]').forEach(button=>button.addEventListener('click',()=>{interestRatings.delete(`${run.id}:${button.dataset.clearInterest}`);renderRunDetails()}));
-    runDetailsBody.querySelector('[data-run-profile-details]')?.addEventListener('click',event=>{runDetailsDrawer.close();openProfileDetails(event.currentTarget.dataset.runProfileDetails)});
+    runDetailsBody.querySelector('[data-run-profile-details]')?.addEventListener('click',event=>openProfileDetails(event.currentTarget.dataset.runProfileDetails));
     runDetailsBody.querySelector('#exportRunResults').addEventListener('click',()=>exportRunResults(run));
     bindConsoleControls(run);
   }
   function openRunDetails(runId,stage='shortlisting'){
     if(!runState.runs.some(run=>run.id===runId))return;
     selectedRunDetailId=runId;pipelineStage=PIPELINE_STAGES.some(item=>item.id===stage)?stage:'shortlisting';pipelineResult='all';jobResultsSearch='';jobResultsPage=1;jobResultsPageSize=10;selectedJobResultKeys.clear();
-    renderRunDetails();runDetailsDrawer.showModal();
+    const nextHash=`#run-details/${encodeURIComponent(runId)}`;
+    if(location.hash===nextHash)renderPage();else location.hash=nextHash;
   }
   function downloadJobCsv(fileName,headers,rows){
     const csvCell=value=>`"${String(value??'').replaceAll('"','""')}"`,csv=[headers,...rows].map(row=>row.map(csvCell).join(',')).join('\n');
@@ -1343,7 +1544,10 @@
   }
   function setTheme(value){
     document.documentElement.dataset.theme=value;
-    theme.setAttribute('aria-label',value==='dark'?'Use light theme':'Use dark theme');
+    const dark=value==='dark',label=dark?'Switch to light theme':'Switch to dark theme';
+    theme.setAttribute('aria-label',label);
+    theme.setAttribute('title',label);
+    theme.querySelector('svg').innerHTML=dark?'<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path>':'<path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"></path>';
   }
   function openNav(open){
     sidebar.classList.toggle('open',open);
@@ -1383,10 +1587,122 @@
   }
   function isSynonymsPage(){return location.hash==='#synonyms'}
   function isCandidateProfilesPage(){return location.hash==='#candidate-profiles'}
+  function profileDetailsId(){const prefix='#candidate-profiles/';return location.hash.startsWith(prefix)?decodeURIComponent(location.hash.slice(prefix.length)):null}
+  function isProfileDetailsPage(){return Boolean(profileDetailsId())}
   function isRunsPage(){return location.hash==='#runs'}
+  function runDetailsId(){const prefix='#run-details/';return location.hash.startsWith(prefix)?decodeURIComponent(location.hash.slice(prefix.length)):null}
+  function isRunDetailsPage(){return Boolean(runDetailsId())}
   function isBookmarksPage(){return location.hash==='#bookmarks'}
+  function isDataBackupPage(){return location.hash==='#data-backup'}
+  function isApiProvidersPage(){return location.hash==='#api-providers'}
+  function providerDetailsId(){const prefix='#api-providers/';return location.hash.startsWith(prefix)?decodeURIComponent(location.hash.slice(prefix.length)):null}
+  function isProviderDetailsPage(){return Boolean(providerDetailsId())}
+  function isLlmConfigurationPage(){return location.hash==='#llm-configuration'}
   function currentPage(){return pages.find(page=>page.id===location.hash.slice(1))||pages[0]}
+  function clearPrimaryNavigation(){
+    [synonymsNav,candidateProfilesNav,runsNav,bookmarksNav,dataBackupNav].forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+    pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+  }
   function renderPage(){
+    [apiProvidersNav,llmConfigurationNav].forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+    if(isProviderDetailsPage()){
+      if(!providerById(providerDetailsId())){location.hash='api-providers';return}
+      headerTitle.textContent='API Provider';
+      headerDescription.textContent='Configure one connection and its available models.';
+      titleIcon.innerHTML='<circle cx="8" cy="12" r="3"/><path d="M11 12h9M17 12v3M14 12v2"/>';
+      searchBox.hidden=true;
+      clearPrimaryNavigation();
+      apiProvidersNav.classList.add('active');
+      apiProvidersNav.setAttribute('aria-current','page');
+      renderProviderDetailsPage();
+      document.querySelector('.scroll').scrollTop=0;
+      return;
+    }
+    if(isApiProvidersPage()){
+      headerTitle.textContent='API Providers';
+      headerDescription.textContent='Manage shared and custom provider connections.';
+      titleIcon.innerHTML='<circle cx="8" cy="12" r="3"/><path d="M11 12h9M17 12v3M14 12v2"/>';
+      searchBox.hidden=true;
+      clearPrimaryNavigation();
+      apiProvidersNav.classList.add('active');
+      apiProvidersNav.setAttribute('aria-current','page');
+      renderApiProvidersPage();
+      return;
+    }
+    if(isLlmConfigurationPage()){
+      headerTitle.textContent='LLM Configuration';
+      headerDescription.textContent='Choose default and task-specific model routes.';
+      titleIcon.innerHTML='<path d="M4 6h16M7 12h10M10 18h4"/><circle cx="8" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="12" cy="18" r="2"/>';
+      searchBox.hidden=true;
+      clearPrimaryNavigation();
+      llmConfigurationNav.classList.add('active');
+      llmConfigurationNav.setAttribute('aria-current','page');
+      renderLlmConfigurationPage();
+      return;
+    }
+    if(isProfileDetailsPage()){
+      selectedProfileDetailId=profileDetailsId();
+      if(!runState.candidateProfiles.some(profile=>profile.id===selectedProfileDetailId)){location.hash='candidate-profiles';return}
+      headerTitle.textContent='Candidate Profile';
+      headerDescription.textContent='Review profile identity, source input, lifecycle state, and related runs.';
+      titleIcon.innerHTML='<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>';
+      searchBox.hidden=true;
+      synonymsNav.classList.remove('active');
+      synonymsNav.removeAttribute('aria-current');
+      candidateProfilesNav.classList.add('active');
+      candidateProfilesNav.setAttribute('aria-current','page');
+      runsNav.classList.remove('active');
+      runsNav.removeAttribute('aria-current');
+      bookmarksNav.classList.remove('active');
+      bookmarksNav.removeAttribute('aria-current');
+      dataBackupNav.classList.remove('active');
+      dataBackupNav.removeAttribute('aria-current');
+      pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+      renderProfileDetails();
+      document.querySelector('.scroll').scrollTop=0;
+      return;
+    }
+    if(isRunDetailsPage()){
+      selectedRunDetailId=runDetailsId();
+      if(!runState.runs.some(run=>run.id===selectedRunDetailId)){location.hash='runs';return}
+      headerTitle.textContent='Run Details';
+      headerDescription.textContent='Review run inputs and pipeline results.';
+      titleIcon.innerHTML='<path d="M4 5h16v5H4zM4 14h16v5H4z"/>';
+      searchBox.hidden=true;
+      synonymsNav.classList.remove('active');
+      synonymsNav.removeAttribute('aria-current');
+      candidateProfilesNav.classList.remove('active');
+      candidateProfilesNav.removeAttribute('aria-current');
+      runsNav.classList.add('active');
+      runsNav.setAttribute('aria-current','page');
+      bookmarksNav.classList.remove('active');
+      bookmarksNav.removeAttribute('aria-current');
+      dataBackupNav.classList.remove('active');
+      dataBackupNav.removeAttribute('aria-current');
+      pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+      renderRunDetails();
+      document.querySelector('.scroll').scrollTop=0;
+      return;
+    }
+    if(isDataBackupPage()){
+      headerTitle.textContent='Data & Backup';
+      headerDescription.textContent='Inspect local storage and manage portable backups.';
+      titleIcon.innerHTML='<rect x="4" y="4" width="16" height="13" rx="2"/><path d="M2 20h20"/>';
+      searchBox.hidden=true;
+      synonymsNav.classList.remove('active');
+      synonymsNav.removeAttribute('aria-current');
+      candidateProfilesNav.classList.remove('active');
+      candidateProfilesNav.removeAttribute('aria-current');
+      runsNav.classList.remove('active');
+      runsNav.removeAttribute('aria-current');
+      bookmarksNav.classList.remove('active');
+      bookmarksNav.removeAttribute('aria-current');
+      dataBackupNav.classList.add('active');
+      dataBackupNav.setAttribute('aria-current','page');
+      pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+      renderDataBackupPage();
+      return;
+    }
     if(isSynonymsPage()){
       headerTitle.textContent='Synonyms';
       headerDescription.textContent='Manage shared mappings and review suggestions across runs.';
@@ -1400,6 +1716,8 @@
       runsNav.removeAttribute('aria-current');
       bookmarksNav.classList.remove('active');
       bookmarksNav.removeAttribute('aria-current');
+      dataBackupNav.classList.remove('active');
+      dataBackupNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderSynonymsPage();
       return;
@@ -1417,6 +1735,8 @@
       runsNav.removeAttribute('aria-current');
       bookmarksNav.classList.remove('active');
       bookmarksNav.removeAttribute('aria-current');
+      dataBackupNav.classList.remove('active');
+      dataBackupNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderCandidateProfilesPage();
       return;
@@ -1434,6 +1754,8 @@
       runsNav.setAttribute('aria-current','page');
       bookmarksNav.classList.remove('active');
       bookmarksNav.removeAttribute('aria-current');
+      dataBackupNav.classList.remove('active');
+      dataBackupNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderRunsPage();
       return;
@@ -1451,6 +1773,8 @@
       runsNav.removeAttribute('aria-current');
       bookmarksNav.classList.add('active');
       bookmarksNav.setAttribute('aria-current','page');
+      dataBackupNav.classList.remove('active');
+      dataBackupNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderBookmarksPage();
       return;
@@ -1469,6 +1793,8 @@
     runsNav.removeAttribute('aria-current');
     bookmarksNav.classList.remove('active');
     bookmarksNav.removeAttribute('aria-current');
+    dataBackupNav.classList.remove('active');
+    dataBackupNav.removeAttribute('aria-current');
     pipelineNav.replaceChildren(...pages.map(item=>{
       const link=document.createElement('a');
       link.className=`nav-link child${item.id===page.id?' active':''}`;
@@ -1636,6 +1962,10 @@
     if(mirrors.length!==6||mirrors.some(row=>!directRows.has(row.key)))throw new Error('Every stage mirror must reference an Overview-owned setting');
     if(/synonym triage/i.test(JSON.stringify(pages)))throw new Error('Internal synonym triage wording must not appear');
     if(new Set(DEFAULT_CANDIDATE_PROFILES.map(profile=>profile.id)).size!==DEFAULT_CANDIDATE_PROFILES.length)throw new Error('Candidate Profile IDs must be unique');
+    if(new Set(providerState.providers.map(provider=>provider.id)).size!==providerState.providers.length)throw new Error('Provider IDs must be unique');
+    if(!['OpenAI','Anthropic','DeepSeek','Groq'].every(name=>providerState.providers.some(provider=>provider.type==='shared'&&provider.name===name)))throw new Error('Shared provider catalog must include approved providers');
+    if(localStorage.getItem(PROVIDER_STORAGE_KEY)?.includes('apiKey'))throw new Error('Provider storage must never contain API keys');
+    if(providerState.routing.defaultModel&&!enabledProviderModels().some(item=>item.key===providerState.routing.defaultModel))throw new Error('Default LLM route must reference a validated model');
     if(DEFAULT_CANDIDATE_PROFILES.some(profile=>!PROFILE_STATUSES.has(profile.status)||!Number.isFinite(profile.createdAt)||typeof profile.archived!=='boolean'||!isYamlProfileFile({name:profile.inputFileName}))||!DEFAULT_CANDIDATE_PROFILES.some(profile=>profile.archived)||!DEFAULT_CANDIDATE_PROFILES.some(profile=>!profile.archived))throw new Error('Candidate Profiles must include valid YAML input and lifecycle state');
     populateCandidateProfiles();
     const eligibleProfileIds=new Set(availableCandidateProfiles().map(profile=>profile.id));
@@ -1663,15 +1993,11 @@
   document.querySelector('#cancelWeights').addEventListener('click',()=>dialog.close());
   document.querySelector('#closeProfileDialog').addEventListener('click',()=>profileDialog.close());
   document.querySelector('#cancelProfileDialog').addEventListener('click',()=>profileDialog.close());
-  document.querySelector('#closeProfileDetails').addEventListener('click',()=>profileDetailsDrawer.close());
   document.querySelector('#closeSynonymDetails').addEventListener('click',()=>synonymDetailsDrawer.close());
   document.querySelector('#closeRunDialog').addEventListener('click',()=>runDialog.close());
   document.querySelector('#cancelRunDialog').addEventListener('click',()=>runDialog.close());
-  document.querySelector('#closeRunDetails').addEventListener('click',()=>runDetailsDrawer.close());
-  runDetailsDrawer.addEventListener('click',event=>{if(event.target===runDetailsDrawer)runDetailsDrawer.close()});
-  runDetailsDrawer.addEventListener('close',()=>{selectedRunDetailId=null});
-  profileDetailsDrawer.addEventListener('click',event=>{if(event.target===profileDetailsDrawer)profileDetailsDrawer.close()});
-  profileDetailsDrawer.addEventListener('close',()=>{selectedProfileDetailId=null});
+  document.querySelector('#closeProviderModelDialog').addEventListener('click',()=>providerModelDialog.close());
+  document.querySelector('#cancelProviderModelDialog').addEventListener('click',()=>providerModelDialog.close());
   synonymDetailsDrawer.addEventListener('click',event=>{if(event.target===synonymDetailsDrawer)synonymDetailsDrawer.close()});
   synonymDetailsDrawer.addEventListener('close',()=>{delete synonymDetailsDrawer.dataset.synonymId});
   profileFile.addEventListener('change',validateProfileDialog);
@@ -1681,6 +2007,11 @@
   document.querySelector('[data-open-profile-page]').addEventListener('click',()=>runDialog.close());
   runForm.addEventListener('submit',event=>{event.preventDefault();if(!triggerRunButton.disabled)triggerPrototypeRun()});
   triggerRunButton.addEventListener('click',triggerPrototypeRun);
+  providerModelForm.addEventListener('submit',event=>{event.preventDefault();testProviderModel()});
+  providerModelIdentifier.addEventListener('input',()=>resetProviderModelTest());
+  testProviderModelButton.addEventListener('click',testProviderModel);
+  saveProviderModelButton.addEventListener('click',saveProviderModel);
+  providerModelDialog.addEventListener('close',()=>{activeModelProviderId=null;testedProviderModelId='';providerModelIdentifier.value='';resetProviderModelTest()});
   dialog.addEventListener('close',()=>{activeGroup=null;dialogParentGroup=null;dialogDrafts.clear();dialogForm.replaceChildren();dialogStatus.textContent=''});
   dialogSave.addEventListener('click',()=>{
     const group=activeGroup,result=validateTransaction();
@@ -1710,6 +2041,9 @@
   candidateProfilesNav.addEventListener('click',()=>openNav(false));
   runsNav.addEventListener('click',()=>openNav(false));
   bookmarksNav.addEventListener('click',()=>openNav(false));
+  apiProvidersNav.addEventListener('click',()=>openNav(false));
+  llmConfigurationNav.addEventListener('click',()=>openNav(false));
+  dataBackupNav.addEventListener('click',()=>openNav(false));
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!dialog.open)openNav(false)});
   document.querySelectorAll('[data-prototype-link]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();notify(`${link.textContent.trim()} is navigation-only in this prototype`);openNav(false)}));
   search.addEventListener('input',filterRows);
@@ -1719,10 +2053,10 @@
     if(changed&&isRunsPage())renderRunsPage();
     else if(isRunsPage())updateRunningDurations();
     if(changed&&isBookmarksPage())renderBookmarksPage();
-    if(changed&&runDetailsDrawer.open)renderRunDetails();
+    if(changed&&isRunDetailsPage())renderRunDetails();
   },1000);
   setTheme(localStorage.getItem(`${STORAGE_KEY}:theme`)||'light');
-  window.fitcvPipelineContract={pages,transactions,defaults,runState,synonymState,bookmarkedJobs,RUN_STATUSES,PROFILE_STATUSES,SYNONYM_TYPES,SYNONYM_REVIEW_STATUSES,PIPELINE_STAGES,selfCheck,validateTransaction,parseSynonymEditor,createPrototypeProfile,triggerPrototypeRun,openProfileDetails,openSynonymDetails,openRunDetails,renderBookmarksPage,exportRunResults,exportBookmarkedJobs};
+  window.fitcvPipelineContract={pages,transactions,defaults,runState,synonymState,providerState,bookmarkedJobs,RUN_STATUSES,PROFILE_STATUSES,SYNONYM_TYPES,SYNONYM_REVIEW_STATUSES,PIPELINE_STAGES,selfCheck,validateTransaction,parseSynonymEditor,createPrototypeProfile,triggerPrototypeRun,openProfileDetails,openSynonymDetails,openRunDetails,renderApiProvidersPage,renderProviderDetailsPage,renderLlmConfigurationPage,renderDataBackupPage,renderBookmarksPage,exportRunResults,exportBookmarkedJobs};
   console.assert(selfCheck(),'Pipeline prototype self-check failed');
   renderPage();
   })();

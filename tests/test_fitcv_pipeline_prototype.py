@@ -14,6 +14,7 @@ from pathlib import Path
 
 
 PROTOTYPE = Path("docs/fitcv-settings-ui-prototype.html")
+INTEGRATION_INTENT = Path("docs/fitcv-settings-ui-prototype.integration.md")
 
 
 def test_run_page_prototype_contract() -> None:
@@ -45,8 +46,10 @@ def test_run_page_prototype_contract() -> None:
     assert 'id="runPageSize"' in html
     assert "function paginationItems" in html
     assert "data-run-page" in html
-    assert 'id="runDetailsDrawer"' in html
-    assert 'id="runDetailsBody"' in html
+    assert 'id="runDetailsDrawer"' not in html
+    assert 'href="#runs">← Back to Runs</a>' in html
+    assert "function runDetailsId()" in html
+    assert "#run-details/" in html
     run_details = html[html.index("function renderRunDetails"):html.index("function bindRunDetails")]
     assert run_details.count('<details class="section-card collapsible-section drawer-section" open>') == 3
     assert run_details.count('class="section-card collapsible-section drawer-section"') == 4
@@ -64,7 +67,7 @@ def test_run_page_prototype_contract() -> None:
     assert 'class="section-content settings-card"' in html
     assert 'class="settings-card drawer-section-content"' not in html
     assert '<section class="drawer-section">' not in html
-    assert "event.target===runDetailsDrawer" in html
+    assert "event.target===runDetailsDrawer" not in html
     assert "clientX<bounds.left" not in html
     assert html.count('<dl class="details-grid') >= 2
     assert ".detail-item dt,.job-attribute span" in html
@@ -101,6 +104,97 @@ def test_run_page_prototype_contract() -> None:
     assert "querySelector('#jobResultsPageSize')" in html
     assert "function exportRunResults" in html
     assert "fetch(" not in html
+
+def test_candidate_profile_theme_and_data_backup_ui_contract() -> None:
+    html = PROTOTYPE.read_text(encoding="utf-8")
+
+    assert 'id="profileDetailsDrawer"' not in html
+    assert 'href="#candidate-profiles">← Back to Candidate Profiles</a>' in html
+    assert "function profileDetailsId()" in html
+    assert "#candidate-profiles/" in html
+    assert ">Appearance<" not in html
+    assert 'id="dataBackupNav" href="#data-backup"' in html
+    assert "function renderDataBackupPage()" in html
+    assert 'id="downloadWorkspaceBackup"' in html
+    assert 'id="chooseWorkspaceBackup"' in html
+    assert 'id="restoreWorkspaceBackup"' in html
+    assert ".backup-actions .btn[hidden]{display:none}" in html
+    assert 'accept=".fitcv.zip,.zip,application/zip"' in html
+    assert "fitcv-backup.v1" in html
+    assert "Switch to dark theme" in html
+    assert "Switch to light theme" in html
+    assert '<circle cx="12" cy="12" r="4"></circle>' in html
+    assert "M20.5 14.3A8.5 8.5" in html
+    assert "theme.querySelector('svg').innerHTML=dark?'<circle" in html
+    assert "</path>':'<path d=\"M20.5 14.3A8.5 8.5" in html
+
+
+def test_api_provider_and_llm_configuration_ui_contract() -> None:
+    html = PROTOTYPE.read_text(encoding="utf-8")
+
+    assert 'id="apiProvidersNav" href="#api-providers"' in html
+    assert 'id="llmConfigurationNav" href="#llm-configuration"' in html
+    assert "function providerDetailsId()" in html
+    assert "#api-providers/" in html
+    assert 'href="#api-providers">← Back to API Providers</a>' in html
+    assert "function renderApiProvidersPage()" in html
+    assert "function renderProviderDetailsPage()" in html
+    assert "function renderLlmConfigurationPage()" in html
+    assert "Add OpenAI-compatible" in html
+    assert "Add Anthropic-compatible" in html
+    assert "OpenAI" in html
+    assert "Anthropic" in html
+    assert "DeepSeek" in html
+    assert "Groq" in html
+    assert "Responses API" in html
+    assert "Chat Completions" in html
+    assert "Messages API" in html
+    assert "Each provider supports one connection." in html
+    assert "API Key Providers" in html
+    assert "Shared Providers" not in html
+    assert "Connected" in html
+    assert "No connection" in html
+    assert "1 connection" not in html
+    assert "API keys are never saved in browser storage." in html
+    assert "credentialConfigured" in html
+    assert 'id="providerApiKey"' in html
+    assert 'id="providerModelId"' not in html
+    assert 'id="providerApiType"' in html
+    assert 'id="providerModelDialog"' in html
+    assert 'id="testProviderModel"' in html
+    assert 'id="saveProviderModel"' in html
+    assert "data-test-model" in html
+    assert "data-toggle-model" not in html
+    assert "data-remove-model" in html
+    assert "Connection required before adding or testing models." in html
+    assert "Add Model saves only after a successful test." in html
+    assert "testedProviderModelId!==modelId" in html
+    assert "Fixed by provider protocol." in html
+    assert "Defined by FitCV for this provider." in html
+    assert "model.verified=false" in html
+    assert "provider.models.filter(model=>model.verified)" in html
+    assert 'id="defaultLlmModel"' in html
+    assert "Task Overrides" in html
+    assert "fetch(" not in html
+
+def test_prototype_integration_intent_tracks_profile_theme_and_backup_wiring() -> None:
+    intent = INTEGRATION_INTENT.read_text(encoding="utf-8")
+
+    assert "GET /candidate-profiles/{profile_id}" in intent
+    assert "Back to Candidate Profiles" in intent
+    assert "Appearance is absent from sidebar" in intent
+    assert "POST /local/data/backup" in intent
+    assert "POST /local/data/import" in intent
+    assert "fitcv-backup.v1" in intent
+    assert "## API Providers" in intent
+    assert "Windows Credential Manager" in intent
+    assert "one connection" in intent
+    assert "## LLM Configuration" in intent
+    assert "OpenAI-compatible" in intent
+    assert "Anthropic-compatible" in intent
+    assert "connection counts are not shown" in intent
+    assert "Needs retest" in intent
+    assert "validation before Add Model" in intent
 
 
 def test_synonym_backup_prototype_uses_opaque_zip_contract() -> None:
