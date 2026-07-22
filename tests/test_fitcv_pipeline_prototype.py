@@ -51,8 +51,16 @@ def test_run_page_prototype_contract() -> None:
     assert "function runDetailsId()" in html
     assert "#run-details/" in html
     run_details = html[html.index("function renderRunDetails"):html.index("function bindRunDetails")]
+    profile_details = html[html.index("function renderProfileDetails"):html.index("function openProfileDetails")]
     assert run_details.count('<details class="section-card collapsible-section drawer-section" open>') == 3
     assert run_details.count('class="section-card collapsible-section drawer-section"') == 4
+    assert run_details.count('class="drawer-status"') == 1
+    assert profile_details.count('class="drawer-status"') == 1
+    assert "Used by Runs" not in profile_details
+    assert "data-profile-run-details" not in profile_details
+    assert "const relatedRuns=" not in profile_details
+    assert ".details-page-layout{display:grid;gap:18px}" in html
+    assert "form.classList.toggle('details-page-layout',isProfileDetailsPage()||isRunDetailsPage())" in html
     assert "Console Log" in html
     assert "Clear View" in html
     assert "Download Debug Bundle" in html
@@ -73,6 +81,7 @@ def test_run_page_prototype_contract() -> None:
     assert ".detail-item dt,.job-attribute span" in html
     assert ".detail-item dd,.job-attribute strong" in html
     assert "data-run-details" in html
+    assert "${run.archived?'Archived run':'Active run'}" not in html
     assert "Pipeline Results" in html
     assert "All Jobs" in html
     assert "CV Generation" in html
@@ -113,14 +122,28 @@ def test_candidate_profile_theme_and_data_backup_ui_contract() -> None:
     assert "function profileDetailsId()" in html
     assert "#candidate-profiles/" in html
     assert ">Appearance<" not in html
-    assert 'id="dataBackupNav" href="#data-backup"' in html
-    assert "function renderDataBackupPage()" in html
+    assert 'id="systemNav" href="#system"' in html
+    assert 'id="dataBackupNav"' not in html
+    assert ">Health</a>" not in html
+    assert "function renderSystemPage()" in html
     assert 'id="downloadWorkspaceBackup"' in html
     assert 'id="chooseWorkspaceBackup"' in html
     assert 'id="restoreWorkspaceBackup"' in html
     assert ".backup-actions .btn[hidden]{display:none}" in html
     assert 'accept=".fitcv.zip,.zip,application/zip"' in html
     assert "fitcv-backup.v1" in html
+    assert 'id="shutdownDialog"' in html
+    assert 'id="openShutdownDialog"' in html
+    assert 'id="confirmShutdown"' in html
+    assert html.index('id="theme"') < html.index('id="openShutdownDialog"')
+    assert ".icon-btn.danger{color:#b91c1c}" in html
+    assert ".btn.danger,.icon-btn.danger{border-color" not in html
+    assert "system-danger" not in html
+    assert "Shutdown FitCV" in html
+    assert "Shutdown is unavailable while work is active." in html
+    assert ".title-icon{width:23px;height:23px;flex:0 0 23px" in html
+    assert ".run-table tbody tr:hover,.provider-card:hover{background:var(--surface-2)}" in html
+    assert "transform:translateY(-1px)" not in html
     assert "Switch to dark theme" in html
     assert "Switch to light theme" in html
     assert '<circle cx="12" cy="12" r="4"></circle>' in html
@@ -134,6 +157,7 @@ def test_api_provider_and_llm_configuration_ui_contract() -> None:
 
     assert 'id="apiProvidersNav" href="#api-providers"' in html
     assert 'id="llmConfigurationNav" href="#llm-configuration"' in html
+    assert 'id="promptManagementNav" href="#prompt-management"' in html
     assert "function providerDetailsId()" in html
     assert "#api-providers/" in html
     assert 'href="#api-providers">← Back to API Providers</a>' in html
@@ -157,11 +181,21 @@ def test_api_provider_and_llm_configuration_ui_contract() -> None:
     assert "1 connection" not in html
     assert "API keys are never saved in browser storage." in html
     assert "credentialConfigured" in html
+    assert "function providerConnected(provider)" in html
+    assert "provider.connectionStatus==='verified'" in html
     assert 'id="providerApiKey"' in html
     assert 'id="providerModelId"' not in html
     assert 'id="providerApiType"' in html
     assert 'id="providerModelDialog"' in html
+    assert 'id="testProviderConnection"' in html
+    assert ">Test</button>" in html
+    assert "Verify Connection" not in html
+    assert 'id="saveProviderConnection" type="button" disabled' in html
+    assert "connectionTestPassed=false" in html
+    assert "Test this connection successfully before saving it." in html
     assert 'id="testProviderModel"' in html
+    assert '<button class="btn" id="testProviderModel" type="button">Test</button>' in html
+    assert '<button class="btn" id="testProviderModel" type="button"><svg' not in html
     assert 'id="saveProviderModel"' in html
     assert "data-test-model" in html
     assert "data-toggle-model" not in html
@@ -172,16 +206,58 @@ def test_api_provider_and_llm_configuration_ui_contract() -> None:
     assert "Fixed by provider protocol." in html
     assert "Defined by FitCV for this provider." in html
     assert "model.verified=false" in html
+    assert ".provider-grid{display:grid;grid-template-columns:1fr;gap:0}" in html
+    assert ".provider-grid{display:grid;grid-template-columns:1fr;gap:0;overflow:hidden" not in html
+    assert '<div class="provider-add-actions">' in html
+    assert ".provider-empty{padding:22px;color:var(--muted);text-align:center}" in html
+    assert ".provider-empty{padding:22px;border:" not in html
     assert "provider.models.filter(model=>model.verified)" in html
     assert 'id="defaultLlmModel"' in html
-    assert "Task Overrides" in html
+    assert "Task Overrides" not in html
+    assert "Stage LLM Configuration" not in html
+    assert "Task Configuration" in html
+    assert "function taskLlmRowMarkup" in html
+    assert "data-manage-llm-task" in html
+    assert 'id="taskLlmDialog"' in html
+    assert 'id="taskLlmModel"' in html
+    assert 'id="taskLlmTimeout"' in html
+    assert 'id="taskLlmTemperature"' in html
+    assert "Enrich Extraction" in html
+    assert "Ranking AI Score" in html
+    assert "CV Generation" in html
+    assert "Synonym Recommendation" in html
+    assert "Synonym Triage Recommendation" not in html
+    assert "function renderPromptManagementPage()" in html
+    assert "Pipeline Prompts" in html
+    assert "Synonym Prompts" in html
+    assert "Prompt used to review synonym proposals and recommend an action." in html
+    assert "routes through an external LLM provider" not in html
+    assert "Manage Prompt" in html
+    assert 'id="stagePromptDialog"' in html
+    assert 'id="stagePromptType"' in html
+    assert 'id="stagePromptEditor"' in html
+    assert 'maxlength="4000"' in html
+    assert "4000 characters" in html
+    assert "Character limit reached." in html
+    assert "Request Retry" in html
+    assert 'id="systemMaximumAttempts"' in html
+    assert 'id="systemInitialBackoff"' in html
+    assert 'id="systemLeaseSeconds"' in html
+    assert 'id="systemReconcilerInterval"' in html
+    assert 'id="systemErrorDetailLimit"' in html
     assert "fetch(" not in html
 
 def test_prototype_integration_intent_tracks_profile_theme_and_backup_wiring() -> None:
     intent = INTEGRATION_INTENT.read_text(encoding="utf-8")
 
     assert "GET /candidate-profiles/{profile_id}" in intent
+    assert "GET /candidate-profiles/{profile_id}/runs" not in intent
     assert "Back to Candidate Profiles" in intent
+    assert "omit reverse Run listings" in intent
+    assert "unbounded Run list" in intent
+    assert "Health is absent from the sidebar" in intent
+    assert "fixed size" in intent
+    assert "same hover surface token" in intent
     assert "Appearance is absent from sidebar" in intent
     assert "POST /local/data/backup" in intent
     assert "POST /local/data/import" in intent
@@ -193,8 +269,32 @@ def test_prototype_integration_intent_tracks_profile_theme_and_backup_wiring() -
     assert "OpenAI-compatible" in intent
     assert "Anthropic-compatible" in intent
     assert "connection counts are not shown" in intent
+    assert "Connection actions are Test" in intent
+    assert "remains disabled until the current draft passes Test" in intent
+    assert "sole owner of Connected display" in intent
     assert "Needs retest" in intent
     assert "validation before Add Model" in intent
+    assert "Task Configuration" in intent
+    assert "Prompt Management" in intent
+    assert "Synonym Recommendation" in intent
+    assert "4000 characters" in intent
+    assert "Maximum Attempts" in intent
+    assert "Initial Backoff" in intent
+    assert "Lease" in intent
+    assert "Reconciler Interval" in intent
+    assert "## System" in intent
+    assert "Shutdown FitCV" in intent
+    assert "Theme precedes Shutdown FitCV" in intent
+    assert "borderless icon-button rest state" in intent
+    assert "one outer section boundary" in intent
+    assert "separate layout groups" in intent
+    assert "text-only Test action" in intent
+    assert "parent-owned section gap" in intent
+    assert "do not repeat lifecycle status" in intent
+    assert "show only the linked Run ID" in intent
+    assert "remain unframed" in intent
+    assert "does not duplicate Shutdown FitCV" in intent
+    assert "active work" in intent
 
 
 def test_synonym_backup_prototype_uses_opaque_zip_contract() -> None:

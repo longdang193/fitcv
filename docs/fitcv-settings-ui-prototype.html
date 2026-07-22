@@ -12,7 +12,7 @@
     .sidebar{width:var(--sidebar-w);flex:0 0 auto;overflow-y:auto;border-right:1px solid var(--border-soft);background:var(--sidebar);transition:transform .2s ease}.brand{display:flex;align-items:center;gap:12px;padding:24px 24px 22px}.brand-mark{display:grid;width:38px;height:38px;place-items:center;border-radius:10px;background:var(--accent);color:#fff}.brand-mark svg{width:21px}.brand strong{display:block;font-family:var(--display-font);font-size:17px;letter-spacing:-.015em}.brand small{color:var(--muted)}nav{padding:0 16px 24px}.nav-group{margin:4px 0 12px}.nav-group summary{display:flex;min-height:40px;align-items:center;gap:10px;padding:8px 12px;border-radius:9px;color:var(--subtle);cursor:pointer;font-size:11px;font-weight:750;letter-spacing:.1em;list-style:none;text-transform:uppercase}.nav-group summary::-webkit-details-marker{display:none}.nav-group summary:hover{background:var(--surface-2);color:var(--text)}[data-theme="dark"] .nav-group summary{color:#dbe4ee}[data-theme="dark"] .nav-group summary:hover{color:#fff}.nav-group summary::after{width:16px;margin-left:auto;content:"›";font-size:18px;transform:rotate(0);transition:transform .15s}.nav-group[open] summary::after{transform:rotate(90deg)}.nav-group svg{width:17px;height:17px}.nav-children{padding:2px 0 0 12px}.nav-link{display:flex;align-items:center;gap:10px;min-height:36px;margin:2px 0;padding:7px 12px;border-radius:9px;color:var(--muted);font-size:13px;font-weight:550;text-decoration:none}.nav-link:hover{background:var(--surface-2);color:var(--text)}.nav-link.active{background:var(--accent-soft);color:var(--accent)}.nav-link svg{width:17px;height:17px;flex:0 0 auto}.nav-link.child{padding-left:14px}.nav-divider{height:1px;margin:14px 12px;background:var(--border-soft)}
     .main{position:relative;display:flex;min-width:0;flex:1;flex-direction:column;min-height:100vh}
     header{display:flex;min-height:var(--header-h);align-items:center;justify-content:space-between;gap:16px;padding:0 32px;border-bottom:1px solid var(--border-soft);background:var(--surface)}
-    .title{display:flex;min-width:0;align-items:center;gap:10px}.title-icon{color:var(--accent)}.title h1{margin:0;font-family:var(--display-font);font-size:22px;letter-spacing:-.025em}.title p{margin:2px 0 0;color:var(--muted);font-size:13px}.actions{display:flex;gap:6px}
+    .title{display:flex;min-width:0;align-items:center;gap:10px}.title-icon{width:23px;height:23px;flex:0 0 23px;color:var(--accent)}.title h1{margin:0;font-family:var(--display-font);font-size:22px;letter-spacing:-.025em}.title p{margin:2px 0 0;color:var(--muted);font-size:13px}.actions{display:flex;flex:0 0 auto;gap:6px}
     .icon-btn,.menu-btn{display:grid;width:38px;height:38px;place-items:center;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);cursor:pointer}.icon-btn:hover,.menu-btn:hover{border-color:var(--border);background:var(--surface-2);color:var(--text)}.icon-btn svg,.menu-btn svg{width:19px}.menu-btn{display:none}
     .scroll{flex:1;overflow-y:auto;padding:40px}.content{width:min(960px,100%);margin:auto}.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin:0 0 22px;flex-wrap:wrap}.page-head>div:first-child{min-width:min(320px,100%);flex:1 1 420px}.eyebrow{margin:0 0 6px;color:var(--accent);font-size:11px;font-weight:750;letter-spacing:.1em;text-transform:uppercase}.page-head h2{margin:0;font-family:var(--display-font);font-size:27px;letter-spacing:-.035em}.page-head p{max-width:560px;margin:6px 0 0;color:var(--muted)}
     .btn{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 14px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);cursor:pointer;font-weight:650;text-decoration:none}.btn:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.btn.primary{border-color:var(--accent);background:var(--accent);color:#fff}.btn.primary:hover{background:var(--accent-hover);color:#fff}
@@ -30,7 +30,7 @@
     .row.is-mirror{background:var(--mirror-bg)}
   </style>
   <style>
-    .search[hidden]{display:none}.run-dialog{width:min(620px,calc(100vw - 32px))}.run-form{display:grid;gap:20px;padding:22px 24px 4px}.run-field{display:grid;gap:7px}.run-field>label{font-weight:650}.run-field small{color:var(--muted)}.run-field .field{width:100%;min-height:42px}.file-input{padding-block:8px}.run-empty-profile{padding:12px;border:1px dashed var(--border);border-radius:9px;background:var(--surface-2);color:var(--muted)}.run-empty-profile strong{display:block;margin-bottom:3px;color:var(--text)}.run-dialog-status{min-height:20px;margin:0 24px;color:var(--muted);font-size:13px}.run-panel{display:grid;gap:14px}.run-panel,#runTablePanel,.table-card,.table-scroll{min-width:0}.run-tabs{display:flex;gap:8px}.run-tabs .btn[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.run-tab-count{margin-left:5px;color:var(--subtle);font-size:12px}.run-selection{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}.run-selection-copy{display:grid;gap:2px}.run-selection-copy span{color:var(--muted);font-size:12px}.run-selection-actions{display:flex;gap:8px;flex-wrap:wrap}.table-card{overflow:hidden}.table-scroll{width:100%;max-width:100%;overflow-x:auto}.run-table{width:100%;min-width:720px;border-collapse:collapse}.run-table th,.run-table td{padding:14px 16px;border-bottom:1px solid var(--border-soft);text-align:left;vertical-align:middle}.run-table th{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}.run-table tbody tr:last-child td{border-bottom:0}.run-table tbody tr:hover{background:var(--surface-2)}.run-table tbody tr.is-selected{background:var(--accent-soft)}.run-table input[type="checkbox"]{width:17px;height:17px;accent-color:var(--accent)}.run-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;font-weight:700}.run-job{font-weight:650}.run-created,.run-duration{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}.run-status{border:1px solid var(--border);background:var(--surface-2)}.run-status[data-status="Failed"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.run-status-detail{display:block;margin-top:4px;color:var(--muted);font-size:11px}.empty-state{display:grid;justify-items:center;gap:8px;padding:56px 24px;text-align:center}.empty-state svg{width:34px;color:var(--accent)}.empty-state h3{margin:4px 0 0;font-size:17px}.empty-state p{max-width:430px;margin:0;color:var(--muted)}@media(max-width:760px){.run-selection{align-items:stretch;flex-direction:column}.run-selection-actions{display:grid;grid-template-columns:1fr 1fr}.run-selection-actions .btn{width:100%}.run-tabs .btn{flex:1}.run-form{padding-inline:18px}.run-dialog-status{margin-inline:18px}}
+    .search[hidden]{display:none}.run-dialog{width:min(620px,calc(100vw - 32px))}.run-form{display:grid;gap:20px;padding:22px 24px 4px}.run-field{display:grid;gap:7px}.run-field>label{font-weight:650}.run-field small{color:var(--muted)}.run-field .field{width:100%;min-height:42px}.file-input{padding-block:8px}.run-empty-profile{padding:12px;border:1px dashed var(--border);border-radius:9px;background:var(--surface-2);color:var(--muted)}.run-empty-profile strong{display:block;margin-bottom:3px;color:var(--text)}.run-dialog-status{min-height:20px;margin:0 24px;color:var(--muted);font-size:13px}.run-panel{display:grid;gap:14px}.run-panel,#runTablePanel,.table-card,.table-scroll{min-width:0}.run-tabs{display:flex;gap:8px}.run-tabs .btn[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.run-tab-count{margin-left:5px;color:var(--subtle);font-size:12px}.run-selection{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}.run-selection-copy{display:grid;gap:2px}.run-selection-copy span{color:var(--muted);font-size:12px}.run-selection-actions{display:flex;gap:8px;flex-wrap:wrap}.table-card{overflow:hidden}.table-scroll{width:100%;max-width:100%;overflow-x:auto}.run-table{width:100%;min-width:720px;border-collapse:collapse}.run-table th,.run-table td{padding:14px 16px;border-bottom:1px solid var(--border-soft);text-align:left;vertical-align:middle}.run-table th{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}.run-table tbody tr:last-child td{border-bottom:0}.run-table tbody tr:hover,.provider-card:hover{background:var(--surface-2)}.run-table tbody tr.is-selected{background:var(--accent-soft)}.run-table input[type="checkbox"]{width:17px;height:17px;accent-color:var(--accent)}.run-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;font-weight:700}.run-job{font-weight:650}.run-created,.run-duration{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}.run-status{border:1px solid var(--border);background:var(--surface-2)}.run-status[data-status="Failed"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.run-status-detail{display:block;margin-top:4px;color:var(--muted);font-size:11px}.empty-state{display:grid;justify-items:center;gap:8px;padding:56px 24px;text-align:center}.empty-state svg{width:34px;color:var(--accent)}.empty-state h3{margin:4px 0 0;font-size:17px}.empty-state p{max-width:430px;margin:0;color:var(--muted)}@media(max-width:760px){.run-selection{align-items:stretch;flex-direction:column}.run-selection-actions{display:grid;grid-template-columns:1fr 1fr}.run-selection-actions .btn{width:100%}.run-tabs .btn{flex:1}.run-form{padding-inline:18px}.run-dialog-status{margin-inline:18px}}
   </style>
   <style>
     .profile-table{min-width:720px}.profile-name{font-weight:650}.run-status[data-status="Succeeded"]{border-color:color-mix(in srgb,#15803d 30%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}[data-theme="dark"] .run-status[data-status="Succeeded"]{color:#86efac}.synonym-review-status{display:inline-flex;align-items:center;min-height:26px;padding:0 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:12px;font-weight:650;text-transform:capitalize}.synonym-review-status[data-status="approved"]{border-color:color-mix(in srgb,#15803d 30%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}.synonym-review-status[data-status="declined"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.synonym-import{display:none}
@@ -45,7 +45,7 @@
     .run-id{font-weight:600}.run-job,.run-status{font-weight:500}.detail-item dt,.job-attribute span{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.06em;line-height:1.3;text-transform:uppercase}.detail-item dd,.job-attribute strong{font-size:14px;font-weight:400;line-height:1.4}.run-input-details{grid-template-columns:repeat(2,minmax(0,1fr))}.summary-card{display:inline-flex;min-height:34px;appearance:none;width:auto;flex:0 0 auto;align-items:center;justify-content:center;gap:8px;padding:0 10px;color:var(--text);cursor:pointer;text-align:left;line-height:1.1}.summary-card[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.summary-card span{font-size:11px;line-height:1}.summary-card strong{display:block;margin:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}.results-filters{display:block;min-width:0;margin-bottom:12px}.stage-filter{width:100%;min-width:0}.pipeline-stage-tabs{display:flex;width:100%;max-width:100%;gap:4px;padding:4px;overflow-x:auto;overflow-y:hidden;border-radius:12px;background:var(--surface-2);white-space:nowrap}.pipeline-stage-tabs .btn{flex:1 0 110px;min-width:110px;border-color:transparent;background:transparent;font-weight:500}.pipeline-stage-tabs .btn[aria-selected="true"]{border-color:var(--border);background:var(--surface);color:var(--text);box-shadow:var(--shadow)}.pipeline-summary{display:flex;width:max-content;max-width:100%;gap:4px;margin:0;padding:4px;overflow-x:auto;border-radius:10px;background:var(--surface-2)}.results-search{width:min(560px,100%);min-width:min(560px,100%);flex:1}.results-toolbar{align-items:center;flex-wrap:wrap}.results-toolbar-actions{display:flex;max-width:100%;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}@media(max-width:760px){.results-search{width:100%;min-width:0}.results-toolbar-actions{width:100%;margin-left:0}}
   </style>
   <style>
-    .details-page-head{display:grid;gap:16px;margin-bottom:18px}.details-page-head .page-head{margin-bottom:0}.details-page-back{display:inline-flex;width:max-content;align-items:center;gap:7px;color:var(--muted);font-size:14px;font-weight:600;text-decoration:none}.details-page-back:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.details-page-back:focus-visible{border-radius:6px;outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:4px}@media(max-width:760px){.page-head>div:first-child{flex-basis:auto}}
+    .details-page-head{display:grid;gap:16px;margin-bottom:18px}.details-page-layout{display:grid;gap:18px}.details-page-layout .details-page-head{margin-bottom:0}.details-page-head .page-head{margin-bottom:0}.details-page-back{display:inline-flex;width:max-content;align-items:center;gap:7px;color:var(--muted);font-size:14px;font-weight:600;text-decoration:none}.details-page-back:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.details-page-back:focus-visible{border-radius:6px;outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:4px}@media(max-width:760px){.page-head>div:first-child{flex-basis:auto}}
   </style>
   <style>
     .data-backup-card{padding:24px}.local-mode-heading{display:flex;align-items:center;gap:16px}.local-mode-icon{display:grid;width:48px;height:48px;place-items:center;border-radius:11px;background:color-mix(in srgb,#22c55e 12%,var(--surface));color:#16a34a}.local-mode-icon svg{width:24px;height:24px}.local-mode-heading h3{margin:0;font-size:20px}.local-mode-heading p{margin:4px 0 0;color:var(--muted)}.data-backup-divider{height:1px;margin:20px 0 16px;background:var(--border-soft)}.database-location{padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}.database-location span{display:block;margin-bottom:7px;font-weight:650}.database-location code{color:var(--muted);overflow-wrap:anywhere}.backup-actions{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}.backup-actions .btn{display:inline-flex;align-items:center;gap:8px}.backup-actions .btn[hidden]{display:none}.backup-actions svg{width:17px;height:17px}.backup-status{min-height:20px;margin:12px 0 0;color:var(--muted);font-size:13px}.backup-status.error{color:var(--accent)}.backup-file{display:none}@media(max-width:760px){.data-backup-card{padding:18px}.backup-actions{align-items:stretch;flex-direction:column}.backup-actions .btn{width:100%}}
@@ -57,10 +57,13 @@
     .synonym-editor-shell{display:grid;gap:12px}.synonym-editor-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.synonym-editor-actions,.synonym-editor-search{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.synonym-editor-search .field{width:min(340px,70vw)}.synonym-editor{width:100%;min-height:360px;max-height:70vh;padding:16px;resize:vertical;overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2;white-space:pre}.synonym-editor[readonly]{background:var(--surface-2);color:var(--muted)}.synonym-editor:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:2px}.synonym-editor-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.synonym-issue{display:inline-flex;min-height:32px;align-items:center;justify-content:center;padding:0 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);color:var(--text);font-size:12px;font-weight:650;line-height:1}.synonym-issue[data-kind="valid"]{border-color:color-mix(in srgb,#15803d 30%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}.synonym-issue[data-kind="warning"]{border-color:color-mix(in srgb,#b45309 35%,var(--border));background:#fff7df;color:#8a5d00;cursor:pointer}[data-theme="dark"] .synonym-issue[data-kind="valid"]{color:#86efac}[data-theme="dark"] .synonym-issue[data-kind="warning"]{background:#34270f;color:#f5cf78}.synonym-editor-message{margin:0;color:var(--muted);font-size:12px}.synonym-table{min-width:840px}.synonym-table th,.synonym-table td{white-space:nowrap}.synonym-table .synonym-sources{max-width:260px;overflow:hidden;color:var(--muted);text-overflow:ellipsis}.page-head .btn,.run-selection-actions .btn{white-space:nowrap}@media(max-width:760px){.synonym-editor-toolbar,.synonym-editor-actions,.synonym-editor-search{align-items:stretch;flex-direction:column}.synonym-editor-search .field,.synonym-editor-actions .btn{width:100%}.synonym-editor{min-height:300px}}
   </style>
   <style>
-    .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;border:0;clip:rect(0,0,0,0);white-space:nowrap}.btn.danger{border-color:color-mix(in srgb,#b91c1c 36%,var(--border));color:#b91c1c}.btn.danger:hover{background:color-mix(in srgb,#b91c1c 8%,var(--surface))}[data-theme="dark"] .btn.danger{color:#fca5a5}[data-theme="dark"] .model-state.verified{color:#86efac}.provider-page-actions,.provider-toolbar,.provider-card-head,.provider-connection-head,.model-card-head,.llm-route-row{display:flex;align-items:center;gap:12px}.provider-page-actions,.provider-toolbar,.provider-connection-head,.model-card-head{justify-content:space-between}.provider-page-actions,.provider-toolbar{flex-wrap:wrap}.provider-search{width:min(360px,100%)}.provider-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.provider-card{display:flex;min-height:104px;align-items:center;gap:14px;padding:18px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);box-shadow:var(--shadow);text-decoration:none}.provider-card:hover{border-color:color-mix(in srgb,var(--accent) 42%,var(--border));transform:translateY(-1px)}.provider-card[hidden]{display:none}.provider-monogram{display:grid;width:44px;height:44px;flex:0 0 44px;place-items:center;border-radius:11px;background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:800;letter-spacing:.04em}.provider-card-copy{min-width:0;flex:1}.provider-card-copy strong{display:block;font-size:16px}.provider-card-copy span{display:block;margin-top:4px;color:var(--muted);font-size:13px}.provider-status{display:inline-flex!important;width:max-content;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted)!important;font-size:11px!important;font-weight:700}.provider-status.connected{background:color-mix(in srgb,#22c55e 13%,var(--surface));color:#15803d!important}.provider-status::before{width:7px;height:7px;border-radius:50%;background:currentColor;content:""}.provider-section{display:grid;gap:14px}.provider-empty{padding:22px;border:1px dashed var(--border);border-radius:12px;color:var(--muted);text-align:center}.provider-detail-stack{display:grid;gap:16px}.provider-connection-card{padding:22px}.provider-connection-copy h3,.provider-models-head h3{margin:0;font-size:18px}.provider-connection-copy p,.provider-models-head p{margin:4px 0 0;color:var(--muted)}.provider-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}.provider-field{display:grid;gap:6px}.provider-field.full{grid-column:1/-1}.provider-field label{font-weight:650}.provider-field small{color:var(--muted)}.provider-field .field{width:100%}.provider-advanced{grid-column:1/-1;padding:12px;border:1px solid var(--border);border-radius:10px}.provider-advanced summary{cursor:pointer;font-weight:650}.provider-advanced .provider-field{margin-top:12px}.provider-helper{margin:14px 0 0;color:var(--muted);font-size:13px}.provider-helper strong{color:var(--text)}.provider-form-status{min-height:20px;margin:12px 0 0;color:var(--muted);font-size:13px}.provider-form-status.error{color:var(--accent)}.provider-models{padding:22px}.provider-models-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}.provider-model-add{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}.provider-model-add .provider-field{min-width:min(320px,100%);flex:1}.model-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.model-card{display:grid;gap:12px;padding:16px;border:1px solid var(--border);border-radius:11px;background:var(--surface)}.model-card code{overflow-wrap:anywhere}.model-card-actions{display:flex;gap:8px;flex-wrap:wrap}.model-state{color:var(--muted);font-size:12px}.model-state.verified{color:#15803d}.llm-config-grid{display:grid;gap:16px}.llm-config-card{padding:22px}.llm-config-card h3{margin:0 0 4px;font-size:18px}.llm-config-card>p{margin:0 0 18px;color:var(--muted)}.llm-route-list{display:grid;gap:0}.llm-route-row{justify-content:space-between;padding:14px 0;border-top:1px solid var(--border-soft)}.llm-route-row:first-child{border-top:0}.llm-route-copy strong{display:block}.llm-route-copy span{display:block;margin-top:3px;color:var(--muted);font-size:12px}.llm-route-row .field{width:min(360px,100%)}@media(max-width:760px){.provider-grid,.model-grid,.provider-form-grid{grid-template-columns:1fr}.provider-field.full{grid-column:auto}.provider-card{min-height:88px;padding:15px}.provider-page-actions,.provider-toolbar,.provider-models-head,.provider-model-add,.llm-route-row{align-items:stretch;flex-direction:column}.provider-page-actions .btn,.provider-toolbar .btn,.provider-model-add .btn,.llm-route-row .field{width:100%}.provider-connection-card,.provider-models,.llm-config-card{padding:18px}}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;border:0;clip:rect(0,0,0,0);white-space:nowrap}.btn.danger{border-color:color-mix(in srgb,#b91c1c 36%,var(--border));color:#b91c1c}.icon-btn.danger{color:#b91c1c}.btn.danger:hover,.icon-btn.danger:hover{border-color:color-mix(in srgb,#b91c1c 36%,var(--border));background:color-mix(in srgb,#b91c1c 8%,var(--surface))}[data-theme="dark"] .btn.danger,[data-theme="dark"] .icon-btn.danger{color:#fca5a5}[data-theme="dark"] .model-state.verified{color:#86efac}.provider-page-actions,.provider-add-actions,.provider-toolbar,.provider-card-head,.provider-connection-head,.model-card-head,.llm-route-row{display:flex;align-items:center;gap:12px}.provider-page-actions,.provider-toolbar,.provider-connection-head,.model-card-head{justify-content:space-between}.provider-page-actions,.provider-add-actions,.provider-toolbar{flex-wrap:wrap}.provider-search{width:min(360px,100%)}.provider-grid{display:grid;grid-template-columns:1fr;gap:0}.provider-card{display:flex;min-height:72px;align-items:center;gap:14px;padding:14px 16px;border:0;border-bottom:1px solid var(--border-soft);border-radius:0;background:var(--surface);color:var(--text);box-shadow:none;text-decoration:none}.provider-card:last-child{border-bottom:0}.provider-card[hidden]{display:none}.provider-monogram{display:grid;width:44px;height:44px;flex:0 0 44px;place-items:center;border-radius:11px;background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:800;letter-spacing:.04em}.provider-card-copy{min-width:0;flex:1}.provider-card-copy strong{display:block;font-size:16px}.provider-card-copy span{display:block;margin-top:4px;color:var(--muted);font-size:13px}.provider-status{display:inline-flex!important;width:max-content;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted)!important;font-size:11px!important;font-weight:700}.provider-status.connected{background:color-mix(in srgb,#22c55e 13%,var(--surface));color:#15803d!important}.provider-status::before{width:7px;height:7px;border-radius:50%;background:currentColor;content:""}.provider-section{display:grid;gap:14px}.provider-empty{padding:22px;color:var(--muted);text-align:center}.provider-detail-stack{display:grid;gap:16px}.provider-connection-card{padding:22px}.provider-connection-copy h3,.provider-models-head h3{margin:0;font-size:18px}.provider-connection-copy p,.provider-models-head p{margin:4px 0 0;color:var(--muted)}.provider-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}.provider-field{display:grid;gap:6px}.provider-field.full{grid-column:1/-1}.provider-field label{font-weight:650}.provider-field small{color:var(--muted)}.provider-field .field{width:100%}.provider-advanced{grid-column:1/-1;padding:12px;border:1px solid var(--border);border-radius:10px}.provider-advanced summary{cursor:pointer;font-weight:650}.provider-advanced .provider-field{margin-top:12px}.provider-helper{margin:14px 0 0;color:var(--muted);font-size:13px}.provider-helper strong{color:var(--text)}.provider-form-status{min-height:20px;margin:12px 0 0;color:var(--muted);font-size:13px}.provider-form-status.error{color:var(--accent)}.provider-form-status.valid{color:#15803d}[data-theme="dark"] .provider-form-status.valid{color:#86efac}.provider-models{padding:22px}.provider-models-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}.provider-model-add{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}.provider-model-add .provider-field{min-width:min(320px,100%);flex:1}.model-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.model-card{display:grid;gap:12px;padding:16px;border:1px solid var(--border);border-radius:11px;background:var(--surface)}.model-card code{overflow-wrap:anywhere}.model-card-actions{display:flex;gap:8px;flex-wrap:wrap}.model-state{color:var(--muted);font-size:12px}.model-state.verified{color:#15803d}.llm-config-grid{display:grid;gap:16px}.llm-config-card{padding:22px}.llm-config-card h3{margin:0 0 4px;font-size:18px}.llm-config-card>p{margin:0 0 18px;color:var(--muted)}.llm-route-list{display:grid;gap:0}.llm-route-row{justify-content:space-between;padding:14px 0;border-top:1px solid var(--border-soft)}.llm-route-row:first-child{border-top:0}.llm-route-copy strong{display:block}.llm-route-copy span{display:block;margin-top:3px;color:var(--muted);font-size:12px}.llm-route-row .field{width:min(360px,100%)}@media(max-width:760px){.model-grid,.provider-form-grid{grid-template-columns:1fr}.provider-field.full{grid-column:auto}.provider-page-actions,.provider-add-actions,.provider-toolbar,.provider-models-head,.provider-model-add,.llm-route-row{align-items:stretch;flex-direction:column}.provider-page-actions .btn,.provider-add-actions .btn,.provider-toolbar .btn,.provider-model-add .btn,.llm-route-row .field{width:100%}.provider-connection-card,.provider-models,.llm-config-card{padding:18px}}
   </style>
   <style>
-    .provider-grid{display:grid;grid-template-columns:1fr;gap:0;overflow:hidden;border:1px solid var(--border);border-radius:11px}.provider-card{min-height:72px;padding:14px 16px;border:0;border-bottom:1px solid var(--border-soft);border-radius:0;box-shadow:none}.provider-card:last-child{border-bottom:0}.provider-card:hover{background:var(--surface-2);transform:none}.provider-card-copy{display:grid;gap:2px}.provider-card-copy span{margin:0}.provider-chevron{color:var(--muted);font-size:22px}.field:disabled{background:var(--surface-2);color:var(--subtle);cursor:not-allowed;opacity:.8}.provider-models.is-disabled{background:var(--surface-2);color:var(--subtle)}.provider-models.is-disabled .provider-models-head p,.provider-models.is-disabled .provider-empty{color:var(--subtle)}.model-grid{grid-template-columns:1fr;gap:0;overflow:hidden;border:1px solid var(--border);border-radius:11px}.model-card{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:0;border-bottom:1px solid var(--border-soft);border-radius:0}.model-card:last-child{border-bottom:0}.model-card-actions{justify-content:flex-end}.model-test-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}.model-test-row .btn{min-width:104px}.provider-model-preview{margin-top:6px;color:var(--muted)}.provider-model-status.valid{color:#15803d}.provider-model-status.error{color:var(--accent)}@media(max-width:760px){.provider-card,.model-card{align-items:flex-start}.provider-status{margin-left:auto}.model-card{flex-direction:column}.model-card-actions{width:100%}.model-card-actions .btn{flex:1}.model-test-row{grid-template-columns:1fr}.model-test-row .btn{width:100%}}
+    .provider-card-copy{display:grid;gap:2px}.provider-card-copy span{margin:0}.provider-chevron{color:var(--muted);font-size:22px}.field:disabled{background:var(--surface-2);color:var(--subtle);cursor:not-allowed;opacity:.8}.provider-models.is-disabled{background:var(--surface-2);color:var(--subtle)}.provider-models.is-disabled .provider-models-head p,.provider-models.is-disabled .provider-empty{color:var(--subtle)}.model-grid{grid-template-columns:1fr;gap:0;overflow:hidden;border:1px solid var(--border);border-radius:11px}.model-card{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:0;border-bottom:1px solid var(--border-soft);border-radius:0}.model-card:last-child{border-bottom:0}.model-card-actions{justify-content:flex-end}.model-test-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}.model-test-row .btn{min-width:104px}.provider-model-preview{margin-top:6px;color:var(--muted)}.provider-model-status.valid{color:#15803d}.provider-model-status.error{color:var(--accent)}@media(max-width:760px){.provider-card,.model-card{align-items:flex-start}.provider-status{margin-left:auto}.model-card{flex-direction:column}.model-card-actions{width:100%}.model-card-actions .btn{flex:1}.model-test-row{grid-template-columns:1fr}.model-test-row .btn{width:100%}}
+  </style>
+  <style>
+    .llm-stage-list{display:grid;gap:14px}.llm-stage-list .collapsible-section summary{justify-content:flex-start}.llm-stage-summary{margin-left:auto;color:var(--muted);font-size:12px}.llm-setting-control{display:grid;justify-items:end;gap:5px}.llm-setting-control .field{width:min(360px,100%)}.llm-setting-control small{max-width:360px;color:var(--muted);text-align:right}.llm-required-state{margin:10px 0 0;color:var(--accent);font-size:13px}.llm-prompt-dialog{width:min(720px,calc(100vw - 32px))}.stage-prompt-editor{width:100%;min-height:260px;padding:13px;resize:vertical;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}.stage-prompt-editor[readonly]{background:var(--surface-2);color:var(--muted);cursor:default}.stage-prompt-editor:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:2px}.prompt-meta{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px}.prompt-message{min-height:18px;margin:0}.prompt-message.warning{color:#8a5d00}.prompt-message.error{color:var(--accent)}[data-theme="dark"] .prompt-message.warning{color:#f5cf78}.system-stack{display:grid;gap:16px}@media(max-width:760px){.llm-setting-control{justify-items:stretch}.llm-setting-control .field{width:100%}.llm-setting-control small{text-align:left}.llm-stage-summary{display:none}.prompt-meta{flex-direction:column-reverse}.llm-prompt-dialog .dialog-actions{grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <body>
@@ -72,21 +75,23 @@
         <a class="nav-link" id="candidateProfilesNav" href="#candidate-profiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Candidate Profiles</a>
         <a class="nav-link" id="bookmarksNav" href="#bookmarks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
         <a class="nav-link" id="synonymsNav" href="#synonyms"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 7h10M7 12h10M7 17h6"/><path d="M5 5h14v14H5z"/></svg>Synonyms</a>
-        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening">Screening</a><a class="nav-link child" href="#shortlisting">Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a></div></details>
-        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children"><a class="nav-link child" id="apiProvidersNav" href="#api-providers">API Providers</a><a class="nav-link child" id="llmConfigurationNav" href="#llm-configuration">LLM Configuration</a><a class="nav-link child" id="dataBackupNav" href="#data-backup">Data &amp; Backup</a><a class="nav-link child" href="#" data-prototype-link>System</a></div></details>
-        <div class="nav-divider" aria-hidden="true"></div><a class="nav-link" href="#" data-prototype-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h4l2-5 4 10 2-5h4"/></svg>Health</a>
+        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening">Screening</a><a class="nav-link child" href="#shortlisting">Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a><a class="nav-link child" id="promptManagementNav" href="#prompt-management">Prompt Management</a></div></details>
+        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children"><a class="nav-link child" id="apiProvidersNav" href="#api-providers">API Providers</a><a class="nav-link child" id="llmConfigurationNav" href="#llm-configuration">LLM Configuration</a><a class="nav-link child" id="systemNav" href="#system">System</a></div></details>
       </nav>
     </aside>
     <div class="scrim" id="scrim"></div>
     <main class="main">
-      <header><div class="title"><button class="menu-btn" id="menu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><svg class="title-icon" id="titleIcon" width="23" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg><div><h1 id="headerTitle">Pipeline</h1><p id="headerDescription">Configure how each matching run selects and prepares candidates.</p></div></div><div class="actions"><label class="search" id="searchBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="search" type="search" placeholder="Search Pipeline" aria-label="Search Pipeline Overview"></label><button class="icon-btn" id="theme" type="button" aria-label="Switch to dark theme" title="Switch to dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"/></svg></button></div></header>
+      <header><div class="title"><button class="menu-btn" id="menu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><svg class="title-icon" id="titleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg><div><h1 id="headerTitle">Pipeline</h1><p id="headerDescription">Configure how each matching run selects and prepares candidates.</p></div></div><div class="actions"><label class="search" id="searchBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="search" type="search" placeholder="Search Pipeline" aria-label="Search Pipeline Overview"></label><button class="icon-btn" id="theme" type="button" aria-label="Switch to dark theme" title="Switch to dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"/></svg></button><button class="icon-btn danger" id="openShutdownDialog" type="button" aria-label="Shutdown FitCV" title="Shutdown FitCV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></button></div></header>
       <div class="scroll"><div class="content"><form id="form"></form></div></div>
     </main>
   </div>
   <dialog id="weightsDialog" aria-labelledby="weightsTitle" aria-describedby="weightsDescription"><div class="dialog-head"><div><h2 id="weightsTitle"></h2><p id="weightsDescription"></p></div><button class="dialog-close" id="closeWeights" type="button" aria-label="Close weight configuration">×</button></div><form class="weight-form" id="weightForm"></form><p class="weight-status" id="weightStatus" role="status" aria-live="polite"></p><div class="dialog-actions"><button class="btn" id="cancelWeights" type="button">Cancel</button><button class="btn primary" id="saveWeights" type="button">Save weights</button></div></dialog>
   <dialog class="run-dialog" id="profileDialog" aria-labelledby="profileDialogTitle" aria-describedby="profileDialogDescription"><div class="dialog-head"><div><h2 id="profileDialogTitle">Create Profile</h2><p id="profileDialogDescription">Upload a candidate profile and optionally give it a name.</p></div><button class="dialog-close" id="closeProfileDialog" type="button" aria-label="Close Create Profile dialog">×</button></div><form class="run-form" id="profileForm"><div class="run-field"><label for="profileFile">Profile File</label><input class="field file-input" id="profileFile" type="file" accept=".yaml" aria-describedby="profileFileHelp" required><small id="profileFileHelp">Supported: YAML (.yaml). One file per profile.</small></div><div class="run-field"><label for="profileName">Profile Name <span class="supporting-text">Optional</span></label><input class="field" id="profileName" type="text" maxlength="120" placeholder="Uses uploaded file name when empty"></div></form><p class="run-dialog-status" id="profileDialogStatus" role="status" aria-live="polite">Choose a .yaml profile file to enable Create.</p><div class="dialog-actions"><button class="btn" id="cancelProfileDialog" type="button">Cancel</button><button class="btn primary" id="createProfile" type="submit" form="profileForm" disabled>Create</button></div></dialog>
   <dialog class="run-dialog" id="runDialog" aria-labelledby="runDialogTitle" aria-describedby="runDialogDescription"><div class="dialog-head"><div><h2 id="runDialogTitle">Trigger Run</h2><p id="runDialogDescription">Upload one job file and choose the Candidate Profile to use.</p></div><button class="dialog-close" id="closeRunDialog" type="button" aria-label="Close Trigger Run dialog">×</button></div><form class="run-form" id="runForm"><div class="run-field"><label for="jobFile">Job Input</label><input class="field file-input" id="jobFile" type="file" accept=".json,.jsonl,application/json,application/x-ndjson" required><small>Supported: JSON and JSONL. One file per run.</small></div><div class="run-field"><label for="candidateProfile">Candidate Profile</label><select class="field" id="candidateProfile" aria-describedby="candidateProfileHelp" required><option value="">Select a Candidate Profile</option></select><small id="candidateProfileHelp">Shows Active, Succeeded profiles from Candidate Profiles. <a class="support-link" href="#candidate-profiles" data-open-profile-page>Manage Candidate Profiles</a></small><div class="run-empty-profile" id="candidateProfileEmpty" hidden><strong>No available Candidate Profiles</strong>Create or restore an Active, Succeeded profile before triggering a run.</div></div><div class="run-field"><label for="runName">Run Name <span class="supporting-text">Optional</span></label><input class="field" id="runName" type="text" maxlength="120" placeholder="Uses uploaded file name when empty"><small>Shown as Job Name in the run table.</small></div></form><p class="run-dialog-status" id="runDialogStatus" role="status" aria-live="polite">Select a file and Candidate Profile to enable Trigger.</p><div class="dialog-actions"><button class="btn" id="cancelRunDialog" type="button">Cancel</button><button class="btn primary" id="triggerRun" type="button" disabled>Trigger</button></div></dialog>
-  <dialog class="run-dialog provider-model-dialog" id="providerModelDialog" aria-labelledby="providerModelDialogTitle" aria-describedby="providerModelDialogDescription"><div class="dialog-head"><div><h2 id="providerModelDialogTitle">Add Model</h2><p id="providerModelDialogDescription">Test one model identifier before adding it.</p></div><button class="dialog-close" id="closeProviderModelDialog" type="button" aria-label="Close Add Model dialog">×</button></div><form class="run-form" id="providerModelForm"><div class="run-field"><label for="providerModelIdentifier">Model ID</label><div class="model-test-row"><input class="field" id="providerModelIdentifier" type="text" maxlength="160" autocomplete="off" spellcheck="false" placeholder="model-id" required><button class="btn" id="testProviderModel" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6A2 2 0 0 0 19 18l-5-9V3"/><path d="M8 15h8"/></svg>Test</button></div><small class="provider-model-preview">Sent to provider as: <code id="providerModelPreview">—</code></small></div></form><p class="run-dialog-status provider-model-status" id="providerModelStatus" role="status" aria-live="polite">Add Model saves only after a successful test.</p><div class="dialog-actions"><button class="btn" id="cancelProviderModelDialog" type="button">Cancel</button><button class="btn primary" id="saveProviderModel" type="button" disabled>Add Model</button></div></dialog>
+  <dialog class="run-dialog provider-model-dialog" id="providerModelDialog" aria-labelledby="providerModelDialogTitle" aria-describedby="providerModelDialogDescription"><div class="dialog-head"><div><h2 id="providerModelDialogTitle">Add Model</h2><p id="providerModelDialogDescription">Test one model identifier before adding it.</p></div><button class="dialog-close" id="closeProviderModelDialog" type="button" aria-label="Close Add Model dialog">×</button></div><form class="run-form" id="providerModelForm"><div class="run-field"><label for="providerModelIdentifier">Model ID</label><div class="model-test-row"><input class="field" id="providerModelIdentifier" type="text" maxlength="160" autocomplete="off" spellcheck="false" placeholder="model-id" required><button class="btn" id="testProviderModel" type="button">Test</button></div><small class="provider-model-preview">Sent to provider as: <code id="providerModelPreview">—</code></small></div></form><p class="run-dialog-status provider-model-status" id="providerModelStatus" role="status" aria-live="polite">Add Model saves only after a successful test.</p><div class="dialog-actions"><button class="btn" id="cancelProviderModelDialog" type="button">Cancel</button><button class="btn primary" id="saveProviderModel" type="button" disabled>Add Model</button></div></dialog>
+  <dialog class="run-dialog" id="taskLlmDialog" aria-labelledby="taskLlmTitle" aria-describedby="taskLlmDescription"><div class="dialog-head"><div><h2 id="taskLlmTitle">Task Configuration</h2><p id="taskLlmDescription">Configure runtime model behavior for one AI-powered task.</p></div><button class="dialog-close" id="closeTaskLlmDialog" type="button" aria-label="Close Task Configuration dialog">×</button></div><form class="run-form" id="taskLlmForm"><div class="run-field"><label for="taskLlmModel">Model</label><select class="field" id="taskLlmModel"></select><small>Default follows the application Default Route.</small></div><div class="run-field"><label for="taskLlmTimeout">Timeout (seconds)</label><input class="field" id="taskLlmTimeout" type="number" min="1" max="3600" step="1" required></div><div class="run-field"><label for="taskLlmTemperature">Temperature</label><input class="field" id="taskLlmTemperature" type="number" min="0" max="2" step="0.1" required><small>UI intent only until task temperature is configurable in the backend runtime.</small></div></form><div class="dialog-actions"><button class="btn" id="cancelTaskLlmDialog" type="button">Cancel</button><button class="btn primary" id="saveTaskLlm" type="button">Save</button></div></dialog>
+  <dialog class="run-dialog llm-prompt-dialog" id="stagePromptDialog" aria-labelledby="stagePromptTitle" aria-describedby="stagePromptDescription"><div class="dialog-head"><div><h2 id="stagePromptTitle">Manage Prompt</h2><p id="stagePromptDescription">Configure prompt behavior for one AI-powered task.</p></div><button class="dialog-close" id="closeStagePromptDialog" type="button" aria-label="Close Manage Prompt dialog">×</button></div><form class="run-form" id="stagePromptForm"><div class="run-field"><label for="stagePromptType">Prompt Type</label><select class="field" id="stagePromptType"><option value="default">Default</option><option value="custom">Custom</option></select></div><div class="run-field"><label for="stagePromptEditor">Prompt</label><textarea class="stage-prompt-editor" id="stagePromptEditor" maxlength="4000" aria-describedby="stagePromptMessage stagePromptCount"></textarea><div class="prompt-meta"><p class="prompt-message" id="stagePromptMessage" role="status" aria-live="polite"></p><span id="stagePromptCount">0 / 4000 characters</span></div></div></form><div class="dialog-actions"><button class="btn" id="cancelStagePromptDialog" type="button">Cancel</button><button class="btn primary" id="saveStagePrompt" type="button">Save</button></div></dialog>
+  <dialog class="run-dialog" id="shutdownDialog" aria-labelledby="shutdownTitle" aria-describedby="shutdownDescription"><div class="dialog-head"><div><h2 id="shutdownTitle">Shutdown FitCV?</h2><p id="shutdownDescription">Stops the local FitCV service and prevents new runs until relaunch.</p></div><button class="dialog-close" id="closeShutdownDialog" type="button" aria-label="Close Shutdown dialog">×</button></div><div class="run-form"><div class="provider-helper"><strong>Active work is protected.</strong> Shutdown is unavailable while work is active.</div></div><div class="dialog-actions"><button class="btn" id="cancelShutdown" type="button">Cancel</button><button class="btn danger" id="confirmShutdown" type="button">Shutdown FitCV</button></div></dialog>
   <dialog class="details-drawer" id="synonymDetailsDrawer" aria-labelledby="synonymDetailsTitle"><div class="drawer-scroll"><div class="drawer-head"><div><p class="eyebrow">Synonym Review</p><h2 id="synonymDetailsTitle">Suggestion Details</h2><p>Review suggestion evidence before deciding.</p></div><button class="dialog-close" id="closeSynonymDetails" type="button" aria-label="Close Synonym Suggestion Details">×</button></div><div class="drawer-body" id="synonymDetailsBody"></div></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite">Ranking changes saved in prototype</div>
   <script>
@@ -101,13 +106,26 @@
   const SYNONYM_TYPES=['skill','domain','role_family'];
   const SYNONYM_REVIEW_STATUSES=['pending','approved','declined'];
   const SYNONYM_TYPE_LABELS={skill:'Skills',domain:'Domain',role_family:'Role Family'};
-  const LLM_TASKS=[['screening','Screening'],['ranking','Ranking'],['cv-analysis','CV Analysis'],['cv-generation','CV Generation']];
+  const LLM_TASKS=[
+    {id:'enrich_extraction',label:'Enrich Extraction',group:'pipeline'},
+    {id:'ranking_ai_score',label:'Ranking AI Score',group:'pipeline'},
+    {id:'cv_generation_structured_write',label:'CV Generation',group:'pipeline'},
+    {id:'synonym_triage_recommendation',label:'Synonym Recommendation',group:'synonyms'}
+  ];
+  const DEFAULT_TASK_PROMPTS={
+    enrich_extraction:'Extract and normalize structured job information. Preserve source facts, identify missing information, and do not invent unsupported details.',
+    ranking_ai_score:'Rank shortlisted jobs by overall candidate fit using available evidence. Keep scoring consistent and explain decisive factors.',
+    cv_generation_structured_write:'Generate a tailored CV using only verified candidate evidence. Keep language concise, role-relevant, and factually grounded.',
+    synonym_triage_recommendation:'Review the synonym proposal and recommend approve, defer, or reject with concise rationale and risk flags.'
+  };
+  const DEFAULT_LLM_TASK_SETTINGS=Object.fromEntries(LLM_TASKS.map(task=>[task.id,{model:'',timeout:120,temperature:.2,promptType:'default',customPrompt:''}]));
+  const DEFAULT_RETRY_SETTINGS={maximumAttempts:3,initialBackoff:10,leaseSeconds:300,reconcilerInterval:30,errorDetailLimit:10000};
   const DEFAULT_PROVIDER_STATE={providers:[
     {id:'openai',name:'OpenAI',type:'shared',protocol:'openai-compatible',baseUrl:'https://api.openai.com/v1',apiStyle:'responses',credentialConfigured:true,connectionStatus:'verified',models:[{id:'gpt-4.1-mini',verified:true}]},
     {id:'anthropic',name:'Anthropic',type:'shared',protocol:'anthropic-compatible',baseUrl:'https://api.anthropic.com',apiStyle:'messages',credentialConfigured:false,connectionStatus:'not-configured',models:[]},
     {id:'deepseek',name:'DeepSeek',type:'shared',protocol:'openai-compatible',baseUrl:'https://api.deepseek.com/v1',apiStyle:'chat-completions',credentialConfigured:false,connectionStatus:'not-configured',models:[]},
     {id:'groq',name:'Groq',type:'shared',protocol:'openai-compatible',baseUrl:'https://api.groq.com/openai/v1',apiStyle:'chat-completions',credentialConfigured:false,connectionStatus:'not-configured',models:[]}
-  ],routing:{defaultModel:'openai::gpt-4.1-mini',overrides:{screening:'',ranking:'',"cv-analysis":'',"cv-generation":''}}};
+  ],routing:{defaultModel:'openai::gpt-4.1-mini',tasks:DEFAULT_LLM_TASK_SETTINGS,retry:DEFAULT_RETRY_SETTINGS}};
   const prototypeNow=Date.now();
   const DEFAULT_CANDIDATE_PROFILES=[
     {id:'candidate-product-data',status:'Succeeded',name:'Product Data Specialist',inputFileName:'product-data-specialist.yaml',createdAt:prototypeNow-5400000,archived:false},
@@ -369,7 +387,8 @@
   const bookmarksNav=document.querySelector('#bookmarksNav');
   const apiProvidersNav=document.querySelector('#apiProvidersNav');
   const llmConfigurationNav=document.querySelector('#llmConfigurationNav');
-  const dataBackupNav=document.querySelector('#dataBackupNav');
+  const promptManagementNav=document.querySelector('#promptManagementNav');
+  const systemNav=document.querySelector('#systemNav');
   const searchBox=document.querySelector('#searchBox');
   const headerTitle=document.querySelector('#headerTitle');
   const headerDescription=document.querySelector('#headerDescription');
@@ -399,6 +418,21 @@
   const providerModelStatus=document.querySelector('#providerModelStatus');
   const testProviderModelButton=document.querySelector('#testProviderModel');
   const saveProviderModelButton=document.querySelector('#saveProviderModel');
+  const taskLlmDialog=document.querySelector('#taskLlmDialog');
+  const taskLlmTitle=document.querySelector('#taskLlmTitle');
+  const taskLlmForm=document.querySelector('#taskLlmForm');
+  const taskLlmModel=document.querySelector('#taskLlmModel');
+  const taskLlmTimeout=document.querySelector('#taskLlmTimeout');
+  const taskLlmTemperature=document.querySelector('#taskLlmTemperature');
+  const stagePromptDialog=document.querySelector('#stagePromptDialog');
+  const stagePromptTitle=document.querySelector('#stagePromptTitle');
+  const stagePromptType=document.querySelector('#stagePromptType');
+  const stagePromptEditor=document.querySelector('#stagePromptEditor');
+  const stagePromptMessage=document.querySelector('#stagePromptMessage');
+  const stagePromptCount=document.querySelector('#stagePromptCount');
+  const saveStagePromptButton=document.querySelector('#saveStagePrompt');
+  const shutdownDialog=document.querySelector('#shutdownDialog');
+  const shutdownButton=document.querySelector('#openShutdownDialog');
   const runDetailsBody=form;
   const defaults={};
   const directRows=new Map();
@@ -445,10 +479,24 @@
       providers.push({id:candidate.id,name:candidate.name.trim()||'Unnamed Provider',type,protocol,baseUrl:typeof candidate.baseUrl==='string'?candidate.baseUrl:'',apiStyle,credentialConfigured:Boolean(candidate.credentialConfigured),connectionStatus:['not-configured','configured','verified'].includes(candidate.connectionStatus)?candidate.connectionStatus:'not-configured',models});
     }
     const cleanProviders=providers.length?providers:clone(DEFAULT_PROVIDER_STATE.providers);
-    const validModelKeys=new Set(cleanProviders.flatMap(provider=>provider.credentialConfigured?provider.models.filter(model=>model.verified).map(model=>`${provider.id}::${model.id}`):[]));
-    const defaultModel=validModelKeys.has(stored.routing?.defaultModel)?stored.routing.defaultModel:[...validModelKeys][0]||'';
-    const overrides=Object.fromEntries(LLM_TASKS.map(([task])=>[task,validModelKeys.has(stored.routing?.overrides?.[task])?stored.routing.overrides[task]:'']));
-    return {providers:cleanProviders,routing:{defaultModel,overrides}};
+    const validModelKeys=new Set(cleanProviders.flatMap(provider=>providerConnected(provider)?provider.models.filter(model=>model.verified).map(model=>`${provider.id}::${model.id}`):[]));
+    const routingInput=stored.routing&&typeof stored.routing==='object'&&!Array.isArray(stored.routing)?stored.routing:DEFAULT_PROVIDER_STATE.routing;
+    const taskInput=routingInput.tasks&&typeof routingInput.tasks==='object'&&!Array.isArray(routingInput.tasks)?routingInput.tasks:{};
+    const legacyStages=routingInput.stages&&typeof routingInput.stages==='object'&&!Array.isArray(routingInput.stages)?routingInput.stages:{};
+    const legacyOverrides=routingInput.overrides&&typeof routingInput.overrides==='object'&&!Array.isArray(routingInput.overrides)?routingInput.overrides:{};
+    const bounded=(value,fallback,min,max)=>Number.isFinite(value)&&value>=min&&value<=max?value:fallback;
+    const legacyTaskStages={enrich_extraction:'enrichment',ranking_ai_score:'ranking',cv_generation_structured_write:'cv-generation'};
+    const tasks=Object.fromEntries(LLM_TASKS.map(task=>{
+      const legacyStageId=legacyTaskStages[task.id];
+      const candidate=taskInput[task.id]&&typeof taskInput[task.id]==='object'?taskInput[task.id]:legacyStageId&&legacyStages[legacyStageId]&&typeof legacyStages[legacyStageId]==='object'?legacyStages[legacyStageId]:{};
+      const requestedModel=typeof candidate.model==='string'?candidate.model:legacyStageId&&typeof legacyOverrides[legacyStageId]==='string'?legacyOverrides[legacyStageId]:'';
+      const customPrompt=typeof candidate.customPrompt==='string'?candidate.customPrompt:'';
+      const customValid=candidate.promptType==='custom'&&customPrompt.trim()&&customPrompt.trim()!==DEFAULT_TASK_PROMPTS[task.id].trim()&&customPrompt.length<=4000;
+      return [task.id,{model:validModelKeys.has(requestedModel)?requestedModel:'',timeout:bounded(candidate.timeout,DEFAULT_LLM_TASK_SETTINGS[task.id].timeout,1,3600),temperature:bounded(candidate.temperature,DEFAULT_LLM_TASK_SETTINGS[task.id].temperature,0,2),promptType:customValid?'custom':'default',customPrompt:customValid?customPrompt:''}];
+    }));
+    const retryInput=routingInput.retry&&typeof routingInput.retry==='object'&&!Array.isArray(routingInput.retry)?routingInput.retry:{};
+    const retry={maximumAttempts:bounded(retryInput.maximumAttempts,DEFAULT_RETRY_SETTINGS.maximumAttempts,1,10),initialBackoff:bounded(retryInput.initialBackoff,DEFAULT_RETRY_SETTINGS.initialBackoff,0,3600),leaseSeconds:bounded(retryInput.leaseSeconds,DEFAULT_RETRY_SETTINGS.leaseSeconds,30,86400),reconcilerInterval:bounded(retryInput.reconcilerInterval,DEFAULT_RETRY_SETTINGS.reconcilerInterval,5,3600),errorDetailLimit:bounded(retryInput.errorDetailLimit,DEFAULT_RETRY_SETTINGS.errorDetailLimit,1000,100000)};
+    return {providers:cleanProviders,routing:{defaultModel:validModelKeys.has(routingInput.defaultModel)?routingInput.defaultModel:'',tasks,retry}};
   }
   function readStored(){
     try{
@@ -557,6 +605,10 @@
   let selectedRunDetailId=null;
   let activeModelProviderId=null;
   let testedProviderModelId='';
+  let activeLlmTaskId=null;
+  let activePromptTaskId=null;
+  let stagePromptDraft='';
+  let stagePromptInitial='';
   let pipelineStage='shortlisting';
   let pipelineResult='all';
   let jobResultsSearch='';
@@ -573,11 +625,12 @@
   function writeBookmarks(){runState.bookmarks=[...bookmarkedJobs];writeRunState()}
   function writeSynonymState(){localStorage.setItem(SYNONYM_STORAGE_KEY,JSON.stringify(synonymState))}
   function providerModelKey(providerId,modelId){return `${providerId}::${modelId}`}
-  function enabledProviderModels(){return providerState.providers.flatMap(provider=>provider.credentialConfigured?provider.models.filter(model=>model.verified).map(model=>({provider,model,key:providerModelKey(provider.id,model.id)})):[])}
+  function providerConnected(provider){return Boolean(provider?.credentialConfigured&&provider.connectionStatus==='verified')}
+  function enabledProviderModels(){return providerState.providers.flatMap(provider=>providerConnected(provider)?provider.models.filter(model=>model.verified).map(model=>({provider,model,key:providerModelKey(provider.id,model.id)})):[])}
   function repairProviderRouting(){
     const validKeys=new Set(enabledProviderModels().map(item=>item.key));
-    if(!validKeys.has(providerState.routing.defaultModel))providerState.routing.defaultModel=[...validKeys][0]||'';
-    for(const [task] of LLM_TASKS)if(!validKeys.has(providerState.routing.overrides[task]))providerState.routing.overrides[task]='';
+    if(!validKeys.has(providerState.routing.defaultModel))providerState.routing.defaultModel='';
+    for(const task of LLM_TASKS)if(!validKeys.has(providerState.routing.tasks[task.id].model))providerState.routing.tasks[task.id].model='';
   }
   function writeProviderState(){repairProviderRouting();localStorage.setItem(PROVIDER_STORAGE_KEY,JSON.stringify(providerState))}
   writeRunState();
@@ -988,10 +1041,8 @@
   function renderProfileDetails(){
     const profile=runState.candidateProfiles.find(item=>item.id===selectedProfileDetailId);
     if(!profile){location.hash='candidate-profiles';return}
-    const relatedRuns=runState.runs.filter(run=>run.profileId===profile.id);
-    profileDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Profile Overview</strong><span>Current lifecycle information for this Candidate Profile.</span></span><span class="drawer-status">${statusMarkup(profile)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid"><div class="detail-item"><dt>Profile ID</dt><dd>${escapeHtml(profile.id)}</dd></div><div class="detail-item"><dt>Profile Name</dt><dd>${escapeHtml(profile.name)}</dd></div><div class="detail-item"><dt>Created</dt><dd>${formatCreated(profile.createdAt)}</dd></div><div class="detail-item"><dt>Availability</dt><dd>${profile.archived?'Archived · historical runs only':'Available for new runs'}</dd></div><div class="detail-item"><dt>Used by Runs</dt><dd>${runReferenceMarkup(relatedRuns.map(run=>run.id),'data-profile-run-details')}</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Profile Input</strong><span>Read-only input used to create this Candidate Profile.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details"><div class="detail-item"><dt>Profile Input</dt><dd>${profile.inputFileName?escapeHtml(profile.inputFileName):'—'}</dd></div></dl></div></details>`;
-    profileDetailsBody.insertAdjacentHTML('afterbegin',`<div class="details-page-head"><a class="details-page-back" href="#candidate-profiles">← Back to Candidate Profiles</a><div class="page-head"><div><p class="eyebrow">Candidate Profile</p><h2>${escapeHtml(profile.name)}</h2><p>Review profile identity, lifecycle state, source input, and related runs.</p></div><span class="drawer-status">${statusMarkup(profile)}</span></div></div>`);
-    profileDetailsBody.querySelectorAll('[data-profile-run-details]').forEach(button=>button.addEventListener('click',()=>openRunDetails(button.dataset.profileRunDetails)));
+    profileDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Profile Overview</strong><span>Current lifecycle information for this Candidate Profile.</span></span><span class="drawer-status">${statusMarkup(profile)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid"><div class="detail-item"><dt>Profile ID</dt><dd>${escapeHtml(profile.id)}</dd></div><div class="detail-item"><dt>Profile Name</dt><dd>${escapeHtml(profile.name)}</dd></div><div class="detail-item"><dt>Created</dt><dd>${formatCreated(profile.createdAt)}</dd></div><div class="detail-item"><dt>Availability</dt><dd>${profile.archived?'Archived · historical runs only':'Available for new runs'}</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Profile Input</strong><span>Read-only input used to create this Candidate Profile.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details"><div class="detail-item"><dt>Profile Input</dt><dd>${profile.inputFileName?escapeHtml(profile.inputFileName):'—'}</dd></div></dl></div></details>`;
+    profileDetailsBody.insertAdjacentHTML('afterbegin',`<div class="details-page-head"><a class="details-page-back" href="#candidate-profiles">← Back to Candidate Profiles</a><div class="page-head"><div><p class="eyebrow">Candidate Profile</p><h2>${escapeHtml(profile.name)}</h2><p>Review profile identity, lifecycle state, source input, and related runs.</p></div></div></div>`);
   }
   function openProfileDetails(profileId){
     if(!runState.candidateProfiles.some(profile=>profile.id===profileId))return;
@@ -1002,7 +1053,7 @@
   function providerById(providerId){return providerState.providers.find(provider=>provider.id===providerId)}
   function providerInitials(name){return name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase()||'AI'}
   function providerCardMarkup(provider){
-    const connected=provider.credentialConfigured;
+    const connected=providerConnected(provider);
     return `<a class="provider-card" href="#api-providers/${encodeURIComponent(provider.id)}" data-provider-card data-provider-search="${escapeAttribute(`${provider.name} ${provider.protocol}`.toLowerCase())}"><span class="provider-monogram" aria-hidden="true">${escapeHtml(providerInitials(provider.name))}</span><span class="provider-card-copy"><strong>${escapeHtml(provider.name)}</strong><span>${provider.protocol==='anthropic-compatible'?'Anthropic-compatible':'OpenAI-compatible'}</span></span><span class="provider-status${connected?' connected':''}">${connected?'Connected':'No connection'}</span><span class="provider-chevron" aria-hidden="true">›</span></a>`;
   }
   function createCustomProvider(protocol){
@@ -1014,13 +1065,13 @@
   }
   function renderApiProvidersPage(){
     const predefined=providerState.providers.filter(provider=>provider.type==='shared'),custom=providerState.providers.filter(provider=>provider.type==='custom');
-    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Application</p><h2>API Providers</h2><p>Manage predefined and custom AI provider connections. Each provider supports one connection.</p></div></div><div class="provider-section"><div class="provider-page-actions"><label class="provider-field provider-search"><span class="sr-only">Search providers</span><input class="field" id="providerSearch" type="search" placeholder="Search providers" aria-label="Search API providers"></label><div class="provider-page-actions"><button class="btn" type="button" data-add-custom-provider="openai-compatible">Add OpenAI-compatible</button><button class="btn" type="button" data-add-custom-provider="anthropic-compatible">Add Anthropic-compatible</button></div></div><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>Custom Providers</strong><span>Connect OpenAI-compatible or Anthropic-compatible endpoints.</span></span></summary><div class="section-content settings-card">${custom.length?`<div class="provider-grid">${custom.map(providerCardMarkup).join('')}</div>`:'<div class="provider-empty">No custom providers yet. Add one from buttons above.</div>'}</div></details><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>API Key Providers</strong><span>Predefined API-key providers supplied by FitCV.</span></span></summary><div class="section-content settings-card"><div class="provider-grid">${predefined.map(providerCardMarkup).join('')}</div></div></details></div>`;
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Application</p><h2>API Providers</h2><p>Manage predefined and custom AI provider connections. Each provider supports one connection.</p></div></div><div class="provider-section"><div class="provider-page-actions"><label class="provider-field provider-search"><span class="sr-only">Search providers</span><input class="field" id="providerSearch" type="search" placeholder="Search providers" aria-label="Search API providers"></label><div class="provider-add-actions"><button class="btn" type="button" data-add-custom-provider="openai-compatible">Add OpenAI-compatible</button><button class="btn" type="button" data-add-custom-provider="anthropic-compatible">Add Anthropic-compatible</button></div></div><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>Custom Providers</strong><span>Connect OpenAI-compatible or Anthropic-compatible endpoints.</span></span></summary><div class="section-content settings-card">${custom.length?`<div class="provider-grid">${custom.map(providerCardMarkup).join('')}</div>`:'<div class="provider-empty">No custom providers yet. Add one from buttons above.</div>'}</div></details><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>API Key Providers</strong><span>Predefined API-key providers supplied by FitCV.</span></span></summary><div class="section-content settings-card"><div class="provider-grid">${predefined.map(providerCardMarkup).join('')}</div></div></details></div>`;
     const providerSearch=form.querySelector('#providerSearch');
     providerSearch.addEventListener('input',()=>{const query=providerSearch.value.trim().toLowerCase();form.querySelectorAll('[data-provider-card]').forEach(card=>{card.hidden=Boolean(query&&!card.dataset.providerSearch.includes(query))})});
     form.querySelectorAll('[data-add-custom-provider]').forEach(button=>button.addEventListener('click',()=>createCustomProvider(button.dataset.addCustomProvider)));
   }
   function modelCardMarkup(provider,model){
-    const connected=provider.credentialConfigured;
+    const connected=providerConnected(provider);
     return `<article class="model-card"><div><code>${escapeHtml(model.id)}</code><div class="model-state${model.verified?' verified':''}">${model.verified?'Validated':'Needs retest'}</div></div><div class="model-card-actions"><button class="btn" type="button" data-test-model="${escapeAttribute(model.id)}" ${connected?'':'disabled'}>Test</button><button class="btn danger" type="button" data-remove-model="${escapeAttribute(model.id)}" ${connected?'':'disabled'}>Remove</button></div></article>`;
   }
   function resetProviderModelTest(message='Add Model saves only after a successful test.'){
@@ -1033,7 +1084,7 @@
   }
   function openProviderModelDialog(providerId){
     const provider=providerById(providerId);
-    if(!provider?.credentialConfigured)return;
+    if(!providerConnected(provider))return;
     activeModelProviderId=providerId;
     providerModelIdentifier.value='';
     resetProviderModelTest();
@@ -1042,7 +1093,7 @@
   }
   function testProviderModel(){
     const provider=providerById(activeModelProviderId),modelId=providerModelIdentifier.value.trim();
-    if(!provider?.credentialConfigured){resetProviderModelTest('Configure a provider connection before testing models.');providerModelStatus.classList.add('error');return}
+    if(!providerConnected(provider)){resetProviderModelTest('Configure and test a provider connection before testing models.');providerModelStatus.classList.add('error');return}
     if(!modelId){resetProviderModelTest('Enter a Model ID before testing.');providerModelIdentifier.setAttribute('aria-invalid','true');providerModelStatus.classList.add('error');return}
     if(provider.models.some(model=>model.id===modelId)){resetProviderModelTest('This model is already available for the provider.');providerModelIdentifier.setAttribute('aria-invalid','true');providerModelStatus.classList.add('error');return}
     testedProviderModelId=modelId;
@@ -1052,7 +1103,7 @@
   }
   function saveProviderModel(){
     const provider=providerById(activeModelProviderId),modelId=providerModelIdentifier.value.trim();
-    if(!provider?.credentialConfigured||!modelId||testedProviderModelId!==modelId||provider.models.some(model=>model.id===modelId)){resetProviderModelTest('Test this Model ID successfully before adding it.');providerModelStatus.classList.add('error');return}
+    if(!providerConnected(provider)||!modelId||testedProviderModelId!==modelId||provider.models.some(model=>model.id===modelId)){resetProviderModelTest('Test this Model ID successfully before adding it.');providerModelStatus.classList.add('error');return}
     provider.models.push({id:modelId,verified:true});
     writeProviderState();
     providerModelDialog.close();
@@ -1062,51 +1113,155 @@
   function renderProviderDetailsPage(){
     const provider=providerById(providerDetailsId());
     if(!provider)return;
-    const custom=provider.type==='custom',connected=provider.credentialConfigured,fixedApiType=provider.protocol==='anthropic-compatible';
+    const custom=provider.type==='custom',connected=providerConnected(provider),hasCredential=provider.credentialConfigured,fixedApiType=provider.protocol==='anthropic-compatible';
     const displayNameField=custom?`<div class="provider-field full"><label for="providerDisplayName">Display Name</label><input class="field" id="providerDisplayName" type="text" maxlength="80" value="${escapeAttribute(provider.name)}" required></div>`:'';
     const apiTypeOptions=fixedApiType?'<option value="messages" selected>Messages API</option>':`<option value="chat-completions" ${provider.apiStyle==='chat-completions'?'selected':''}>Chat Completions</option><option value="responses" ${provider.apiStyle==='responses'?'selected':''}>Responses API</option>`;
-    form.innerHTML=`<div class="details-page-head"><a class="details-page-back" href="#api-providers">← Back to API Providers</a><div class="page-head"><div><p class="eyebrow">API Provider</p><h2>${escapeHtml(provider.name)}</h2><p>${provider.protocol==='anthropic-compatible'?'Anthropic-compatible provider using Messages API.':'OpenAI-compatible provider.'}</p></div>${custom?'<button class="btn danger" id="deleteCustomProvider" type="button">Delete Provider</button>':''}</div></div><div class="provider-detail-stack"><section class="section-card provider-connection-card" aria-labelledby="connectionTitle"><div class="provider-connection-head"><div class="provider-connection-copy"><h3 id="connectionTitle">Connection</h3><p>${connected?'Credential and connection settings are configured.':'No connection configured.'}</p></div><span class="provider-status${connected?' connected':''}">${connected?'Connected':'No connection'}</span></div><div class="provider-form-grid">${displayNameField}<div class="provider-field full"><label for="providerBaseUrl">Base URL</label><input class="field" id="providerBaseUrl" type="url" value="${escapeAttribute(provider.baseUrl)}" placeholder="https://api.example.com/v1" ${custom?'':'disabled'} required><small>${custom?'Configure provider endpoint.':'Defined by FitCV for this provider.'}</small></div><div class="provider-field"><label for="providerApiKey">API Key</label><input class="field" id="providerApiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="${connected?'••••••••••••':'Enter API key'}"><small>${connected?'Saved as a credential. Enter a new key only to replace it.':'Required to create connection.'}</small></div><div class="provider-field"><label for="providerApiType">API Type</label><select class="field" id="providerApiType" ${fixedApiType?'disabled':''}>${apiTypeOptions}</select><small>${fixedApiType?'Fixed by provider protocol.':'Choose provider request format.'}</small></div></div><p class="provider-helper"><strong>Credential safety:</strong> API keys are never saved in browser storage. Later backend integration stores credentials in Windows Credential Manager.</p><p class="provider-form-status" id="providerConnectionStatus" role="status" aria-live="polite">${provider.connectionStatus==='verified'?'Connection verified in prototype.':connected?'Connection configured.':'Enter connection details to continue.'}</p><div class="backup-actions"><button class="btn primary" id="saveProviderConnection" type="button">${connected?'Update Connection':'Add Connection'}</button><button class="btn" id="verifyProviderConnection" type="button" ${connected?'':'disabled'}>Verify Connection</button>${connected?'<button class="btn danger" id="removeProviderConnection" type="button">Remove Connection</button>':''}</div></section><section class="section-card provider-models${connected?'':' is-disabled'}" aria-labelledby="modelsTitle" aria-disabled="${!connected}"><div class="provider-models-head"><div><h3 id="modelsTitle">Available Models</h3><p>${connected?'Models become available after successful validation.':'Connection required before adding or testing models.'}</p></div><button class="btn" id="openProviderModelDialog" type="button" ${connected?'':'disabled'}>Add Model</button></div>${provider.models.length?`<div class="model-grid">${provider.models.map(model=>modelCardMarkup(provider,model)).join('')}</div>`:`<div class="provider-empty">${connected?'No models added yet.':'Configure a connection to manage models.'}</div>`}</section></div>`;
+    form.innerHTML=`<div class="details-page-head"><a class="details-page-back" href="#api-providers">← Back to API Providers</a><div class="page-head"><div><p class="eyebrow">API Provider</p><h2>${escapeHtml(provider.name)}</h2><p>${provider.protocol==='anthropic-compatible'?'Anthropic-compatible provider using Messages API.':'OpenAI-compatible provider.'}</p></div>${custom?'<button class="btn danger" id="deleteCustomProvider" type="button">Delete Provider</button>':''}</div></div><div class="provider-detail-stack"><section class="section-card provider-connection-card" aria-labelledby="connectionTitle"><div class="provider-connection-head"><div class="provider-connection-copy"><h3 id="connectionTitle">Connection</h3><p>${connected?'Connection tested and ready.':'No verified connection.'}</p></div><span class="provider-status${connected?' connected':''}">${connected?'Connected':'No connection'}</span></div><div class="provider-form-grid">${displayNameField}<div class="provider-field full"><label for="providerBaseUrl">Base URL</label><input class="field" id="providerBaseUrl" type="url" value="${escapeAttribute(provider.baseUrl)}" placeholder="https://api.example.com/v1" ${custom?'':'disabled'} required><small>${custom?'Configure provider endpoint.':'Defined by FitCV for this provider.'}</small></div><div class="provider-field"><label for="providerApiKey">API Key</label><input class="field" id="providerApiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="${hasCredential?'••••••••••••':'Enter API key'}"><small>${hasCredential?'Saved as a credential. Enter a new key only to replace it.':'Required to create connection.'}</small></div><div class="provider-field"><label for="providerApiType">API Type</label><select class="field" id="providerApiType" ${fixedApiType?'disabled':''}>${apiTypeOptions}</select><small>${fixedApiType?'Fixed by provider protocol.':'Choose provider request format.'}</small></div></div><p class="provider-helper"><strong>Credential safety:</strong> API keys are never saved in browser storage. Later backend integration stores credentials in Windows Credential Manager.</p><p class="provider-form-status" id="providerConnectionStatus" role="status" aria-live="polite">${connected?'Current connection remains active. Test changes before updating.':hasCredential?'Test the saved connection before adding it.':'Test connection details before adding.'}</p><div class="backup-actions"><button class="btn" id="testProviderConnection" type="button">Test</button><button class="btn primary" id="saveProviderConnection" type="button" disabled>${connected?'Update Connection':'Add Connection'}</button>${hasCredential?'<button class="btn danger" id="removeProviderConnection" type="button">Remove Connection</button>':''}</div></section><section class="section-card provider-models${connected?'':' is-disabled'}" aria-labelledby="modelsTitle" aria-disabled="${!connected}"><div class="provider-models-head"><div><h3 id="modelsTitle">Available Models</h3><p>${connected?'Models become available after successful validation.':'Connection required before adding or testing models.'}</p></div><button class="btn" id="openProviderModelDialog" type="button" ${connected?'':'disabled'}>Add Model</button></div>${provider.models.length?`<div class="model-grid">${provider.models.map(model=>modelCardMarkup(provider,model)).join('')}</div>`:`<div class="provider-empty">${connected?'No models added yet.':'Test and add a connection to manage models.'}</div>`}</section></div>`;
     bindProviderDetailsPage(provider);
   }
   function bindProviderDetailsPage(provider){
-    const status=form.querySelector('#providerConnectionStatus');
-    const showError=message=>{status.textContent=message;status.className='provider-form-status error'};
-    form.querySelector('#saveProviderConnection').addEventListener('click',()=>{
-      const displayName=form.querySelector('#providerDisplayName'),baseUrl=form.querySelector('#providerBaseUrl').value.trim(),apiKey=form.querySelector('#providerApiKey').value.trim(),apiType=provider.protocol==='anthropic-compatible'?'messages':form.querySelector('#providerApiType').value;
-      if(displayName&&!displayName.value.trim()){showError('Display Name is required.');return}
-      try{const parsed=new URL(baseUrl);if(!['http:','https:'].includes(parsed.protocol))throw new Error()}catch{showError('Base URL must be a valid HTTP or HTTPS URL.');return}
-      if(!provider.credentialConfigured&&!apiKey){showError('API Key is required for first connection.');return}
-      const connectionChanged=!provider.credentialConfigured||provider.baseUrl!==baseUrl||provider.apiStyle!==apiType||Boolean(apiKey);
-      if(displayName)provider.name=displayName.value.trim();
-      provider.baseUrl=baseUrl;
-      provider.apiStyle=apiType;
+    const status=form.querySelector('#providerConnectionStatus'),saveButton=form.querySelector('#saveProviderConnection'),testButton=form.querySelector('#testProviderConnection'),displayName=form.querySelector('#providerDisplayName'),baseUrl=form.querySelector('#providerBaseUrl'),apiKey=form.querySelector('#providerApiKey'),apiType=form.querySelector('#providerApiType');
+    let connectionTestPassed=false;
+    const showError=message=>{connectionTestPassed=false;saveButton.disabled=true;status.textContent=message;status.className='provider-form-status error'};
+    const values=()=>({name:displayName?.value.trim()||provider.name,baseUrl:baseUrl.value.trim(),apiKey:apiKey.value.trim(),apiType:provider.protocol==='anthropic-compatible'?'messages':apiType.value});
+    const validate=()=>{
+      const draft=values();
+      if(displayName&&!draft.name){showError('Display Name is required.');return null}
+      try{const parsed=new URL(draft.baseUrl);if(!['http:','https:'].includes(parsed.protocol))throw new Error()}catch{showError('Base URL must be a valid HTTP or HTTPS URL.');return null}
+      if(!provider.credentialConfigured&&!draft.apiKey){showError('API Key is required for first connection.');return null}
+      return draft;
+    };
+    const resetTest=()=>{connectionTestPassed=false;saveButton.disabled=true;status.textContent=providerConnected(provider)?'Current connection remains active. Test changes before updating.':'Test connection details before adding.';status.className='provider-form-status'};
+    [displayName,baseUrl,apiKey,apiType].filter(Boolean).forEach(field=>{field.addEventListener('input',resetTest);field.addEventListener('change',resetTest)});
+    testButton.addEventListener('click',()=>{if(!validate())return;connectionTestPassed=true;saveButton.disabled=false;status.textContent=`Connection test succeeded in prototype. ${providerConnected(provider)?'Update':'Add'} Connection is ready.`;status.className='provider-form-status valid'});
+    saveButton.addEventListener('click',()=>{
+      if(!connectionTestPassed){showError('Test this connection successfully before saving it.');return}
+      const draft=validate();
+      if(!draft)return;
+      const wasConnected=providerConnected(provider),connectionChanged=!wasConnected||provider.name!==draft.name||provider.baseUrl!==draft.baseUrl||provider.apiStyle!==draft.apiType||Boolean(draft.apiKey);
+      provider.name=draft.name;
+      provider.baseUrl=draft.baseUrl;
+      provider.apiStyle=draft.apiType;
       provider.credentialConfigured=true;
-      provider.connectionStatus='configured';
+      provider.connectionStatus='verified';
       if(connectionChanged)provider.models.forEach(model=>{model.verified=false});
       writeProviderState();
       renderProviderDetailsPage();
-      notify(`${provider.name} connection saved`);
+      notify(`${provider.name} connection ${wasConnected?'updated':'added'} after successful test`);
     });
-    form.querySelector('#verifyProviderConnection').addEventListener('click',()=>{provider.connectionStatus='verified';writeProviderState();renderProviderDetailsPage();notify(`${provider.name} verification complete in prototype`)});
     form.querySelector('#removeProviderConnection')?.addEventListener('click',()=>{provider.credentialConfigured=false;provider.connectionStatus='not-configured';provider.models.forEach(model=>{model.verified=false});writeProviderState();renderProviderDetailsPage();notify(`${provider.name} connection removed`)});
     form.querySelector('#deleteCustomProvider')?.addEventListener('click',()=>{providerState.providers=providerState.providers.filter(item=>item.id!==provider.id);writeProviderState();location.hash='#api-providers';notify('Custom provider deleted')});
     form.querySelector('#openProviderModelDialog').addEventListener('click',()=>openProviderModelDialog(provider.id));
-    form.querySelectorAll('[data-test-model]').forEach(button=>button.addEventListener('click',()=>{const model=provider.models.find(item=>item.id===button.dataset.testModel);if(!provider.credentialConfigured||!model)return;model.verified=true;writeProviderState();renderProviderDetailsPage();notify(`${model.id} validated in prototype`)}));
-    form.querySelectorAll('[data-remove-model]').forEach(button=>button.addEventListener('click',()=>{if(!provider.credentialConfigured)return;provider.models=provider.models.filter(model=>model.id!==button.dataset.removeModel);writeProviderState();renderProviderDetailsPage();notify('Model removed')}));
+    form.querySelectorAll('[data-test-model]').forEach(button=>button.addEventListener('click',()=>{const model=provider.models.find(item=>item.id===button.dataset.testModel);if(!providerConnected(provider)||!model)return;model.verified=true;writeProviderState();renderProviderDetailsPage();notify(`${model.id} validated in prototype`)}));
+    form.querySelectorAll('[data-remove-model]').forEach(button=>button.addEventListener('click',()=>{if(!providerConnected(provider))return;provider.models=provider.models.filter(model=>model.id!==button.dataset.removeModel);writeProviderState();renderProviderDetailsPage();notify('Model removed')}));
   }
-  function llmModelOptions(selected,includeDefault=false){
+  function llmTaskById(taskId){return LLM_TASKS.find(task=>task.id===taskId)}
+  function activePromptTask(){return llmTaskById(activePromptTaskId)}
+  function stagePromptSnapshot(){return `${stagePromptType.value}:${stagePromptType.value==='custom'?stagePromptDraft:''}`}
+  function updateStagePromptDialog(){
+    const task=activePromptTask();
+    if(!task)return;
+    const custom=stagePromptType.value==='custom';
+    stagePromptEditor.readOnly=!custom;
+    const promptValue=custom?stagePromptDraft:DEFAULT_TASK_PROMPTS[task.id];
+    if(stagePromptEditor.value!==promptValue)stagePromptEditor.value=promptValue;
+    const length=stagePromptEditor.value.length,trimmed=stagePromptEditor.value.trim(),sameAsDefault=trimmed===DEFAULT_TASK_PROMPTS[task.id].trim();
+    stagePromptCount.textContent=`${length} / 4000 characters`;
+    stagePromptMessage.className='prompt-message';
+    stagePromptMessage.textContent=!custom?'System default prompt is read-only.':length>=4000?'Character limit reached.':length>=3600?'Approaching 4000 character limit.':!trimmed?'Custom prompt cannot be empty.':sameAsDefault?'Modify the default prompt before saving Custom.':'';
+    if(custom&&length>=3600)stagePromptMessage.classList.add('warning');
+    if(custom&&(!trimmed||sameAsDefault))stagePromptMessage.classList.add('error');
+    saveStagePromptButton.disabled=custom&&(!trimmed||sameAsDefault||length>4000);
+  }
+  function openStagePromptDialog(taskId){
+    const task=llmTaskById(taskId);
+    if(!task)return;
+    const settings=providerState.routing.tasks[task.id];
+    activePromptTaskId=task.id;
+    stagePromptTitle.textContent=`${task.label} Prompt`;
+    stagePromptType.value=settings.promptType;
+    stagePromptDraft=settings.customPrompt||DEFAULT_TASK_PROMPTS[task.id];
+    updateStagePromptDialog();
+    stagePromptInitial=stagePromptSnapshot();
+    stagePromptDialog.showModal();
+  }
+  function closeStagePromptDialog(){
+    if(stagePromptSnapshot()!==stagePromptInitial&&!confirm('Discard unsaved prompt changes?'))return;
+    stagePromptDialog.close();
+  }
+  function saveStagePrompt(){
+    const task=activePromptTask();
+    if(!task||saveStagePromptButton.disabled)return;
+    const settings=providerState.routing.tasks[task.id],custom=stagePromptType.value==='custom';
+    settings.promptType=custom?'custom':'default';
+    settings.customPrompt=custom?stagePromptDraft:'';
+    writeProviderState();
+    stagePromptInitial=stagePromptSnapshot();
+    stagePromptDialog.close();
+    renderPromptManagementPage();
+    notify(`${task.label} prompt saved`);
+  }
+  function llmModelOptions(selected,includeDefault=false,requireSelection=false){
     const options=enabledProviderModels().map(({provider,model,key})=>`<option value="${escapeAttribute(key)}" ${key===selected?'selected':''}>${escapeHtml(provider.name)} · ${escapeHtml(model.id)}</option>`).join('');
-    return `${includeDefault?'<option value="">Use default model</option>':''}${options}`;
+    const empty=includeDefault?`<option value="" ${selected?'':'selected'}>Default</option>`:requireSelection?`<option value="" ${selected?'':'selected'}>Select a validated model</option>`:'';
+    return `${empty}${options}`;
+  }
+  function modelRouteLabel(key){const match=enabledProviderModels().find(item=>item.key===key);return match?`${match.provider.name} · ${match.model.id}`:'Default'}
+  function taskLlmRowMarkup(task){
+    const settings=providerState.routing.tasks[task.id];
+    return `<div class="llm-route-row"><span class="llm-route-copy"><strong>${escapeHtml(task.label)}</strong><span>${escapeHtml(modelRouteLabel(settings.model))} · ${settings.timeout}s · temperature ${settings.temperature}</span></span><button class="btn" type="button" data-manage-llm-task="${task.id}">Manage</button></div>`;
+  }
+  function openTaskLlmDialog(taskId){
+    const task=llmTaskById(taskId);
+    if(!task)return;
+    const settings=providerState.routing.tasks[task.id];
+    activeLlmTaskId=task.id;
+    taskLlmTitle.textContent=`${task.label} Configuration`;
+    taskLlmModel.innerHTML=llmModelOptions(settings.model,true);
+    taskLlmTimeout.value=String(settings.timeout);
+    taskLlmTemperature.value=String(settings.temperature);
+    taskLlmDialog.showModal();
+  }
+  function saveTaskLlm(){
+    const task=llmTaskById(activeLlmTaskId);
+    if(!task||!taskLlmForm.reportValidity())return;
+    const settings=providerState.routing.tasks[task.id];
+    settings.model=taskLlmModel.value;
+    settings.timeout=Number(taskLlmTimeout.value);
+    settings.temperature=Number(taskLlmTemperature.value);
+    writeProviderState();
+    taskLlmDialog.close();
+    renderLlmConfigurationPage();
+    notify(`${task.label} configuration saved`);
+  }
+  function promptTaskRowMarkup(task){
+    const settings=providerState.routing.tasks[task.id];
+    const summary=settings.promptType==='custom'?`Custom · ${settings.customPrompt.length} characters`:'Default prompt';
+    return `<div class="llm-route-row"><span class="llm-route-copy"><strong>${escapeHtml(task.label)}</strong><span>${escapeHtml(summary)}</span></span><button class="btn" type="button" data-manage-task-prompt="${task.id}">Manage Prompt</button></div>`;
+  }
+  function bindLlmNumber(selector,owner,key,label){
+    form.querySelector(selector).addEventListener('change',event=>{if(!event.currentTarget.reportValidity())return;owner[key]=Number(event.currentTarget.value);writeProviderState();notify(`${label} saved`)});
   }
   function renderLlmConfigurationPage(){
-    const models=enabledProviderModels();
-    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Application</p><h2>LLM Configuration</h2><p>Choose one default model and optional task-specific overrides from validated provider models.</p></div><a class="btn" href="#api-providers">Manage API Providers</a></div>${models.length?`<div class="llm-config-grid"><section class="section-card llm-config-card"><h3>Default Route</h3><p>Used when a task has no override.</p><label class="provider-field" for="defaultLlmModel"><span>Default Model</span><select class="field" id="defaultLlmModel">${llmModelOptions(providerState.routing.defaultModel)}</select></label></section><section class="section-card llm-config-card"><h3>Task Overrides</h3><p>Keep Use default model unless a task needs a different provider or model.</p><div class="llm-route-list">${LLM_TASKS.map(([task,label])=>`<label class="llm-route-row"><span class="llm-route-copy"><strong>${label}</strong><span>Optional provider and model override</span></span><select class="field" data-llm-task="${task}" aria-label="${label} model override">${llmModelOptions(providerState.routing.overrides[task],true)}</select></label>`).join('')}</div></section></div>`:'<div class="section-card provider-empty"><strong>No validated models available.</strong><p>Add a provider connection and validate at least one model first.</p><a class="btn" href="#api-providers">Manage API Providers</a></div>'}`;
-    form.querySelector('#defaultLlmModel')?.addEventListener('change',event=>{providerState.routing.defaultModel=event.currentTarget.value;writeProviderState();notify('Default LLM route saved')});
-    form.querySelectorAll('[data-llm-task]').forEach(select=>select.addEventListener('change',()=>{providerState.routing.overrides[select.dataset.llmTask]=select.value;writeProviderState();notify('Task override saved')}));
+    const models=enabledProviderModels(),missingDefault=!providerState.routing.defaultModel;
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Application</p><h2>LLM Configuration</h2><p>Choose the default model route and runtime behavior for AI-powered tasks.</p></div><a class="btn" href="#api-providers">Manage API Providers</a></div><div class="llm-config-grid"><section class="section-card llm-config-card" aria-labelledby="defaultRouteTitle"><h3 id="defaultRouteTitle">Default Route</h3><p>Used by tasks whose Model remains Default. Options come from validated models on connected providers.</p><label class="provider-field" for="defaultLlmModel"><span>Default Model</span><select class="field" id="defaultLlmModel" ${models.length?'':'disabled'} aria-invalid="${missingDefault}">${llmModelOptions(providerState.routing.defaultModel,false,true)}</select></label>${missingDefault?`<p class="llm-required-state" role="alert">${models.length?'Select a default model before running AI tasks.':'No validated models available. Add a provider connection and validate a model first.'}</p>`:''}</section><section class="section-card llm-config-card" aria-labelledby="taskConfigurationTitle"><h3 id="taskConfigurationTitle">Task Configuration</h3><p>Manage model, timeout, and temperature independently for each AI-powered task.</p><div class="llm-route-list">${LLM_TASKS.map(taskLlmRowMarkup).join('')}</div></section></div>`;
+    form.querySelector('#defaultLlmModel').addEventListener('change',event=>{providerState.routing.defaultModel=event.currentTarget.value;writeProviderState();renderLlmConfigurationPage();notify('Default LLM route saved')});
+    form.querySelectorAll('[data-manage-llm-task]').forEach(button=>button.addEventListener('click',()=>openTaskLlmDialog(button.dataset.manageLlmTask)));
   }
-  function renderDataBackupPage(){
-    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Application</p><h2>Data &amp; Backup</h2><p>Inspect local storage and create or restore a portable FitCV backup.</p></div></div><section class="section-card data-backup-card" aria-labelledby="localModeTitle"><div class="local-mode-heading"><span class="local-mode-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="16" height="13" rx="2"/><path d="M2 20h20"/></svg></span><div><h3 id="localModeTitle">Local Mode</h3><p>Running on your machine</p></div></div><div class="data-backup-divider" aria-hidden="true"></div><div class="database-location"><span>Database Location</span><code>~/.fitcv/data/fitcv.sqlite3</code></div><div class="backup-actions"><button class="btn primary" id="downloadWorkspaceBackup" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v3h16v-3"/></svg>Download Backup</button><button class="btn" id="chooseWorkspaceBackup" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 21V9m0 0 4 4m-4-4-4 4M4 7V4h16v3"/></svg>Import Backup</button><button class="btn" id="restoreWorkspaceBackup" type="button" hidden>Restore Backup</button><input class="backup-file" id="workspaceBackupFile" type="file" accept=".fitcv.zip,.zip,application/zip" aria-label="Choose FitCV backup archive"></div><p class="backup-status" id="workspaceBackupStatus" role="status" aria-live="polite">Backup operations require an idle local workspace.</p></section>`;
+  function renderPromptManagementPage(){
+    const pipelineTasks=LLM_TASKS.filter(task=>task.group==='pipeline'),synonymTasks=LLM_TASKS.filter(task=>task.group==='synonyms');
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Pipeline</p><h2>Prompt Management</h2><p>Manage reusable behavioral instructions separately from runtime model settings.</p></div></div><div class="llm-config-grid"><section class="section-card llm-config-card"><h3>Pipeline Prompts</h3><p>Prompts used by extraction, ranking, and CV generation tasks.</p><div class="llm-route-list">${pipelineTasks.map(promptTaskRowMarkup).join('')}</div></section><section class="section-card llm-config-card"><h3>Synonym Prompts</h3><p>Prompt used to review synonym proposals and recommend an action.</p><div class="llm-route-list">${synonymTasks.map(promptTaskRowMarkup).join('')}</div></section></div>`;
+    form.querySelectorAll('[data-manage-task-prompt]').forEach(button=>button.addEventListener('click',()=>openStagePromptDialog(button.dataset.manageTaskPrompt)));
+  }
+  function renderSystemPage(){
+    const retry=providerState.routing.retry;
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Application</p><h2>System</h2><p>Manage local data, retry behavior, and worker recovery.</p></div></div><div class="system-stack"><section class="section-card data-backup-card" aria-labelledby="localModeTitle"><div class="local-mode-heading"><span class="local-mode-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="16" height="13" rx="2"/><path d="M2 20h20"/></svg></span><div><h3 id="localModeTitle">Data &amp; Backup</h3><p>Local Mode · running on your machine</p></div></div><div class="data-backup-divider" aria-hidden="true"></div><div class="database-location"><span>Database Location</span><code>~/.fitcv/data/fitcv.sqlite3</code></div><div class="backup-actions"><button class="btn primary" id="downloadWorkspaceBackup" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v3h16v-3"/></svg>Download Backup</button><button class="btn" id="chooseWorkspaceBackup" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 21V9m0 0 4 4m-4-4-4 4M4 7V4h16v3"/></svg>Import Backup</button><button class="btn" id="restoreWorkspaceBackup" type="button" hidden>Restore Backup</button><input class="backup-file" id="workspaceBackupFile" type="file" accept=".fitcv.zip,.zip,application/zip" aria-label="Choose FitCV backup archive"></div><p class="backup-status" id="workspaceBackupStatus" role="status" aria-live="polite">Backup operations require an idle local workspace.</p></section><details class="section-card collapsible-section" open><summary><span class="section-heading"><strong>Request Retry</strong><span>Global retry limits for transient provider failures.</span></span></summary><div class="section-content"><label class="row"><span><strong>Maximum Attempts</strong><p>Maximum number of attempts, including the initial attempt.</p></span><span class="llm-setting-control"><input class="field" id="systemMaximumAttempts" type="number" min="1" max="10" step="1" value="${retry.maximumAttempts}" required></span></label><label class="row"><span><strong>Initial Backoff (seconds)</strong><p>Waiting time before retrying after a transient provider failure.</p></span><span class="llm-setting-control"><input class="field" id="systemInitialBackoff" type="number" min="0" max="3600" step="1" value="${retry.initialBackoff}" required></span></label><label class="row"><span><strong>Error Detail Limit</strong><p>Maximum troubleshooting detail retained, in characters. Larger values use more storage.</p></span><span class="llm-setting-control"><input class="field" id="systemErrorDetailLimit" type="number" min="1000" max="100000" step="1" value="${retry.errorDetailLimit}" required></span></label></div></details><details class="section-card collapsible-section"><summary><span class="section-heading"><strong>Worker Recovery</strong><span>Global ownership and stalled-run recovery timing.</span></span></summary><div class="section-content"><label class="row"><span><strong>Lease (seconds)</strong><p>Maximum time a worker owns a running task before another worker may recover it.</p></span><span class="llm-setting-control"><input class="field" id="systemLeaseSeconds" type="number" min="30" max="86400" step="1" value="${retry.leaseSeconds}" required></span></label><label class="row"><span><strong>Reconciler Interval (seconds)</strong><p>Frequency for scanning and repairing incomplete runs.</p></span><span class="llm-setting-control"><input class="field" id="systemReconcilerInterval" type="number" min="5" max="3600" step="1" value="${retry.reconcilerInterval}" required></span></label></div></details></div>`;
     bindDataBackupPage();
+    bindLlmNumber('#systemMaximumAttempts',retry,'maximumAttempts','Maximum Attempts');
+    bindLlmNumber('#systemInitialBackoff',retry,'initialBackoff','Initial Backoff');
+    bindLlmNumber('#systemLeaseSeconds',retry,'leaseSeconds','Lease');
+    bindLlmNumber('#systemReconcilerInterval',retry,'reconcilerInterval','Reconciler Interval');
+    bindLlmNumber('#systemErrorDetailLimit',retry,'errorDetailLimit','Error Detail Limit');
   }
   function bindDataBackupPage(){
     const fileInput=form.querySelector('#workspaceBackupFile'),restoreButton=form.querySelector('#restoreWorkspaceBackup'),status=form.querySelector('#workspaceBackupStatus');
@@ -1276,7 +1431,7 @@
   function jobRowMarkup(run,item,mode='run'){
     const {job,outcome}=item,visibleSkills=job.skills.slice(0,5),extra=job.skills.length-visibleSkills.length;
     const key=bookmarkKey(run,job),bookmarksMode=mode==='bookmark',selected=bookmarksMode?selectedBookmarkKeys:selectedJobResultKeys,selectAttribute=bookmarksMode?'data-bookmark-select':'data-job-result-select';
-    const runCell=bookmarksMode?`<td><div class="job-primary"><button class="run-id run-id-link" type="button" data-bookmark-run-details="${run.id}" aria-label="Open details for ${run.id}">${run.id}</button><span class="supporting-text">${run.archived?'Archived run':'Active run'}</span></div></td>`:'';
+    const runCell=bookmarksMode?`<td><div class="job-primary"><button class="run-id run-id-link" type="button" data-bookmark-run-details="${run.id}" aria-label="Open details for ${run.id}">${run.id}</button></div></td>`:'';
     return `<tr class="${selected.has(key)?'is-selected':''}">${runCell}<td><div class="job-primary"><div class="job-title-row"><input type="checkbox" ${selectAttribute}="${key}" aria-label="Select ${escapeHtml(job.title)} from ${run.id}" ${selected.has(key)?'checked':''}><a class="job-title-link" href="${escapeHtml(job.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(job.title)}</a></div>${ratingMarkup(run,job,!bookmarksMode)}${cvActionMarkup(job,outcome,bookmarksMode?bookmarkStage:pipelineStage)}</div></td><td><div class="job-attributes">${[['Location',job.location],['Work Mode',job.workMode],['Language',job.language],['Seniority',job.seniority],['Job Family',job.jobFamily],['Domain',job.domain]].map(([label,value])=>`<div class="job-attribute"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}</div></td><td><div class="skill-list">${visibleSkills.map(skill=>`<span class="skill-chip">${escapeHtml(skill)}</span>`).join('')}${extra?`<span class="skill-chip">+${extra} more</span>`:''}</div></td><td><div class="pipeline-outcome"><span class="badge run-status" data-status="${outcome.result==='Rejected'?'Failed':'Succeeded'}">${outcome.label}</span><span class="outcome-reason">${escapeHtml(outcome.reason)}</span>${cvReviewMarkup(outcome)}</div></td></tr>`;
   }
   function jobPaginationMarkup(total,mode='run'){
@@ -1388,7 +1543,7 @@
     jobResultsPage=Math.min(jobResultsPage,totalPages);
     const pageRows=filtered.slice((jobResultsPage-1)*jobResultsPageSize,jobResultsPage*jobResultsPageSize),selectedCount=filtered.filter(({job})=>selectedJobResultKeys.has(bookmarkKey(run,job))).length;
     runDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Overview</strong><span>Current lifecycle information for this run.</span></span><span class="drawer-status">${statusMarkup(run)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid">${[['Run ID',run.id],['Run Name',run.runName||run.jobName],['Created',formatCreated(run.createdAt)],['Started',formatCreated(run.startedAt||run.createdAt)],['Finished',run.endedAt?formatCreated(run.endedAt):'—']].map(([label,value])=>`<div class="detail-item"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Input</strong><span>Read-only inputs used when this run was triggered.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details"><div class="detail-item"><dt>Job Input</dt><dd>${escapeHtml(run.inputFileName||run.jobName)}</dd></div><div class="detail-item"><dt>Candidate Profile</dt><dd>${profile?`<button class="run-id run-id-link" type="button" data-run-profile-details="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</button>`:'Profile unavailable'}</dd></div><div class="detail-item"><dt>Profile ID</dt><dd>${profile?escapeHtml(profile.id):'—'}</dd></div><div class="detail-item"><dt>Profile State</dt><dd>${profile?(profile.archived?'Archived · historical reference':'Active'):'Unavailable'}</dd></div><div class="detail-item"><dt>Configuration Snapshot</dt><dd>Pipeline Settings and Synonyms captured when this run was triggered.</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Pipeline Results</strong><span>Includes passed and rejected jobs evaluated at the selected stage.</span></span></summary><div class="section-content drawer-section-content"><div class="results-filters"><div class="stage-filter"><div class="pipeline-stage-tabs" role="tablist" aria-label="Pipeline stages">${PIPELINE_STAGES.map(stage=>`<button class="btn" type="button" role="tab" data-pipeline-stage="${stage.id}" aria-selected="${stage.id===pipelineStage}" tabindex="${stage.id===pipelineStage?'0':'-1'}">${stage.label}</button>`).join('')}</div></div></div><div class="results-toolbar"><input class="field results-search" id="jobResultsSearch" type="search" value="${escapeHtml(jobResultsSearch)}" placeholder="Search jobs, attributes, skills, or outcomes" aria-label="Search pipeline results"><div class="results-toolbar-actions"><div class="pipeline-summary" role="tablist" aria-label="Pipeline result filter"><button class="summary-card" type="button" role="tab" data-pipeline-result="all" aria-selected="${pipelineResult==='all'}" tabindex="${pipelineResult==='all'?'0':'-1'}"><span>Total Evaluated</span><strong>${evaluated.length}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="passed" aria-selected="${pipelineResult==='passed'}" tabindex="${pipelineResult==='passed'?'0':'-1'}"><span>Passed</span><strong>${passed}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="rejected" aria-selected="${pipelineResult==='rejected'}" tabindex="${pipelineResult==='rejected'?'0':'-1'}"><span>Rejected</span><strong>${rejected}</strong></button></div><button class="btn" id="exportRunResults" type="button" ${selectedCount?'':'disabled'}>Export</button></div></div><div class="run-panel">${jobResultSelectionMarkup(run,filtered)}${jobResultsTableMarkup(run,pageRows,filtered.length)}</div></div></details><details class="section-card collapsible-section drawer-section"><summary><span class="section-heading"><strong>Console Log</strong><span>Canonical run events for troubleshooting. Clear View hides loaded events locally without deleting backend evidence.</span></span></summary><div class="section-content drawer-section-content">${consoleLogMarkup(run)}</div></details>`;
-    runDetailsBody.insertAdjacentHTML('afterbegin',`<div class="details-page-head"><a class="details-page-back" href="#runs">← Back to Runs</a><div class="page-head"><div><p class="eyebrow">Run Details</p><h2>Run ${escapeHtml(run.id)}</h2><p>Review run inputs and pipeline results.</p></div><span class="drawer-status">${statusMarkup(run)}</span></div></div>`);
+    runDetailsBody.insertAdjacentHTML('afterbegin',`<div class="details-page-head"><a class="details-page-back" href="#runs">← Back to Runs</a><div class="page-head"><div><p class="eyebrow">Run Details</p><h2>Run ${escapeHtml(run.id)}</h2><p>Review run inputs and pipeline results.</p></div></div></div>`);
     bindRunDetails(run);
   }
   function bindConsoleControls(run,root=runDetailsBody){
@@ -1593,18 +1748,20 @@
   function runDetailsId(){const prefix='#run-details/';return location.hash.startsWith(prefix)?decodeURIComponent(location.hash.slice(prefix.length)):null}
   function isRunDetailsPage(){return Boolean(runDetailsId())}
   function isBookmarksPage(){return location.hash==='#bookmarks'}
-  function isDataBackupPage(){return location.hash==='#data-backup'}
+  function isSystemPage(){return location.hash==='#system'}
   function isApiProvidersPage(){return location.hash==='#api-providers'}
   function providerDetailsId(){const prefix='#api-providers/';return location.hash.startsWith(prefix)?decodeURIComponent(location.hash.slice(prefix.length)):null}
   function isProviderDetailsPage(){return Boolean(providerDetailsId())}
   function isLlmConfigurationPage(){return location.hash==='#llm-configuration'}
+  function isPromptManagementPage(){return location.hash==='#prompt-management'}
   function currentPage(){return pages.find(page=>page.id===location.hash.slice(1))||pages[0]}
   function clearPrimaryNavigation(){
-    [synonymsNav,candidateProfilesNav,runsNav,bookmarksNav,dataBackupNav].forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+    [synonymsNav,candidateProfilesNav,runsNav,bookmarksNav,systemNav].forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
     pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
   }
   function renderPage(){
-    [apiProvidersNav,llmConfigurationNav].forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+    form.classList.toggle('details-page-layout',isProfileDetailsPage()||isRunDetailsPage());
+    [apiProvidersNav,llmConfigurationNav,systemNav].forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
     if(isProviderDetailsPage()){
       if(!providerById(providerDetailsId())){location.hash='api-providers';return}
       headerTitle.textContent='API Provider';
@@ -1640,6 +1797,17 @@
       renderLlmConfigurationPage();
       return;
     }
+    if(isPromptManagementPage()){
+      headerTitle.textContent='Prompt Management';
+      headerDescription.textContent='Manage reusable instructions for AI-powered tasks.';
+      titleIcon.innerHTML='<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>';
+      searchBox.hidden=true;
+      clearPrimaryNavigation();
+      promptManagementNav.classList.add('active');
+      promptManagementNav.setAttribute('aria-current','page');
+      renderPromptManagementPage();
+      return;
+    }
     if(isProfileDetailsPage()){
       selectedProfileDetailId=profileDetailsId();
       if(!runState.candidateProfiles.some(profile=>profile.id===selectedProfileDetailId)){location.hash='candidate-profiles';return}
@@ -1655,8 +1823,8 @@
       runsNav.removeAttribute('aria-current');
       bookmarksNav.classList.remove('active');
       bookmarksNav.removeAttribute('aria-current');
-      dataBackupNav.classList.remove('active');
-      dataBackupNav.removeAttribute('aria-current');
+      systemNav.classList.remove('active');
+      systemNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderProfileDetails();
       document.querySelector('.scroll').scrollTop=0;
@@ -1677,16 +1845,16 @@
       runsNav.setAttribute('aria-current','page');
       bookmarksNav.classList.remove('active');
       bookmarksNav.removeAttribute('aria-current');
-      dataBackupNav.classList.remove('active');
-      dataBackupNav.removeAttribute('aria-current');
+      systemNav.classList.remove('active');
+      systemNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderRunDetails();
       document.querySelector('.scroll').scrollTop=0;
       return;
     }
-    if(isDataBackupPage()){
-      headerTitle.textContent='Data & Backup';
-      headerDescription.textContent='Inspect local storage and manage portable backups.';
+    if(isSystemPage()){
+      headerTitle.textContent='System';
+      headerDescription.textContent='Manage local data, retry behavior, and worker recovery.';
       titleIcon.innerHTML='<rect x="4" y="4" width="16" height="13" rx="2"/><path d="M2 20h20"/>';
       searchBox.hidden=true;
       synonymsNav.classList.remove('active');
@@ -1697,10 +1865,10 @@
       runsNav.removeAttribute('aria-current');
       bookmarksNav.classList.remove('active');
       bookmarksNav.removeAttribute('aria-current');
-      dataBackupNav.classList.add('active');
-      dataBackupNav.setAttribute('aria-current','page');
+      systemNav.classList.add('active');
+      systemNav.setAttribute('aria-current','page');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
-      renderDataBackupPage();
+      renderSystemPage();
       return;
     }
     if(isSynonymsPage()){
@@ -1716,8 +1884,8 @@
       runsNav.removeAttribute('aria-current');
       bookmarksNav.classList.remove('active');
       bookmarksNav.removeAttribute('aria-current');
-      dataBackupNav.classList.remove('active');
-      dataBackupNav.removeAttribute('aria-current');
+      systemNav.classList.remove('active');
+      systemNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderSynonymsPage();
       return;
@@ -1735,8 +1903,8 @@
       runsNav.removeAttribute('aria-current');
       bookmarksNav.classList.remove('active');
       bookmarksNav.removeAttribute('aria-current');
-      dataBackupNav.classList.remove('active');
-      dataBackupNav.removeAttribute('aria-current');
+      systemNav.classList.remove('active');
+      systemNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderCandidateProfilesPage();
       return;
@@ -1754,8 +1922,8 @@
       runsNav.setAttribute('aria-current','page');
       bookmarksNav.classList.remove('active');
       bookmarksNav.removeAttribute('aria-current');
-      dataBackupNav.classList.remove('active');
-      dataBackupNav.removeAttribute('aria-current');
+      systemNav.classList.remove('active');
+      systemNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderRunsPage();
       return;
@@ -1773,8 +1941,8 @@
       runsNav.removeAttribute('aria-current');
       bookmarksNav.classList.add('active');
       bookmarksNav.setAttribute('aria-current','page');
-      dataBackupNav.classList.remove('active');
-      dataBackupNav.removeAttribute('aria-current');
+      systemNav.classList.remove('active');
+      systemNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderBookmarksPage();
       return;
@@ -1793,8 +1961,8 @@
     runsNav.removeAttribute('aria-current');
     bookmarksNav.classList.remove('active');
     bookmarksNav.removeAttribute('aria-current');
-    dataBackupNav.classList.remove('active');
-    dataBackupNav.removeAttribute('aria-current');
+    systemNav.classList.remove('active');
+    systemNav.removeAttribute('aria-current');
     pipelineNav.replaceChildren(...pages.map(item=>{
       const link=document.createElement('a');
       link.className=`nav-link child${item.id===page.id?' active':''}`;
@@ -1965,7 +2133,11 @@
     if(new Set(providerState.providers.map(provider=>provider.id)).size!==providerState.providers.length)throw new Error('Provider IDs must be unique');
     if(!['OpenAI','Anthropic','DeepSeek','Groq'].every(name=>providerState.providers.some(provider=>provider.type==='shared'&&provider.name===name)))throw new Error('Shared provider catalog must include approved providers');
     if(localStorage.getItem(PROVIDER_STORAGE_KEY)?.includes('apiKey'))throw new Error('Provider storage must never contain API keys');
+    if(providerConnected({credentialConfigured:true,connectionStatus:'configured'})||!providerConnected({credentialConfigured:true,connectionStatus:'verified'}))throw new Error('Only verified provider connections may enable models and routing');
     if(providerState.routing.defaultModel&&!enabledProviderModels().some(item=>item.key===providerState.routing.defaultModel))throw new Error('Default LLM route must reference a validated model');
+    if(LLM_TASKS.length!==4||LLM_TASKS.some(task=>!DEFAULT_TASK_PROMPTS[task.id]||!providerState.routing.tasks[task.id])||llmTaskById('synonym_triage_recommendation')?.label!=='Synonym Recommendation')throw new Error('LLM task configuration must use four canonical task entries');
+    const migratedRouting=normaliseProviderState({providers:clone(DEFAULT_PROVIDER_STATE.providers),routing:{defaultModel:'missing::model',stages:{ranking:{model:'openai::gpt-4.1-mini'}}}}).routing;
+    if(migratedRouting.defaultModel!==''||migratedRouting.tasks.ranking_ai_score.model!=='openai::gpt-4.1-mini')throw new Error('Legacy stage routing must migrate without silently replacing an unavailable default');
     if(DEFAULT_CANDIDATE_PROFILES.some(profile=>!PROFILE_STATUSES.has(profile.status)||!Number.isFinite(profile.createdAt)||typeof profile.archived!=='boolean'||!isYamlProfileFile({name:profile.inputFileName}))||!DEFAULT_CANDIDATE_PROFILES.some(profile=>profile.archived)||!DEFAULT_CANDIDATE_PROFILES.some(profile=>!profile.archived))throw new Error('Candidate Profiles must include valid YAML input and lifecycle state');
     populateCandidateProfiles();
     const eligibleProfileIds=new Set(availableCandidateProfiles().map(profile=>profile.id));
@@ -1998,6 +2170,13 @@
   document.querySelector('#cancelRunDialog').addEventListener('click',()=>runDialog.close());
   document.querySelector('#closeProviderModelDialog').addEventListener('click',()=>providerModelDialog.close());
   document.querySelector('#cancelProviderModelDialog').addEventListener('click',()=>providerModelDialog.close());
+  document.querySelector('#closeTaskLlmDialog').addEventListener('click',()=>taskLlmDialog.close());
+  document.querySelector('#cancelTaskLlmDialog').addEventListener('click',()=>taskLlmDialog.close());
+  document.querySelector('#closeStagePromptDialog').addEventListener('click',closeStagePromptDialog);
+  document.querySelector('#cancelStagePromptDialog').addEventListener('click',closeStagePromptDialog);
+  document.querySelector('#closeShutdownDialog').addEventListener('click',()=>shutdownDialog.close());
+  document.querySelector('#cancelShutdown').addEventListener('click',()=>shutdownDialog.close());
+  shutdownButton.addEventListener('click',()=>shutdownDialog.showModal());
   synonymDetailsDrawer.addEventListener('click',event=>{if(event.target===synonymDetailsDrawer)synonymDetailsDrawer.close()});
   synonymDetailsDrawer.addEventListener('close',()=>{delete synonymDetailsDrawer.dataset.synonymId});
   profileFile.addEventListener('change',validateProfileDialog);
@@ -2012,6 +2191,16 @@
   testProviderModelButton.addEventListener('click',testProviderModel);
   saveProviderModelButton.addEventListener('click',saveProviderModel);
   providerModelDialog.addEventListener('close',()=>{activeModelProviderId=null;testedProviderModelId='';providerModelIdentifier.value='';resetProviderModelTest()});
+  taskLlmForm.addEventListener('submit',event=>{event.preventDefault();saveTaskLlm()});
+  document.querySelector('#saveTaskLlm').addEventListener('click',saveTaskLlm);
+  taskLlmDialog.addEventListener('close',()=>{activeLlmTaskId=null;taskLlmForm.reset()});
+  stagePromptType.addEventListener('change',updateStagePromptDialog);
+  stagePromptEditor.addEventListener('input',()=>{stagePromptDraft=stagePromptEditor.value;updateStagePromptDialog()});
+  saveStagePromptButton.addEventListener('click',saveStagePrompt);
+  stagePromptDialog.addEventListener('cancel',event=>{event.preventDefault();closeStagePromptDialog()});
+  stagePromptDialog.addEventListener('click',event=>{if(event.target===stagePromptDialog)closeStagePromptDialog()});
+  stagePromptDialog.addEventListener('close',()=>{activePromptTaskId=null;stagePromptDraft='';stagePromptInitial='';stagePromptEditor.value='';stagePromptMessage.textContent=''});
+  document.querySelector('#confirmShutdown').addEventListener('click',()=>{shutdownDialog.close();notify('Shutdown requires backend integration')});
   dialog.addEventListener('close',()=>{activeGroup=null;dialogParentGroup=null;dialogDrafts.clear();dialogForm.replaceChildren();dialogStatus.textContent=''});
   dialogSave.addEventListener('click',()=>{
     const group=activeGroup,result=validateTransaction();
@@ -2043,7 +2232,8 @@
   bookmarksNav.addEventListener('click',()=>openNav(false));
   apiProvidersNav.addEventListener('click',()=>openNav(false));
   llmConfigurationNav.addEventListener('click',()=>openNav(false));
-  dataBackupNav.addEventListener('click',()=>openNav(false));
+  promptManagementNav.addEventListener('click',()=>openNav(false));
+  systemNav.addEventListener('click',()=>openNav(false));
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!dialog.open)openNav(false)});
   document.querySelectorAll('[data-prototype-link]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();notify(`${link.textContent.trim()} is navigation-only in this prototype`);openNav(false)}));
   search.addEventListener('input',filterRows);
@@ -2056,7 +2246,7 @@
     if(changed&&isRunDetailsPage())renderRunDetails();
   },1000);
   setTheme(localStorage.getItem(`${STORAGE_KEY}:theme`)||'light');
-  window.fitcvPipelineContract={pages,transactions,defaults,runState,synonymState,providerState,bookmarkedJobs,RUN_STATUSES,PROFILE_STATUSES,SYNONYM_TYPES,SYNONYM_REVIEW_STATUSES,PIPELINE_STAGES,selfCheck,validateTransaction,parseSynonymEditor,createPrototypeProfile,triggerPrototypeRun,openProfileDetails,openSynonymDetails,openRunDetails,renderApiProvidersPage,renderProviderDetailsPage,renderLlmConfigurationPage,renderDataBackupPage,renderBookmarksPage,exportRunResults,exportBookmarkedJobs};
+  window.fitcvPipelineContract={pages,transactions,defaults,runState,synonymState,providerState,bookmarkedJobs,RUN_STATUSES,PROFILE_STATUSES,SYNONYM_TYPES,SYNONYM_REVIEW_STATUSES,PIPELINE_STAGES,LLM_TASKS,selfCheck,validateTransaction,parseSynonymEditor,createPrototypeProfile,triggerPrototypeRun,openProfileDetails,openSynonymDetails,openRunDetails,renderApiProvidersPage,renderProviderDetailsPage,renderLlmConfigurationPage,renderPromptManagementPage,renderSystemPage,renderBookmarksPage,exportRunResults,exportBookmarkedJobs};
   console.assert(selfCheck(),'Pipeline prototype self-check failed');
   renderPage();
   })();
