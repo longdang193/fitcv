@@ -508,11 +508,11 @@ def _sync_root_instruction(root: Path, *, check: bool) -> list[str]:
         Mapping(
             source=ROOT_INSTRUCTION_SOURCE,
             destination=ROOT_INSTRUCTION_DESTINATION,
-            mode="copy_file",
+            mode="render_root_doc_with_manifest",
             comment_prefix="#",
             include_glob=None,
         ),
-        platform="shared",
+        platform="codex",
         check=check,
     )
 

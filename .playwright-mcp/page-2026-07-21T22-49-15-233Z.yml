@@ -1,0 +1,133 @@
+- generic [active] [ref=f7e1]:
+  - generic [ref=f7e2]:
+    - complementary "Primary navigation" [ref=f7e3]:
+      - generic [ref=f7e9]:
+        - strong [ref=f7e10]: FitCV Control Plane
+        - text: Local workspace
+      - navigation "Workspace" [ref=f7e11]:
+        - link "Runs" [ref=f7e12] [cursor=pointer]:
+          - /url: "#runs"
+        - link "Candidate Profiles" [ref=f7e15] [cursor=pointer]:
+          - /url: "#candidate-profiles"
+        - link "Bookmarks" [ref=f7e19] [cursor=pointer]:
+          - /url: "#bookmarks"
+        - link "Synonyms" [ref=f7e22] [cursor=pointer]:
+          - /url: "#synonyms"
+        - group [ref=f7e26]:
+          - generic "Pipeline ›" [ref=f7e27] [cursor=pointer]
+          - generic [ref=f7e30]:
+            - link "Overview" [ref=f7e31] [cursor=pointer]:
+              - /url: "#overview"
+            - link "Enrichment" [ref=f7e32] [cursor=pointer]:
+              - /url: "#enrichment"
+            - link "Screening" [ref=f7e33] [cursor=pointer]:
+              - /url: "#screening"
+            - link "Shortlisting" [ref=f7e34] [cursor=pointer]:
+              - /url: "#shortlisting"
+            - link "Ranking" [ref=f7e35] [cursor=pointer]:
+              - /url: "#ranking"
+            - link "CV Analysis" [ref=f7e36] [cursor=pointer]:
+              - /url: "#cv-analysis"
+            - link "CV Generation" [ref=f7e37] [cursor=pointer]:
+              - /url: "#cv-generation"
+            - link "Runtime & Limits" [ref=f7e38] [cursor=pointer]:
+              - /url: "#runtime-limits"
+            - link "Automation & Reuse" [ref=f7e39] [cursor=pointer]:
+              - /url: "#automation-reuse"
+        - group [ref=f7e40]:
+          - generic "Application ›" [ref=f7e41] [cursor=pointer]
+          - generic [ref=f7e45]:
+            - link "Appearance" [ref=f7e46] [cursor=pointer]:
+              - /url: "#"
+            - link "LLM & API" [ref=f7e47] [cursor=pointer]:
+              - /url: "#"
+            - link "Data & Backup" [ref=f7e48] [cursor=pointer]:
+              - /url: "#"
+            - link "System" [ref=f7e49] [cursor=pointer]:
+              - /url: "#"
+        - link "Health" [ref=f7e51] [cursor=pointer]:
+          - /url: "#"
+    - main [ref=f7e54]:
+      - generic [ref=f7e55]:
+        - generic [ref=f7e63]:
+          - heading "Runs" [level=1] [ref=f7e706]
+          - paragraph [ref=f7e658]: Trigger, monitor, cancel, and archive local prototype runs.
+        - button "Use light theme" [ref=f7e66] [cursor=pointer]
+      - generic [ref=f7e71]:
+        - generic [ref=f7e707]:
+          - generic [ref=f7e708]:
+            - paragraph [ref=f7e709]: Workspace
+            - heading "Runs" [level=2] [ref=f7e710]
+            - paragraph [ref=f7e711]: Trigger and monitor local prototype runs. No backend requests are made.
+          - button "Trigger Run" [ref=f7e712] [cursor=pointer]
+        - generic [ref=f7e713]:
+          - tablist "Run views" [ref=f7e714]:
+            - tab "Active 3" [selected] [ref=f7e715] [cursor=pointer]:
+              - text: Active
+              - generic [ref=f7e716]: "3"
+            - tab "Archived 1" [ref=f7e717] [cursor=pointer]:
+              - text: Archived
+              - generic [ref=f7e718]: "1"
+          - tabpanel "Active 3" [ref=f7e719]:
+            - generic [ref=f7e720]:
+              - table [ref=f7e722]:
+                - rowgroup [ref=f7e723]:
+                  - row [ref=f7e724]:
+                    - columnheader [ref=f7e725]:
+                      - checkbox "Select all visible runs" [ref=f7e726]
+                    - columnheader "Run ID" [ref=f7e727]
+                    - columnheader "Status" [ref=f7e728]
+                    - columnheader "Job Name" [ref=f7e729]
+                    - columnheader "Created Time" [ref=f7e730]
+                    - columnheader "Duration" [ref=f7e731]
+                - rowgroup [ref=f7e732]:
+                  - row [ref=f7e733]:
+                    - cell [ref=f7e734]:
+                      - checkbox "Select run RUN-7E4A92C1" [ref=f7e735]
+                    - cell [ref=f7e736]:
+                      - button "Open details for RUN-7E4A92C1" [ref=f7e737] [cursor=pointer]: RUN-7E4A92C1
+                    - cell "Succeeded" [ref=f7e738]
+                    - cell "senior-data-product-manager.jsonl" [ref=f7e740]
+                    - cell "Jul 22, 2026, 12:34 AM" [ref=f7e741]
+                    - cell "1m 46s" [ref=f7e742]
+                  - row [ref=f7e743]:
+                    - cell [ref=f7e744]:
+                      - checkbox "Select run RUN-3B18D6F4" [ref=f7e745]
+                    - cell [ref=f7e746]:
+                      - button "Open details for RUN-3B18D6F4" [ref=f7e747] [cursor=pointer]: RUN-3B18D6F4
+                    - cell "Succeeded" [ref=f7e748]
+                    - cell "analytics-lead-berlin.json" [ref=f7e750]
+                    - cell "Jul 21, 2026, 11:35 PM" [ref=f7e751]
+                    - cell "1m 56s" [ref=f7e752]
+                  - row [ref=f7e753]:
+                    - cell [ref=f7e754]:
+                      - checkbox "Select run RUN-A94F210B" [ref=f7e755]
+                    - cell [ref=f7e756]:
+                      - button "Open details for RUN-A94F210B" [ref=f7e757] [cursor=pointer]: RUN-A94F210B
+                    - cell "Failed Prototype validation failed" [ref=f7e758]:
+                      - generic [ref=f7e759]: Failed
+                      - generic [ref=f7e760]: Prototype validation failed
+                    - cell "platform-engineer.json" [ref=f7e761]
+                    - cell "Jul 21, 2026, 10:06 PM" [ref=f7e762]
+                    - cell "1m 23s" [ref=f7e763]
+              - generic [ref=f7e764]:
+                - generic [ref=f7e765]:
+                  - text: Showing
+                  - strong [ref=f7e766]: "1"
+                  - text: to
+                  - strong [ref=f7e767]: "3"
+                  - text: of
+                  - strong [ref=f7e768]: "3"
+                  - text: results
+                - generic [ref=f7e769]:
+                  - generic [ref=f7e770]:
+                    - text: "Rows:"
+                    - combobox "Rows:" [ref=f7e771]:
+                      - option "10"
+                      - option "20" [selected]
+                      - option "50"
+                  - generic "Run table pagination" [ref=f7e772]:
+                    - button "Previous page" [disabled]: ‹
+                    - button "Page 1" [ref=f7e773] [cursor=pointer]: "1"
+                    - button "Next page" [disabled]: ›
+  - status: Ranking changes saved in prototype

@@ -88,6 +88,8 @@ Detailed policy: `docs/operating_system/rules/agent-memory-rule.md`.
 
 For material UI, UX, accessibility, responsive-layout, or visual-design work, use `ui-ux-pro-max` when available. Reuse existing components and design tokens, prefer semantic native controls, and verify affected states, keyboard access, focus, contrast, responsive behavior, reduced motion, and supported themes.
 
+When a matching `*.integration.md` exists, use `skill-full-stack-integration`. Integration notes own temporary UI intent and acceptance evidence, not transport schemas; canonical schemas, generated clients, backend routes, and tests remain authoritative.
+
 When browser MCPs are available, use Playwright MCP for repeatable user flows, accessibility snapshots, viewport checks, and screenshots; use Chrome DevTools MCP for console, network, computed layout and styles, Lighthouse, and performance diagnosis. Use both only when their roles differ. Browser evidence does not replace committed regression tests.
 
 Skip skill for copy-only edits, mechanical selector changes, or isolated nonvisual logic. If unavailable, follow existing product design system and `docs/operating_system/rules/frontend-ui-rule.md`; do not block safe local fix.
@@ -100,3 +102,89 @@ Use native code tools for small local work, Serena for exact symbols and referen
 - GitNexus remains optional and private-only. Check freshness before high-trust impact or refactor use; never make refresh a universal completion gate.
 - Tests and CI own enforcement. `docs/architecture.md` and ADRs own durable architecture intent.
 - Detailed policy: `docs/operating_system/tooling/code-intelligence-tools.md`.
+
+<!-- BEGIN GENERATED: RUNTIME_MANIFEST -->
+## Runtime Extension Manifest (Generated)
+
+> [!IMPORTANT]
+> This section is generated. Do not edit manually.
+> Source of truth: `docs/operating_system/rules/*.md`, `.agents/skills/*/SKILL.md`.
+> Regenerate via: `scripts/sync_agent_adapters.py`.
+
+### Rules Manifest
+- `agent-memory-rule.md` — Govern conditional use of persistent project memory through MCP Memory Server.
+  - Source: `docs/operating_system/rules/agent-memory-rule.md`
+- `audit-evidence-mandate-rule.md` — Require formal audit evidence only for serious or explicitly requested incidents.
+  - Source: `docs/operating_system/rules/audit-evidence-mandate-rule.md`
+- `command-execution-rule.md` — Define command execution safety boundaries and escalation conditions.
+  - Source: `docs/operating_system/rules/command-execution-rule.md`
+- `doc-contracts-rule.md` — Enforce canonical ownership and generated-surface integrity for documentation.
+  - Source: `docs/operating_system/rules/doc-contracts-rule.md`
+- `frontend-ui-rule.md` — Route material front-end work through repository UI and accessibility requirements.
+  - Source: `docs/operating_system/rules/frontend-ui-rule.md`
+- `publication-boundary-rule.md` — Enforce private/public publication boundaries and controlled export workflow.
+  - Source: `docs/operating_system/rules/publication-boundary-rule.md`
+- `python-contracts-rule.md` — Enforce typing, exception, data-safety, and verification invariants for Python changes.
+  - Source: `docs/operating_system/rules/python-contracts-rule.md`
+
+### Native Skills Manifest
+- `skill-brainstorming` — Use when exploring or defining non-trivial behavior before implementation.
+  - Source: `.agents/skills/skill-brainstorming/SKILL.md`
+- `skill-central-config-layer` — Use when shared configuration spans multiple modules, services, agents, or pipelines.
+  - Source: `.agents/skills/skill-central-config-layer/SKILL.md`
+- `skill-code-standards` — Use when creating or modifying source code where consistency, type safety, naming, error handling, dependency discipline, or maintainability standards need explicit guidance.
+  - Source: `.agents/skills/skill-code-standards/SKILL.md`
+- `skill-creating-learning-materials` — Use when creating source-grounded questions, cards, exercises, or study materials.
+  - Source: `.agents/skills/skill-creating-learning-materials/SKILL.md`
+- `skill-dispatching-parallel-agents` — Use when two or more independent problem domains can be investigated or handled concurrently without shared state, sequential dependencies, or overlapping write ownership.
+  - Source: `.agents/skills/skill-dispatching-parallel-agents/SKILL.md`
+- `skill-distinctive-frontend-design` — Use when new or substantially restyled frontend work needs a distinctive aesthetic direction and current output risks generic template-like design.
+  - Source: `.agents/skills/skill-distinctive-frontend-design/SKILL.md`
+- `skill-executing-plans` — Use when executing an approved implementation plan or resuming partially completed planned work.
+  - Source: `.agents/skills/skill-executing-plans/SKILL.md`
+- `skill-finishing-a-development-branch` — Use after fresh completion verification when an explicitly authorized Git disposition is needed for a branch or worktree.
+  - Source: `.agents/skills/skill-finishing-a-development-branch/SKILL.md`
+- `skill-frontend-component-engineering` — Use when stateful frontend components or pages need decisions about component boundaries, state ownership, URL state, server data, or asynchronous UI transitions.
+  - Source: `.agents/skills/skill-frontend-component-engineering/SKILL.md`
+- `skill-full-stack-integration` — Use when frontend features with matching integration notes need backend API contract reconciliation, route changes, typed client wiring, or end-to-end verification.
+  - Source: `.agents/skills/skill-full-stack-integration/SKILL.md`
+- `skill-performance-optimization` — Use when measured latency, throughput, memory, query, bundle, rendering, or Core Web Vitals problems need diagnosis and verified improvement.
+  - Source: `.agents/skills/skill-performance-optimization/SKILL.md`
+- `skill-plan-document-reviewer` — Use when a specification or implementation plan needs correctness and readiness review before approval, handoff, or costly execution.
+  - Source: `.agents/skills/skill-plan-document-reviewer/SKILL.md`
+- `skill-private-public-repo-governance` — Use when separating private development truth from curated public publication.
+  - Source: `.agents/skills/skill-private-public-repo-governance/SKILL.md`
+- `skill-receiving-code-review` — Use when code review feedback must be evaluated before accepting, rejecting, clarifying, or implementing it.
+  - Source: `.agents/skills/skill-receiving-code-review/SKILL.md`
+- `skill-refactoring-assessment` — Use when assessing what code, configuration, tests, schemas, documentation, dependencies, infrastructure, or module boundaries should be refactored before specification, planning, or implementation.
+  - Source: `.agents/skills/skill-refactoring-assessment/SKILL.md`
+- `skill-requesting-code-review` — Use when completed code changes need independent review before further implementation, handoff, merge, or release.
+  - Source: `.agents/skills/skill-requesting-code-review/SKILL.md`
+- `skill-spec-drafting` — Use when a problem, approved direction, or diagnosed defect needs a precise behavioral and design specification before implementation planning.
+  - Source: `.agents/skills/skill-spec-drafting/SKILL.md`
+- `skill-subagent-driven-development` — Use when executing an approved implementation plan through sequential fresh subagents with task-level review in the current session.
+  - Source: `.agents/skills/skill-subagent-driven-development/SKILL.md`
+- `skill-systematic-debugging` — Use when diagnosing bugs, failures, or unexpected behavior before proposing fixes.
+  - Source: `.agents/skills/skill-systematic-debugging/SKILL.md`
+- `skill-test-driven-development` — Use when implementing non-trivial behavior or bug fixes with regression proof.
+  - Source: `.agents/skills/skill-test-driven-development/SKILL.md`
+- `skill-using-git-worktrees` — Use when isolated workspaces materially reduce risk for feature, parallel, or high-impact planned work.
+  - Source: `.agents/skills/skill-using-git-worktrees/SKILL.md`
+- `skill-using-superpowers` — Use when selecting relevant repository skills before acting.
+  - Source: `.agents/skills/skill-using-superpowers/SKILL.md`
+- `skill-verification-before-completion` — Use when implementation appears complete and fresh evidence is required before final status or branch-finishing handoff.
+  - Source: `.agents/skills/skill-verification-before-completion/SKILL.md`
+- `skill-writing-plans` — Use when an approved specification or direct approved scope needs an executable multi-step implementation plan.
+  - Source: `.agents/skills/skill-writing-plans/SKILL.md`
+- `skill-writing-skills` — Use when creating, editing, or validating reusable skills.
+  - Source: `.agents/skills/skill-writing-skills/SKILL.md`
+
+### Resolution Notes
+- `AGENTS.md` is the authoritative Codex root instruction surface.
+- Rules are summarized here; reusable methods stay in native skills and prompts provide wording.
+
+<!-- MANIFEST_METADATA
+version: 1
+generated_by: scripts/sync_agent_adapters.py
+-->
+<!-- END GENERATED: RUNTIME_MANIFEST -->

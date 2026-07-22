@@ -1,0 +1,70 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - complementary "Primary navigation" [ref=f5e3]:
+      - generic [ref=f5e9]:
+        - strong [ref=f5e10]: FitCV Control Plane
+        - text: Local workspace
+      - navigation "Workspace" [ref=f5e11]:
+        - link "Runs" [ref=f5e12] [cursor=pointer]:
+          - /url: "#runs"
+        - link "Candidate Profiles" [ref=f5e15] [cursor=pointer]:
+          - /url: "#candidate-profiles"
+        - link "Bookmarks" [ref=f5e19] [cursor=pointer]:
+          - /url: "#bookmarks"
+        - link "Synonyms" [ref=f5e22] [cursor=pointer]:
+          - /url: "#synonyms"
+        - group [ref=f5e26]:
+          - generic "Pipeline ›" [ref=f5e27] [cursor=pointer]
+          - generic [ref=f5e30]:
+            - link "Overview" [ref=f5e31] [cursor=pointer]:
+              - /url: "#overview"
+            - link "Enrichment" [ref=f5e32] [cursor=pointer]:
+              - /url: "#enrichment"
+            - link "Screening" [ref=f5e33] [cursor=pointer]:
+              - /url: "#screening"
+            - link "Shortlisting" [ref=f5e34] [cursor=pointer]:
+              - /url: "#shortlisting"
+            - link "Ranking" [ref=f5e35] [cursor=pointer]:
+              - /url: "#ranking"
+            - link "CV Analysis" [ref=f5e36] [cursor=pointer]:
+              - /url: "#cv-analysis"
+            - link "CV Generation" [ref=f5e37] [cursor=pointer]:
+              - /url: "#cv-generation"
+            - link "Runtime & Limits" [ref=f5e38] [cursor=pointer]:
+              - /url: "#runtime-limits"
+            - link "Automation & Reuse" [ref=f5e39] [cursor=pointer]:
+              - /url: "#automation-reuse"
+        - group [ref=f5e40]:
+          - generic "Application ›" [ref=f5e41] [cursor=pointer]
+          - generic [ref=f5e45]:
+            - link "LLM & API" [ref=f5e46] [cursor=pointer]:
+              - /url: "#"
+            - link "Data & Backup" [ref=f5e47] [cursor=pointer]:
+              - /url: "#data-backup"
+            - link "System" [ref=f5e48] [cursor=pointer]:
+              - /url: "#"
+        - link "Health" [ref=f5e50] [cursor=pointer]:
+          - /url: "#"
+    - main [ref=f5e53]:
+      - generic [ref=f5e54]:
+        - generic [ref=f5e55]:
+          - button "Open navigation" [ref=f5e56] [cursor=pointer]
+          - heading "Data & Backup" [level=1] [ref=f5e62]
+        - button "Switch to light theme" [ref=f5e64] [cursor=pointer]
+      - generic [ref=f5e69]:
+        - generic [ref=f5e71]:
+          - paragraph [ref=f5e72]: Application
+          - heading "Data & Backup" [level=2] [ref=f5e73]
+          - paragraph [ref=f5e74]: Inspect local storage and create or restore a portable FitCV backup.
+        - region [ref=f5e75]:
+          - generic [ref=f5e80]:
+            - heading "Local Mode" [level=3] [ref=f5e81]
+            - paragraph [ref=f5e82]: Running on your machine
+          - generic [ref=f5e84]:
+            - generic [ref=f5e85]: Database Location
+            - code [ref=f5e86]: ~/.fitcv/data/fitcv.sqlite3
+          - generic [ref=f5e87]:
+            - button "Download Backup" [ref=f5e88] [cursor=pointer]
+            - button "Import Backup" [ref=f5e91] [cursor=pointer]
+          - status [ref=f5e94]: Backup operations require an idle local workspace.
+  - status: Ranking changes saved in prototype

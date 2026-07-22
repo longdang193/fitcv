@@ -1,0 +1,175 @@
+- generic [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - complementary "Primary navigation" [ref=f4e3]:
+      - generic [ref=f4e9]:
+        - strong [ref=f4e10]: FitCV Control Plane
+        - text: Local workspace
+      - navigation "Workspace" [ref=f4e11]:
+        - link "Runs" [ref=f4e12] [cursor=pointer]:
+          - /url: "#runs"
+        - link "Candidate Profiles" [ref=f4e15] [cursor=pointer]:
+          - /url: "#candidate-profiles"
+        - link "Bookmarks" [ref=f4e19] [cursor=pointer]:
+          - /url: "#bookmarks"
+        - link "Synonyms" [ref=f4e22] [cursor=pointer]:
+          - /url: "#synonyms"
+        - group [ref=f4e26]:
+          - generic "Pipeline ›" [ref=f4e27] [cursor=pointer]
+          - generic [ref=f4e30]:
+            - link "Overview" [ref=f4e31] [cursor=pointer]:
+              - /url: "#overview"
+            - link "Enrichment" [ref=f4e32] [cursor=pointer]:
+              - /url: "#enrichment"
+            - link "Screening" [ref=f4e33] [cursor=pointer]:
+              - /url: "#screening"
+            - link "Shortlisting" [ref=f4e34] [cursor=pointer]:
+              - /url: "#shortlisting"
+            - link "Ranking" [ref=f4e35] [cursor=pointer]:
+              - /url: "#ranking"
+            - link "CV Analysis" [ref=f4e36] [cursor=pointer]:
+              - /url: "#cv-analysis"
+            - link "CV Generation" [ref=f4e37] [cursor=pointer]:
+              - /url: "#cv-generation"
+            - link "Runtime & Limits" [ref=f4e38] [cursor=pointer]:
+              - /url: "#runtime-limits"
+            - link "Automation & Reuse" [ref=f4e39] [cursor=pointer]:
+              - /url: "#automation-reuse"
+        - group [ref=f4e40]:
+          - generic "Application ›" [ref=f4e41] [cursor=pointer]
+          - generic [ref=f4e45]:
+            - link "Appearance" [ref=f4e46] [cursor=pointer]:
+              - /url: "#"
+            - link "LLM & API" [ref=f4e47] [cursor=pointer]:
+              - /url: "#"
+            - link "Data & Backup" [ref=f4e48] [cursor=pointer]:
+              - /url: "#"
+            - link "System" [ref=f4e49] [cursor=pointer]:
+              - /url: "#"
+        - link "Health" [ref=f4e51] [cursor=pointer]:
+          - /url: "#"
+    - main [ref=f4e54]:
+      - generic [ref=f4e55]:
+        - generic [ref=f4e56]:
+          - button "Open navigation" [ref=f4e176] [cursor=pointer]
+          - heading "Synonyms" [level=1] [ref=f4e61]
+        - button "Use light theme" [ref=f4e175] [cursor=pointer]
+      - generic [ref=f4e69]:
+        - generic [ref=f4e179]:
+          - generic [ref=f4e180]:
+            - paragraph [ref=f4e181]: Workspace
+            - heading "Synonyms" [level=2] [ref=f4e182]
+            - paragraph [ref=f4e183]:
+              - text: Manage shared mappings and suggestions across runs. Changes apply to future runs; completed outcomes stay unchanged.
+              - link "Open Synonym Settings" [ref=f4e184] [cursor=pointer]:
+                - /url: "#automation-reuse"
+              - text: .
+          - generic [ref=f4e185]:
+            - button "Download Backup Synonym" [ref=f4e186] [cursor=pointer]
+            - button "Import Backup" [ref=f4e187] [cursor=pointer]
+        - generic [ref=f4e188]:
+          - group [ref=f4e189]:
+            - generic [ref=f4e190] [cursor=pointer]:
+              - text: ›
+              - generic [ref=f4e191]:
+                - strong [ref=f4e192]: Current Synonym List
+                - generic [ref=f4e193]:
+                  - text: Edit flat YAML mappings using
+                  - code [ref=f4e194]: "alias: canonical"
+                  - text: .
+            - generic [ref=f4e195]:
+              - tablist "Synonym types" [ref=f4e196]:
+                - tab "Skills 4" [selected] [ref=f4e197] [cursor=pointer]:
+                  - text: Skills
+                  - generic [ref=f4e198]: "4"
+                - tab "Domain 3" [ref=f4e199] [cursor=pointer]:
+                  - text: Domain
+                  - generic [ref=f4e200]: "3"
+                - tab "Role Family 3" [ref=f4e201] [cursor=pointer]:
+                  - text: Role Family
+                  - generic [ref=f4e202]: "3"
+              - tabpanel "Skills 4" [ref=f4e203]:
+                - generic [ref=f4e204]:
+                  - generic [ref=f4e205]:
+                    - generic [ref=f4e206]:
+                      - searchbox "Search synonym entries" [ref=f4e207]
+                      - button "Find next" [ref=f4e208] [cursor=pointer]
+                    - generic [ref=f4e209]:
+                      - button "Cancel" [ref=f4e210] [cursor=pointer]
+                      - button "Save changes" [ref=f4e211] [cursor=pointer]
+                  - textbox "Skills synonym configuration" [active] [ref=f4e212]: "advanced excel: microsoft excel ad hoc analysis: ad hoc analysis data modeling: data modeling sql modeling: data modeling"
+                  - generic [ref=f4e213]:
+                    - status [ref=f4e214]:
+                      - generic [ref=f4e215]: No conflicts detected
+                    - paragraph [ref=f4e216]: Only saved, valid mappings are intended for pipeline use.
+          - group [ref=f4e217]:
+            - generic "› Synonyms to Review When Auto-accept is off, every suggestion enters this queue as Pending." [ref=f4e218] [cursor=pointer]:
+              - text: ›
+              - generic [ref=f4e219]:
+                - strong [ref=f4e220]: Synonyms to Review
+                - generic [ref=f4e221]: When Auto-accept is off, every suggestion enters this queue as Pending.
+            - generic [ref=f4e222]:
+              - tablist "Synonym review status" [ref=f4e223]:
+                - tab "Pending 4" [selected] [ref=f4e224] [cursor=pointer]:
+                  - text: Pending
+                  - generic [ref=f4e225]: "4"
+                - tab "Approved 0" [ref=f4e226] [cursor=pointer]:
+                  - text: Approved
+                  - generic [ref=f4e227]: "0"
+                - tab "Declined 0" [ref=f4e228] [cursor=pointer]:
+                  - text: Declined
+                  - generic [ref=f4e229]: "0"
+              - tabpanel "Pending 4" [ref=f4e230]:
+                - table [ref=f4e233]:
+                  - rowgroup [ref=f4e234]:
+                    - row [ref=f4e235]:
+                      - columnheader [ref=f4e236]:
+                        - checkbox "Select all pending synonym entries" [ref=f4e237]
+                      - columnheader "Type" [ref=f4e238]
+                      - columnheader "Alias" [ref=f4e239]
+                      - columnheader "Proposed Canonical" [ref=f4e240]
+                      - columnheader "Confidence" [ref=f4e241]
+                      - columnheader "Source Runs" [ref=f4e242]
+                  - rowgroup [ref=f4e243]:
+                    - row [ref=f4e244]:
+                      - cell [ref=f4e245]:
+                        - checkbox "Select synonym advanced excel" [ref=f4e246]
+                      - cell "Skills" [ref=f4e247]
+                      - cell [ref=f4e248]:
+                        - button "Open suggestion details for advanced excel" [ref=f4e249] [cursor=pointer]: advanced excel
+                      - cell "microsoft excel" [ref=f4e250]
+                      - cell "96%" [ref=f4e251]
+                      - cell "RUN-3B18D6F4, RUN-54C0E83D" [ref=f4e252]
+                    - row [ref=f4e253]:
+                      - cell [ref=f4e254]:
+                        - checkbox "Select synonym sql modeling" [ref=f4e255]
+                      - cell "Skills" [ref=f4e256]
+                      - cell [ref=f4e257]:
+                        - button "Open suggestion details for sql modeling" [ref=f4e258] [cursor=pointer]: sql modeling
+                      - cell "data modeling" [ref=f4e259]
+                      - cell "81%" [ref=f4e260]
+                      - cell "RUN-7E4A92C1" [ref=f4e261]
+                    - row [ref=f4e262]:
+                      - cell [ref=f4e263]:
+                        - checkbox "Select synonym marketplace platforms" [ref=f4e264]
+                      - cell "Domain" [ref=f4e265]
+                      - cell [ref=f4e266]:
+                        - button "Open suggestion details for marketplace platforms" [ref=f4e267] [cursor=pointer]: marketplace platforms
+                      - cell "marketplace" [ref=f4e268]
+                      - cell "93%" [ref=f4e269]
+                      - cell "RUN-54C0E83D" [ref=f4e270]
+                    - row [ref=f4e271]:
+                      - cell [ref=f4e272]:
+                        - checkbox "Select synonym business intelligence" [ref=f4e273]
+                      - cell "Role Family" [ref=f4e274]
+                      - cell [ref=f4e275]:
+                        - button "Open suggestion details for business intelligence" [ref=f4e276] [cursor=pointer]: business intelligence
+                      - cell "data analytics" [ref=f4e277]
+                      - cell "89%" [ref=f4e278]
+                      - cell "RUN-A94F210B, RUN-3B18D6F4" [ref=f4e279]
+          - group [ref=f4e280]:
+            - generic "› Processing Summary Log Review totals and successfully added mappings for each processing action." [ref=f4e281] [cursor=pointer]:
+              - text: ›
+              - generic [ref=f4e282]:
+                - strong [ref=f4e283]: Processing Summary Log
+                - generic [ref=f4e284]: Review totals and successfully added mappings for each processing action.
+  - status: Ranking changes saved in prototype

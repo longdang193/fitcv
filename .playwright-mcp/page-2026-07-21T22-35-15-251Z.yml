@@ -1,0 +1,133 @@
+- generic [active] [ref=f1e1]:
+  - navigation [ref=f1e2]:
+    - generic [ref=f1e3]: ⚡ FitCV Admin
+    - link "Runs" [ref=f1e4] [cursor=pointer]:
+      - /url: /admin/runs
+    - link "Candidate Profiles" [ref=f1e5] [cursor=pointer]:
+      - /url: /admin/candidate-profiles
+    - link "Bookmarks" [ref=f1e6] [cursor=pointer]:
+      - /url: /admin/bookmarks
+    - link "Synonyms" [ref=f1e7] [cursor=pointer]:
+      - /url: /admin/synonyms
+    - link "Optimization" [ref=f1e8] [cursor=pointer]:
+      - /url: /admin/optimization
+    - link "Settings" [ref=f1e9] [cursor=pointer]:
+      - /url: /admin/settings
+    - link "Health" [ref=f1e10] [cursor=pointer]:
+      - /url: /healthz
+    - link "LLM & API" [ref=f1e11] [cursor=pointer]:
+      - /url: /local/onboarding#provider-form
+    - link "Data & Backup" [ref=f1e12] [cursor=pointer]:
+      - /url: /local/data
+    - link "System" [ref=f1e13] [cursor=pointer]:
+      - /url: /local/system
+    - link "Change Log" [ref=f1e14] [cursor=pointer]:
+      - /url: /local/system#change-log
+    - button "Switch to Dark theme" [ref=f1e16] [cursor=pointer]: 🌙 Dark
+  - generic [ref=f1e17]:
+    - heading "FitCV Local Setup" [level=1] [ref=f1e18]
+    - generic [ref=f1e19]:
+      - heading "Local data" [level=2] [ref=f1e20]
+      - paragraph [ref=f1e21]: C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\fitcv-central-workspace-integration-impl\data\browser-verification\Local\FitCV\data
+      - paragraph [ref=f1e22]: Use Data & Backup after setup to move this folder.
+    - generic [ref=f1e23]:
+      - heading "Candidate profile" [level=2] [ref=f1e24]
+      - generic [ref=f1e25]:
+        - text: Candidate profile YAML
+        - textbox "Candidate profile YAML" [ref=f1e26]: "# Candidate profile template for FitCV pipeline. # Copy values you want to personalize into `candidate_profile.private.yaml`. # # This file is public-safe scaffold only. # Keep structure, comments, and placeholder patterns stable for reuse. # All fields are optional unless marked REQUIRED. # Sections rendered in CV depend on cv.yaml composition settings. name: \"<full name>\" headline: \"<target role headline>\" summary: > <2-4 sentence professional summary tailored to target role and domain focus.> # ── Contact & Personal Info ──────────────────────────────────────────────── contact: email: \"<email@example.com>\" phone: \"<phone number>\" location: \"<city, country>\" linkedin: \"<https://linkedin.com/in/your-profile>\" github: \"<https://github.com/your-handle>\" website: \"<https://your-website.example>\" # ── Work Experience ───────────────────────────────────────────────────────── experiences: - id: \"exp_1\" role: \"<role title>\" role_family: \"<role family>\" company: \"<company name>\" company_url: \"<https://company.example>\" location: \"<city, country>\" start: \"<YYYY-MM>\" end: \"present\" current: true domain_tags: [\"<domain>\", \"<domain>\"] responsibility_themes: [\"<theme>\", \"<theme>\"] bullets: - text: \"<impact-oriented bullet with measurable outcome.>\" skills: [\"<skill>\", \"<skill>\"] # ── Education ──────────────────────────────────────────────────────────────── education: - id: \"edu_1\" degree: \"<degree>\" field: \"<field of study>\" institution: \"<institution name>\" location: \"<city, country>\" start: \"<YYYY-MM>\" end: \"<YYYY-MM>\" gpa: \"<optional GPA>\" thesis: title: \"<optional thesis title>\" summary: > <optional thesis summary.> courses: - \"<course name>\" activities: - \"<activity or society>\" # ── Skills ─────────────────────────────────────────────────────────────────── # All skills listed here are eligible for inclusion in CV Skills section. # Pipeline uses evidence_refs to link skills to proof (experience, project, etc.) skills: - name: \"<skill name>\" level: \"<beginner|intermediate|advanced>\" years: 0 category: \"<category name>\" evidence_refs: [\"<exp_or_proj_id>\"] sub_skills: - \"<sub skill>\" # ── Projects ────────────────────────────────────────────────────────────────── projects: - id: \"proj_1\" name: \"<project name>\" url: \"<https://project.example>\" duration: \"<YYYY-MM — YYYY-MM|present>\" domain_tags: [\"<domain>\"] responsibility_themes: [\"<theme>\"] skills: [\"<skill>\", \"<skill>\"] tech_stack: - \"<component: technology>\" business_value: > <brief statement of value delivered or problem solved.> highlights: - \"<measurable highlight>\" # ── Certifications ─────────────────────────────────────────────────────────── certifications: - id: \"cert_1\" name: \"<certification name>\" issuer: \"<issuer>\" year: 2026 expiry: 2029 # leave blank/null if no expiry credential_id: \"<optional credential id>\" url: \"<https://credential.example>\" # ── Languages ───────────────────────────────────────────────────────────────── languages: - id: \"lang_1\" name: \"<language>\" native: true # set to true for mother tongue(s) - id: \"lang_2\" name: \"<language>\" read: \"<A1|A2|B1|B2|C1|C2>\" write: \"<A1|A2|B1|B2|C1|C2>\" speak: \"<A1|A2|B1|B2|C1|C2>\" notes: \"<optional notes>\" evidence_refs: [\"<supporting id>\"] # ── Achievements ───────────────────────────────────────────────────────────── achievements: - id: \"ach_1\" text: \"<achievement statement with evidence-backed impact.>\" category: \"<category>\" domain_tags: [\"<domain>\"] evidence_refs: [\"<supporting id>\"] # ── Interests & Activities ────────────────────────────────────────────────── interests: - \"<interest>\" volunteering: - id: \"vol_1\" organization: \"<organization>\" role: \"<role>\" duration: \"<YYYY — YYYY|present>\" description: \"<contribution summary>\" # ── Preferences ────────────────────────────────────────────────────────────── preferences: target_role: \"<target role>\" role_families: [\"<role family>\"] location_types: [\"<remote|hybrid|onsite>\"] locations: [\"<preferred location>\"] domains: [\"<target domain>\"] seniority_target: \"<seniority target>\" salary_range: \"<optional salary range>\" notice_period: \"<optional notice period>\" exclude_contract_types: [\"<optional contract type>\"] exclude_experience_levels: [\"<optional experience level>\"]"
+        - button "Save profile" [ref=f1e27] [cursor=pointer]
+    - generic [ref=f1e28]:
+      - heading "LLM controller" [level=2] [ref=f1e29]
+      - generic [ref=f1e30]:
+        - group "Provider" [ref=f1e31]:
+          - paragraph [ref=f1e33]: "Source: packaged"
+          - generic [ref=f1e34]:
+            - text: Provider
+            - combobox "Provider" [ref=f1e35]:
+              - option "OpenAI"
+              - option "OpenAI-compatible" [selected]
+              - option "9router"
+          - generic [ref=f1e36]:
+            - text: API root
+            - textbox "API root" [ref=f1e37]:
+              - /placeholder: https://api.openai.com/v1
+              - text: http://host.docker.internal:20128/v1
+          - generic [ref=f1e38]:
+            - text: API key
+            - textbox "API key" [ref=f1e39]
+          - generic [ref=f1e40]:
+            - text: Auth
+            - combobox "Auth" [ref=f1e41]:
+              - option "none"
+              - option "optional"
+              - option "required" [selected]
+          - generic [ref=f1e42]:
+            - text: Wire API
+            - combobox "Wire API" [ref=f1e43]:
+              - option "chat_completions" [selected]
+              - option "responses"
+          - generic [ref=f1e44]:
+            - text: Default model
+            - textbox "Default model" [ref=f1e45]: cx/gpt-5.4-mini
+          - generic [ref=f1e46]:
+            - text: Timeout seconds
+            - spinbutton "Timeout seconds" [ref=f1e47]: "300"
+          - group [ref=f1e48]:
+            - generic "Advanced task models" [ref=f1e49] [cursor=pointer]
+          - button "Reset provider and models" [ref=f1e50] [cursor=pointer]
+        - group "Run retry" [ref=f1e51]:
+          - paragraph [ref=f1e53]: Retries whole failed runs, not individual LLM requests.
+          - paragraph [ref=f1e54]: "Source: packaged"
+          - generic [ref=f1e55]:
+            - checkbox "Enable run retry" [ref=f1e56]
+            - text: Enable run retry
+          - generic [ref=f1e57]:
+            - text: Maximum attempts
+            - spinbutton "Maximum attempts" [ref=f1e58]: "1"
+          - generic [ref=f1e59]:
+            - text: Backoff seconds
+            - textbox "Backoff seconds" [ref=f1e60]: 1, 2, 4, 8
+          - generic [ref=f1e61]:
+            - text: Lease seconds
+            - spinbutton "Lease seconds" [ref=f1e62]: "900"
+          - generic [ref=f1e63]:
+            - text: Reconciler interval seconds
+            - spinbutton "Reconciler interval seconds" [ref=f1e64]: "0"
+          - generic [ref=f1e65]:
+            - text: Error detail limit
+            - spinbutton "Error detail limit" [ref=f1e66]: "2048"
+          - button "Reset run retry" [ref=f1e67] [cursor=pointer]
+        - group "Prompt customization" [ref=f1e68]:
+          - paragraph [ref=f1e70]: Optional guidance is inserted before fixed JSON and schema instructions. Maximum 4000 characters per task.
+          - generic [ref=f1e71]:
+            - text: Enrich Extraction
+            - paragraph [ref=f1e72]:
+              - code [ref=f1e73]: enrich.extraction.v1
+              - text: "v1 Source: packaged"
+            - textbox "Enrich Extraction" [ref=f1e74]
+            - button "Reset prompt" [ref=f1e75] [cursor=pointer]
+          - generic [ref=f1e76]:
+            - text: Ranking Ai Score
+            - paragraph [ref=f1e77]:
+              - code [ref=f1e78]: ranking.ai_score.v2
+              - text: "v2 Source: packaged"
+            - textbox "Ranking Ai Score" [ref=f1e79]
+            - button "Reset prompt" [ref=f1e80] [cursor=pointer]
+          - generic [ref=f1e81]:
+            - text: Cv Generation Structured Write
+            - paragraph [ref=f1e82]:
+              - code [ref=f1e83]: cv_generation.structured_write.v1
+              - text: "v1 Source: packaged"
+            - textbox "Cv Generation Structured Write" [ref=f1e84]
+            - button "Reset prompt" [ref=f1e85] [cursor=pointer]
+          - generic [ref=f1e86]:
+            - text: Synonym Triage Recommendation
+            - paragraph [ref=f1e87]:
+              - code [ref=f1e88]: synonym_triage.recommendation.v1
+              - text: "v1 Source: packaged"
+            - textbox "Synonym Triage Recommendation" [ref=f1e89]
+            - button "Reset prompt" [ref=f1e90] [cursor=pointer]
+        - button "Discover models" [ref=f1e91] [cursor=pointer]
+        - button "Test provider" [ref=f1e92] [cursor=pointer]
+        - button "Save controller settings" [ref=f1e93] [cursor=pointer]
+    - button "Finish setup" [ref=f1e95] [cursor=pointer]

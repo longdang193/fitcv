@@ -1,0 +1,97 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - complementary "Primary navigation" [ref=f3e3]:
+      - generic [ref=f3e9]:
+        - strong [ref=f3e10]: FitCV Control Plane
+        - text: Local workspace
+      - navigation "Workspace" [ref=f3e11]:
+        - link "Runs" [ref=f3e12] [cursor=pointer]:
+          - /url: "#runs"
+        - link "Candidate Profiles" [ref=f3e15] [cursor=pointer]:
+          - /url: "#candidate-profiles"
+        - link "Bookmarks" [ref=f3e19] [cursor=pointer]:
+          - /url: "#bookmarks"
+        - link "Synonyms" [ref=f3e22] [cursor=pointer]:
+          - /url: "#synonyms"
+        - group [ref=f3e26]:
+          - generic "Pipeline ›" [ref=f3e27] [cursor=pointer]
+          - generic [ref=f3e30]:
+            - link "Overview" [ref=f3e31] [cursor=pointer]:
+              - /url: "#overview"
+            - link "Enrichment" [ref=f3e32] [cursor=pointer]:
+              - /url: "#enrichment"
+            - link "Screening" [ref=f3e33] [cursor=pointer]:
+              - /url: "#screening"
+            - link "Shortlisting" [ref=f3e34] [cursor=pointer]:
+              - /url: "#shortlisting"
+            - link "Ranking" [ref=f3e35] [cursor=pointer]:
+              - /url: "#ranking"
+            - link "CV Analysis" [ref=f3e36] [cursor=pointer]:
+              - /url: "#cv-analysis"
+            - link "CV Generation" [ref=f3e37] [cursor=pointer]:
+              - /url: "#cv-generation"
+            - link "Runtime & Limits" [ref=f3e38] [cursor=pointer]:
+              - /url: "#runtime-limits"
+            - link "Automation & Reuse" [ref=f3e39] [cursor=pointer]:
+              - /url: "#automation-reuse"
+        - group [ref=f3e40]:
+          - generic "Application ›" [ref=f3e41] [cursor=pointer]
+          - generic [ref=f3e45]:
+            - link "LLM & API" [ref=f3e46] [cursor=pointer]:
+              - /url: "#"
+            - link "Data & Backup" [ref=f3e47] [cursor=pointer]:
+              - /url: "#data-backup"
+            - link "System" [ref=f3e48] [cursor=pointer]:
+              - /url: "#"
+        - link "Health" [ref=f3e50] [cursor=pointer]:
+          - /url: "#"
+    - main [ref=f3e53]:
+      - generic [ref=f3e54]:
+        - generic [ref=f3e55]:
+          - button "Open navigation" [ref=f3e56] [cursor=pointer]
+          - heading "Candidate Profile" [level=1] [ref=f3e117]
+        - button "Switch to dark theme" [ref=f3e65] [cursor=pointer]
+      - generic [ref=f3e71]:
+        - generic [ref=f3e118]:
+          - link "← Back to Candidate Profiles" [ref=f3e119] [cursor=pointer]:
+            - /url: "#candidate-profiles"
+          - generic [ref=f3e120]:
+            - generic [ref=f3e121]:
+              - paragraph [ref=f3e122]: Candidate Profile
+              - heading "Product Data Specialist" [level=2] [ref=f3e123]
+              - paragraph [ref=f3e124]: Review profile identity, lifecycle state, source input, and related runs.
+            - generic [ref=f3e125]: Succeeded
+        - group [ref=f3e127]:
+          - generic "› Profile Overview Current lifecycle information for this Candidate Profile. Succeeded" [ref=f3e128] [cursor=pointer]:
+            - text: ›
+            - generic [ref=f3e129]:
+              - strong [ref=f3e130]: Profile Overview
+              - generic [ref=f3e131]: Current lifecycle information for this Candidate Profile.
+            - generic [ref=f3e132]: Succeeded
+          - generic [ref=f3e135]:
+            - generic [ref=f3e136]:
+              - term [ref=f3e137]: Profile ID
+              - definition [ref=f3e138]: candidate-product-data
+            - generic [ref=f3e139]:
+              - term [ref=f3e140]: Profile Name
+              - definition [ref=f3e141]: Product Data Specialist
+            - generic [ref=f3e142]:
+              - term [ref=f3e143]: Created
+              - definition [ref=f3e144]: Jul 22, 2026, 9:28 AM
+            - generic [ref=f3e145]:
+              - term [ref=f3e146]: Availability
+              - definition [ref=f3e147]: Available for new runs
+            - generic [ref=f3e148]:
+              - term [ref=f3e149]: Used by Runs
+              - definition [ref=f3e150]:
+                - button "RUN-7E4A92C1" [ref=f3e151] [cursor=pointer]
+        - group [ref=f3e152]:
+          - generic "› Profile Input Read-only input used to create this Candidate Profile." [ref=f3e153] [cursor=pointer]:
+            - text: ›
+            - generic [ref=f3e154]:
+              - strong [ref=f3e155]: Profile Input
+              - generic [ref=f3e156]: Read-only input used to create this Candidate Profile.
+          - generic [ref=f3e159]:
+            - term [ref=f3e160]: Profile Input
+            - definition [ref=f3e161]: product-data-specialist.yaml
+  - status: Ranking changes saved in prototype

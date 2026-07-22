@@ -1,0 +1,554 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - complementary "Primary navigation" [ref=f1e3]:
+      - generic [ref=f1e9]:
+        - strong [ref=f1e10]: FitCV Control Plane
+        - text: Local workspace
+      - navigation "Workspace" [ref=f1e11]:
+        - link "Runs" [ref=f1e12] [cursor=pointer]:
+          - /url: "#runs"
+        - link "Candidate Profiles" [ref=f1e15] [cursor=pointer]:
+          - /url: "#candidate-profiles"
+        - link "Bookmarks" [ref=f1e19] [cursor=pointer]:
+          - /url: "#bookmarks"
+        - link "Synonyms" [ref=f1e22] [cursor=pointer]:
+          - /url: "#synonyms"
+        - group [ref=f1e26]:
+          - generic "Pipeline ›" [ref=f1e27] [cursor=pointer]
+          - generic [ref=f1e30]:
+            - link "Overview" [ref=f1e31] [cursor=pointer]:
+              - /url: "#overview"
+            - link "Enrichment" [ref=f1e32] [cursor=pointer]:
+              - /url: "#enrichment"
+            - link "Screening" [ref=f1e33] [cursor=pointer]:
+              - /url: "#screening"
+            - link "Shortlisting" [ref=f1e34] [cursor=pointer]:
+              - /url: "#shortlisting"
+            - link "Ranking" [ref=f1e35] [cursor=pointer]:
+              - /url: "#ranking"
+            - link "CV Analysis" [ref=f1e36] [cursor=pointer]:
+              - /url: "#cv-analysis"
+            - link "CV Generation" [ref=f1e37] [cursor=pointer]:
+              - /url: "#cv-generation"
+            - link "Runtime & Limits" [ref=f1e38] [cursor=pointer]:
+              - /url: "#runtime-limits"
+            - link "Automation & Reuse" [ref=f1e39] [cursor=pointer]:
+              - /url: "#automation-reuse"
+        - group [ref=f1e40]:
+          - generic "Application ›" [ref=f1e41] [cursor=pointer]
+          - generic [ref=f1e45]:
+            - link "Appearance" [ref=f1e46] [cursor=pointer]:
+              - /url: "#"
+            - link "LLM & API" [ref=f1e47] [cursor=pointer]:
+              - /url: "#"
+            - link "Data & Backup" [ref=f1e48] [cursor=pointer]:
+              - /url: "#"
+            - link "System" [ref=f1e49] [cursor=pointer]:
+              - /url: "#"
+        - link "Health" [ref=f1e51] [cursor=pointer]:
+          - /url: "#"
+    - main [ref=f1e54]:
+      - generic [ref=f1e55]:
+        - generic [ref=f1e59]:
+          - heading "Run Details" [level=1] [ref=f1e819]
+          - paragraph [ref=f1e61]: Review run inputs and pipeline results.
+        - button "Use dark theme" [ref=f1e63] [cursor=pointer]
+      - generic [ref=f1e68]:
+        - generic [ref=f1e820]:
+          - link "← Back to Runs" [ref=f1e821] [cursor=pointer]:
+            - /url: "#runs"
+          - generic [ref=f1e822]:
+            - generic [ref=f1e823]:
+              - paragraph [ref=f1e824]: Run Details
+              - heading "Run RUN-7E4A92C1" [level=2] [ref=f1e825]
+              - paragraph [ref=f1e826]: Review run inputs and pipeline results.
+            - generic [ref=f1e827]: Succeeded
+        - group [ref=f1e829]:
+          - generic "› Run Overview Current lifecycle information for this run. Succeeded" [ref=f1e830] [cursor=pointer]:
+            - text: ›
+            - generic [ref=f1e831]:
+              - strong [ref=f1e832]: Run Overview
+              - generic [ref=f1e833]: Current lifecycle information for this run.
+            - generic [ref=f1e834]: Succeeded
+          - generic [ref=f1e837]:
+            - generic [ref=f1e838]:
+              - term [ref=f1e839]: Run ID
+              - definition [ref=f1e840]: RUN-7E4A92C1
+            - generic [ref=f1e841]:
+              - term [ref=f1e842]: Run Name
+              - definition [ref=f1e843]: Senior data product search
+            - generic [ref=f1e844]:
+              - term [ref=f1e845]: Created
+              - definition [ref=f1e846]: Jul 22, 2026, 10:33 AM
+            - generic [ref=f1e847]:
+              - term [ref=f1e848]: Started
+              - definition [ref=f1e849]: Jul 22, 2026, 10:33 AM
+            - generic [ref=f1e850]:
+              - term [ref=f1e851]: Finished
+              - definition [ref=f1e852]: Jul 22, 2026, 10:34 AM
+        - group [ref=f1e853]:
+          - generic "› Run Input Read-only inputs used when this run was triggered." [ref=f1e854] [cursor=pointer]:
+            - text: ›
+            - generic [ref=f1e855]:
+              - strong [ref=f1e856]: Run Input
+              - generic [ref=f1e857]: Read-only inputs used when this run was triggered.
+          - generic [ref=f1e859]:
+            - generic [ref=f1e860]:
+              - term [ref=f1e861]: Job Input
+              - definition [ref=f1e862]: senior-data-product-manager.jsonl
+            - generic [ref=f1e863]:
+              - term [ref=f1e864]: Candidate Profile
+              - definition [ref=f1e865]:
+                - button "Product Data Specialist" [ref=f1e866] [cursor=pointer]
+            - generic [ref=f1e867]:
+              - term [ref=f1e868]: Profile ID
+              - definition [ref=f1e869]: candidate-product-data
+            - generic [ref=f1e870]:
+              - term [ref=f1e871]: Profile State
+              - definition [ref=f1e872]: Active
+            - generic [ref=f1e873]:
+              - term [ref=f1e874]: Configuration Snapshot
+              - definition [ref=f1e875]: Pipeline Settings and Synonyms captured when this run was triggered.
+        - group [ref=f1e876]:
+          - generic "› Pipeline Results Includes passed and rejected jobs evaluated at the selected stage." [ref=f1e877] [cursor=pointer]:
+            - text: ›
+            - generic [ref=f1e878]:
+              - strong [ref=f1e879]: Pipeline Results
+              - generic [ref=f1e880]: Includes passed and rejected jobs evaluated at the selected stage.
+          - generic [ref=f1e881]:
+            - tablist "Pipeline stages" [ref=f1e884]:
+              - tab "All Jobs" [ref=f1e885] [cursor=pointer]
+              - tab "Enrichment" [ref=f1e886] [cursor=pointer]
+              - tab "Screening" [ref=f1e887] [cursor=pointer]
+              - tab "Shortlisting" [selected] [ref=f1e888] [cursor=pointer]
+              - tab "Ranking" [ref=f1e889] [cursor=pointer]
+              - tab "CV Analysis" [ref=f1e890] [cursor=pointer]
+              - tab "CV Generation" [ref=f1e891] [cursor=pointer]
+            - generic [ref=f1e892]:
+              - searchbox "Search pipeline results" [ref=f1e893]
+              - generic [ref=f1e894]:
+                - tablist "Pipeline result filter" [ref=f1e895]:
+                  - tab "Total Evaluated 8" [selected] [ref=f1e896] [cursor=pointer]:
+                    - generic [ref=f1e897]: Total Evaluated
+                    - strong [ref=f1e898]: "8"
+                  - tab "Passed 6" [ref=f1e899] [cursor=pointer]:
+                    - generic [ref=f1e900]: Passed
+                    - strong [ref=f1e901]: "6"
+                  - tab "Rejected 2" [ref=f1e902] [cursor=pointer]:
+                    - generic [ref=f1e903]: Rejected
+                    - strong [ref=f1e904]: "2"
+                - button "Export" [disabled]
+            - generic [ref=f1e906]:
+              - table [ref=f1e908]:
+                - rowgroup [ref=f1e909]:
+                  - row [ref=f1e910]:
+                    - columnheader [ref=f1e911]:
+                      - checkbox "Select all visible job results" [ref=f1e912]
+                      - text: Job & Actions
+                    - columnheader "Job Attributes" [ref=f1e913]
+                    - columnheader "Required Skills" [ref=f1e914]
+                    - columnheader "Pipeline Outcome" [ref=f1e915]
+                - rowgroup [ref=f1e916]:
+                  - row [ref=f1e917]:
+                    - cell [ref=f1e918]:
+                      - generic [ref=f1e919]:
+                        - generic [ref=f1e920]:
+                          - checkbox "Select Analytics Engineering Lead from RUN-7E4A92C1" [ref=f1e921]
+                          - link "Analytics Engineering Lead" [ref=f1e922] [cursor=pointer]:
+                            - /url: https://example.com/jobs/analytics-engineering-lead
+                        - generic "Application Interest for Analytics Engineering Lead" [ref=f1e923]:
+                          - button "Rate 1 of 5" [ref=f1e924] [cursor=pointer]: ★
+                          - button "Rate 2 of 5" [ref=f1e925] [cursor=pointer]: ★
+                          - button "Rate 3 of 5" [ref=f1e926] [cursor=pointer]: ★
+                          - button "Rate 4 of 5" [ref=f1e927] [cursor=pointer]: ★
+                          - button "Rate 5 of 5" [ref=f1e928] [cursor=pointer]: ★
+                          - button "Clear" [disabled] [ref=f1e929]
+                          - button "Add bookmark for Analytics Engineering Lead" [ref=f1e930] [cursor=pointer]
+                    - cell "Location Remote — EU Work Mode Remote Language English Seniority Lead Job Family Data Engineering Domain Analytics" [ref=f1e933]:
+                      - generic [ref=f1e934]:
+                        - generic [ref=f1e935]:
+                          - generic [ref=f1e936]: Location
+                          - strong [ref=f1e937]: Remote — EU
+                        - generic [ref=f1e938]:
+                          - generic [ref=f1e939]: Work Mode
+                          - strong [ref=f1e940]: Remote
+                        - generic [ref=f1e941]:
+                          - generic [ref=f1e942]: Language
+                          - strong [ref=f1e943]: English
+                        - generic [ref=f1e944]:
+                          - generic [ref=f1e945]: Seniority
+                          - strong [ref=f1e946]: Lead
+                        - generic [ref=f1e947]:
+                          - generic [ref=f1e948]: Job Family
+                          - strong [ref=f1e949]: Data Engineering
+                        - generic [ref=f1e950]:
+                          - generic [ref=f1e951]: Domain
+                          - strong [ref=f1e952]: Analytics
+                    - cell "dbt SQL Python Data Warehousing Leadership +1 more" [ref=f1e953]:
+                      - generic [ref=f1e954]:
+                        - generic [ref=f1e955]: dbt
+                        - generic [ref=f1e956]: SQL
+                        - generic [ref=f1e957]: Python
+                        - generic [ref=f1e958]: Data Warehousing
+                        - generic [ref=f1e959]: Leadership
+                        - generic [ref=f1e960]: +1 more
+                    - cell "Passed Shortlisting Met Shortlisting requirements." [ref=f1e961]:
+                      - generic [ref=f1e962]:
+                        - generic [ref=f1e963]: Passed Shortlisting
+                        - generic [ref=f1e964]: Met Shortlisting requirements.
+                  - row [ref=f1e965]:
+                    - cell [ref=f1e966]:
+                      - generic [ref=f1e967]:
+                        - generic [ref=f1e968]:
+                          - checkbox "Select Data Platform Product Manager from RUN-7E4A92C1" [ref=f1e969]
+                          - link "Data Platform Product Manager" [ref=f1e970] [cursor=pointer]:
+                            - /url: https://example.com/jobs/data-platform-product-manager
+                        - generic "Application Interest for Data Platform Product Manager" [ref=f1e971]:
+                          - button "Rate 1 of 5" [ref=f1e972] [cursor=pointer]: ★
+                          - button "Rate 2 of 5" [ref=f1e973] [cursor=pointer]: ★
+                          - button "Rate 3 of 5" [ref=f1e974] [cursor=pointer]: ★
+                          - button "Rate 4 of 5" [ref=f1e975] [cursor=pointer]: ★
+                          - button "Rate 5 of 5" [ref=f1e976] [cursor=pointer]: ★
+                          - button "Clear" [disabled] [ref=f1e977]
+                          - button "Add bookmark for Data Platform Product Manager" [ref=f1e978] [cursor=pointer]
+                    - cell "Location Copenhagen, Denmark Work Mode Hybrid Language English Seniority Senior Job Family Product Management Domain Developer Tools" [ref=f1e981]:
+                      - generic [ref=f1e982]:
+                        - generic [ref=f1e983]:
+                          - generic [ref=f1e984]: Location
+                          - strong [ref=f1e985]: Copenhagen, Denmark
+                        - generic [ref=f1e986]:
+                          - generic [ref=f1e987]: Work Mode
+                          - strong [ref=f1e988]: Hybrid
+                        - generic [ref=f1e989]:
+                          - generic [ref=f1e990]: Language
+                          - strong [ref=f1e991]: English
+                        - generic [ref=f1e992]:
+                          - generic [ref=f1e993]: Seniority
+                          - strong [ref=f1e994]: Senior
+                        - generic [ref=f1e995]:
+                          - generic [ref=f1e996]: Job Family
+                          - strong [ref=f1e997]: Product Management
+                        - generic [ref=f1e998]:
+                          - generic [ref=f1e999]: Domain
+                          - strong [ref=f1e1000]: Developer Tools
+                    - cell "Platform Product Management APIs Data Infrastructure Roadmapping Developer Experience +1 more" [ref=f1e1001]:
+                      - generic [ref=f1e1002]:
+                        - generic [ref=f1e1003]: Platform Product Management
+                        - generic [ref=f1e1004]: APIs
+                        - generic [ref=f1e1005]: Data Infrastructure
+                        - generic [ref=f1e1006]: Roadmapping
+                        - generic [ref=f1e1007]: Developer Experience
+                        - generic [ref=f1e1008]: +1 more
+                    - cell "Passed Shortlisting Met Shortlisting requirements." [ref=f1e1009]:
+                      - generic [ref=f1e1010]:
+                        - generic [ref=f1e1011]: Passed Shortlisting
+                        - generic [ref=f1e1012]: Met Shortlisting requirements.
+                  - row [ref=f1e1013]:
+                    - cell [ref=f1e1014]:
+                      - generic [ref=f1e1015]:
+                        - generic [ref=f1e1016]:
+                          - checkbox "Select Platform Product Owner from RUN-7E4A92C1" [ref=f1e1017]
+                          - link "Platform Product Owner" [ref=f1e1018] [cursor=pointer]:
+                            - /url: https://example.com/jobs/platform-product-owner
+                        - generic "Application Interest for Platform Product Owner" [ref=f1e1019]:
+                          - button "Rate 1 of 5" [ref=f1e1020] [cursor=pointer]: ★
+                          - button "Rate 2 of 5" [ref=f1e1021] [cursor=pointer]: ★
+                          - button "Rate 3 of 5" [ref=f1e1022] [cursor=pointer]: ★
+                          - button "Rate 4 of 5" [ref=f1e1023] [cursor=pointer]: ★
+                          - button "Rate 5 of 5" [ref=f1e1024] [cursor=pointer]: ★
+                          - button "Clear" [disabled] [ref=f1e1025]
+                          - button "Add bookmark for Platform Product Owner" [ref=f1e1026] [cursor=pointer]
+                    - cell "Location Munich, Germany Work Mode Hybrid Language English Seniority Senior Job Family Product Management Domain Cloud Infrastructure" [ref=f1e1029]:
+                      - generic [ref=f1e1030]:
+                        - generic [ref=f1e1031]:
+                          - generic [ref=f1e1032]: Location
+                          - strong [ref=f1e1033]: Munich, Germany
+                        - generic [ref=f1e1034]:
+                          - generic [ref=f1e1035]: Work Mode
+                          - strong [ref=f1e1036]: Hybrid
+                        - generic [ref=f1e1037]:
+                          - generic [ref=f1e1038]: Language
+                          - strong [ref=f1e1039]: English
+                        - generic [ref=f1e1040]:
+                          - generic [ref=f1e1041]: Seniority
+                          - strong [ref=f1e1042]: Senior
+                        - generic [ref=f1e1043]:
+                          - generic [ref=f1e1044]: Job Family
+                          - strong [ref=f1e1045]: Product Management
+                        - generic [ref=f1e1046]:
+                          - generic [ref=f1e1047]: Domain
+                          - strong [ref=f1e1048]: Cloud Infrastructure
+                    - cell "Platform Strategy Agile APIs Backlog Management Cloud +1 more" [ref=f1e1049]:
+                      - generic [ref=f1e1050]:
+                        - generic [ref=f1e1051]: Platform Strategy
+                        - generic [ref=f1e1052]: Agile
+                        - generic [ref=f1e1053]: APIs
+                        - generic [ref=f1e1054]: Backlog Management
+                        - generic [ref=f1e1055]: Cloud
+                        - generic [ref=f1e1056]: +1 more
+                    - cell "Rejected at Shortlisting Role evidence was weaker than the Shortlisting cutoff." [ref=f1e1057]:
+                      - generic [ref=f1e1058]:
+                        - generic [ref=f1e1059]: Rejected at Shortlisting
+                        - generic [ref=f1e1060]: Role evidence was weaker than the Shortlisting cutoff.
+                  - row [ref=f1e1061]:
+                    - cell [ref=f1e1062]:
+                      - generic [ref=f1e1063]:
+                        - generic [ref=f1e1064]:
+                          - checkbox "Select Principal Business Intelligence Analyst from RUN-7E4A92C1" [ref=f1e1065]
+                          - link "Principal Business Intelligence Analyst" [ref=f1e1066] [cursor=pointer]:
+                            - /url: https://example.com/jobs/principal-bi-analyst
+                        - generic "Application Interest for Principal Business Intelligence Analyst" [ref=f1e1067]:
+                          - button "Rate 1 of 5" [ref=f1e1068] [cursor=pointer]: ★
+                          - button "Rate 2 of 5" [ref=f1e1069] [cursor=pointer]: ★
+                          - button "Rate 3 of 5" [ref=f1e1070] [cursor=pointer]: ★
+                          - button "Rate 4 of 5" [ref=f1e1071] [cursor=pointer]: ★
+                          - button "Rate 5 of 5" [ref=f1e1072] [cursor=pointer]: ★
+                          - button "Clear" [disabled] [ref=f1e1073]
+                          - button "Add bookmark for Principal Business Intelligence Analyst" [ref=f1e1074] [cursor=pointer]
+                    - cell "Location Amsterdam, Netherlands Work Mode Hybrid Language English Seniority Principal Job Family Analytics Domain Fintech" [ref=f1e1077]:
+                      - generic [ref=f1e1078]:
+                        - generic [ref=f1e1079]:
+                          - generic [ref=f1e1080]: Location
+                          - strong [ref=f1e1081]: Amsterdam, Netherlands
+                        - generic [ref=f1e1082]:
+                          - generic [ref=f1e1083]: Work Mode
+                          - strong [ref=f1e1084]: Hybrid
+                        - generic [ref=f1e1085]:
+                          - generic [ref=f1e1086]: Language
+                          - strong [ref=f1e1087]: English
+                        - generic [ref=f1e1088]:
+                          - generic [ref=f1e1089]: Seniority
+                          - strong [ref=f1e1090]: Principal
+                        - generic [ref=f1e1091]:
+                          - generic [ref=f1e1092]: Job Family
+                          - strong [ref=f1e1093]: Analytics
+                        - generic [ref=f1e1094]:
+                          - generic [ref=f1e1095]: Domain
+                          - strong [ref=f1e1096]: Fintech
+                    - cell "Power BI SQL DAX Data Storytelling Financial Analysis +1 more" [ref=f1e1097]:
+                      - generic [ref=f1e1098]:
+                        - generic [ref=f1e1099]: Power BI
+                        - generic [ref=f1e1100]: SQL
+                        - generic [ref=f1e1101]: DAX
+                        - generic [ref=f1e1102]: Data Storytelling
+                        - generic [ref=f1e1103]: Financial Analysis
+                        - generic [ref=f1e1104]: +1 more
+                    - cell "Passed Shortlisting Met Shortlisting requirements." [ref=f1e1105]:
+                      - generic [ref=f1e1106]:
+                        - generic [ref=f1e1107]: Passed Shortlisting
+                        - generic [ref=f1e1108]: Met Shortlisting requirements.
+                  - row [ref=f1e1109]:
+                    - cell [ref=f1e1110]:
+                      - generic [ref=f1e1111]:
+                        - generic [ref=f1e1112]:
+                          - checkbox "Select Product Analytics Manager from RUN-7E4A92C1" [ref=f1e1113]
+                          - link "Product Analytics Manager" [ref=f1e1114] [cursor=pointer]:
+                            - /url: https://example.com/jobs/product-analytics-manager
+                        - generic "Application Interest for Product Analytics Manager" [ref=f1e1115]:
+                          - button "Rate 1 of 5" [ref=f1e1116] [cursor=pointer]: ★
+                          - button "Rate 2 of 5" [ref=f1e1117] [cursor=pointer]: ★
+                          - button "Rate 3 of 5" [ref=f1e1118] [cursor=pointer]: ★
+                          - button "Rate 4 of 5" [ref=f1e1119] [cursor=pointer]: ★
+                          - button "Rate 5 of 5" [ref=f1e1120] [cursor=pointer]: ★
+                          - button "Clear" [disabled] [ref=f1e1121]
+                          - button "Add bookmark for Product Analytics Manager" [ref=f1e1122] [cursor=pointer]
+                    - cell "Location Berlin, Germany Work Mode Hybrid Language English Seniority Manager Job Family Analytics Domain SaaS" [ref=f1e1125]:
+                      - generic [ref=f1e1126]:
+                        - generic [ref=f1e1127]:
+                          - generic [ref=f1e1128]: Location
+                          - strong [ref=f1e1129]: Berlin, Germany
+                        - generic [ref=f1e1130]:
+                          - generic [ref=f1e1131]: Work Mode
+                          - strong [ref=f1e1132]: Hybrid
+                        - generic [ref=f1e1133]:
+                          - generic [ref=f1e1134]: Language
+                          - strong [ref=f1e1135]: English
+                        - generic [ref=f1e1136]:
+                          - generic [ref=f1e1137]: Seniority
+                          - strong [ref=f1e1138]: Manager
+                        - generic [ref=f1e1139]:
+                          - generic [ref=f1e1140]: Job Family
+                          - strong [ref=f1e1141]: Analytics
+                        - generic [ref=f1e1142]:
+                          - generic [ref=f1e1143]: Domain
+                          - strong [ref=f1e1144]: SaaS
+                    - cell "Product Analytics SQL Experimentation Python Leadership +1 more" [ref=f1e1145]:
+                      - generic [ref=f1e1146]:
+                        - generic [ref=f1e1147]: Product Analytics
+                        - generic [ref=f1e1148]: SQL
+                        - generic [ref=f1e1149]: Experimentation
+                        - generic [ref=f1e1150]: Python
+                        - generic [ref=f1e1151]: Leadership
+                        - generic [ref=f1e1152]: +1 more
+                    - cell "Rejected at Shortlisting Shortlisting score was below the configured candidate pool cutoff." [ref=f1e1153]:
+                      - generic [ref=f1e1154]:
+                        - generic [ref=f1e1155]: Rejected at Shortlisting
+                        - generic [ref=f1e1156]: Shortlisting score was below the configured candidate pool cutoff.
+                  - row [ref=f1e1157]:
+                    - cell [ref=f1e1158]:
+                      - generic [ref=f1e1159]:
+                        - generic [ref=f1e1160]:
+                          - checkbox "Select Senior Data Product Manager from RUN-7E4A92C1" [ref=f1e1161]
+                          - link "Senior Data Product Manager" [ref=f1e1162] [cursor=pointer]:
+                            - /url: https://example.com/jobs/senior-data-product-manager
+                        - generic "Application Interest for Senior Data Product Manager" [ref=f1e1163]:
+                          - button "Rate 1 of 5" [ref=f1e1164] [cursor=pointer]: ★
+                          - button "Rate 2 of 5" [ref=f1e1165] [cursor=pointer]: ★
+                          - button "Rate 3 of 5" [ref=f1e1166] [cursor=pointer]: ★
+                          - button "Rate 4 of 5" [ref=f1e1167] [cursor=pointer]: ★
+                          - button "Rate 5 of 5" [ref=f1e1168] [cursor=pointer]: ★
+                          - button "Clear" [disabled] [ref=f1e1169]
+                          - button "Add bookmark for Senior Data Product Manager" [ref=f1e1170] [cursor=pointer]
+                    - cell "Location Berlin, Germany Work Mode Hybrid Language English Seniority Senior Job Family Product Management Domain Data Platforms" [ref=f1e1173]:
+                      - generic [ref=f1e1174]:
+                        - generic [ref=f1e1175]:
+                          - generic [ref=f1e1176]: Location
+                          - strong [ref=f1e1177]: Berlin, Germany
+                        - generic [ref=f1e1178]:
+                          - generic [ref=f1e1179]: Work Mode
+                          - strong [ref=f1e1180]: Hybrid
+                        - generic [ref=f1e1181]:
+                          - generic [ref=f1e1182]: Language
+                          - strong [ref=f1e1183]: English
+                        - generic [ref=f1e1184]:
+                          - generic [ref=f1e1185]: Seniority
+                          - strong [ref=f1e1186]: Senior
+                        - generic [ref=f1e1187]:
+                          - generic [ref=f1e1188]: Job Family
+                          - strong [ref=f1e1189]: Product Management
+                        - generic [ref=f1e1190]:
+                          - generic [ref=f1e1191]: Domain
+                          - strong [ref=f1e1192]: Data Platforms
+                    - cell "Product Strategy SQL Data Modeling Roadmapping Stakeholder Management +1 more" [ref=f1e1193]:
+                      - generic [ref=f1e1194]:
+                        - generic [ref=f1e1195]: Product Strategy
+                        - generic [ref=f1e1196]: SQL
+                        - generic [ref=f1e1197]: Data Modeling
+                        - generic [ref=f1e1198]: Roadmapping
+                        - generic [ref=f1e1199]: Stakeholder Management
+                        - generic [ref=f1e1200]: +1 more
+                    - cell "Passed Shortlisting Met Shortlisting requirements." [ref=f1e1201]:
+                      - generic [ref=f1e1202]:
+                        - generic [ref=f1e1203]: Passed Shortlisting
+                        - generic [ref=f1e1204]: Met Shortlisting requirements.
+                  - row [ref=f1e1205]:
+                    - cell [ref=f1e1206]:
+                      - generic [ref=f1e1207]:
+                        - generic [ref=f1e1208]:
+                          - checkbox "Select Staff Data Analyst from RUN-7E4A92C1" [ref=f1e1209]
+                          - link "Staff Data Analyst" [ref=f1e1210] [cursor=pointer]:
+                            - /url: https://example.com/jobs/staff-data-analyst
+                        - generic "Application Interest for Staff Data Analyst" [ref=f1e1211]:
+                          - button "Rate 1 of 5" [ref=f1e1212] [cursor=pointer]: ★
+                          - button "Rate 2 of 5" [ref=f1e1213] [cursor=pointer]: ★
+                          - button "Rate 3 of 5" [ref=f1e1214] [cursor=pointer]: ★
+                          - button "Rate 4 of 5" [ref=f1e1215] [cursor=pointer]: ★
+                          - button "Rate 5 of 5" [ref=f1e1216] [cursor=pointer]: ★
+                          - button "Clear" [disabled] [ref=f1e1217]
+                          - button "Add bookmark for Staff Data Analyst" [ref=f1e1218] [cursor=pointer]
+                    - cell "Location London, United Kingdom Work Mode Remote Language English Seniority Staff Job Family Analytics Domain Marketplace" [ref=f1e1221]:
+                      - generic [ref=f1e1222]:
+                        - generic [ref=f1e1223]:
+                          - generic [ref=f1e1224]: Location
+                          - strong [ref=f1e1225]: London, United Kingdom
+                        - generic [ref=f1e1226]:
+                          - generic [ref=f1e1227]: Work Mode
+                          - strong [ref=f1e1228]: Remote
+                        - generic [ref=f1e1229]:
+                          - generic [ref=f1e1230]: Language
+                          - strong [ref=f1e1231]: English
+                        - generic [ref=f1e1232]:
+                          - generic [ref=f1e1233]: Seniority
+                          - strong [ref=f1e1234]: Staff
+                        - generic [ref=f1e1235]:
+                          - generic [ref=f1e1236]: Job Family
+                          - strong [ref=f1e1237]: Analytics
+                        - generic [ref=f1e1238]:
+                          - generic [ref=f1e1239]: Domain
+                          - strong [ref=f1e1240]: Marketplace
+                    - cell "SQL Python Causal Inference Experimentation Data Storytelling +1 more" [ref=f1e1241]:
+                      - generic [ref=f1e1242]:
+                        - generic [ref=f1e1243]: SQL
+                        - generic [ref=f1e1244]: Python
+                        - generic [ref=f1e1245]: Causal Inference
+                        - generic [ref=f1e1246]: Experimentation
+                        - generic [ref=f1e1247]: Data Storytelling
+                        - generic [ref=f1e1248]: +1 more
+                    - cell "Passed Shortlisting Met Shortlisting requirements." [ref=f1e1249]:
+                      - generic [ref=f1e1250]:
+                        - generic [ref=f1e1251]: Passed Shortlisting
+                        - generic [ref=f1e1252]: Met Shortlisting requirements.
+                  - row [ref=f1e1253]:
+                    - cell [ref=f1e1254]:
+                      - generic [ref=f1e1255]:
+                        - generic [ref=f1e1256]:
+                          - checkbox "Select Technical Program Manager, Data from RUN-7E4A92C1" [ref=f1e1257]
+                          - link "Technical Program Manager, Data" [ref=f1e1258] [cursor=pointer]:
+                            - /url: https://example.com/jobs/technical-program-manager-data
+                        - generic "Application Interest for Technical Program Manager, Data" [ref=f1e1259]:
+                          - button "Rate 1 of 5" [ref=f1e1260] [cursor=pointer]: ★
+                          - button "Rate 2 of 5" [ref=f1e1261] [cursor=pointer]: ★
+                          - button "Rate 3 of 5" [ref=f1e1262] [cursor=pointer]: ★
+                          - button "Rate 4 of 5" [ref=f1e1263] [cursor=pointer]: ★
+                          - button "Rate 5 of 5" [ref=f1e1264] [cursor=pointer]: ★
+                          - button "Clear" [disabled] [ref=f1e1265]
+                          - button "Remove bookmark for Technical Program Manager, Data" [pressed] [ref=f1e1266] [cursor=pointer]
+                    - cell "Location Remote — Germany Work Mode Remote Language English Seniority Senior Job Family Program Management Domain Data Platforms" [ref=f1e1269]:
+                      - generic [ref=f1e1270]:
+                        - generic [ref=f1e1271]:
+                          - generic [ref=f1e1272]: Location
+                          - strong [ref=f1e1273]: Remote — Germany
+                        - generic [ref=f1e1274]:
+                          - generic [ref=f1e1275]: Work Mode
+                          - strong [ref=f1e1276]: Remote
+                        - generic [ref=f1e1277]:
+                          - generic [ref=f1e1278]: Language
+                          - strong [ref=f1e1279]: English
+                        - generic [ref=f1e1280]:
+                          - generic [ref=f1e1281]: Seniority
+                          - strong [ref=f1e1282]: Senior
+                        - generic [ref=f1e1283]:
+                          - generic [ref=f1e1284]: Job Family
+                          - strong [ref=f1e1285]: Program Management
+                        - generic [ref=f1e1286]:
+                          - generic [ref=f1e1287]: Domain
+                          - strong [ref=f1e1288]: Data Platforms
+                    - cell "Program Management Data Governance Risk Management SQL Communication +1 more" [ref=f1e1289]:
+                      - generic [ref=f1e1290]:
+                        - generic [ref=f1e1291]: Program Management
+                        - generic [ref=f1e1292]: Data Governance
+                        - generic [ref=f1e1293]: Risk Management
+                        - generic [ref=f1e1294]: SQL
+                        - generic [ref=f1e1295]: Communication
+                        - generic [ref=f1e1296]: +1 more
+                    - cell "Passed Shortlisting Met Shortlisting requirements." [ref=f1e1297]:
+                      - generic [ref=f1e1298]:
+                        - generic [ref=f1e1299]: Passed Shortlisting
+                        - generic [ref=f1e1300]: Met Shortlisting requirements.
+              - generic [ref=f1e1301]:
+                - generic [ref=f1e1302]:
+                  - text: Showing
+                  - strong [ref=f1e1303]: "1"
+                  - text: to
+                  - strong [ref=f1e1304]: "8"
+                  - text: of
+                  - strong [ref=f1e1305]: "8"
+                  - text: results
+                - generic [ref=f1e1306]:
+                  - generic [ref=f1e1307]:
+                    - text: "Rows:"
+                    - combobox "Rows:" [ref=f1e1308]:
+                      - option "10" [selected]
+                      - option "20"
+                      - option "50"
+                  - generic "Job results pagination" [ref=f1e1309]:
+                    - button "Previous page" [disabled]: ‹
+                    - button "Page 1" [ref=f1e1310] [cursor=pointer]: "1"
+                    - button "Next page" [disabled]: ›
+        - group [ref=f1e1311]:
+          - generic "› Console Log Canonical run events for troubleshooting. Clear View hides loaded events locally without deleting backend evidence." [ref=f1e1312] [cursor=pointer]:
+            - text: ›
+            - generic [ref=f1e1313]:
+              - strong [ref=f1e1314]: Console Log
+              - generic [ref=f1e1315]: Canonical run events for troubleshooting. Clear View hides loaded events locally without deleting backend evidence.
+  - status: Ranking changes saved in prototype

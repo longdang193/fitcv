@@ -1,0 +1,58 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - complementary "Primary navigation" [ref=f3e3]:
+      - generic [ref=f3e9]:
+        - strong [ref=f3e10]: FitCV Control Plane
+        - text: Local workspace
+      - navigation "Workspace" [ref=f3e11]:
+        - link "Runs" [ref=f3e12] [cursor=pointer]:
+          - /url: "#runs"
+        - link "Candidate Profiles" [ref=f3e15] [cursor=pointer]:
+          - /url: "#candidate-profiles"
+        - link "Bookmarks" [ref=f3e19] [cursor=pointer]:
+          - /url: "#bookmarks"
+        - link "Synonyms" [ref=f3e22] [cursor=pointer]:
+          - /url: "#synonyms"
+        - group [ref=f3e26]:
+          - generic "Pipeline ›" [ref=f3e27] [cursor=pointer]
+          - generic [ref=f3e30]:
+            - link "Overview" [ref=f3e31] [cursor=pointer]:
+              - /url: "#overview"
+            - link "Enrichment" [ref=f3e32] [cursor=pointer]:
+              - /url: "#enrichment"
+            - link "Screening" [ref=f3e33] [cursor=pointer]:
+              - /url: "#screening"
+            - link "Shortlisting" [ref=f3e34] [cursor=pointer]:
+              - /url: "#shortlisting"
+            - link "Ranking" [ref=f3e35] [cursor=pointer]:
+              - /url: "#ranking"
+            - link "CV Analysis" [ref=f3e36] [cursor=pointer]:
+              - /url: "#cv-analysis"
+            - link "CV Generation" [ref=f3e37] [cursor=pointer]:
+              - /url: "#cv-generation"
+            - link "Runtime & Limits" [ref=f3e38] [cursor=pointer]:
+              - /url: "#runtime-limits"
+            - link "Automation & Reuse" [ref=f3e39] [cursor=pointer]:
+              - /url: "#automation-reuse"
+        - group [ref=f3e40]:
+          - generic "Application ›" [ref=f3e41] [cursor=pointer]
+          - generic [ref=f3e45]:
+            - link "Appearance" [ref=f3e46] [cursor=pointer]:
+              - /url: "#"
+            - link "LLM & API" [ref=f3e47] [cursor=pointer]:
+              - /url: "#"
+            - link "Data & Backup" [ref=f3e48] [cursor=pointer]:
+              - /url: "#"
+            - link "System" [ref=f3e49] [cursor=pointer]:
+              - /url: "#"
+        - link "Health" [ref=f3e51] [cursor=pointer]:
+          - /url: "#"
+    - main [ref=f3e54]:
+      - generic [ref=f3e55]:
+        - generic [ref=f3e59]:
+          - heading "Pipeline" [level=1] [ref=f3e60]
+          - paragraph [ref=f3e61]: Configure how each matching run selects and prepares candidates.
+        - generic [ref=f3e62]:
+          - searchbox "Search Pipeline Overview" [ref=f3e67]
+          - button "Use dark theme" [ref=f3e68] [cursor=pointer]
+  - status: Ranking changes saved in prototype
