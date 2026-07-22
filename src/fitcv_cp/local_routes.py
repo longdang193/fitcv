@@ -51,6 +51,7 @@ from fitcv.config import (
     resolve_model_routing_part,
 )
 from fitcv_cp.local_credentials import credential_is_configured, get_credential, set_credential
+from fitcv_cp import provider_registry
 from fitcv_cp.local_setup import (
     TASK_PARTS,
     ProviderSetup,
@@ -71,6 +72,8 @@ from fitcv_cp.local_storage import (
     validate_data_root_destination,
     write_pending_operation,
 )
+from fitcv_cp.settings_store import load_llm_configuration
+from fitcv_cp.store import ControlPlaneStore
 
 
 ONBOARDING_STEPS = ("welcome", "data", "profile", "provider", "models", "review", "complete")
@@ -122,6 +125,8 @@ def _local_paths() -> LocalStoragePaths:
         migrated_routing_overlay_path=(
             data_root / "config" / "local_routing_overlay.yaml.migrated.bak"
         ),
+        onboarding_state_path=data_root / "onboarding.json",
+        integration_migration_error_path=data_root / "integration-migration-error.json",
         artifacts_path=Path(os.environ["FITCV_LOCAL_ARTIFACTS_PATH"]),
         exports_path=Path(os.environ["FITCV_LOCAL_EXPORTS_PATH"]),
         logs_path=Path(os.environ["FITCV_LOCAL_LOGS_PATH"]),
@@ -129,6 +134,27 @@ def _local_paths() -> LocalStoragePaths:
         uploads_path=Path(os.environ["FITCV_LOCAL_UPLOADS_PATH"]),
         temporary_path=Path(os.environ["FITCV_LOCAL_TEMP_PATH"]),
     )
+
+def local_data_status_resource(request: Request) -> dict[str, Any]:
+    reasons = active_work_reasons(request)
+    return {
+        "storage": inspect_local_storage(_local_paths()),
+        "active_work_reasons": reasons,
+        "capabilities": {"can_backup": not reasons, "can_import": not reasons},
+    }
+
+def local_lifecycle_status_resource(request: Request) -> dict[str, Any]:
+    reasons = active_work_reasons(request)
+    return {
+        "system": _system_metadata(request),
+        "active_work_reasons": reasons,
+        "capabilities": {
+            "can_relocate": not reasons,
+            "can_shutdown": not reasons,
+            "folder_picker": os.name == "nt",
+            "diagnostics": True,
+        },
+    }
 
 def active_work_reasons(request: Request) -> list[str]:
     reasons: list[str] = []
@@ -179,6 +205,11 @@ def load_onboarding_state() -> dict[str, Any]:
 
 
 def save_onboarding_state(payload: dict[str, Any]) -> None:
+    payload = {
+        key: payload[key]
+        for key in ("version", "current_step", "complete", "profile_configured")
+        if key in payload
+    }
     path = _state_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary: Path | None = None
@@ -395,19 +426,23 @@ def _controller_view(state: dict[str, Any]) -> dict[str, Any]:
 def local_readiness_status() -> dict[str, object]:
     state = load_onboarding_state()
     reasons: list[str] = []
+    store = ControlPlaneStore()
+    if not store.integration_migration_applied("packaged_local_complete_integration_v1"):
+        reasons.append("Local integration migration is incomplete")
     if not state.get("profile_configured"):
         reasons.append("Candidate profile is not configured")
-    setup = _configured_provider_setup()
-    if setup is None:
-        reasons.append("Provider routing is not configured")
-        return {"ready": False, "reasons": reasons}
-    provider_status = readiness(
-        setup,
-        credential_configured=credential_is_configured(setup.provider_id),
-        provider_test_ok=bool(state.get("provider_test_ok")),
-    )
-    reasons.extend(str(reason) for reason in provider_status["reasons"])
-    return {**provider_status, "ready": not reasons, "reasons": reasons}
+    eligible_refs = {
+        model["model_record_id"]
+        for model in provider_registry.list_eligible_models(store=store)
+    }
+    default_model_ref = load_llm_configuration().get("default_model_ref")
+    if not eligible_refs:
+        reasons.append("No verified provider model is available")
+    if not default_model_ref:
+        reasons.append("Default Route is not configured")
+    elif default_model_ref not in eligible_refs:
+        reasons.append("Default Route model requires connection or model retest")
+    return {"ready": not reasons, "reasons": reasons}
 
 
 def build_local_router(templates: Jinja2Templates) -> APIRouter:
@@ -416,11 +451,12 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
     @router.get("/onboarding")
     async def onboarding(request: Request):
         state = load_onboarding_state()
+        if state.get("complete"):
+            return RedirectResponse("/admin/runs", status_code=303)
         profile_path = Path(os.environ["FITCV_LOCAL_CANDIDATE_PROFILE_PATH"])
         profile_draft = str((state.get("drafts") or {}).get("profile") or "")
         if not profile_draft and profile_path.exists():
             profile_draft = profile_path.read_text(encoding="utf-8")
-        controller = _controller_view(state)
         return templates.TemplateResponse(
             request=request,
             name="local_onboarding.html",
@@ -428,8 +464,7 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
                 "state": state,
                 "data_root": str(_data_root()),
                 "profile_draft": profile_draft,
-                "provider_timeout_seconds": f"{controller['provider']['timeout_seconds']}",
-                "controller": controller,
+                "readiness": local_readiness_status(),
             },
             headers={"Cache-Control": "no-store"},
         )
@@ -441,111 +476,41 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
         try:
             profile = load_profile_text(raw_profile)
         except ValueError as exc:
-            _save_feedback("profile", draft=raw_profile, error=str(exc))
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         profile_path = Path(os.environ["FITCV_LOCAL_CANDIDATE_PROFILE_PATH"])
         _write_profile(profile_path, profile)
-        _save_feedback("profile", draft=raw_profile, error=None)
         state = load_onboarding_state()
         state.update({"current_step": "provider", "profile_configured": True})
         save_onboarding_state(state)
         return RedirectResponse("/local/onboarding", status_code=303)
 
     @router.post("/onboarding/provider")
-    async def save_provider(request: Request):
-        form = await request.form()
-        draft = _provider_draft(form)
-        try:
-            setup = _provider_setup(form)
-            overlay = build_routing_overlay(setup)
-        except (TypeError, ValueError) as exc:
-            _save_feedback("provider", draft=draft, error=str(exc))
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        api_key = str(form.get("api_key") or "").strip()
-        if api_key:
-            set_credential(setup.provider_id, api_key)
-        write_routing_overlay(Path(os.environ["FITCV_LOCAL_CONTROLLER_OVERLAY_PATH"]), overlay)
-        _save_feedback("provider", draft=draft, error=None)
-        state = load_onboarding_state()
-        state.update(
-            {
-                "current_step": "models",
-                "provider_id": setup.provider_id,
-                "provider_test_ok": False,
-            }
+    async def save_provider() -> None:
+        raise HTTPException(
+            status_code=410,
+            detail="Use the canonical API Providers resource.",
         )
-        save_onboarding_state(state)
-        return RedirectResponse("/local/onboarding", status_code=303)
 
     @router.post("/onboarding/models/discover")
-    async def discover_provider_models(request: Request) -> JSONResponse:
-        form = await request.form()
-        try:
-            setup = _provider_setup(form)
-            build_routing_overlay(setup)
-        except (TypeError, ValueError) as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        api_key = str(form.get("api_key") or "").strip() or get_credential(setup.provider_id) or ""
-        try:
-            models = discover_models(setup, api_key=api_key)
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Model discovery failed: {exc}") from exc
-        state = load_onboarding_state()
-        state["discovered_models"] = models
-        save_onboarding_state(state)
-        return JSONResponse({"models": models})
+    async def discover_provider_models() -> None:
+        raise HTTPException(
+            status_code=410,
+            detail="Use the canonical provider model resource.",
+        )
 
     @router.post("/onboarding/provider/test")
-    async def run_provider_test(request: Request) -> JSONResponse:
-        form = await request.form()
-        try:
-            setup = _provider_setup(form)
-            build_routing_overlay(setup)
-        except (TypeError, ValueError) as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        api_key = str(form.get("api_key") or "").strip()
-        if api_key:
-            set_credential(setup.provider_id, api_key)
-        result = test_provider(setup)
-        state = load_onboarding_state()
-        state.update(
-            {
-                "current_step": "review" if result.get("ok") else "provider",
-                "provider_id": setup.provider_id,
-                "provider_test_ok": bool(result.get("ok")),
-            }
+    async def run_provider_test() -> None:
+        raise HTTPException(
+            status_code=410,
+            detail="Use the canonical provider connection test resource.",
         )
-        save_onboarding_state(state)
-        return JSONResponse(result)
 
     @router.post("/onboarding/controller/reset")
-    async def reset_controller_override(request: Request) -> RedirectResponse:
-        form = await request.form()
-        scope = str(form.get("scope") or "").strip()
-        overlay = load_local_controller_overlay()
-        if scope == "provider":
-            overlay.pop("providers", None)
-            overlay.pop("model_routing", None)
-        elif scope == "retry":
-            overlay.pop("fitcv_cp", None)
-        elif scope.startswith("prompt:"):
-            task_id = scope.partition(":")[2]
-            if task_id not in PROMPT_ADDENDUM_TASK_IDS:
-                raise HTTPException(status_code=422, detail="Unsupported prompt reset scope")
-            prompts = dict(overlay.get("prompts") or {})
-            addenda = dict(prompts.get("additional_instructions") or {})
-            addenda.pop(task_id, None)
-            if addenda:
-                prompts["additional_instructions"] = addenda
-                overlay["prompts"] = prompts
-            else:
-                overlay.pop("prompts", None)
-        else:
-            raise HTTPException(status_code=422, detail="Unsupported controller reset scope")
-        write_routing_overlay(
-            Path(os.environ["FITCV_LOCAL_CONTROLLER_OVERLAY_PATH"]), overlay
+    async def reset_controller_override() -> None:
+        raise HTTPException(
+            status_code=410,
+            detail="Legacy controller overrides are retired.",
         )
-        return RedirectResponse("/local/onboarding", status_code=303)
 
     @router.post("/onboarding/complete")
     async def complete_onboarding() -> RedirectResponse:
@@ -580,11 +545,11 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
 
     @router.get("/data", response_class=HTMLResponse)
     async def data_and_backup(request: Request):
-        return templates.TemplateResponse(
-            request=request,
-            name="local_data_backup.html",
-            context={"storage": inspect_local_storage(_local_paths())},
-        )
+        return RedirectResponse("/admin/system", status_code=302)
+
+    @router.get("/data/status")
+    async def data_status(request: Request) -> JSONResponse:
+        return JSONResponse(local_data_status_resource(request))
 
     @router.post("/data/backup")
     async def create_backup(request: Request) -> FileResponse:
@@ -667,11 +632,11 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
 
     @router.get("/system", response_class=HTMLResponse)
     async def local_system(request: Request):
-        return templates.TemplateResponse(
-            request=request,
-            name="local_system.html",
-            context={"system": _system_metadata(request)},
-        )
+        return RedirectResponse("/admin/lifecycle", status_code=302)
+
+    @router.get("/lifecycle/status")
+    async def lifecycle_status(request: Request) -> JSONResponse:
+        return JSONResponse(local_lifecycle_status_resource(request))
 
     @router.get("/system/diagnostics")
     async def diagnostics(request: Request) -> Response:
@@ -712,8 +677,10 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
 
 def _system_metadata(request: Request) -> dict[str, object]:
     paths = _local_paths()
-    setup = _configured_provider_setup()
     storage = inspect_local_storage(paths)
+    store = getattr(request.app.state, "run_store", None) or ControlPlaneStore()
+    providers = provider_registry.list_providers(store=store)
+    eligible_models = provider_registry.list_eligible_models(store=store)
     return {
         "application_version": str(getattr(request.app.state, "app_version", "0.1.0")),
         "build_id": str(getattr(request.app.state, "build_id", "development")),
@@ -721,9 +688,15 @@ def _system_metadata(request: Request) -> dict[str, object]:
         "data_path": {"drive": paths.data_root.drive, "name": paths.data_root.name},
         "database_schema_version": storage["database_schema_version"],
         "database_integrity": storage["database_integrity"],
-        "provider_host": urlsplit(setup.base_url).hostname if setup is not None else None,
-        "wire_api": setup.wire_api if setup is not None else None,
-        "models": sorted(set(setup.task_models.values())) if setup is not None else [],
+        "provider_hosts": sorted(
+            {
+                urlsplit(str(provider.get("base_url") or "")).hostname
+                for provider in providers
+                if provider.get("connection_status") == "verified" and provider.get("base_url")
+            }
+            - {None}
+        ),
+        "eligible_model_count": len(eligible_models),
         "readiness": {
             "ready": bool(local_readiness_status()["ready"]),
             "reasons": list(local_readiness_status()["reasons"]),

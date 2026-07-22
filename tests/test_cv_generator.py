@@ -1398,7 +1398,21 @@ def test_europass_template_heading_order_matches_preset() -> None:
     assert heading_order == get_section_order("europass")
 
 
-def test_build_structured_generation_prompt_includes_safe_addendum() -> None:
+def test_build_structured_generation_prompt_uses_full_replacement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv.prompts.loader import load_prompt_template
+    from fitcv.prompts.registry import get_prompt_definition
+
+    default_text = load_prompt_template(
+        get_prompt_definition("cv_generation.structured_write.v1").template_path
+    )
+    replacement = default_text.replace(
+        "You are a professional CV writer.",
+        "Keep bullets concise.\n\nYou are a professional CV writer.",
+        1,
+    )
+    monkeypatch.setattr("fitcv.cv_generator.get_prompt_replacement", lambda *args: replacement)
     prompt = build_structured_generation_prompt(
         jd={"title": "Data Analyst", "required_skills": ["SQL"]},
         evidence=[],
@@ -1407,18 +1421,11 @@ def test_build_structured_generation_prompt_includes_safe_addendum() -> None:
         config={
             "prompts": {
                 "cv_generation": {
-                    "structured_write": {
-                        "prompt_id": "cv_generation.structured_write.v1"
-                    }
-                },
-                "additional_instructions": {
-                    "cv_generation_structured_write": "Keep bullets concise."
-                },
+                    "structured_write": {"prompt_id": "cv_generation.structured_write.v1"}
+                }
             }
         },
     )
 
     assert prompt.count("Keep bullets concise.") == 1
-    assert prompt.index("Keep bullets concise.") < prompt.index(
-        "## Structured JSON Schema"
-    )
+    assert prompt.index("Keep bullets concise.") < prompt.index("## Structured JSON Schema")

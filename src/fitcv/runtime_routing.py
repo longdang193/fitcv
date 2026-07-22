@@ -33,6 +33,9 @@ class LlmRouting:
     model: str
     timeout_seconds: float
     auth_mode: str = "required"
+    temperature: float = 0.2
+    model_record_id: str | None = None
+    configuration_revision: int | None = None
 
 
 @dataclass(frozen=True)
@@ -64,10 +67,71 @@ def build_runtime_routing_snapshot(
     }
 
 
-def resolve_llm_routing(part_name: str, *, model_fallback: str = "") -> LlmRouting:
+def build_packaged_llm_configuration_snapshot() -> dict[str, Any]:
+    from fitcv_cp.provider_registry import get_provider
+    from fitcv_cp.settings_store import load_llm_configuration
+    from fitcv_cp.store import ControlPlaneStore
+
+    configuration = load_llm_configuration()
+    store = ControlPlaneStore()
+    tasks: dict[str, Any] = {}
+    for task_id, task in configuration["tasks"].items():
+        model_ref = task["model_ref"] or configuration["default_model_ref"]
+        if model_ref is None:
+            tasks[task_id] = None
+            continue
+        model = store.get_api_provider_model(model_ref)
+        if model is None:
+            tasks[task_id] = None
+            continue
+        provider = get_provider(str(model["provider_id"]), store=store)
+        tasks[task_id] = {
+            "provider": provider["provider_id"],
+            "base_url": provider["base_url"],
+            "wire_api": provider["api_type"],
+            "model": model["model_id"],
+            "model_record_id": model_ref,
+            "timeout_seconds": task["timeout_seconds"],
+            "temperature": task["temperature"],
+        }
+    return {
+        "revision": configuration["revision"],
+        "default_model_ref": configuration["default_model_ref"],
+        "tasks": tasks,
+    }
+
+
+def resolve_llm_routing(
+    part_name: str,
+    *,
+    model_fallback: str = "",
+    runtime_config: dict[str, Any] | None = None,
+) -> LlmRouting:
     normalized_part_name = str(part_name or "").strip()
     if not normalized_part_name:
         raise ValueError("part_name must be non-empty")
+    local_mode = str(os.environ.get("FITCV_LOCAL_MODE") or "").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+    if local_mode:
+        runtime_inputs = dict((runtime_config or {}).get("runtime_inputs") or {})
+        snapshot = runtime_inputs.get("llm_configuration_snapshot")
+        if not isinstance(snapshot, dict):
+            snapshot = build_packaged_llm_configuration_snapshot()
+        route = dict((snapshot.get("tasks") or {}).get(normalized_part_name) or {})
+        if not route:
+            raise ValueError(f"LLM routing is unavailable for {normalized_part_name}")
+        return LlmRouting(
+            provider=str(route.get("provider") or "").strip(),
+            base_url=str(route.get("base_url") or "").strip(),
+            wire_api=str(route.get("wire_api") or "").strip(),
+            model=str(route.get("model") or "").strip(),
+            timeout_seconds=float(route.get("timeout_seconds") or 120),
+            auth_mode="required",
+            temperature=float(route.get("temperature") or 0),
+            model_record_id=str(route.get("model_record_id") or "").strip() or None,
+            configuration_revision=int(snapshot.get("revision") or 0) or None,
+        )
     route = resolve_model_routing_part(
         normalized_part_name,
         model_fallback=str(model_fallback or "").strip(),
@@ -95,6 +159,8 @@ def resolve_llm_routing(part_name: str, *, model_fallback: str = "") -> LlmRouti
 
 
 def resolve_llm_api_key(route: LlmRouting) -> str:
+    if str(os.environ.get("FITCV_LOCAL_MODE") or "").strip().lower() in {"1", "true", "yes", "on"}:
+        return resolve_openai_compatible_api_key(route.provider)
     if route.provider in _OPENAI_COMPATIBLE_PROVIDERS:
         return resolve_openai_compatible_api_key(route.provider)
     return ""
@@ -105,7 +171,7 @@ def validate_llm_routing_ready(route: LlmRouting, *, api_key: str | None = None)
         raise RuntimeError("LLM routing requires provider in control-plane model_routing.parts.")
     if not route.model:
         raise RuntimeError("LLM routing requires model in control-plane model_routing.parts.")
-    if route.provider not in _OPENAI_COMPATIBLE_PROVIDERS:
+    if route.provider == "fitcv_builtin":
         return
     if not route.base_url:
         raise RuntimeError("OpenAI-compatible LLM routing requires provider base_url in control-plane config.")

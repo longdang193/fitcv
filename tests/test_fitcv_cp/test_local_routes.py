@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import io
-import sqlite3
 import zipfile
 import types
 from pathlib import Path
@@ -31,6 +30,8 @@ from fastapi.testclient import TestClient
 
 from fitcv_cp.app import create_app
 from fitcv_cp.backend_runtime import BackendRuntime
+from fitcv_cp.local_storage import _paths, migrate_packaged_local_integration_state
+from fitcv_cp.sqlite_store import initialize_control_plane_database
 
 
 @pytest.fixture
@@ -52,8 +53,12 @@ def local_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("APPDATA", str(tmp_path / "roaming"))
     for name in ("config", "artifacts", "exports", "logs", "backups", "uploads", "tmp"):
         (data_root / name).mkdir(exist_ok=True)
-    with sqlite3.connect(data_root / "fitcv.sqlite3") as connection:
-        connection.execute("CREATE TABLE IF NOT EXISTS sample (value TEXT)")
+    database_path = data_root / "fitcv.sqlite3"
+    profile_path = data_root / "candidate_profile.yaml"
+    initialize_control_plane_database(database_path, profile_path)
+    migrate_packaged_local_integration_state(
+        _paths(tmp_path / "roaming" / "FitCV" / "bootstrap.json", data_root)
+    )
     app = create_app(
         redis_url="",
         backend_runtime=BackendRuntime(
@@ -71,6 +76,144 @@ def _csrf_headers(client: TestClient) -> dict[str, str]:
         "Origin": "http://127.0.0.1",
         "X-FitCV-CSRF": str(client.app.state.csrf_token),
     }
+
+def _complete_onboarding() -> None:
+    state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"
+    state_path.write_text(json.dumps({"version": 1, "complete": True}), encoding="utf-8")
+
+def test_packaged_local_admin_pages_render_canonical_resources(local_client: TestClient) -> None:
+    _complete_onboarding()
+
+    expectations = {
+        "/admin/api-providers": ("API Providers", "/api-providers"),
+        "/admin/api-providers/openai": ("OpenAI", "/api-providers/openai/connection/actions/test"),
+        "/admin/llm-configuration": ("LLM Configuration", "/llm-configuration"),
+        "/admin/settings/prompt-management": ("Prompt Management", "/prompt-configurations"),
+        "/admin/system": ("System", "/system-settings"),
+        "/admin/lifecycle": ("Lifecycle", "/local/lifecycle/status"),
+    }
+
+    for path, markers in expectations.items():
+        response = local_client.get(path)
+        assert response.status_code == 200, (path, response.text)
+        for marker in markers:
+            assert marker in response.text
+
+
+def test_provider_setup_pages_and_resources_are_available_before_onboarding_completion(
+    local_client: TestClient,
+) -> None:
+    for path in (
+        "/admin/api-providers",
+        "/admin/api-providers/openai",
+        "/admin/llm-configuration",
+        "/api-providers",
+        "/llm-configuration",
+    ):
+        response = local_client.get(path, follow_redirects=False)
+        assert response.status_code == 200, (path, response.text)
+
+    blocked = local_client.get("/admin/runs", follow_redirects=False)
+    assert blocked.status_code == 307
+    assert blocked.headers["location"] == "/local/onboarding"
+
+def test_packaged_local_admin_pages_are_not_registered_in_server_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
+    database_path = tmp_path / "server.sqlite3"
+    initialize_control_plane_database(database_path, tmp_path / "profile.yaml")
+    app = create_app(
+        redis_url="",
+        backend_runtime=BackendRuntime(backend_type="sqlite", sqlite_path=str(database_path)),
+    )
+    client = TestClient(app)
+
+    for path in (
+        "/admin/api-providers",
+        "/admin/api-providers/openai",
+        "/admin/llm-configuration",
+        "/admin/settings/prompt-management",
+        "/admin/system",
+        "/admin/lifecycle",
+    ):
+        assert client.get(path).status_code in {404, 405}
+    openapi_paths = client.get("/openapi.json").json()["paths"]
+    assert "get" not in openapi_paths.get("/admin/settings/{key}", {})
+
+def test_pipeline_section_urls_render_server_owned_settings(local_client: TestClient) -> None:
+    _complete_onboarding()
+
+    sections = {
+        "enrichment": "Enrichment",
+        "screening": "Screening",
+        "shortlisting": "Shortlisting",
+        "ranking": "Ranking",
+        "cv-analysis": "CV Analysis",
+        "cv-generation": "CV Generation",
+        "runtime-limits": "Runtime &amp; Limits",
+        "automation-reuse": "Automation &amp; Reuse",
+    }
+    for section, title in sections.items():
+        response = local_client.get(f"/admin/settings/{section}")
+        assert response.status_code == 200
+        assert f"<h1>{title}</h1>" in response.text
+        assert 'data-setting-row=' in response.text
+
+    assert local_client.get("/admin/settings/unknown").status_code == 404
+
+def test_packaged_local_pages_encode_approved_ui_states(local_client: TestClient) -> None:
+    _complete_onboarding()
+
+    providers = local_client.get("/admin/api-providers").text
+    assert "API Key Providers" in providers
+    assert "Custom Providers" in providers
+    assert "No connection" in providers
+    assert "1 connection" not in providers
+
+    provider = local_client.get("/admin/api-providers/openai").text
+    assert 'id="provider-base-url"' in provider and "disabled" in provider
+    assert 'id="provider-api-type"' in provider
+    assert 'id="test-provider-connection"' in provider
+    assert 'id="save-provider-connection" type="submit" disabled' in provider
+    assert "A verified connection is required" in provider
+    assert 'id="open-add-model" type="button" disabled' in provider
+    assert 'id="add-model-dialog"' in provider
+    assert 'data-model-test=' in provider or "No models added." in provider
+    assert "provider_revision_conflict" in provider
+
+    llm = local_client.get("/admin/llm-configuration").text
+    llm_main = llm[llm.index('<main'):llm.index('</main>')]
+    for label in ("Enrich Extraction", "Ranking AI Score", "CV Generation", "Synonym Recommendation"):
+        assert label in llm_main
+    assert "CV Analysis" not in llm_main
+    assert "llm_configuration_revision_conflict" in llm
+
+    prompts = local_client.get("/admin/settings/prompt-management").text
+    assert "Pipeline Prompts" in prompts and "Synonym Prompts" in prompts
+    assert '<option value="default">Default</option>' in prompts
+    assert '<option value="custom">Custom</option>' in prompts
+    assert 'maxlength="4000"' in prompts
+    assert "3800" in prompts and "Character limit reached." in prompts
+    assert "Discard unsaved prompt changes?" in prompts
+    assert "prompt_configuration_revision_conflict" in prompts
+
+    system = local_client.get("/admin/system").text
+    lifecycle = local_client.get("/admin/lifecycle").text
+    system_main = system[system.index('<main'):system.index('</main>')]
+    lifecycle_main = lifecycle[lifecycle.index('<main'):lifecycle.index('</main>')]
+    assert "Download Backup" in system and "Import Backup" in system
+    assert "Maximum Attempts" in system and "Initial Backoff" in system
+    assert "Relocate Data" not in system_main and "Download Diagnostics" not in system_main
+    assert "Relocate Data" in lifecycle_main and "Download Diagnostics" in lifecycle_main
+    assert "Download Backup" not in lifecycle_main and "Shutdown FitCV" not in lifecycle_main
+    assert "Shutdown FitCV?</h2>" in lifecycle
+
+    assert "Health" not in system and "Appearance" not in system
+    assert system.index('id="theme-toggle"') < system.index('id="open-shutdown-dialog"')
+    assert "t === 'dark' ? '☀' : '☾'" in system
+    assert "Switch to light theme" in system and "Switch to dark theme" in system
 
 
 def test_wrong_host_is_rejected(local_client: TestClient) -> None:
@@ -119,19 +262,16 @@ def test_local_root_redirects_to_runs_when_setup_complete(local_client: TestClie
     assert response.headers["location"] == "/admin/runs"
 
 
-def test_completed_onboarding_remains_available_as_local_settings(
+def test_completed_onboarding_redirects_to_runs(
     local_client: TestClient,
 ) -> None:
     state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"
     state_path.write_text(json.dumps({"version": 1, "complete": True}), encoding="utf-8")
 
-    response = local_client.get("/local/onboarding")
+    response = local_client.get("/local/onboarding", follow_redirects=False)
 
-    assert response.status_code == 200
-    assert "FitCV Local Settings" in response.text
-    assert 'href="/local/onboarding#provider-form">LLM &amp; API</a>' in response.text
-    assert 'href="/admin/runs">Back to Runs</a>' in response.text
-    assert "Finish setup" not in response.text
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin/runs"
 
 def test_onboarding_resumes_saved_step(local_client: TestClient) -> None:
     state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"
@@ -153,38 +293,28 @@ def test_onboarding_resumes_saved_step(local_client: TestClient) -> None:
     assert 'data-current-step="models"' in response.text
 
 
-def test_provider_timeout_defaults_to_control_plane_ssot(
+def test_legacy_onboarding_configuration_routes_do_not_write_overlay(
     local_client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from fitcv_cp import local_routes
-
-    monkeypatch.setattr(
-        local_routes,
-        "resolve_model_routing_part",
-        lambda part_name: {"timeout_seconds": "300", "model": "test-model"},
-    )
-    page = local_client.get("/local/onboarding")
-
-    assert 'name="timeout_seconds" type="number" min="1" value="300"' in page.text
-
-    response = local_client.post(
-        "/local/onboarding/provider",
-        data={
-            "provider_id": "openai_compatible",
-            "base_url": "https://example.test/v1",
-            "auth_mode": "none",
-            "wire_api": "responses",
-            "default_model": "model-a",
-        },
-        headers=_csrf_headers(local_client),
-        follow_redirects=False,
-    )
-
-    assert response.status_code == 303
     overlay_path = Path(__import__("os").environ["FITCV_LOCAL_CONTROLLER_OVERLAY_PATH"])
-    overlay = yaml.safe_load(overlay_path.read_text(encoding="utf-8"))
-    assert overlay["providers"]["openai_compatible"]["timeout_seconds"] == 300.0
+    before = overlay_path.read_bytes()
+
+    responses = [
+        local_client.post(
+            path,
+            data={"provider_id": "openai_compatible", "scope": "provider"},
+            headers=_csrf_headers(local_client),
+        )
+        for path in (
+            "/local/onboarding/provider",
+            "/local/onboarding/models/discover",
+            "/local/onboarding/provider/test",
+            "/local/onboarding/controller/reset",
+        )
+    ]
+
+    assert [response.status_code for response in responses] == [410, 410, 410, 410]
+    assert overlay_path.read_bytes() == before
 
 def test_valid_profile_post_is_atomic_and_advances_state(local_client: TestClient) -> None:
     raw_profile = """name: Test User
@@ -211,7 +341,7 @@ preferences: {}
     assert state["profile_configured"] is True
 
 
-def test_invalid_profile_preserves_draft(local_client: TestClient) -> None:
+def test_invalid_profile_does_not_expand_onboarding_state(local_client: TestClient) -> None:
     local_client.get("/local/onboarding")
 
     response = local_client.post(
@@ -223,68 +353,8 @@ def test_invalid_profile_preserves_draft(local_client: TestClient) -> None:
     assert response.status_code == 422
     state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    assert state["drafts"]["profile"] == "not: [valid"
-    assert state["errors"]["profile"]
-
-
-def test_invalid_provider_preserves_non_secret_draft(local_client: TestClient) -> None:
-    local_client.get("/local/onboarding")
-
-    response = local_client.post(
-        "/local/onboarding/provider",
-        data={
-            "provider_id": "openai_compatible",
-            "base_url": "https://example.test/v1/models",
-            "api_key": "must-not-persist",
-            "default_model": "model-a",
-        },
-        headers=_csrf_headers(local_client),
-    )
-
-    assert response.status_code == 422
-    state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"
-    raw_state = state_path.read_text(encoding="utf-8")
-    assert "must-not-persist" not in raw_state
-    state = json.loads(raw_state)
-    assert state["drafts"]["provider"]["base_url"] == "https://example.test/v1/models"
-    assert state["errors"]["provider"]
-
-
-def test_model_discovery_and_provider_test_update_state(
-    local_client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from fitcv_cp import local_routes
-
-    monkeypatch.setattr(local_routes, "discover_models", lambda setup, api_key="": ["model-a", "model-b"])
-    monkeypatch.setattr(local_routes, "get_credential", lambda provider_id: "")
-    monkeypatch.setattr(local_routes, "test_provider", lambda setup: {"ok": True})
-    payload = {
-        "provider_id": "openai_compatible",
-        "base_url": "https://example.test/v1",
-        "auth_mode": "none",
-        "wire_api": "responses",
-        "default_model": "model-a",
-    }
-    local_client.get("/local/onboarding")
-
-    models = local_client.post(
-        "/local/onboarding/models/discover",
-        data=payload,
-        headers=_csrf_headers(local_client),
-    )
-    provider_test = local_client.post(
-        "/local/onboarding/provider/test",
-        data=payload,
-        headers=_csrf_headers(local_client),
-    )
-
-    assert models.status_code == 200
-    assert models.json() == {"models": ["model-a", "model-b"]}
-    assert provider_test.status_code == 200
-    assert provider_test.json()["ok"] is True
-    state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"
-    assert json.loads(state_path.read_text(encoding="utf-8"))["provider_test_ok"] is True
+    assert set(state) <= {"version", "current_step", "complete", "profile_configured"}
+    assert "Invalid YAML in candidate profile" in response.text
 
 
 def test_incomplete_readiness_blocks_completion_and_run_submission(local_client: TestClient) -> None:
@@ -312,7 +382,8 @@ def test_incomplete_readiness_blocks_completion_and_run_submission(local_client:
     )
 
     assert completion.status_code == 409
-    assert "Provider connection test has not succeeded" in completion.text
+    assert "Candidate profile is not configured" in completion.text
+    assert "provider_test_ok" not in completion.text
     assert trigger.status_code == 409
     assert "onboarding is incomplete" in trigger.text.lower()
 
@@ -450,73 +521,32 @@ def test_import_rejects_unsafe_archive(local_client: TestClient, tmp_path: Path)
     assert "unsafe path" in response.text
 
 
-def test_onboarding_controller_settings_are_registry_driven_and_private(
+def test_onboarding_links_to_canonical_configuration_and_omits_legacy_forms(
     local_client: TestClient,
 ) -> None:
     response = local_client.get("/local/onboarding")
 
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
-    assert 'name="controller_settings_present" value="1"' in response.text
-    assert 'name="retry_max_attempts"' in response.text
-    assert "Run retry" in response.text
-    for task_id in (
-        "enrich_extraction",
-        "ranking_ai_score",
-        "cv_generation_structured_write",
-        "synonym_triage_recommendation",
-    ):
-        assert f'name="prompt_addendum_{task_id}"' in response.text
-    assert "OpenAI-compatible" in response.text
-    assert "9router" in response.text
-    assert 'data-source="packaged"' in response.text
+    assert 'href="/admin/api-providers"' in response.text
+    assert 'href="/admin/llm-configuration"' in response.text
+    assert 'name="controller_settings_present"' not in response.text
+    assert 'name="retry_max_attempts"' not in response.text
+    assert 'name="prompt_addendum_' not in response.text
+    assert '/local/onboarding/provider/test' not in response.text
 
 
 def test_controller_settings_save_and_prompt_reset(local_client: TestClient) -> None:
-    local_client.get("/local/onboarding")
-    response = local_client.post(
-        "/local/onboarding/provider",
-        data={
-            "controller_settings_present": "1",
-            "provider_id": "openai_compatible",
-            "base_url": "https://example.test/v1",
-            "auth_mode": "optional",
-            "wire_api": "chat_completions",
-            "timeout_seconds": "300",
-            "default_model": "test-model",
-            "retry_enabled": "on",
-            "retry_max_attempts": "3",
-            "retry_backoff_seconds": "1, 5, 10",
-            "retry_lease_seconds": "900",
-            "retry_reconciler_interval_seconds": "30",
-            "retry_error_details_max_chars": "2048",
-            "prompt_addendum_enrich_extraction": "Prefer direct evidence.",
-        },
-        headers=_csrf_headers(local_client),
-        follow_redirects=False,
-    )
-
-    assert response.status_code == 303
     overlay_path = Path(
         __import__("os").environ["FITCV_LOCAL_CONTROLLER_OVERLAY_PATH"]
     )
-    overlay = yaml.safe_load(overlay_path.read_text(encoding="utf-8"))
-    assert overlay["fitcv_cp"]["retry"]["max_attempts"] == 3
-    assert overlay["fitcv_cp"]["retry"]["backoff_seconds"] == [1, 5, 10]
-    assert overlay["prompts"]["additional_instructions"]["enrich_extraction"] == (
-        "Prefer direct evidence."
-    )
+    before = overlay_path.read_bytes()
 
-    reset = local_client.post(
+    response = local_client.post(
         "/local/onboarding/controller/reset",
         data={"scope": "prompt:enrich_extraction"},
         headers=_csrf_headers(local_client),
-        follow_redirects=False,
     )
 
-    assert reset.status_code == 303
-    reset_overlay = yaml.safe_load(overlay_path.read_text(encoding="utf-8"))
-    assert "prompts" not in reset_overlay
-    page = local_client.get("/local/onboarding")
-    assert "Prefer direct evidence." not in page.text
-    assert 'data-source="packaged"' in page.text
+    assert response.status_code == 410
+    assert overlay_path.read_bytes() == before

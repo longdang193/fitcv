@@ -78,7 +78,7 @@ from fitcv.candidate import (
 from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
     get_cv_generation_model,
-    get_prompt_addendum_metadata,
+    get_prompt_replacement_metadata,
     get_cv_generation_prompt_version,
     get_ranking_ai_score_model,
     get_stage_runtime_batch_size,
@@ -273,7 +273,7 @@ def _prompt_runtime_metadata(
         ("cv_generation", "structured_write"): "cv_generation_structured_write",
     }.get((stage_id, prompt_key))
     customization = (
-        get_prompt_addendum_metadata(task_id, config) if task_id is not None else {}
+        get_prompt_replacement_metadata(task_id, config) if task_id is not None else {}
     )
     return {
         "prompt_id": str(prompt_block.get("prompt_id") or ""),
@@ -281,9 +281,9 @@ def _prompt_runtime_metadata(
         "template_path": str(prompt_block.get("template_path") or ""),
         "stage_id": str(prompt_block.get("stage_id") or ""),
         "prompt_customized": bool(customization.get("customized", False)),
-        "prompt_addendum_sha256": customization.get("addendum_sha256"),
-        "prompt_addendum_char_count": int(
-            customization.get("addendum_char_count", 0)
+        "prompt_replacement_sha256": customization.get("replacement_sha256"),
+        "prompt_replacement_char_count": int(
+            customization.get("replacement_char_count", 0)
         ),
     }
 

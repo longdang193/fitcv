@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}API Providers — FitCV{% endblock %}
+{% block content %}
+<main class="workspace-stack" data-page="api-providers" data-resource-url="/api-providers">
+  <header class="page-header"><div><h1>API Providers</h1><p class="meta">Manage one verified connection per provider.</p></div><button class="btn-primary" id="open-custom-provider" type="button">Add Custom Provider</button></header>
+  <div id="provider-list-status" aria-live="polite"></div>
+  <section class="section-card">
+    <h2>Custom Providers</h2>
+    {% for provider in custom_providers %}
+    <a class="settings-row" href="/admin/api-providers/{{ provider.provider_id }}"><span><strong>{{ provider.display_name }}</strong><span class="meta">{{ provider.compatibility|capitalize }}-compatible</span></span><span>{{ 'Connected' if provider.connection_status == 'verified' else 'No connection' }} ›</span></a>
+    {% else %}<p class="empty-state">No custom providers.</p>{% endfor %}
+  </section>
+  <section class="section-card">
+    <h2>API Key Providers</h2>
+    {% for provider in predefined_providers %}
+    <a class="settings-row" href="/admin/api-providers/{{ provider.provider_id }}"><span><strong>{{ provider.display_name }}</strong><span class="meta">{{ provider.compatibility|capitalize }}-compatible</span></span><span>{{ 'Connected' if provider.connection_status == 'verified' else 'No connection' }} ›</span></a>
+    {% endfor %}
+  </section>
+</main>
+<dialog class="workspace-dialog" id="custom-provider-dialog" aria-labelledby="custom-provider-title">
+  <form id="custom-provider-form"><h2 id="custom-provider-title">Add Custom Provider</h2><label>Display name<input name="display_name" required maxlength="120"></label><label>Compatibility<select name="compatibility"><option value="openai">OpenAI-compatible</option><option value="anthropic">Anthropic-compatible</option></select></label><p id="custom-provider-status" class="meta" role="status" aria-live="polite"></p><div class="selection-toolbar"><button class="btn-primary" type="submit">Add Provider</button><button class="btn-secondary" id="cancel-custom-provider" type="button">Cancel</button></div></form>
+</dialog>
+<script>
+(function(){
+  var dialog=document.getElementById('custom-provider-dialog'),open=document.getElementById('open-custom-provider'),cancel=document.getElementById('cancel-custom-provider'),form=document.getElementById('custom-provider-form'),status=document.getElementById('custom-provider-status');
+  open.addEventListener('click',function(){dialog.showModal();form.elements.display_name.focus();});
+  cancel.addEventListener('click',function(){dialog.close();open.focus();});
+  form.addEventListener('submit',async function(event){event.preventDefault();var submit=event.submitter;submit.disabled=true;status.textContent='Saving…';try{var data=new FormData(form);var result=await fitcvApiRequest('/api-providers',{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({display_name:data.get('display_name'),compatibility:data.get('compatibility')})});location.assign('/admin/api-providers/'+encodeURIComponent(result.data.provider_id));}catch(error){status.textContent=error.message;submit.disabled=false;}});
+})();
+</script>
+{% endblock %}

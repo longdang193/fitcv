@@ -108,9 +108,15 @@ def test_discover_models_uses_api_root_and_returns_ids(monkeypatch: pytest.Monke
 
 
 def test_provider_test_returns_sanitized_result(monkeypatch: pytest.MonkeyPatch) -> None:
-    result = type("Result", (), {"status": "failed", "failure": type("Failure", (), {"code": "adapter_http_error", "http_status": 401})()})()
-    monkeypatch.setattr("fitcv.llm_runtime.execute_llm_task", lambda *_args, **_kwargs: result)
+    monkeypatch.setattr(
+        "fitcv_cp.provider_registry.validate_connection_draft",
+        lambda **_kwargs: {
+            "ok": False,
+            "failure_code": "provider_auth_failed",
+            "http_status": 401,
+        },
+    )
 
-    summary = run_provider_test(_setup())
+    summary = run_provider_test(_setup(), api_key="secret")
 
-    assert summary == {"ok": False, "failure_code": "adapter_http_error", "http_status": 401}
+    assert summary == {"ok": False, "failure_code": "provider_auth_failed", "http_status": 401}

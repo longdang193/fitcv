@@ -1,38 +1,90 @@
 {% extends "base.html" %}
-{% block title %}Candidate Profiles — FitCV Admin{% endblock %}
+{% block title %}Candidate Profiles — FitCV{% endblock %}
 {% block content %}
 <main class="workspace-stack" data-page="candidate-profiles">
-  <header class="page-header"><div><h1>Candidate Profiles</h1><p>Manage profile inputs available to future Runs.</p></div><button class="btn-primary" id="openCreateProfile" type="button">Create Profile</button></header>
-  <div class="workspace-tabs" role="tablist" aria-label="Candidate Profile lifecycle">
-    <button class="btn-secondary" type="button" role="tab" data-view="active" aria-selected="true">Active</button>
-    <button class="btn-secondary" type="button" role="tab" data-view="archived" aria-selected="false">Archived</button>
+  <header class="page-header">
+    <div><h1>Candidate Profiles</h1><p class="meta">Manage profile inputs available to future Runs.</p></div>
+    <button class="btn-primary" id="open-create-profile" type="button">Create Profile</button>
+  </header>
+
+  <div class="workspace-tabs" aria-label="Candidate Profile lifecycle">
+    <a class="btn-secondary" href="/admin/candidate-profiles?view=active" aria-current="{{ 'page' if view == 'active' else 'false' }}">Active</a>
+    <a class="btn-secondary" href="/admin/candidate-profiles?view=archived" aria-current="{{ 'page' if view == 'archived' else 'false' }}">Archived</a>
   </div>
-  <div class="filter-bar"><label>Search<input id="profileSearch" type="search" autocomplete="off"></label><label>Status<select id="profileStatus"><option value="">All statuses</option><option value="succeeded">Succeeded</option><option value="failed">Failed</option></select></label></div>
-  <div id="profileNotice" aria-live="polite"></div>
-  <div class="table-shell"><table><thead><tr><th>Profile ID</th><th>Status</th><th>Profile Name</th><th>Created Time</th></tr></thead><tbody id="profileRows"></tbody></table><div class="empty-state" id="profileEmpty" hidden>No profiles match current view.</div></div>
-  <div class="selection-toolbar"><button class="btn-secondary" id="profilePrevious" type="button">Previous</button><span id="profilePage" class="meta"></span><button class="btn-secondary" id="profileNext" type="button">Next</button></div>
+
+  <form class="filter-bar section-card" method="get" action="/admin/candidate-profiles">
+    <input type="hidden" name="view" value="{{ view }}">
+    <label>Search<input name="search" type="search" value="{{ search }}" autocomplete="off"></label>
+    <label>Status<select name="status"><option value="">All statuses</option><option value="succeeded" {{ 'selected' if status == 'succeeded' else '' }}>Succeeded</option><option value="failed" {{ 'selected' if status == 'failed' else '' }}>Failed</option></select></label>
+    <button class="btn-secondary" type="submit">Apply</button>
+  </form>
+
+  <div id="profile-notice" aria-live="polite"></div>
+  <div class="table-shell">
+    <table>
+      <thead><tr><th>Profile ID</th><th>Status</th><th>Profile Name</th><th>Created Time</th></tr></thead>
+      <tbody>
+        {% for profile in profiles %}
+        <tr>
+          <td><a href="/admin/candidate-profiles/{{ profile.profile_id }}?return_to={{ current_url|urlencode }}"><code>{{ profile.profile_id }}</code></a></td>
+          <td>{{ profile.creation_status }}</td>
+          <td>{{ profile.display_name }}</td>
+          <td>{{ profile.created_at }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="empty-state">No profiles match current view.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <nav class="selection-toolbar" aria-label="Candidate Profile pages">
+    {% if page > 1 %}<a class="btn-secondary" href="{{ current_url|replace('page=' ~ page, 'page=' ~ (page - 1)) }}">Previous</a>{% endif %}
+    <span class="meta">Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}<a class="btn-secondary" href="{{ current_url|replace('page=' ~ page, 'page=' ~ (page + 1)) }}">Next</a>{% endif %}
+  </nav>
 </main>
-<dialog class="workspace-dialog" id="createProfileDialog"><form id="createProfileForm"><h2>Create Profile</h2><p>Upload one UTF-8 <code>.yaml</code> Candidate Profile.</p><label>Profile file<input name="profile_file" type="file" accept=".yaml,application/yaml,text/yaml" required></label><label>Profile Name <span class="muted">Optional</span><input name="profile_name" maxlength="120"></label><div class="selection-toolbar"><button class="btn-primary" type="submit">Create Profile</button><button class="btn-secondary" type="button" data-close>Cancel</button></div></form></dialog>
-<dialog class="workspace-dialog" id="profileDetailsDialog"><div id="profileDetails"></div><div class="selection-toolbar"><button class="btn-secondary" type="button" data-close>Close</button></div></dialog>
+
+<dialog class="workspace-dialog" id="create-profile-dialog" aria-labelledby="create-profile-title">
+  <form id="create-profile-form">
+    <h2 id="create-profile-title">Create Profile</h2>
+    <p>Upload one UTF-8 <code>.yaml</code> Candidate Profile.</p>
+    <label>Profile file<input name="profile_file" type="file" accept=".yaml,application/yaml,text/yaml" required></label>
+    <label>Profile Name <span class="meta">Optional</span><input name="profile_name" maxlength="120"></label>
+    <p id="create-profile-status" class="meta" role="status" aria-live="polite"></p>
+    <div class="selection-toolbar">
+      <button class="btn-primary" type="submit">Create Profile</button>
+      <button class="btn-secondary" type="button" id="cancel-create-profile">Cancel</button>
+    </div>
+  </form>
+</dialog>
 <script>
-(function(){
-  var params=new URLSearchParams(location.search), view=params.get('view')||'active', status=params.get('status')||'', search=params.get('search')||'', page=Math.max(1,Number(params.get('page')||1)), totalPages=1, lastFocus=null, rows=document.getElementById('profileRows'), empty=document.getElementById('profileEmpty');
-  var createDialog=document.getElementById('createProfileDialog'), detailsDialog=document.getElementById('profileDetailsDialog');
-  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-  function syncUrl(){var next=new URLSearchParams({view:view,page:String(page)});if(status)next.set('status',status);if(search)next.set('search',search);history.replaceState(null,'','?'+next.toString());}
-  async function load(){
-    var query=new URLSearchParams({view:view,page:String(page),page_size:'20'});if(status)query.set('status',status);if(search)query.set('search',search);var payload=await fitcvApiRequest('/candidate-profiles?'+query.toString());
-    rows.innerHTML=(payload.data||[]).map(function(p){return '<tr><td><button class="btn-secondary" type="button" data-profile="'+esc(p.profile_id)+'"><code>'+esc(p.profile_id)+'</code></button></td><td>'+esc(p.creation_status)+'</td><td>'+esc(p.display_name)+'</td><td>'+esc(p.created_at)+'</td></tr>';}).join('');
-    totalPages=Math.max(1,Number((payload.page||{}).total_pages||1));if(page>totalPages){page=totalPages;return load();}document.getElementById('profilePage').textContent='Page '+page+' of '+totalPages;document.getElementById('profilePrevious').disabled=page<=1;document.getElementById('profileNext').disabled=page>=totalPages;empty.hidden=Boolean((payload.data||[]).length); rows.querySelectorAll('[data-profile]').forEach(function(b){b.onclick=function(){lastFocus=b;openDetails(b.dataset.profile);};});syncUrl();
-  }
-  async function openDetails(id){var p=(await fitcvApiRequest('/candidate-profiles/'+encodeURIComponent(id))).data,runs=p.related_run_count?(await fitcvApiRequest('/candidate-profiles/'+encodeURIComponent(id)+'/runs?page_size=20')).data:[],failure=p.failure?'<div class="notice" role="alert">'+esc(p.failure.message)+'</div>':'',action=p.capabilities.archive?'<button class="btn-secondary" type="button" data-lifecycle="archive">Archive</button>':p.capabilities.restore?'<button class="btn-secondary" type="button" data-lifecycle="restore">Restore</button>':'',overview=p.overview?'<pre>'+esc(JSON.stringify(p.overview,null,2))+'</pre>':'<p>No parsed profile data is available.</p>',related=runs.length?'<ul>'+runs.map(function(r){return '<li><a href="/admin/runs/'+esc(r.run_id)+'"><code>'+esc(r.run_id)+'</code></a> — '+esc(r.run_name)+'</li>';}).join('')+'</ul>':'<p>No related Runs.</p>';document.getElementById('profileDetails').innerHTML='<h2>Profile Overview</h2>'+failure+'<dl><dt>Profile ID</dt><dd><code>'+esc(p.profile_id)+'</code></dd><dt>Status</dt><dd>'+esc(p.creation_status)+'</dd><dt>Lifecycle</dt><dd>'+esc(p.lifecycle)+'</dd><dt>Profile Name</dt><dd>'+esc(p.profile_name||'Not provided')+'</dd></dl>'+overview+'<h3>Profile Input</h3><dl><dt>File</dt><dd><code>'+esc((p.input||{}).original_filename||p.original_filename)+'</code></dd><dt>Checksum</dt><dd><code>'+esc((p.input||{}).checksum||'Unavailable')+'</code></dd></dl><h3>Related Runs</h3>'+related+'<div class="selection-toolbar">'+action+'</div>';var lifecycle=document.querySelector('[data-lifecycle]');if(lifecycle)lifecycle.onclick=function(){updateLifecycle(p,lifecycle.dataset.lifecycle);};detailsDialog.showModal();}
-  async function updateLifecycle(profile,action){await fitcvApiRequest('/candidate-profiles/'+encodeURIComponent(profile.profile_id)+'/actions/'+action,{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({expected_revision:profile.revision})});detailsDialog.close();document.getElementById('profileNotice').textContent='Candidate Profile '+(action==='archive'?'archived.':'restored.');await load();}
-  document.getElementById('openCreateProfile').onclick=function(){lastFocus=this;createDialog.showModal();};
-  document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){b.closest('dialog').close();};});document.querySelectorAll('dialog').forEach(function(d){d.addEventListener('close',function(){if(lastFocus)lastFocus.focus();});});
-  document.querySelectorAll('[data-view]').forEach(function(b){b.setAttribute('aria-selected',String(b.dataset.view===view));b.onclick=function(){view=b.dataset.view;page=1; document.querySelectorAll('[data-view]').forEach(function(x){x.setAttribute('aria-selected',String(x===b));});load();};});
-  document.getElementById('profileSearch').value=search;document.getElementById('profileSearch').oninput=function(e){search=e.target.value;page=1;clearTimeout(window.profileSearchTimer); window.profileSearchTimer=setTimeout(load,250);};document.getElementById('profileStatus').value=status;document.getElementById('profileStatus').onchange=function(e){status=e.target.value;page=1;load();};document.getElementById('profilePrevious').onclick=function(){if(page>1){page-=1;load();}};document.getElementById('profileNext').onclick=function(){if(page<totalPages){page+=1;load();}};
-  document.getElementById('createProfileForm').onsubmit=async function(e){e.preventDefault(); var submit=e.submitter; submit.disabled=true; try{var created=(await fitcvApiRequest('/candidate-profiles',{method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()},body:new FormData(e.target)})).data; createDialog.close(); e.target.reset(); document.getElementById('profileNotice').textContent=created.creation_status==='failed'?'Candidate Profile import retained with Failed status.':'Candidate Profile created.'; await load();}catch(error){document.getElementById('profileNotice').innerHTML='<div class="notice" role="alert">'+esc(error.message)+'</div>';}finally{submit.disabled=false;}};
-  load().catch(function(error){document.getElementById('profileNotice').textContent=error.message;});
+(function() {
+  var dialog = document.getElementById('create-profile-dialog');
+  var open = document.getElementById('open-create-profile');
+  var cancel = document.getElementById('cancel-create-profile');
+  var form = document.getElementById('create-profile-form');
+  if (!dialog || !open || !cancel || !form) return;
+  open.addEventListener('click', function() { dialog.showModal(); });
+  cancel.addEventListener('click', function() { dialog.close(); open.focus(); });
+  form.addEventListener('submit', async function(event) {
+    event.preventDefault();
+    var submit = event.submitter;
+    var status = document.getElementById('create-profile-status');
+    submit.disabled = true;
+    status.textContent = 'Creating Candidate Profile…';
+    try {
+      var payload = await fitcvApiRequest('/candidate-profiles', {
+        method: 'POST',
+        headers: {'Idempotency-Key': crypto.randomUUID()},
+        body: new FormData(form)
+      });
+      location.assign('/admin/candidate-profiles/' + encodeURIComponent(payload.data.profile_id));
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      submit.disabled = false;
+    }
+  });
 })();
 </script>
 {% endblock %}

@@ -83,7 +83,7 @@ _EVENT_APPEND_RETRY_DELAY_SECONDS = 0.2
 _DEGRADATION_REASON_NONE = "none"
 _SQLITE_OPEN_RETRY_ATTEMPTS = 3
 _SQLITE_OPEN_RETRY_DELAY_SECONDS = 0.2
-CONTROL_PLANE_SCHEMA_VERSION = 3
+CONTROL_PLANE_SCHEMA_VERSION = 4
 _CANDIDATE_PROFILE_MAX_BYTES = 1024 * 1024
 
 class DatabaseSchemaIncompatibleError(RuntimeError):
@@ -99,6 +99,10 @@ class SynonymPolicyRevisionConflict(RuntimeError):
     pass
 
 class CandidateProfileUnavailableError(RuntimeError):
+    pass
+
+
+class ProviderPersistenceRevisionConflict(RuntimeError):
     pass
 
 
@@ -199,7 +203,7 @@ def _ensure_control_plane_schema(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
         )
     }
-    if version not in {0, CONTROL_PLANE_SCHEMA_VERSION} or (version == 0 and existing_tables):
+    if version not in {0, 3, CONTROL_PLANE_SCHEMA_VERSION} or (version == 0 and existing_tables):
         raise DatabaseSchemaIncompatibleError(version)
     schema = """
     CREATE TABLE IF NOT EXISTS candidate_profiles (
@@ -580,6 +584,71 @@ def _ensure_control_plane_schema(
         updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS custom_api_providers (
+        provider_id TEXT PRIMARY KEY,
+        display_name TEXT NOT NULL COLLATE NOCASE CHECK (length(trim(display_name)) BETWEEN 1 AND 120),
+        compatibility TEXT NOT NULL CHECK (compatibility IN ('openai', 'anthropic')),
+        revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (display_name)
+    );
+
+    CREATE TABLE IF NOT EXISTS api_provider_connections (
+        provider_id TEXT PRIMARY KEY,
+        base_url TEXT,
+        api_type TEXT NOT NULL,
+        verification_status TEXT NOT NULL CHECK (verification_status IN ('verified', 'not_configured')),
+        verified_at TEXT,
+        connection_revision INTEGER NOT NULL CHECK (connection_revision > 0),
+        credential_account TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        CHECK (
+            (verification_status = 'verified' AND verified_at IS NOT NULL)
+            OR
+            (verification_status = 'not_configured' AND verified_at IS NULL)
+        )
+    );
+
+    CREATE TABLE IF NOT EXISTS api_provider_state (
+        provider_id TEXT PRIMARY KEY,
+        revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+        updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS api_provider_models (
+        model_record_id TEXT PRIMARY KEY,
+        provider_id TEXT NOT NULL,
+        model_id TEXT NOT NULL CHECK (length(trim(model_id)) BETWEEN 1 AND 255),
+        validation_status TEXT NOT NULL CHECK (validation_status IN ('validated', 'needs_retest')),
+        validated_connection_revision INTEGER CHECK (validated_connection_revision > 0),
+        last_tested_at TEXT,
+        last_test_error_code TEXT CHECK (last_test_error_code IS NULL OR length(last_test_error_code) <= 120),
+        revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (provider_id, model_id),
+        CHECK (
+            validation_status != 'validated'
+            OR
+            (validated_connection_revision IS NOT NULL AND last_tested_at IS NOT NULL AND last_test_error_code IS NULL)
+        )
+    );
+
+    CREATE TABLE IF NOT EXISTS configuration_resources (
+        resource_name TEXT PRIMARY KEY,
+        resource_json TEXT NOT NULL CHECK (json_valid(resource_json)),
+        revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+        updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS integration_migrations (
+        migration_key TEXT PRIMARY KEY,
+        details_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(details_json)),
+        completed_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS idempotent_actions (
         action_id TEXT PRIMARY KEY,
         action_scope TEXT NOT NULL,
@@ -624,6 +693,23 @@ def _ensure_control_plane_schema(
         if candidate_profiles is not None:
             _persist_initial_profile_state(conn, candidate_profiles, startup_warning)
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        from fitcv_cp.settings_store import CONFIGURATION_RESOURCE_DEFAULTS
+
+        conn.executemany(
+            """
+            INSERT OR IGNORE INTO configuration_resources (
+                resource_name, resource_json, revision, updated_at
+            ) VALUES (?, ?, 1, ?)
+            """,
+            [
+                (
+                    resource_name,
+                    json.dumps(value, sort_keys=True, separators=(",", ":")),
+                    now,
+                )
+                for resource_name, value in CONFIGURATION_RESOURCE_DEFAULTS.items()
+            ],
+        )
         for key, value in (
             ("synonym_management.apply_approved_enabled", True),
             ("synonym_management.auto_accept_suggestions_enabled", False),
@@ -1986,6 +2072,475 @@ def _sqlite_connection(db_path: Path) -> Iterator[sqlite3.Connection]:
         yield conn
     finally:
         conn.close()
+
+
+@contextmanager
+def _provider_store_connection(database_path: Path | None = None) -> Iterator[sqlite3.Connection]:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        yield conn
+
+
+def _ensure_provider_state(conn: sqlite3.Connection, provider_id: str) -> int:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    conn.execute(
+        "INSERT OR IGNORE INTO api_provider_state (provider_id, revision, updated_at) VALUES (?, 1, ?)",
+        (provider_id, now),
+    )
+    row = conn.execute(
+        "SELECT revision FROM api_provider_state WHERE provider_id = ?",
+        (provider_id,),
+    ).fetchone()
+    if row is None:
+        raise RuntimeError("provider state did not persist")
+    return int(row["revision"])
+
+
+def _require_provider_revision(
+    conn: sqlite3.Connection, provider_id: str, expected_revision: int
+) -> int:
+    revision = _ensure_provider_state(conn, provider_id)
+    if revision != expected_revision:
+        raise ProviderPersistenceRevisionConflict("provider changed since last read")
+    return revision
+
+
+def _bump_provider_revision(conn: sqlite3.Connection, provider_id: str) -> int:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    conn.execute(
+        "UPDATE api_provider_state SET revision = revision + 1, updated_at = ? WHERE provider_id = ?",
+        (now, provider_id),
+    )
+    return _ensure_provider_state(conn, provider_id)
+
+
+def get_api_provider_revision(
+    provider_id: str, *, database_path: Path | None = None
+) -> int:
+    with _provider_store_connection(database_path) as conn:
+        revision = _ensure_provider_state(conn, provider_id)
+        conn.commit()
+    return revision
+
+
+def list_custom_api_providers(*, database_path: Path | None = None) -> list[dict[str, Any]]:
+    with _provider_store_connection(database_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT providers.*, state.revision AS provider_revision
+            FROM custom_api_providers AS providers
+            JOIN api_provider_state AS state USING (provider_id)
+            ORDER BY providers.display_name, providers.provider_id
+            """
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_custom_api_provider(
+    provider_id: str, *, database_path: Path | None = None
+) -> dict[str, Any] | None:
+    with _provider_store_connection(database_path) as conn:
+        row = conn.execute(
+            "SELECT * FROM custom_api_providers WHERE provider_id = ?",
+            (provider_id,),
+        ).fetchone()
+        if row is not None:
+            result = dict(row)
+            result["provider_revision"] = _ensure_provider_state(conn, provider_id)
+            conn.commit()
+            return result
+    return None
+
+
+def create_custom_api_provider(
+    provider_id: str,
+    *,
+    display_name: str,
+    compatibility: str,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _provider_store_connection(database_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            """
+            INSERT INTO custom_api_providers (
+                provider_id, display_name, compatibility, revision, created_at, updated_at
+            ) VALUES (?, ?, ?, 1, ?, ?)
+            """,
+            (provider_id, display_name, compatibility, now, now),
+        )
+        _ensure_provider_state(conn, provider_id)
+        conn.commit()
+    result = get_custom_api_provider(provider_id, database_path=database_path)
+    if result is None:
+        raise RuntimeError("custom provider insert did not persist")
+    return result
+
+
+def update_custom_api_provider(
+    provider_id: str,
+    *,
+    display_name: str,
+    compatibility: str,
+    expected_revision: int,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _provider_store_connection(database_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        _require_provider_revision(conn, provider_id, expected_revision)
+        cursor = conn.execute(
+            """
+            UPDATE custom_api_providers
+            SET display_name = ?, compatibility = ?, revision = revision + 1, updated_at = ?
+            WHERE provider_id = ?
+            """,
+            (display_name, compatibility, now, provider_id),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            raise ProviderPersistenceRevisionConflict("custom provider changed since last read")
+        _bump_provider_revision(conn, provider_id)
+        conn.commit()
+    result = get_custom_api_provider(provider_id, database_path=database_path)
+    if result is None:
+        raise KeyError(provider_id)
+    return result
+
+
+def delete_custom_api_provider(
+    provider_id: str,
+    *,
+    expected_revision: int,
+    database_path: Path | None = None,
+) -> None:
+    with _provider_store_connection(database_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        _require_provider_revision(conn, provider_id, expected_revision)
+        cursor = conn.execute("DELETE FROM custom_api_providers WHERE provider_id = ?", (provider_id,))
+        if cursor.rowcount != 1:
+            conn.rollback()
+            raise ProviderPersistenceRevisionConflict("custom provider changed since last read")
+        conn.commit()
+
+
+def delete_custom_api_provider_bundle(
+    provider_id: str,
+    *,
+    expected_revision: int,
+    database_path: Path | None = None,
+) -> None:
+    with _provider_store_connection(database_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        _require_provider_revision(conn, provider_id, expected_revision)
+        if conn.execute("SELECT 1 FROM custom_api_providers WHERE provider_id = ?", (provider_id,)).fetchone() is None:
+            raise KeyError(provider_id)
+        conn.execute("DELETE FROM api_provider_models WHERE provider_id = ?", (provider_id,))
+        conn.execute("DELETE FROM api_provider_connections WHERE provider_id = ?", (provider_id,))
+        conn.execute("DELETE FROM custom_api_providers WHERE provider_id = ?", (provider_id,))
+        conn.execute("DELETE FROM api_provider_state WHERE provider_id = ?", (provider_id,))
+        conn.commit()
+
+
+def get_api_provider_connection(
+    provider_id: str, *, database_path: Path | None = None
+) -> dict[str, Any] | None:
+    with _provider_store_connection(database_path) as conn:
+        row = conn.execute(
+            "SELECT * FROM api_provider_connections WHERE provider_id = ?",
+            (provider_id,),
+        ).fetchone()
+        if row is not None:
+            result = dict(row)
+            result["provider_revision"] = _ensure_provider_state(conn, provider_id)
+            conn.commit()
+            return result
+    return None
+
+
+def save_api_provider_connection(
+    provider_id: str,
+    *,
+    base_url: str | None,
+    api_type: str,
+    verification_status: str,
+    verified_at: str | None,
+    credential_account: str,
+    expected_revision: int,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _provider_store_connection(database_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        _require_provider_revision(conn, provider_id, expected_revision)
+        current = conn.execute(
+            "SELECT connection_revision, created_at FROM api_provider_connections WHERE provider_id = ?",
+            (provider_id,),
+        ).fetchone()
+        current_revision = int(current["connection_revision"]) if current is not None else None
+        revision = (current_revision or 0) + 1
+        created_at = str(current["created_at"]) if current is not None else now
+        conn.execute(
+            """
+            INSERT INTO api_provider_connections (
+                provider_id, base_url, api_type, verification_status, verified_at,
+                connection_revision, credential_account, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(provider_id) DO UPDATE SET
+                base_url = excluded.base_url,
+                api_type = excluded.api_type,
+                verification_status = excluded.verification_status,
+                verified_at = excluded.verified_at,
+                connection_revision = excluded.connection_revision,
+                credential_account = excluded.credential_account,
+                updated_at = excluded.updated_at
+            """,
+            (
+                provider_id,
+                base_url,
+                api_type,
+                verification_status,
+                verified_at,
+                revision,
+                credential_account,
+                created_at,
+                now,
+            ),
+        )
+        if current_revision is not None:
+            conn.execute(
+                """
+                UPDATE api_provider_models
+                SET validation_status = 'needs_retest', revision = revision + 1, updated_at = ?
+                WHERE provider_id = ?
+                """,
+                (now, provider_id),
+            )
+        _bump_provider_revision(conn, provider_id)
+        conn.commit()
+    result = get_api_provider_connection(provider_id, database_path=database_path)
+    if result is None:
+        raise RuntimeError("provider connection write did not persist")
+    return result
+
+
+def delete_api_provider_connection(
+    provider_id: str,
+    *,
+    expected_revision: int,
+    database_path: Path | None = None,
+) -> None:
+    with _provider_store_connection(database_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        _require_provider_revision(conn, provider_id, expected_revision)
+        cursor = conn.execute(
+            "DELETE FROM api_provider_connections WHERE provider_id = ?",
+            (provider_id,),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            raise ProviderPersistenceRevisionConflict("provider connection changed since last read")
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        conn.execute(
+            """
+            UPDATE api_provider_models
+            SET validation_status = 'needs_retest', revision = revision + 1, updated_at = ?
+            WHERE provider_id = ?
+            """,
+            (now, provider_id),
+        )
+        _bump_provider_revision(conn, provider_id)
+        conn.commit()
+
+
+def list_api_provider_models(
+    provider_id: str, *, database_path: Path | None = None
+) -> list[dict[str, Any]]:
+    with _provider_store_connection(database_path) as conn:
+        provider_revision = _ensure_provider_state(conn, provider_id)
+        rows = conn.execute(
+            "SELECT * FROM api_provider_models WHERE provider_id = ? ORDER BY model_id, model_record_id",
+            (provider_id,),
+        ).fetchall()
+        conn.commit()
+    return [{**dict(row), "provider_revision": provider_revision} for row in rows]
+
+
+def get_api_provider_model(
+    model_record_id: str, *, database_path: Path | None = None
+) -> dict[str, Any] | None:
+    with _provider_store_connection(database_path) as conn:
+        row = conn.execute(
+            "SELECT * FROM api_provider_models WHERE model_record_id = ?",
+            (model_record_id,),
+        ).fetchone()
+        if row is not None:
+            result = dict(row)
+            result["provider_revision"] = _ensure_provider_state(conn, str(row["provider_id"]))
+            conn.commit()
+            return result
+    return None
+
+
+def create_api_provider_model(
+    model_record_id: str,
+    *,
+    provider_id: str,
+    model_id: str,
+    validated_connection_revision: int,
+    last_tested_at: str,
+    expected_revision: int,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _provider_store_connection(database_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        _require_provider_revision(conn, provider_id, expected_revision)
+        conn.execute(
+            """
+            INSERT INTO api_provider_models (
+                model_record_id, provider_id, model_id, validation_status,
+                validated_connection_revision, last_tested_at, last_test_error_code,
+                revision, created_at, updated_at
+            ) VALUES (?, ?, ?, 'validated', ?, ?, NULL, 1, ?, ?)
+            """,
+            (
+                model_record_id,
+                provider_id,
+                model_id,
+                validated_connection_revision,
+                last_tested_at,
+                now,
+                now,
+            ),
+        )
+        _bump_provider_revision(conn, provider_id)
+        conn.commit()
+    result = get_api_provider_model(model_record_id, database_path=database_path)
+    if result is None:
+        raise RuntimeError("provider model insert did not persist")
+    return result
+
+
+def update_api_provider_model(
+    model_record_id: str,
+    *,
+    validation_status: str,
+    validated_connection_revision: int | None,
+    last_tested_at: str | None,
+    last_test_error_code: str | None,
+    expected_revision: int,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _provider_store_connection(database_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT provider_id FROM api_provider_models WHERE model_record_id = ?",
+            (model_record_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(model_record_id)
+        provider_id = str(row["provider_id"])
+        _require_provider_revision(conn, provider_id, expected_revision)
+        cursor = conn.execute(
+            """
+            UPDATE api_provider_models
+            SET validation_status = ?, validated_connection_revision = ?, last_tested_at = ?,
+                last_test_error_code = ?, revision = revision + 1, updated_at = ?
+            WHERE model_record_id = ?
+            """,
+            (
+                validation_status,
+                validated_connection_revision,
+                last_tested_at,
+                last_test_error_code,
+                now,
+                model_record_id,
+            ),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            raise ProviderPersistenceRevisionConflict("provider model changed since last read")
+        _bump_provider_revision(conn, provider_id)
+        conn.commit()
+    result = get_api_provider_model(model_record_id, database_path=database_path)
+    if result is None:
+        raise KeyError(model_record_id)
+    return result
+
+
+def delete_api_provider_model(
+    model_record_id: str,
+    *,
+    expected_revision: int,
+    database_path: Path | None = None,
+) -> None:
+    with _provider_store_connection(database_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT provider_id FROM api_provider_models WHERE model_record_id = ?",
+            (model_record_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(model_record_id)
+        provider_id = str(row["provider_id"])
+        _require_provider_revision(conn, provider_id, expected_revision)
+        cursor = conn.execute(
+            "DELETE FROM api_provider_models WHERE model_record_id = ?",
+            (model_record_id,),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            raise ProviderPersistenceRevisionConflict("provider model changed since last read")
+        _bump_provider_revision(conn, provider_id)
+        conn.commit()
+
+
+def integration_migration_applied(
+    migration_key: str, *, database_path: Path | None = None
+) -> bool:
+    with _provider_store_connection(database_path) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM integration_migrations WHERE migration_key = ?",
+            (migration_key,),
+        ).fetchone()
+    return row is not None
+
+
+def record_integration_migration(
+    migration_key: str,
+    *,
+    details: dict[str, Any],
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    completed_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _provider_store_connection(database_path) as conn:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO integration_migrations (
+                migration_key, details_json, completed_at
+            ) VALUES (?, ?, ?)
+            """,
+            (
+                migration_key,
+                json.dumps(details, sort_keys=True, separators=(",", ":")),
+                completed_at,
+            ),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM integration_migrations WHERE migration_key = ?",
+            (migration_key,),
+        ).fetchone()
+    if row is None:
+        raise RuntimeError("integration migration record did not persist")
+    result = dict(row)
+    result["details"] = json.loads(result.pop("details_json"))
+    return result
 
 
 def _ensure_local_decision_feedback_tables(conn: sqlite3.Connection) -> None:

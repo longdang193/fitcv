@@ -39,7 +39,7 @@ $section_evidence
 ## Rendering Reference Template
 $output_template
 
-${prompt_addendum}## Structured JSON Schema
+## Structured JSON Schema
 $structured_schema
 
 $output_instruction

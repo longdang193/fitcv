@@ -42,8 +42,14 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
             for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }
         assert {
+            "api_provider_connections",
+            "api_provider_models",
+            "api_provider_state",
             "candidate_profiles",
             "candidate_profile_revisions",
+            "configuration_resources",
+            "custom_api_providers",
+            "integration_migrations",
             "pipeline_runs",
             "run_inputs",
             "run_stage_executions",
@@ -63,7 +69,7 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
             "synonym_suggestion_sources",
             "synonym_processing_runs",
         } <= tables
-        assert sqlite_store.CONTROL_PLANE_SCHEMA_VERSION == 3
+        assert sqlite_store.CONTROL_PLANE_SCHEMA_VERSION == 4
         assert conn.execute("PRAGMA user_version").fetchone()[0] == sqlite_store.CONTROL_PLANE_SCHEMA_VERSION
         assert any(row[2] == "pipeline_runs" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(run_inputs)"))
         assert any(row[2] == "candidate_profiles" and row[6] == "RESTRICT" for row in conn.execute("PRAGMA foreign_key_list(candidate_profile_revisions)"))
@@ -100,6 +106,155 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
 
         for table in ("pipeline_runs", "bookmarks", "synonym_suggestions", "synonym_processing_runs"):
             assert conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
+
+
+def test_control_plane_schema_upgrades_version_3_without_losing_settings() -> None:
+    with sqlite3.connect(":memory:") as conn:
+        conn.execute(
+            """
+            CREATE TABLE pipeline_settings (
+                setting_key TEXT NOT NULL,
+                setting_value_json TEXT NOT NULL,
+                updated_by TEXT,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO pipeline_settings VALUES (?, ?, ?, ?)",
+            ("pipeline.final_top_n", "7", "test", "2026-07-22T00:00:00+00:00"),
+        )
+        conn.execute("PRAGMA user_version = 3")
+        conn.commit()
+
+        sqlite_store._ensure_control_plane_schema(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert conn.execute(
+            "SELECT setting_value_json FROM pipeline_settings WHERE setting_key = ?",
+            ("pipeline.final_top_n",),
+        ).fetchone()[0] == "7"
+        assert conn.execute(
+            "SELECT COUNT(*) FROM configuration_resources"
+        ).fetchone()[0] == 6
+
+
+def test_provider_schema_has_no_secret_bearing_columns() -> None:
+    with sqlite3.connect(":memory:") as conn:
+        sqlite_store._ensure_control_plane_schema(conn)
+
+        columns = {
+            table: {str(row[1]) for row in conn.execute(f"PRAGMA table_info({table})")}
+            for table in (
+                "custom_api_providers",
+                "api_provider_connections",
+                "api_provider_models",
+            )
+        }
+
+        assert "credential_account" in columns["api_provider_connections"]
+        assert not {
+            "api_key",
+            "api_key_value",
+            "authorization",
+            "authorization_header",
+            "secret",
+        } & set().union(*columns.values())
+
+
+def test_provider_persistence_enforces_revisions_uniqueness_and_secret_boundary(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    provider = sqlite_store.create_custom_api_provider(
+        "provider-1",
+        display_name="Local Gateway",
+        compatibility="openai",
+        database_path=database_path,
+    )
+    assert provider["revision"] == 1
+
+    provider = sqlite_store.update_custom_api_provider(
+        "provider-1",
+        display_name="Local Gateway Updated",
+        compatibility="openai",
+        expected_revision=1,
+        database_path=database_path,
+    )
+    assert provider["revision"] == 2
+    with pytest.raises(sqlite_store.ProviderPersistenceRevisionConflict):
+        sqlite_store.update_custom_api_provider(
+            "provider-1",
+            display_name="Stale",
+            compatibility="anthropic",
+            expected_revision=1,
+            database_path=database_path,
+        )
+
+    connection = sqlite_store.save_api_provider_connection(
+        "provider-1",
+        base_url="https://provider.example/v1",
+        api_type="responses",
+        verification_status="verified",
+        verified_at="2026-07-22T12:00:00+00:00",
+        credential_account="fitcv/provider/provider-1",
+        expected_revision=provider["provider_revision"],
+        database_path=database_path,
+    )
+    assert connection["connection_revision"] == 1
+    assert connection["provider_revision"] == 3
+
+    model = sqlite_store.create_api_provider_model(
+        "model-record-1",
+        provider_id="provider-1",
+        model_id="model-alpha",
+        validated_connection_revision=1,
+        last_tested_at="2026-07-22T12:01:00+00:00",
+        expected_revision=connection["provider_revision"],
+        database_path=database_path,
+    )
+    assert model["validation_status"] == "validated"
+    with pytest.raises(sqlite3.IntegrityError):
+        sqlite_store.create_api_provider_model(
+            "model-record-2",
+            provider_id="provider-1",
+            model_id="model-alpha",
+            validated_connection_revision=1,
+            last_tested_at="2026-07-22T12:02:00+00:00",
+            expected_revision=model["provider_revision"],
+            database_path=database_path,
+        )
+
+    sqlite_bytes = database_path.read_bytes()
+    assert b"credential-secret-canary" not in sqlite_bytes
+    assert sqlite_store.list_custom_api_providers(database_path=database_path) == [
+        {**provider, "provider_revision": model["provider_revision"]}
+    ]
+    assert sqlite_store.list_api_provider_models(
+        "provider-1", database_path=database_path
+    ) == [model]
+
+
+def test_integration_migration_record_is_idempotent(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+
+    assert sqlite_store.integration_migration_applied(
+        "provider-cutover-v1", database_path=database_path
+    ) is False
+    first = sqlite_store.record_integration_migration(
+        "provider-cutover-v1",
+        details={"migrated": 1},
+        database_path=database_path,
+    )
+    second = sqlite_store.record_integration_migration(
+        "provider-cutover-v1",
+        details={"migrated": 99},
+        database_path=database_path,
+    )
+
+    assert second == first
+    assert sqlite_store.integration_migration_applied(
+        "provider-cutover-v1", database_path=database_path
+    ) is True
 
 
 def test_control_plane_schema_allows_duplicate_profile_names_and_enforces_one_active_default() -> None:

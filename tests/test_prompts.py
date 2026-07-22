@@ -3,6 +3,7 @@
 import pytest
 
 from fitcv.prompts import get_prompt_definition, render_prompt
+from fitcv.prompts.loader import load_prompt_template
 
 
 def test_get_prompt_definition_returns_enrich_extraction_metadata() -> None:
@@ -211,43 +212,51 @@ tags:
         ),
     ],
 )
-def test_render_prompt_addendum_is_literal_bounded_and_before_contract(
+def test_render_prompt_uses_full_replacement_and_records_bounded_provenance(
     prompt_id: str,
     context: dict[str, str],
     contract_anchor: str,
 ) -> None:
+    default_text = load_prompt_template(get_prompt_definition(prompt_id).template_path)
+    replacement = default_text.replace(
+        contract_anchor,
+        f"Custom instruction.\n\n{contract_anchor}",
+        1,
+    )
     rendered = render_prompt(
         prompt_id,
         context,
-        additional_instructions="  Keep $literal and ${not_a_variable}.\r\nPrefer concise output.  ",
+        replacement_text=replacement.replace("\n", "\r\n"),
     )
 
-    normalized = "Keep $literal and ${not_a_variable}.\nPrefer concise output."
-    assert rendered.text.count(normalized) == 1
-    assert rendered.text.index(normalized) < rendered.text.index(contract_anchor)
+    normalized = replacement
+    assert "Custom instruction." in rendered.text
     assert rendered.customized is True
-    assert rendered.addendum_char_count == len(normalized)
-    assert rendered.addendum_sha256 == __import__("hashlib").sha256(
+    assert rendered.replacement_char_count == len(normalized)
+    assert rendered.replacement_sha256 == __import__("hashlib").sha256(
         normalized.encode("utf-8")
     ).hexdigest()
 
 
-def test_render_prompt_without_addendum_keeps_private_provenance_empty() -> None:
+def test_render_prompt_without_replacement_keeps_private_provenance_empty() -> None:
     rendered = render_prompt(
         "synonym_triage.recommendation.v1",
         {"proposal_json": "{}"},
     )
 
-    assert "Additional User Instructions" not in rendered.text
     assert rendered.customized is False
-    assert rendered.addendum_sha256 is None
-    assert rendered.addendum_char_count == 0
+    assert rendered.replacement_sha256 is None
+    assert rendered.replacement_char_count == 0
 
 
-def test_render_prompt_rejects_oversized_addendum() -> None:
-    with pytest.raises(ValueError, match="exceeds 4000 characters"):
+def test_render_prompt_rejects_replacement_with_different_variables() -> None:
+    default_text = load_prompt_template(
+        get_prompt_definition("synonym_triage.recommendation.v1").template_path
+    )
+
+    with pytest.raises(ValueError, match="exactly the canonical prompt variables"):
         render_prompt(
             "synonym_triage.recommendation.v1",
             {"proposal_json": "{}"},
-            additional_instructions="x" * 4001,
+            replacement_text=default_text + "\n${unsupported_variable}",
         )

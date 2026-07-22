@@ -38,5 +38,5 @@ class RenderedPrompt:
     template_path: Path
     text: str
     customized: bool
-    addendum_sha256: str | None
-    addendum_char_count: int
+    replacement_sha256: str | None
+    replacement_char_count: int

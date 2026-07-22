@@ -357,7 +357,7 @@ def test_worker_persists_terminal_artifact_mirror_for_succeeded_run(tmp_path: Pa
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
         "fitcv_cp.retry_settings.load_retry_settings",
-        lambda: MagicMock(lease_seconds=60, error_details_max_chars=2000),
+        lambda: MagicMock(lease_seconds=60, error_detail_limit=2000),
     )
     monkeypatch.setattr("fitcv_cp.worker_job.persist_pipeline_snapshot", lambda *args, **kwargs: {})
     monkeypatch.setattr(app_module, "load_config", lambda *args, **kwargs: {})

@@ -1,54 +1,45 @@
-"""@meta
-name: retry_settings
-type: module
-domain: run_orchestration
-ownership: infrastructure
-responsibility:
-  - Provide SSOT-first retry settings shared by web/worker/reconciler.
-inputs:
-  - fitcv.config.load_control_plane_config() output
-outputs:
-  - Normalized retry settings with bounded defaults
-lifecycle:
-  - status: active
-"""
+"""Canonical retry and worker-recovery settings."""
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
-from fitcv.config import (
-    LOCAL_CONTROLLER_OVERLAY_VERSION,
-    load_control_plane_config,
-    validate_local_controller_overlay,
-)
+from fitcv.config import load_control_plane_config
+
+SYSTEM_SETTINGS_DEFAULTS = {
+    "maximum_attempts": 3,
+    "initial_backoff_seconds": 10,
+    "lease_seconds": 300,
+    "reconciler_interval_seconds": 30,
+    "error_detail_limit": 10000,
+}
+
+SYSTEM_SETTING_BOUNDS = {
+    "maximum_attempts": (1, 10),
+    "initial_backoff_seconds": (0, 3600),
+    "lease_seconds": (30, 86400),
+    "reconciler_interval_seconds": (5, 3600),
+    "error_detail_limit": (1000, 100000),
+}
 
 
 @dataclass(frozen=True)
 class RetrySettings:
-    enabled: bool
-    max_attempts: int
-    backoff_seconds: tuple[int, ...]
+    maximum_attempts: int
+    initial_backoff_seconds: int
     lease_seconds: int
     reconciler_interval_seconds: int
-    error_details_max_chars: int
+    error_detail_limit: int
+    revision: int = 0
 
 
-def _parse_bool(value: Any, *, default: bool) -> bool:
+def _bounded_int(value: Any, *, field: str) -> int:
+    default = SYSTEM_SETTINGS_DEFAULTS[field]
+    minimum, maximum = SYSTEM_SETTING_BOUNDS[field]
     if isinstance(value, bool):
-        return value
-    text = str(value or "").strip().lower()
-    if not text:
         return default
-    if text in {"1", "true", "yes", "y", "on"}:
-        return True
-    if text in {"0", "false", "no", "n", "off"}:
-        return False
-    return default
-
-
-def _parse_int(value: Any, *, default: int, minimum: int, maximum: int) -> int:
     try:
         parsed = int(value)
     except (TypeError, ValueError):
@@ -56,51 +47,27 @@ def _parse_int(value: Any, *, default: int, minimum: int, maximum: int) -> int:
     return max(minimum, min(maximum, parsed))
 
 
-def _parse_int_list(value: Any) -> list[int]:
-    if value is None:
-        return []
-    if isinstance(value, (list, tuple, set)):
-        items: Iterable[Any] = value
-    else:
-        text = str(value or "").strip()
-        if not text:
-            return []
-        items = [part.strip() for part in text.split(",")]
-    parsed: list[int] = []
-    for item in items:
-        try:
-            parsed.append(max(0, int(item)))
-        except (TypeError, ValueError):
-            continue
-    return parsed
-
-
 def load_retry_settings(control_plane_cfg: dict[str, Any] | None = None) -> RetrySettings:
-    """Load validated whole-run retry policy from effective control-plane config."""
-    cfg = load_control_plane_config() if control_plane_cfg is None else control_plane_cfg
-    fitcv_cp = dict(cfg.get("fitcv_cp") or {})
-    retry = dict(fitcv_cp.get("retry") or {})
-    for field in (
-        "enabled",
-        "max_attempts",
-        "backoff_seconds",
-        "lease_seconds",
-        "reconciler_interval_seconds",
-        "error_details_max_chars",
-    ):
-        if field not in retry:
-            raise ValueError(f"fitcv_cp.retry.{field} is required")
-    normalized = validate_local_controller_overlay(
-        {
-            "version": LOCAL_CONTROLLER_OVERLAY_VERSION,
-            "fitcv_cp": {"retry": retry},
-        }
-    )["fitcv_cp"]["retry"]
-    return RetrySettings(
-        enabled=bool(normalized["enabled"]),
-        max_attempts=int(normalized["max_attempts"]),
-        backoff_seconds=tuple(int(value) for value in normalized["backoff_seconds"]),
-        lease_seconds=int(normalized["lease_seconds"]),
-        reconciler_interval_seconds=int(normalized["reconciler_interval_seconds"]),
-        error_details_max_chars=int(normalized["error_details_max_chars"]),
-    )
+    """Load one effective retry/recovery resource for all runtime consumers."""
+    local_mode = str(os.environ.get("FITCV_LOCAL_MODE") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if control_plane_cfg is None and local_mode:
+        from fitcv_cp.settings_store import load_system_settings
+
+        resource = load_system_settings()
+        values = resource
+        revision = int(resource["revision"])
+    else:
+        cfg = load_control_plane_config() if control_plane_cfg is None else control_plane_cfg
+        values = dict((dict(cfg.get("fitcv_cp") or {}).get("retry") or {}))
+        revision = 0
+
+    normalized = {
+        field: _bounded_int(values.get(field), field=field)
+        for field in SYSTEM_SETTINGS_DEFAULTS
+    }
+    return RetrySettings(**normalized, revision=revision)

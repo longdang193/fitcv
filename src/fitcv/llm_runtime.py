@@ -90,6 +90,9 @@ class LlmRuntimeProvenance:
     response_id: str | None
     trace_id: str | None
     latency_ms: int
+    model_record_id: str | None = None
+    configuration_revision: int | None = None
+    temperature: float | None = None
 
 
 @dataclass(frozen=True)
@@ -119,6 +122,9 @@ def project_llm_runtime_evidence(result: LlmRuntimeResult) -> dict[str, Any]:
             "response_id": provenance.response_id,
             "trace_id": provenance.trace_id,
             "latency_ms": provenance.latency_ms,
+            "model_record_id": provenance.model_record_id,
+            "configuration_revision": provenance.configuration_revision,
+            "temperature": provenance.temperature,
         },
         "failure": (
             {
@@ -212,6 +218,9 @@ def _provenance(
         response_id=(response.response_id if response else None),
         trace_id=(response.trace_id if response else None),
         latency_ms=latency_ms,
+        model_record_id=(route.model_record_id if route else None),
+        configuration_revision=(route.configuration_revision if route else None),
+        temperature=(route.temperature if route else None),
     )
 
 
@@ -270,10 +279,22 @@ def execute_llm_task(
             started=started,
         )
 
-    selected_adapter = adapter or _openai_compatible_adapter
+    selected_adapter = adapter or (
+        _anthropic_messages_adapter
+        if route.wire_api == "messages"
+        else _openai_compatible_adapter
+    )
     default_adapter = adapter is None
-    adapter_name = "openai_compatible" if default_adapter else "custom"
-    runtime_path = "fitcv_llm_openai_compatible" if default_adapter else "fitcv_llm_custom"
+    adapter_name = (
+        "anthropic_messages"
+        if default_adapter and route.wire_api == "messages"
+        else "openai_compatible" if default_adapter else "custom"
+    )
+    runtime_path = (
+        "fitcv_llm_anthropic_messages"
+        if default_adapter and route.wire_api == "messages"
+        else "fitcv_llm_openai_compatible" if default_adapter else "fitcv_llm_custom"
+    )
     try:
         response = selected_adapter(request, route, api_key)
     except LlmAdapterError as exc:
@@ -410,7 +431,9 @@ def _openai_compatible_adapter(
 ) -> LlmAdapterResponse:
     import httpx
 
-    if route.provider not in SUPPORTED_PROVIDER_IDS:
+    if route.provider not in SUPPORTED_PROVIDER_IDS and not str(
+        __import__("os").environ.get("FITCV_LOCAL_MODE") or ""
+    ).strip():
         raise ValueError(f"Unsupported default-adapter provider: {route.provider}.")
     headers = {"Content-Type": "application/json"}
     if api_key:
@@ -509,9 +532,62 @@ def _chat_payload(request: LlmTaskRequest, route: LlmRouting) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "model": route.model,
         "messages": messages,
-        "temperature": 0.0,
+        "temperature": route.temperature,
     }
     response_format = _response_format(request, responses_api=False)
     if response_format is not None:
         payload["response_format"] = response_format
     return payload
+
+
+def _anthropic_messages_adapter(
+    request: LlmTaskRequest,
+    route: LlmRouting,
+    api_key: str,
+) -> LlmAdapterResponse:
+    import httpx
+
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+    }
+    payload: dict[str, Any] = {
+        "model": route.model,
+        "max_tokens": 4096,
+        "temperature": route.temperature,
+        "messages": [{"role": "user", "content": request.prompt}],
+    }
+    if request.instructions:
+        payload["system"] = request.instructions
+    try:
+        with httpx.Client(timeout=route.timeout_seconds) as client:
+            response = client.post(
+                f"{route.base_url.rstrip('/')}/v1/messages"
+                if not route.base_url.rstrip("/").endswith("/v1")
+                else f"{route.base_url.rstrip('/')}/messages",
+                headers=headers,
+                json=payload,
+            )
+            response.raise_for_status()
+        body = response.json()
+        raw_text = "".join(
+            str(item.get("text") or "")
+            for item in body.get("content", [])
+            if isinstance(item, dict) and item.get("type") == "text"
+        )
+    except httpx.TimeoutException as exc:
+        raise LlmAdapterError("adapter_timeout", str(exc), True, adapter="anthropic_messages", runtime_path="fitcv_llm_anthropic_messages") from exc
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code
+        raise LlmAdapterError("adapter_http_error", str(exc), status in {408, 409, 425, 429, 500, 502, 503, 504}, status, adapter="anthropic_messages", runtime_path="fitcv_llm_anthropic_messages") from exc
+    except httpx.TransportError as exc:
+        raise LlmAdapterError("adapter_transport_error", str(exc), True, adapter="anthropic_messages", runtime_path="fitcv_llm_anthropic_messages") from exc
+    return LlmAdapterResponse(
+        adapter="anthropic_messages",
+        runtime_path="fitcv_llm_anthropic_messages",
+        raw_text=raw_text,
+        provider_payload=body,
+        response_id=str(body.get("id") or "").strip() or None,
+        trace_id=str((getattr(response, "headers", {}) or {}).get("request-id") or "").strip() or None,
+    )

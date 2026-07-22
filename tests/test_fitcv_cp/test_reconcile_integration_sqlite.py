@@ -76,15 +76,17 @@ def test_reconciler_sqlite_requeues_and_marks_queued() -> None:
             with patch(
                 "fitcv_cp.reconciler.load_retry_settings",
                 return_value=RetrySettings(
-                    enabled=True,
-                    max_attempts=3,
-                    backoff_seconds=(1, 2, 4, 8),
+                    maximum_attempts=3,
+                    initial_backoff_seconds=10,
                     lease_seconds=900,
-                    reconciler_interval_seconds=0,
-                    error_details_max_chars=2048,
+                    reconciler_interval_seconds=30,
+                    error_detail_limit=2048,
                 ),
             ):
-                with patch("fitcv_cp.reconciler.enqueue_run_with_job_id", return_value=("r1", "job-1")):
+                with patch("fitcv_cp.reconciler.time.sleep"), patch(
+                    "fitcv_cp.reconciler.enqueue_run_with_job_id",
+                    return_value=("r1", "job-1"),
+                ):
                     summary = reconcile_abandoned_attempts(store, now=now)
 
             assert summary.requeued_attempts == 1

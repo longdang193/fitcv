@@ -6,7 +6,7 @@ ownership: infrastructure
 responsibility:
   - Provide dedicated reconciler process for abandoned attempt recovery.
 inputs:
-  - control-plane config (retry.reconciler_interval_seconds)
+  - canonical System settings (reconciler_interval_seconds)
   - backend runtime (SQLite)
 outputs:
   - periodic reconcile_abandoned_attempts() side effects
@@ -34,16 +34,11 @@ def _build_store() -> ControlPlaneStore:
 
 
 def run_reconciler_forever() -> None:
-    settings = load_retry_settings()
-    interval = int(settings.reconciler_interval_seconds)
-    if interval <= 0:
-        logger.info("reconciler disabled (reconciler_interval_seconds=%s)", interval)
-        return
-
     store = _build_store()
-    logger.info("reconciler started (interval_seconds=%s)", interval)
+    logger.info("reconciler started")
 
     while True:
+        interval = int(load_retry_settings().reconciler_interval_seconds)
         started_at = datetime.datetime.now(datetime.timezone.utc)
         try:
             summary = reconcile_abandoned_attempts(store, now=started_at)

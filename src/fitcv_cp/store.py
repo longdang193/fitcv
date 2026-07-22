@@ -27,6 +27,23 @@ from fitcv_cp.run_artifact_contracts import decode_run_attempt_payload_or_none
 
 
 class RunStore(Protocol):
+    def get_api_provider_revision(self, provider_id: str) -> int: ...
+    def list_custom_api_providers(self) -> list[dict[str, Any]]: ...
+    def get_custom_api_provider(self, provider_id: str) -> dict[str, Any] | None: ...
+    def create_custom_api_provider(self, provider_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def update_custom_api_provider(self, provider_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def delete_custom_api_provider(self, provider_id: str, **kwargs: Any) -> None: ...
+    def delete_custom_api_provider_bundle(self, provider_id: str, **kwargs: Any) -> None: ...
+    def get_api_provider_connection(self, provider_id: str) -> dict[str, Any] | None: ...
+    def save_api_provider_connection(self, provider_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def delete_api_provider_connection(self, provider_id: str, **kwargs: Any) -> None: ...
+    def list_api_provider_models(self, provider_id: str) -> list[dict[str, Any]]: ...
+    def get_api_provider_model(self, model_record_id: str) -> dict[str, Any] | None: ...
+    def create_api_provider_model(self, model_record_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def update_api_provider_model(self, model_record_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def delete_api_provider_model(self, model_record_id: str, **kwargs: Any) -> None: ...
+    def integration_migration_applied(self, migration_key: str) -> bool: ...
+    def record_integration_migration(self, migration_key: str, **kwargs: Any) -> dict[str, Any]: ...
     def list_candidate_profiles(self) -> list[dict[str, Any]]: ...
     def get_candidate_profile(self, candidate_profile_id: str) -> dict[str, Any] | None: ...
     def query_candidate_profiles(self, **kwargs: Any) -> dict[str, Any]: ...
@@ -139,6 +156,23 @@ class RunStore(Protocol):
 @dataclass
 class ControlPlaneStore:
     backend_runtime: BackendRuntime | None = None
+    get_api_provider_revision_fn: Any | None = None
+    list_custom_api_providers_fn: Any | None = None
+    get_custom_api_provider_fn: Any | None = None
+    create_custom_api_provider_fn: Any | None = None
+    update_custom_api_provider_fn: Any | None = None
+    delete_custom_api_provider_fn: Any | None = None
+    delete_custom_api_provider_bundle_fn: Any | None = None
+    get_api_provider_connection_fn: Any | None = None
+    save_api_provider_connection_fn: Any | None = None
+    delete_api_provider_connection_fn: Any | None = None
+    list_api_provider_models_fn: Any | None = None
+    get_api_provider_model_fn: Any | None = None
+    create_api_provider_model_fn: Any | None = None
+    update_api_provider_model_fn: Any | None = None
+    delete_api_provider_model_fn: Any | None = None
+    integration_migration_applied_fn: Any | None = None
+    record_integration_migration_fn: Any | None = None
     list_candidate_profiles_fn: Any | None = None
     get_candidate_profile_fn: Any | None = None
     query_candidate_profiles_fn: Any | None = None
@@ -244,6 +278,147 @@ class ControlPlaneStore:
         if value is None:
             return {}
         return dict(value)
+
+    def get_api_provider_revision(self, provider_id: str) -> int:
+        return int(
+            self._call(
+                self.get_api_provider_revision_fn,
+                sqlite_store.get_api_provider_revision,
+                provider_id,
+            )
+        )
+
+    def list_custom_api_providers(self) -> list[dict[str, Any]]:
+        return self._call_list(
+            self.list_custom_api_providers_fn,
+            sqlite_store.list_custom_api_providers,
+        )
+
+    def get_custom_api_provider(self, provider_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(
+                self.get_custom_api_provider_fn,
+                sqlite_store.get_custom_api_provider,
+                provider_id,
+            ),
+        )
+
+    def create_custom_api_provider(self, provider_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.create_custom_api_provider_fn,
+            sqlite_store.create_custom_api_provider,
+            provider_id,
+            **kwargs,
+        )
+
+    def update_custom_api_provider(self, provider_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.update_custom_api_provider_fn,
+            sqlite_store.update_custom_api_provider,
+            provider_id,
+            **kwargs,
+        )
+
+    def delete_custom_api_provider(self, provider_id: str, **kwargs: Any) -> None:
+        self._call(
+            self.delete_custom_api_provider_fn,
+            sqlite_store.delete_custom_api_provider,
+            provider_id,
+            **kwargs,
+        )
+
+    def delete_custom_api_provider_bundle(self, provider_id: str, **kwargs: Any) -> None:
+        self._call(
+            self.delete_custom_api_provider_bundle_fn,
+            sqlite_store.delete_custom_api_provider_bundle,
+            provider_id,
+            **kwargs,
+        )
+
+    def get_api_provider_connection(self, provider_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(
+                self.get_api_provider_connection_fn,
+                sqlite_store.get_api_provider_connection,
+                provider_id,
+            ),
+        )
+
+    def save_api_provider_connection(self, provider_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.save_api_provider_connection_fn,
+            sqlite_store.save_api_provider_connection,
+            provider_id,
+            **kwargs,
+        )
+
+    def delete_api_provider_connection(self, provider_id: str, **kwargs: Any) -> None:
+        self._call(
+            self.delete_api_provider_connection_fn,
+            sqlite_store.delete_api_provider_connection,
+            provider_id,
+            **kwargs,
+        )
+
+    def list_api_provider_models(self, provider_id: str) -> list[dict[str, Any]]:
+        return self._call_list(
+            self.list_api_provider_models_fn,
+            sqlite_store.list_api_provider_models,
+            provider_id,
+        )
+
+    def get_api_provider_model(self, model_record_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(
+                self.get_api_provider_model_fn,
+                sqlite_store.get_api_provider_model,
+                model_record_id,
+            ),
+        )
+
+    def create_api_provider_model(self, model_record_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.create_api_provider_model_fn,
+            sqlite_store.create_api_provider_model,
+            model_record_id,
+            **kwargs,
+        )
+
+    def update_api_provider_model(self, model_record_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.update_api_provider_model_fn,
+            sqlite_store.update_api_provider_model,
+            model_record_id,
+            **kwargs,
+        )
+
+    def delete_api_provider_model(self, model_record_id: str, **kwargs: Any) -> None:
+        self._call(
+            self.delete_api_provider_model_fn,
+            sqlite_store.delete_api_provider_model,
+            model_record_id,
+            **kwargs,
+        )
+
+    def integration_migration_applied(self, migration_key: str) -> bool:
+        return bool(
+            self._call(
+                self.integration_migration_applied_fn,
+                sqlite_store.integration_migration_applied,
+                migration_key,
+            )
+        )
+
+    def record_integration_migration(self, migration_key: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.record_integration_migration_fn,
+            sqlite_store.record_integration_migration,
+            migration_key,
+            **kwargs,
+        )
 
     def insert_run(self, run: PipelineRun) -> None:
         self._call(

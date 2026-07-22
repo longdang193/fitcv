@@ -3,6 +3,7 @@
 {% block content %}
 {% import "_icons.html" as icons %}
 
+<a class="page-back-link" href="{{ back_url }}">← Back to Runs</a>
 <div class="page-header">
   <h1>Run <code>{{ run.run_id }}</code></h1>
   <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
@@ -24,7 +25,6 @@
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'unarchive', this)">Unarchive Run</button>
     {% endif %}
     <a href="/admin/runs/{{ run.run_id }}" class="btn-secondary" id="manual-refresh-link">⟳ Refresh Status</a>
-    <a href="/admin/runs" class="btn-secondary">← All Runs</a>
   </div>
 </div>
 

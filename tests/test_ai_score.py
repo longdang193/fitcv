@@ -733,6 +733,9 @@ def test_run_ai_scoring_emits_stable_runtime_observation(monkeypatch: pytest.Mon
                     "response_id": None,
                     "trace_id": None,
                     "latency_ms": 1,
+                    "model_record_id": None,
+                    "configuration_revision": None,
+                    "temperature": None,
                 },
                 "failure": None,
             },
@@ -740,36 +743,42 @@ def test_run_ai_scoring_emits_stable_runtime_observation(monkeypatch: pytest.Mon
     ]
 
 
-def test_build_scoring_prompt_includes_safe_addendum() -> None:
-    prompt = build_scoring_prompt(
-        jd_summary="Data Analyst",
-        candidate_summary="SQL",
-        top_evidence=[],
-        config={
-            "prompts": {
-                "ranking": {"ai_score": {"prompt_id": "ranking.ai_score.v2"}},
-                "additional_instructions": {
-                    "ranking_ai_score": "Penalize unsupported claims."
-                },
-            }
-        },
+def test_build_scoring_prompt_uses_full_replacement() -> None:
+    from fitcv.prompts.loader import load_prompt_template
+    from fitcv.prompts.registry import get_prompt_definition
+
+    default_text = load_prompt_template(
+        get_prompt_definition("ranking.ai_score.v2").template_path
     )
+    replacement = default_text.replace("Return JSON only", "Penalize unsupported claims.\n\nReturn JSON only", 1)
+    with patch("fitcv.ai_score.get_prompt_replacement", return_value=replacement):
+        prompt = build_scoring_prompt(
+            jd_summary="Data Analyst",
+            candidate_summary="SQL",
+            top_evidence=[],
+            config={"prompts": {"ranking": {"ai_score": {"prompt_id": "ranking.ai_score.v2"}}}},
+        )
 
     assert prompt.count("Penalize unsupported claims.") == 1
     assert prompt.index("Penalize unsupported claims.") < prompt.index("Return JSON only")
 
 def test_ai_score_contract_fingerprint_uses_hash_only_prompt_customization() -> None:
     raw = "Private ranking guidance"
-    record = build_ai_score_contract_fingerprint(
-        {
-            "ai_score_model": "cx/test-model",
-            "prompts": {
-                "ranking": {"ai_score": {"prompt_id": "ranking.ai_score.v2"}},
-                "additional_instructions": {"ranking_ai_score": raw},
-            },
-        }
-    )
+    with patch(
+        "fitcv.ai_score.get_prompt_replacement_metadata",
+        return_value={
+            "customized": True,
+            "replacement_sha256": __import__("hashlib").sha256(raw.encode("utf-8")).hexdigest(),
+            "replacement_char_count": len(raw),
+        },
+    ):
+        record = build_ai_score_contract_fingerprint(
+            {
+                "ai_score_model": "cx/test-model",
+                "prompts": {"ranking": {"ai_score": {"prompt_id": "ranking.ai_score.v2"}}},
+            }
+        )
 
     assert record["payload"]["prompt_customized"] is True
-    assert record["payload"]["prompt_addendum_char_count"] == len(raw)
+    assert record["payload"]["prompt_replacement_char_count"] == len(raw)
     assert raw not in str(record)

@@ -92,9 +92,26 @@ def test_activate_local_storage_migrates_legacy_overlay_once(
     assert second.controller_overlay_path.read_bytes() == paths.controller_overlay_path.read_bytes()
 
 
-def test_retry_settings_require_canonical_fields() -> None:
-    with pytest.raises(ValueError, match="fitcv_cp.retry.enabled is required"):
-        load_retry_settings({"fitcv_cp": {"retry": {}}})
+def test_retry_settings_use_scalar_initial_backoff() -> None:
+    settings = load_retry_settings(
+        {
+            "fitcv_cp": {
+                "retry": {
+                    "maximum_attempts": 4,
+                    "initial_backoff_seconds": 12,
+                    "lease_seconds": 240,
+                    "reconciler_interval_seconds": 20,
+                    "error_detail_limit": 8000,
+                }
+            }
+        }
+    )
+
+    assert settings.maximum_attempts == 4
+    assert settings.initial_backoff_seconds == 12
+    assert settings.lease_seconds == 240
+    assert settings.reconciler_interval_seconds == 20
+    assert settings.error_detail_limit == 8000
 
 def test_effective_controller_merges_prompt_addenda(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

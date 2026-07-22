@@ -305,11 +305,11 @@ def build_enrich_stage_block(
             "enrich_prompt_customized": enrich_prompt_provenance[
                 "prompt_customized"
             ],
-            "enrich_prompt_addendum_sha256": enrich_prompt_provenance[
-                "prompt_addendum_sha256"
+            "enrich_prompt_replacement_sha256": enrich_prompt_provenance[
+                "prompt_replacement_sha256"
             ],
-            "enrich_prompt_addendum_char_count": enrich_prompt_provenance[
-                "prompt_addendum_char_count"
+            "enrich_prompt_replacement_char_count": enrich_prompt_provenance[
+                "prompt_replacement_char_count"
             ],
             **enrich_reuse_counts,
             "reuse_metrics": enrich_reuse_metrics,
@@ -581,11 +581,11 @@ def build_ranking_stage_block(
             "ranking_prompt_customized": ranking_prompt_provenance[
                 "prompt_customized"
             ],
-            "ranking_prompt_addendum_sha256": ranking_prompt_provenance[
-                "prompt_addendum_sha256"
+            "ranking_prompt_replacement_sha256": ranking_prompt_provenance[
+                "prompt_replacement_sha256"
             ],
-            "ranking_prompt_addendum_char_count": ranking_prompt_provenance[
-                "prompt_addendum_char_count"
+            "ranking_prompt_replacement_char_count": ranking_prompt_provenance[
+                "prompt_replacement_char_count"
             ],
             "ai_score_model": ai_score_model_resolver(config),
             "ranking_policy": ranking_policy,
@@ -781,11 +781,11 @@ def build_cv_generation_stage_block(
             "cv_prompt_customized": cv_generation_prompt_provenance[
                 "prompt_customized"
             ],
-            "cv_prompt_addendum_sha256": cv_generation_prompt_provenance[
-                "prompt_addendum_sha256"
+            "cv_prompt_replacement_sha256": cv_generation_prompt_provenance[
+                "prompt_replacement_sha256"
             ],
-            "cv_prompt_addendum_char_count": cv_generation_prompt_provenance[
-                "prompt_addendum_char_count"
+            "cv_prompt_replacement_char_count": cv_generation_prompt_provenance[
+                "prompt_replacement_char_count"
             ],
         },
         inputs_sample=sample_rows_builder(

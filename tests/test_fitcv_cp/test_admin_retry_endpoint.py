@@ -65,12 +65,11 @@ def test_admin_retry_run_rejects_when_max_attempts_exhausted() -> None:
             with patch(
                 "fitcv_cp.retry_settings.load_retry_settings",
                 return_value=RetrySettings(
-                    enabled=True,
-                    max_attempts=2,
-                    backoff_seconds=(1, 2, 4, 8),
+                    maximum_attempts=2,
+                    initial_backoff_seconds=10,
                     lease_seconds=900,
-                    reconciler_interval_seconds=0,
-                    error_details_max_chars=2048,
+                    reconciler_interval_seconds=30,
+                    error_detail_limit=2048,
                 ),
             ):
                 resp = TestClient(_app()).post("/admin/runs/r1/retry")
@@ -119,12 +118,11 @@ def test_admin_retry_run_enqueues_when_under_cap() -> None:
                                 with patch(
                                     "fitcv_cp.retry_settings.load_retry_settings",
                                     return_value=RetrySettings(
-                                        enabled=True,
-                                        max_attempts=3,
-                                        backoff_seconds=(1, 2, 4, 8),
+                                        maximum_attempts=3,
+                                        initial_backoff_seconds=10,
                                         lease_seconds=900,
-                                        reconciler_interval_seconds=0,
-                                        error_details_max_chars=2048,
+                                        reconciler_interval_seconds=30,
+                                        error_detail_limit=2048,
                                     ),
                                 ):
                                     resp = TestClient(_app()).post("/admin/runs/r1/retry")

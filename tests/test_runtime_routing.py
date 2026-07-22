@@ -167,14 +167,19 @@ def test_validate_cv_generation_routing_ready_openai_compatible_requires_api_key
 
 def test_local_cv_readiness_names_credential_store() -> None:
     with patch.dict("os.environ", {"FITCV_LOCAL_MODE": "1"}, clear=False), patch(
-        "fitcv.runtime_routing.resolve_model_routing_part",
+        "fitcv.runtime_routing.build_packaged_llm_configuration_snapshot",
         return_value={
-            "provider": "openai_compatible",
-            "model": "cx/gpt-5.2",
-            "base_url": "http://localhost:1234/v1",
-            "wire_api": "responses",
-            "timeout_seconds": "300",
-            "auth_mode": "required",
+            "revision": 1,
+            "tasks": {
+                "cv_generation_structured_write": {
+                    "provider": "openai_compatible",
+                    "model": "cx/gpt-5.2",
+                    "base_url": "http://localhost:1234/v1",
+                    "wire_api": "responses",
+                    "timeout_seconds": 300,
+                    "temperature": 0.2,
+                }
+            },
         },
     ), patch("fitcv.runtime_routing.resolve_openai_compatible_api_key", return_value=""):
         with pytest.raises(RuntimeError, match="Windows credential"):
@@ -185,7 +190,7 @@ def test_validate_cv_generation_routing_ready_builtin_provider_no_api_key_needed
     with patch(
         "fitcv.runtime_routing.resolve_model_routing_part",
         return_value={
-            "provider": "vertexai_gemini",
+            "provider": "fitcv_builtin",
             "model": "cx/gpt-5.4-mini",
             "base_url": "",
             "wire_api": "builtin",

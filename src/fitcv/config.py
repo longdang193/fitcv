@@ -20,6 +20,7 @@ import hashlib
 import logging
 import os
 import re
+import sqlite3
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -404,6 +405,24 @@ def validate_local_controller_overlay(payload: dict[str, Any]) -> dict[str, Any]
 
 
 def load_local_controller_overlay(path: str | Path | None = None) -> dict[str, Any]:
+    if str(os.environ.get("FITCV_LOCAL_MODE") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        database_path = str(os.environ.get("FITCV_CP_SQLITE_PATH") or "").strip()
+        if database_path and Path(database_path).exists():
+            try:
+                with sqlite3.connect(database_path) as connection:
+                    migrated = connection.execute(
+                        "SELECT 1 FROM integration_migrations WHERE migration_key = ?",
+                        ("packaged_local_complete_integration_v1",),
+                    ).fetchone()
+            except sqlite3.Error:
+                migrated = None
+            if migrated is not None:
+                return {"version": LOCAL_CONTROLLER_OVERLAY_VERSION}
     raw_path = str(path or os.environ.get("FITCV_LOCAL_CONTROLLER_OVERLAY_PATH") or "").strip()
     if not raw_path:
         return {"version": LOCAL_CONTROLLER_OVERLAY_VERSION}
@@ -443,6 +462,74 @@ def get_prompt_addendum_metadata(
             hashlib.sha256(addendum.encode("utf-8")).hexdigest() if addendum else None
         ),
         "addendum_char_count": len(addendum),
+    }
+
+
+def get_prompt_replacement(
+    task_id: str,
+    config: dict[str, Any] | None = None,
+) -> str | None:
+    task_name = str(task_id).strip()
+    if task_name not in PROMPT_ADDENDUM_TASK_IDS:
+        raise ValueError(f"unsupported prompt task: {task_name}")
+    runtime_inputs = dict((config or {}).get("runtime_inputs") or {})
+    snapshot = dict(runtime_inputs.get("prompt_configuration_snapshot") or {})
+    task_snapshot = dict((snapshot.get("tasks") or {}).get(task_name) or {})
+    if task_snapshot:
+        from fitcv_cp.settings_store import load_prompt_configurations
+
+        resource = load_prompt_configurations()[task_name]
+        replacement = resource.get("replacement_text")
+        expected_hash = str(task_snapshot.get("replacement_sha256") or "")
+        actual_hash = (
+            hashlib.sha256(str(replacement).encode("utf-8")).hexdigest()
+            if replacement is not None
+            else ""
+        )
+        if expected_hash != actual_hash:
+            raise RuntimeError("Prompt configuration changed after Run admission")
+        return str(replacement) if replacement is not None else None
+    if str(os.environ.get("FITCV_LOCAL_MODE") or "").strip().lower() in {"1", "true", "yes", "on"}:
+        from fitcv_cp.settings_store import load_prompt_configurations
+
+        replacement = load_prompt_configurations()[task_name].get("replacement_text")
+        return str(replacement) if replacement is not None else None
+    return None
+
+
+def get_prompt_replacement_metadata(
+    task_id: str,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    replacement = get_prompt_replacement(task_id, config)
+    return {
+        "customized": replacement is not None,
+        "replacement_sha256": (
+            hashlib.sha256(replacement.encode("utf-8")).hexdigest()
+            if replacement is not None
+            else None
+        ),
+        "replacement_char_count": len(replacement or ""),
+    }
+
+
+def build_prompt_configuration_snapshot() -> dict[str, Any]:
+    from fitcv_cp.settings_store import load_prompt_configurations
+
+    resources = load_prompt_configurations()
+    return {
+        "tasks": {
+            task_id: {
+                "revision": int(resource["revision"]),
+                "replacement_sha256": (
+                    hashlib.sha256(str(resource["replacement_text"]).encode("utf-8")).hexdigest()
+                    if resource.get("replacement_text") is not None
+                    else None
+                ),
+                "replacement_char_count": len(str(resource.get("replacement_text") or "")),
+            }
+            for task_id, resource in resources.items()
+        }
     }
 
 

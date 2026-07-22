@@ -17,12 +17,14 @@ tags:
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import sqlite3
 import zipfile
 from pathlib import Path
 
 import pytest
+import yaml
 
 from fitcv.config import validate_local_controller_overlay
 from fitcv_cp.local_storage import (
@@ -34,10 +36,19 @@ from fitcv_cp.local_storage import (
     relocate_data_root,
     restore_backup_archive,
     load_bootstrap,
+    migrate_packaged_local_integration_state,
     validate_data_root_destination,
     write_pending_operation,
     write_bootstrap,
 )
+from fitcv_cp.backend_runtime import set_backend_runtime
+from fitcv_cp.settings_store import (
+    load_llm_configuration,
+    load_prompt_configurations,
+    load_system_settings,
+)
+from fitcv_cp.sqlite_store import initialize_control_plane_database
+from fitcv_cp.store import ControlPlaneStore
 
 
 _LOCAL_ENV_KEYS = (
@@ -299,3 +310,184 @@ def test_cold_relocation_preserves_source_and_uses_sqlite_snapshot(tmp_path: Pat
     assert (source / "fitcv.sqlite3").exists()
     with sqlite3.connect(destination / "fitcv.sqlite3") as connection:
         assert connection.execute("SELECT value FROM sample").fetchone() == ("kept",)
+
+
+def _integration_migration_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    local_storage = __import__("fitcv_cp.local_storage", fromlist=["_paths"])
+    data_root = tmp_path / "data"
+    paths = local_storage._paths(tmp_path / "bootstrap.json", data_root)
+    for directory in (
+        data_root,
+        paths.controller_overlay_path.parent,
+        paths.artifacts_path,
+        paths.exports_path,
+        paths.logs_path,
+        paths.backups_path,
+        paths.uploads_path,
+        paths.temporary_path,
+    ):
+        directory.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("FITCV_LOCAL_MODE", "1")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(paths.sqlite_path))
+    monkeypatch.setenv("FITCV_LOCAL_CONTROLLER_OVERLAY_PATH", str(paths.controller_overlay_path))
+    set_backend_runtime(None)
+    initialize_control_plane_database(paths.sqlite_path, paths.candidate_profile_path)
+    return paths
+
+
+def test_integration_migration_imports_legacy_state_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    paths = _integration_migration_paths(tmp_path, monkeypatch)
+    long_addendum = "x" * 3900
+    paths.controller_overlay_path.write_text(
+        yaml.safe_dump(
+            {
+                "version": 1,
+                "providers": {
+                    "openai_compatible": {
+                        "base_url": "https://example.test/v1",
+                        "auth_mode": "required",
+                        "wire_api": "responses",
+                        "timeout_seconds": 30,
+                    }
+                },
+                "model_routing": {
+                    "parts": {
+                        task_id: {
+                            "provider": "openai_compatible",
+                            "model": "legacy-model",
+                        }
+                        for task_id in (
+                            "enrich_extraction",
+                            "ranking_ai_score",
+                            "cv_generation_structured_write",
+                            "synonym_triage_recommendation",
+                        )
+                    }
+                },
+                "prompts": {
+                    "additional_instructions": {
+                        "enrich_extraction": "Keep the legacy instruction.",
+                        "ranking_ai_score": long_addendum,
+                    }
+                },
+                "fitcv_cp": {
+                    "retry": {
+                        "enabled": True,
+                        "max_attempts": 5,
+                        "backoff_seconds": [7, 20],
+                        "lease_seconds": 900,
+                        "reconciler_interval_seconds": 0,
+                        "error_details_max_chars": 25000,
+                    }
+                },
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    paths.onboarding_state_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "current_step": "review",
+                "complete": True,
+                "profile_configured": True,
+                "provider_id": "openai_compatible",
+                "provider_test_ok": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    credentials = {"openai_compatible": "secret-canary"}
+    monkeypatch.setattr(
+        "fitcv_cp.local_credentials.get_credential",
+        lambda provider_id: credentials.get(provider_id, ""),
+    )
+    monkeypatch.setattr(
+        "fitcv_cp.local_credentials.set_credential",
+        lambda provider_id, value: credentials.__setitem__(provider_id, value),
+    )
+    monkeypatch.setattr(
+        "fitcv_cp.local_credentials.delete_credential",
+        lambda provider_id: credentials.pop(provider_id, None),
+    )
+
+    first = migrate_packaged_local_integration_state(paths)
+    target_provider_id = "custom-legacy-" + hashlib.sha256(
+        b"openai_compatible"
+    ).hexdigest()[:12]
+    store = ControlPlaneStore()
+    provider = store.get_api_provider_connection(target_provider_id)
+    models = store.list_api_provider_models(target_provider_id)
+    llm = load_llm_configuration()
+    prompts = load_prompt_configurations()
+    system = load_system_settings()
+    revisions = (llm["revision"], prompts["enrich_extraction"]["revision"], system["revision"])
+
+    second = migrate_packaged_local_integration_state(paths)
+
+    assert first["status"] == "applied"
+    assert second["status"] == "already_applied"
+    assert provider is not None and provider["verification_status"] == "not_configured"
+    assert len(models) == 1 and models[0]["validation_status"] == "needs_retest"
+    assert llm["default_model_ref"] == models[0]["model_record_id"]
+    assert llm["tasks"]["enrich_extraction"]["model_ref"] == models[0]["model_record_id"]
+    assert "Keep the legacy instruction.\n\nReturn ONLY" in prompts["enrich_extraction"]["replacement_text"]
+    assert prompts["ranking_ai_score"]["migration_state"] == "needs_review"
+    assert len(prompts["ranking_ai_score"]["replacement_text"]) > 4000
+    assert system["maximum_attempts"] == 5
+    assert system["initial_backoff_seconds"] == 7
+    assert system["reconciler_interval_seconds"] == 30
+    assert yaml.safe_load(paths.controller_overlay_path.read_text(encoding="utf-8")) == {"version": 1}
+    assert json.loads(paths.onboarding_state_path.read_text(encoding="utf-8")) == {
+        "version": 1,
+        "current_step": "review",
+        "complete": True,
+        "profile_configured": True,
+    }
+    assert "openai_compatible" not in credentials
+    assert credentials[target_provider_id] == "secret-canary"
+    assert revisions == (
+        load_llm_configuration()["revision"],
+        load_prompt_configurations()["enrich_extraction"]["revision"],
+        load_system_settings()["revision"],
+    )
+
+
+def test_integration_migration_cleanup_failure_preserves_legacy_truth(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    paths = _integration_migration_paths(tmp_path, monkeypatch)
+    paths.controller_overlay_path.write_text(
+        "version: 1\nproviders:\n  openai_compatible:\n    base_url: https://example.test/v1\n",
+        encoding="utf-8",
+    )
+    paths.onboarding_state_path.write_text(
+        '{"version": 1, "complete": false, "provider_id": "openai_compatible"}\n',
+        encoding="utf-8",
+    )
+    overlay_before = paths.controller_overlay_path.read_bytes()
+    onboarding_before = paths.onboarding_state_path.read_bytes()
+    monkeypatch.setattr(
+        "fitcv_cp.local_storage.write_controller_overlay",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("cleanup failed")),
+    )
+    monkeypatch.setattr("fitcv_cp.local_credentials.get_credential", lambda _provider_id: "")
+
+    with pytest.raises(OSError, match="cleanup failed"):
+        migrate_packaged_local_integration_state(paths)
+
+    assert not ControlPlaneStore().integration_migration_applied(
+        "packaged_local_complete_integration_v1"
+    )
+    assert paths.controller_overlay_path.read_bytes() == overlay_before
+    assert paths.onboarding_state_path.read_bytes() == onboarding_before
+    error = json.loads(paths.integration_migration_error_path.read_text(encoding="utf-8"))
+    assert error == {"error_type": "OSError", "message": "cleanup failed"}

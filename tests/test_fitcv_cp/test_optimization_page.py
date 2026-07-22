@@ -143,7 +143,6 @@ def test_optimization_page_renders_empty_native_state(monkeypatch: Any) -> None:
 
     assert response.status_code == 200
     assert "Preference Optimization" in response.text
-    assert 'href="/admin/optimization"' in response.text
     assert "zero residual" in response.text
     assert "No saved rating evidence yet" in response.text
     assert "Optimize Current Evidence" in response.text

@@ -17,11 +17,12 @@ lifecycle:
 
 from fitcv.prompts.models import PromptDefinition, RenderedPrompt
 from fitcv.prompts.registry import get_prompt_definition
-from fitcv.prompts.renderer import render_prompt
+from fitcv.prompts.renderer import render_prompt, required_template_variables
 
 __all__ = [
     "PromptDefinition",
     "RenderedPrompt",
     "get_prompt_definition",
+    "required_template_variables",
     "render_prompt",
 ]

@@ -29,6 +29,10 @@ def _account(provider_id: str) -> str:
     return f"provider:{normalized}"
 
 
+def credential_account(provider_id: str) -> str:
+    return _account(provider_id)
+
+
 def set_credential(provider_id: str, api_key: str) -> None:
     secret = str(api_key or "").strip()
     if not secret:

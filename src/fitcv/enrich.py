@@ -31,8 +31,8 @@ from typing import Any, Callable, TypedDict
 from pydantic import BaseModel as _BaseModel, Field as _Field, ValidationError as _ValidationError
 from fitcv.config import (
     get_enrich_extraction_model,
-    get_prompt_addendum,
-    get_prompt_addendum_metadata,
+    get_prompt_replacement,
+    get_prompt_replacement_metadata,
     get_stage_runtime_batch_size,
     get_stage_runtime_concurrency,
     load_prompt_task_registry,
@@ -55,6 +55,7 @@ from fitcv.llm_runtime import (
     execute_llm_task,
     project_llm_runtime_evidence,
 )
+from fitcv.runtime_routing import resolve_llm_routing
 from fitcv.pipeline_stages.common import extract_job_url
 from fitcv.prompts import get_prompt_definition, render_prompt
 from fitcv.semantic_snapshot import (
@@ -1310,7 +1311,7 @@ def build_extraction_prompt(
             "extraction_schema": _EXTRACTION_SCHEMA,
             "description": description,
         },
-        additional_instructions=get_prompt_addendum("enrich_extraction", config),
+        replacement_text=get_prompt_replacement("enrich_extraction", config),
     )
     return rendered.text
 
@@ -1328,15 +1329,15 @@ def get_enrich_prompt_provenance(config: dict[str, Any] | None = None) -> dict[s
     prompt_id = get_enrich_extraction_prompt_id(config)
     definition = get_prompt_definition(prompt_id)
     model_name = get_enrich_extraction_model(config or {})
-    customization = get_prompt_addendum_metadata("enrich_extraction", config)
+    customization = get_prompt_replacement_metadata("enrich_extraction", config)
     return {
         "prompt_id": definition.prompt_id,
         "prompt_version": definition.version,
         "template_path": str(definition.template_path),
         "model": model_name,
         "prompt_customized": customization["customized"],
-        "prompt_addendum_sha256": customization["addendum_sha256"],
-        "prompt_addendum_char_count": customization["addendum_char_count"],
+        "prompt_replacement_sha256": customization["replacement_sha256"],
+        "prompt_replacement_char_count": customization["replacement_char_count"],
     }
 
 
@@ -1948,6 +1949,7 @@ def _execute_enrich_runtime(
         parser=_parser,
         validator=_validator,
         adapter=adapter,
+        resolved_route=resolve_llm_routing("enrich_extraction", runtime_config=config),
     )
 
 
